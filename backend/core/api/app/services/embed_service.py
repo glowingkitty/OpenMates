@@ -20,6 +20,7 @@ from backend.shared.python_schemas.embed_status import (
     EmbedStatus,
     validate_embed_transition,
 )
+from backend.shared.providers.youtube.youtube_metadata import extract_youtube_id_from_url
 
 logger = logging.getLogger(__name__)
 
@@ -2030,7 +2031,7 @@ class EmbedService:
         create_embeds_from_skill_results) and by main_processor.py when it needs to
         inject embed_ref slugs into tool results before sending them to the LLM.
 
-        Returns one of: "connection", "stay", "place", "event", "website"
+        Returns one of: "connection", "stay", "place", "event", "video", "image_result", "website"
         """
         if app_id == "maps" and skill_id == "search":
             return "place"
@@ -2046,8 +2047,55 @@ class EmbedService:
             return "event"
         elif app_id == "images" and skill_id == "search":
             return "image_result"
+        elif app_id == "videos" and skill_id == "search":
+            return "video"
+        elif app_id == "health" and skill_id == "search_appointments":
+            return "appointment"
         else:
-            return "website"  # Default: web search, news, videos, etc.
+            return "website"  # Default: web search, news, etc.
+
+    @staticmethod
+    def _get_per_result_child_type(
+        default_child_type: str,
+        result: Dict[str, Any],
+        app_id: str,
+        skill_id: str,
+    ) -> str:
+        """
+        Determine the child embed type for a specific result, potentially overriding
+        the default child type based on the result's URL.
+
+        Currently handles: YouTube URLs in web/news/shopping search results are
+        auto-converted from "website" to "video" so they render with the proper
+        video embed component instead of a generic website card.
+
+        Args:
+            default_child_type: The default child type from get_child_embed_type()
+            result: The individual result dict (must contain "url" field)
+            app_id: Parent embed's app_id
+            skill_id: Parent embed's skill_id
+
+        Returns:
+            The child type to use — either the default or an overridden type.
+        """
+        # Only override for skills whose default child type is "website"
+        if default_child_type != "website":
+            return default_child_type
+
+        url = result.get("url", "")
+        if not url:
+            return default_child_type
+
+        # Detect YouTube URLs and convert to video embeds
+        video_id = extract_youtube_id_from_url(url)
+        if video_id:
+            logger.info(
+                f"[YOUTUBE_DETECT] Converting web search result to video embed: "
+                f"url={url[:80]}, video_id={video_id}, app={app_id}, skill={skill_id}"
+            )
+            return "video"
+
+        return default_child_type
 
     @staticmethod
     def _generate_embed_ref_slug(
@@ -2432,8 +2480,29 @@ class EmbedService:
             None if update fails
         """
         if not results or len(results) == 0:
-            logger.warning(f"{log_prefix} No results to update embed {embed_id}")
-            return None
+            # CRITICAL FIX: Finalize the placeholder with 0 results instead of abandoning it.
+            # Without this, placeholders stay stuck at status=processing forever, causing the
+            # frontend to show an infinite "Processing..." shimmer. The skill completed
+            # successfully but simply found no results — that's a valid finished state.
+            # See: GitHub issue — embed processing failures across CLI and web app chats.
+            logger.info(f"{log_prefix} Skill returned 0 results for embed {embed_id} — finalizing with empty results")
+            try:
+                return await self._finalize_embed_no_results(
+                    embed_id=embed_id,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                    request_metadata=request_metadata,
+                )
+            except Exception as e:
+                logger.error(f"{log_prefix} Error finalizing 0-result embed {embed_id}: {e}", exc_info=True)
+                return None
 
         try:
             # Hash sensitive IDs for privacy protection
@@ -2441,8 +2510,8 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            # Determine if this is a composite result (web search, places, events, connections, stays)
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
+            # Determine if this is a composite result (web search, places, events, connections, stays, appointments, products)
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays", "search_appointments", "search_products"]
 
             child_embed_ids = []
 
@@ -2497,10 +2566,15 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                # Determine child embed type using canonical helper (single source of truth)
-                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+                # Determine default child embed type using canonical helper (single source of truth)
+                default_child_type = EmbedService.get_child_embed_type(app_id, skill_id)
 
                 for result in results:
+                    # Determine per-result child type (may override default for YouTube URLs in web search)
+                    child_type = EmbedService._get_per_result_child_type(
+                        default_child_type, result, app_id, skill_id
+                    )
+
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
@@ -2662,10 +2736,10 @@ class EmbedService:
                 }
 
                 # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
-                # The send_embed_data_to_client with check_cache_status=True will check if cache 
+                # The send_embed_data_to_client with check_cache_status=True will check if cache
                 # already has status=finished and skip. We need to send first, then update cache.
                 # This ensures the client receives the parent embed data with embed_ids (child embeds)
-                await self.send_embed_data_to_client(
+                send_ok = await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
                     content_toon=parent_content_toon,  # PLAINTEXT TOON
@@ -2684,11 +2758,17 @@ class EmbedService:
                     app_id=app_id,
                     skill_id=skill_id
                 )
+                if not send_ok:
+                    logger.error(
+                        f"{log_prefix} [EMBED_EVENT] FAILED to publish send_embed_data for composite embed {embed_id} "
+                        f"(status=finished, children={len(child_embed_ids)}). Client will not receive the finalized embed — "
+                        f"relying on client-side stale recovery (request_embed after 5s)."
+                    )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
-                logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
+                logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds (send_ok={send_ok})")
 
                 # Schedule fallback persistence for parent and all child embeds
                 # This ensures embeds are persisted even if the client doesn't send store_embed
@@ -2777,7 +2857,7 @@ class EmbedService:
 
                 # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
                 # This ensures the client receives the embed data before cache is marked as finished
-                await self.send_embed_data_to_client(
+                send_ok = await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
                     content_toon=content_toon,  # PLAINTEXT TOON
@@ -2792,11 +2872,17 @@ class EmbedService:
                     updated_at=updated_at,
                     log_prefix=log_prefix
                 )
+                if not send_ok:
+                    logger.error(
+                        f"{log_prefix} [EMBED_EVENT] FAILED to publish send_embed_data for single embed {embed_id} "
+                        f"(status=finished). Client will not receive the finalized embed — "
+                        f"relying on client-side stale recovery (request_embed after 5s)."
+                    )
 
                 # Update cache AFTER sending (overwrites placeholder with finished status)
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
-                logger.info(f"{log_prefix} Updated single embed {embed_id}")
+                logger.info(f"{log_prefix} Updated single embed {embed_id} (send_ok={send_ok})")
 
                 # Schedule fallback persistence for single embed
                 self._schedule_embed_persistence_fallback(embed_id)
@@ -3275,22 +3361,27 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             
-            # Determine if this is a composite result (web search, places, events, connections, stays)
+            # Determine if this is a composite result (web search, places, events, connections, stays, appointments, products)
             # Check both app_id and skill_id to determine composite vs single
             # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays"]
+            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays", "search_appointments", "search_products"]
             
             child_embed_ids = []
             
             if is_composite:
-                # Determine child embed type using canonical helper (single source of truth)
-                child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+                # Determine default child embed type using canonical helper (single source of truth)
+                default_child_type = EmbedService.get_child_embed_type(app_id, skill_id)
                 
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
                 parent_embed_id = str(uuid.uuid4())
                 
                 for result in results:
+                    # Determine per-result child type (may override default for YouTube URLs in web search)
+                    child_type = EmbedService._get_per_result_child_type(
+                        default_child_type, result, app_id, skill_id
+                    )
+
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
@@ -3613,6 +3704,124 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating embeds from skill results: {e}", exc_info=True)
             return None
     
+    async def _finalize_embed_no_results(
+        self,
+        embed_id: str,
+        app_id: str,
+        skill_id: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+        request_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Finalize a processing placeholder embed that received 0 results.
+
+        The skill completed successfully but found nothing (e.g. no events matching
+        the query, no web search hits).  Instead of leaving the placeholder stuck
+        at status=processing forever, we transition it to status=finished with
+        result_count=0 so the frontend shows "0 results found" immediately.
+
+        Architecture context: docs/architecture/embeds.md — "Embed State Machine"
+        """
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+        hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+        # Retrieve original placeholder metadata (query, provider, etc.)
+        original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+        original_metadata: Dict[str, Any] = {}
+        if request_metadata:
+            for key, value in request_metadata.items():
+                if key not in ("request_id",):
+                    original_metadata[key] = value
+        elif original_content:
+            for key in ("query", "provider", "url", "languages", "count", "country", "search_lang"):
+                if key in original_content:
+                    original_metadata[key] = original_content[key]
+
+        # Build finished content with 0 results
+        finished_content = {
+            "app_id": app_id,
+            "skill_id": skill_id,
+            "result_count": 0,
+            "embed_ids": [],
+            "status": "finished",
+            **original_metadata,
+        }
+
+        # Convert to TOON and encrypt
+        flattened = _flatten_for_toon_tabular(finished_content)
+        content_toon = encode(flattened)
+        text_length_chars = len(content_toon)
+
+        encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+            content_toon, user_vault_key_id
+        )
+
+        now_ts = int(datetime.now().timestamp())
+        updated_embed_data = {
+            "embed_id": embed_id,
+            "type": "app_skill_use",
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "hashed_chat_id": hashed_chat_id,
+            "hashed_message_id": hashed_message_id,
+            "hashed_task_id": hashed_task_id,
+            "status": "finished",
+            "hashed_user_id": user_id_hash,
+            "is_private": False,
+            "is_shared": False,
+            "encryption_mode": "client",
+            "embed_ids": [],
+            "encrypted_content": encrypted_content,
+            "text_length_chars": text_length_chars,
+            "created_at": now_ts,
+            "updated_at": now_ts,
+        }
+
+        # Send finished event to client BEFORE updating cache (same pattern as composite path)
+        await self.send_embed_data_to_client(
+            embed_id=embed_id,
+            embed_type="app_skill_use",
+            content_toon=content_toon,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            status="finished",
+            task_id=task_id,
+            embed_ids=[],
+            text_length_chars=text_length_chars,
+            created_at=now_ts,
+            updated_at=now_ts,
+            log_prefix=log_prefix,
+            check_cache_status=True,
+            app_id=app_id,
+            skill_id=skill_id,
+        )
+
+        # Update cache (overwrites processing placeholder with finished status)
+        await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+        # Schedule fallback persistence
+        self._schedule_embed_persistence_fallback(embed_id)
+
+        logger.info(
+            f"{log_prefix} Finalized embed {embed_id} with 0 results "
+            f"(app={app_id}, skill={skill_id}, query={original_metadata.get('query', 'N/A')})"
+        )
+
+        return {
+            "embed_id": embed_id,
+            "child_embed_ids": [],
+            "status": "finished",
+        }
+
     async def _cache_embed(
         self,
         embed_id: str,

@@ -37,12 +37,15 @@
   let localSubject = $state('');
   let localContent = $state('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
 
   $effect(() => {
-    localReceiver = receiverProp || '';
-    localSubject = subjectProp || '';
-    localContent = contentProp || '';
-    localStatus = statusProp || 'processing';
+    if (!storeResolved) {
+      localReceiver = receiverProp || '';
+      localSubject = subjectProp || '';
+      localContent = contentProp || '';
+      localStatus = statusProp || 'processing';
+    }
   });
 
   let embedPIIState = $state({ mappings: [] as import('../../../types/chat').PIIMapping[], revealed: false });
@@ -82,6 +85,7 @@
     if (!data.decodedContent) {
       if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
         localStatus = data.status;
+        if (data.status !== 'processing') { storeResolved = true; }
       }
       return;
     }
@@ -93,6 +97,7 @@
 
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
   }
 </script>

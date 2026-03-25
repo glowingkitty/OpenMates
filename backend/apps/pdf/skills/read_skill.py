@@ -309,23 +309,26 @@ class ReadSkill(BaseSkill):
 
             vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
             ocr_data_s3_key = embed_content.get("ocr_data_s3_key")
-            aes_nonce = embed_content.get("aes_nonce")
 
             if not vault_wrapped_aes_key:
                 raise RuntimeError("PDF embed cache missing vault_wrapped_aes_key")
             if not ocr_data_s3_key:
                 raise RuntimeError("PDF embed cache missing ocr_data_s3_key")
-            if not aes_nonce:
-                raise RuntimeError("PDF embed cache missing aes_nonce")
+            # Note: aes_nonce is no longer validated here — the OCR blob S3 object
+            # has its nonce prepended as the first 12 bytes of its ciphertext.
 
             # --- Step 3: Unwrap AES key ---
             logger.info(f"{log_prefix} Unwrapping AES key")
             aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, resolved_vault_key_id)
 
             # --- Step 4: Download + decrypt OCR blob ---
+            # The nonce is prepended as the first 12 bytes of the ciphertext
+            # (set during PDF processing in process_task.py step 8).
+            # aes_nonce in the embed content is "" for new artefacts; ignore it.
             logger.info(f"{log_prefix} Downloading OCR blob: {ocr_data_s3_key}")
-            encrypted = await self._download_from_s3(ocr_data_s3_key)
-            nonce = base64.b64decode(aes_nonce)
+            encrypted_with_nonce = await self._download_from_s3(ocr_data_s3_key)
+            nonce = encrypted_with_nonce[:12]
+            encrypted = encrypted_with_nonce[12:]
             aesgcm = AESGCM(aes_key_bytes)
             plaintext = aesgcm.decrypt(nonce, encrypted, None)
             ocr_data = json.loads(plaintext.decode("utf-8"))

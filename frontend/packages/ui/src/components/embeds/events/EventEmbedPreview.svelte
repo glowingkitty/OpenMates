@@ -16,6 +16,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
    * A single event result from the events/search skill backend.
@@ -55,6 +56,7 @@
       currency?: string;
     };
     image_url?: string | null;
+    cover_url?: string | null;
   }
 
   interface Props {
@@ -170,6 +172,11 @@
     }
   });
 
+  let eventImageUrl = $derived.by(() => {
+    const rawImageUrl = event.image_url || event.cover_url;
+    return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : '';
+  });
+
   // No-op stop handler — child event embeds are already finished
   async function handleStop() {
     // Not applicable for finished child event embeds
@@ -188,9 +195,14 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
+  hasFullWidthImage={!!eventImageUrl}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="event-preview-details" class:mobile={isMobileLayout}>
+      {#if eventImageUrl}
+        <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
+      {/if}
+
       <!-- Event title -->
       <div class="event-title">{event.title || ''}</div>
 
@@ -234,6 +246,14 @@
     height: 100%;
     justify-content: center;
     padding: 2px 0;
+  }
+
+  .event-image {
+    width: 100%;
+    height: 74px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 2px;
   }
 
   .event-preview-details.mobile {

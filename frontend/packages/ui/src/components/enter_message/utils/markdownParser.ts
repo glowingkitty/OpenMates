@@ -2,8 +2,11 @@
 // Markdown Parser for converting markdown text to TipTap JSON
 // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 import MarkdownIt from "markdown-it";
+import { get } from "svelte/store";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
+import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
+import { appSkillsStore } from "../../../stores/appSkillsStore";
 // Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
 // over the LaTeX formula preservation for TipTap's Mathematics extension.
@@ -82,6 +85,19 @@ function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
   }
 
   const nextChar = text[numberEnd];
+
+  // If the number is followed by whitespace, peek past it for LaTeX indicators.
+  // "$2 \times 10^{32}$" is math, not currency — the backslash signals a LaTeX command.
+  if (nextChar && /\s/.test(nextChar)) {
+    let lookAhead = numberEnd;
+    while (lookAhead < text.length && /\s/.test(text[lookAhead])) {
+      lookAhead++;
+    }
+    if (lookAhead < text.length && /[\\^_{}]/.test(text[lookAhead])) {
+      return false;
+    }
+  }
+
   // Accept end of string, whitespace, punctuation, or markdown syntax characters (* for bold/italic, ~ for strikethrough)
   return !nextChar || /[\s)\],.;:!?%*~]/.test(nextChar);
 }
@@ -420,10 +436,11 @@ function parseMentions(text: string): any[] {
         const appId = part1;
         const categoryId = part2 || "";
         const entryId = match[4] || "";
-        // Use entry ID for display (will be replaced with actual title when available)
+        // Resolve actual entry title from store, fall back to UUID fragment if unavailable
+        const resolvedTitle = resolveEntryTitle(appId, categoryId, entryId);
         const displayName = formatMentionDisplayName(
           appId,
-          `${categoryId}-${entryId.slice(0, 8)}`,
+          resolvedTitle || `${categoryId}-${entryId.slice(0, 8)}`,
         );
         result.push({
           type: "genericMention",
@@ -456,6 +473,65 @@ function parseMentions(text: string): any[] {
  * Converts snake_case to Title-Case with hyphens for reliable parsing.
  * Example: ("code", "get_docs") => "Code-Get-Docs"
  */
+/**
+ * Resolves the display title for a settings/memory entry from the store.
+ * Returns the entry's title field value (e.g., "OpenMates") or null if unavailable.
+ */
+function resolveEntryTitle(
+  appId: string,
+  categoryId: string,
+  entryId: string,
+): string | null {
+  try {
+    const state = get(appSettingsMemoriesStore);
+    const entry = state.decryptedEntries.get(entryId);
+    if (
+      !entry ||
+      entry.app_id !== appId ||
+      entry.settings_group !== categoryId
+    ) {
+      return null;
+    }
+
+    // Find the is_title field from the app schema
+    const apps = appSkillsStore.apps;
+    const app = apps[appId];
+    if (app) {
+      const memoryMeta = app.settings_and_memories?.find(
+        (m: { id: string }) => m.id === categoryId,
+      );
+      const schema = memoryMeta?.schema_definition;
+      if (schema?.properties) {
+        for (const [key, prop] of Object.entries(schema.properties)) {
+          if ((prop as { is_title?: boolean }).is_title) {
+            const val = entry.item_value[key];
+            if (val && typeof val === "string" && val.trim()) {
+              // Format: "Category-Title" e.g., "Projects-OpenMates"
+              const categoryDisplay = categoryId.replace(/_/g, "-");
+              const titleDisplay = val.trim().replace(/\s+/g, "-");
+              return `${categoryDisplay}-${titleDisplay}`;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: try common field names
+    for (const field of ["name", "title", "label"]) {
+      const val = entry.item_value[field];
+      if (val && typeof val === "string" && val.trim()) {
+        const categoryDisplay = categoryId.replace(/_/g, "-");
+        const titleDisplay = val.trim().replace(/\s+/g, "-");
+        return `${categoryDisplay}-${titleDisplay}`;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function formatMentionDisplayName(appId: string, itemId: string): string {
   const formatPart = (str: string) =>
     str

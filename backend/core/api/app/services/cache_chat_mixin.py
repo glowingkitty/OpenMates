@@ -280,6 +280,39 @@ class ChatCacheMixin:
             logger.error(f"CACHE_OP_ERROR: Error getting versions from {key}: {e}", exc_info=True)
             return None
 
+    async def get_batch_chat_versions(self, user_id: str, chat_ids: List[str]) -> Dict[str, Optional[CachedChatVersions]]:
+        """
+        Fetches chat versions for multiple chats in a single Redis pipeline round-trip.
+        Returns a dict mapping chat_id -> CachedChatVersions (or None if missing).
+        """
+        if not chat_ids:
+            return {}
+        client = await self.client
+        if not client:
+            return {cid: None for cid in chat_ids}
+
+        keys = [self._get_chat_versions_key(user_id, cid) for cid in chat_ids]
+        result: Dict[str, Optional[CachedChatVersions]] = {}
+        try:
+            async with client.pipeline(transaction=False) as pipe:
+                for key in keys:
+                    pipe.hgetall(key)
+                responses = await pipe.execute()
+
+            for chat_id, versions_data_bytes in zip(chat_ids, responses):
+                if not versions_data_bytes:
+                    result[chat_id] = None
+                    continue
+                try:
+                    versions_data = {k.decode('utf-8'): int(v.decode('utf-8')) for k, v in versions_data_bytes.items()}
+                    result[chat_id] = CachedChatVersions(**versions_data)
+                except Exception:
+                    result[chat_id] = None
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: Error in batch get_chat_versions for user {user_id[:8]}...: {e}", exc_info=True)
+            return {cid: None for cid in chat_ids}
+        return result
+
     async def delete_chat_versions(self, user_id: str, chat_id: str) -> bool:
         """
         Deletes the chat versions hash for a specific user and chat.
@@ -667,6 +700,42 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error getting list_item_data from {key}: {e}")
             return None
+
+    async def get_batch_chat_list_item_data(self, user_id: str, chat_ids: List[str]) -> Dict[str, Optional[CachedChatListItemData]]:
+        """
+        Fetches list item data for multiple chats in a single Redis pipeline round-trip.
+        Returns a dict mapping chat_id -> CachedChatListItemData (or None if missing).
+        """
+        if not chat_ids:
+            return {}
+        client = await self.client
+        if not client:
+            return {cid: None for cid in chat_ids}
+
+        keys = [self._get_chat_list_item_data_key(user_id, cid) for cid in chat_ids]
+        result: Dict[str, Optional[CachedChatListItemData]] = {}
+        try:
+            async with client.pipeline(transaction=False) as pipe:
+                for key in keys:
+                    pipe.hgetall(key)
+                responses = await pipe.execute()
+
+            for chat_id, data_bytes in zip(chat_ids, responses):
+                if not data_bytes:
+                    result[chat_id] = None
+                    continue
+                try:
+                    data = {k.decode('utf-8'): v.decode('utf-8') for k, v in data_bytes.items()}
+                    if 'unread_count' in data:
+                        data['unread_count'] = int(data['unread_count'])
+                    filtered_data = {k: v for k, v in data.items() if k in CachedChatListItemData.model_fields}
+                    result[chat_id] = CachedChatListItemData(**filtered_data)
+                except Exception:
+                    result[chat_id] = None
+        except Exception as e:
+            logger.error(f"Error in batch get_chat_list_item_data for user {user_id[:8]}...: {e}", exc_info=True)
+            return {cid: None for cid in chat_ids}
+        return result
 
     async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count", "last_mate_category"], value: Any) -> bool:
         """

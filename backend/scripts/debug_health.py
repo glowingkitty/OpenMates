@@ -5,7 +5,7 @@ checks, error fingerprint display, and request replay.
 
 Called by debug.py; not meant to be run directly.
 
-Architecture context: See docs/claude/debugging.md
+Architecture context: See docs/contributing/guides/debugging.md
 Tests: None (inspection script, not production code)
 """
 
@@ -105,33 +105,44 @@ async def _openobserve_recent_errors(limit: int = 10, since_minutes: int = 30) -
         start_us = int((time.time() - since_minutes * 60) * 1_000_000)
         end_us = int(time.time() * 1_000_000)
 
+        # Valid fields: _timestamp, container, level, message, service
+        # The 'log' field does not exist in this stream — do NOT reference it.
         sql = (
-            f"SELECT _timestamp, container, service, log, message, level "
+            f"SELECT _timestamp, container, service, message, level "
             f"FROM \"default\" "
-            f"WHERE (LOWER(level) IN ('error', 'critical') "
-            f"OR LOWER(log) LIKE '%error%' OR LOWER(log) LIKE '%critical%') "
+            f"WHERE LOWER(level) IN ('error', 'critical') "
             f"ORDER BY _timestamp DESC LIMIT {limit}"
         )
 
-        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        # Use /{org}/_search — stream name is specified in the SQL FROM clause.
+        # Do NOT use /{org}/default/_search: when ORG="default" that produces
+        # /api/default/default/_search which returns 404.
         body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
+        urls_to_try = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        )
 
+        resp = None
         async with httpx.AsyncClient(timeout=10.0, auth=(email, password)) as client:
-            resp = await client.post(url, json=body)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-            results = []
-            for hit in data.get("hits", []):
-                ts_us = hit.get("_timestamp", 0)
-                svc = hit.get("container", hit.get("service", "?"))
-                msg = hit.get("message", hit.get("log", ""))[:120]
-                results.append({
-                    "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
-                    "service": svc,
-                    "message": msg,
-                })
-            return results
+            for url in urls_to_try:
+                resp = await client.post(url, json=body)
+                if resp.status_code == 200:
+                    break
+        if resp is None or resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = []
+        for hit in data.get("hits", []):
+            ts_us = hit.get("_timestamp", 0)
+            svc = hit.get("container", hit.get("service", "?"))
+            msg = hit.get("message", hit.get("log", ""))[:500]
+            results.append({
+                "ts": int(ts_us) * 1000,  # convert µs → ns for display consistency
+                "service": svc,
+                "message": msg,
+            })
+        return results
     except Exception:
         return []
 
@@ -230,8 +241,19 @@ async def check_log_access() -> Tuple[bool, bool]:
                 prod_ok = True
                 print(_ok("  Production logs   — Admin API reachable and authenticated"))
             elif resp.status_code in (401, 403):
-                print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
-                print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
+                # Try to detect the specific "device not approved" case from the response body
+                try:
+                    body = resp.json()
+                    detail = body.get("detail", "")
+                except Exception:
+                    detail = resp.text[:200]
+                if "device" in detail.lower() and ("approved" in detail.lower() or "confirm" in detail.lower()):
+                    print(_err(f"  Production logs — API key device not approved (HTTP {resp.status_code})"))
+                    print(_c(DIM, "    The API key is valid but this device hasn't been confirmed yet."))
+                    print(_c(DIM, "    Fix: log in to production → Settings → Developers → Devices → approve the pending device."))
+                else:
+                    print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
+                    print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
             else:
                 print(_err(f"  Production logs — unexpected HTTP {resp.status_code} from {probe_url}"))
         except Exception as exc:
@@ -463,6 +485,230 @@ async def run_health_check(verbose: bool = False, skip_log_access: bool = False)
     else:
         print(_err(f"  {issues_found} issues found — action needed"))
     print()
+
+
+async def run_health_check_compact() -> str:
+    """Return a one-liner health summary for non-debug session modes.
+
+    Checks Prometheus API error rate, P95 latency, queue depths,
+    AND OpenObserve application error count (last 30 min).
+
+    Returns a short string like:
+      "OK (0% API errors, P95 42ms, queues clear)"
+    or:
+      "WARN — 12 app errors (30m), API error rate 5.1%"
+    """
+    import math
+    parts = []
+    warnings = []
+
+    # 1. Prometheus: HTTP 5xx error rate (last 5 min)
+    error_rate = await _prom_query(
+        'sum(rate(api_requests_total{status_code=~"5.."}[5m])) / '
+        'sum(rate(api_requests_total[5m]))'
+    )
+    if error_rate is None:
+        total_reqs = await _prom_query('sum(rate(api_requests_total[5m]))')
+        if total_reqs is None or total_reqs == 0:
+            parts.append("no request data")
+        else:
+            parts.append("0% API errors")
+    elif error_rate > 0.02:
+        warnings.append(f"API 5xx rate {error_rate*100:.1f}%")
+    else:
+        parts.append(f"{error_rate*100:.1f}% API errors")
+
+    # 2. P95 latency
+    p95 = await _prom_query(
+        'histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le))'
+    )
+    if p95 is not None and not math.isnan(p95):
+        if p95 > 2.0:
+            warnings.append(f"P95 {p95:.1f}s")
+        elif p95 < 1.0:
+            parts.append(f"P95 {p95*1000:.0f}ms")
+        else:
+            parts.append(f"P95 {p95:.2f}s")
+
+    # 3. Queue depths
+    depths = await _get_celery_queue_depths()
+    total_pending = sum(depths.values()) if depths else 0
+    if total_pending > 50:
+        warnings.append(f"queue backlog: {total_pending} tasks")
+    elif total_pending > 0:
+        parts.append(f"queues: {total_pending} pending")
+    else:
+        parts.append("queues clear")
+
+    # 4. OpenObserve: application-level errors (last 30 min)
+    # This catches errors that don't produce 5xx (task failures, embed errors, etc.)
+    app_errors = await _openobserve_recent_errors(limit=50, since_minutes=30)
+    if app_errors:
+        count = len(app_errors)
+        if count >= 50:
+            warnings.append("50+ app errors (30m)")
+        elif count >= 10:
+            warnings.append(f"{count} app errors (30m)")
+        elif count >= 3:
+            parts.append(f"{count} app errors (30m)")
+        else:
+            parts.append(f"{count} app error{'s' if count != 1 else ''} (30m)")
+    else:
+        parts.append("0 app errors (30m)")
+
+    if warnings:
+        # Include parts as additional context after warnings
+        extra = f" | {', '.join(parts)}" if parts else ""
+        return f"WARN — {', '.join(warnings)}{extra}"
+    return f"OK ({', '.join(parts)})"
+
+
+async def _fetch_prod_error_data(top: int = 5) -> dict:
+    """Fetch prod error data via the Admin Debug API.
+
+    Returns a dict with:
+        api_reachable: bool   — Admin API key worked and HTTP 200 received
+        logs_working:  bool   — prod OpenObserve returned at least one log line
+        fingerprints:  list   — top error fingerprints (may be empty list)
+        error:         str    — human-readable failure reason, or ""
+    """
+    result = {"api_reachable": False, "logs_working": False, "fingerprints": [], "error": ""}
+    try:
+        from debug_utils import get_api_key_from_vault, PROD_API_URL
+        try:
+            api_key = await get_api_key_from_vault()
+        except SystemExit:
+            result["error"] = "Admin API key not found in Vault"
+            return result
+
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            # 1. Probe log access: fetch 5 lines from 'api' service, last 60 min
+            logs_resp = await client.get(
+                f"{PROD_API_URL}/logs",
+                headers=headers,
+                params={"services": "api", "since_minutes": 60, "lines": 5},
+            )
+            if logs_resp.status_code != 200:
+                result["error"] = f"Admin API /logs returned HTTP {logs_resp.status_code}"
+                return result
+
+            result["api_reachable"] = True
+            raw_logs = logs_resp.json().get("logs", "")
+            # Any non-header, non-empty line means OpenObserve is returning data
+            data_lines = [
+                line for line in raw_logs.splitlines()
+                if line.strip()
+                and not line.startswith("===")
+                and not line.startswith("---")
+                and "no log entries found" not in line
+            ]
+            result["logs_working"] = bool(data_lines)
+
+            # 2. Fetch error fingerprints
+            errors_resp = await client.get(
+                f"{PROD_API_URL}/errors",
+                headers=headers,
+                params={"top": top},
+            )
+            if errors_resp.status_code == 200:
+                for entry in errors_resp.json().get("top_errors", []):
+                    canonical = entry.get("canonical_key", "")
+                    parts = canonical.split(":", 3)
+                    result["fingerprints"].append({
+                        "exc_type": (parts[0] if parts else "?")[:30],
+                        "file_part": (parts[1] if len(parts) > 1 else "?").rsplit("/", 1)[-1],
+                        "func": (parts[2] if len(parts) > 2 else "?")[:25],
+                        "line_num": parts[3] if len(parts) > 3 else "?",
+                        "count": entry.get("count", 0),
+                    })
+
+        return result
+    except Exception as exc:
+        result["error"] = str(exc)[:120]
+        return result
+
+
+async def get_error_overview_compact(top: int = 5, since_minutes: int = 30) -> str:
+    """Return a compact overview of recent errors for session context.
+
+    Shows errors for both dev (local OpenObserve + Redis) and production
+    (Admin Debug API). Explicitly flags if prod log access is broken.
+
+    Output format (healthy):
+      [dev]  Errors: 5 (last 30m) — api(3), worker(1), web(1)
+      [prod] Logs: OK | Top recurring (7d): none
+    Output format (prod OpenObserve disconnected):
+      [prod] Logs: DISCONNECTED — prod OpenObserve not returning data
+    """
+    lines = []
+
+    # ── Dev: recent error count by service from local OpenObserve ────────────
+    recent_errors = await _openobserve_recent_errors(limit=50, since_minutes=since_minutes)
+    if recent_errors:
+        svc_counts: dict[str, int] = {}
+        for err in recent_errors:
+            svc = err["service"].split("-")[0] if err["service"] != "?" else "unknown"
+            svc = svc.replace("/", "").strip()[:12]
+            svc_counts[svc] = svc_counts.get(svc, 0) + 1
+        total = len(recent_errors)
+        breakdown = ", ".join(f"{s}({c})" for s, c in sorted(svc_counts.items(), key=lambda x: -x[1]))
+        lines.append(f"  [dev]  Errors: {total} (last {since_minutes}m) — {breakdown}")
+    else:
+        lines.append(f"  [dev]  Errors: 0 (last {since_minutes}m)")
+
+    # Dev: top error fingerprints from local Redis
+    try:
+        from backend.core.api.app.services.cache import CacheService
+        cache = CacheService()
+        redis = await cache.client
+        results = await redis.zrevrange(REDIS_ERROR_FINGERPRINTS_KEY, 0, top - 1, withscores=True)
+        await cache.close()
+
+        if results:
+            lines.append("  [dev]  Top recurring (7d):")
+            for i, (member, score) in enumerate(results, 1):
+                # Member format: "<fingerprint>|<exc_type>:<filename>:<funcname>:<lineno>"
+                # Split on the single pipe first, then parse the colon-delimited canonical key.
+                raw = member if isinstance(member, str) else member.decode()
+                _fp, _, canonical = raw.partition("|")
+                c_parts = canonical.split(":", 3)
+                exc_type = (c_parts[0] if c_parts else "?")[:30]
+                file_part = (c_parts[1] if len(c_parts) > 1 else "?").rsplit("/", 1)[-1]
+                func = (c_parts[2] if len(c_parts) > 2 else "?")[:25]
+                line_num = c_parts[3] if len(c_parts) > 3 else "?"
+                count = int(score)
+                lines.append(f"           {i}. [{count}x] {exc_type} in {file_part}:{func}:{line_num}")
+    except Exception:
+        pass  # Fingerprints unavailable — not critical
+
+    # ── Prod: log access probe + error fingerprints ───────────────────────────
+    prod = await _fetch_prod_error_data(top=top)
+
+    if not prod["api_reachable"]:
+        reason = prod["error"] or "could not reach Admin Debug API"
+        lines.append(f"  [prod] UNREACHABLE — {reason}")
+    elif not prod["logs_working"]:
+        lines.append("  [prod] Logs: DISCONNECTED — prod OpenObserve not returning data")
+        lines.append("           (fingerprints below may be stale/empty)")
+        if prod["fingerprints"]:
+            lines.append("  [prod] Top recurring (7d):")
+            for i, e in enumerate(prod["fingerprints"], 1):
+                lines.append(f"           {i}. [{e['count']}x] {e['exc_type']} in {e['file_part']}:{e['func']}:{e['line_num']}")
+        else:
+            lines.append("  [prod] Top recurring (7d): none recorded")
+    else:
+        lines.append("  [prod] Logs: OK")
+        if prod["fingerprints"]:
+            lines.append("  [prod] Top recurring (7d):")
+            for i, e in enumerate(prod["fingerprints"], 1):
+                lines.append(f"           {i}. [{e['count']}x] {e['exc_type']} in {e['file_part']}:{e['func']}:{e['line_num']}")
+        else:
+            lines.append("  [prod] Top recurring (7d): none")
+
+    lines.append("  → Details: debug.py logs --o2 --preset web-app-health")
+    return "\n".join(lines)
 
 
 # ─── Entity health checks ─────────────────────────────────────────────────────
@@ -763,11 +1009,14 @@ async def _print_error_fingerprints(top: int = 10, indent: str = "") -> None:
             return
 
         for member, score in results:
-            parts = member.split("|", 4)
-            exc_type = parts[1] if len(parts) > 1 else "?"
-            file_part = parts[2] if len(parts) > 2 else "?"
-            func = parts[3] if len(parts) > 3 else "?"
-            line = parts[4] if len(parts) > 4 else "?"
+            # Member format: "<fingerprint>|<exc_type>:<filename>:<funcname>:<lineno>"
+            raw = member if isinstance(member, str) else member.decode()
+            _fp, _, canonical = raw.partition("|")
+            c_parts = canonical.split(":", 3)
+            exc_type = c_parts[0] if c_parts else "?"
+            file_part = c_parts[1] if len(c_parts) > 1 else "?"
+            func = c_parts[2] if len(c_parts) > 2 else "?"
+            line = c_parts[3] if len(c_parts) > 3 else "?"
             count = int(score)
             color = RED if count > 100 else (YELLOW if count > 10 else RESET)
             print(f"{indent}{_c(color, str(count).rjust(5))}x  {exc_type}  {file_part}:{func}:{line}")
@@ -775,6 +1024,105 @@ async def _print_error_fingerprints(top: int = 10, indent: str = "") -> None:
         await cache.close()
     except Exception as exc:
         print(f"{indent}{_c(DIM, f'Error fingerprints unavailable: {exc}')}")
+
+
+async def show_error_diff_since_deploy(top: int = 10) -> None:
+    """Compare error fingerprints from before vs after the last sessions.py deploy.
+
+    Reads the last_deploy_sha from .claude/sessions.json to find the deploy
+    timestamp, then queries OpenObserve for errors in two windows:
+      - BEFORE: errors that existed before the deploy timestamp (pre-existing)
+      - AFTER: errors that appeared after the deploy (potentially introduced)
+
+    Design intent: helps identify regressions without manual time-window guessing.
+    """
+    import json
+    import os as _os
+    import subprocess
+
+    # ── Find last deploy SHA and timestamp ─────────────────────────────────
+    sessions_file = _os.path.join(
+        _os.path.dirname(_os.path.abspath(__file__)),
+        "..", "..", ".claude", "sessions.json"
+    )
+    last_sha = ""
+    deploy_ts = None
+    if _os.path.exists(sessions_file):
+        try:
+            with open(sessions_file) as f:
+                sessions_data = json.load(f)
+            last_sha = sessions_data.get("last_deploy_sha", "")
+        except Exception:
+            pass
+
+    if last_sha:
+        project_root = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
+        result = subprocess.run(
+            ["git", "show", "-s", "--format=%ci", last_sha],
+            capture_output=True, text=True, timeout=10, cwd=project_root,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            from datetime import datetime
+            try:
+                # Git outputs: "2026-03-18 14:30:00 +0000"
+                ts_str = result.stdout.strip().split("\n")[0]
+                deploy_ts = datetime.fromisoformat(ts_str.replace(" +0000", "+00:00"))
+            except Exception:
+                pass
+
+    if not deploy_ts:
+        print("No previous deploy found in .claude/sessions.json.")
+        print("Run sessions.py deploy first, then use --diff to compare.")
+        print()
+        print("Falling back to standard error fingerprints:")
+        await show_error_fingerprints(top=top)
+        return
+
+    # ── Query errors before and after deploy ──────────────────────────────
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    deploy_minutes_ago = int((now - deploy_ts).total_seconds() / 60)
+
+    # Errors in window: [deploy_ts - 30min, deploy_ts] = "before"
+    before_window = 30  # minutes before deploy to sample
+    print(_section(f"Error Diff Since Deploy ({last_sha[:9]}, {deploy_minutes_ago}m ago)"))
+
+    before_errors = await _openobserve_recent_errors(
+        limit=100, since_minutes=deploy_minutes_ago + before_window
+    )
+    after_errors = await _openobserve_recent_errors(
+        limit=100, since_minutes=deploy_minutes_ago
+    )
+
+    def _fingerprint_error(err: dict) -> str:
+        msg = (err.get("message", "") or "")[:80]
+        svc = err.get("service", "?")
+        return f"{svc}:{msg}"
+
+    before_fps = {_fingerprint_error(e) for e in before_errors}
+    after_fps = {_fingerprint_error(e) for e in after_errors}
+
+    new_fps = after_fps - before_fps
+    existing_fps = after_fps & before_fps
+
+    if new_fps:
+        print(f"  NEW since deploy ({len(new_fps)} error pattern(s)):")
+        for fp in sorted(new_fps)[:top]:
+            print(f"    ✗ {fp}")
+    else:
+        print("  NEW since deploy: none")
+
+    print()
+    if existing_fps:
+        print(f"  PRE-EXISTING (also in before-window, {len(existing_fps)} pattern(s)):")
+        for fp in sorted(existing_fps)[:top]:
+            print(f"    ~ {fp}")
+    else:
+        print("  PRE-EXISTING: none found in before-window")
+
+    print()
+    print(f"  Window: before={before_window}m pre-deploy, after={deploy_minutes_ago}m post-deploy")
+    print("  Full errors: debug.py errors --compact | debug.py errors --top 20")
 
 
 async def show_error_fingerprints(top: int = 10) -> None:
@@ -799,11 +1147,14 @@ async def show_error_fingerprints(top: int = 10) -> None:
         print(f"  {'─'*6}  {'─'*30}  {'─'*40}")
 
         for member, score in results:
-            parts = member.split("|", 4)
-            exc_type = (parts[1] if len(parts) > 1 else "?")[:28]
-            file_part = (parts[2] if len(parts) > 2 else "?")[-25:]
-            func = (parts[3] if len(parts) > 3 else "?")[:20]
-            line = parts[4] if len(parts) > 4 else "?"
+            # Member format: "<fingerprint>|<exc_type>:<filename>:<funcname>:<lineno>"
+            raw = member if isinstance(member, str) else member.decode()
+            _fp, _, canonical = raw.partition("|")
+            c_parts = canonical.split(":", 3)
+            exc_type = (c_parts[0] if c_parts else "?")[:28]
+            file_part = (c_parts[1] if len(c_parts) > 1 else "?")[-25:]
+            func = (c_parts[2] if len(c_parts) > 2 else "?")[:20]
+            line = c_parts[3] if len(c_parts) > 3 else "?"
             count = int(score)
             color = RED if count > 100 else (YELLOW if count > 10 else RESET)
             location = f"{file_part}:{func}:{line}"[:45]
@@ -845,14 +1196,22 @@ async def replay_request(request_id: str) -> None:
             f"ORDER BY _timestamp ASC LIMIT 500"
         )
 
-        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search"
+        # Use /{org}/_search — stream is in the SQL FROM clause.
+        urls_to_try = (
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
+            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        )
         body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
+        resp = None
         async with httpx.AsyncClient(timeout=30.0, auth=(email, password)) as client:
-            resp = await client.post(url, json=body)
+            for url in urls_to_try:
+                resp = await client.post(url, json=body)
+                if resp.status_code == 200:
+                    break
 
-        if resp.status_code != 200:
-            print(_err(f"  OpenObserve returned {resp.status_code}: {resp.text[:200]}"))
+        if resp is None or resp.status_code != 200:
+            print(_err(f"  OpenObserve returned {resp.status_code if resp else 'no response'}: {resp.text[:200] if resp else ''}"))
             return
 
         data = resp.json()
@@ -933,6 +1292,10 @@ async def _async_main():
     health_p = sub.add_parser("health", help="System health check (includes log access verification)")
     health_p.add_argument("-v", "--verbose", action="store_true")
     health_p.add_argument(
+        "--compact", action="store_true",
+        help="Return a one-liner pass/fail summary (for session start in non-debug modes).",
+    )
+    health_p.add_argument(
         "--log-access", action="store_true",
         help="Run ONLY the log access check (OpenObserve + production API). Exit 1 if any source is down.",
     )
@@ -946,19 +1309,49 @@ async def _async_main():
 
     errors_p = sub.add_parser("errors", help="Top error fingerprints")
     errors_p.add_argument("--top", type=int, default=10)
+    errors_p.add_argument(
+        "--compact", action="store_true",
+        help="Return a compact overview of recent errors for session context "
+        "(combines fingerprints + recent error counts).",
+    )
+    errors_p.add_argument(
+        "--since", type=int, default=30,
+        help="Look back N minutes for recent errors (default: 30). Used with --compact.",
+    )
+    errors_p.add_argument(
+        "--diff",
+        action="store_true",
+        help="Compare error fingerprints from before vs after the last deployed commit. "
+        "Shows which errors are NEW since last deploy vs which are pre-existing.",
+    )
+    errors_p.add_argument(
+        "--since-deploy",
+        action="store_true",
+        dest="since_deploy",
+        help="Alias for --diff. Show new errors introduced since last sessions.py deploy.",
+    )
 
     args = parser.parse_args()
 
     if args.command == "health":
         if args.log_access:
-            # Only run the log access check — exit 1 on failure (see run_log_access_check)
             await run_log_access_check()
+        elif args.compact:
+            summary = await run_health_check_compact()
+            print(f"Health: {summary}")
         else:
             await run_health_check(verbose=args.verbose, skip_log_access=args.skip_log_access)
     elif args.command == "replay":
         await replay_request(request_id=args.request_id)
     elif args.command == "errors":
-        await show_error_fingerprints(top=args.top)
+        use_diff = getattr(args, 'diff', False) or getattr(args, 'since_deploy', False)
+        if use_diff:
+            await show_error_diff_since_deploy(top=args.top)
+        elif args.compact:
+            overview = await get_error_overview_compact(top=args.top, since_minutes=args.since)
+            print(overview)
+        else:
+            await show_error_fingerprints(top=args.top)
     else:
         await run_health_check(verbose=False)
 

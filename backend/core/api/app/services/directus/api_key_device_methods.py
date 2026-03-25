@@ -77,7 +77,7 @@ async def create_api_key_device(
         Tuple of (success, device_record, message)
     """
     try:
-        from backend.core.api.app.utils.device_fingerprint import get_geo_data_from_ip, _extract_client_ip
+        from backend.core.api.app.utils.device_fingerprint import get_geo_data_from_ip
         
         # Get user's vault_key_id for encryption
         user_data = await self.get_user_fields_direct(user_id, ['vault_key_id'])

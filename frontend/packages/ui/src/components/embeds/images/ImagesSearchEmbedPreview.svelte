@@ -18,7 +18,7 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyImage } from '../../../utils/imageProxy';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
    * Single image search result (child embed content schema).
@@ -87,7 +87,7 @@
   let taskId    = $derived(localTaskId);
 
   const skillIconName = 'search';
-  let skillName = $derived($text('app_skills.images.search'));
+  let skillName = $derived($text('common.search'));
 
   // Min image width at 30px strip height — images are landscape-ish (avg ~4:3 ratio).
   // At 30px height a 4:3 image is ~40px wide. Container ~300px wide → ~7 fit.
@@ -126,7 +126,7 @@
 
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return proxyImage(url);
+    return proxyImage(url, MAX_WIDTH_PREVIEW_THUMBNAIL);
   }
 
   /**
@@ -265,10 +265,13 @@
           {/if}
         </div>
       {:else if status === 'finished'}
-        <!-- Finished but no thumbnails: show query + provider -->
+        <!-- Finished but no thumbnails -->
         <div class="text-content">
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
+          {#if isLoadingChildren}
+            <span class="loading-text">{$text('common.loading')}</span>
+          {/if}
         </div>
       {:else}
         <!-- Processing: show query + provider -->
@@ -396,6 +399,12 @@
 
   .favicon:first-child {
     margin-left: 0;
+  }
+
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70, #555);
+    font-weight: 500;
   }
 
   .remaining-count {

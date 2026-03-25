@@ -90,19 +90,22 @@
   let localPrompt = $state<string | undefined>(undefined);
   let localEmailWarning = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localError = $state<string | undefined>(undefined);
   let localTaskId = $state<string | undefined>(undefined);
-  
+
   // Initialize local state from props
   $effect(() => {
-    localTriggerAtFormatted = triggerAtFormattedProp;
-    localTargetType = targetTypeProp;
-    localIsRepeating = isRepeatingProp || false;
-    localPrompt = promptProp;
-    localEmailWarning = emailWarningProp;
-    localStatus = statusProp || 'processing';
-    localError = errorProp;
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localTriggerAtFormatted = triggerAtFormattedProp;
+      localTargetType = targetTypeProp;
+      localIsRepeating = isRepeatingProp || false;
+      localPrompt = promptProp;
+      localEmailWarning = emailWarningProp;
+      localStatus = statusProp || 'processing';
+      localError = errorProp;
+      localTaskId = taskIdProp;
+    }
   });
   
   // Use local state as source of truth
@@ -145,7 +148,7 @@
   // Get target type display text
   let targetTypeText = $derived.by(() => {
     if (targetType === 'new_chat') {
-      return $text('embeds.reminder.new_chat');
+      return $text('common.new_chat');
     }
     if (targetType === 'existing_chat') {
       return $text('embeds.reminder.existing_chat');
@@ -168,7 +171,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     // Update content from decoded data
     if (data.decodedContent) {
       const content = data.decodedContent as ReminderData;

@@ -569,44 +569,54 @@ postprocess_response_tool:
 
       ## Suggestion Format
 
-      Suggestions SHOULD use an optional skill/focus prefix to help users discover features:
+      Every suggestion MUST start with a prefix identifying the relevant app (and optionally a skill/focus):
 
-        [app_id-skill_or_focus_id] Action text here
+        [app_id-skill_or_focus_id] Action text here   (when a specific skill/focus is relevant)
+        [app_id] Action text here                      (when no specific skill fits but an app is relevant)
 
-      Examples:
-        [web-search] What are the latest AI breakthroughs?
+      Examples (note: every suggestion starts with an action verb):
+        [web-search] Search for the latest AI breakthroughs
         [videos-search] Find tutorial videos on React hooks
         [jobs-career_insights] Start interview prep mode
-        [code-run] Run a Python hello world script
+        [code] Write a Python hello world script
         [images-generate] Generate a sunset landscape image
-        What is the boiling point of water?
+        [ai] Explain why the sky is blue
+        [study] Teach me about quantum computing basics
+        [travel] Plan a weekend trip to Barcelona
+        [nutrition] Compare high-protein breakfast options
 
       Rules for the prefix:
-      - Use `app_id-skill_id` for skill suggestions (e.g. `web-search`, `code-run`, `images-generate`)
-      - Use `app_id-focus_id` for focus mode activations (e.g. `jobs-career_insights`, `web-research`)
-      - If no skill/focus is clearly relevant, omit the prefix — plain suggestions are fine
-      - The prefix must exactly match an ID in the available skills/focus list provided in the system context
+      - EVERY suggestion MUST have a prefix — plain suggestions without a prefix are NOT allowed
+      - Use `[app_id-skill_id]` for skill suggestions (e.g. `web-search`, `code-run`, `images-generate`)
+      - Use `[app_id-focus_id]` for focus mode activations (e.g. `jobs-career_insights`, `web-research`)
+      - Use `[app_id]` (app only, no dash) when the app is relevant but no specific skill/focus fits
+      - Use `[ai]` as a fallback for general knowledge questions that don't map to any specific app
+      - The prefix must exactly match an ID in the available skills/focus/apps list provided in the system context
       - Do NOT invent prefix IDs — only use IDs from the provided lists
 
       Guidelines:
       1. **follow_up_request_suggestions**: Generate 6 contextual suggestions from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
          - **LANGUAGE**: Generate the action text in the CONVERSATION language (same language the user and assistant used in the chat). The prefix `[app_id-skill_id]` is always kept as-is (not translated).
+         - **ACTION-ORIENTED**: Every suggestion MUST begin with a strong action verb after the prefix (e.g. "Search for...", "Compare...", "Explain...", "Write...", "Find...", "Create...", "Show...", "List...", "Teach me...", "Help me...", "Analyze...", "Summarize..."). NEVER start with nouns, adjectives, or vague phrases.
+         - **MINIMUM LENGTH**: Each suggestion body (after the prefix) MUST be at least 4 words. Suggestions shorter than 4 words are too vague and will be filtered out.
          - Suggestions should encourage:
            - Learning more about the topic discussed (from user's perspective)
            - Exploring different viewpoints (user asking questions)
-           - Discovering relevant app skills/features — aim for at least 2-3 suggestions with a skill/focus prefix
-           - For learning topics: include "Test me on this" or similar (user requesting)
-         - **Format**: Each suggestion is either `[prefix] question?` or `[prefix] instruction/command`, or a plain question/command without prefix. Avoid single keywords or incomplete phrases.
+          - Discovering relevant app skills/features — use skill/focus prefixes when applicable
+            - For learning topics: include "Test me on this" or similar (user requesting)
+          - **Format**: Each suggestion MUST start with `[prefix]` followed by an action verb and a clear request. Avoid single keywords, incomplete phrases, or noun-only suggestions.
 
       2. **new_chat_request_suggestions**: Generate 6 suggestions for starting new conversations that:
-         - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
-         - **LANGUAGE**: Generate the action text in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen. The prefix `[app_id-skill_id]` is always kept as-is (not translated).
-         - Relate to topics discussed but explore new angles
-         - Encourage learning and exploration
-         - Suggest using app skills and focus modes — aim for at least 2-3 suggestions with a skill/focus prefix
-         - Provide conversation starters
-         - **Format**: Each suggestion is either `[prefix] question?` or `[prefix] instruction/command`, or a plain question/command without prefix. Avoid single keywords or incomplete phrases.
+          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
+          - **LANGUAGE**: Generate the action text in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen. The prefix `[app_id-skill_id]` is always kept as-is (not translated).
+          - **ACTION-ORIENTED**: Every suggestion MUST begin with a strong action verb after the prefix (e.g. "Search for...", "Compare...", "Explain...", "Write...", "Find...", "Create...", "Show...", "List...", "Teach me...", "Help me...", "Analyze...", "Summarize...", "Plan...", "Design...", "Build..."). NEVER start with nouns, adjectives, or vague phrases like "The best..." or "Latest...".
+          - **MINIMUM LENGTH**: Each suggestion body (after the prefix) MUST be at least 4 words. Suggestions shorter than 4 words are too vague and will be filtered out.
+          - Relate to topics discussed but explore new angles
+          - Encourage learning and exploration
+          - Use skill/focus prefixes when applicable, or app-only prefix `[app_id]`, or `[ai]` for general topics
+          - Provide actionable conversation starters
+          - **Format**: Each suggestion MUST start with `[prefix]` followed by an action verb and a clear request. Avoid single keywords, incomplete phrases, or noun-only suggestions. EVERY suggestion must have a prefix — no plain unprefixed suggestions.
 
       3. **harmful_response**: Score 0-10 for detecting potentially harmful responses (0 = safe, 10 = very harmful)
 
@@ -633,14 +643,14 @@ postprocess_response_tool:
       properties:
         follow_up_request_suggestions:
           type: "array"
-          description: "6 follow-up suggestions in the CONVERSATION language. Each may optionally start with a skill/focus prefix: '[app_id-skill_or_focus_id] Action text'. Aim for at least 2-3 prefixed suggestions. Plain suggestions without a prefix are also allowed."
+          description: "6 follow-up suggestions in the CONVERSATION language. Each MUST start with a prefix followed by an action verb: '[app_id-skill_or_focus_id] Verb ...' or '[app_id] Verb ...' or '[ai] Verb ...'. Body must be at least 4 words. Start with verbs like Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, Analyze, Summarize."
           items:
             type: "string"
           minItems: 6
           maxItems: 6
         new_chat_request_suggestions:
           type: "array"
-          description: "6 new chat suggestions in the USER'S SYSTEM LANGUAGE (as specified in system message). Each may optionally start with a skill/focus prefix '[app_id-skill_or_focus_id] Action text'. Aim for at least 2-3 prefixed suggestions. Plain suggestions without a prefix are also allowed."
+          description: "6 new chat suggestions in the USER'S SYSTEM LANGUAGE (as specified in system message). Each MUST start with a prefix followed by an action verb: '[app_id-skill_or_focus_id] Verb ...' or '[app_id] Verb ...' or '[ai] Verb ...'. Body must be at least 4 words. Start with verbs like Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, Plan, Design, Build. No plain unprefixed suggestions."
           items:
             type: "string"
           minItems: 6
@@ -840,15 +850,18 @@ base_embed_referencing_instruction: |
   - **CRITICAL: The display text must NEVER be the embed_ref itself, any part of the embed_ref, or the random suffix from the embed_ref.** The embed_ref is a technical identifier (e.g. `blog.laozhang.ai-pOx`) — the user must see a human-readable description instead.
   - Prefer inline references over bullet-point summaries when results are already shown as cards.
 
-  **Common mistake — NEVER do this:**
+  **Common mistakes — NEVER do these:**
   - `[pOx](embed:blog.laozhang.ai-pOx)` — WRONG: "pOx" is the embed_ref suffix, not a description
   - `[fdr](embed:reddit.com-fdr)` — WRONG: "fdr" is the embed_ref suffix, not a description
   - `[blog.laozhang.ai-pOx](embed:blog.laozhang.ai-pOx)` — WRONG: the full embed_ref is not display text
   - `[reddit.com-fdr](embed:reddit.com-fdr)` — WRONG: the full embed_ref is not display text
+  - `[Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)` — WRONG: never write both an https:// URL and an (embed:ref) for the same link; use the embed ref only
+  - `[Technical Changelog](https://docs.mistral.ai/getting-started/changelog)(embed:docs.mistral.ai-pFX)` — WRONG: same mistake without the space
 
-  **Always write a descriptive title instead:**
+  **Always write a descriptive title instead, using the embed ref exclusively:**
   - `[ChatGPT Plus Usage Limits](embed:blog.laozhang.ai-pOx)` — CORRECT: describes the content
   - `[Reddit discussion on Claude vs ChatGPT](embed:reddit.com-fdr)` — CORRECT: describes the content
+  - `[Mistral Small 4 Release Post](embed:mistral.ai-nvh)` — CORRECT: embed ref only, no https:// URL alongside it
 
   **Embed Preview Cards**
 

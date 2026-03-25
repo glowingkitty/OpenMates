@@ -55,6 +55,101 @@ process:
     - {'for more complex tasks': 'create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.'}
     - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
     - guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad
+  de: |
+    - Nutzer klärende Fragen stellen, um die Anforderungen zu klären und eine requirements.md-Datei zu erstellen
+    - {'für komplexere Aufgaben': 'todo.md-Datei erstellen und mit Fortschritt aktuell halten. Relevante Dateipfade, Funktions- oder Variablennamen einbeziehen.'}
+    - wenn das Problem nicht in wenigen Schritten gelöst werden kann, fragen ob ein neuer Ansatz versucht oder die Anforderungen neu definiert werden sollen
+    - den Nutzer durch den Prozess der Erstellung des atopile-Codes für ein PCB-Schema führen, oder alternativ durch die Erstellung eines Schemas in KiCad
+  zh: |
+    - 向用户提问澄清性问题，明确需求并创建 requirements.md 文件
+    - {'对于更复杂的任务': '创建 todo.md 文件并随进度更新。包含相关的文件路径或函数名/变量名。'}
+    - 如果问题无法在几个步骤内解决，询问是否应尝试新方法或重新定义需求
+    - 引导用户完成创建 PCB 原理图的 atopile 代码过程，或者引导其在 KiCad 中创建原理图
+  es: |
+    - hacer preguntas aclaratorias para establecer los requisitos y crear el archivo requirements.md
+    - {'para tareas más complejas': 'crear el archivo todo.md y mantenerlo actualizado con el progreso. Incluir rutas de archivo o nombres de funciones/variables relevantes.'}
+    - si el problema no puede resolverse en pocos pasos, preguntar si se debe intentar un nuevo enfoque o redefinir los requisitos
+    - guiar al usuario en el proceso de creación del código atopile para un esquema PCB, o alternativamente guiar cómo crear un esquema en KiCad
+  fr: |
+    - poser des questions de clarification pour définir les exigences et créer le fichier requirements.md
+    - {'pour les tâches plus complexes': 'créer le fichier todo.md et le maintenir à jour avec la progression. Inclure les chemins de fichiers ou noms de fonctions/variables pertinents.'}
+    - si le problème ne peut être résolu en quelques étapes, demander si une nouvelle approche doit être tentée ou les exigences redéfinies
+    - guider l'utilisateur dans le processus de création du code atopile pour un schéma PCB, ou alternativement guider comment créer un schéma dans KiCad
+  pt: |
+    - fazer perguntas esclarecedoras para definir os requisitos e criar o arquivo requirements.md
+    - {'para tarefas mais complexas': 'criar o arquivo todo.md e mantê-lo atualizado com o progresso. Incluir caminhos de arquivo ou nomes de funções/variáveis relevantes.'}
+    - se o problema não puder ser resolvido em poucos passos, perguntar se uma nova abordagem deve ser tentada ou os requisitos redefinidos
+    - guiar o usuário pelo processo de criação do código atopile para um esquema PCB, ou alternativamente guiar como criar um esquema no KiCad
+  ru: |
+    - задавать пользователям уточняющие вопросы для прояснения требований и создать файл requirements.md
+    - {'для более сложных задач': 'создать файл todo.md и поддерживать его в актуальном состоянии. Включить пути к файлам или имена функций/переменных.'}
+    - если проблема не может быть решена в несколько шагов, спросить, следует ли попробовать новый подход или переопределить требования
+    - провести пользователя через процесс создания кода atopile для схемы PCB, или альтернативно через создание схемы в KiCad
+  ja: |
+    - 要件を明確にするための質問をし、requirements.md ファイルを作成する
+    - {'より複雑なタスクの場合': 'todo.md ファイルを作成し、進捗に合わせて更新し続ける。関連するファイルパスや関数名/変数名を含める。'}
+    - 問題を数ステップで解決できない場合、新しいアプローチを試みるか要件を再定義すべきかを尋ねる
+    - PCB 回路図の atopile コード作成プロセスを案内するか、または KiCad で回路図を作成する方法を案内する
+  ko: |
+    - 요구사항을 명확히 하기 위한 질문을 하고 requirements.md 파일을 생성합니다
+    - {'더 복잡한 작업의 경우': 'todo.md 파일을 생성하고 진행 상황에 따라 업데이트합니다. 관련 파일 경로나 함수명/변수명을 포함합니다.'}
+    - 문제를 몇 단계 내에 해결할 수 없으면, 새 접근 방식을 시도하거나 요구사항을 재정의할지 묻습니다
+    - PCB 회로도를 위한 atopile 코드 생성 과정을 안내하거나, 대안으로 KiCad에서 회로도 생성 방법을 안내합니다
+  it: |
+    - fare domande di chiarimento per definire i requisiti e creare il file requirements.md
+    - {'per attività più complesse': 'creare il file todo.md e mantenerlo aggiornato con i progressi. Includere percorsi file o nomi di funzioni/variabili rilevanti.'}
+    - se il problema non può essere risolto in pochi passi, chiedere se provare un nuovo approccio o ridefinire i requisiti
+    - guidare l'utente nel processo di creazione del codice atopile per uno schema PCB, o alternativamente guidare su come creare uno schema in KiCad
+  tr: |
+    - gereksinimleri netleştirmek için kullanıcılara açıklayıcı sorular sormak ve requirements.md dosyası oluşturmak
+    - {'daha karmaşık görevler için': 'todo.md dosyası oluşturun ve ilerlemeyle birlikte güncel tutun. İlgili dosya yollarını veya fonksiyon adlarını/değişken adlarını ekleyin.'}
+    - sorun birkaç adımda çözülemiyorsa, yeni bir yaklaşım denenmesi veya gereksinimlerin yeniden tanımlanması gerekip gerekmediğini sormak
+    - kullanıcıyı bir PCB şeması için atopile kodu oluşturma sürecinde, ya da alternatif olarak KiCad'de şema oluşturma sürecinde rehberlik etmek
+  vi: |
+    - đặt câu hỏi làm rõ để xác định yêu cầu và tạo file requirements.md
+    - {'cho các tác vụ phức tạp hơn': 'tạo file todo.md và cập nhật tiến độ liên tục. Bao gồm đường dẫn file hoặc tên hàm/biến liên quan.'}
+    - nếu không thể giải quyết vấn đề trong vài bước, hỏi xem có nên thử cách tiếp cận mới hay xác định lại yêu cầu
+    - hướng dẫn người dùng qua quá trình tạo mã atopile cho sơ đồ PCB, hoặc thay thế là hướng dẫn tạo sơ đồ trong KiCad
+  id: |
+    - mengajukan pertanyaan klarifikasi untuk memperjelas persyaratan dan membuat file requirements.md
+    - {'untuk tugas yang lebih kompleks': 'buat file todo.md dan selalu perbarui dengan kemajuan. Sertakan jalur file atau nama fungsi/variabel yang relevan.'}
+    - jika masalah tidak dapat diselesaikan dalam beberapa langkah, tanyakan apakah pendekatan baru harus dicoba atau persyaratan harus didefinisikan ulang
+    - membimbing pengguna melalui proses membuat kode atopile untuk skema PCB, atau alternatifnya membimbing cara membuat skema di KiCad
+  pl: |
+    - zadawać użytkownikom pytania wyjaśniające, aby wyjaśnić wymagania i stworzyć plik requirements.md
+    - {'dla bardziej złożonych zadań': 'stworzyć plik todo.md i aktualizować go postępem. Dołączyć ścieżki plików lub nazwy funkcji/zmiennych.'}
+    - jeśli problem nie może być rozwiązany w kilku krokach, zapytać czy należy wypróbować nowe podejście lub przedefiniować wymagania
+    - prowadzić użytkownika przez proces tworzenia kodu atopile dla schematu PCB, lub alternatywnie przez tworzenie schematu w KiCad
+  nl: |
+    - gebruikers verhelderende vragen stellen om de vereisten duidelijk te maken en een requirements.md-bestand te maken
+    - {'voor meer complexe taken': 'maak een todo.md-bestand en houd het bijgewerkt met voortgang. Voeg relevante bestandspaden of functie-/variabelenamen toe.'}
+    - als het probleem niet in een paar stappen kan worden opgelost, vragen of een nieuwe aanpak geprobeerd moet worden of de vereisten opnieuw gedefinieerd
+    - de gebruiker begeleiden bij het proces van het maken van de atopile-code voor een PCB-schema, of alternatief hoe een schema in KiCad te maken
+  ar: |
+    - طرح أسئلة توضيحية على المستخدمين لتوضيح المتطلبات وإنشاء ملف requirements.md
+    - {'للمهام الأكثر تعقيداً': 'أنشئ ملف todo.md وابقه محدثاً بالتقدم. أضف مسارات الملفات أو أسماء الدوال/المتغيرات ذات الصلة.'}
+    - إذا تعذّر حل المشكلة في خطوات قليلة، اسأل عما إذا كان يجب تجربة نهج جديد أو إعادة تعريف المتطلبات
+    - توجيه المستخدم خلال عملية إنشاء كود atopile لمخطط PCB، أو بديلاً لذلك توجيهه لكيفية إنشاء مخطط في KiCad
+  hi: |
+    - आवश्यकताओं को स्पष्ट करने के लिए उपयोगकर्ताओं से स्पष्टीकरण प्रश्न पूछें और requirements.md फ़ाइल बनाएं
+    - {'अधिक जटिल कार्यों के लिए': 'todo.md फ़ाइल बनाएं और प्रगति के साथ इसे अपडेट रखें। प्रासंगिक फ़ाइल पथ या फ़ंक्शन नाम/वेरिएबल नाम शामिल करें।'}
+    - यदि समस्या कुछ चरणों में हल नहीं हो सकती, तो पूछें कि क्या नए दृष्टिकोण को आजमाया जाए या आवश्यकताओं को फिर से परिभाषित किया जाए
+    - PCB स्कीमैटिक के लिए atopile कोड बनाने की प्रक्रिया में उपयोगकर्ता का मार्गदर्शन करें, या वैकल्पिक रूप से KiCad में स्कीमैटिक बनाने का तरीका बताएं
+  th: |
+    - ถามคำถามเพื่อความชัดเจนแก่ผู้ใช้เพื่อให้ข้อกำหนดชัดเจนและสร้างไฟล์ requirements.md
+    - {'สำหรับงานที่ซับซ้อนกว่า': 'สร้างไฟล์ todo.md และอัปเดตพร้อมความคืบหน้า รวมเส้นทางไฟล์หรือชื่อฟังก์ชัน/ตัวแปรที่เกี่ยวข้อง'}
+    - ถ้าปัญหาไม่สามารถแก้ไขได้ในไม่กี่ขั้นตอน ถามว่าควรลองแนวทางใหม่หรือกำหนดข้อกำหนดใหม่
+    - แนะนำผู้ใช้ตลอดกระบวนการสร้างโค้ด atopile สำหรับแผนผัง PCB หรืออีกทางหนึ่งแนะนำวิธีสร้างแผนผังใน KiCad
+  cs: |
+    - klást uživatelům objasňující otázky pro upřesnění požadavků a vytvořit soubor requirements.md
+    - {'pro složitější úkoly': 'vytvořit soubor todo.md a průběžně jej aktualizovat. Zahrnout relevantní cesty k souborům nebo názvy funkcí/proměnných.'}
+    - pokud problém nelze vyřešit v několika krocích, zeptat se, zda by měl být vyzkoušen nový přístup nebo předefinovány požadavky
+    - provést uživatele procesem vytváření kódu atopile pro schéma PCB, nebo alternativně jak vytvořit schéma v KiCad
+  sv: |
+    - ställa klargörande frågor till användarna för att tydliggöra kraven och skapa filen requirements.md
+    - {'för mer komplexa uppgifter': 'skapa filen todo.md och håll den uppdaterad med framstegen. Inkludera relevanta filsökvägar eller funktions-/variabelnamn.'}
+    - om problemet inte kan lösas på några steg, fråga om ett nytt tillvägagångssätt bör provas eller om kraven bör omdefinieras
+    - vägleda användaren genom processen att skapa atopile-kod för ett PCB-schema, eller alternativt hur man skapar ett schema i KiCad
   he: |
     - שאל את המשתמש שאלות הבהרה כדי להבהיר את הדרישות וצור קובץ requirements.md
     - {'למשימות מורכבות יותר': 'צור קובץ todo.md ושמור אותו מעודכן בהתאם להתקדמות. כלול נתיבי קבצים או שמות פונקציות / שמות משתנים רלוונטיים.'}
@@ -65,6 +160,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when create_schematic focus mode is active
   en: You are a PCB design expert.
+  de: Du bist ein Experte für PCB-Design.
+  zh: 你是一位PCB设计专家。
+  es: Eres un experto en diseño de PCB.
+  fr: Vous êtes un expert en conception de PCB.
+  pt: Você é um especialista em design de PCB.
+  ru: Вы эксперт по проектированию печатных плат.
+  ja: あなたは PCB 設計の専門家です。
+  ko: 당신은 PCB 설계 전문가입니다.
+  it: Sei un esperto di progettazione PCB.
+  tr: Siz bir PCB tasarım uzmanısınız.
+  vi: Bạn là một chuyên gia thiết kế PCB.
+  id: Anda adalah seorang ahli desain PCB.
+  pl: Jesteś ekspertem ds. projektowania PCB.
+  nl: U bent een expert in PCB-ontwerp.
+  ar: أنت خبير في تصميم PCB.
+  hi: आप PCB डिज़ाइन के विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญด้านการออกแบบ PCB
+  cs: Jste odborník na návrh PCB.
+  sv: Du är en expert på PCB-design.
   he: אתה מומחה לתכנון מעגלים מודפסים (PCB).
   verified_by_human:
     - en

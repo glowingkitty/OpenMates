@@ -702,15 +702,18 @@ function isAppSkillEmbedType(type: string): boolean {
 
 function extractEmbedId(attrs: any): string | null {
   if (!attrs) return null;
+
+  // Only promote embeds that have a real EmbedStore reference.
+  // Static markdown images (e.g. legal SVGs) have random local IDs but no
+  // embed:<id> contentRef, so treating attrs.id as an embedRef would create
+  // unresolved large-preview shells.
   if (
     typeof attrs.contentRef === "string" &&
     attrs.contentRef.startsWith("embed:")
   ) {
     return attrs.contentRef.replace("embed:", "");
   }
-  if (typeof attrs.id === "string" && attrs.id.length > 0) {
-    return attrs.id;
-  }
+
   return null;
 }
 
@@ -734,6 +737,9 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
   const baseType = getEmbedBaseType(embedType);
 
   if (isAppSkillEmbedType(embedType)) return null;
+
+  // Keep static/legal image embeds inline.
+  if (baseType === "image") return null;
 
   // Keep code groups as regular horizontal scroll previews.
   if (embedType.endsWith("-group") && baseType === "code-code") {
@@ -853,19 +859,11 @@ export function parse_message(
     return doc;
   }
 
-  console.debug("[parse_message] Parsing with unified architecture:", {
-    mode,
-    length: markdown.length,
-  });
-
   // First, parse basic markdown structure using existing parser
   let basicDoc = markdownToTipTap(markdown);
 
   // Check if the content needs migration from old embed node types
   if (needsMigration(basicDoc)) {
-    console.debug(
-      "[parse_message] Migrating old embed node types to unified structure",
-    );
     basicDoc = migrateEmbedNodes(basicDoc);
   }
 
@@ -910,12 +908,6 @@ export function parse_message(
   if (mode === "write" && streamingData.unclosedBlocks.length > 0) {
     unifiedDoc._streamingData = streamingData;
   }
-
-  console.debug("[parse_message] Created unified document with embeds:", {
-    individualEmbedCount: allEmbeds.length,
-    unclosedBlocks: streamingData.unclosedBlocks.length,
-    mode,
-  });
 
   return unifiedDoc;
 }

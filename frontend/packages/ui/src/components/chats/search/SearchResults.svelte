@@ -195,7 +195,7 @@
 
   /**
    * Schedule an auto-open of the currently focused result after the user stops navigating.
-   * Only auto-opens 'chat' and 'snippet' type items — settings/apps require explicit Enter.
+   * Auto-opens all result types: 'chat', 'snippet', 'settings', and 'app'.
    * Resets the timer on every navigation key so it only fires when the user pauses.
    */
   function scheduleAutoOpen(): void {
@@ -203,8 +203,6 @@
       clearTimeout(autoOpenTimer);
     }
     if (focusedIndex < 0 || focusedIndex >= allFocusableItems.length) return;
-    const item = allFocusableItems[focusedIndex];
-    if (item.type !== 'chat' && item.type !== 'snippet') return;
     autoOpenTimer = setTimeout(() => {
       autoOpenTimer = null;
       activateFocused();
@@ -511,7 +509,7 @@
   <!-- Settings Results Section -->
   {#if settingsByType.regularSettings.length > 0}
     <div class="search-section">
-      <h3 class="search-section-title">{$text('chats.search.settings')}</h3>
+      <h3 class="search-section-title">{$text('common.settings')}</h3>
       {#each settingsByType.regularSettings as settingResult}
         {@const itemId = settingResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
@@ -582,7 +580,7 @@
   <!-- App Catalog Results Sections -->
   {#if appsByType && appsByType.apps.length > 0}
     <div class="search-section">
-      <h3 class="search-section-title">{$text('chats.search.apps_only')}</h3>
+      <h3 class="search-section-title">{$text('common.apps')}</h3>
       {#each appsByType.apps as appResult}
         {@const itemId = appResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
@@ -813,6 +811,26 @@
             {/each}
           </div>
         {/if}
+
+        <!-- Metadata match snippets (summary/tags — shown for metadata-only or supplementary matches) -->
+        {#if chatResult.metadataSnippets.length > 0 && chatResult.messageSnippets.length === 0}
+          <div class="message-snippets">
+            {#each chatResult.metadataSnippets as metaSnippet}
+              <button
+                class="message-snippet metadata-snippet"
+                onclick={() => onChatClick(chatResult.chat)}
+              >
+                {#if metaSnippet.matchSource === 'tags'}
+                  <span class="metadata-source-label">{$text('chats.search.tag_match')}</span>
+                {:else}
+                  <span class="metadata-source-label">{$text('common.summary')}</span>
+                {/if}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                {@html highlightText(metaSnippet.snippet, query)}
+              </button>
+            {/each}
+          </div>
+        {/if}
       {/each}
     </div>
   {/each}
@@ -883,7 +901,6 @@
 
   .search-setting-item.focused {
     background-color: var(--color-grey-25);
-    outline: none;
   }
 
   .item-icon {
@@ -933,7 +950,6 @@
 
   .search-chat-item.focused {
     background-color: var(--color-grey-25);
-    outline: none;
   }
 
   /* Message snippet rows shown under matching chats */
@@ -976,7 +992,19 @@
   .message-snippet.focused {
     background-color: var(--color-grey-25);
     color: var(--color-font-primary);
-    outline: none;
+  }
+
+  /* Metadata source label (e.g., "Summary" or "Tag") for metadata-only search matches.
+   * Uses the same visual style as embed-source-label for consistency. */
+  .metadata-source-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-font-tertiary, var(--color-font-secondary));
+    opacity: 0.75;
+    margin-right: 4px;
   }
 
   /* Embed source label (e.g., "Web page ·" or "Code ·") shown before embed-sourced snippets.
@@ -1024,6 +1052,19 @@
    * (gradient text effect). That property takes priority over `color` in WebKit/Blink browsers,
    * making text invisible unless we explicitly reset -webkit-text-fill-color here. */
   .message-snippet :global(mark) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
+  }
+
+  /* <mark> inside metadata snippets (summary/tag matches) — same style as message snippets */
+  .metadata-snippet :global(mark) {
     background: none;
     background-color: rgba(255, 213, 0, 0.4);
     -webkit-background-clip: unset;

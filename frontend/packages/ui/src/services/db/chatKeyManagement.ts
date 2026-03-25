@@ -9,176 +9,167 @@
 
 import type { Message, Chat } from "../../types/chat";
 import {
-  generateChatKey,
   encryptWithChatKey,
   decryptWithChatKey,
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
+import {
+  isKnownDecryptionFailure,
+  recordDecryptionFailure,
+} from "./decryptionFailureCache";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
+
+// ---------------------------------------------------------------------------
+// Cached chat version map — populated during loadChatKeysFromDatabase cursor
+// so startPhasedSync() can skip the expensive getAllChats() IDB read.
+// ---------------------------------------------------------------------------
+export interface ChatVersionEntry {
+  messages_v: number;
+  title_v: number;
+  draft_v: number;
+}
+
+/** In-memory version map populated during bulk key loading. */
+const cachedChatVersionMap = new Map<string, ChatVersionEntry>();
+
+/**
+ * Returns the version map collected during loadChatKeysFromDatabase().
+ * If the map is empty, it means keys haven't been loaded yet (caller should fall back to IDB).
+ */
+export function getCachedChatVersionMap(): Map<string, ChatVersionEntry> {
+  return cachedChatVersionMap;
+}
+
+/**
+ * Clear the cached version map (e.g. on logout).
+ */
+export function clearCachedChatVersionMap(): void {
+  cachedChatVersionMap.clear();
+}
 
 /**
  * Type for ChatDatabase instance to avoid circular import.
  * This interface defines the minimal required properties from ChatDatabase
  * that this module needs to access.
+ *
+ * NOTE: chatKeys (the legacy dual cache) has been removed. ChatKeyManager is now
+ * the single source of truth for all chat keys.
  */
 interface ChatDatabaseInstance {
   db: IDBDatabase | null;
-  chatKeys: Map<string, Uint8Array>;
   CHATS_STORE_NAME: string;
   getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
 }
 
 /**
- * Get chat key from cache.
- * If the key is not in cache, returns null. The caller should then either:
- * - Load the key from the database via loadChatKeysFromDatabase
- * - Generate a new key if this is a new chat
+ * Get chat key from ChatKeyManager (single source of truth).
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility during migration)
  * @param chatId - The ID of the chat
- * @returns The chat key if found in cache, null otherwise
+ * @returns The chat key if in memory, null otherwise
  */
 export function getChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array | null {
-  // First check if key is in cache
-  const cachedKey = dbInstance.chatKeys.get(chatId);
-  if (cachedKey) {
-    return cachedKey;
-  }
-
-  // If not in cache, return null
-  // The ChatMetadataCache will handle loading the key when needed
-  return null;
+  return chatKeyManager.getKeySync(chatId);
 }
 
 /**
- * Set chat key in cache.
+ * Set chat key — delegates entirely to ChatKeyManager (single source of truth).
+ * The immutability guard prevents silently replacing an existing key with a different one.
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility during migration)
  * @param chatId - The ID of the chat
  * @param chatKey - The chat key to cache
+ * @param source - Where this key came from (for provenance tracking)
  */
 export function setChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
   chatKey: Uint8Array,
+  source?: import("../encryption/ChatKeyManager").KeySource,
 ): void {
-  dbInstance.chatKeys.set(chatId, chatKey);
-  // Keep ChatKeyManager in sync during migration
-  chatKeyManager.injectKey(chatId, chatKey);
+  chatKeyManager.injectKey(chatId, chatKey, source);
 }
 
 /**
- * Clear chat key from cache.
- * Used when locking hidden chats or on logout.
+ * Clear a single chat key. Delegates to ChatKeyManager.
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  * @param chatId - The ID of the chat whose key should be cleared
  */
 export function clearChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): void {
-  dbInstance.chatKeys.delete(chatId);
   chatKeyManager.removeKey(chatId);
 }
 
 /**
- * Clear all chat keys from cache.
- * Used on logout to ensure no keys remain in memory.
+ * Clear all chat keys. Delegates to ChatKeyManager.
  *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  */
-export function clearAllChatKeys(dbInstance: ChatDatabaseInstance): void {
-  dbInstance.chatKeys.clear();
+export function clearAllChatKeys(_dbInstance: ChatDatabaseInstance): void {
   chatKeyManager.clearAll();
+  clearCachedChatVersionMap();
 }
 
 /**
- * Get or generate chat key for a specific chat.
- * If the key is not in cache, generates a new one and caches it.
- *
- * @deprecated Use `getChatKeyOrNull()` for read paths (decryption) or
- *   `getOrCreateChatKeyForOriginator()` for write paths on the originating
- *   device (e.g. sendHandlers creating a brand-new chat). This function
- *   silently generates a WRONG random key when the real key hasn't been
- *   loaded yet, causing "[Content decryption failed]" on secondary devices.
- *   It is kept for backwards compatibility during gradual migration.
- *
- * @param dbInstance - Reference to the ChatDatabase instance
- * @param chatId - The ID of the chat
- * @returns The chat key (from cache or newly generated)
+ * @deprecated DEAD — never generates correct keys for existing chats.
+ * Kept only so TypeScript doesn't break callers that haven't been migrated yet.
+ * All callers should use chatKeyManager.createKeyForNewChat() or getKeySync().
  */
 export function getOrGenerateChatKey(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array {
-  let chatKey = getChatKey(dbInstance, chatId);
-  if (!chatKey) {
-    // Try to load chat key from database
-    // This is a synchronous method, so we can't await here
-    // The loadChatKeysFromDatabase method should have loaded all keys during initialization
-    // If not, we'll generate a new key (which might cause decryption issues)
-    console.warn(
-      `[ChatDatabase] Chat key not found in cache for chat ${chatId}, generating new key. This may cause decryption issues.`,
-    );
-    chatKey = generateChatKey();
-    setChatKey(dbInstance, chatId, chatKey);
-  }
-  return chatKey;
+  const existing = chatKeyManager.getKeySync(chatId);
+  if (existing) return existing;
+  console.error(
+    `[chatKeyManagement] getOrGenerateChatKey() called for ${chatId} but key not in ChatKeyManager. ` +
+      `This is a bug — key should have been loaded by initializeCrypto(). ` +
+      `Refusing to silently generate a wrong key.`,
+  );
+  // Return a dummy key so TypeScript is happy, but log loud enough that this is found in review.
+  // The actual encryption will fail when this wrong key is used.
+  throw new Error(
+    `[chatKeyManagement] No key for ${chatId} — call chatKeyManager.createKeyForNewChat() explicitly`,
+  );
 }
 
 /**
- * Get chat key from cache, returning null if not available.
+ * Get chat key from ChatKeyManager, returning null if not loaded.
  *
- * USE THIS for read paths (decryption / message display) where generating
- * a random key would be WRONG — the caller should queue the operation and
- * retry after the real key arrives.
- *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  * @param chatId - The ID of the chat
- * @returns The chat key if available, null otherwise
  */
 export function getChatKeyOrNull(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array | null {
-  return getChatKey(dbInstance, chatId);
+  return chatKeyManager.getKeySync(chatId);
 }
 
 /**
  * Get or create chat key for the ORIGINATING device of a new chat.
+ * Delegates to ChatKeyManager.createKeyForNewChat() so the key is
+ * tracked with provenance 'created' and the immutability guard applies.
  *
- * USE THIS in send handlers when the current device is the one creating
- * a brand-new chat. It is safe to generate a new key here because this
- * IS the authoritative device — the generated key will be encrypted with
- * the master key and broadcast to other devices.
- *
- * DO NOT use this on secondary devices receiving a chat from another
- * device — use `getChatKeyOrNull()` instead and wait for the real key.
- *
- * @param dbInstance - Reference to the ChatDatabase instance
+ * @param _dbInstance - Unused (kept for API compatibility)
  * @param chatId - The ID of the chat
- * @returns The chat key (from cache or newly generated for originator)
  */
 export function getOrCreateChatKeyForOriginator(
-  dbInstance: ChatDatabaseInstance,
+  _dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Uint8Array {
-  let chatKey = getChatKey(dbInstance, chatId);
-  if (!chatKey) {
-    console.info(
-      `[ChatDatabase] Originator creating new chat key for chat ${chatId}`,
-    );
-    chatKey = generateChatKey();
-    setChatKey(dbInstance, chatId, chatKey);
-  }
-  return chatKey;
+  const existing = chatKeyManager.getKeySync(chatId);
+  if (existing) return existing;
+  return chatKeyManager.createKeyForNewChat(chatId);
 }
 
 /**
@@ -223,13 +214,17 @@ export async function loadChatKeysFromDatabase(
       // Cannot await inside cursor callback because transaction would finish before cursor.continue()
       const keysToDecrypt: Array<{ chatId: string; encryptedKey: string }> = [];
 
+      // PERF: Clear + repopulate version map during this cursor pass so
+      // startPhasedSync() can skip a separate getAllChats() IDB read.
+      cachedChatVersionMap.clear();
+
       request.onsuccess = (event) => {
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
         if (cursor) {
           const chat = cursor.value;
           if (
             chat.encrypted_chat_key &&
-            !dbInstance.chatKeys.has(chat.chat_id)
+            !chatKeyManager.hasKey(chat.chat_id)
           ) {
             // Collect keys to decrypt after cursor is done
             keysToDecrypt.push({
@@ -237,30 +232,58 @@ export async function loadChatKeysFromDatabase(
               encryptedKey: chat.encrypted_chat_key,
             });
           }
+          // PERF: Collect version info for startPhasedSync() delta checking
+          cachedChatVersionMap.set(chat.chat_id, {
+            messages_v: chat.messages_v || 0,
+            title_v: chat.title_v || 0,
+            draft_v: chat.draft_v || 0,
+          });
           // Continue cursor synchronously (transaction must stay alive)
           cursor.continue();
         } else {
-          // Cursor is done - now decrypt all collected keys
+          // Cursor is done - now decrypt all collected keys in parallel batches
           // This happens after the transaction completes, which is fine
           (async () => {
             try {
-              for (const { chatId, encryptedKey } of keysToDecrypt) {
-                try {
-                  // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
-                  // This ensures we get a Uint8Array instead of a Promise
-                  const chatKey =
-                    await decryptChatKeyWithMasterKey(encryptedKey);
-                  if (chatKey) {
-                    dbInstance.chatKeys.set(chatId, chatKey);
-                    // Also populate ChatKeyManager for the new architecture
-                    chatKeyManager.injectKey(chatId, chatKey);
-                  }
-                } catch (decryptError) {
-                  console.error(
-                    `[ChatDatabase] Error decrypting chat key for ${chatId}:`,
-                    decryptError,
-                  );
-                }
+              // Pre-fetch master key ONCE before the batch loop to avoid
+              // N concurrent IndexedDB reads of the crypto database.
+              // Without this, each decryptChatKeyWithMasterKey call opens its own
+              // IDB connection, causing massive contention for stayLoggedIn=true users.
+              const { getKeyFromStorage } = await import("../cryptoService");
+              const prefetchedMasterKey = await getKeyFromStorage();
+              if (!prefetchedMasterKey) {
+                console.warn("[ChatDatabase] No master key available, skipping bulk key decryption");
+                resolve();
+                return;
+              }
+
+              const BATCH_SIZE = 20;
+              for (
+                let i = 0;
+                i < keysToDecrypt.length;
+                i += BATCH_SIZE
+              ) {
+                const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
+                await Promise.all(
+                  batch.map(({ chatId, encryptedKey }) =>
+                    decryptChatKeyWithMasterKey(encryptedKey, prefetchedMasterKey)
+                      .then((chatKey) => {
+                        if (chatKey) {
+                          chatKeyManager.injectKey(
+                            chatId,
+                            chatKey,
+                            "bulk_init",
+                          );
+                        }
+                      })
+                      .catch((decryptError) => {
+                        console.error(
+                          `[ChatDatabase] Error decrypting chat key for ${chatId}:`,
+                          decryptError,
+                        );
+                      }),
+                  ),
+                );
               }
               console.debug(
                 `[ChatDatabase] Loaded ${keysToDecrypt.length} chat keys from database`,
@@ -306,14 +329,10 @@ export async function getEncryptedChatKey(
   try {
     const chat = await dbInstance.getChat(chatId);
     const encryptedKey = chat?.encrypted_chat_key || null;
-    if (encryptedKey) {
-      console.log(
-        `[ChatDatabase] ✅ Retrieved encrypted_chat_key for chat ${chatId}: ${encryptedKey.substring(0, 20)}... (length: ${encryptedKey.length})`,
-      );
-    } else {
+    if (!encryptedKey) {
       console.warn(
-        `[ChatDatabase] ⚠️ No encrypted_chat_key found for chat ${chatId} - chat object:`,
-        chat ? "exists but missing key" : "not found",
+        `[ChatDatabase] No encrypted_chat_key found for chat ${chatId}:`,
+        chat ? "exists but missing key" : "chat not found",
       );
     }
     return encryptedKey;
@@ -619,221 +638,224 @@ export async function decryptMessageFields(
   }
 
   const decryptedMessage = { ...message };
-  // Use ChatKeyManager for key lookup (safe: returns null if unavailable)
-  const chatKey = chatKeyManager.getKeySync(chatId);
+  // Use ChatKeyManager for async key lookup — waits for key from IDB if not in memory.
+  // CRITICAL: The previous sync getKeySync() returned null on secondary devices where
+  // the key hadn't finished loading yet (decrypt encrypted_chat_key with master key is async).
+  // This caused "[Content decryption failed]" on iPad/iPhone when opening chats created
+  // on another device, because the message rendered before the key was available.
+  const chatKey = await chatKeyManager.getKey(chatId);
 
   if (!chatKey) {
+    const keyState = chatKeyManager.getState(chatId);
+    const prov = chatKeyManager.getProvenance(chatId);
     console.error(
       `[CLIENT_DECRYPT] ❌ CRITICAL: No chat key found for chat ${chatId}, cannot decrypt message fields! ` +
         `Message ID: ${message.message_id}, Role: ${message.role}, Status: ${message.status}, ` +
         `Has encrypted_content: ${!!message.encrypted_content}, ` +
-        `Encrypted content length: ${message.encrypted_content?.length || 0}`,
+        `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+        `Key state: ${keyState}, Last provenance: ${prov ? `source=${prov.source} fp=${prov.keyFingerprint}` : "none"}`,
     );
     return decryptedMessage;
   }
 
+  // Get key fingerprint for per-key failure cache lookups
+  const keyFp = chatKeyManager.getProvenance(chatId)?.keyFingerprint;
+
   // Decrypt content if present
   if (message.encrypted_content) {
-    try {
-      // Enhanced logging for decryption attempts
-      console.debug(
-        `[CLIENT_DECRYPT] 🔓 Attempting to decrypt message ${message.message_id} ` +
-          `(chat: ${chatId}, role: ${message.role}, status: ${message.status}, ` +
-          `encrypted_content length: ${message.encrypted_content.length})`,
-      );
-      const decryptedContentString = await decryptWithChatKey(
-        message.encrypted_content,
-        chatKey,
-      );
-      if (decryptedContentString) {
-        // Content is now a markdown string (never Tiptap JSON on server!)
-        decryptedMessage.content = decryptedContentString;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_content;
-        console.debug(
-          `[CLIENT_DECRYPT] ✅ Successfully decrypted message ${message.message_id} ` +
-            `(content length: ${decryptedContentString.length} chars)`,
+    if (isKnownDecryptionFailure(chatId, message.message_id, "content", keyFp)) {
+      // Skip — this message/field has permanently failed before with this key
+      decryptedMessage.content =
+        message.content || "[Content decryption failed]";
+    } else {
+      try {
+        const decryptedContentString = await decryptWithChatKey(
+          message.encrypted_content,
+          chatKey,
+          { chatId, fieldName: "content" },
         );
-      } else {
-        // Decryption failed but didn't throw - encrypted_content might be malformed
-        console.error(
-          `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
-            `encrypted_content present but decryption returned null. ` +
-            `This may indicate vault-encrypted content was sent instead of client-encrypted!`,
-        );
-        // Keep encrypted field for debugging, set content to placeholder
-        decryptedMessage.content =
-          message.content || "[Content decryption failed]";
-      }
-    } catch (error) {
-      // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
-      // Also handle database operation errors during logout (OperationError from IndexedDB)
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      const isOperationError =
-        errorMessage.includes("OperationError") ||
-        errorMessage.includes("database");
-      const logLevel = isOperationError ? "debug" : "error"; // Reduce noise for expected logout-related errors
+        if (decryptedContentString) {
+          // Content is now a markdown string (never Tiptap JSON on server!)
+          decryptedMessage.content = decryptedContentString;
+          // Clear encrypted field
+          delete decryptedMessage.encrypted_content;
+        } else {
+          // Decryption failed but didn't throw - encrypted_content might be malformed
+          recordDecryptionFailure(chatId, message.message_id, "content", keyFp);
+          const prov = chatKeyManager.getProvenance(chatId);
+          console.error(
+            `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
+              `encrypted_content present but decryption returned null. ` +
+              `Key provenance: ${prov ? `source=${prov.source}, fp=${prov.keyFingerprint}, loaded=${new Date(prov.timestamp).toISOString()}` : "unknown"}. ` +
+              `Message role: ${message.role}, status: ${message.status}, created_at: ${message.created_at}. ` +
+              `This may indicate: key was rotated after message was encrypted, ` +
+              `vault-encrypted content was sent instead of client-encrypted, ` +
+              `or multi-tab auth disruption caused key regeneration.`,
+          );
+          // Keep encrypted field for debugging, set content to placeholder
+          decryptedMessage.content =
+            message.content || "[Content decryption failed]";
+        }
+      } catch (error) {
+        // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
+        // Also handle database operation errors during logout (OperationError from IndexedDB)
+        recordDecryptionFailure(chatId, message.message_id, "content", keyFp);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const isOperationError =
+          errorMessage.includes("OperationError") ||
+          errorMessage.includes("database");
+        const logLevel = isOperationError ? "debug" : "error"; // Reduce noise for expected logout-related errors
 
-      console[logLevel](
-        `[CLIENT_DECRYPT] ${isOperationError ? "⚠️" : "❌ CRITICAL:"} Error decrypting content for message ${message.message_id} ` +
-          `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
-          `${errorMessage}. ` +
-          `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
-          `Has plaintext fallback: ${!!message.content}. ` +
-          `${isOperationError ? "This may be due to database operations during logout." : "This may indicate vault-encrypted content was sent instead of client-encrypted!"}`,
-      );
-      // If message already has plaintext content, use it (common for status='sending')
-      if (message.content) {
-        console.warn(
-          `[CLIENT_DECRYPT] ⚠️ Using existing plaintext content for message ${message.message_id} - ` +
-            `encryption may not have completed or content was stored incorrectly`,
+        console[logLevel](
+          `[CLIENT_DECRYPT] ${isOperationError ? "⚠️" : "❌ CRITICAL:"} Error decrypting content for message ${message.message_id} ` +
+            `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
+            `${errorMessage}. ` +
+            `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+            `Has plaintext fallback: ${!!message.content}. ` +
+            `${isOperationError ? "This may be due to database operations during logout." : "This may indicate vault-encrypted content was sent instead of client-encrypted!"}`,
         );
-        decryptedMessage.content = message.content;
-      } else {
-        decryptedMessage.content = "[Content decryption failed]";
+        // If message already has plaintext content, use it (common for status='sending')
+        if (message.content) {
+          console.warn(
+            `[CLIENT_DECRYPT] ⚠️ Using existing plaintext content for message ${message.message_id} - ` +
+              `encryption may not have completed or content was stored incorrectly`,
+          );
+          decryptedMessage.content = message.content;
+        } else {
+          decryptedMessage.content = "[Content decryption failed]";
+        }
+        // Keep encrypted_content for debugging
       }
-      // Keep encrypted_content for debugging
     }
-  } else {
-    console.debug(
-      `[CLIENT_DECRYPT] ⚠️ Message ${message.message_id} has no encrypted_content ` +
-        `(chat: ${chatId}, role: ${message.role}, status: ${message.status})`,
+  }
+
+  // Decrypt remaining fields in parallel — all use the same chatKey and are independent.
+  // Each field decryption is wrapped in its own try/catch to prevent one failure from blocking others.
+  const fieldDecryptions: Promise<void>[] = [];
+
+  // Helper to decrypt a field with failure caching
+  const decryptField = (
+    encryptedValue: string,
+    fieldName: string,
+    onSuccess: (val: string) => void,
+    onFailure: () => void,
+  ) => {
+    if (isKnownDecryptionFailure(chatId, message.message_id, fieldName, keyFp)) {
+      onFailure();
+      return;
+    }
+    fieldDecryptions.push(
+      decryptWithChatKey(encryptedValue, chatKey, { chatId, fieldName })
+        .then((val) => {
+          if (val) {
+            onSuccess(val);
+          } else {
+            recordDecryptionFailure(chatId, message.message_id, fieldName, keyFp);
+            onFailure();
+          }
+        })
+        .catch((error) => {
+          recordDecryptionFailure(chatId, message.message_id, fieldName, keyFp);
+          console.error(
+            `[ChatDatabase] Error decrypting ${fieldName} for message ${message.message_id}:`,
+            error,
+          );
+          onFailure();
+        }),
+    );
+  };
+
+  if (message.encrypted_sender_name) {
+    decryptField(
+      message.encrypted_sender_name,
+      "sender_name",
+      (val) => {
+        decryptedMessage.sender_name = val;
+        delete decryptedMessage.encrypted_sender_name;
+      },
+      () => {
+        decryptedMessage.sender_name = message.sender_name || "Unknown";
+      },
     );
   }
 
-  // Decrypt sender_name if present
-  if (message.encrypted_sender_name) {
-    try {
-      const decryptedSenderName = await decryptWithChatKey(
-        message.encrypted_sender_name,
-        chatKey,
-      );
-      if (decryptedSenderName) {
-        decryptedMessage.sender_name = decryptedSenderName;
-        // Clear encrypted field
-        delete decryptedMessage.encrypted_sender_name;
-      }
-    } catch (error) {
-      // DEFENSIVE: Handle malformed encrypted_sender_name
-      console.error(
-        `[ChatDatabase] Error decrypting sender_name for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.sender_name = message.sender_name || "Unknown";
-    }
-  }
-
-  // Decrypt category if present
   if (message.encrypted_category) {
-    try {
-      const decryptedCategory = await decryptWithChatKey(
-        message.encrypted_category,
-        chatKey,
-      );
-      if (decryptedCategory) {
-        decryptedMessage.category = decryptedCategory;
-        // Clear encrypted field
+    decryptField(
+      message.encrypted_category,
+      "category",
+      (val) => {
+        decryptedMessage.category = val;
         delete decryptedMessage.encrypted_category;
-      }
-    } catch (error) {
-      // DEFENSIVE: Handle malformed encrypted_category
-      console.error(
-        `[ChatDatabase] Error decrypting category for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.category = message.category || undefined;
-    }
+      },
+      () => {
+        decryptedMessage.category = message.category || undefined;
+      },
+    );
   }
 
-  // Decrypt model_name if present
   if (message.encrypted_model_name) {
-    try {
-      const decryptedModelName = await decryptWithChatKey(
-        message.encrypted_model_name,
-        chatKey,
-      );
-      if (decryptedModelName) {
-        decryptedMessage.model_name = decryptedModelName;
-        // Clear encrypted field
+    decryptField(
+      message.encrypted_model_name,
+      "model_name",
+      (val) => {
+        decryptedMessage.model_name = val;
         delete decryptedMessage.encrypted_model_name;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting model_name for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.model_name = message.model_name || undefined;
-    }
+      },
+      () => {
+        decryptedMessage.model_name = message.model_name || undefined;
+      },
+    );
   } else if (message.role === "assistant" && !decryptedMessage.model_name) {
     // We don't use a default fallback here anymore, to avoid showing model names for error messages
     // that were generated by the system rather than an actual LLM.
     decryptedMessage.model_name = undefined;
   }
 
-  // Decrypt thinking_content if present (from thinking models like Gemini, Anthropic Claude)
   if (message.encrypted_thinking_content) {
-    try {
-      const decryptedThinkingContent = await decryptWithChatKey(
-        message.encrypted_thinking_content,
-        chatKey,
-      );
-      if (decryptedThinkingContent) {
-        decryptedMessage.thinking_content = decryptedThinkingContent;
-        decryptedMessage.has_thinking = true; // Set flag for UI
-        // Clear encrypted field
+    decryptField(
+      message.encrypted_thinking_content,
+      "thinking_content",
+      (val) => {
+        decryptedMessage.thinking_content = val;
+        decryptedMessage.has_thinking = true;
         delete decryptedMessage.encrypted_thinking_content;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting thinking_content for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.thinking_content = undefined;
-    }
+      },
+      () => {
+        decryptedMessage.thinking_content = undefined;
+      },
+    );
   }
 
-  // Decrypt thinking_signature if present (for multi-turn verification)
   if (message.encrypted_thinking_signature) {
-    try {
-      const decryptedThinkingSignature = await decryptWithChatKey(
-        message.encrypted_thinking_signature,
-        chatKey,
-      );
-      if (decryptedThinkingSignature) {
-        decryptedMessage.thinking_signature = decryptedThinkingSignature;
-        // Clear encrypted field
+    decryptField(
+      message.encrypted_thinking_signature,
+      "thinking_signature",
+      (val) => {
+        decryptedMessage.thinking_signature = val;
         delete decryptedMessage.encrypted_thinking_signature;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting thinking_signature for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.thinking_signature = undefined;
-    }
+      },
+      () => {
+        decryptedMessage.thinking_signature = undefined;
+      },
+    );
   }
 
-  // Decrypt pii_mappings if present (for client-side PII restoration)
   if (message.encrypted_pii_mappings) {
-    try {
-      const decryptedPIIMappings = await decryptWithChatKey(
-        message.encrypted_pii_mappings,
-        chatKey,
-      );
-      if (decryptedPIIMappings) {
-        decryptedMessage.pii_mappings = JSON.parse(decryptedPIIMappings);
-        // Clear encrypted field
+    decryptField(
+      message.encrypted_pii_mappings,
+      "pii_mappings",
+      (val) => {
+        decryptedMessage.pii_mappings = JSON.parse(val);
         delete decryptedMessage.encrypted_pii_mappings;
-      }
-    } catch (error) {
-      console.error(
-        `[ChatDatabase] Error decrypting pii_mappings for message ${message.message_id}:`,
-        error,
-      );
-      decryptedMessage.pii_mappings = undefined;
-    }
+      },
+      () => {
+        decryptedMessage.pii_mappings = undefined;
+      },
+    );
   }
+
+  await Promise.all(fieldDecryptions);
 
   return decryptedMessage;
 }

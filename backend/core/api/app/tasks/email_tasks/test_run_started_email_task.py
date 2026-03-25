@@ -2,20 +2,17 @@
 """
 Celery task for sending a test run started notification email to the admin.
 
-Sent as soon as the test run begins — both for scheduled (Celery Beat) and
-manual (admin Settings → Tests panel) triggers. This gives the admin visibility
+Sent as soon as the test run begins. This gives the admin visibility
 into when a run kicked off, even before results arrive.
 
 The email contains:
-  - How the run was triggered ("Scheduled (daily)" or "Manual (admin)")
+  - How the run was triggered ("Scheduled (daily)" or "Manual (terminal)")
   - The current git SHA + branch
   - The UTC timestamp when the run started
 
 Architecture: triggered by:
-  1. e2e_test_tasks.run_daily_all_tests (Celery Beat, 03:00 UTC)
-  2. POST /v1/admin/tests/run (manual trigger via admin API)
-  3. run-tests-daily.sh via _daily_runner_helper.py dispatch-start-email
-     (host-side script path, for when the sidecar initiates the run)
+  1. run-tests-daily.sh via _daily_runner_helper.py dispatch-start-email
+     (called by system crontab at 03:00 UTC, or manually via --force)
 
 See docs/architecture/health-checks.md
 """

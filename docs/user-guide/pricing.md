@@ -1,52 +1,47 @@
-# Pricing architecture
+---
+status: active
+last_verified: 2026-03-24
+---
 
-> This is the planned architecture. Keep in mind there can still be differences to the current state of the code.
+# Pricing
 
-- user buys usage credits
-- credits never expire
-- pay per skill use
-- skills can charge:
-	- per usage
-	- per input tokens
-	- per output tokens
-	- per unit (per image, per video)
-	- per time (per minute of audio, per second of video)
-	- different prices depending on model (mistral medium vs claude 4 sonnet for example)
-- minimum 1 credit charged per request
-- user needs to confirm when predicted skill use cost (before executing skill) is above treshold
-- user is charged for all input and output tokens from main processing flow (including function calls)
-- in billing section user is shown usage / pricing details per chat
-- user can export chat with full text content (full markdown, full output of function calls, etc.), both for understanding the chat context bettet and to confirm pricing calculation when user os skeptical. Chat export includes billing.yml overview of all requests and their billing details and token count
-- if user didnt mention @appname or @skillname in request, always ask fist for app skill executing confirmation by default (but allow this to be changed in settings to auto run skills if price below X)
-- "Run app skill XY?" confirmation question includes estimated price if that can be calculated (for example: generating an image, generate a video, etc.) or else price of skill and for which unit (per minute, per input tokens, etc.)
-- if chat costs go above treshold, user is asked if they want to continue the chat or start a new chat
-- prices are listed in appstore section for each app skill
+> OpenMates uses a pay-per-use credits system. No subscriptions -- you only pay for what you use, and credits never expire.
 
+## What It Does
 
-## Pricing / billing flow
+Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits and spend them as you send messages and use app skills. Different actions cost different amounts depending on the model and tools used.
 
-### Web App
+## How Credits Work
 
-- user sends new message in chat
-- server checks if user has at least 1 credit remaining
-- if yes, message is processed via pre-processing, main-processing and together with assistant response in post-processing
-- if app skill is called during main-processing:
-	- calculate estimate for costs of app skill usage
-	- check if user has enough credits for app skill use
-	- charge credits directly once the costs occur (first from credits amount on server cache, then update server database)
-	- once frontend receives completed app skill call output, encrypt metadata on client via wrapped encryption key and send to server for long term storage in database
-- while response stream from main-processing is received, check with every generayed paragraph if calculated costs start to exceed remaining usage credits of user (by comparison to up to date server cache value of remaining credits of user)
-- once assistant response is completed, charge either based on number of tokens which api output calculated, or if that number isn't given, based on calculated number of tokens (first update server cache, then server database)
+- **Buy credits** in Settings > Billing. You can purchase as many or as few as you need.
+- **Credits never expire** -- they stay in your account until you use them.
+- **Minimum charge** is 1 credit per request.
+- **Prices vary** by model and skill. More powerful models cost more credits per message.
 
-### Scenarios
+## What Gets Charged
 
-1. While processing stream of response the calculated cost of the output is exceeding remaining credits of user
-	-  request will be interrupted, user will receive a separate "Ups... your usage credits just ran out. Please click here to purchase new usage credits to continue with this request."
-	- once credits are purchased, the message changes to "Your have enough credits again to continue this request. Click here to resume." -> once clicked this will make the message disappear and send the existing chat history plus a "Continue" in the chat or user language 
+- **Messages**: Every message you send uses credits based on the length of the conversation and the model selected.
+- **App skills**: Tools like web search, image generation, and code execution have their own prices. Some charge per use, per token, or per unit (like per image or per minute of audio).
+- **Prices are listed** in the App Store section for each skill.
 
-2. User does not have enough credits for app skill use
-	- just return existing function call draft to frontend for sync and show in web ui "You need at least X more credits for this app skill use. Click here to purchase new credits before you can continue."
-	- once credits are purchased, text in chat changes to "Your have enough credits again to continue this request. Click here to resume."
+## Cost Transparency
 
-3. User has no credits when making a request.
-	- user receives fixed response "Sorry, you don't have any credits left. Click here to purchase more credits, before we can continue."
+- **Prices are listed** in the App Store section for each skill, so you know the cost before using them.
+- In your billing section, you can see a detailed breakdown of credits used per chat.
+- You can **export any chat** to see the full billing details and token counts.
+
+## Running Out of Credits
+
+- If you try to send a message with **insufficient credits**, your request is rejected and a system notice appears in the chat with a **Buy Credits** button. Once you purchase credits, you can resend your message.
+- The chat enters a "waiting" state until you top up -- no credits are lost on a rejected request.
+
+## Tips
+
+- Check your credit balance in Settings > Usage at any time.
+- Enable **auto top-up** in Settings > Billing to automatically purchase credits when your balance gets low.
+- Gift cards can also be redeemed for credits. See [Gift Cards](gift-cards.md).
+
+## Related
+
+- [Usage & Billing](usage-and-billing.md) -- Viewing your usage history
+- [Gift Cards](gift-cards.md) -- Redeeming gift cards for credits

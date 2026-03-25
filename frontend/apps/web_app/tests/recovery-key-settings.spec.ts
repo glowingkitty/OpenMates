@@ -7,6 +7,7 @@ export {};
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -37,6 +38,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -98,9 +100,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// Validate required environment variables
-	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, OPENMATES_TEST_ACCOUNT_EMAIL, OPENMATES_TEST_ACCOUNT_PASSWORD, OPENMATES_TEST_ACCOUNT_OTP_KEY);
 
 	// Grant clipboard permissions for reading the recovery key after "Copy" action
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -113,7 +113,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// PHASE 1: Login with password + OTP (with retry on OTP timing failures)
 	// ========================================================================
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
@@ -133,9 +133,9 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Submitted email for lookup.');
 
 	// Wait for password+TFA form to appear
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput).toBeVisible({ timeout: 15000 });
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
@@ -340,13 +340,13 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Submitted email for re-login.');
 
 	// Enter password
-	const passwordInputRelogin = page.locator('input[type="password"]');
+	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
 	// The TFA input should already be visible (tfa_enabled=true from lookup)
-	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 

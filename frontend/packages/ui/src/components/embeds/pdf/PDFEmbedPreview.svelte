@@ -156,9 +156,11 @@
       screenshotS3Key = key;
     }
     const k = content.aes_key as string | undefined;
+    // aes_nonce is "" for new PDFs (nonce is embedded per-artefact); keep for
+    // legacy compatibility but treat undefined vs "" distinctly.
     const n = content.aes_nonce as string | undefined;
     if (k) aesKey = k;
-    if (n) aesNonce = n;
+    if (n !== undefined) aesNonce = n;
   }
 
   // Fetch page-1 screenshot once key + credentials become available and embed is in view
@@ -168,7 +170,7 @@
       status === 'finished' &&
       screenshotS3Key &&
       aesKey &&
-      aesNonce &&
+      aesNonce !== undefined &&
       !imageUrl &&
       !isLoadingImage &&
       !imageError
@@ -178,7 +180,7 @@
   });
 
   async function loadScreenshot(): Promise<void> {
-    if (!screenshotS3Key || !aesKey || !aesNonce) return;
+    if (!screenshotS3Key || !aesKey || aesNonce === undefined) return;
     if (imageUrl) return;
     if (loadRetryCount >= MAX_LOAD_RETRIES) {
       console.warn('[PDFEmbedPreview] Giving up after max retries:', screenshotS3Key);
@@ -292,7 +294,7 @@
     const pc = localPageCount;
     if (isBeingViewed) return $text('app_skills.pdf.view.viewing');
     if (status === 'uploading') return $text('app_skills.pdf.view.uploading');
-    if (status === 'error') return uploadError || $text('app_skills.pdf.view.upload_failed');
+    if (status === 'error') return uploadError || $text('common.upload_failed');
     if (status === 'processing') {
       if (pc && pc > 0) {
         return $text('app_skills.pdf.view.processing_pages', { values: { count: pc } });
@@ -303,7 +305,7 @@
       if (pc && pc > 0) {
         return pc === 1 ? '1 page' : `${pc} pages`;
       }
-      return $text('app_skills.pdf.view');
+      return $text('common.pdf');
     }
     return '';
   });
@@ -336,18 +338,29 @@
           Page-1 screenshot available: show full-bleed like ImageEmbedPreview.
           Clicking opens the fullscreen viewer (cursor: zoom-in).
         -->
-        <div
-          class="image-content"
-          class:clickable={status === 'finished' && !!handleFullscreen}
-        >
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-          <img
-            src={imageUrl}
-            alt={localFilename || 'PDF page 1'}
-            class="preview-image"
-            onclick={status === 'finished' ? handleFullscreen : undefined}
-          />
-        </div>
+        {#if status === 'finished' && !!handleFullscreen}
+          <div
+            class="image-content clickable"
+            onclick={handleFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={imageUrl}
+              alt={localFilename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={imageUrl}
+              alt={localFilename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {/if}
 
       {:else}
         <!--

@@ -26,6 +26,7 @@ import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHand
 import { embedStore } from "../../../../services/embedStore";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
+import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
 import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPreview.svelte";
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
@@ -354,6 +355,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      // For mail search, render using Svelte component
+      if (appId === "mail" && skillId === "search") {
+        return this.renderMailSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For news search, render using Svelte component
       if (appId === "news" && skillId === "search") {
         return this.renderNewsSearchComponent(
@@ -647,6 +658,75 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       attrs,
     );
     return this.renderGenericProcessingState(attrs, content);
+  }
+
+  /**
+   * Render mail search embed using Svelte component
+   */
+  private renderMailSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query =
+      decodedContent?.query || (attrs as any).query || "Recent emails";
+    const provider = decodedContent?.provider || "Proton Mail Bridge";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(MailSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted MailSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting MailSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
   }
 
   /**

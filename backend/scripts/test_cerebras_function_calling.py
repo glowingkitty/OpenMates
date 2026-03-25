@@ -13,7 +13,6 @@
 import asyncio
 import sys
 import logging
-from typing import List, Dict, Any, Optional
 
 # Set up logging to see what's happening
 logging.basicConfig(

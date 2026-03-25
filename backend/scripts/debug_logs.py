@@ -12,7 +12,7 @@ and satellite server logs.  Supports multiple modes:
   4. Satellite server update:  Trigger git-pull + rebuild on upload/preview.
   5. Satellite server status:  Poll last update status on upload/preview.
 
-Architecture context: See docs/claude/inspection-scripts.md
+Architecture context: See docs/contributing/guides/debugging.md
 
 Usage — User Timeline Mode (requires email):
     docker exec api python /app/backend/scripts/debug_logs.py <email>
@@ -64,6 +64,7 @@ import asyncio
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -135,6 +136,7 @@ O2_PRESETS = (
     "api-failed-requests",
     "top-warnings-errors",
     "chat-processing",
+    "test-events",
 )
 HEALTH_NOISE_PATHS = (
     " /health ",
@@ -386,11 +388,11 @@ async def query_openobserve(
             "%Y-%m-%d %H:%M:%S"
         )
 
-        message = hit.get("log", hit.get("message", "")).strip()
+        message = (hit.get("message") or "").strip()
         level = hit.get("level", extract_level_from_message(message))
 
         # Determine source from stream metadata
-        stream_source = hit.get("container", hit.get("service", "unknown"))
+        stream_source = hit.get("container") or hit.get("service") or "unknown"
         job = hit.get("job", "")
         if job == "client-console":
             stream_source = "browser"
@@ -2131,6 +2133,109 @@ async def _o2_preset_chat_processing(args) -> None:
         print(f"{C_DIM}Try --since 60 or add --chat-id <id> to filter.{C_RESET}")
 
 
+async def _o2_preset_test_events(args) -> None:
+    """Show recent Playwright E2E test lifecycle events from OpenObserve."""
+    since = args.since or 60
+
+    # Fetch test-events and test-runs summaries in parallel
+    events_sql = (
+        "SELECT _timestamp, event_type, status, worker_slot, message "
+        "FROM \"default\" "
+        "WHERE job='test-events' "
+        "ORDER BY _timestamp DESC "
+        "LIMIT 100"
+    )
+    runs_sql = (
+        "SELECT _timestamp, status, message "
+        "FROM \"default\" "
+        "WHERE job='test-runs' "
+        "ORDER BY _timestamp DESC "
+        "LIMIT 10"
+    )
+    events, runs = await asyncio.gather(
+        _query_openobserve_sql_hits(events_sql, since, 100),
+        _query_openobserve_sql_hits(runs_sql, since, 10),
+    )
+
+    print(f"{C_BOLD}OpenObserve preset: test-events{C_RESET}")
+    print(f"{C_DIM}Time window: last {since} minutes  |  "
+          f"events={len(events)} hits  run-summaries={len(runs)} hits{C_RESET}")
+
+    if runs:
+        print(f"\n{C_BOLD}Daily run summaries:{C_RESET}")
+        for r in runs[:5]:
+            ts = _fmt_o2_ts(r.get("_timestamp", 0))
+            status = r.get("status", "?")
+            msg = r.get("message", "")
+            try:
+                body = __import__("json").loads(msg)
+                total = body.get("total", "?")
+                passed = body.get("passed", "?")
+                failed = body.get("failed", "?")
+                sha = body.get("git_sha", "?")[:9]
+                icon = f"{C_GREEN}✓{C_RESET}" if status == "passed" else f"{C_RED}✗{C_RESET}"
+                print(f"  {icon} {ts}  {passed}/{total} passed, {failed} failed  ({sha})")
+            except Exception:
+                print(f"  {ts}  {status}  {msg[:120]}")
+
+    if events:
+        print(f"\n{C_BOLD}Per-spec events (newest first):{C_RESET}")
+        for ev in events[:50]:
+            ts = _fmt_o2_ts(ev.get("_timestamp", 0))
+            event_type = ev.get("event_type", "?")
+            status = ev.get("status", "?")
+            slot = ev.get("worker_slot", "?")
+            msg = ev.get("message", "")
+
+            try:
+                body = __import__("json").loads(msg)
+                test_file = body.get("test_file", "")
+                test_name = body.get("test_name", "")
+                duration = body.get("duration_ms", 0)
+                error = body.get("error_message", "")
+            except Exception:
+                test_file = test_name = error = ""
+                duration = 0
+
+            if event_type == "suite_start":
+                icon = f"{C_CYAN}▶{C_RESET}"
+                detail = f"Suite started ({test_name})"
+            elif event_type == "suite_end":
+                icon = f"{C_BLUE}■{C_RESET}"
+                total = __import__("json").loads(msg).get("total", "?") if msg else "?"
+                passed = __import__("json").loads(msg).get("passed", "?") if msg else "?"
+                failed = __import__("json").loads(msg).get("failed", "?") if msg else "?"
+                detail = f"Suite ended: {passed}/{total} passed, {failed} failed ({duration}ms)"
+            elif status == "passed":
+                icon = f"{C_GREEN}✓{C_RESET}"
+                detail = f"{test_file} ({duration}ms)"
+            elif status in ("failed", "timedOut"):
+                icon = f"{C_RED}✗{C_RESET}"
+                err_snip = error[:120] if error else ""
+                detail = f"{test_file} ({duration}ms) {err_snip}"
+            elif status == "skipped":
+                icon = f"{C_DIM}⊘{C_RESET}"
+                detail = f"{test_file}"
+            else:
+                icon = "?"
+                detail = f"{test_file} {status}"
+
+            print(f"  {icon} {ts}  [slot {slot}] {detail}")
+    elif not runs:
+        print(f"\n{C_DIM}No test events found in the last {since} minutes.{C_RESET}")
+        print(f"{C_DIM}Events appear during E2E test runs (run-tests.sh / run-tests-daily.sh).{C_RESET}")
+
+
+def _fmt_o2_ts(ts_us: int) -> str:
+    """Format an OpenObserve microsecond timestamp to HH:MM:SS."""
+    from datetime import datetime, timezone
+    try:
+        dt = datetime.fromtimestamp(ts_us / 1e6, tz=timezone.utc)
+        return dt.strftime("%H:%M:%S")
+    except Exception:
+        return str(ts_us)
+
+
 async def run_o2_logs_mode(args) -> None:
     """Run compact OpenObserve summaries and ad-hoc SQL queries."""
     if args.sql:
@@ -2160,6 +2265,133 @@ async def run_o2_logs_mode(args) -> None:
     if args.preset == "chat-processing":
         await _o2_preset_chat_processing(args)
         return
+    if args.preset == "test-events":
+        await _o2_preset_test_events(args)
+        return
+
+
+# ─── Debug Session Mode ───────────────────────────────────────────────────────
+
+
+async def run_debug_session_mode(args: argparse.Namespace) -> None:
+    """Query frontend and backend logs tagged with a user debug session ID.
+
+    Searches OpenObserve for:
+    1. Frontend console logs: job='client-console' AND debugging_id=<ID>
+    2. Backend request logs: any log entry containing the debugging_id string
+
+    Merges and sorts chronologically, giving an end-to-end timeline of the
+    user's activity during their debug session.
+    """
+    debugging_id = args.debug_id
+    since_minutes = args.since
+    limit = args.limit
+
+    email = os.environ.get("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.environ.get("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    if not email or not password:
+        print(f"{C_RED}OPENOBSERVE_ROOT_EMAIL/PASSWORD not set{C_RESET}")
+        return
+
+    print(f"{C_CYAN}{'─'*4} Debug Session Logs: {debugging_id} {'─'*30}{C_RESET}")
+    print(f"{C_DIM}  Looking back {since_minutes} min, limit {limit}{C_RESET}")
+    print()
+
+    start_us = int((time.time() - since_minutes * 60) * 1_000_000)
+    end_us = int(time.time() * 1_000_000)
+
+    all_entries: list[dict[str, Any]] = []
+
+    # 1. Frontend console logs (tagged with debugging_id label)
+    frontend_sql = (
+        f"SELECT _timestamp, message, level, device_type, user_id "
+        f'FROM "default" '
+        f"WHERE job = 'client-console' AND debugging_id = '{debugging_id}' "
+        f"ORDER BY _timestamp ASC LIMIT {limit}"
+    )
+    try:
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
+        body = {"query": {"sql": frontend_sql, "start_time": start_us, "end_time": end_us}}
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for hit in data.get("hits", []):
+                        ts_us = hit.get("_timestamp", 0)
+                        all_entries.append({
+                            "ts": int(ts_us),
+                            "source": "frontend",
+                            "level": hit.get("level", "info"),
+                            "message": hit.get("message", ""),
+                            "device": hit.get("device_type", ""),
+                        })
+    except Exception as e:
+        print(f"{C_YELLOW}  Frontend log query failed: {e}{C_RESET}")
+
+    # 2. Backend logs (debugging_id in structured log body).
+    # Note: 'log' is not a valid OpenObserve field — only 'message' exists for log content.
+    backend_sql = (
+        f"SELECT _timestamp, container, service, message, level "
+        f'FROM "default" '
+        f"WHERE message LIKE '%{debugging_id}%' "
+        f"AND job != 'client-console' "
+        f"ORDER BY _timestamp ASC LIMIT {limit}"
+    )
+    try:
+        url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
+        body = {"query": {"sql": backend_sql, "start_time": start_us, "end_time": end_us}}
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for hit in data.get("hits", []):
+                        ts_us = hit.get("_timestamp", 0)
+                        svc = hit.get("container") or hit.get("service") or "api"
+                        msg = (hit.get("message") or "")[:200]
+                        all_entries.append({
+                            "ts": int(ts_us),
+                            "source": f"backend/{svc}",
+                            "level": hit.get("level", "info"),
+                            "message": msg,
+                            "device": "",
+                        })
+    except Exception as e:
+        print(f"{C_YELLOW}  Backend log query failed: {e}{C_RESET}")
+
+    # Sort by timestamp and display
+    all_entries.sort(key=lambda x: x["ts"])
+
+    fe_count = sum(1 for e in all_entries if e["source"] == "frontend")
+    be_count = len(all_entries) - fe_count
+    print(f"  Found {len(all_entries)} entries (frontend: {fe_count}, backend: {be_count})")
+    print()
+
+    if not all_entries:
+        print(f"  {C_DIM}No logs found for debug session {debugging_id}.{C_RESET}")
+        print(f"  {C_DIM}The session may not have started yet, or logs haven't been ingested.{C_RESET}")
+        return
+
+    for entry in all_entries:
+        ts_s = datetime.fromtimestamp(entry["ts"] / 1_000_000).strftime("%H:%M:%S.%f")[:12]
+        level = entry["level"][:5].upper()
+        source = entry["source"][:20]
+        msg = entry["message"][:160]
+
+        # Color by level
+        if level in ("ERROR", "CRITI"):
+            color = C_RED
+        elif level in ("WARN", "WARNI"):
+            color = C_YELLOW
+        else:
+            color = C_RESET
+
+        print(f"  {C_DIM}{ts_s}{C_RESET} {color}{level:<5}{C_RESET} {C_CYAN}{source:<20}{C_RESET} {msg}")
+
+    print()
+    print(f"  {C_DIM}Tip: Use --since N to adjust lookback window (default: 1440 min / 24h).{C_RESET}")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -2190,6 +2422,12 @@ async def main():
                         help="Poll last update status on the upload server")
     parser.add_argument("--preview-status", action="store_true", dest="preview_status",
                         help="Poll last update status on the preview server")
+
+    # Debug session mode
+    parser.add_argument("--debug-id", type=str, default=None, dest="debug_id",
+                        help="Query logs for a user debug session ID (e.g. 'dbg-a3f2c8'). "
+                        "Searches both frontend console logs and backend request logs "
+                        "tagged with the debugging_id.")
 
     # Shared options
     parser.add_argument("--since", type=int, default=None,
@@ -2276,6 +2514,15 @@ async def main():
         if args.lines is None:
             args.lines = 200
         await run_preview_logs_mode(args)
+        return
+
+    # Debug session log mode
+    if args.debug_id:
+        if args.since is None:
+            args.since = 1440  # 24h default for debug sessions
+        if args.limit is None:
+            args.limit = 200
+        await run_debug_session_mode(args)
         return
 
     # Browser console log mode

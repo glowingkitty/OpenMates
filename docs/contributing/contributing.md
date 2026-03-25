@@ -1,6 +1,11 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Contributing
 
-![How to contribute header image](/docs/internal/slides/openmates_pitch_slides/contribute.jpg)
+![How to contribute header image](/marketing/slides/openmates_pitch_slides/contribute.jpg)
 
 ## Signal group for developers
 

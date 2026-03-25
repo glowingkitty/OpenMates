@@ -16,6 +16,10 @@ instructions:
         with the OpenMates team. Only call this skill after the user has explicitly agreed
         to share. The summary should be a brief 2-5 sentence description of what the user
         wants to use OpenMates for, as discussed in the conversation.
+      - **get-docs**: Retrieve a specific OpenMates documentation page by URL or slug.
+        Automatically use this when the user shares an openmates.org/docs URL.
+      - **search-docs**: Search across all OpenMates documentation for a topic or keyword.
+        Use when the user asks about OpenMates features, setup, or architecture.
 
 skills:
   - id: share-usecase
@@ -28,7 +32,8 @@ skills:
       NEVER call this without clear user consent.
     stage: production
     providers:
-      - OpenMates
+      - name: OpenMates
+        no_api_key: true
     class_path: backend.apps.openmates.skills.share_usecase_skill.ShareUsecaseSkill
     # REST API configuration: POST-only (no GET metadata endpoint).
     # This is a write-only anonymous data collection skill — there is no data to retrieve.
@@ -48,6 +53,51 @@ skills:
       required:
         - summary
         - language
+
+  - id: get-docs
+    name_translation_key: openmates_app.get_docs
+    description_translation_key: openmates_app.get_docs.description
+    icon_image: library.svg
+    preprocessor_hint: >
+      Use when the user shares an openmates.org/docs URL, or asks to read a specific
+      OpenMates documentation page. Automatically triggered when an openmates docs URL
+      is detected in the conversation.
+    stage: production
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.openmates.skills.get_docs_skill.GetDocsSkill
+    tool_schema:
+      type: object
+      properties:
+        url:
+          type: string
+          description: >
+            An openmates.org/docs URL or a docs slug path
+            (e.g., 'architecture/chats' or 'https://openmates.org/docs/architecture/chats')
+      required:
+        - url
+
+  - id: search-docs
+    name_translation_key: openmates_app.search_docs
+    description_translation_key: openmates_app.search_docs.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Use when the user asks about OpenMates features, setup, architecture, or documentation.
+      Searches across all OpenMates documentation to find relevant pages.
+    stage: production
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.openmates.skills.search_docs_skill.SearchDocsSkill
+    tool_schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search terms to find in OpenMates documentation
+      required:
+        - query
 
 focuses:
   - id: welcome

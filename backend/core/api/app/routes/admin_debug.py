@@ -19,9 +19,11 @@ API DOMAINS:
 - Development: api.dev.openmates.org
 """
 
+import asyncio
 import hashlib
 import logging
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -255,6 +257,25 @@ class DeleteIssueResponse(BaseModel):
     success: bool
     message: str
     deleted_from_s3: bool
+
+
+class IssueTimelineEvent(BaseModel):
+    """A single event in the issue timeline."""
+    ts_us: int          # OpenObserve timestamp in microseconds
+    level: str          # log level (info/warn/error/critical)
+    source: str         # container name or 'browser'
+    message: str        # log message (truncated to 200 chars)
+
+
+class IssueTimelineResponse(BaseModel):
+    """Unified browser + backend log timeline for an issue."""
+    issue: Dict[str, Any]       # minimal issue metadata (id, title, created_at, reported_by_user_id)
+    events: List[IssueTimelineEvent]
+    start_us: int               # query window start (microseconds)
+    end_us: int                 # query window end (microseconds)
+    before_minutes: int
+    after_minutes: int
+    generated_at: str
 
 
 class InspectResponse(BaseModel):
@@ -631,6 +652,182 @@ async def get_issue_detail(
     except Exception as e:
         logger.error(f"Error fetching issue {issue_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch issue: {str(e)}")
+
+
+@router.get("/issues/{issue_id}/timeline", response_model=IssueTimelineResponse)
+@limiter.limit("30/minute")
+async def get_issue_timeline(
+    request: Request,
+    issue_id: str,
+    before_minutes: int = 10,
+    after_minutes: int = 5,
+    admin_user: User = Depends(require_admin_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> IssueTimelineResponse:
+    """
+    Unified browser + backend log timeline for an issue, queried live from OpenObserve.
+
+    Anchors the time window to the issue's created_at timestamp and runs three parallel
+    OpenObserve SQL queries:
+      1. Browser console snapshot: job=client-issue-report AND issue_id=<id>
+      2. Backend container logs: container-logs mentioning issue_id or user_id
+      3. API application logs: api-logs mentioning issue_id or user_id
+
+    Returns all events merged and sorted chronologically so the CLI can render a
+    unified timeline without needing to decrypt the S3 YAML.
+
+    Args:
+        issue_id: UUID of the issue
+        before_minutes: Minutes before created_at to include (default: 10)
+        after_minutes: Minutes after created_at to include (default: 5)
+    """
+    logger.info(
+        f"Admin {admin_user.id} fetching timeline for issue {issue_id} "
+        f"(−{before_minutes}min/+{after_minutes}min)"
+    )
+
+    # 1. Fetch the issue metadata (to get created_at and reported_by_user_id)
+    try:
+        params = {"filter[id][_eq]": issue_id, "fields": "*", "limit": 1}
+        issues = await directus_service.get_items("issues", params, no_cache=True)
+        if not issues:
+            raise HTTPException(status_code=404, detail=f"Issue not found: {issue_id}")
+        issue = issues[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching issue {issue_id} for timeline: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch issue: {str(e)}")
+
+    user_id  = issue.get("reported_by_user_id") or ""
+
+    # 2. Determine anchor timestamp from created_at
+    created_at_str = issue.get("created_at") or issue.get("timestamp") or ""
+    try:
+        anchor_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+        anchor_us = int(anchor_dt.timestamp() * 1_000_000)
+    except Exception:
+        anchor_us = int(time.time() * 1_000_000)
+
+    start_us = anchor_us - before_minutes * 60 * 1_000_000
+    end_us   = anchor_us + after_minutes  * 60 * 1_000_000
+    now_us   = int(time.time() * 1_000_000)
+    if end_us > now_us:
+        end_us = now_us
+
+    # 3. Run parallel OpenObserve SQL queries
+    def _sql_esc(s: str) -> str:
+        return s.replace("'", "''")
+
+    issue_id_esc = _sql_esc(issue_id)
+    search_terms = [issue_id_esc]
+    if user_id:
+        search_terms.append(_sql_esc(user_id))
+
+    like_clauses = " OR ".join(
+        f"log LIKE '%{t}%' OR message LIKE '%{t}%'" for t in search_terms
+    )
+
+    async def _query(sql: str) -> List[Dict[str, Any]]:
+        """Execute one SQL query against the local OpenObserve instance."""
+        sql_body = sql.strip().rstrip(";")
+        if " limit " not in sql_body.lower():
+            sql_body = f"{sql_body} LIMIT 2000"
+        body = {"query": {"sql": sql_body, "start_time": start_us, "end_time": end_us}}
+        email    = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+        import aiohttp
+        url = "http://openobserve:5080/api/default/_search"
+        auth = aiohttp.BasicAuth(email, password)
+        timeout = aiohttp.ClientTimeout(total=30)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, json=body, auth=auth) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data.get("hits", [])
+                    logger.warning(
+                        f"OpenObserve timeline query failed ({resp.status}): "
+                        f"{(await resp.text())[:200]}"
+                    )
+                    return []
+        except Exception as exc:
+            logger.warning(f"OpenObserve timeline query error: {exc}")
+            return []
+
+    browser_sql = (
+        f"SELECT _timestamp, message, level "
+        f'FROM "default" '
+        f"WHERE job = 'client-issue-report' AND issue_id = '{issue_id_esc}' "
+        f"ORDER BY _timestamp ASC"
+    )
+    container_sql = (
+        f"SELECT _timestamp, container, service, log, message, level "
+        f'FROM "default" '
+        f"WHERE job = 'container-logs' AND ({like_clauses}) "
+        f"ORDER BY _timestamp ASC"
+    )
+    api_sql = (
+        f"SELECT _timestamp, container, service, log, message, level "
+        f'FROM "default" '
+        f"WHERE job = 'api-logs' AND ({like_clauses}) "
+        f"ORDER BY _timestamp ASC"
+    )
+
+    browser_hits, container_hits, api_hits = await asyncio.gather(
+        _query(browser_sql),
+        _query(container_sql),
+        _query(api_sql),
+    )
+
+    # 4. Normalise hits into IssueTimelineEvent objects
+    raw_events: List[Dict[str, Any]] = []
+
+    for hit in browser_hits:
+        raw_events.append({
+            "ts_us":   int(hit.get("_timestamp", 0)),
+            "level":   (hit.get("level") or "info").lower(),
+            "source":  "browser",
+            "message": (hit.get("message") or "").strip()[:200],
+        })
+
+    for hit in container_hits + api_hits:
+        raw_events.append({
+            "ts_us":   int(hit.get("_timestamp", 0)),
+            "level":   (hit.get("level") or "info").lower(),
+            "source":  (hit.get("container") or hit.get("service") or "unknown"),
+            "message": (hit.get("message") or hit.get("log") or "").strip()[:200],
+        })
+
+    # Deduplicate and sort
+    seen: set = set()
+    unique: List[Dict[str, Any]] = []
+    for evt in sorted(raw_events, key=lambda e: e["ts_us"]):
+        key = (evt["ts_us"], evt["message"][:100])
+        if key not in seen:
+            seen.add(key)
+            unique.append(evt)
+
+    events = [IssueTimelineEvent(**e) for e in unique]
+
+    # 5. Build minimal issue dict (no encrypted fields)
+    issue_summary = {
+        "id":                  issue.get("id"),
+        "title":               issue.get("title", ""),
+        "created_at":          issue.get("created_at", ""),
+        "timestamp":           issue.get("timestamp", ""),
+        "reported_by_user_id": user_id or None,
+    }
+
+    return IssueTimelineResponse(
+        issue=issue_summary,
+        events=events,
+        start_us=start_us,
+        end_us=end_us,
+        before_minutes=before_minutes,
+        after_minutes=after_minutes,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 @router.delete("/issues/{issue_id}", response_model=DeleteIssueResponse)

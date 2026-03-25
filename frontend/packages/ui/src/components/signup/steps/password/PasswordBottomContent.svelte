@@ -355,7 +355,7 @@
             disabled={!localIsFormValid || isLoading}
             onclick={handleContinue}
         >
-            {isLoading ? $text('login.loading') : $text('signup.continue')}
+            {isLoading ? $text('common.loading') : $text('common.continue')}
         </button>
     </div>
     

@@ -76,7 +76,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     <div class="balance-display">
         <span class="coin-icon"></span>
         <span class="balance-amount">{formatCredits(currentCredits)}</span>
-        <span class="balance-label">{$text('settings.billing.credits')}</span>
+        <span class="balance-label">{$text('common.credits')}</span>
     </div>
 </div>
 
@@ -84,7 +84,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon coins"
-    title={$text('settings.billing.buy_credits')}
+    title={$text('common.buy_credits')}
     onClick={() => navigateToSubview('buy-credits')}
 />
 
@@ -100,7 +100,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon document"
-    title={$text('settings.billing.invoices')}
+    title={$text('common.invoices')}
     onClick={() => navigateToSubview('invoices')}
 />
 
@@ -108,23 +108,24 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon icon_gift"
-    title={$text('settings.gift_cards')}
+    title={$text('common.gift_cards')}
     onClick={() => dispatch('openSettings', {
         settingsPath: 'billing/gift-cards',
         direction: 'forward',
         icon: 'icon_gift',
-        title: $text('settings.gift_cards')
+        title: $text('common.gift_cards')
     })}
 />
 
+<!-- Divider before Usage -->
+<div class="section-divider"></div>
+
 <!-- Usage Section -->
-<div class="usage-section">
-    <h3 class="usage-section-headline">{$text('settings.usage')}</h3>
-    <SettingsUsage
-        on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
-        on:closeSettings={() => dispatch('closeSettings')}
-    />
-</div>
+<SettingsItem type="heading" icon="usage" title={$text('settings.usage')} />
+<SettingsUsage
+    on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
+    on:closeSettings={() => dispatch('closeSettings')}
+/>
 
 {#if errorMessage}
     <div class="settings-error">{errorMessage}</div>
@@ -184,19 +185,11 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         background-color: var(--color-grey-90);
     }
 
-    /* Usage Section */
-    .usage-section {
-        margin-top: 16px;
-    }
-
-    .usage-section-headline {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-grey-60);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 0 10px 6px 10px;
-        margin: 0;
+    /* Divider between billing items and usage section */
+    .section-divider {
+        height: 1px;
+        background: var(--color-grey-25);
+        margin: 12px 10px;
     }
 
     /* Error uses global .settings-error from settings.css */

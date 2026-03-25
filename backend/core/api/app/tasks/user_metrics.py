@@ -1,10 +1,8 @@
 import logging
-import time
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.metrics import MetricsService
-from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +14,7 @@ async def update_active_users_metrics(directus_service: DirectusService, metrics
     """
     try:
         # 1. Get count of all users (total registered)
-        total_users = await get_total_users(directus_service)
+        await get_total_users(directus_service)
         
         # 2. Calculate daily active users (users who logged in today)
         daily_active = await get_daily_active_users(directus_service)

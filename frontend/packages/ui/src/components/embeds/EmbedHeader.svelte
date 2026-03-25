@@ -287,6 +287,13 @@
     height: 220px;
     opacity: 0.55;
     filter: blur(28px);
+    /* Promote each orb to its own compositor layer so the drift + morph
+       animations run off the main thread. On iOS/iPadOS, animating
+       border-radius on a blurred element forces per-frame rasterization
+       unless the element is already composited. Promoting here ensures
+       the three orbs don't compete with the fullscreen slide-in for GPU
+       budget. */
+    will-change: transform;
   }
 
   /* Orb 1 — color-b (end), top-left anchor */

@@ -1274,7 +1274,7 @@
             <button 
                 class="clickable-icon icon_close" 
                 onclick={handleClose}
-                aria-label={$text('enter_message.location.close')}
+                aria-label={$text('common.close')}
                 use:tooltip
             ></button>
 
@@ -1736,7 +1736,6 @@
     }
 
     .search-input:focus {
-        outline: none;
         border-color: var(--color-primary);
     }
 

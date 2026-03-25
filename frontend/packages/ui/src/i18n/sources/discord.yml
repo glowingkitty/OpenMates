@@ -5,20 +5,20 @@ join_server:
   zh: 加入服务器
   es: Unirse al servidor
   fr: Rejoindre le serveur
-  pt: ''
-  ru: ''
+  pt: Entrar no servidor
+  ru: Присоединиться к серверу
   ja: サーバーに参加
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 서버 참가
+  it: Unisciti al server
+  tr: Sunucuya katıl
+  vi: Tham gia máy chủ
+  id: Bergabung ke server
+  pl: Dołącz do serwera
+  nl: Server joinen
+  ar: انضم إلى السيرفر
+  hi: सर्वर से जुड़ें
+  th: เข้าร่วมเซิร์ฟเวอร์
+  cs: Připojit se k serveru
+  sv: Gå med i servern
   he: הצטרף לשרת
   verified_by_human: []

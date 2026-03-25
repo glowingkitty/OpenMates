@@ -5,21 +5,21 @@ description:
   zh: 管理您的积分、订阅和支付方式
   es: Gestiona tus créditos, suscripciones y métodos de pago
   fr: Gérez vos crédits, abonnements et moyens de paiement
-  pt: ""
-  ru: ""
+  pt: Gerencie seus créditos, compras e para o que você usou créditos
+  ru: Управляйте кредитами, покупками и тем, на что вы тратили кредиты
   ja: クレジット、サブスクリプション、支払い方法を管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 크레딧, 구매 내역 및 크레딧 사용 내역 관리
+  it: Gestisci i tuoi crediti, gli acquisti e per cosa hai usato i crediti
+  tr: Kredilerinizi, satın alma işlemlerinizi ve kredilerinizi ne için kullandığınızı yönetin
+  vi: Quản lý tín dụng, mua hàng và những gì bạn đã dùng tín dụng cho
+  id: Kelola kredit, pembelian, dan penggunaan kredit Anda
+  pl: Zarządzaj kredytami, zakupami i tym, na co wydałeś kredyty
+  nl: Beheer uw credits, aankopen en waarvoor u credits heeft gebruikt
   ar: إدارة رصيدك واشتراكاتك وطرق الدفع
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने क्रेडिट, खरीदारी और क्रेडिट के उपयोग का प्रबंधन करें
+  th: จัดการเครดิต การซื้อ และสิ่งที่คุณใช้เครดิต
+  cs: Spravujte své kredity, nákupy a k čemu jste kredity použili
+  sv: Hantera dina krediter, köp och vad du använde krediter till
   he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
   verified_by_human: []
 billing:
@@ -2355,7 +2355,25 @@ auto_topup_payment_method_error:
 buy_credits_explainer:
   context: Short explainer text shown above credit tier options on the Buy Credits page
   en: Credits are used when you chat with your digital team mates and use app skills.
+  de: Credits werden verwendet, wenn du mit deinen digitalen Team-Mates chattest und App-Fähigkeiten nutzt.
+  zh: 当您与数字团队成员聊天并使用应用技能时，会消耗积分。
+  es: Los créditos se usan cuando chateas con tus compañeros de equipo digitales y usas habilidades de la app.
+  fr: Les crédits sont utilisés lorsque vous discutez avec vos coéquipiers numériques et utilisez les compétences de l'application.
+  pt: Os créditos são usados quando você conversa com seus companheiros de equipe digitais e usa habilidades do aplicativo.
+  ru: Кредиты расходуются при общении с цифровыми товарищами по команде и использовании навыков приложения.
+  ja: クレジットは、デジタルチームメイトとチャットしたり、アプリスキルを使用したりするときに消費されます。
+  ko: 크레딧은 디지털 팀 동료와 채팅하거나 앱 스킬을 사용할 때 소모됩니다.
+  it: I crediti vengono utilizzati quando chatti con i tuoi compagni di squadra digitali e usi le abilità dell'app.
+  tr: Krediler, dijital takım arkadaşlarınızla sohbet ettiğinizde ve uygulama becerilerini kullandığınızda harcanır.
+  vi: Tín dụng được sử dụng khi bạn trò chuyện với các đồng đội kỹ thuật số và sử dụng kỹ năng ứng dụng.
+  id: Kredit digunakan saat Anda mengobrol dengan rekan tim digital dan menggunakan keterampilan aplikasi.
+  pl: Kredyty są używane podczas rozmów z cyfrowymi współpracownikami i korzystania z umiejętności aplikacji.
+  nl: Credits worden gebruikt wanneer u chat met uw digitale teamgenoten en gebruik maakt van app-vaardigheden.
   ar: تُستخدم الاعتمادات عند الدردشة مع رفاقك الرقميين واستخدام مهارات التطبيق.
+  hi: क्रेडिट का उपयोग तब होता है जब आप अपने डिजिटल टीम साथियों के साथ चैट करते हैं और ऐप कौशल का उपयोग करते हैं।
+  th: เครดิตถูกใช้เมื่อคุณสนทนากับเพื่อนร่วมทีมดิจิทัลและใช้ทักษะแอป
+  cs: Kredity se spotřebovávají při chatování s digitálními spoluhráči a používání dovedností aplikace.
+  sv: Credits används när du chattar med dina digitala lagkamrater och använder appfärdigheter.
   he: "הקרדיטים משמשים לצ'אט עם חברי הצוות הדיגיטליים שלך ולשימוש ביכולות האפליקציה."
   verified_by_human: []
 insufficient_credits_error:

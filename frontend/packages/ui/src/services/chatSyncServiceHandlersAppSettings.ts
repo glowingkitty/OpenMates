@@ -17,6 +17,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithMasterKey } from "./cryptoService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { get } from "svelte/store";
@@ -1080,7 +1081,7 @@ async function saveAppSettingsMemoriesResponseMessage(
   const contentString = JSON.stringify(responseContent);
 
   // Get chat key for encryption (zero-knowledge architecture)
-  const chatKey = chatDB.getChatKey(chatId);
+  const chatKey = await chatKeyManager.getKey(chatId);
   if (!chatKey) {
     console.error(
       `[ChatSyncService:AppSettings] No chat key found for chat ${chatId}, cannot encrypt system message`,
@@ -1239,7 +1240,7 @@ async function saveAppSettingsMemoriesRequestMessage(
   const contentString = JSON.stringify(requestContent);
 
   // Get chat key for encryption (zero-knowledge architecture)
-  const chatKey = chatDB.getChatKey(chatId);
+  const chatKey = await chatKeyManager.getKey(chatId);
   if (!chatKey) {
     console.error(
       `[ChatSyncService:AppSettings] No chat key found for chat ${chatId}, cannot encrypt request system message`,
@@ -1830,7 +1831,7 @@ export async function handleNewSystemMessageImpl(
     // Check if chat exists locally AND key is in cache before saving.
     // If either is missing, queue the message for later flush.
     const chat = await chatDB.getChat(chat_id);
-    const keyInCache = !!chatDB.getChatKey(chat_id);
+    const keyInCache = !!chatKeyManager.getKeySync(chat_id);
 
     if (!chat || !keyInCache) {
       // Queue for flush once chat+key are available (via new_chat_message or phased sync)
@@ -1869,15 +1870,19 @@ export async function handleNewSystemMessageImpl(
       `[ChatSyncService:AppSettings] Updated chat ${chat_id} last_edited_overall_timestamp and messages_v for cross-device system message`,
     );
 
-    // Dispatch chatUpdated event to trigger UI refresh
-    // ActiveChat listens for 'chatUpdated' with newMessage to update the chat history
-    // Include chat object so Chats.svelte uses the in-place patch path (faster than full DB reload)
+    // Dispatch chatUpdated event to trigger UI refresh.
+    // Include newMessage so ActiveChat takes the direct-update path (appends to
+    // currentMessages immediately) instead of the slower safety-net IndexedDB reload.
+    // This is critical for cross-device permission sync: the response system message
+    // must appear in the messages array so ChatHistory's unpairedRequest derived state
+    // recalculates and auto-dismisses the permission dialog on the receiving device.
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
         detail: {
           chat_id: chat_id,
           type: "system_message_synced",
           messagesUpdated: true,
+          newMessage: systemMessage,
           chat: updatedChat,
         },
       }),
@@ -2037,7 +2042,7 @@ export async function handlePendingAIResponseImpl(
     }
 
     // Get the chat key for encryption
-    const chatKey = chatDB.getChatKey(chat_id);
+    const chatKey = await chatKeyManager.getKey(chat_id);
     if (!chatKey) {
       console.error(
         `[ChatSyncService:PendingAI] No chat key available for chat ${chat_id}, cannot encrypt pending AI response`,
@@ -2156,6 +2161,7 @@ interface ReminderFiredPayload {
   chat_title?: string; // For new_chat target
   user_id: string; // User's UUID (used for WebSocket routing)
   fired_at?: number; // Unix timestamp when the reminder actually fired (set by backend)
+  response_type?: "simple" | "full"; // "simple" = notification-only, "full" = AI executes task
 }
 
 /**
@@ -2227,12 +2233,13 @@ export async function handleReminderFiredImpl(
         );
         return;
       }
-      chatKey = chatDB.getChatKey(chat_id);
+      chatKey = await chatKeyManager.getKey(chat_id);
     } else {
       // new_chat: Create the chat locally first
       // Generate a new chat key for this chat
-      const { generateChatKey } = await import("./cryptoService");
-      chatKey = generateChatKey();
+      // Create key through ChatKeyManager (single source of truth for key creation)
+      const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+      chatKey = chatKeyManager.createKeyForNewChat(chat_id);
 
       if (!chatKey) {
         console.error(
@@ -2240,9 +2247,6 @@ export async function handleReminderFiredImpl(
         );
         return;
       }
-
-      // Store the chat key
-      chatDB.setChatKey(chat_id, chatKey);
 
       const now = firedAt;
 
@@ -2377,8 +2381,10 @@ export async function handleReminderFiredImpl(
       }),
     );
 
-    // Dispatch reminderFiredInChat event so ActiveChat can trigger an AI follow-up
-    // The AI should acknowledge the reminder and help the user with the task
+    // Dispatch reminderFiredInChat event so ActiveChat can trigger an AI follow-up.
+    // Only relevant for response_type="full" — simple reminders are notification-only
+    // and should NOT trigger any AI request (which would fail credit checks).
+    const response_type = payload.response_type || "simple";
     serviceInstance.dispatchEvent(
       new CustomEvent("reminderFiredInChat", {
         detail: {
@@ -2386,6 +2392,7 @@ export async function handleReminderFiredImpl(
           message_id: message_id,
           content: content,
           target_type: target_type,
+          response_type: response_type,
         },
       }),
     );

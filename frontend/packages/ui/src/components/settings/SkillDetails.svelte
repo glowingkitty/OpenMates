@@ -81,7 +81,7 @@
         // Never show "Free" - if no pricing provided, default to 1 credit per request
         // This should not happen in practice since metadata generation always sets pricing
         if (!pricing) {
-            return `1 ${$text('settings.app_store.skills.pricing.credits')} / request`;
+            return `1 ${$text('common.credits')} / request`;
         }
         
         // Token-based pricing - return array for separate lines
@@ -89,10 +89,10 @@
         if (pricing.tokens) {
             const tokenParts: string[] = [];
             if (pricing.tokens.input) {
-                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.input')})`);
+                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('common.credits')} (${$text('settings.app_store.skills.pricing.input')})`);
             }
             if (pricing.tokens.output) {
-                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('settings.app_store.skills.pricing.credits')} (${$text('settings.app_store.skills.pricing.output')})`);
+                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('common.credits')} (${$text('settings.app_store.skills.pricing.output')})`);
             }
             if (tokenParts.length > 0) {
                 return tokenParts;
@@ -104,22 +104,22 @@
         
         // Fixed pricing → "N credits / request"
         if (pricing.fixed !== undefined) {
-            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits')} / request`);
+            parts.push(`${pricing.fixed} ${$text('common.credits')} / request`);
         }
         
         // Per-unit pricing: use the unit_name provided (e.g., "image", "page") as the denominator.
         // Falls back to "request" when unit_name is absent to avoid the non-descriptive "/ unit" label.
         if (pricing.per_unit) {
             const unitName = pricing.per_unit.unit_name || 'request';
-            parts.push(`${pricing.per_unit.credits} ${$text('settings.app_store.skills.pricing.credits')} / ${unitName}`);
+            parts.push(`${pricing.per_unit.credits} ${$text('common.credits')} / ${unitName}`);
         }
         
         // Per minute pricing → "N credits / minute"
         if (pricing.per_minute !== undefined) {
-            parts.push(`${pricing.per_minute} ${$text('settings.app_store.skills.pricing.credits')} / ${$text('settings.app_store.skills.pricing.minute')}`);
+            parts.push(`${pricing.per_minute} ${$text('common.credits')} / ${$text('settings.app_store.skills.pricing.minute')}`);
         }
         
-        return parts.length > 0 ? parts.join(', ') : `1 ${$text('settings.app_store.skills.pricing.credits')} / request`;
+        return parts.length > 0 ? parts.join(', ') : `1 ${$text('common.credits')} / request`;
     }
     
     /**
@@ -314,7 +314,7 @@
                 <SettingsItem
                     type="heading"
                     icon="coins"
-                    title={$text('settings.app_store.skills.pricing')}
+                    title={$text('common.pricing')}
                 />
                 <div class="content">
                     {#if Array.isArray(formattedPricing)}
@@ -404,7 +404,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="coins"
-                    title={$text('settings.app_store.skills.pricing')}
+                    title={$text('common.pricing')}
                 />
                 <div class="content">
                     {#if Array.isArray(formattedPricing)}

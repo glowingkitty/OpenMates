@@ -35,6 +35,11 @@
    */
   let renderVersion = 0;
 
+  // Retry state for when embed ref cannot be resolved to a UUID yet
+  // (e.g. cross-device sync hasn't finished decrypting/registering refs).
+  let retryCount = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
     return embedId || embedStore.resolveByRef(embedRef) || null;
@@ -123,8 +128,24 @@
 
     if (!resolvedEmbedId) {
       loading = true;
+      // Retry ref resolution: during cross-device sync, the ref→ID index may
+      // not be populated yet. Bump embedRefIndexVersion after a delay to
+      // trigger $derived re-evaluation once eager decryption has registered refs.
+      if (embedRef && retryCount < 3) {
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = setTimeout(() => {
+          retryCount++;
+          embedRefIndexVersion.update((n) => n + 1);
+        }, 1000 * (retryCount + 1)); // 1s, 2s, 3s
+      }
       return;
     }
+    // Ref resolved — clear any pending retry
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+    retryCount = 0;
 
     loading = true;
     try {
@@ -204,6 +225,7 @@
   });
 
   onDestroy(() => {
+    if (retryTimer) clearTimeout(retryTimer);
     if (containerEl) {
       containerEl.innerHTML = '';
     }

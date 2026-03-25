@@ -30,6 +30,9 @@ export interface AppMetadata {
   provider_display_order?: string[]; // Optional: Custom order for provider icons in App Store preview
   category?: string; // App category: "work" or "personal"
   last_updated?: string; // ISO date string of when the app was last updated (for "New apps" categorization)
+  /** Runtime health status, set by appSkillsStore based on /v1/health.
+   *  undefined or 'healthy' = normal. 'degraded'/'unhealthy'/'unknown' = shown greyed out with badge. */
+  healthStatus?: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
 }
 
 /**

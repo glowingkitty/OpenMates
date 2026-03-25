@@ -15,6 +15,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import { personalDataStore } from '../../../stores/personalDataStore';
 
     const dispatch = createEventDispatcher();
@@ -86,14 +87,11 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
     title={$text('settings.privacy.form.title')}
 />
 
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.form.title.placeholder_name')}
-        bind:value={title}
-    />
-</div>
+<SettingsInput
+    bind:value={title}
+    placeholder={$text('settings.privacy.form.title.placeholder_name')}
+    disabled={isSaving}
+/>
 
 <!-- Text to hide field -->
 <SettingsItem
@@ -102,14 +100,11 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
     title={$text('settings.privacy.form.text_to_hide')}
 />
 
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.form.text_to_hide.placeholder_name')}
-        bind:value={textToHide}
-    />
-</div>
+<SettingsInput
+    bind:value={textToHide}
+    placeholder={$text('settings.privacy.form.text_to_hide.placeholder_name')}
+    disabled={isSaving}
+/>
 
 <!-- Error message -->
 {#if errorMessage}
@@ -126,38 +121,11 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 
 <style>
-    .form-field {
-        padding: 0 16px 16px;
-    }
-
-    .form-input {
-        width: 100%;
-        height: 54px;
-        border: none;
-        border-radius: 24px;
-        padding: 0 20px;
-        font-size: 16px;
-        font-family: inherit;
-        color: var(--color-grey-100);
-        background-color: white;
-        box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-        outline: none;
-        box-sizing: border-box;
-    }
-
-    .form-input::placeholder {
-        color: var(--color-grey-50);
-    }
-
-    .form-input:focus {
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15);
-    }
-
     .error-message {
         padding: 0 16px;
     }

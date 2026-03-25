@@ -101,21 +101,24 @@
   let localUrl = $state<string>('');
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let storeResolved = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localResults = previewData.results || [];
-      localUrl = previewData.url || '';
-      localStatus = previewData.status || 'processing';
-      // skill_task_id for skill-level cancellation
-      localSkillTaskId = previewData.skill_task_id;
-    } else {
-      localResults = resultsProp || [];
-      localUrl = urlProp || '';
-      localStatus = statusProp || 'processing';
-      localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      // Initialize from previewData or direct props
+      if (previewData) {
+        localResults = previewData.results || [];
+        localUrl = previewData.url || '';
+        localStatus = previewData.status || 'processing';
+        // skill_task_id for skill-level cancellation
+        localSkillTaskId = previewData.skill_task_id;
+      } else {
+        localResults = resultsProp || [];
+        localUrl = urlProp || '';
+        localStatus = statusProp || 'processing';
+        localSkillTaskId = skillTaskIdProp;
+      }
     }
   });
   
@@ -153,7 +156,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     // Update web-read-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {
@@ -198,7 +204,7 @@
   let displayTitle = $derived(
     firstResult?.title || 
     hostname || 
-    $text('embeds.web_read')
+    $text('common.read')
   );
   
   // Favicon URL for display - ALWAYS use preview server for privacy and caching
@@ -241,7 +247,7 @@
   const skillIconName = 'text';
   
   // Skill display name from translations
-  let skillName = $derived($text('embeds.web_read'));
+  let skillName = $derived($text('common.read'));
   
   // Debug logging to help trace data flow issues
   $effect(() => {

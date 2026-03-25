@@ -494,7 +494,15 @@ async def _stream_together_response(
                             
                             # Clear the buffer after yielding
                             tool_calls_buffer.clear()
-                    
+
+                        # Detect truncation or content filtering
+                        if finish_reason == "length":
+                            logger.warning(f"{log_prefix} Response truncated: finish_reason='length' (max_tokens reached)")
+                            yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                        elif finish_reason == "content_filter":
+                            logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
+                            yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
+
                     except json.JSONDecodeError as e:
                         logger.warning(
                             f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)} "

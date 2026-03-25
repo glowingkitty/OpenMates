@@ -71,7 +71,7 @@
         {#if !isGift && !isGiftCard}
             <div class="bottom-container">
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <p class="loading-text color-grey-60">{@html $text('login.loading')}</p>
+                <p class="loading-text color-grey-60">{@html $text('common.loading')}</p>
             </div>
         {/if}
     </div>

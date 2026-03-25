@@ -28,6 +28,7 @@ from backend.core.api.app.utils.newsletter_utils import update_newsletter_regist
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
+from backend.core.api.app.utils.ws_token import create_ws_token
 
 """
 Zero-Knowledge Authentication System
@@ -127,27 +128,34 @@ async def login(
                     }
                 )
             
-            # SECURITY: For password login, always return tfa_required=True to prevent email enumeration
-            # This makes the frontend show the 2FA input, regardless of whether account exists
-            # If no 2FA code is provided, return the 2FA required response
-            # Check for both None and empty string to handle edge cases
-            # CRITICAL: Return tfa_enabled=False in anti-enumeration response so frontend knows
-            # 2FA is not actually configured and can redirect to signup if needed
+            # SECURITY: For password login, always return tfa_required=True to prevent email
+            # enumeration. This makes the frontend show the 2FA input regardless of whether
+            # the account exists. If no 2FA code is provided, return the generic decoy response.
+            #
+            # IMPORTANT: tfa_enabled must be True in the decoy response. If we returned
+            # tfa_enabled=False for non-existent accounts and tfa_enabled=True for real 2FA
+            # accounts, that difference would be a user-existence oracle (any unauthenticated
+            # caller could enumerate whether an email has a real account).
+            # The frontend must NOT use tfa_enabled to decide whether to redirect to signup —
+            # it should rely on a subsequent authenticated endpoint instead.
             if not login_data.tfa_code or login_data.tfa_code.strip() == "":
                 logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
                 minimal_user_info = UserResponse(
                     id=None,
-                    username="",  # Default empty string
-                    is_admin=False, # Default False
-                    credits=0,      # Default 0
-                    profile_image_url=None, # Optional field
-                    tfa_app_name=None, # No specific app name (generic 2FA setup)
-                    last_opened=None, # Don't reveal last_opened for non-existent accounts
-                    tfa_enabled=False # Return False so frontend knows 2FA is not actually configured
+                    username="",
+                    is_admin=False,
+                    credits=0,
+                    profile_image_url=None,
+                    tfa_app_name=None,
+                    last_opened=None,
+                    # Always True in the anti-enumeration response to prevent account-existence
+                    # oracle via the tfa_enabled field difference.  The frontend must not use
+                    # this field to infer whether the account exists.
+                    tfa_enabled=True,
                 )
                 response = LoginResponse(
                     success=True,
-                    message="2FA required", 
+                    message="2FA required",
                     tfa_required=True,
                     user=minimal_user_info
                 )
@@ -260,7 +268,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    current_device_hash=device_hash, # Pass the new device hash
+                    current_device_hash=device_hash,
+                    connection_hash=connection_hash,
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
@@ -509,9 +518,9 @@ async def login(
                 logger.error("Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
-            if refresh_token:
-                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (no 2FA path) with ws_token: hash={token_hash[:16]}...")
+            # SECURITY: Generate a short-lived HMAC ws_token instead of returning the raw refresh_token.
+            # This prevents XSS from stealing the full session refresh token via the JSON response body.
+            ws_token = create_ws_token(refresh_token) if refresh_token else None
             return LoginResponse(
                 success=True,
                 message="Login successful",
@@ -544,7 +553,7 @@ async def login(
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
-                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                    ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
 
         # --- 2FA IS Enabled ---
@@ -654,7 +663,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    current_device_hash=device_hash, # Pass the new device hash
+                    current_device_hash=device_hash,
+                    connection_hash=connection_hash,
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
@@ -737,9 +747,8 @@ async def login(
                 else:
                     logger.error("Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
-                if refresh_token:
-                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (OTP) with ws_token: hash={token_hash[:16]}...")
+                # SECURITY: Short-lived HMAC ws_token (not the raw refresh_token)
+                ws_token = create_ws_token(refresh_token) if refresh_token else None
                 return LoginResponse(
                     success=True, message="Login successful",
                     user=UserResponse(
@@ -771,7 +780,7 @@ async def login(
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
-                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                    ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3b: Verify using Backup Code ---
@@ -972,7 +981,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    current_device_hash=device_hash, # Pass the new device hash
+                    current_device_hash=device_hash,
+                    connection_hash=connection_hash,
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
@@ -1055,9 +1065,8 @@ async def login(
                 else:
                     logger.error("Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
-                if refresh_token:
-                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (backup code) with ws_token: hash={token_hash[:16]}...")
+                # SECURITY: Short-lived HMAC ws_token (not the raw refresh_token)
+                ws_token = create_ws_token(refresh_token) if refresh_token else None
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
@@ -1089,7 +1098,7 @@ async def login(
                         push_notification_preferences=user_profile.get("push_notification_preferences", {}),
                         push_notification_banner_shown=bool(user_profile.get("push_notification_banner_shown", False)),
                     ),
-                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
+                    ws_token=ws_token  # Short-lived HMAC token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3c: Invalid Code Type ---
@@ -1119,6 +1128,7 @@ async def finalize_login_session(
     compliance_service: ComplianceService,
     directus_service: DirectusService,
     current_device_hash: str, # Changed: Pass the new device hash
+    connection_hash: Optional[str], # Per-browser-tab hash (device_hash + sessionId) for WS routing
     client_ip: str, # Pass IP for logging/notification context
     encryption_service: EncryptionService, # Added missing dependency
     device_location_str: str, # Added location string
@@ -1152,15 +1162,6 @@ async def finalize_login_session(
     if cookie_domain:
         logger.info(f"Setting cookies with domain={cookie_domain} for cross-subdomain authentication")
     
-    # Determine if we should use secure cookies based on environment
-    # Safari iOS strictly enforces that Secure=True cookies can ONLY be set over HTTPS
-    # In development (localhost), we must set Secure=False to allow HTTP cookies
-    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-    use_secure_cookies = not is_dev  # Only use Secure=True in production (HTTPS)
-    
-    if is_dev:
-        logger.info("Development environment detected - using non-secure cookies for Safari iOS compatibility")
-    
     # Set authentication cookies
     if "cookies" in auth_data:
         logger.info(f"Setting {len(auth_data['cookies'])} cookies")
@@ -1170,19 +1171,19 @@ async def finalize_login_session(
             cookie_name = name
             if name.startswith("directus_"):
                 cookie_name = "auth_" + name[9:]
-            
+
             # Build cookie parameters
-            # Safari/iOS cookie requirements:
+            # - Secure=True requires HTTPS (both dev and prod use HTTPS)
             # - SameSite=Lax works for same-site subdomains (app.domain.com <-> api.domain.com)
-            # - Secure=True ONLY on HTTPS (Safari strictly enforces this)
-            # - Secure=False on HTTP/localhost (development mode)
             # - Path=/ ensures cookie is available to all endpoints
+            # IMPORTANT: secure must match the value used in auth_logout.py delete_cookie calls,
+            # otherwise browsers treat them as different cookies and logout fails to clear them.
             cookie_params = {
                 "key": cookie_name,
                 "value": value,
                 "httponly": True,
-                "secure": use_secure_cookies,  # False in dev (HTTP), True in prod (HTTPS)
-                "samesite": "lax",  # Lax works for same-site subdomains (Safari compatible)
+                "secure": True,
+                "samesite": "lax",
                 "max_age": cookie_max_age,
                 "path": "/"
             }
@@ -1381,6 +1382,10 @@ async def finalize_login_session(
             current_tokens[token_hash] = {
                 "created_at": int(time.time()),
                 "device_hash": current_device_hash,
+                # connection_hash includes the per-browser-tab sessionId so WebSocket
+                # force_logout broadcasts can be targeted at exactly the right connection
+                # rather than all connections for this user.  See auth_sessions.py.
+                "connection_hash": connection_hash,
                 "stay_logged_in": login_data.stay_logged_in,
                 "device_name": derive_device_name(user_agent),
                 "ip_truncated": truncate_ip(client_ip),

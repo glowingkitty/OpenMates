@@ -44,7 +44,7 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
             settingsPath: `billing/gift-cards/buy/payment`,
             direction: 'forward',
             icon: 'coins',
-            title: `${formatCredits(tier.credits)} ${$text('settings.gift_cards.credits')}`
+            title: `${formatCredits(tier.credits)} ${$text('common.credits')}`
         });
     }
 </script>

@@ -57,6 +57,139 @@ process:
     - evaluates your answers for correctness and understanding
     - provides detailed feedback and explanations for incorrect answers
     - identifies knowledge gaps for further study
+  de: |
+    - fragt, zu welchem Thema du getestet werden möchtest
+    - bestimmt den Schwierigkeitsgrad und die Anzahl der Fragen
+    - generiert Fragen, die auf dein Wissensniveau zugeschnitten sind
+    - bewertet deine Antworten auf Korrektheit und Verständnis
+    - gibt detailliertes Feedback und Erklärungen zu falschen Antworten
+    - identifiziert Wissenslücken für weiteres Studium
+  zh: |
+    - 询问您想测试哪个主题
+    - 确定难度级别和题目数量
+    - 生成适合您知识水平的问题
+    - 评估您的答案的正确性和理解程度
+    - 提供详细的反馈和对错误答案的解释
+    - 识别需要进一步学习的知识差距
+  es: |
+    - pregunta en qué tema quieres ser evaluado
+    - determina el nivel de dificultad y el número de preguntas
+    - genera preguntas adaptadas a tu nivel de conocimiento
+    - evalúa tus respuestas en cuanto a corrección y comprensión
+    - proporciona retroalimentación detallada y explicaciones para respuestas incorrectas
+    - identifica lagunas de conocimiento para estudio adicional
+  fr: |
+    - demande sur quel sujet vous souhaitez être testé
+    - détermine le niveau de difficulté et le nombre de questions
+    - génère des questions adaptées à votre niveau de connaissance
+    - évalue vos réponses pour leur exactitude et leur compréhension
+    - fournit des retours détaillés et des explications pour les réponses incorrectes
+    - identifie les lacunes de connaissances pour une étude approfondie
+  pt: |
+    - pergunta em qual tópico você quer ser testado
+    - determina o nível de dificuldade e a quantidade de questões
+    - gera perguntas adaptadas ao seu nível de conhecimento
+    - avalia suas respostas quanto à correção e compreensão
+    - fornece feedback detalhado e explicações para respostas incorretas
+    - identifica lacunas de conhecimento para estudo adicional
+  ru: |
+    - спрашивает, по какой теме вы хотите пройти тестирование
+    - определяет уровень сложности и количество вопросов
+    - генерирует вопросы, адаптированные к вашему уровню знаний
+    - оценивает ваши ответы на правильность и понимание
+    - предоставляет подробную обратную связь и объяснения для неверных ответов
+    - выявляет пробелы в знаниях для дальнейшего изучения
+  ja: |
+    - どのトピックでテストを受けたいかを尋ねる
+    - 難易度と質問数を決定する
+    - あなたの知識レベルに合わせた質問を生成する
+    - 正確さと理解度について回答を評価する
+    - 不正解の答えに対する詳細なフィードバックと説明を提供する
+    - さらなる学習のための知識のギャップを特定する
+  ko: |
+    - 어떤 주제로 테스트를 받고 싶은지 묻습니다
+    - 난이도와 문제 수를 결정합니다
+    - 지식 수준에 맞춰진 문제를 생성합니다
+    - 정확성과 이해도에 대해 답변을 평가합니다
+    - 틀린 답변에 대한 자세한 피드백과 설명을 제공합니다
+    - 추가 학습을 위한 지식 격차를 파악합니다
+  it: |
+    - chiede su quale argomento vuoi essere testato
+    - determina il livello di difficoltà e il numero di domande
+    - genera domande adattate al tuo livello di conoscenza
+    - valuta le tue risposte per correttezza e comprensione
+    - fornisce feedback dettagliato e spiegazioni per le risposte errate
+    - identifica lacune di conoscenza per ulteriore studio
+  tr: |
+    - hangi konuda test edilmek istediğinizi sorar
+    - zorluk seviyesini ve soru sayısını belirler
+    - bilgi seviyenize göre sorular oluşturur
+    - yanıtlarınızı doğruluk ve anlayış açısından değerlendirir
+    - yanlış yanıtlar için ayrıntılı geri bildirim ve açıklamalar sunar
+    - daha fazla çalışma için bilgi boşluklarını tespit eder
+  vi: |
+    - hỏi chủ đề nào bạn muốn được kiểm tra
+    - xác định mức độ khó và số lượng câu hỏi
+    - tạo câu hỏi phù hợp với mức độ kiến thức của bạn
+    - đánh giá câu trả lời của bạn về tính chính xác và hiểu biết
+    - cung cấp phản hồi chi tiết và giải thích cho các câu trả lời sai
+    - xác định các khoảng trống kiến thức để học thêm
+  id: |
+    - menanyakan topik apa yang ingin Anda uji
+    - menentukan tingkat kesulitan dan jumlah pertanyaan
+    - membuat pertanyaan yang disesuaikan dengan tingkat pengetahuan Anda
+    - mengevaluasi jawaban Anda untuk kebenaran dan pemahaman
+    - memberikan umpan balik terperinci dan penjelasan untuk jawaban yang salah
+    - mengidentifikasi kesenjangan pengetahuan untuk studi lebih lanjut
+  pl: |
+    - pyta, z jakiego tematu chcesz być testowany
+    - określa poziom trudności i liczbę pytań
+    - generuje pytania dostosowane do twojego poziomu wiedzy
+    - ocenia twoje odpowiedzi pod kątem poprawności i zrozumienia
+    - zapewnia szczegółową informację zwrotną i wyjaśnienia dla błędnych odpowiedzi
+    - identyfikuje luki w wiedzy do dalszego nauki
+  nl: |
+    - vraagt over welk onderwerp u getest wilt worden
+    - bepaalt het moeilijkheidsniveau en het aantal vragen
+    - genereert vragen afgestemd op uw kennisniveau
+    - evalueert uw antwoorden op juistheid en begrip
+    - geeft gedetailleerde feedback en uitleg voor onjuiste antwoorden
+    - identificeert kennishiaten voor verdere studie
+  ar: |
+    - يسأل عن الموضوع الذي تريد أن تُختبر فيه
+    - يحدد مستوى الصعوبة وعدد الأسئلة
+    - يولّد أسئلة مصممة وفق مستوى معرفتك
+    - يقيّم إجاباتك من حيث الصحة والفهم
+    - يقدم تغذية راجعة مفصلة وشروحات للإجابات الخاطئة
+    - يحدد الثغرات المعرفية للدراسة الإضافية
+  hi: |
+    - पूछता है कि आप किस विषय पर परीक्षा देना चाहते हैं
+    - कठिनाई स्तर और प्रश्नों की संख्या निर्धारित करता है
+    - आपके ज्ञान स्तर के अनुरूप प्रश्न उत्पन्न करता है
+    - सटीकता और समझ के लिए आपके उत्तरों का मूल्यांकन करता है
+    - गलत उत्तरों के लिए विस्तृत फीडबैक और स्पष्टीकरण प्रदान करता है
+    - आगे के अध्ययन के लिए ज्ञान की कमियों की पहचान करता है
+  th: |
+    - ถามว่าต้องการทดสอบในหัวข้ออะไร
+    - กำหนดระดับความยากและจำนวนคำถาม
+    - สร้างคำถามที่ปรับให้เหมาะกับระดับความรู้ของคุณ
+    - ประเมินคำตอบของคุณในด้านความถูกต้องและความเข้าใจ
+    - ให้ข้อเสนอแนะโดยละเอียดและคำอธิบายสำหรับคำตอบที่ผิด
+    - ระบุช่องว่างความรู้สำหรับการศึกษาเพิ่มเติม
+  cs: |
+    - ptá se, ze jakého tématu chcete být testován
+    - určuje úroveň obtížnosti a počet otázek
+    - generuje otázky přizpůsobené vaší úrovni znalostí
+    - hodnotí vaše odpovědi z hlediska správnosti a porozumění
+    - poskytuje podrobnou zpětnou vazbu a vysvětlení pro nesprávné odpovědi
+    - identifikuje mezery ve znalostech pro další studium
+  sv: |
+    - frågar vilket ämne du vill bli testad på
+    - fastställer svårighetsnivå och antal frågor
+    - genererar frågor anpassade till din kunskapsnivå
+    - utvärderar dina svar för korrekthet och förståelse
+    - ger detaljerad feedback och förklaringar för felaktiga svar
+    - identifierar kunskapsluckor för vidare studier
   he: |
     - שואל על איזה נושא תרצה להיבחן
     - קובע את רמת הקושי ומספר השאלות
@@ -69,6 +202,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when test_knowledge focus mode is active
   en: You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
+  de: Du bist ein erfahrener Pädagoge und Prüfer. Erstelle herausfordernde, faire Fragen, die tiefes Verständnis testen. Gib konstruktives Feedback, das Nutzern hilft, aus ihren Fehlern zu lernen.
+  zh: 你是一位专业教育者和评估者。创建具有挑战性、公平的问题来测试深度理解。提供建设性的反馈，帮助用户从错误中学习。
+  es: Eres un educador y evaluador experto. Crea preguntas desafiantes y justas que pongan a prueba la comprensión profunda. Proporciona retroalimentación constructiva que ayude a los usuarios a aprender de sus errores.
+  fr: Vous êtes un éducateur et évaluateur expert. Créez des questions difficiles et équitables qui testent la compréhension profonde. Fournissez des retours constructifs qui aident les utilisateurs à apprendre de leurs erreurs.
+  pt: Você é um educador e avaliador especialista. Crie perguntas desafiadoras e justas que testem a compreensão profunda. Forneça feedback construtivo que ajude os usuários a aprender com seus erros.
+  ru: Вы опытный педагог и оценщик. Создавайте сложные, справедливые вопросы, проверяющие глубокое понимание. Давайте конструктивную обратную связь, которая помогает пользователям учиться на ошибках.
+  ja: あなたは専門家の教育者で評価者です。深い理解をテストする、挑戦的で公平な質問を作成してください。ユーザーが間違いから学べるよう建設的なフィードバックを提供してください。
+  ko: 당신은 전문 교육자이자 평가자입니다. 깊은 이해를 테스트하는 도전적이고 공정한 질문을 만드세요. 사용자들이 실수에서 배울 수 있도록 도움이 되는 건설적인 피드백을 제공하세요.
+  it: Sei un educatore e valutatore esperto. Crea domande impegnative e giuste che testino la comprensione profonda. Fornisci feedback costruttivi che aiutino gli utenti a imparare dai propri errori.
+  tr: Uzman bir eğitimci ve değerlendiricisınız. Derin anlayışı test eden zorlu, adil sorular oluşturun. Kullanıcıların hatalarından öğrenmelerine yardımcı olan yapıcı geri bildirimler sağlayın.
+  vi: Bạn là một nhà giáo dục và người đánh giá chuyên nghiệp. Tạo ra các câu hỏi thách thức, công bằng để kiểm tra sự hiểu biết sâu sắc. Cung cấp phản hồi mang tính xây dựng giúp người dùng học hỏi từ lỗi lầm của họ.
+  id: Anda adalah pendidik dan penilai ahli. Buat pertanyaan yang menantang dan adil yang menguji pemahaman mendalam. Berikan umpan balik konstruktif yang membantu pengguna belajar dari kesalahan mereka.
+  pl: Jesteś ekspertem pedagogiem i egzaminatorem. Twórz trudne, uczciwe pytania, które testują głębokie rozumienie. Zapewniaj konstruktywną informację zwrotną, która pomaga użytkownikom uczyć się na błędach.
+  nl: U bent een expert docent en beoordelaar. Maak uitdagende, eerlijke vragen die diep begrip testen. Geef constructieve feedback die gebruikers helpt van hun fouten te leren.
+  ar: أنت معلم ومقيّم خبير. أنشئ أسئلة صعبة وعادلة تختبر الفهم العميق. قدّم تغذية راجعة بنّاءة تساعد المستخدمين على التعلم من أخطائهم.
+  hi: आप एक विशेषज्ञ शिक्षक और मूल्यांकनकर्ता हैं। गहरी समझ का परीक्षण करने वाले चुनौतीपूर्ण, उचित प्रश्न बनाएं। उपयोगकर्ताओं को अपनी गलतियों से सीखने में मदद करने वाली रचनात्मक प्रतिक्रिया प्रदान करें।
+  th: คุณเป็นนักการศึกษาและผู้ประเมินผู้เชี่ยวชาญ สร้างคำถามที่ท้าทายและยุติธรรมซึ่งทดสอบความเข้าใจเชิงลึก ให้ข้อเสนอแนะที่สร้างสรรค์ซึ่งช่วยให้ผู้ใช้เรียนรู้จากความผิดพลาดของตนเอง
+  cs: Jste odborný pedagog a hodnotitel. Vytvářejte náročné, spravedlivé otázky, které testují hluboké porozumění. Poskytujte konstruktivní zpětnou vazbu, která pomáhá uživatelům učit se z chyb.
+  sv: Du är en expert pedagog och bedömare. Skapa utmanande, rättvisa frågor som testar djup förståelse. Ge konstruktiv feedback som hjälper användare att lära sig av sina misstag.
   he: אתה מורה ומעריך מומחה. צור שאלות מאתגרות והוגנות שבוחנות הבנה עמוקה. ספק משוב בונה שעוזר למשתמשים ללמוד מהטעויות שלהם.
   verified_by_human:
     - en

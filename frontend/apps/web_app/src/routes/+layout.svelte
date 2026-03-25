@@ -8,6 +8,7 @@
 	import '@repo/ui/src/styles/theme.css';
 	import '@repo/ui/src/styles/fonts.css';
 	import '@repo/ui/src/styles/icons.css';
+	import '@repo/ui/src/styles/icon-urls.generated.css';
 	import '@repo/ui/src/styles/auth.css';
 	import '@repo/ui/src/styles/markdown.css';
 	import '@repo/ui/src/styles/settings.css';
@@ -37,6 +38,19 @@
 
 	let loaded = $state(false);
 	let { children } = $props();
+
+	function applyBrowserChromeTheme(themeName: string) {
+		if (!browser) return;
+
+		const backgroundColor = themeName === 'dark' ? '#171717' : '#ffffff';
+		const rootElement = document.documentElement;
+		const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+
+		rootElement.style.backgroundColor = backgroundColor;
+		rootElement.style.colorScheme = themeName;
+		document.body.style.backgroundColor = backgroundColor;
+		themeColorMeta?.setAttribute('content', backgroundColor);
+	}
 
 	/**
 	 * Track if we've already shown the update notification.
@@ -120,6 +134,7 @@
 		await loadMetaTags();
 
 		initializeTheme();
+		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		// Initialize server status early to prevent UI flashing
 		// (e.g., legal chats briefly appearing on self-hosted instances)
@@ -203,6 +218,7 @@
 	$effect(() => {
 		if (browser) {
 			document.documentElement.setAttribute('data-theme', $theme);
+			applyBrowserChromeTheme($theme);
 		}
 	});
 
@@ -278,7 +294,9 @@
 
 <style>
 	/* Apply background color to the body */
+	:global(html),
 	:global(body) {
 		background-color: var(--color-grey-0);
+		min-height: 100%;
 	}
 </style>

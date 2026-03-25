@@ -11,6 +11,24 @@ label:
   context: Label shown at the top of each Daily Inspiration banner (next to book icon)
   en: Daily inspiration
   de: Tägliche Inspiration
+  zh: 每日灵感
+  es: Inspiración diaria
+  fr: Inspiration du jour
+  pt: Inspiração diária
+  ru: Ежедневное вдохновение
+  ja: 毎日のインスピレーション
+  ko: 오늘의 영감
+  it: Ispirazione quotidiana
+  tr: Günlük ilham
+  vi: Cảm hứng hàng ngày
+  id: Inspirasi harian
+  pl: Codzienna inspiracja
+  nl: Dagelijkse inspiratie
+  ar: إلهام يومي
+  hi: दैनिक प्रेरणा
+  th: แรงบันดาลใจประจำวัน
+  cs: Denní inspirace
+  sv: Daglig inspiration
   he: השראה יומית
   verified_by_human: []
 
@@ -18,6 +36,24 @@ click_to_start_chat:
   context: Call-to-action button at the bottom of a Daily Inspiration banner
   en: Click to start chat
   de: Klicken um Chat zu starten
+  zh: 点击开始聊天
+  es: Clic para iniciar chat
+  fr: Cliquez pour démarrer le chat
+  pt: Clique para iniciar o chat
+  ru: Нажмите, чтобы начать чат
+  ja: クリックしてチャットを開始
+  ko: 클릭하여 채팅 시작
+  it: Clicca per iniziare la chat
+  tr: Sohbet başlatmak için tıklayın
+  vi: Nhấp để bắt đầu trò chuyện
+  id: Klik untuk memulai obrolan
+  pl: Kliknij, aby rozpocząć chat
+  nl: Klik om chat te starten
+  ar: انقر لبدء المحادثة
+  hi: चैट शुरू करने के लिए क्लिक करें
+  th: คลิกเพื่อเริ่มแชท
+  cs: Klikněte pro zahájení chatu
+  sv: Klicka för att starta chatt
   he: "לחץ כדי להתחיל בצ'אט"
   verified_by_human: []
 
@@ -25,6 +61,24 @@ next:
   context: Accessible label for the "next inspiration" navigation arrow button
   en: Next inspiration
   de: Nächste Inspiration
+  zh: 下一个灵感
+  es: Siguiente inspiración
+  fr: Inspiration suivante
+  pt: Próxima inspiração
+  ru: Следующее вдохновение
+  ja: 次のインスピレーション
+  ko: 다음 영감
+  it: Prossima ispirazione
+  tr: Sonraki ilham
+  vi: Cảm hứng tiếp theo
+  id: Inspirasi berikutnya
+  pl: Następna inspiracja
+  nl: Volgende inspiratie
+  ar: الإلهام التالي
+  hi: अगली प्रेरणा
+  th: แรงบันดาลใจถัดไป
+  cs: Další inspirace
+  sv: Nästa inspiration
   he: ההשראה הבאה
   verified_by_human: []
 
@@ -32,6 +86,24 @@ previous:
   context: Accessible label for the "previous inspiration" navigation arrow button
   en: Previous inspiration
   de: Vorherige Inspiration
+  zh: 上一个灵感
+  es: Inspiración anterior
+  fr: Inspiration précédente
+  pt: Inspiração anterior
+  ru: Предыдущее вдохновение
+  ja: 前のインスピレーション
+  ko: 이전 영감
+  it: Ispirazione precedente
+  tr: Önceki ilham
+  vi: Cảm hứng trước đó
+  id: Inspirasi sebelumnya
+  pl: Poprzednia inspiracja
+  nl: Vorige inspiratie
+  ar: الإلهام السابق
+  hi: पिछली प्रेरणा
+  th: แรงบันดาลใจก่อนหน้า
+  cs: Předchozí inspirace
+  sv: Föregående inspiration
   he: ההשראה הקודמת
   verified_by_human: []
 
@@ -39,6 +111,24 @@ watch_video:
   context: Accessible label for the video thumbnail play button overlay
   en: Watch video
   de: Video ansehen
+  zh: 观看视频
+  es: Ver video
+  fr: Regarder la vidéo
+  pt: Assistir ao vídeo
+  ru: Смотреть видео
+  ja: 動画を見る
+  ko: 동영상 보기
+  it: Guarda il video
+  tr: Videoyu izle
+  vi: Xem video
+  id: Tonton video
+  pl: Obejrzyj wideo
+  nl: Video bekijken
+  ar: شاهد الفيديو
+  hi: वीडियो देखें
+  th: ดูวิดีโอ
+  cs: Sledovat video
+  sv: Titta på video
   he: צפה בסרטון
   verified_by_human: []
 
@@ -46,5 +136,23 @@ open_chat:
   context: CTA button text shown on a Daily Inspiration banner when the user has already started a chat from this inspiration (replaces "Click to start chat")
   en: Open chat
   de: Chat öffnen
+  zh: 打开聊天
+  es: Abrir chat
+  fr: Ouvrir le chat
+  pt: Abrir chat
+  ru: Открыть чат
+  ja: チャットを開く
+  ko: 채팅 열기
+  it: Apri chat
+  tr: Sohbeti aç
+  vi: Mở trò chuyện
+  id: Buka obrolan
+  pl: Otwórz chat
+  nl: Chat openen
+  ar: فتح المحادثة
+  hi: चैट खोलें
+  th: เปิดแชท
+  cs: Otevřít chat
+  sv: Öppna chatt
   he: "פתח צ'אט"
   verified_by_human: []

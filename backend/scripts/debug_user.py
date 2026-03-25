@@ -16,6 +16,7 @@ Options:
     --json              Output as JSON instead of formatted text
     --no-cache          Skip cache checks (faster if Redis is down)
     --recent-limit N    Limit number of recent activities to display (default: 5)
+    --session-context   Expanded output for sessions.py start: 10 chats, 20 embeds
     --production        Fetch data from the production Admin Debug API (requires Vault API key)
     --dev               With --production, use the dev API instead of prod
 
@@ -167,16 +168,33 @@ async def get_related_counts(directus_service: DirectusService, user_id: str) ->
     return counts
 
 
-async def get_recent_activities(directus_service: DirectusService, user_id: str, limit: int = 5) -> Dict[str, List[Dict[str, Any]]]:
-    """Get recent activities for a user."""
+async def get_recent_activities(
+    directus_service: DirectusService,
+    user_id: str,
+    limit: int = 5,
+    chat_limit: Optional[int] = None,
+    embed_limit: Optional[int] = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Get recent activities for a user.
+
+    Args:
+        directus_service: Directus API client.
+        user_id: User UUID.
+        limit: Default limit for all activity types.
+        chat_limit: Override limit for chats (defaults to limit).
+        embed_limit: Override limit for embeds (defaults to limit).
+    """
     h_uid = hash_user_id(user_id)
     activities = {}
+
+    _chat_limit = chat_limit if chat_limit is not None else limit
+    _embed_limit = embed_limit if embed_limit is not None else limit
     
     # Recent chats
     params_chats = {
         'filter[hashed_user_id][_eq]': h_uid,
         'sort': '-updated_at',
-        'limit': limit,
+        'limit': _chat_limit,
         'fields': 'id,created_at,updated_at'
     }
     
@@ -184,7 +202,7 @@ async def get_recent_activities(directus_service: DirectusService, user_id: str,
     params_embeds = {
         'filter[hashed_user_id][_eq]': h_uid,
         'sort': '-created_at',
-        'limit': limit,
+        'limit': _embed_limit,
         'fields': 'id,embed_id,created_at,status'
     }
     
@@ -856,6 +874,12 @@ async def main():
     parser.add_argument('--no-cache', action='store_true', help='Skip cache checks')
     parser.add_argument('--recent-limit', type=int, default=5, help='Limit recent activities')
     parser.add_argument(
+        '--session-context',
+        action='store_true',
+        help='Expanded output for session start context: includes health overview, '
+        '10 recent chats, 20 recent embeds. Overrides --recent-limit.',
+    )
+    parser.add_argument(
         '--production',
         action='store_true',
         help='Fetch data from the production Admin Debug API instead of local Directus'
@@ -867,6 +891,10 @@ async def main():
     )
     
     args = parser.parse_args()
+
+    # --session-context overrides --recent-limit with expanded defaults
+    if args.session_context:
+        args.recent_limit = 10  # 10 recent chats/embeds by default
 
     # --- Validate flag combinations ---
     is_remote = args.production or args.dev
@@ -964,7 +992,16 @@ async def main():
         counts = await get_related_counts(directus_service, user_id)
 
         # 4. Get recent activities
-        activities = await get_recent_activities(directus_service, user_id, limit=args.recent_limit)
+        if args.session_context:
+            # Session context mode: 10 chats, 20 embeds for richer debugging context
+            activities = await get_recent_activities(
+                directus_service, user_id,
+                limit=args.recent_limit,
+                chat_limit=10,
+                embed_limit=20,
+            )
+        else:
+            activities = await get_recent_activities(directus_service, user_id, limit=args.recent_limit)
 
         # 5. Check cache
         cache_info = {}

@@ -116,7 +116,7 @@
 <div class="submenu-section">
     <!-- TODO Show again once docs are implemented -->
     <!-- <div class="submenu-group">
-        <h3>{@html $text('settings.docs')}</h3>
+        <h3>{@html $text('common.docs')}</h3>
         <a 
             href={getWebsiteUrl('/docs/user-guide')} 
             class="submenu-link" 
@@ -145,7 +145,7 @@
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.discord')}</a>
+        >{@html $text('common.discord')}</a>
         <a
             href={externalLinks.meetup}
             class="submenu-link"
@@ -180,7 +180,7 @@
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.github')}</a>
+        >{@html $text('common.github')}</a>
         <a
             href={externalLinks.signal}
             class="submenu-link"
@@ -191,11 +191,11 @@
 
     <!-- Contact email -->
     <div class="submenu-group">
-        <h3>{@html $text('settings.contact')}</h3>
+        <h3>{@html $text('common.contact')}</h3>
         <a
             href={externalLinks.email}
             class="submenu-link"
-        >{@html $text('settings.email')}</a>
+        >{@html $text('common.email')}</a>
     </div>
 
     <!-- Legal section: Only show for non-self-hosted instances -->
@@ -205,22 +205,22 @@
     <!-- - No terms of service: no third-party service relationship exists -->
     {#if !isSelfHosted}
         <div class="submenu-group">
-            <h3>{@html $text('settings.legal')}</h3>
+            <h3>{@html $text('common.legal')}</h3>
             <a 
                 href={getWebsiteUrl(externalLinks.legal.imprint)} 
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'imprint')}
-            >{@html $text('settings.imprint')}</a>
+            >{@html $text('common.imprint')}</a>
             <a 
                 href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'privacy')}
-            >{@html $text('settings.privacy')}</a>
+            >{@html $text('common.privacy')}</a>
             <a 
                 href={getWebsiteUrl(externalLinks.legal.terms)} 
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'terms')}
-            >{@html $text('settings.terms_and_conditions')}</a>
+            >{@html $text('common.terms_and_conditions')}</a>
         </div>
     {/if}
 

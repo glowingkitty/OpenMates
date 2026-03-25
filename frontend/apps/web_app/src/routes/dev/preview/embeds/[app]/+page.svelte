@@ -27,7 +27,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { theme } from '@repo/ui';
+	import { Icon, theme } from '@repo/ui';
 
 	// ─── App Registry ─────────────────────────────────────────────────
 
@@ -252,6 +252,15 @@
 				inlineLinkText: 'Coffee shops near Marienplatz',
 				quoteText: 'Man vs. Machine Coffee Roasters — Rated 4.7, 0.3km from Marienplatz, Munich.',
 				isAppSkill: true
+			},
+			{
+				skillLabel: 'Location',
+				appId: 'maps',
+				previewPath: 'embeds/maps/MapsLocationEmbedPreview',
+				fullscreenPath: 'embeds/maps/MapsLocationEmbedFullscreen',
+				inlineLinkText: 'Berlin Hauptbahnhof',
+				quoteText:
+					'Berlin Hauptbahnhof, Europaplatz 1, 10557 Berlin — static map + open-in-maps action.'
 			}
 		],
 		math: [
@@ -392,6 +401,14 @@
 				quoteText:
 					'Found 12 wireless headphones under 100 EUR. Top pick: Sony WH-1000XM4 at 89 EUR.',
 				isAppSkill: true
+			},
+			{
+				skillLabel: 'Result',
+				appId: 'shopping',
+				previewPath: 'embeds/shopping/ShoppingResultEmbedPreview',
+				fullscreenPath: 'embeds/shopping/ShoppingResultEmbedFullscreen',
+				inlineLinkText: 'Bio Vollmilch-Joghurt Naturell',
+				quoteText: 'Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR.'
 			}
 		]
 	};
@@ -507,6 +524,9 @@
 		mockProps: Record<string, unknown>;
 		variants: Record<string, Record<string, unknown>>;
 		hasPreviewFile: boolean;
+		fullscreenMockProps: Record<string, unknown>;
+		fullscreenVariants: Record<string, Record<string, unknown>>;
+		hasFullscreenPreviewFile: boolean;
 		activeVariant: string;
 		propsJson: string;
 		propsError: string | null;
@@ -538,6 +558,9 @@
 			mockProps: {},
 			variants: {},
 			hasPreviewFile: false,
+			fullscreenMockProps: {},
+			fullscreenVariants: {},
+			hasFullscreenPreviewFile: false,
 			activeVariant: 'default',
 			propsJson: '{}',
 			propsError: null,
@@ -554,6 +577,7 @@
 
 	async function loadSection(section: EmbedSection, idx: number) {
 		const prevKey = previewKeyMap.get(section.previewPath) ?? '';
+		const fullscreenPrevKey = previewKeyMap.get(section.fullscreenPath) ?? '';
 		const previewKey = componentKeyMap.get(section.previewPath) ?? '';
 		const fullscreenKey = componentKeyMap.get(section.fullscreenPath) ?? '';
 
@@ -587,6 +611,17 @@
 				}
 			}
 
+			if (fullscreenPrevKey && previewModules[fullscreenPrevKey]) {
+				try {
+					const fullscreenPreview = await previewModules[fullscreenPrevKey]();
+					s.fullscreenMockProps = fullscreenPreview.default ?? {};
+					s.fullscreenVariants = fullscreenPreview.variants ?? {};
+					s.hasFullscreenPreviewFile = true;
+				} catch {
+					/* no fullscreen preview data — fullscreen uses preview props */
+				}
+			}
+
 			s.isLoading = false;
 			// Force array invalidation so Svelte re-evaluates loadedSections[idx]
 			// bindings in the template (defensive fix for async post-await reactivity).
@@ -607,14 +642,28 @@
 	 */
 	const DATA_VARIANT_EXCLUDE = new Set(['error', 'mobile', 'processing']);
 
-	function getDataVariants(s: LoadedSection): Array<[string, Record<string, unknown>]> {
-		const result: Array<[string, Record<string, unknown>]> = [['default', s.mockProps]];
-		for (const [name, v] of Object.entries(s.variants)) {
+	function buildDataVariants(
+		baseProps: Record<string, unknown>,
+		variants: Record<string, Record<string, unknown>>
+	): Array<[string, Record<string, unknown>]> {
+		const result: Array<[string, Record<string, unknown>]> = [['default', baseProps]];
+		for (const [name, v] of Object.entries(variants)) {
 			if (!DATA_VARIANT_EXCLUDE.has(name)) {
-				result.push([name, { ...s.mockProps, ...v }]);
+				result.push([name, { ...baseProps, ...v }]);
 			}
 		}
 		return result;
+	}
+
+	function getDataVariants(s: LoadedSection): Array<[string, Record<string, unknown>]> {
+		return buildDataVariants(s.mockProps, s.variants);
+	}
+
+	function getFullscreenDataVariants(s: LoadedSection): Array<[string, Record<string, unknown>]> {
+		if (s.hasFullscreenPreviewFile) {
+			return buildDataVariants(s.fullscreenMockProps, s.fullscreenVariants);
+		}
+		return getDataVariants(s);
 	}
 
 	function getEffectiveProps(s: LoadedSection): Record<string, unknown> {
@@ -774,15 +823,14 @@
 							<div class="dt-body dt-body--inline">
 								<span class="inline-ctx">The assistant found </span>
 								<span class="fake-inline">
-									<span class="fake-badge" style="background: var(--color-app-{section.appId})">
-										<span
-											class="fake-badge-icon"
-											style="mask-image: url('/static/icons/{APP_ICON[section.appId] ??
-												section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[
-												section.appId
-											] ?? section.appId}.svg')"
-										></span>
-									</span>
+									<Icon
+										name={APP_ICON[section.appId] ?? section.appId}
+										type="app"
+										size="20px"
+										className="showcase-app-icon no-fade"
+										noMargin={true}
+										noAnimation={true}
+									/>
 									<span class="fake-link-text">{section.inlineLinkText}</span>
 								</span>
 								<span class="inline-ctx"> for you.</span>
@@ -799,18 +847,14 @@
 								>
 									<p class="fake-quote-text">{section.quoteText}</p>
 									<footer class="fake-quote-footer">
-										<span
-											class="fake-badge fake-badge--sm"
-											style="background: var(--color-app-{section.appId})"
-										>
-											<span
-												class="fake-badge-icon"
-												style="mask-image: url('/static/icons/{APP_ICON[section.appId] ??
-													section.appId}.svg'); -webkit-mask-image: url('/static/icons/{APP_ICON[
-													section.appId
-												] ?? section.appId}.svg')"
-											></span>
-										</span>
+										<Icon
+											name={APP_ICON[section.appId] ?? section.appId}
+											type="app"
+											size="18px"
+											className="showcase-app-icon no-fade"
+											noMargin={true}
+											noAnimation={true}
+										/>
 										<span class="fake-source">{section.appId}</span>
 									</footer>
 								</blockquote>
@@ -895,7 +939,7 @@
 						<!-- 6. Fullscreen (clipped inline, cycles through data variants) -->
 						{#if s.FullscreenComponent}
 							{@const Fullscreen = s.FullscreenComponent}
-							{@const dataVars2 = getDataVariants(s)}
+							{@const dataVars2 = getFullscreenDataVariants(s)}
 							{@const fsIdx = s.fullscreenVariantIndex}
 							{@const [_fsVname, fsProps] = dataVars2[fsIdx]}
 							{@const fsTotal = dataVars2.length}
@@ -1225,7 +1269,6 @@
 		font-size: 0.75rem;
 		line-height: 1.5;
 		resize: vertical;
-		outline: none;
 		box-sizing: border-box;
 	}
 	.props-editor:focus {
@@ -1287,32 +1330,8 @@
 		align-items: center;
 		gap: 5px;
 	}
-	.fake-badge {
+	:global(.showcase-app-icon) {
 		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 20px;
-		height: 20px;
-		border-radius: 50%;
-		flex-shrink: 0;
-		position: relative;
-	}
-	.fake-badge--sm {
-		width: 18px;
-		height: 18px;
-	}
-	.fake-badge-icon {
-		width: 11px;
-		height: 11px;
-		background-color: rgba(255, 255, 255, 0.9);
-		-webkit-mask-image: var(--icon-mask);
-		mask-image: var(--icon-mask);
-		-webkit-mask-size: contain;
-		mask-size: contain;
-		-webkit-mask-position: center;
-		mask-position: center;
-		-webkit-mask-repeat: no-repeat;
-		mask-repeat: no-repeat;
 	}
 	.fake-link-text {
 		font-size: 0.9375rem;

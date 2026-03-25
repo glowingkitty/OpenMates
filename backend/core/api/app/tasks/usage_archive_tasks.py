@@ -7,7 +7,6 @@ older than 3 months to S3, keeping the Directus database lean and performant.
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask

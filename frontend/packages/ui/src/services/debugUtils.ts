@@ -17,6 +17,8 @@
  *   window.debug.logs(20)                  — last N console logs (filter: logs(20, 'error'))
  *   window.debug.errors(50)                — last N errors+warnings (survives noise)
  *   await window.debug.state()             — current store state snapshot
+ *   window.debug.animation('ai_is_typing_on')  — test rainbow glow + typing indicator
+ *   window.debug.animation('ai_is_typing_off') — stop the animation
  *
  * Architecture context: See docs/architecture/embed-encryption.md
  */
@@ -737,13 +739,13 @@ async function attemptMessageDecryption(
   // Step 1: Obtain the chat key
   let chatKey: Uint8Array | null = null;
   try {
-    const { chatDB } = await import("./db");
-    chatKey = chatDB.getChatKey(chatId);
+    const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+    chatKey = await chatKeyManager.getKey(chatId);
     if (chatKey) {
       result.chatKeySource = "cache";
     }
   } catch {
-    // chatDB not available
+    // chatKeyManager not available
   }
 
   // If not in cache, try to unwrap from chat metadata
@@ -1045,8 +1047,8 @@ export async function inspectMessage(
             const encTitle = chatMeta.encrypted_title as string | undefined;
             if (!encTitle) return "(no title)";
             const { decryptWithChatKey } = await import("./cryptoService");
-            const { chatDB } = await import("./db");
-            let chatKey = chatDB.getChatKey(chatId!);
+            const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+            let chatKey = await chatKeyManager.getKey(chatId!);
             if (!chatKey && chatMeta.encrypted_chat_key) {
               const { decryptChatKeyWithMasterKey } =
                 await import("./cryptoService");
@@ -1104,8 +1106,8 @@ export async function inspectMessage(
       // Re-decrypt to get full content (not truncated preview)
       try {
         const { decryptWithChatKey } = await import("./cryptoService");
-        const { chatDB } = await import("./db");
-        let chatKey = chatDB.getChatKey(chatId!);
+        const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+        let chatKey = await chatKeyManager.getKey(chatId!);
         if (!chatKey && chatMeta?.encrypted_chat_key) {
           const { decryptChatKeyWithMasterKey } =
             await import("./cryptoService");
@@ -1704,13 +1706,13 @@ async function attemptChatDecryption(
   // Step 1: Obtain the chat key
   let chatKey: Uint8Array | null = null;
   try {
-    const { chatDB } = await import("./db");
-    chatKey = chatDB.getChatKey(chatId);
+    const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+    chatKey = await chatKeyManager.getKey(chatId);
     if (chatKey) {
       report.chatKeySource = "cache";
     }
   } catch {
-    // chatDB not available
+    // chatKeyManager not available
   }
 
   // If not in cache, try to unwrap from encrypted_chat_key
@@ -2964,6 +2966,7 @@ async function debugDailyInspirations(): Promise<void> {
   } else {
     // Lazy-import modules needed for the assistant-message check
     let chatDBModule: null | (typeof import("./db"))["chatDB"] = null;
+    let chatKeyManagerModule: null | (typeof import("./encryption/ChatKeyManager"))["chatKeyManager"] = null;
     let decryptWithChatKeyFn:
       | null
       | (typeof import("./cryptoService"))["decryptWithChatKey"] = null;
@@ -2972,11 +2975,13 @@ async function debugDailyInspirations(): Promise<void> {
       | (typeof import("./cryptoService"))["decryptChatKeyWithMasterKey"] =
       null;
     try {
-      const [dbMod, cryptoMod] = await Promise.all([
+      const [dbMod, cryptoMod, keyManagerMod] = await Promise.all([
         import("./db"),
         import("./cryptoService"),
+        import("./encryption/ChatKeyManager"),
       ]);
       chatDBModule = dbMod.chatDB;
+      chatKeyManagerModule = keyManagerMod.chatKeyManager;
       decryptWithChatKeyFn = cryptoMod.decryptWithChatKey;
       decryptChatKeyWithMasterKeyFn = cryptoMod.decryptChatKeyWithMasterKey;
     } catch {
@@ -3090,7 +3095,7 @@ async function debugDailyInspirations(): Promise<void> {
               );
             } else {
               // Get the chat key (from cache first, then unwrap from encrypted_chat_key)
-              let chatKey: Uint8Array | null = chatDBModule.getChatKey(chatId);
+              let chatKey: Uint8Array | null = chatKeyManagerModule?.getKeySync(chatId) ?? null;
               if (!chatKey) {
                 const chatMeta = chat as unknown as Record<string, unknown>;
                 if (chatMeta.encrypted_chat_key) {
@@ -3946,7 +3951,10 @@ function showDebugHelp(): void {
       "  Diagnostics:\n" +
       "  window.debug.logs(n?, level?)             — show last N logs (default 20), filter by level\n" +
       "  window.debug.errors(n?)                   — show last N errors+warnings (default 50)\n" +
-      "  window.debug.state()                      — dump current store state summary\n",
+      "  window.debug.state()                      — dump current store state summary\n\n" +
+      "  Animations:\n" +
+      "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
+      "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4469,6 +4477,60 @@ export function initDebugUtils(): void {
 
     /** Inspect app settings and memories with decryption health check */
     settingsAndMemories: () => debugSettingsAndMemories(),
+
+    /**
+     * Manually trigger UI animations for testing.
+     * Usage:
+     *   window.debug.animation('ai_is_typing_on')   — activate rainbow glow + typing indicator
+     *   window.debug.animation('ai_is_typing_off')  — deactivate rainbow glow + typing indicator
+     */
+    animation: (name: string) => {
+      const container = document.querySelector('.active-chat-container');
+      if (!container) {
+        console.error('[debug.animation] No .active-chat-container found');
+        return;
+      }
+
+      switch (name) {
+        case 'ai_is_typing_on': {
+          container.classList.add('ai-typing');
+          // Inject a typing indicator if one doesn't already exist
+          const wrapper = container.querySelector('.message-input-wrapper');
+          if (wrapper && !wrapper.querySelector('.typing-indicator.debug-injected')) {
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator status-typing debug-injected';
+            indicator.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;text-align:center;font-size:1rem;color:var(--color-grey-60);padding:0px 16px 6px;font-style:italic;position:relative;z-index:1;';
+            const line1 = document.createElement('span');
+            line1.className = 'indicator-primary-line';
+            line1.textContent = 'Assistant is typing...';
+            const line2 = document.createElement('span');
+            line2.className = 'indicator-secondary-line';
+            line2.textContent = 'Powered by Debug Model';
+            line2.style.cssText = 'font-size:0.7rem;opacity:0.8;';
+            const line3 = document.createElement('span');
+            line3.className = 'indicator-tertiary-line';
+            line3.textContent = 'via Debug Provider 🇪🇺';
+            line3.style.cssText = 'font-size:0.65rem;opacity:0.65;';
+            indicator.append(line1, line2, line3);
+            wrapper.insertBefore(indicator, wrapper.firstChild);
+          }
+          console.log('[debug.animation] ai_is_typing_on — rainbow glow + typing indicator active');
+          break;
+        }
+        case 'ai_is_typing_off': {
+          container.classList.remove('ai-typing');
+          // Remove debug-injected typing indicator
+          const debugIndicator = container.querySelector('.typing-indicator.debug-injected');
+          if (debugIndicator) debugIndicator.remove();
+          console.log('[debug.animation] ai_is_typing_off — rainbow glow + typing indicator removed');
+          break;
+        }
+        default:
+          console.error(
+            `[debug.animation] Unknown animation "${name}". Available: ai_is_typing_on, ai_is_typing_off`
+          );
+      }
+    },
   });
 
   (window as unknown as Record<string, unknown>).debug = debugFn;

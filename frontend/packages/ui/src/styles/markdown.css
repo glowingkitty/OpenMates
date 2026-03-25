@@ -244,10 +244,6 @@
 }
 
 /* Mathematics */
-.markdown-math {
-  display: inline-block;
-  margin: 0 0.2em;
-}
 
 .markdown-math.display {
   display: block;

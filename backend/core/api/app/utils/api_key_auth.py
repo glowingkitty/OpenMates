@@ -446,23 +446,54 @@ class ApiKeyAuthService:
             return
 
         try:
-            # ── 1. Retrieve user data from cache ──────────────────────────
+            # ── 1. Retrieve user data — cache first, Directus fallback ────
+            # API key requests do not go through the normal login flow, so the
+            # user may never be cached (common when a dev server calls prod via
+            # the admin debug API key).  Fall back to a direct Directus lookup
+            # to ensure the security email is always sent.
             cache_service = self.cache_service
             cached_user = await cache_service.get_user_by_id(user_id)
-            if not cached_user:
-                logger.warning(
-                    f"_send_security_email: user {user_id[:6]}... not in cache, cannot send email"
-                )
-                return
 
-            encrypted_notification_email = cached_user.get("encrypted_notification_email")
+            encrypted_notification_email = None
+            vault_key_id = None
+            language = "en"
+            darkmode = False
+
+            if cached_user:
+                encrypted_notification_email = cached_user.get("encrypted_notification_email")
+                vault_key_id = cached_user.get("vault_key_id")
+                language = cached_user.get("language", "en") or "en"
+                darkmode = bool(cached_user.get("darkmode", False))
+            else:
+                # Cache miss — fetch the minimal fields directly from Directus
+                logger.info(
+                    f"_send_security_email: user {user_id[:6]}... not in cache, "
+                    "fetching from Directus for security email"
+                )
+                try:
+                    success, directus_user, _ = await self.directus_service.get_user_profile(user_id)
+                    if success and directus_user:
+                        encrypted_notification_email = directus_user.get("encrypted_notification_email")
+                        vault_key_id = directus_user.get("vault_key_id")
+                        language = directus_user.get("language", "en") or "en"
+                        darkmode = bool(directus_user.get("darkmode", False))
+                    else:
+                        logger.warning(
+                            f"_send_security_email: user {user_id[:6]}... not found in Directus either, cannot send email"
+                        )
+                        return
+                except Exception as fetch_exc:
+                    logger.warning(
+                        f"_send_security_email: Directus fallback failed for user {user_id[:6]}...: {fetch_exc}"
+                    )
+                    return
+
             if not encrypted_notification_email:
                 logger.debug(
                     f"_send_security_email: no notification email configured for user {user_id[:6]}..."
                 )
                 return
 
-            vault_key_id = cached_user.get("vault_key_id")
             if not vault_key_id:
                 logger.warning(
                     f"_send_security_email: no vault_key_id for user {user_id[:6]}..., cannot decrypt email"
@@ -482,9 +513,7 @@ class ApiKeyAuthService:
                 logger.warning(f"_send_security_email: email decryption returned empty for user {user_id[:6]}...")
                 return
 
-            # ── 3. Resolve language + dark-mode preference from cache ─────
-            language = cached_user.get("language", "en") or "en"
-            darkmode = bool(cached_user.get("darkmode", False))
+            # ── 3. Language + dark-mode already resolved above ────────────
 
             # ── 4. Build developer settings URL ───────────────────────────
             # Use the app's base URL if available; otherwise fall back to a

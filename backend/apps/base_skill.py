@@ -310,8 +310,8 @@ class BaseSkill:
         Validates and normalizes the 'id' field for a request in a multi-request skill call.
         
         This helper method implements the standard pattern for handling request IDs:
-        - For single requests: 'id' is optional - auto-generates id=1 if missing
-        - For multiple requests: 'id' is required to match responses to requests
+        - 'id' is always optional — auto-generates sequential index (1, 2, 3…) if missing
+        - Works for both single- and multi-request payloads
         - Validates that 'id' values are unique within the batch
         
         Args:
@@ -343,17 +343,38 @@ class BaseSkill:
         # Use provided logger or fall back to module-level logger for debug messages
         _log = logger or logging.getLogger(__name__)
         log_func = _log.debug
+
+        # Defensive: if a Pydantic model slipped through instead of a dict,
+        # convert it so all downstream .get() / item-assignment calls work.
+        # Callers should serialise before calling this, but we guard here too
+        # to make the failure loud (AttributeError → clear log) rather than silent.
+        if hasattr(req, "model_dump"):
+            _log.error(
+                "_validate_and_normalize_request_id received a Pydantic model "
+                f"instead of a dict (type={type(req).__name__}). "
+                "The calling skill's execute() must serialize request items with "
+                "model_dump() before passing them to BaseSkill helpers. "
+                "Auto-converting now to avoid crash, but this is a bug in the skill."
+            )
+            req = req.model_dump()
         
-        # Auto-generate 'id' ONLY if not provided
-        # This respects user-provided IDs from REST API callers while still
-        # auto-generating for requests that don't have IDs
-        # Note: For LLM tool calls, main_processor.py sets IDs before calling skills,
-        # so skills will see those as "provided" and use them consistently
-        if "id" not in req:
-            # Use request_index + 1 as the auto-generated ID (1-indexed for readability)
+        # Auto-generate 'id' for any request that doesn't include one OR that has id=None.
+        # The tool_schema tells callers that 'id' is auto-generated if not provided,
+        # so we must honour that contract for both single- and multi-request payloads.
+        # Sequential index-based IDs (1, 2, 3 …) are deterministic and let callers
+        # match responses to requests by position when explicit IDs aren't supplied.
+        #
+        # NOTE: Pydantic model serialization (model_dump()) always includes the 'id' key
+        # even when it was not explicitly set — producing {"id": None, ...}. Treating
+        # None the same as a missing key ensures auto-generation still fires correctly
+        # and prevents all requests in a batch from sharing the same id=None value,
+        # which would cause a false "duplicate id" validation error.
+        if "id" not in req or req["id"] is None:
             auto_id = request_index + 1
             req["id"] = auto_id
-            log_func(f"Auto-generated 'id'={auto_id} for request {request_index + 1} of {total_requests}")
+            log_func(
+                f"Auto-generated 'id'={auto_id} for request {request_index + 1} of {total_requests}"
+            )
         
         request_id = req.get("id")
         
@@ -474,6 +495,12 @@ class BaseSkill:
         
         # Validate that all requests have required fields: 'id' and the specified required field
         # Use BaseSkill helper method for consistent validation across all skills
+        # Serialize any Pydantic model items to plain dicts so .get() works correctly.
+        # Individual skills should do this before calling us, but we defend here too.
+        requests = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in requests
+        ]
         request_ids = set()
         for i, req in enumerate(requests):
             # Validate and normalize request 'id' field using BaseSkill helper

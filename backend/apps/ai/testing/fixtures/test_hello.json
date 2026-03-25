@@ -1,0 +1,40 @@
+{
+  "fixture_id": "test_hello",
+  "recorded_at": "2026-03-21T12:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Hello, this is a test",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Test Greeting",
+    "icon_names": ["message-circle"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "A simple test greeting",
+    "chat_tags": ["test"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Test Greeting"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "Hello! This is a mocked response from the fixture-based test system.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 50,
+    "completion_tokens": 15,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}

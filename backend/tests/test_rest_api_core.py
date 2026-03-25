@@ -158,8 +158,15 @@ def test_usage_details_authenticated(api_client):
 
 @pytest.mark.integration
 def test_usage_export_authenticated(api_client):
-    """Test the usage export endpoint (v1/settings/usage/export)."""
-    response = api_client.get("/v1/settings/usage/export?months=1")
+    """Test the usage export endpoint (v1/settings/usage/export).
+
+    Uses an extended timeout because CSV generation queries and serialises all
+    usage data — first-call latency can exceed the shared 60s client timeout.
+    """
+    response = api_client.get(
+        "/v1/settings/usage/export?months=1",
+        timeout=120.0,  # CSV export can be slow on a cold cache
+    )
     assert response.status_code == 200, f"Usage export failed: {response.text}"
     assert "text/csv" in response.headers["Content-Type"]
     assert "attachment" in response.headers["Content-Disposition"]
@@ -171,12 +178,19 @@ def test_usage_export_authenticated(api_client):
 
 @pytest.mark.integration
 def test_invalid_api_key():
-    """Test that an invalid API key returns 401."""
+    """Test that an invalid API key returns 401.
+
+    Creates a fresh client with an explicit timeout so a slow preceding test
+    cannot exhaust the connection pool and cause SSL handshake timeouts here.
+    """
     headers = {"Authorization": "Bearer sk-api-invalid-key"}
     with httpx.Client(
         base_url=API_BASE_URL,
         headers=headers,
+        timeout=30.0,
         event_hooks={"response": [log_response]},
     ) as client:
         response = client.get("/v1/settings/billing")
-        assert response.status_code == 401
+        assert response.status_code == 401, (
+            f"Expected 401 for invalid API key, got {response.status_code}: {response.text}"
+        )

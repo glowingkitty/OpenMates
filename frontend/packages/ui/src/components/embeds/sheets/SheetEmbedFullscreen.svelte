@@ -67,14 +67,14 @@
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
     /**
-     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_com]")
      * to original values. When provided and piiRevealed is true, placeholder strings
      * in the table content are replaced with originals for display.
      */
     piiMappings?: PIIMapping[];
     /**
      * Whether PII originals are currently visible.
-     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When false (default), placeholder strings like [EMAIL_com] are shown as-is.
      * When true, placeholders are replaced with original values.
      * This is the initial value — the user can toggle locally in fullscreen.
      */
@@ -116,7 +116,7 @@
 
   /**
    * Apply PII masking to the raw markdown table string before parsing.
-   * The AI-generated table may include placeholder strings (e.g. "[EMAIL_1]").
+   * The AI-generated table may include placeholder strings (e.g. "[EMAIL_com]").
    * When localPiiRevealed is true, restore originals; otherwise keep placeholders.
    */
   let piiProcessedTableContent = $derived.by(() => {
@@ -210,6 +210,25 @@
   
   let filteredRowCount = $derived(displayRows.length);
   
+  /**
+   * Compute per-column pixel widths from content length.
+   * Scans all display rows to find the longest value per column,
+   * then maps char count → pixels (8px/char) clamped to [80, 320].
+   * Applied via <colgroup> so the browser respects fixed widths while
+   * still allowing the table to scroll horizontally for wide data.
+   */
+  let colWidths = $derived.by(() => {
+    return parsedTable.headers.map((header, i) => {
+      const headerLen = header.content.length;
+      const maxDataLen = displayRows.reduce((max, row) => {
+        const len = row[i]?.content?.length ?? 0;
+        return len > max ? len : max;
+      }, 0);
+      const chars = Math.max(headerLen, maxDataLen);
+      return Math.min(Math.max(chars * 8, 80), 320);
+    });
+  });
+
   // Build status text
   let statusText = $derived.by(() => {
     if (actualRowCount === 0 && actualColCount === 0) return '';
@@ -365,6 +384,13 @@
       <div class="spreadsheet-wrapper" bind:this={tableContainerEl}>
         {#if parsedTable.headers.length > 0}
           <table class="spreadsheet">
+            <colgroup>
+              <!-- Row-number gutter: fixed 40px -->
+              <col style="width: 40px; min-width: 40px; max-width: 40px;" />
+              {#each colWidths as w}
+                <col style="width: {w}px; max-width: {w}px;" />
+              {/each}
+            </colgroup>
             <thead>
               <!-- Column letter row (A, B, C...) — Excel-style -->
               <tr class="col-letter-row">
@@ -542,7 +568,6 @@
     font-size: 12px;
     background: var(--color-grey-0);
     color: var(--color-font-primary);
-    outline: none;
     box-sizing: border-box;
   }
   
@@ -590,6 +615,11 @@
     line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Do NOT set width: 100% — let columns size naturally so wide tables scroll */
+    /* white-space is NOT set here — data cells wrap, header cells use nowrap below */
+  }
+  
+  /* Headers never wrap — ellipsis is handled on .col-header-text */
+  .spreadsheet thead th {
     white-space: nowrap;
   }
   
@@ -599,6 +629,7 @@
     border: 1px solid var(--color-grey-25);
     padding: 6px 12px;
     text-align: left;
+    vertical-align: top;
     color: var(--color-font-primary);
   }
   
@@ -643,6 +674,7 @@
     cursor: pointer;
     user-select: none;
     min-width: 80px;
+    max-width: 320px;
   }
   
   .col-header:hover {
@@ -742,6 +774,10 @@
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
+    /* Wrap long text — fullscreen has vertical space; don't truncate */
+    white-space: normal;
+    word-break: break-word;
+    max-width: 320px;
   }
   
   /* Subtle alternating row colour for readability */

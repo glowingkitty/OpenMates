@@ -5,6 +5,7 @@
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
     import { userProfile } from '../../stores/userProfile';
+    import { isMobile } from '../../utils/platform';
     import type { MessageRole } from '../../types/chat';
 
     // Props using Svelte 5 $props()
@@ -17,6 +18,7 @@
         onSelect?: () => void;
         onDelete?: () => void;
         onFork?: () => void;        // Callback to open the fork conversation settings panel
+        onEdit?: () => void;        // Callback to enter edit mode for a user message
         disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         disableFork?: boolean;   // When true, fork is disabled (e.g., incognito chat)
         messageId?: string;
@@ -32,6 +34,7 @@
         onSelect,
         onDelete,
         onFork,
+        onEdit,
         disableDelete = false,
         disableFork = false,
         messageId = undefined,
@@ -39,6 +42,9 @@
         role = undefined
     }: Props = $props();
     
+    // Touch device detection — evaluated once (device type doesn't change mid-session)
+    const isTouchDevice = isMobile();
+
     // Two-step delete confirmation state
     let confirmingDelete = $state(false);
 
@@ -173,7 +179,7 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork', event: Event) {
+    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork' | 'edit', event: Event) {
         event.stopPropagation();
         event.preventDefault();
         
@@ -181,6 +187,7 @@
         
         if (action === 'copy') onCopy?.();
         if (action === 'select') onSelect?.();
+        if (action === 'edit') onEdit?.();
         if (action === 'fork') {
             if (!disableFork) onFork?.();
         }
@@ -251,7 +258,7 @@
         {#if messageCredits !== null && messageCredits > 0}
             <div class="message-credits">
                 <div class="clickable-icon icon_coins"></div>
-                {formatCredits(messageCredits)} {$text('chats.context_menu.credits')}
+                {formatCredits(messageCredits)} {$text('common.credits')}
             </div>
         {/if}
         
@@ -260,48 +267,56 @@
             onclick={(event) => handleAction('copy', event)}
         >
             <div class="clickable-icon icon_copy"></div>
-            {$text('chats.context_menu.copy')}
+            {$text('common.copy')}
         </button>
 
+        {#if isTouchDevice}
+            <button
+                class="menu-item select"
+                onclick={(event) => handleAction('select', event)}
+            >
+                <div class="clickable-icon icon_select"></div>
+                {$text('chats.context_menu.select')}
+            </button>
+        {/if}
+
+        {#if onEdit}
+            <button
+                class="menu-item edit"
+                onclick={(event) => handleAction('edit', event)}
+            >
+                <div class="clickable-icon icon_modify"></div>
+                {$text('chats.context_menu.edit')}
+            </button>
+        {/if}
+
+        <!-- Fork conversation — always visible, disabled when not authenticated or fork unavailable -->
         <button
-            class="menu-item select"
-            onclick={(event) => handleAction('select', event)}
+            class="menu-item fork"
+            class:disabled={disableFork || !$authStore.isAuthenticated}
+            disabled={disableFork || !$authStore.isAuthenticated}
+            onclick={(event) => handleAction('fork', event)}
         >
-            <div class="clickable-icon icon_select"></div>
-            {$text('chats.context_menu.select')}
+            <div class="clickable-icon icon_planning"></div>
+            {$text('chats.context_menu.fork')}
         </button>
 
-        <!-- Fork conversation — only shown when an onFork handler is provided -->
-        {#if onFork !== undefined}
-            <button
-                class="menu-item fork"
-                class:disabled={disableFork}
-                disabled={disableFork}
-                onclick={(event) => handleAction('fork', event)}
-            >
-                <div class="clickable-icon icon_planning"></div>
-                {$text('chats.context_menu.fork')}
-            </button>
-        {/if}
-
-        {#if onDelete || disableDelete || !$authStore.isAuthenticated}
-            <div class="menu-separator"></div>
-            <button
-                class="menu-item delete"
-                class:confirming={confirmingDelete}
-                class:disabled={disableDelete || !$authStore.isAuthenticated}
-                disabled={disableDelete || !$authStore.isAuthenticated}
-                onclick={(event) => handleAction('delete', event)}
-            >
-                <div class="clickable-icon icon_delete"></div>
-                {#if confirmingDelete}
-                    {$text('chats.context_menu.confirm')}
-                {/if}
-                {#if !confirmingDelete}
-                    {$text('chats.context_menu.delete_message')}
-                {/if}
-            </button>
-        {/if}
+        <div class="menu-separator"></div>
+        <button
+            class="menu-item delete"
+            class:confirming={confirmingDelete}
+            class:disabled={disableDelete || !$authStore.isAuthenticated}
+            disabled={disableDelete || !$authStore.isAuthenticated}
+            onclick={(event) => handleAction('delete', event)}
+        >
+            <div class="clickable-icon icon_delete"></div>
+            {#if confirmingDelete}
+                {$text('chats.context_menu.confirm')}
+            {/if}
+            {#if !confirmingDelete}
+                {$text('common.delete')}
+            {/if}
+        </button>
 
         {#if $userProfile.is_admin}
             <!-- Debug mode toggle: admin only -->

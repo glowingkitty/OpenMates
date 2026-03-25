@@ -30,6 +30,101 @@ process:
     - introduces the 2–3 most relevant specialist mates based on the user's stated needs
     - highlights 1–2 relevant features (focus modes, memories, apps) that match the user's goals
     - summarizes the user's use cases and offers to share them anonymously with the OpenMates team
+  de: |
+    - fragt, wofür der Nutzer OpenMates verwenden möchte, und hört sorgfältig auf die Antwort
+    - stellt die 2–3 relevantesten Spezialisten-Mates basierend auf den angegebenen Bedürfnissen des Nutzers vor
+    - hebt 1–2 relevante Funktionen (Fokusmodi, Erinnerungen, Apps) hervor, die den Zielen des Nutzers entsprechen
+    - fasst die Anwendungsfälle des Nutzers zusammen und bietet an, sie anonym mit dem OpenMates-Team zu teilen
+  zh: |
+    - 询问用户想用 OpenMates 做什么，并仔细聆听他们的回复
+    - 根据用户的需求介绍 2–3 个最相关的专业 Mates
+    - 突出显示与用户目标相符的 1–2 个相关功能（专注模式、记忆、应用）
+    - 总结用户的使用场景，并提出匿名分享给 OpenMates 团队
+  es: |
+    - pregunta para qué quiere usar OpenMates y escucha atentamente la respuesta
+    - presenta los 2–3 mates especialistas más relevantes según las necesidades del usuario
+    - destaca 1–2 características relevantes (modos de enfoque, memorias, aplicaciones) que coincidan con los objetivos
+    - resume los casos de uso del usuario y ofrece compartirlos de forma anónima con el equipo de OpenMates
+  fr: |
+    - demande à quoi l'utilisateur veut utiliser OpenMates et écoute attentivement sa réponse
+    - présente les 2–3 mates spécialistes les plus pertinents en fonction des besoins exprimés
+    - met en avant 1–2 fonctionnalités pertinentes (modes focus, mémoires, applications) correspondant aux objectifs
+    - résume les cas d'utilisation de l'utilisateur et propose de les partager anonymement avec l'équipe OpenMates
+  pt: |
+    - pergunta para que o usuário quer usar o OpenMates e ouve atentamente a resposta
+    - apresenta os 2–3 mates especialistas mais relevantes com base nas necessidades do usuário
+    - destaca 1–2 recursos relevantes (modos de foco, memórias, apps) que correspondam aos objetivos
+    - resume os casos de uso do usuário e oferece compartilhá-los anonimamente com a equipe OpenMates
+  ru: |
+    - спрашивает, для чего пользователь хочет использовать OpenMates, и внимательно слушает ответ
+    - представляет 2–3 наиболее релевантных специализированных mate на основе потребностей пользователя
+    - выделяет 1–2 релевантных функции (режимы фокуса, воспоминания, приложения), соответствующие целям пользователя
+    - подводит итоги сценариев использования и предлагает поделиться ими анонимно с командой OpenMates
+  ja: |
+    - ユーザーが OpenMates を何に使いたいかを尋ね、回答を注意深く聞く
+    - ユーザーの stated な必要性に基づいて、最も関連性の高い 2–3 人の専門家 Mate を紹介する
+    - ユーザーの目標に合う 1–2 の関連機能（フォーカスモード、メモリ、アプリ）を紹介する
+    - ユーザーのユースケースを要約し、OpenMates チームに匿名で共有することを提案する
+  ko: |
+    - 사용자가 OpenMates를 어떤 목적으로 사용하고 싶은지 묻고 응답을 주의 깊게 듣습니다
+    - 사용자의 요구에 따라 가장 관련성 높은 전문 Mate 2–3명을 소개합니다
+    - 사용자 목표에 맞는 1–2개의 관련 기능(집중 모드, 기억, 앱)을 강조합니다
+    - 사용자의 사용 사례를 요약하고 OpenMates 팀과 익명으로 공유할 것을 제안합니다
+  it: |
+    - chiede per cosa l'utente vuole usare OpenMates e ascolta attentamente la risposta
+    - presenta i 2–3 mates specialisti più rilevanti in base alle esigenze dell'utente
+    - evidenzia 1–2 funzionalità rilevanti (modalità focus, memorie, app) che corrispondono agli obiettivi
+    - riassume i casi d'uso dell'utente e offre di condividerli anonimamente con il team di OpenMates
+  tr: |
+    - kullanıcının OpenMates'i ne için kullanmak istediğini sorar ve yanıtı dikkatle dinler
+    - kullanıcının belirttiği ihtiyaçlara göre en alakalı 2–3 uzman Mate'i tanıtır
+    - kullanıcının hedeflerine uyan 1–2 ilgili özelliği (odak modları, anılar, uygulamalar) vurgular
+    - kullanıcının kullanım durumlarını özetler ve bunları OpenMates ekibiyle anonim olarak paylaşmayı teklif eder
+  vi: |
+    - hỏi người dùng muốn sử dụng OpenMates để làm gì và lắng nghe kỹ phản hồi
+    - giới thiệu 2–3 Mate chuyên gia phù hợp nhất dựa trên nhu cầu của người dùng
+    - làm nổi bật 1–2 tính năng liên quan (chế độ tập trung, ký ức, ứng dụng) phù hợp với mục tiêu
+    - tóm tắt các trường hợp sử dụng và đề nghị chia sẻ chúng ẩn danh với nhóm OpenMates
+  id: |
+    - menanyakan untuk apa pengguna ingin menggunakan OpenMates dan mendengarkan respons dengan seksama
+    - memperkenalkan 2–3 Mate spesialis paling relevan berdasarkan kebutuhan pengguna
+    - menyoroti 1–2 fitur relevan (mode fokus, memori, aplikasi) yang sesuai dengan tujuan pengguna
+    - merangkum kasus penggunaan pengguna dan menawarkan untuk berbagi secara anonim dengan tim OpenMates
+  pl: |
+    - pyta, do czego użytkownik chce używać OpenMates, i uważnie słucha odpowiedzi
+    - przedstawia 2–3 najbardziej odpowiednich specjalistycznych Mates na podstawie potrzeb użytkownika
+    - podkreśla 1–2 odpowiednie funkcje (tryby skupienia, wspomnienia, aplikacje) pasujące do celów użytkownika
+    - podsumowuje przypadki użycia i proponuje anonimowe udostępnienie ich zespołowi OpenMates
+  nl: |
+    - vraagt waarvoor de gebruiker OpenMates wil gebruiken en luistert zorgvuldig naar het antwoord
+    - introduceert de 2–3 meest relevante specialist mates op basis van de behoeften van de gebruiker
+    - benadrukt 1–2 relevante functies (focusmodi, herinneringen, apps) die passen bij de doelen
+    - vat de gebruiksscenario's samen en biedt aan ze anoniem te delen met het OpenMates-team
+  ar: |
+    - يسأل ما الذي يريد المستخدم استخدام OpenMates من أجله ويستمع بعناية إلى إجابته
+    - يقدم 2–3 من أكثر الـ mates المتخصصين ارتباطاً بناءً على الاحتياجات المُعلنة للمستخدم
+    - يسلط الضوء على 1–2 ميزة ذات صلة (أوضاع التركيز، الذكريات، التطبيقات) التي تتوافق مع أهداف المستخدم
+    - يلخص حالات استخدام المستخدم ويعرض مشاركتها بصورة مجهولة مع فريق OpenMates
+  hi: |
+    - उपयोगकर्ता से पूछता है कि वे OpenMates का उपयोग किस लिए करना चाहते हैं और उनकी प्रतिक्रिया को ध्यान से सुनता है
+    - उपयोगकर्ता की बताई गई जरूरतों के आधार पर 2–3 सबसे प्रासंगिक विशेषज्ञ Mates का परिचय देता है
+    - 1–2 प्रासंगिक सुविधाओं (फोकस मोड, यादें, ऐप्स) को उजागर करता है जो उपयोगकर्ता के लक्ष्यों से मेल खाती हैं
+    - उपयोगकर्ता के उपयोग के मामलों का सारांश देता है और उन्हें OpenMates टीम के साथ अनाम रूप से साझा करने की पेशकश करता है
+  th: |
+    - ถามว่าผู้ใช้ต้องการใช้ OpenMates เพื่ออะไรและฟังคำตอบอย่างตั้งใจ
+    - แนะนำ Mate ผู้เชี่ยวชาญ 2–3 คนที่เกี่ยวข้องมากที่สุดตามความต้องการของผู้ใช้
+    - เน้น 1–2 คุณสมบัติที่เกี่ยวข้อง (โหมดโฟกัส ความทรงจำ แอป) ที่ตรงกับเป้าหมายของผู้ใช้
+    - สรุปกรณีการใช้งานของผู้ใช้และเสนอที่จะแบ่งปันโดยไม่ระบุตัวตนกับทีม OpenMates
+  cs: |
+    - ptá se, k čemu chce uživatel OpenMates používat, a pozorně naslouchá odpovědi
+    - představuje 2–3 nejrelevantnější specializované Mates na základě potřeb uživatele
+    - zdůrazňuje 1–2 relevantní funkce (režimy zaměření, vzpomínky, aplikace) odpovídající cílům uživatele
+    - shrnuje případy použití uživatele a nabízí jejich anonymní sdílení s týmem OpenMates
+  sv: |
+    - frågar vad användaren vill använda OpenMates till och lyssnar noga på svaret
+    - presenterar de 2–3 mest relevanta specialist-Mates baserat på användarens angivna behov
+    - lyfter fram 1–2 relevanta funktioner (fokusmoder, minnen, appar) som matchar användarens mål
+    - sammanfattar användarens användningsfall och erbjuder att dela dem anonymt med OpenMates-teamet
   he: |
     - שואל למה המשתמש רוצה להשתמש ב-OpenMates ומקשיב היטב לתשובתו
     - מציג את 2–3 ה-mates המומחים הרלוונטיים ביותר על סמך הצרכים שהמשתמש ציין

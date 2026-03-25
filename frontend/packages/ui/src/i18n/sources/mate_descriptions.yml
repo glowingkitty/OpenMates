@@ -5,24 +5,24 @@ software_development:
   context: Description for the software development expert mate (Sophia)
   en: Software development expert
   de: Softwareentwicklungs-Experte
-  zh: ""
+  zh: 软件开发专家
   es: Experto en desarrollo de software
   fr: Expert en développement logiciel
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em desenvolvimento de software
+  ru: Эксперт по разработке программного обеспечения
+  ja: ソフトウェア開発の専門家
+  ko: 소프트웨어 개발 전문가
+  it: Esperto di sviluppo software
+  tr: Yazılım geliştirme uzmanı
+  vi: Chuyên gia phát triển phần mềm
+  id: Ahli pengembangan perangkat lunak
+  pl: Ekspert ds. tworzenia oprogramowania
+  nl: Software-ontwikkelingsexpert
+  ar: خبير تطوير البرمجيات
+  hi: सॉफ्टवेयर विकास विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการพัฒนาซอฟต์แวร์
+  cs: Odborník na vývoj softwaru
+  sv: Expert på mjukvaruutveckling
   he: מומחית לפיתוח תוכנה
   verified_by_human: []
 
@@ -30,24 +30,24 @@ business_development:
   context: Description for the business development expert mate (Burton)
   en: Business development expert
   de: Geschäftsentwicklungs-Experte
-  zh: ""
+  zh: 商业发展专家
   es: Experto en desarrollo de negocios
   fr: Expert en développement commercial
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em desenvolvimento de negócios
+  ru: Эксперт по развитию бизнеса
+  ja: ビジネス開発の専門家
+  ko: 비즈니스 개발 전문가
+  it: Esperto di sviluppo aziendale
+  tr: İş geliştirme uzmanı
+  vi: Chuyên gia phát triển kinh doanh
+  id: Ahli pengembangan bisnis
+  pl: Ekspert ds. rozwoju biznesu
+  nl: Business development expert
+  ar: خبير تطوير الأعمال
+  hi: व्यवसाय विकास विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการพัฒนาธุรกิจ
+  cs: Odborník na rozvoj podnikání
+  sv: Expert på affärsutveckling
   he: מומחה לפיתוח עסקי
   verified_by_human: []
 
@@ -55,24 +55,24 @@ life_coach_psychology:
   context: Description for the life coach and psychology expert mate (Lisa)
   en: Life coach & psychology expert
   de: Lebensberater & Psychologie-Experte
-  zh: ""
+  zh: 生活教练与心理学专家
   es: Coach de vida y experto en psicología
   fr: Coach de vie et expert en psychologie
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Coach de vida e especialista em psicologia
+  ru: Лайф-коуч и эксперт по психологии
+  ja: ライフコーチ＆心理学の専門家
+  ko: 라이프 코치 및 심리학 전문가
+  it: Life coach ed esperto di psicologia
+  tr: Yaşam koçu ve psikoloji uzmanı
+  vi: Huấn luyện viên cuộc sống và chuyên gia tâm lý học
+  id: Pelatih kehidupan & ahli psikologi
+  pl: Coach życiowy i ekspert ds. psychologii
+  nl: Levenscoach & psychologie-expert
+  ar: مدرب الحياة وخبير علم النفس
+  hi: लाइफ कोच और मनोविज्ञान विशेषज्ञ
+  th: โค้ชชีวิตและผู้เชี่ยวชาญด้านจิตวิทยา
+  cs: Životní kouč a odborník na psychologii
+  sv: Livscoach & psykologiexpert
   he: מאמנת אישית ומומחית לפסיכולוגיה
   verified_by_human: []
 
@@ -80,24 +80,24 @@ medical_health:
   context: Description for the medical and health expert mate (Melvin)
   en: Medical & health expert
   de: Medizin- & Gesundheitsexperte
-  zh: ""
+  zh: 医疗与健康专家
   es: Experto en medicina y salud
   fr: Expert en médecine et santé
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em medicina e saúde
+  ru: Эксперт по медицине и здоровью
+  ja: 医療・健康の専門家
+  ko: 의료 및 건강 전문가
+  it: Esperto medico e sanitario
+  tr: Tıp ve sağlık uzmanı
+  vi: Chuyên gia y tế và sức khỏe
+  id: Ahli medis & kesehatan
+  pl: Ekspert medyczny i zdrowotny
+  nl: Medisch & gezondheidsexpert
+  ar: خبير طبي وصحي
+  hi: चिकित्सा और स्वास्थ्य विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการแพทย์และสุขภาพ
+  cs: Odborník na medicínu a zdraví
+  sv: Medicinsk & hälsoexpert
   he: מומחה לרפואה ובריאות
   verified_by_human: []
 
@@ -105,24 +105,24 @@ legal_law:
   context: Description for the legal and law expert mate (Leon)
   en: Legal & law expert
   de: Rechts- & Gesetzesexperte
-  zh: ""
+  zh: 法律专家
   es: Experto en derecho y leyes
   fr: Expert en droit et législation
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em direito e leis
+  ru: Эксперт по праву и законодательству
+  ja: 法律・法務の専門家
+  ko: 법률 전문가
+  it: Esperto legale e giuridico
+  tr: Hukuk ve yasalar uzmanı
+  vi: Chuyên gia pháp lý và luật pháp
+  id: Ahli hukum & perundang-undangan
+  pl: Ekspert prawny i legislacyjny
+  nl: Juridisch & rechtsexpert
+  ar: خبير قانوني وتشريعي
+  hi: कानूनी विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านกฎหมาย
+  cs: Právní odborník
+  sv: Juridisk expert
   he: מומחה למשפטים וחוק
   verified_by_human: []
 
@@ -130,24 +130,24 @@ finance:
   context: Description for the finance expert mate (Finn)
   en: Finance expert
   de: Finanzexperte
-  zh: ""
+  zh: 金融专家
   es: Experto en finanzas
   fr: Expert en finance
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em finanças
+  ru: Финансовый эксперт
+  ja: 金融の専門家
+  ko: 금융 전문가
+  it: Esperto di finanza
+  tr: Finans uzmanı
+  vi: Chuyên gia tài chính
+  id: Ahli keuangan
+  pl: Ekspert finansowy
+  nl: Financieel expert
+  ar: خبير مالي
+  hi: वित्त विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการเงิน
+  cs: Finanční odborník
+  sv: Finansexpert
   he: מומחה לפיננסים
   verified_by_human: []
 
@@ -155,24 +155,24 @@ design:
   context: Description for the design expert mate (Denise)
   en: Design expert
   de: Design-Experte
-  zh: ""
+  zh: 设计专家
   es: Experto en diseño
   fr: Expert en design
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em design
+  ru: Эксперт по дизайну
+  ja: デザインの専門家
+  ko: 디자인 전문가
+  it: Esperto di design
+  tr: Tasarım uzmanı
+  vi: Chuyên gia thiết kế
+  id: Ahli desain
+  pl: Ekspert ds. projektowania
+  nl: Ontwerpexpert
+  ar: خبير تصميم
+  hi: डिज़ाइन विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการออกแบบ
+  cs: Odborník na design
+  sv: Designexpert
   he: מומחית לעיצוב
   verified_by_human: []
 
@@ -180,24 +180,24 @@ marketing_sales:
   context: Description for the marketing and sales expert mate (Mark)
   en: Marketing & sales expert
   de: Marketing- & Vertriebsexperte
-  zh: ""
+  zh: 营销与销售专家
   es: Experto en marketing y ventas
   fr: Expert en marketing et ventes
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em marketing e vendas
+  ru: Эксперт по маркетингу и продажам
+  ja: マーケティング・営業の専門家
+  ko: 마케팅 및 영업 전문가
+  it: Esperto di marketing e vendite
+  tr: Pazarlama ve satış uzmanı
+  vi: Chuyên gia marketing và bán hàng
+  id: Ahli pemasaran & penjualan
+  pl: Ekspert ds. marketingu i sprzedaży
+  nl: Marketing & sales expert
+  ar: خبير التسويق والمبيعات
+  hi: मार्केटिंग और बिक्री विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการตลาดและการขาย
+  cs: Odborník na marketing a prodej
+  sv: Marknadsförings- och försäljningsexpert
   he: מומחה לשיווק ומכירות
   verified_by_human: []
 
@@ -205,24 +205,24 @@ science:
   context: Description for the science expert mate (Scarlett)
   en: Science expert
   de: Wissenschaftsexperte
-  zh: ""
+  zh: 科学专家
   es: Experto en ciencias
   fr: Expert en sciences
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em ciências
+  ru: Эксперт по науке
+  ja: 科学の専門家
+  ko: 과학 전문가
+  it: Esperto di scienze
+  tr: Bilim uzmanı
+  vi: Chuyên gia khoa học
+  id: Ahli sains
+  pl: Ekspert naukowy
+  nl: Wetenschapsexpert
+  ar: خبير علمي
+  hi: विज्ञान विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านวิทยาศาสตร์
+  cs: Vědecký odborník
+  sv: Vetenskapsexpert
   he: מומחית למדעים
   verified_by_human: []
 
@@ -230,24 +230,24 @@ history:
   context: Description for the history expert mate (Hiro)
   en: History expert
   de: Geschichtsexperte
-  zh: ""
+  zh: 历史专家
   es: Experto en historia
   fr: Expert en histoire
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em história
+  ru: Эксперт по истории
+  ja: 歴史の専門家
+  ko: 역사 전문가
+  it: Esperto di storia
+  tr: Tarih uzmanı
+  vi: Chuyên gia lịch sử
+  id: Ahli sejarah
+  pl: Ekspert historyczny
+  nl: Geschiedenisexpert
+  ar: خبير تاريخي
+  hi: इतिहास विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านประวัติศาสตร์
+  cs: Historický odborník
+  sv: Historieexpert
   he: מומחה להיסטוריה
   verified_by_human: []
 
@@ -255,24 +255,24 @@ cooking_food:
   context: Description for the cooking and food expert mate (Colin)
   en: Cooking & food expert
   de: Koch- & Lebensmittelexperte
-  zh: ""
+  zh: 烹饪与美食专家
   es: Experto en cocina y alimentación
   fr: Expert en cuisine et alimentation
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em culinária e alimentação
+  ru: Эксперт по кулинарии и питанию
+  ja: 料理・食品の専門家
+  ko: 요리 및 음식 전문가
+  it: Esperto di cucina e alimentazione
+  tr: Yemek pişirme ve gıda uzmanı
+  vi: Chuyên gia nấu ăn và ẩm thực
+  id: Ahli memasak & makanan
+  pl: Ekspert ds. gotowania i żywności
+  nl: Koken & voedselexpert
+  ar: خبير الطبخ والغذاء
+  hi: खाना पकाने और भोजन विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการทำอาหารและอาหาร
+  cs: Odborník na vaření a potraviny
+  sv: Matlagnings- och matexpert
   he: מומחה לבישול ואוכל
   verified_by_human: []
 
@@ -280,24 +280,24 @@ electrical_engineering:
   context: Description for the electrical engineering expert mate (Elton)
   en: Electrical engineering expert
   de: Elektrotechnik-Experte
-  zh: ""
+  zh: 电气工程专家
   es: Experto en ingeniería eléctrica
   fr: Expert en génie électrique
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em engenharia elétrica
+  ru: Эксперт по электротехнике
+  ja: 電気工学の専門家
+  ko: 전기공학 전문가
+  it: Esperto di ingegneria elettrica
+  tr: Elektrik mühendisliği uzmanı
+  vi: Chuyên gia kỹ thuật điện
+  id: Ahli teknik elektro
+  pl: Ekspert ds. inżynierii elektrycznej
+  nl: Elektrotechnisch expert
+  ar: خبير هندسة كهربائية
+  hi: इलेक्ट्रिकल इंजीनियरिंग विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านวิศวกรรมไฟฟ้า
+  cs: Odborník na elektrotechniku
+  sv: Expert på elektroteknik
   he: מומחה להנדסת חשמל
   verified_by_human: []
 
@@ -305,24 +305,24 @@ maker_prototyping:
   context: Description for the maker and prototyping expert mate (Makani)
   en: Maker & prototyping expert
   de: Maker- & Prototyping-Experte
-  zh: ""
+  zh: 创客与原型设计专家
   es: Experto en fabricación y prototipado
   fr: Expert en fabrication et prototypage
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em fabricação e prototipagem
+  ru: Эксперт по созданию прототипов
+  ja: メイカー・プロトタイプの専門家
+  ko: 메이커 및 프로토타이핑 전문가
+  it: Esperto di making e prototipazione
+  tr: Maker ve prototipleme uzmanı
+  vi: Chuyên gia chế tạo và tạo nguyên mẫu
+  id: Ahli maker & prototipe
+  pl: Ekspert ds. tworzenia i prototypowania
+  nl: Maker & prototyping expert
+  ar: خبير في التصنيع والنماذج الأولية
+  hi: मेकर और प्रोटोटाइपिंग विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการสร้างและต้นแบบ
+  cs: Odborník na výrobu a prototypování
+  sv: Maker & prototypingsexpert
   he: מומחה ליצירה ואבטיפוס
   verified_by_human: []
 
@@ -330,24 +330,24 @@ movies_tv:
   context: Description for the movies and TV expert mate (Monika)
   en: Movies & TV expert
   de: Film- & Fernsehexperte
-  zh: ""
+  zh: 电影与电视专家
   es: Experto en películas y TV
   fr: Expert en films et télévision
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em filmes e TV
+  ru: Эксперт по кино и телевидению
+  ja: 映画・テレビの専門家
+  ko: 영화 및 TV 전문가
+  it: Esperto di film e TV
+  tr: Film ve TV uzmanı
+  vi: Chuyên gia phim và TV
+  id: Ahli film & TV
+  pl: Ekspert ds. filmów i telewizji
+  nl: Films & TV-expert
+  ar: خبير أفلام وتلفزيون
+  hi: फिल्म और टीवी विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านภาพยนตร์และทีวี
+  cs: Odborník na filmy a televizi
+  sv: Film- och TV-expert
   he: מומחית לסרטים וטלוויזיה
   verified_by_human: []
 
@@ -355,24 +355,24 @@ activism:
   context: Description for the activism expert mate (Ace)
   en: Activism expert
   de: Aktivismus-Experte
-  zh: ""
+  zh: 社会活动专家
   es: Experto en activismo
   fr: Expert en activisme
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em ativismo
+  ru: Эксперт по активизму
+  ja: 社会運動の専門家
+  ko: 활동주의 전문가
+  it: Esperto di attivismo
+  tr: Aktivizm uzmanı
+  vi: Chuyên gia hoạt động xã hội
+  id: Ahli aktivisme
+  pl: Ekspert ds. aktywizmu
+  nl: Activisme-expert
+  ar: خبير في النشاط الاجتماعي
+  hi: सक्रियतावाद विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านการเคลื่อนไหวทางสังคม
+  cs: Odborník na aktivismus
+  sv: Aktivismexpert
   he: מומחה לאקטיביזם
   verified_by_human: []
 
@@ -380,24 +380,24 @@ general_knowledge:
   context: Description for the general knowledge expert mate (George)
   en: General knowledge expert
   de: Allgemeinwissens-Experte
-  zh: ""
+  zh: 通识知识专家
   es: Experto en conocimiento general
   fr: Expert en culture générale
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Especialista em conhecimento geral
+  ru: Эксперт по общим знаниям
+  ja: 一般知識の専門家
+  ko: 일반 지식 전문가
+  it: Esperto di cultura generale
+  tr: Genel bilgi uzmanı
+  vi: Chuyên gia kiến thức tổng hợp
+  id: Ahli pengetahuan umum
+  pl: Ekspert wiedzy ogólnej
+  nl: Algemene kennis expert
+  ar: خبير معرفة عامة
+  hi: सामान्य ज्ञान विशेषज्ञ
+  th: ผู้เชี่ยวชาญด้านความรู้ทั่วไป
+  cs: Odborník na všeobecné znalosti
+  sv: Expert på allmänkunskap
   he: מומחה לידע כללי
   verified_by_human: []
 

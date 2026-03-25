@@ -42,11 +42,12 @@ api.dev.openmates.org {
 	# --- Request Routing ---
 
 	# Define matchers
-	@health_path path /health /v1/health /v1/health/* /v1/server # Health check and server info endpoints (public, no auth required)
+	@health_path path /health /v1/health /v1/health/* /v1/server /v1/status /v1/status/* # Health check, server info, and status page endpoints (public, no auth required)
 	@webapp_paths path /v1/auth/* /v1/payments/* # Webapp paths that require Origin check
 	@webapp_origin header Origin https://app.dev.openmates.org
 	@options_method method OPTIONS # Renamed for clarity
 	@revolut_webhook path /v1/payments/webhook # Matcher for Revolut webhook
+	@ci_tunnel path /internal/tunnel/open /internal/tunnel/close # CI ephemeral tunnel management (HMAC-auth, GitHub Actions only)
 	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
 	# --- FILE UPLOADS SERVICE MATCHERS ---
@@ -76,7 +77,7 @@ api.dev.openmates.org {
 	# for the DailyInspirationBanner shown to unauthenticated users on the home page.
 	# /v1/users/* — profile image endpoint supports both session cookie and API key auth;
 	#   API key clients (no Origin header) fall through here after @webapp_actual doesn't match.
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* # Public API endpoints (authentication enforced by FastAPI where applicable)
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* /e2e/* /v1/webhooks /v1/webhooks/* # Public API endpoints (authentication enforced by FastAPI). /e2e/* uses HMAC token auth; /v1/webhooks/* uses webhook key auth (Bearer wh-...).
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -104,6 +105,7 @@ api.dev.openmates.org {
 	# Includes /v1/apps/travel/booking-link because the webapp uses session auth
 	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/apps/reminder/skills/* — webapp uses credentials: include for reminder creation/management
 	# Includes /v1/users/* — profile image endpoint uses session cookie (credentials: include);
 	#   browsers block wildcard CORS with credentials, so it must pass through FastAPI CORSMiddleware.
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
@@ -114,7 +116,7 @@ api.dev.openmates.org {
 	# calls it with credentials: include (session cookie) — browsers block wildcard CORS
 	# with credentials, so it must go through FastAPI's CORSMiddleware (specific origin).
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/*
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/* /v1/webhooks /v1/webhooks/*
 		method OPTIONS
 	}
 
@@ -124,6 +126,7 @@ api.dev.openmates.org {
 	# Includes /v1/apps/travel/booking-link for webapp session auth (credentials: include
 	# requires specific origin in CORS response, not wildcard)
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/apps/reminder/skills/* — webapp uses credentials: include for reminder creation/management
 	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
 	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
 	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
@@ -131,7 +134,7 @@ api.dev.openmates.org {
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/*
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/users/* /v1/webhooks /v1/webhooks/*
 		not method OPTIONS
 	}
 
@@ -150,7 +153,7 @@ api.dev.openmates.org {
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/users/* /e2e/*
 		method OPTIONS
 	}
 
@@ -159,9 +162,9 @@ api.dev.openmates.org {
 		method OPTIONS
 	}
 
-	# Health API endpoints OPTIONS (for /v1/health/* subpaths like /history and /incidents)
+	# Health/Status API endpoints OPTIONS (for /v1/health/* and /v1/status/* subpaths)
 	@health_api_options {
-		path /v1/health/*
+		path /v1/health/* /v1/status /v1/status/*
 		method OPTIONS
 	}
 
@@ -351,7 +354,17 @@ api.dev.openmates.org {
 			}
 		}
 
-		# 13. Abort all other requests not explicitly handled above
+		# 13. Handle CI tunnel management (HMAC-authenticated, GitHub Actions only)
+		# /internal/tunnel/open and /internal/tunnel/close are the only /internal/* paths
+		# exposed externally. All other /internal/* paths remain blocked.
+		# Auth: X-Hmac-Signature header validated server-side against TUNNEL_TRIGGER_SECRET.
+		handle @ci_tunnel {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 14. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
 		handle {
 			abort
@@ -511,41 +524,6 @@ jupyter.dev.openmates.org {
 		header_up X-Real-IP {http.request.remote}
 
 		# WebSocket support for Jupyter kernels and real-time updates
-		header_up Connection {http.request.header.Connection}
-		header_up Upgrade {http.request.header.Upgrade}
-	}
-}
-
-code.dev.openmates.org {
-	# Enable structured logging (JSON format)
-	log {
-		output file /var/log/caddy/code.dev.openmates.org.log {
-			roll_size 100mb
-			roll_keep 10
-			roll_keep_for 720h # 30 days
-		}
-		format json
-		level INFO
-	}
-
-	# Enable compression
-	encode gzip zstd
-
-	# Security Headers
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		-Server
-	}
-
-	# Reverse proxy to Code on port 4096
-	reverse_proxy localhost:4096 {
-		header_up Host {http.request.host}
-		header_up X-Real-IP {http.request.remote}
-
-		# WebSocket support for the code editor
 		header_up Connection {http.request.header.Connection}
 		header_up Upgrade {http.request.header.Upgrade}
 	}

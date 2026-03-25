@@ -77,6 +77,19 @@ export interface MessageMatchSnippet {
   embedFocusIsActive?: boolean;
 }
 
+/** A single metadata snippet showing context around a search match in summary or tags */
+export interface MetadataMatchSnippet {
+  chatId: string;
+  /** The snippet text with context words around the match */
+  snippet: string;
+  /** Start index of the match within the snippet (for highlighting) */
+  matchStart: number;
+  /** Length of the matched text within the snippet */
+  matchLength: number;
+  /** Where the match was found: 'summary' or 'tags' */
+  matchSource: "summary" | "tags";
+}
+
 /** A chat search result containing title match info and message match snippets */
 export interface ChatSearchResult {
   chat: Chat;
@@ -88,6 +101,8 @@ export interface ChatSearchResult {
   decryptedTitle: string | null;
   /** Message content matches within this chat, sorted by recency */
   messageSnippets: MessageMatchSnippet[];
+  /** Metadata matches (summary/tags) for this chat — used for metadata-only chats */
+  metadataSnippets: MetadataMatchSnippet[];
 }
 
 /** A settings search result (settings pages) */
@@ -645,6 +660,7 @@ async function resolveEmbedText(
           ...getEmbedMeta(decoded),
         };
       } catch (parseError) {
+        // eslint-disable-next-line no-console
         console.debug(
           `[SearchService] Could not parse demo embed ${embedId} content:`,
           parseError instanceof Error ? parseError.message : String(parseError),
@@ -663,7 +679,11 @@ async function resolveEmbedText(
     // Load from IndexedDB / memory cache — does NOT trigger a WebSocket request.
     // If the embed isn't available locally, we simply skip it (it won't be in the index).
     const embedData = await embedStore.get(`embed:${embedId}`);
-    if (!embedData || embedData.status === "processing") {
+    if (!embedData || typeof embedData === "string") {
+      return null;
+    }
+    // embedData is now guaranteed to be Record<string, unknown>
+    if (embedData.status === "processing") {
       return null;
     }
 
@@ -700,7 +720,7 @@ async function resolveEmbedText(
 
     // Decode parent embed TOON content
     if (embedData.content) {
-      const decoded = await decodeToonContent(embedData.content);
+      const decoded = await decodeToonContent(embedData.content as string);
       if (decoded) {
         parentEmbedMeta = getEmbedMeta(decoded as Record<string, unknown>);
         const parentText = extractTextFromEmbed(normalizedType, decoded);
@@ -721,18 +741,21 @@ async function resolveEmbedText(
               const childData = await embedStore.get(`embed:${childId}`);
               if (
                 !childData ||
+                typeof childData === "string" ||
                 !childData.content ||
                 childData.status === "processing"
               )
                 continue;
 
-              const childDecoded = await decodeToonContent(childData.content);
+              const childDecoded = await decodeToonContent(
+                childData.content as string,
+              );
               if (!childDecoded) continue;
 
               // Child type comes from the child embed's stored type, not the parent reference
               const childType = (
-                childData.type ||
-                childData.embed_type ||
+                (childData.type as string) ||
+                (childData.embed_type as string) ||
                 ""
               ).replace(/_/g, "-");
               const childText = extractTextFromEmbed(childType, childDecoded);
@@ -765,6 +788,7 @@ async function resolveEmbedText(
     };
   } catch (error) {
     // Non-critical: if embed resolution fails, simply skip this embed
+    // eslint-disable-next-line no-console
     console.debug(
       `[SearchService] Could not resolve embed ${embedId} for indexing:`,
       error instanceof Error ? error.message : String(error),
@@ -814,8 +838,26 @@ const messageIndex = new Map<
 /** Track which chats have had their messages indexed */
 const indexedChatIds = new Set<string>();
 
+/**
+ * Metadata search index for expanded search (chats 101–1000).
+ * Stores decrypted summary and tags for metadata-only chats so they
+ * can be searched without loading messages from the server.
+ *
+ * Key: chatId, Value: { summary, tags } — already decrypted plaintext.
+ */
+const metadataIndex = new Map<
+  string,
+  { summary: string | null; tags: string[] | null }
+>();
+
+/** Track which chats have had their metadata indexed */
+const indexedMetadataChatIds = new Set<string>();
+
 /** Flag to track if warm-up is in progress */
 let warmUpInProgress = false;
+
+/** Flag to track if metadata warm-up is in progress */
+let metadataWarmUpInProgress = false;
 
 /** Flag to track if warm-up has completed at least once */
 let warmUpCompleted = false;
@@ -939,6 +981,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
   if (warmUpInProgress) return;
   warmUpInProgress = true;
 
+  // eslint-disable-next-line no-console
   console.debug(
     `[SearchService] Warming up search index for ${chatIds.length} chats...`,
   );
@@ -958,6 +1001,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     }
 
     const elapsed = performance.now() - startTime;
+    // eslint-disable-next-line no-console
     console.debug(
       `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${indexedChatIds.size} chats)`,
     );
@@ -967,6 +1011,154 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     warmUpInProgress = false;
     warmUpCompleted = true;
   }
+}
+
+/**
+ * Index metadata (summary, tags) for a single chat.
+ * Used for metadata-only chats that don't have messages in IndexedDB.
+ * Decrypts via chatMetadataCache which handles key management.
+ *
+ * @param chat - The chat object to index metadata for
+ */
+async function indexChatMetadata(chat: Chat): Promise<void> {
+  if (indexedMetadataChatIds.has(chat.chat_id)) return;
+
+  try {
+    const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+    if (metadata) {
+      metadataIndex.set(chat.chat_id, {
+        summary: metadata.summary,
+        tags: metadata.tags,
+      });
+    }
+    indexedMetadataChatIds.add(chat.chat_id);
+  } catch (error) {
+    console.error(
+      `[SearchService] Error indexing metadata for chat ${chat.chat_id}:`,
+      error,
+    );
+    indexedMetadataChatIds.add(chat.chat_id);
+  }
+}
+
+/**
+ * Warm up the metadata search index for metadata-only chats.
+ * Called after metadata chats are synced from the server (Phase 4).
+ * Runs in the background without blocking the UI.
+ *
+ * @param chats - Array of metadata-only Chat objects to warm up
+ */
+export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
+  if (metadataWarmUpInProgress) return;
+  metadataWarmUpInProgress = true;
+
+  const metadataOnlyChats = chats.filter(
+    (c) => c.is_metadata_only && !indexedMetadataChatIds.has(c.chat_id),
+  );
+
+  if (metadataOnlyChats.length === 0) {
+    metadataWarmUpInProgress = false;
+    return;
+  }
+
+  // eslint-disable-next-line no-console
+  console.debug(
+    `[SearchService] Warming up metadata index for ${metadataOnlyChats.length} metadata-only chats...`,
+  );
+  const startTime = performance.now();
+
+  try {
+    // Process in batches of 10 (metadata decryption is lighter than message indexing)
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < metadataOnlyChats.length; i += BATCH_SIZE) {
+      const batch = metadataOnlyChats.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map((chat) => indexChatMetadata(chat)));
+
+      // Yield to the event loop between batches
+      if (i + BATCH_SIZE < metadataOnlyChats.length) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+
+    const elapsed = performance.now() - startTime;
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[SearchService] Metadata index warmed up in ${elapsed.toFixed(0)}ms (${indexedMetadataChatIds.size} chats)`,
+    );
+  } catch (error) {
+    console.error(
+      "[SearchService] Error during metadata index warm-up:",
+      error,
+    );
+  } finally {
+    metadataWarmUpInProgress = false;
+  }
+}
+
+/**
+ * Search metadata (summary + tags) for a single chat using the metadataIndex.
+ * Used for metadata-only chats that have been pre-indexed.
+ */
+function searchMetadataInChat(
+  chatId: string,
+  query: string,
+): MetadataMatchSnippet[] {
+  const meta = metadataIndex.get(chatId);
+  if (!meta) return [];
+  return searchMetadataInline(chatId, query, meta.summary, meta.tags);
+}
+
+/**
+ * Search metadata (summary + tags) inline using provided values.
+ * Shared implementation used by both metadataIndex lookup and inline cache search.
+ */
+function searchMetadataInline(
+  chatId: string,
+  query: string,
+  summary: string | null,
+  tags: string[] | null,
+): MetadataMatchSnippet[] {
+  const snippets: MetadataMatchSnippet[] = [];
+  const lowerQuery = query.toLowerCase();
+
+  // Search in summary
+  if (summary) {
+    const lowerSummary = summary.toLowerCase();
+    const idx = lowerSummary.indexOf(lowerQuery);
+    if (idx !== -1) {
+      const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
+        summary,
+        idx,
+        query.length,
+      );
+      snippets.push({
+        chatId,
+        snippet,
+        matchStart: snippetMatchStart,
+        matchLength: snippetMatchLength,
+        matchSource: "summary",
+      });
+    }
+  }
+
+  // Search in tags
+  if (tags && tags.length > 0) {
+    for (const tag of tags) {
+      const lowerTag = tag.toLowerCase();
+      if (lowerTag.includes(lowerQuery)) {
+        snippets.push({
+          chatId,
+          snippet: tag,
+          matchStart: lowerTag.indexOf(lowerQuery),
+          matchLength: query.length,
+          matchSource: "tags",
+        });
+        break; // One tag match is sufficient
+      }
+    }
+  }
+
+  return snippets;
 }
 
 /**
@@ -1044,19 +1236,25 @@ export async function addMessageToIndex(
  * Remove a chat from the search index (e.g., when deleted).
  * @param chatId - The chat ID to remove
  */
-export function removeChatFromIndex(chatId: string): void {
+function removeChatFromIndex(chatId: string): void {
   messageIndex.delete(chatId);
   indexedChatIds.delete(chatId);
+  metadataIndex.delete(chatId);
+  indexedMetadataChatIds.delete(chatId);
 }
 
 /**
  * Clear the entire search index (e.g., on logout).
  */
-export function clearSearchIndex(): void {
+function clearSearchIndex(): void {
   messageIndex.clear();
   indexedChatIds.clear();
+  metadataIndex.clear();
+  indexedMetadataChatIds.clear();
   warmUpCompleted = false;
   warmUpInProgress = false;
+  metadataWarmUpInProgress = false;
+  // eslint-disable-next-line no-console
   console.debug("[SearchService] Search index cleared");
 }
 
@@ -1354,14 +1552,28 @@ export async function search(
   const trimmedQuery = query.trim();
   const allSearchableChats = [...chats, ...hiddenChats];
 
-  // Ensure all chats are indexed (lazy indexing for chats not yet warmed up)
-  const unindexedChats = allSearchableChats.filter(
+  // Separate full chats (with messages in IndexedDB) from metadata-only chats
+  const fullChats = allSearchableChats.filter((c) => !c.is_metadata_only);
+  const metadataOnlyChats = allSearchableChats.filter(
+    (c) => c.is_metadata_only,
+  );
+
+  // Ensure all full chats are indexed (lazy indexing for chats not yet warmed up)
+  const unindexedChats = fullChats.filter(
     (c) => !indexedChatIds.has(c.chat_id),
   );
 
   if (unindexedChats.length > 0) {
     // Index unindexed chats — this is the "cold start" path
     await Promise.all(unindexedChats.map((c) => indexChatMessages(c.chat_id)));
+  }
+
+  // Lazy-index metadata for metadata-only chats not yet indexed
+  const unindexedMetadataChats = metadataOnlyChats.filter(
+    (c) => !indexedMetadataChatIds.has(c.chat_id),
+  );
+  if (unindexedMetadataChats.length > 0) {
+    await Promise.all(unindexedMetadataChats.map((c) => indexChatMetadata(c)));
   }
 
   const chatResults: ChatSearchResult[] = [];
@@ -1389,29 +1601,63 @@ export async function search(
       titleMatch = titleMatchRanges.length > 0;
     }
 
-    // Check message matches
-    const messageSnippets = searchMessagesInChat(
-      chat.chat_id,
-      trimmedQuery,
-      activeFocusId,
-    );
+    // Check message matches (only for full chats — metadata-only chats have no messages)
+    let messageSnippets: MessageMatchSnippet[] = [];
+    if (!chat.is_metadata_only) {
+      messageSnippets = searchMessagesInChat(
+        chat.chat_id,
+        trimmedQuery,
+        activeFocusId,
+      );
+    }
 
-    // Include chat if title or any message matches
-    if (titleMatch || messageSnippets.length > 0) {
+    // Check metadata matches (summary + tags).
+    // For metadata-only chats: use the metadataIndex (populated during warm-up).
+    // For full chats: search inline against already-decrypted metadata from the cache above.
+    let metadataSnippets: MetadataMatchSnippet[] = [];
+    if (chat.is_metadata_only) {
+      metadataSnippets = searchMetadataInChat(chat.chat_id, trimmedQuery);
+    } else if (!isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id)) {
+      // Full authenticated chats — search metadata inline using already-fetched cache data
+      const meta = await chatMetadataCache.getDecryptedMetadata(chat);
+      if (meta) {
+        metadataSnippets = searchMetadataInline(
+          chat.chat_id,
+          trimmedQuery,
+          meta.summary,
+          meta.tags,
+        );
+      }
+    }
+
+    // Include chat if title, message, or metadata matches
+    if (
+      titleMatch ||
+      messageSnippets.length > 0 ||
+      metadataSnippets.length > 0
+    ) {
       chatResults.push({
         chat,
         titleMatch,
         titleMatchRanges,
         decryptedTitle,
         messageSnippets,
+        metadataSnippets,
       });
     }
   }
 
-  // Sort results: title matches first, then by recency
+  // Sort results:
+  // 1. Title matches first
+  // 2. Full-content matches (have message snippets) before metadata-only matches
+  // 3. Within same tier, sort by recency
   chatResults.sort((a, b) => {
     if (a.titleMatch && !b.titleMatch) return -1;
     if (!a.titleMatch && b.titleMatch) return 1;
+    const aHasMessages = a.messageSnippets.length > 0;
+    const bHasMessages = b.messageSnippets.length > 0;
+    if (aHasMessages && !bHasMessages) return -1;
+    if (!aHasMessages && bHasMessages) return 1;
     return (
       b.chat.last_edited_overall_timestamp -
       a.chat.last_edited_overall_timestamp
@@ -1452,6 +1698,6 @@ export async function search(
  * Check if the search index has been warmed up.
  * Used to show a loading indicator on first search.
  */
-export function isSearchIndexReady(): boolean {
+function isSearchIndexReady(): boolean {
   return warmUpCompleted;
 }

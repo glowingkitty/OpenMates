@@ -46,18 +46,24 @@ from typing import Any, Dict, List, Optional
 import pytest  # noqa: E402
 
 # Add the project root to sys.path for imports
+
+# Exclude from daily CI — these are expensive inference benchmarks, not regression tests.
+pytestmark = pytest.mark.benchmark
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from dotenv import load_dotenv  # noqa: E402
-load_dotenv()
+try:
+    from dotenv import load_dotenv  # noqa: E402
+    load_dotenv()
 
-# Import the LLM utility functions
-from backend.apps.ai.utils.llm_utils import (  # noqa: E402
-    call_preprocessing_llm,
-    LLMPreprocessingCallResult,
-)
-from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+    # Import the LLM utility functions
+    from backend.apps.ai.utils.llm_utils import (  # noqa: E402
+        call_preprocessing_llm,
+        LLMPreprocessingCallResult,
+    )
+    from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend AI dependencies not installed: {_exc}")
 
 # Configure logging
 logging.basicConfig(

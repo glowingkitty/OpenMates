@@ -49,19 +49,12 @@
         { value: 'name_desc', label: $text('settings.app_store.all_apps.sort_by_name_desc') },
     ]);
 
-    // --- Filter chip definitions (reactive to language changes) ---
-    interface FilterChip {
-        value: AllAppsFilterType;
-        label: string;
-        /** Icon name used by the Icon component */
-        icon: string;
-    }
-
-    let filterChips = $derived<FilterChip[]>([
-        { value: 'all',               label: $text('settings.app_store.all_apps.filter_all'),               icon: 'apps' },
-        { value: 'settings_memories', label: $text('settings.app_store.all_apps.filter_settings_memories'), icon: 'memory' },
-        { value: 'focus_modes',       label: $text('settings.app_store.all_apps.filter_focus_modes'),       icon: 'focus' },
-        { value: 'skills',            label: $text('settings.app_store.all_apps.filter_skills'),            icon: 'skill' },
+    // --- Filter options for the SearchSortBar dropdown (reactive to language changes) ---
+    let filterOptions = $derived([
+        { value: 'all',               label: $text('settings.app_store.all_apps.filter_all') },
+        { value: 'settings_memories', label: $text('settings.app_store.all_apps.filter_settings_memories') },
+        { value: 'focus_modes',       label: $text('settings.app_store.all_apps.filter_focus_modes') },
+        { value: 'skills',            label: $text('settings.app_store.all_apps.filter_skills') },
     ]);
 
     /**
@@ -165,37 +158,18 @@
         });
     }
 
-    /**
-     * Set the active capability filter.
-     */
-    function setFilter(filter: AllAppsFilterType) {
-        activeFilter = filter;
-    }
 </script>
 
 <div class="settings-all-apps">
-    <!-- Filter chips row -->
-    <div class="filter-chips">
-        {#each filterChips as chip (chip.value)}
-            <button
-                class="filter-chip"
-                class:active={activeFilter === chip.value}
-                onclick={() => setFilter(chip.value)}
-                aria-pressed={activeFilter === chip.value}
-            >
-                <span class="filter-chip-icon {chip.icon}"></span>
-                <span class="filter-chip-label">{chip.label}</span>
-            </button>
-        {/each}
-    </div>
-
-    <!-- Search and sort controls -->
+    <!-- Search, filter, and sort controls -->
     <div class="controls-bar">
         <SearchSortBar
             bind:searchQuery
             bind:sortBy
+            bind:filterBy={activeFilter}
             searchPlaceholder={$text('settings.app_store.all_apps.search_placeholder')}
             {sortOptions}
+            {filterOptions}
         />
     </div>
 
@@ -227,76 +201,7 @@
         min-height: fit-content;
     }
 
-    /* ── Filter chips ───────────────────────────────────────────── */
-    .filter-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        padding: 0 0 1rem 0;
-    }
-
-    .filter-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.4375rem 0.875rem;
-        font-size: 0.8125rem;
-        font-weight: 500;
-        border: 1px solid var(--color-grey-20);
-        border-radius: 20px;
-        background: var(--color-grey-10);
-        color: var(--color-grey-70);
-        cursor: pointer;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
-        white-space: nowrap;
-        line-height: 1;
-    }
-
-    .filter-chip:hover {
-        border-color: var(--color-grey-40);
-        background: var(--color-grey-15);
-    }
-
-    .filter-chip.active {
-        border-color: var(--color-primary);
-        background: var(--color-primary-light, rgba(var(--color-primary-rgb, 59, 130, 246), 0.1));
-        color: var(--color-primary);
-    }
-
-    .filter-chip-icon {
-        width: 14px;
-        height: 14px;
-        flex-shrink: 0;
-        -webkit-mask-size: contain;
-        -webkit-mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-size: contain;
-        mask-position: center;
-        mask-repeat: no-repeat;
-        background-color: currentColor;
-    }
-
-    .filter-chip-icon.apps {
-        -webkit-mask-image: url('@openmates/ui/static/icons/app.svg');
-        mask-image: url('@openmates/ui/static/icons/app.svg');
-    }
-
-    .filter-chip-icon.memory {
-        -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
-        mask-image: url('@openmates/ui/static/icons/settings.svg');
-    }
-
-    .filter-chip-icon.focus {
-        -webkit-mask-image: url('@openmates/ui/static/icons/insight.svg');
-        mask-image: url('@openmates/ui/static/icons/insight.svg');
-    }
-
-    .filter-chip-icon.skill {
-        -webkit-mask-image: url('@openmates/ui/static/icons/skill.svg');
-        mask-image: url('@openmates/ui/static/icons/skill.svg');
-    }
-
-    /* Search/sort bar sits above the grid with a bottom margin */
+    /* Search/sort/filter bar sits above the grid with a bottom margin */
     .controls-bar {
         padding: 0 0 1rem 0;
     }

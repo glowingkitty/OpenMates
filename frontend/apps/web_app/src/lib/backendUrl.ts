@@ -18,6 +18,11 @@
  */
 export function getBackendUrl(url: URL): string {
 	const host = url.hostname;
+	// During prerendering, SvelteKit uses a synthetic hostname — use the same
+	// PRERENDER_BACKEND_URL that entries() generators use for consistency.
+	if (host === 'sveltekit-prerender') {
+		return PRERENDER_BACKEND_URL;
+	}
 	if (
 		host.includes('.dev.') ||
 		host.startsWith('dev.') ||
@@ -27,6 +32,18 @@ export function getBackendUrl(url: URL): string {
 		return 'https://api.dev.openmates.org';
 	}
 	return 'https://api.openmates.org';
+}
+
+/**
+ * Resolve the canonical site origin used by SEO routes.
+ * During prerender builds SvelteKit provides a synthetic origin
+ * (http://sveltekit-prerender) which must never leak into canonical/og URLs.
+ */
+export function getSiteOrigin(url: URL): string {
+	if (url.hostname === 'sveltekit-prerender') {
+		return 'https://openmates.org';
+	}
+	return url.origin;
 }
 
 /**

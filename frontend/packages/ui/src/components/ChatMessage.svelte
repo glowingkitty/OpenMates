@@ -16,9 +16,11 @@
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
 import { reportIssueStore } from '../stores/reportIssueStore';
+import { startEdit } from '../stores/editMessageStore';
 import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
 import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { chatDB } from '../services/db';
+  import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { appSkillsStore } from '../stores/appSkillsStore';
@@ -563,7 +565,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   /**
    * Handle deleting this message from chat history.
    * Deletes from IndexedDB locally, then sends server request to remove from cache and Directus.
-   * If this is an assistant message, also deletes the triggering user message (and vice versa).
+   * Each message is deleted independently — no paired deletion.
    */
   async function handleDeleteMessage() {
     if (!messageId || !original_message?.chat_id) {
@@ -629,17 +631,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         console.error('[ChatMessage] Error sending delete_message to server (local deletion succeeded):', err);
       }
 
-      // If this is an assistant message and we know the triggering user message, delete it too
-      // If this is a user message, try to find and delete the assistant response
-      if (role === 'assistant' && userMessageId) {
-        try {
-          await chatDB.deleteMessage(userMessageId);
-          await chatSyncService.sendDeleteMessage(chatId, userMessageId);
-        } catch (err) {
-          console.error('[ChatMessage] Error deleting paired user message:', err);
-        }
-      }
-
       // Notify parent component via callback (if provided by ChatHistory)
       onDeleteMessage?.();
 
@@ -674,7 +665,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       const { decryptWithChatKey } = await import('../services/cryptoService');
       const chat = await chatDB.getChat(chatId);
       if (chat?.encrypted_title) {
-        const key = chatDB.getChatKey(chatId);
+        const key = await chatKeyManager.getKey(chatId);
         if (key) {
           defaultTitle = await decryptWithChatKey(chat.encrypted_title, key) ?? '';
         }
@@ -715,6 +706,21 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       settingsDeepLink.set(`app_store/ai/skill/ask/model/${modelMeta.id}`);
       panelState.openSettings();
     }
+  }
+
+  /**
+   * Enter edit mode for this user message.
+   * Populates the message input with the original content and dims all
+   * messages from this point onward via editMessageStore.
+   */
+  function handleEdit() {
+    if (!messageId || !currentChatId || role !== 'user') return;
+    const content = typeof original_message?.content === 'string'
+      ? original_message.content : '';
+    const createdAt = original_message?.created_at ?? 0;
+    startEdit(currentChatId, messageId, content, createdAt);
+    showMessageMenu = false;
+    console.debug('[ChatMessage] Edit started for message:', messageId);
   }
 
   /**
@@ -1070,6 +1076,28 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         menuType = 'default';
         embedType = 'default';
       }
+    } else if (node.type.name === 'embedPreviewLarge') {
+      // Embed ref preview card ([!](embed:ref) / [](embed:ref))
+      // These nodes have embedRef/embedId/appId attrs, not the standard embed attrs.
+      const refEmbedId = node.attrs.embedId || node.attrs.embedRef;
+      selectedDomEmbedId = refEmbedId;
+      const refAppId = node.attrs.appId || dom?.getAttribute('data-app-id');
+      selectedAppId = refAppId;
+
+      // Determine menu type from appId hint
+      if (refAppId === 'code' || refAppId?.startsWith('code')) {
+        menuType = 'code';
+        embedType = 'code';
+      } else if (refAppId === 'docs') {
+        menuType = 'default';
+        embedType = 'default';
+      } else if (refAppId === 'sheets') {
+        menuType = 'default';
+        embedType = 'default';
+      } else {
+        menuType = 'default';
+        embedType = 'default';
+      }
     } else {
       menuType = 'default';
       embedType = 'default';
@@ -1086,8 +1114,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     if (typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
       return contentRef.replace('embed:', '');
     }
-    // Fallback to other attributes (for non-standard embed types)
-    const raw = node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.id;
+    // Fallback to other attributes (for non-standard embed types and embedPreviewLarge nodes)
+    const raw = node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.embedRef || node?.attrs?.id;
     if (!raw) return null;
     if (typeof raw === 'string' && raw.startsWith('embed:')) return raw.replace('embed:', '');
     if (typeof raw === 'string') return raw;
@@ -1138,6 +1166,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     // accessing selectedNode.attrs after any await to avoid "Cannot read properties of null".
     // Cast via unknown so TypeScript accepts it as EmbedNodeAttributes across all call sites.
     const snapshotAttrs = selectedNode.attrs as unknown as import('../message_parsing/types').EmbedNodeAttributes;
+    // Snapshot DOM embed ID too — selectedDomEmbedId is nulled by onClose alongside selectedNode.
+    const snapshotDomEmbedId = selectedDomEmbedId;
 
     // Legacy node handlers removed - now using unified embed system
     // Actions are handled directly below
@@ -1158,7 +1188,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         
         // Map embed type to the format expected by ActiveChat
         // ActiveChat expects: 'code-code', 'videos-video', 'website', 'app-skill-use', etc.
-        let fullscreenEmbedType = selectedNode.attrs?.type || selectedNode.type.name;
+        // For embedPreviewLarge nodes: attrs.type is absent and type.name is 'embedPreviewLarge',
+        // so fall back to 'app-skill-use' which ActiveChat resolves from the embed store data.
+        let fullscreenEmbedType = selectedNode.attrs?.type
+          || (selectedNode.type.name === 'embedPreviewLarge' ? 'app-skill-use' : selectedNode.type.name);
         
         // Normalize embed type names to match what ActiveChat expects
         if (fullscreenEmbedType === 'code') {
@@ -1865,9 +1898,22 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           // Safari gesture-token pattern: build a Promise<string> for the content,
           // call writeEmbedToClipboard IMMEDIATELY (no await before it), then await
           // to surface errors and show a notification.
-          const embedType = snapshotAttrs?.type as string | undefined;
+          let embedType = snapshotAttrs?.type as string | undefined;
           const contentRef = snapshotAttrs?.contentRef as string | undefined;
-          const embedId = contentRef?.startsWith('embed:') ? contentRef.replace('embed:', '') : null;
+          // For standard embed nodes, extract ID from contentRef ("embed:<id>").
+          // For embedPreviewLarge nodes (from [!](embed:ref)), use embedId or embedRef attrs instead.
+          const embedId = contentRef?.startsWith('embed:')
+            ? contentRef.replace('embed:', '')
+            : ((snapshotAttrs as unknown as Record<string, unknown>)?.embedId as string || (snapshotAttrs as unknown as Record<string, unknown>)?.embedRef as string || snapshotDomEmbedId || null);
+
+          // For embedPreviewLarge nodes: embedType is undefined since they don't carry a type attr.
+          // Derive the type from the appId hint (set during handleEmbedClick) to ensure
+          // type-specific copy handlers (code, sheets, docs) still work correctly.
+          if (!embedType && selectedAppId) {
+            if (selectedAppId === 'code' || selectedAppId.startsWith('code')) embedType = 'code-code';
+            else if (selectedAppId === 'sheets') embedType = 'sheets-sheet';
+            else if (selectedAppId === 'docs') embedType = 'docs-doc';
+          }
 
           if (embedId) {
             // Build content promise without awaiting.
@@ -2040,7 +2086,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             class="compression-summary-toggle"
             onclick={() => { compressionExpanded = !compressionExpanded; }}
           >
-            {compressionExpanded ? $text('chat.compression.show_less') : $text('chat.compression.show_more')}
+            {compressionExpanded ? $text('common.show_less') : $text('chat.compression.show_more')}
           </button>
         {/if}
       </div>
@@ -2070,7 +2116,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               panelState.openSettings();
             }}
           >
-            {$text('chat.insufficient_credits_buy')}
+            {$text('common.buy_credits')}
           </button>
         {/if}
       {/if}
@@ -2176,7 +2222,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 disabled={isLoadingFullContent}
               >
                 {#if isLoadingFullContent}
-                  {$text('chat.loading')}
+                  {$text('common.loading')}
                 {:else}
                   {$text('chat.show_full_message')}
                 {/if}
@@ -2186,7 +2232,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 class="hide-full-message-btn"
                 onclick={handleHideFullMessage}
               >
-                {$text('chat.hide_full_message')}
+                {$text('common.show_less')}
               </button>
             {/if}
           </div>
@@ -2248,6 +2294,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onSelect={handleSelectMessage}
            onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
            disableDelete={isFirstMessage}
+           onEdit={role === 'user' && messageId ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
            {messageId}
@@ -2307,9 +2354,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             {:else if embedProg.status === 'transcribing'}
               <span class="upload-progress-text">{$text('enter_message.upload_progress.transcribing')}</span>
             {:else if embedProg.status === 'processing'}
-              <span class="upload-progress-text">{$text('enter_message.upload_progress.processing')}</span>
+              <span class="upload-progress-text">{$text('common.processing')}</span>
             {:else if embedProg.status === 'error'}
-              <span class="upload-progress-text upload-progress-error">{$text('enter_message.upload_progress.error')}</span>
+              <span class="upload-progress-text upload-progress-error">{$text('common.upload_failed')}</span>
             {/if}
           </div>
         {/each}

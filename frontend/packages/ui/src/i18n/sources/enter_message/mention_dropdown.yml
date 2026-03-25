@@ -7,7 +7,7 @@ header:
     OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie
     Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl
     zu überschreiben
-  zh: ""
+  zh: 默认情况下，OpenMates 自动选择 AI 模型、mates、应用技能、专注模式和设置与记忆。搜索以覆盖自动选择
   es:
     Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades
     de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir
@@ -16,45 +16,45 @@ header:
     Par défaut, OpenMates sélectionne automatiquement le modèle d'IA, les mates,
     les compétences d'application, les modes de focus et les paramètres et mémoires.
     Recherchez pour remplacer la sélection automatique
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Por padrão, o OpenMates seleciona automaticamente o modelo de IA, mates, habilidades de aplicativo, modos de foco e configurações e memórias. Pesquise para substituir a seleção automática
+  ru: По умолчанию OpenMates автоматически выбирает модель ИИ, помощников, навыки приложений, режимы фокуса и настройки и воспоминания. Выполните поиск, чтобы переопределить автовыбор
+  ja: デフォルトでは、OpenMates は AI モデル、mates、アプリスキル、フォーカスモード、設定とメモリを自動選択します。自動選択を上書きするには検索してください
+  ko: 기본적으로 OpenMates는 AI 모델, mates, 앱 스킬, 집중 모드 및 설정과 기억을 자동으로 선택합니다. 자동 선택을 덮어쓰려면 검색하세요
+  it: Per impostazione predefinita, OpenMates seleziona automaticamente il modello AI, i mates, le competenze dell'app, le modalità di focus e le impostazioni e memorie. Cerca per sovrascrivere la selezione automatica
+  tr: Varsayılan olarak OpenMates, AI modelini, mates'leri, uygulama becerilerini, odak modlarını ve ayarlar & anıları otomatik seçer. Otomatik seçimi geçersiz kılmak için arayın
+  vi: Theo mặc định, OpenMates tự động chọn mô hình AI, mates, kỹ năng ứng dụng, chế độ tập trung và cài đặt & bộ nhớ. Tìm kiếm để ghi đè lựa chọn tự động
+  id: Secara default, OpenMates otomatis memilih model AI, mates, keterampilan aplikasi, mode fokus dan pengaturan & memori. Cari untuk menimpa pemilihan otomatis
+  pl: Domyślnie OpenMates automatycznie wybiera model AI, mates, umiejętności aplikacji, tryby skupienia oraz ustawienia i wspomnienia. Wyszukaj, aby nadpisać automatyczny wybór
+  nl: Standaard selecteert OpenMates automatisch het AI-model, mates, app-vaardigheden, focusmodi en instellingen en herinneringen. Zoek om de automatische selectie te overschrijven
+  ar: بشكل افتراضي، يختار OpenMates تلقائيًا نموذج الذكاء الاصطناعي والـ mates ومهارات التطبيق وأوضاع التركيز والإعدادات والذاكرة. ابحث لتجاوز الاختيار التلقائي
+  hi: डिफ़ॉल्ट रूप से, OpenMates AI मॉडल, mates, ऐप कौशल, फोकस मोड और सेटिंग्स और यादें स्वचालित रूप से चुनता है। स्वचालित चयन को ओवरराइट करने के लिए खोजें
+  th: โดยค่าเริ่มต้น OpenMates จะเลือกโมเดล AI, mates, ทักษะแอป, โหมดโฟกัส และการตั้งค่าและความจำโดยอัตโนมัติ ค้นหาเพื่อเขียนทับการเลือกอัตโนมัติ
+  cs: Ve výchozím nastavení OpenMates automaticky vybírá model AI, mates, dovednosti aplikace, režimy soustředění a nastavení a vzpomínky. Vyhledejte pro přepsání automatického výběru
+  sv: Som standard väljer OpenMates automatiskt AI-modell, mates, app-färdigheter, fokusmoder samt inställningar och minnen. Sök för att åsidosätta det automatiska valet
   he: כברירת מחדל, OpenMates בוחרת אוטומטית את מודל ה-AI, ה-mates, כישורי האפליקציה, מצבי המיקוד וההגדרות והזיכרונות. חפש כדי לדרוס את הבחירה האוטומטית
   verified_by_human: []
 autocomplete_hint:
   context: Footer hint text in the @ mention dropdown suggesting how to autocomplete
   en: Press enter or tab to autocomplete.
   de: Drücke Enter oder Tab zum Vervollständigen.
-  zh: ""
+  zh: 按回车或 Tab 键自动补全。
   es: Presiona enter o tab para autocompletar.
   fr: Appuyez sur entrée ou tab pour compléter.
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Pressione enter ou tab para completar automaticamente.
+  ru: Нажмите Enter или Tab для автозаполнения.
+  ja: Enterまたは Tabキーでオートコンプリート。
+  ko: Enter 또는 Tab을 눌러 자동 완성하세요.
+  it: Premi invio o tab per l'autocompletamento.
+  tr: Otomatik tamamlamak için enter veya tab'a basın.
+  vi: Nhấn Enter hoặc Tab để tự động hoàn thành.
+  id: Tekan enter atau tab untuk melengkapi otomatis.
+  pl: Naciśnij enter lub tab, aby uzupełnić automatycznie.
+  nl: Druk op enter of tab om automatisch aan te vullen.
+  ar: اضغط Enter أو Tab للإكمال التلقائي.
+  hi: ऑटोकंप्लीट के लिए Enter या Tab दबाएं।
+  th: กด Enter หรือ Tab เพื่อเติมข้อความอัตโนมัติ
+  cs: Stiskněte enter nebo tab pro automatické doplnění.
+  sv: Tryck enter eller tab för att autofylla.
   he: לחץ על Enter או Tab להשלמה אוטומטית.
   verified_by_human: []
 show_more:
@@ -64,24 +64,24 @@ show_more:
     entries.
   en: Show {count} more...
   de: "{count} weitere anzeigen..."
-  zh: ""
+  zh: "显示更多 {count} 项..."
   es: Mostrar {count} más...
   fr: Afficher {count} de plus...
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: "Mostrar mais {count}..."
+  ru: "Показать ещё {count}..."
+  ja: "あと {count} 件を表示..."
+  ko: "{count}개 더 보기..."
+  it: "Mostra altri {count}..."
+  tr: "{count} tane daha göster..."
+  vi: "Hiện thêm {count}..."
+  id: "Tampilkan {count} lainnya..."
+  pl: "Pokaż {count} więcej..."
+  nl: "{count} meer weergeven..."
+  ar: "عرض {count} أكثر..."
+  hi: "{count} और दिखाएं..."
+  th: "แสดงอีก {count}..."
+  cs: "Zobrazit dalších {count}..."
+  sv: "Visa {count} fler..."
   he: "הצג עוד {count}..."
   verified_by_human: []
 from_provider:
@@ -90,192 +90,192 @@ from_provider:
     replaced with the provider name.
   en: from {provider}
   de: von {provider}
-  zh: ""
+  zh: 来自 {provider}
   es: de {provider}
   fr: de {provider}
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: de {provider}
+  ru: от {provider}
+  ja: "{provider} 提供"
+  ko: "{provider} 제공"
+  it: da {provider}
+  tr: "{provider} tarafından"
+  vi: từ {provider}
+  id: dari {provider}
+  pl: od {provider}
+  nl: van {provider}
+  ar: من {provider}
+  hi: "{provider} से"
+  th: จาก {provider}
+  cs: od {provider}
+  sv: från {provider}
   he: "מ-{provider}"
   verified_by_human: []
 type_labels.model:
   context: Label for AI model type in mention dropdown
   en: AI Model
   de: KI-Modell
-  zh: ""
+  zh: AI模型
   es: Modelo de IA
   fr: Modèle IA
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Modelo de IA
+  ru: Модель ИИ
+  ja: AIモデル
+  ko: AI 모델
+  it: Modello AI
+  tr: AI Modeli
+  vi: Mô hình AI
+  id: Model AI
+  pl: Model AI
+  nl: AI-model
+  ar: نموذج الذكاء الاصطناعي
+  hi: AI मॉडल
+  th: โมเดล AI
+  cs: Model AI
+  sv: AI-modell
   he: מודל AI
   verified_by_human: []
 type_labels.mate:
   context: Label for mate persona type in mention dropdown
   en: Mate
   de: Mate
-  zh: ""
+  zh: Mate
   es: Mate
   fr: Mate
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Mate
+  ru: Mate
+  ja: Mate
+  ko: Mate
+  it: Mate
+  tr: Mate
+  vi: Mate
+  id: Mate
+  pl: Mate
+  nl: Mate
+  ar: Mate
+  hi: Mate
+  th: Mate
+  cs: Mate
+  sv: Mate
   he: Mate
   verified_by_human: []
 type_labels.skill:
   context: Label for app skill type in mention dropdown
   en: Skill
   de: Skill
-  zh: ""
+  zh: 技能
   es: Habilidad
   fr: Compétence
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
   he: מיומנות
   verified_by_human: []
 type_labels.focus_mode:
   context: Label for focus mode type in mention dropdown
   en: Focus mode
   de: Fokus-Modus
-  zh: ""
+  zh: 专注模式
   es: Modo de enfoque
   fr: Mode de focus
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Modo de foco
+  ru: Режим фокуса
+  ja: フォーカスモード
+  ko: 집중 모드
+  it: Modalità focus
+  tr: Odak modu
+  vi: Chế độ tập trung
+  id: Mode fokus
+  pl: Tryb skupienia
+  nl: Focusmodus
+  ar: وضع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režim soustředění
+  sv: Fokusläge
   he: מצב מיקוד
   verified_by_human: []
 type_labels.settings_memory:
   context: Label for settings and memories type in mention dropdown
   en: Settings & memories
   de: Einstellungen & Erinnerungen
-  zh: ""
+  zh: 设置与记忆
   es: Configuraciones y memorias
   fr: Paramètres et mémoires
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Configurações e memórias
+  ru: Настройки и воспоминания
+  ja: 設定とメモリ
+  ko: 설정 및 기억
+  it: Impostazioni e memorie
+  tr: Ayarlar ve anılar
+  vi: Cài đặt và bộ nhớ
+  id: Pengaturan & memori
+  pl: Ustawienia i wspomnienia
+  nl: Instellingen en herinneringen
+  ar: الإعدادات والذاكرة
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar och minnen
   he: הגדרות וזיכרונות
   verified_by_human: []
 type_labels.model_alias:
   context: Label for model alias shortcuts (like @best, @fast) in mention dropdown
   en: Shortcut
   de: Shortcut
-  zh: ""
+  zh: 快捷方式
   es: Atajo
   fr: Raccourci
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Atalho
+  ru: Ярлык
+  ja: ショートカット
+  ko: 단축키
+  it: Scorciatoia
+  tr: Kısayol
+  vi: Phím tắt
+  id: Pintasan
+  pl: Skrót
+  nl: Snelkoppeling
+  ar: اختصار
+  hi: शॉर्टकट
+  th: ทางลัด
+  cs: Zkratka
+  sv: Genväg
   he: קיצור
   verified_by_human: []
 model_alias.best.name:
   context: Display name for the @best model alias shortcut in the mention dropdown
   en: Best Model
   de: Bestes Modell
-  zh: ""
+  zh: 最佳模型
   es: Mejor modelo
   fr: Meilleur modèle
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Melhor modelo
+  ru: Лучшая модель
+  ja: ベストモデル
+  ko: 최고 모델
+  it: Modello migliore
+  tr: En iyi model
+  vi: Mô hình tốt nhất
+  id: Model terbaik
+  pl: Najlepszy model
+  nl: Beste model
+  ar: أفضل نموذج
+  hi: सर्वश्रेष्ठ मॉडल
+  th: โมเดลที่ดีที่สุด
+  cs: Nejlepší model
+  sv: Bästa modellen
   he: המודל הטוב ביותר
   verified_by_human: []
 model_alias.best.description:
@@ -283,48 +283,48 @@ model_alias.best.description:
     the most capable AI model
   en: Selects the most capable AI model
   de: Wählt das leistungsstärkste KI-Modell
-  zh: ""
+  zh: 选择最强大的AI模型
   es: Selecciona el modelo de IA más capaz
   fr: Sélectionne le modèle IA le plus performant
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Seleciona o modelo de IA mais capaz
+  ru: Выбирает наиболее мощную модель ИИ
+  ja: 最も有能な AI モデルを選択します
+  ko: 가장 유능한 AI 모델을 선택합니다
+  it: Seleziona il modello AI più capace
+  tr: En yetenekli AI modelini seçer
+  vi: Chọn mô hình AI có khả năng nhất
+  id: Memilih model AI paling mampu
+  pl: Wybiera najpotężniejszy model AI
+  nl: Selecteert het meest capabele AI-model
+  ar: يختار أقوى نموذج ذكاء اصطناعي
+  hi: सबसे सक्षम AI मॉडल का चयन करता है
+  th: เลือกโมเดล AI ที่มีประสิทธิภาพสูงสุด
+  cs: Vybere nejschopnější model AI
+  sv: Väljer den mest kapabla AI-modellen
   he: בוחר את מודל ה-AI החזק ביותר
   verified_by_human: []
 model_alias.fast.name:
   context: Display name for the @fast model alias shortcut in the mention dropdown
   en: Fastest Model
   de: Schnellstes Modell
-  zh: ""
+  zh: 最快模型
   es: Modelo más rápido
   fr: Modèle le plus rapide
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Modelo mais rápido
+  ru: Самая быстрая модель
+  ja: 最速モデル
+  ko: 가장 빠른 모델
+  it: Modello più veloce
+  tr: En hızlı model
+  vi: Mô hình nhanh nhất
+  id: Model tercepat
+  pl: Najszybszy model
+  nl: Snelste model
+  ar: أسرع نموذج
+  hi: सबसे तेज़ मॉडल
+  th: โมเดลที่เร็วที่สุด
+  cs: Nejrychlejší model
+  sv: Snabbaste modellen
   he: המודל המהיר ביותר
   verified_by_human: []
 model_alias.fast.description:
@@ -332,23 +332,23 @@ model_alias.fast.description:
     the fastest inference model
   en: Selects the fastest AI model
   de: Wählt das schnellste KI-Modell
-  zh: ""
+  zh: 选择最快的AI模型
   es: Selecciona el modelo de IA más rápido
   fr: Sélectionne le modèle IA le plus rapide
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  pt: Seleciona o modelo de IA mais rápido
+  ru: Выбирает самую быструю модель ИИ
+  ja: 最速の AI モデルを選択します
+  ko: 가장 빠른 AI 모델을 선택합니다
+  it: Seleziona il modello AI più veloce
+  tr: En hızlı AI modelini seçer
+  vi: Chọn mô hình AI nhanh nhất
+  id: Memilih model AI tercepat
+  pl: Wybiera najszybszy model AI
+  nl: Selecteert het snelste AI-model
+  ar: يختار أسرع نموذج ذكاء اصطناعي
+  hi: सबसे तेज़ AI मॉडल का चयन करता है
+  th: เลือกโมเดล AI ที่เร็วที่สุด
+  cs: Vybere nejrychlejší model AI
+  sv: Väljer den snabbaste AI-modellen
   he: בוחר את מודל ה-AI המהיר ביותר
   verified_by_human: []

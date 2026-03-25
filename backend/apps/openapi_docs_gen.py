@@ -1,6 +1,6 @@
 import json
 import argparse
-from typing import Dict, Any, List, Set, Union
+from typing import Dict, Any
 import os
 
 def extract_unique_structure(data: Any, path: str = "", unique_fields: Dict[str, Dict] = None) -> Dict[str, Dict]:

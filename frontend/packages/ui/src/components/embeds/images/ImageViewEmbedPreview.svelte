@@ -78,6 +78,7 @@
 
   // Local state for derived status
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localError = $state<string | undefined>(undefined);
 
   // Decrypted preview image blob URL
@@ -95,8 +96,10 @@
 
   // Sync props to local state
   $effect(() => {
-    localStatus = statusProp || 'processing';
-    localError = errorProp;
+    if (!storeResolved) {
+      localStatus = statusProp || 'processing';
+      localError = errorProp;
+    }
   });
 
   // Set up IntersectionObserver for lazy loading (200px pre-fetch margin)
@@ -135,7 +138,7 @@
    * The filename is shown elsewhere (fullscreen title). Keeping the skill name
    * consistent matches the pattern of ImageGenerateEmbedPreview ("Generate").
    */
-  let skillName = $derived($text('app_skills.images.view.skill_title'));
+  let skillName = $derived($text('common.view'));
 
   /**
    * Card subtitle (customStatusText):
@@ -238,15 +241,29 @@
 
       {#if status === 'finished' && imageUrl && !imageError}
         <!-- Decrypted image — shown full-bleed -->
-        <div class="image-content" class:clickable={isFullscreenEnabled}>
-          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-          <img
-            src={imageUrl}
-            alt={filename || 'Image'}
-            class="preview-image"
-            onclick={isFullscreenEnabled ? onFullscreen : undefined}
-          />
-        </div>
+        {#if isFullscreenEnabled}
+          <div
+            class="image-content clickable"
+            onclick={onFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={imageUrl}
+              alt={filename || 'Image'}
+              class="preview-image"
+            />
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={imageUrl}
+              alt={filename || 'Image'}
+              class="preview-image"
+            />
+          </div>
+        {/if}
 
       {:else if status === 'finished' && imageError}
         <!-- Image decrypt failed -->

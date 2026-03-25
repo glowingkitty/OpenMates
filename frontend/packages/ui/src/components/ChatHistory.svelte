@@ -17,6 +17,7 @@
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../types/chat';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
+  import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
   import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
@@ -524,7 +525,7 @@
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
-  let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
+  let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight - 30)}px`);
 
   // PII visibility: derive whether PII is revealed for the current chat.
   // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.
@@ -535,6 +536,7 @@
   });
   let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
+
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
   // The dialog's chatId must match the currently active chat's ID
@@ -603,6 +605,21 @@
     );
 
     appSettingsMemoriesPermissionStore.showDialog(recoveredRequest);
+  });
+
+  // Effect: Auto-dismiss dialog when response arrives from another device.
+  // The show-dialog effect above only fires when unpairedRequest is non-null.
+  // This complementary effect hides the dialog when the response system message
+  // arrives (via cross-device broadcast or sync) and unpairedRequest becomes null.
+  $effect(() => {
+    if (unpairedRequest === null && $isPermissionDialogVisible &&
+        $currentPermissionRequest?.chatId === currentChatId) {
+      console.info(
+        `[ChatHistory] Permission response detected (cross-device sync) ` +
+        `for chat ${currentChatId} — dismissing dialog`
+      );
+      appSettingsMemoriesPermissionStore.hideDialog();
+    }
   });
 
   // Determine if we should show settings/memories suggestions
@@ -1564,9 +1581,11 @@
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
+                     data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                      data-message-id={msg.id}
                      style={`
-                         opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
+                         opacity: ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1))};
+                         ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}
                      in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
@@ -1575,7 +1594,7 @@
                         role={msg.role}
                         category={msg.category}
                         model_name={msg.model_name}
-                        content={msg.content}
+                        content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
                         is_truncated={msg.is_truncated}
                         original_message={msg.original_message}
@@ -1632,6 +1651,7 @@
                     <AppSettingsMemoriesPermissionDialog />
                 </div>
             {/if}
+
             
             <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
                  Creates the ChatGPT-like effect where the user message sits near the top
@@ -1641,13 +1661,16 @@
             {/if}
             
             <!-- Follow-up suggestions shown after the last assistant message.
-                 Visible without requiring the user to focus the message input first. -->
+                 Visible without requiring the user to focus the message input first.
+                 Passes chatCategory and chatIcon so the gradient card matches the ChatHeader style. -->
             {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
                 <div class="follow-up-suggestions-wrapper" in:fade={{ duration: 200 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
                         messageInputContent=""
                         onSuggestionClick={onSuggestionClick}
+                        category={chatCategory}
+                        icon={chatIcon}
                     />
                 </div>
             {/if}
@@ -1812,23 +1835,28 @@
     margin-top: 10px;
   }
 
+
   /* Follow-up suggestions wrapper — shown inline in the chat history after the last
-     assistant message so users can see them without clicking the message input. */
+     assistant message. Aligns with mate-message-content by matching the assistant
+     message layout: padding-inline-start offsets content to where the message bubble
+     starts (past the 60px avatar + 10px margin = ~80px), mirroring .message-align-left
+     from chat.css. On mobile (≤500px), avatar stacks above so offset is removed. */
   .follow-up-suggestions-wrapper {
-    padding: 8px 0 16px;
-    /* Align with assistant message bubbles (left-aligned) */
-    display: flex;
-    justify-content: flex-start;
+    padding: 8px 0 14px;
+    /* Align with assistant message x-position while preserving right breathing room */
+    padding-inline-start: 75px;
+    padding-inline-end: 20px;
+    box-sizing: border-box;
+    width: 100%;
   }
 
-  :global([dir="rtl"]) .follow-up-suggestions-wrapper {
-    justify-content: flex-end;
-  }
-
-  /* Hide the upward-fade gradient that was designed for use above the MessageInput.
-     Inside ChatHistory the gradient would bleed over preceding messages, so we suppress it. */
-  .follow-up-suggestions-wrapper :global(.suggestions-container::before) {
-    display: none;
+  /* When assistant messages are in mobile stacked layout (avatar stacks above),
+     the wrapper can go full-width since there's no side avatar offset. */
+  @media (max-width: 500px) {
+    .follow-up-suggestions-wrapper {
+      padding-inline-start: 0;
+      padding-inline-end: 0;
+    }
   }
 
   /* Bottom spacer that fills remaining viewport space during AI streaming.

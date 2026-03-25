@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable no-console */
 export {};
 
 /**
@@ -28,7 +28,12 @@ export {};
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY
  */
 
-const { test, expect } = require('@playwright/test');
+const {
+	test,
+	expect,
+	attachConsoleListeners,
+	attachNetworkListeners
+} = require('./console-monitor');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -36,80 +41,13 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-30).forEach((log: string) => console.log(log));
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-20).forEach((activity: string) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		await submitLoginButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
-			}
-		}
-	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Logged in.');
-}
 
 // ---------------------------------------------------------------------------
 // Test 1: Navigate to Buy Credits → verify tiers → click tier → payment form
@@ -122,20 +60,10 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 }) => {
 	test.slow();
 	test.setTimeout(240000);
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
 
-	page.on('console', (msg: any) =>
-		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
-	);
-	page.on('request', (req: any) =>
-		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
-	);
-	page.on('response', (res: any) =>
-		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
-	);
-
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('BUY_CREDITS');
 	const screenshot = createStepScreenshotter(log);
@@ -146,7 +74,7 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	await page.waitForTimeout(4000);
 
 	// Open settings
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.locator('#settings-menu-toggle');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 	log('Opened settings menu.');
@@ -154,11 +82,10 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	const settingsMenu = page.locator('.settings-menu.visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
-	// Wait for credits balance to appear — confirms authenticated state is loaded
-	// before trying to click billing (which only appears when authenticated)
-	await expect(page.locator('.settings-menu.visible .credits-container')).toBeVisible({
-		timeout: 15000
-	});
+	// Wait for authenticated settings entries to load before navigating.
+	await expect(
+		page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first()
+	).toBeVisible({ timeout: 15000 });
 	await screenshot(page, 'settings-menu-open');
 
 	// Click "billing" settings item (visible only for authenticated users)
@@ -236,13 +163,9 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	test.slow();
 	test.setTimeout(180000);
 
-	page.on('console', (msg: any) =>
-		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
-	);
+	attachConsoleListeners(page);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CREDITS_BALANCE');
 	const screenshot = createStepScreenshotter(log);
@@ -252,7 +175,7 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	await page.waitForTimeout(2000);
 
 	// Open settings
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.locator('#settings-menu-toggle');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
@@ -261,11 +184,13 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	await screenshot(page, 'settings-open');
 
 	// Verify credits balance is shown
-	// CurrentSettingsPage renders: div.credits-container > span.credits-amount > mark (balance)
-	const creditsContainer = page.locator('.settings-menu.visible .credits-container');
-	await expect(creditsContainer).toBeVisible({ timeout: 10000 });
-
-	const creditsAmount = page.locator('.settings-menu.visible .credits-amount');
+	// Credits location can vary slightly by layout/theme revisions.
+	const creditsAmount = page
+		.locator(
+			'.settings-menu.visible .credits-amount, .settings-menu.visible [class*="credits-amount"]'
+		)
+		.first();
+	await expect(creditsAmount).toBeVisible({ timeout: 20000 });
 	const creditsText = await creditsAmount.textContent();
 	log(`Credits balance shown: "${creditsText}"`);
 

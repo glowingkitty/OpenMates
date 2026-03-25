@@ -37,7 +37,7 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share', detail: string): void;
     } = createEventDispatcher();
     
     // Derive if chat is currently unread (has unread_count > 0)
@@ -403,7 +403,7 @@
                 {#if chatTotalCredits !== null && chatTotalCredits > 0}
                     <div class="chat-credits">
                         <div class="clickable-icon icon_coins"></div>
-                        {formatCredits(chatTotalCredits)} {$text('chats.context_menu.credits')}
+                        {formatCredits(chatTotalCredits)} {$text('common.credits')}
                     </div>
                 {/if}
             </div>
@@ -440,6 +440,7 @@
                 {#if !hideDelete}
                     <button
                         class="menu-item delete"
+                        data-testid="chat-context-delete"
                         onclick={(event) => handleButtonClick('delete', event)}
                     >
                         <div class="clickable-icon icon_delete"></div>
@@ -483,7 +484,7 @@
                 >
                     <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
                     <span class:shimmer={downloading}>
-                        {downloading ? $text('chats.context_menu.downloading') : $text('chats.context_menu.download')}
+                        {downloading ? $text('chats.context_menu.downloading') : $text('common.download')}
                     </span>
                 </button>
             {/if}
@@ -494,7 +495,23 @@
                     onclick={(event) => handleButtonClick('copy', event)}
                 >
                     <div class="clickable-icon icon_copy"></div>
-                    {$text('chats.context_menu.copy')}
+                    {$text('common.copy')}
+                </button>
+            {/if}
+
+            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+                <button
+                    class="menu-item share"
+                    class:disabled={!$authStore.isAuthenticated}
+                    disabled={!$authStore.isAuthenticated}
+                    onclick={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('share', event);
+                        }
+                    }}
+                >
+                    <div class="clickable-icon icon_share"></div>
+                    {$text('common.share')}
                 </button>
             {/if}
 
@@ -585,10 +602,11 @@
             {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}
                 <button
                     class="menu-item delete"
+                    data-testid="chat-context-delete"
                     onclick={(event) => handleButtonClick('delete', event)}
                 >
                     <div class="clickable-icon icon_delete"></div>
-                    {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete')}
+                    {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('common.delete')}
                 </button>
             {/if}
 
@@ -661,7 +679,7 @@
     
     /* Chat summary displayed above the action buttons */
     .chat-summary {
-        padding: 12px 16px 8px;
+        padding: 12px 16px 0px;
         color: var(--color-grey-70);
         font-size: 13px;
         line-height: 1.4;
@@ -784,6 +802,14 @@
 
     .menu-item.unselect .clickable-icon {
         background: var(--color-grey-60);
+    }
+
+    .menu-item.share {
+        color: var(--color-primary);
+    }
+
+    .menu-item.share .clickable-icon {
+        background: var(--color-primary);
     }
 
     /* Hide and unhide buttons use default text and icon colors for better visibility */

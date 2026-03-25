@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 class Setup2FAInitiateRequest(BaseModel):
     """Request to initiate 2FA setup with email encryption key"""

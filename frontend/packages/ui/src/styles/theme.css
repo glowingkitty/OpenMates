@@ -760,12 +760,45 @@ a:focus-visible {
   border-radius: 2px;
 }
 
+/* Hide browser default focus ring on mouse/touch — only show on keyboard nav.
+   :focus-visible below handles keyboard users with a clear outline. */
+input:focus,
+textarea:focus,
+select:focus,
+button:focus,
+[contenteditable]:focus {
+  outline: none;
+}
+
 /* Inputs and textareas — tighter ring that follows field shape. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--color-button-primary, #ff553b);
   outline-offset: 2px;
+}
+
+/* ── Skip navigation link ─────────────────────────────────────────────
+   Visually hidden by default, slides into view on keyboard focus.
+   Allows keyboard users to skip sidebar/header and jump to main content.
+   See docs/architecture/accessibility.md for details. */
+.skip-link {
+  position: fixed;
+  top: -3rem;
+  left: 0;
+  z-index: 100000;
+  background: var(--color-button-primary, #ff553b);
+  color: var(--color-grey-0, #fff);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: var(--font-size-p, 1rem);
+  text-decoration: none;
+  border-radius: 0 0 4px 0;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
 }
 
 /* Global scrollbar styles - applies to all scrollable elements */

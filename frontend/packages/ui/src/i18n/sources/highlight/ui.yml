@@ -5,21 +5,21 @@ calendar:
   zh: 日历
   es: Calendario
   fr: Calendrier
-  pt: ''
-  ru: ''
+  pt: Calendário
+  ru: Календарь
   ja: カレンダー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 캘린더
+  it: Calendario
+  tr: Takvim
+  vi: Lịch
+  id: Kalender
+  pl: Kalendarz
+  nl: Kalender
+  ar: التقويم
+  hi: कैलेंडर
+  th: ปฏิทิน
+  cs: Kalendář
+  sv: Kalender
   he: לוח שנה
   verified_by_human: []
 health:
@@ -29,21 +29,21 @@ health:
   zh: 健康
   es: Salud
   fr: Santé
-  pt: ''
-  ru: ''
+  pt: Saúde
+  ru: Здоровье
   ja: 健康
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 건강
+  it: Salute
+  tr: Sağlık
+  vi: Sức khỏe
+  id: Kesehatan
+  pl: Zdrowie
+  nl: Gezondheid
+  ar: الصحة
+  hi: स्वास्थ्य
+  th: สุขภาพ
+  cs: Zdraví
+  sv: Hälsa
   he: בריאות
   verified_by_human: []
 events:
@@ -53,21 +53,21 @@ events:
   zh: 活动
   es: Eventos
   fr: Événements
-  pt: ''
-  ru: ''
+  pt: Eventos
+  ru: События
   ja: イベント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 이벤트
+  it: Eventi
+  tr: Etkinlikler
+  vi: Sự kiện
+  id: Acara
+  pl: Wydarzenia
+  nl: Evenementen
+  ar: الفعاليات
+  hi: इवेंट
+  th: กิจกรรม
+  cs: Události
+  sv: Evenemang
   he: אירועים
   verified_by_human: []
 search:
@@ -77,20 +77,20 @@ search:
   zh: 搜索
   es: Buscar
   fr: Recherche
-  pt: ''
-  ru: ''
+  pt: Pesquisa
+  ru: Поиск
   ja: 検索
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
   he: חיפוש
   verified_by_human: []

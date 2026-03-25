@@ -34,6 +34,7 @@ from backend.core.api.app.routes.push import router as push_router  # noqa: E402
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
+from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
@@ -42,15 +43,18 @@ from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode p
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
+from backend.core.api.app.routes import status_routes  # noqa: E402 # Import status page API v3 (grouped health + tests)
+from backend.core.api.app.routes import docs_routes  # noqa: E402 # Import docs API (public, serves doc tree + markdown for CLI)
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
+from backend.core.api.app.routers import webhooks as webhooks_router  # noqa: E402 # Webhook CRUD + incoming webhook handler
+from backend.core.api.app.routers import internal_tunnel  # noqa: E402 # Ephemeral tunnel management for CI
 from backend.core.api.app.services.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
 from backend.core.api.app.utils.setup_compliance_logging import setup_compliance_logging  # noqa: E402
 from backend.core.api.app.services.email_template import EmailTemplateService  # noqa: E402
-from backend.core.api.app.services.image_safety import ImageSafetyService  # noqa: E402 # Import ImageSafetyService
 from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402 # Import S3UploadService
 from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
@@ -624,10 +628,6 @@ async def lifespan(app: FastAPI):
     app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
     logger.info("S3 service instance created.")
     
-    # Initialize ImageSafetyService (depends on SecretsManager)
-    app.state.image_safety_service = ImageSafetyService(secrets_manager=app.state.secrets_manager)
-    logger.info("Image safety service instance created.")
-
     # Initialize PaymentService conditionally (only if payment is enabled)
     # Note: We check payment_enabled later after domain validation, but create service instance here
     # The service will only be initialized/used if payment_enabled is True
@@ -710,27 +710,20 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring payment orders from disk: {e}", exc_info=True)
     
-    # --- Restore pending reminders from disk backup ---
-    # This recovers reminders that were persisted during the last graceful shutdown
-    # to prevent reminder data loss across server restarts
-    if hasattr(app.state, 'cache_service'):
+    # --- Warm up reminder hot cache from PostgreSQL ---
+    # Load pending reminders within the 48h window from the DB (source of truth)
+    # into the Dragonfly ZSET. This replaces the old disk backup/restore mechanism.
+    if hasattr(app.state, 'cache_service') and hasattr(app.state, 'directus_service'):
         try:
-            restored_reminders = await app.state.cache_service.restore_reminders_from_disk()
-            if restored_reminders > 0:
-                logger.info(f"Restored {restored_reminders} pending reminders from disk backup")
+            reminders_in_window = await app.state.directus_service.reminder.get_pending_reminders_in_window()
+            if reminders_in_window:
+                loaded = await app.state.cache_service.load_reminders_batch_into_cache(reminders_in_window)
+                if loaded > 0:
+                    logger.info(f"Warmed up reminder hot cache with {loaded} pending reminders from DB")
+            else:
+                logger.info("No pending reminders in 48h window to warm up")
         except Exception as e:
-            logger.error(f"Error restoring reminders from disk: {e}", exc_info=True)
-    
-    # --- Restore pending deliveries from disk backup ---
-    # This recovers queued reminder/AI response deliveries that were persisted during shutdown.
-    # These are messages waiting to be delivered to users on their next WebSocket reconnect.
-    if hasattr(app.state, 'cache_service'):
-        try:
-            restored_deliveries = await app.state.cache_service.restore_pending_deliveries_from_disk()
-            if restored_deliveries > 0:
-                logger.info(f"Restored {restored_deliveries} pending delivery entries from disk backup")
-        except Exception as e:
-            logger.error(f"Error restoring pending deliveries from disk: {e}", exc_info=True)
+            logger.error(f"Error warming up reminder hot cache from DB: {e}", exc_info=True)
 
     # --- Restore daily inspiration cache from disk backup ---
     # Recovers topic suggestions and paid-request tracking entries that were persisted
@@ -1299,6 +1292,17 @@ async def lifespan(app: FastAPI):
     
     # Shutdown logic
     logger.info("Shutting down application...")
+
+    # --- Notify all connected clients that the server is restarting ---
+    # This message is sent FIRST, before any cleanup tasks begin, so that
+    # clients can show a "server updating" notification instead of the generic
+    # "You are offline" banner.  broadcast_to_all() has a built-in 2-second
+    # timeout so a stuck TCP send buffer never delays the shutdown sequence.
+    if hasattr(app.state, 'connection_manager'):
+        await app.state.connection_manager.broadcast_to_all({
+            "type": "server_restarting",
+            "payload": {},
+        })
     
     # --- Persist web analytics counters to disk before shutdown ---
     # Flushes in-Redis aggregate counters to a JSON backup file so no pageview/event
@@ -1321,26 +1325,10 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error persisting payment orders to disk during shutdown: {e}", exc_info=True)
     
-    # --- Persist pending reminders to disk before shutdown ---
-    # This ensures reminders survive restarts and can be restored on next startup
-    if hasattr(app.state, 'cache_service'):
-        try:
-            dumped_reminders = await app.state.cache_service.dump_reminders_to_disk()
-            if dumped_reminders > 0:
-                logger.info(f"Persisted {dumped_reminders} pending reminders to disk for recovery after restart")
-        except Exception as e:
-            logger.error(f"Error persisting reminders to disk during shutdown: {e}", exc_info=True)
-    
-    # --- Persist pending deliveries to disk before shutdown ---
-    # This ensures queued reminder/AI response deliveries survive restarts.
-    # Users who reconnect after restart will still receive their pending messages.
-    if hasattr(app.state, 'cache_service'):
-        try:
-            dumped_deliveries = await app.state.cache_service.dump_pending_deliveries_to_disk()
-            if dumped_deliveries > 0:
-                logger.info(f"Persisted {dumped_deliveries} pending delivery entries to disk for recovery after restart")
-        except Exception as e:
-            logger.error(f"Error persisting pending deliveries to disk during shutdown: {e}", exc_info=True)
+    # NOTE: Reminder disk backup/restore removed — PostgreSQL is the source of truth.
+    # The hot cache is rebuilt from DB on startup. No disk persistence needed.
+    # Pending deliveries remain in Redis (60-day TTL); they survive graceful restarts
+    # and email notifications serve as a backup for extended offline periods.
 
     # --- Persist daily inspiration cache to disk before shutdown ---
     # Saves topic suggestions and paid-request tracking so personalisation data and
@@ -1646,6 +1634,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
+    app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
     
@@ -1663,8 +1652,12 @@ def create_app() -> FastAPI:
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
+    app.include_router(status_routes.router, include_in_schema=True)  # Status page API v3
+    app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
+    app.include_router(webhooks_router.router, include_in_schema=True)  # Webhook CRUD + incoming webhook handler (JWT + webhook key auth)
+    app.include_router(internal_tunnel.router, include_in_schema=False)  # Ephemeral tunnel management for CI (HMAC auth)
     from backend.core.api.app.routes import usage_api
     app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
     

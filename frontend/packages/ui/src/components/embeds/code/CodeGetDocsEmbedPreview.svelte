@@ -85,7 +85,8 @@
   // We map 'cancelled' to 'error' for display purposes
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let storeResolved = $state(false);
+
   /**
    * Map SkillExecutionStatus to UnifiedEmbedPreview status
    * 'cancelled' is mapped to 'error' since UnifiedEmbedPreview doesn't support it
@@ -99,20 +100,22 @@
   
   // Initialize local state from props
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localResults = previewData.results || [];
-      localLibrary = previewData.library || '';
-      localQuestion = previewData.question || '';
-      localStatus = mapStatusToEmbedStatus(previewData.status);
-      // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
-    } else {
-      localResults = resultsProp || [];
-      localLibrary = libraryProp || '';
-      localQuestion = questionProp || '';
-      localStatus = statusProp || 'processing';
-      localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      // Initialize from previewData or direct props
+      if (previewData) {
+        localResults = previewData.results || [];
+        localLibrary = previewData.library || '';
+        localQuestion = previewData.question || '';
+        localStatus = mapStatusToEmbedStatus(previewData.status);
+        // skill_task_id might be in previewData for skill-level cancellation
+        localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
+      } else {
+        localResults = resultsProp || [];
+        localLibrary = libraryProp || '';
+        localQuestion = questionProp || '';
+        localStatus = statusProp || 'processing';
+        localSkillTaskId = skillTaskIdProp;
+      }
     }
   });
   
@@ -140,7 +143,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = mapStatusToEmbedStatus(data.status as SkillExecutionStatus);
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     // Update get-docs-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {

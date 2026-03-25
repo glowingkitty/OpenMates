@@ -2,6 +2,7 @@
     import { text } from '@repo/ui';
     import { hiddenChatStore } from '../../stores/hiddenChatStore';
     import { notificationStore } from '../../stores/notificationStore';
+    import { focusTrap } from '../../actions/focusTrap';
 
     interface Props {
         show?: boolean;
@@ -122,7 +123,8 @@
                 }
                 
                 // Get the chat key (decrypt from encrypted_chat_key if needed)
-                let chatKey = chatDB.getChatKey(chatIdToHide);
+                const { chatKeyManager } = await import('../../services/encryption/ChatKeyManager');
+                let chatKey = await chatKeyManager.getKey(chatIdToHide);
                 if (!chatKey && chatToHide.encrypted_chat_key) {
                     const { decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
                     try {
@@ -244,21 +246,22 @@
 </script>
 
 {#if show}
-    <div 
-        class="hidden-chat-unlock-overlay" 
-        role="presentation" 
-        onclick={handleClose}
-        onkeydown={handleKeydown}
+    <div
+        class="hidden-chat-unlock-overlay"
+        role="presentation"
+        onmousedown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-        <div 
-            class="hidden-chat-unlock-modal" 
-            role="dialog" 
-            tabindex={-1}
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
+        <div
+            class="hidden-chat-unlock-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hidden-chat-unlock-title"
+            tabindex="-1"
+            use:focusTrap={{ onEscape: handleClose }}
+            onmousedown={(e) => e.stopPropagation()}
         >
             <div class="modal-header">
-                <h3>
+                <h3 id="hidden-chat-unlock-title">
                     {isFirstTime 
                         ? $text('chats.hidden_chats.set_password_title')
                         : $text('chats.hidden_chats.unlock_title')
@@ -278,7 +281,7 @@
                 <form onsubmit={handleSubmit}>
                     <div class="input-group">
                         <label for="password-input">
-                            {$text('chats.hidden_chats.password_label')}
+                            {$text('common.password')}
                         </label>
                         <input
                             id="password-input"
@@ -333,7 +336,7 @@
                             onclick={handleClose}
                             disabled={isLoading}
                         >
-                            {$text('chats.hidden_chats.cancel')}
+                            {$text('common.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -474,7 +477,6 @@
 
     .input-group input:focus {
         border-color: var(--color-primary);
-        outline: none;
     }
 
     .input-group input.error {

@@ -414,7 +414,7 @@ Matches the design from the signup flow screenshot.
         />
         <div class="calendar-icon"></div>
         <label for="monthly-toggle" class="option-label">
-            {$text('settings.billing.monthly')}
+            {$text('common.monthly')}
         </label>
     </div>
     {#if !paymentMethodSaved}
@@ -449,7 +449,7 @@ Matches the design from the signup flow screenshot.
     disabled={isProcessing}
 >
     {#if isProcessing}
-        {$text('signup.processing')}
+        {$text('common.processing')}
     {:else}
         {$text('signup.finish_setup')}
     {/if}

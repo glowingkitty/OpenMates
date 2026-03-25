@@ -13,6 +13,7 @@ from .cache_demo_chat_mixin import DemoChatCacheMixin
 from .cache_stats_mixin import CacheStatsMixin
 from .cache_reminder_mixin import ReminderCacheMixin
 from .cache_inspiration_mixin import InspirationCacheMixin
+from .cache_short_url_mixin import ShortUrlCacheMixin
 
 # Import schemas used by mixins (if any are directly type hinted in method signatures)
 # For example, if ChatCacheMixin methods directly hint at CachedChatVersions, etc.
@@ -45,6 +46,7 @@ class CacheService(
     CacheStatsMixin,
     ReminderCacheMixin,
     InspirationCacheMixin,
+    ShortUrlCacheMixin,
 ):
     """
     Service for caching data using Dragonfly (Redis-compatible).

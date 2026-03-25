@@ -19,6 +19,7 @@
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
+    import { editMessageStore, cancelEdit } from '../../stores/editMessageStore';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
@@ -62,6 +63,7 @@
     // Code embed service - creates proper embeds for pasted code/text
     import { createCodeEmbedFromPastedText, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
     import { generateUUID } from '../../message_parsing/utils';
+    import { extractEmbedReferences } from '../../services/embedResolver';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -1414,12 +1416,50 @@
                             console.debug('[MessageInput] Pasted chat link from YAML (via editorProps):', chatLink);
                             return true; // Prevent default paste handling
                         }
+
+                        // Detect OpenMates message markdown copied from the chat UI.
+                        // When the custom clipboard MIME payload is unavailable (for example,
+                        // browser/OS clipboard fallbacks), copied messages with embeds can
+                        // arrive as plain text containing ```json embed reference blocks.
+                        // In this case we must preserve message semantics (text + embeds)
+                        // instead of converting the entire paste into a code embed.
+                        const normalizedPasteText = text.replace(/\r\n?/g, '\n');
+                        const embedRefsFromPlainText = extractEmbedReferences(normalizedPasteText);
+                        if (embedRefsFromPlainText.length > 0) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            // Keep the exact copied markdown shape so subsequent parsing,
+                            // draft persistence, and send payload generation stay canonical.
+                            originalMarkdown = normalizedPasteText;
+                            const parsedDoc = parse_message(originalMarkdown, 'write', {
+                                unifiedParsingEnabled: true,
+                            });
+
+                            if (parsedDoc && parsedDoc.content) {
+                                isConvertingEmbeds = true;
+                                try {
+                                    editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                                } finally {
+                                    isConvertingEmbeds = false;
+                                }
+                            } else {
+                                editor.commands.insertContent(normalizedPasteText);
+                            }
+
+                            editor.commands.focus('end');
+                            hasContent = !isContentEmptyExceptMention(editor);
+                            console.debug('[MessageInput] Pasted OpenMates message from text/plain fallback:', {
+                                embedCount: embedRefsFromPlainText.length,
+                            });
+                            return true;
+                        }
                         
                         // Check for multi-line text - create a proper code embed for readability
                         // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
                         // and stored in EmbedStore (encrypted, synced to server)
-                        const isMultiLine = text.includes('\n');
-                        const isAlreadyCodeBlock = text.trim().startsWith('```');
+                        const isMultiLine = normalizedPasteText.includes('\n');
+                        const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
                         
                         if (isMultiLine && !isAlreadyCodeBlock) {
                             event.preventDefault();
@@ -1434,9 +1474,9 @@
                                 // Insert a preview embed node with the code stored inline in the node `code`
                                 // attribute — GroupRenderer reads this directly without EmbedStore.
                                 const vsCodeLang = detectLanguageFromVSCode(vsCodeEditorData);
-                                const language = vsCodeLang || detectLanguageFromContent(text) || 'text';
+                                const language = vsCodeLang || detectLanguageFromContent(normalizedPasteText) || 'text';
                                 const embedId = generateUUID();
-                                const lineCount = text.split('\n').length;
+                                const lineCount = normalizedPasteText.split('\n').length;
                                 
                                 console.debug('[MessageInput] Demo mode — inserting inline code embed:', {
                                     language, lineCount, embedId
@@ -1450,7 +1490,7 @@
                                         status: 'finished',
                                         // "preview:code:" prefix tells GroupRenderer to read code from item.code attr
                                         contentRef: `preview:code:${embedId}`,
-                                        code: text,
+                                        code: normalizedPasteText,
                                         language,
                                         lineCount,
                                     }
@@ -1464,11 +1504,11 @@
                             // Authenticated path: create a proper embed in EmbedStore (async).
                             // This follows the same pattern as URL embeds.
                             // Pass VS Code editor data for automatic language detection.
-                            createCodeEmbedFromPastedText({ text, vsCodeEditorData }).then(async (embedResult) => {
+                            createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData }).then(async (embedResult) => {
                                 console.info('[MessageInput] Created code embed for pasted text:', {
                                     embed_id: embedResult.embed_id,
-                                    lineCount: text.split('\n').length,
-                                    charCount: text.length
+                                    lineCount: normalizedPasteText.split('\n').length,
+                                    charCount: normalizedPasteText.length
                                 });
                                 
                                 // Re-read originalMarkdown from the editor's current state to avoid
@@ -1516,7 +1556,7 @@
                             }).catch((error) => {
                                 console.error('[MessageInput] Failed to create code embed:', error);
                                 // Fallback: insert as plain text if embed creation fails
-                                editor.commands.insertContent(text);
+                                editor.commands.insertContent(normalizedPasteText);
                             });
                             
                             return true; // Prevent default paste handling
@@ -1654,11 +1694,26 @@
                 editor.view.dispatch(editor.state.tr);
             }
         });
- 
+
+        // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
+        function handleDocsPrefill(event: Event) {
+            const { text: msgText, autoSend } = (event as CustomEvent).detail;
+            if (!editor || editor.isDestroyed || !msgText) return;
+            editor.commands.setContent(`<p>${msgText.replace(/\n/g, '<br>')}</p>`);
+            hasContent = true;
+            editor.commands.focus('end');
+            if (autoSend) {
+                // Short delay to let the editor render the content
+                setTimeout(() => handleSendMessage(), 100);
+            }
+        }
+        window.addEventListener('docsMessagePrefill', handleDocsPrefill);
+
         return () => {
             cleanup();
             unsubscribeAiTyping();
             unsubscribeText();
+            window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
         };
     });
  
@@ -3769,6 +3824,30 @@
             console.warn('[MessageInput] setSuggestionText: editor not available or destroyed');
         }
     }
+
+    /**
+     * Append suggestion text to the editor, adding a newline separator if the
+     * editor already has content. Used by NewChatSuggestions for multi-select:
+     * clicking multiple suggestion cards combines them into a single prompt.
+     */
+    export function appendSuggestionText(text: string) {
+        if (editor && !editor.isDestroyed) {
+            if (!editor.isEmpty) {
+                // Existing content — move to end and add a newline before the new text
+                editor.commands.focus('end');
+                editor.commands.enter();
+            } else {
+                editor.commands.focus('end');
+            }
+            editor.commands.insertContent(text);
+            hasContent = true;
+            lastEditorUpdateText = editor.getText();
+            updateOriginalMarkdown(editor);
+            editor.commands.focus('end');
+        } else {
+            console.warn('[MessageInput] appendSuggestionText: editor not available or destroyed');
+        }
+    }
     export function getTextContent(): string {
         if (editor && !editor.isDestroyed) {
             return editor.getText();
@@ -3931,6 +4010,38 @@
         }
     });
 
+    // Watch for edit mode activation. When the user clicks "Edit" on a message,
+    // editMessageStore is populated with the message content. We load it into the
+    // TipTap editor so the user can modify and re-send.
+    $effect(() => {
+        const editState = $editMessageStore;
+        if (editState && editState.chatId === currentChatId && editor && !editor.isDestroyed) {
+            console.debug('[MessageInput] Populating editor with edit message content');
+            tick().then(() => {
+                if (!editor || editor.isDestroyed) return;
+                // Set the markdown content as plain text in a paragraph.
+                // The send flow will process it the same as any new message.
+                const escapedContent = editState.messageContent
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+                editor.commands.setContent(`<p>${escapedContent}</p>`);
+                editor.commands.focus('end');
+                hasContent = true;
+            });
+        }
+    });
+
+    // Cancel edit mode when switching to a different chat
+    $effect(() => {
+        currentChatId; // track dependency
+        const editState = $editMessageStore;
+        if (editState && editState.chatId !== currentChatId) {
+            cancelEdit();
+        }
+    });
+
     // Watch for a pending mention (from suggestion clicks or "Chat with this mate" panel).
     // When pendingMentionStore is set, we insert the mention chip at the START of the
     // editor so it appears before any body text. This is important for suggestion clicks
@@ -4084,8 +4195,31 @@
  
 <!-- Template -->
 <div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown} data-action="message-input">
+    <!-- Edit mode banner — shown when user is editing a previous message -->
+    {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
+        <div class="edit-banner">
+            <span class="edit-banner-text">
+                <span class="clickable-icon icon_modify edit-banner-icon"></span>
+                {$text('chats.edit_banner.editing')}
+            </span>
+            <button
+                class="edit-banner-cancel"
+                onclick={() => {
+                    cancelEdit();
+                    if (editor && !editor.isDestroyed) {
+                        editor.commands.clearContent();
+                        hasContent = false;
+                    }
+                }}
+                aria-label={$text('chats.edit_banner.cancel')}
+            >
+                <span class="clickable-icon icon_close edit-banner-close-icon"></span>
+            </button>
+        </div>
+    {/if}
+
     <!-- PII Warning Banner - shown when sensitive data is detected in the input -->
-    <PIIWarningBanner 
+    <PIIWarningBanner
         matches={detectedPII}
         onUndoAll={handlePIIUndoAll}
     />
@@ -4137,9 +4271,13 @@
                 </button>
                 <!-- Toggle: click to start 1s deactivation countdown (click again to undo).
                      stopPropagation on the wrapper prevents clicks from reaching the pill-body button. -->
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                <div
+                    class="focus-pill-toggle"
+                    role="button"
+                    tabindex="0"
+                    onclick={(e) => e.stopPropagation()}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); } }}
+                >
                     <Toggle
                         checked={!focusPillDeactivating}
                         on:change={handleFocusPillToggle}
@@ -4163,9 +4301,13 @@
                     <span class="focus-pill-label">{$text('settings.incognito_mode_active')}</span>
                 </div>
                 <!-- Toggle: immediately disables incognito mode -->
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div class="focus-pill-toggle" onclick={(e) => e.stopPropagation()}>
+                <div
+                    class="focus-pill-toggle"
+                    role="button"
+                    tabindex="0"
+                    onclick={(e) => e.stopPropagation()}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); } }}
+                >
                     <Toggle
                         checked={true}
                         on:change={handleIncognitoPillToggle}
@@ -4205,7 +4347,7 @@
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
-                <div bind:this={editorElement} class="editor-content prose"></div>
+                <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
             </div>
         </div>
 
@@ -4288,8 +4430,8 @@
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 onclick={handleCancelAITask}
                 use:tooltip
-                title={$text('enter_message.stop')}
-                aria-label={$text('enter_message.stop')}
+                title={$text('common.stop')}
+                aria-label={$text('common.stop')}
                 transition:fade={{ duration: 300 }}
             >
                 <span class="clickable-icon icon_stop_processing"></span>
@@ -4347,4 +4489,48 @@
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    /* Edit message banner — shown above the editor when editing a previous message */
+    .edit-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 12px;
+        background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
+        border-radius: 8px 8px 0 0;
+        margin: 0 8px;
+    }
+
+    .edit-banner-text {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--color-font-secondary);
+    }
+
+    .edit-banner-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-font-secondary);
+    }
+
+    .edit-banner-cancel {
+        all: unset;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        padding: 4px;
+        border-radius: 4px;
+    }
+
+    .edit-banner-cancel:hover {
+        background: var(--color-grey-20, rgba(255, 255, 255, 0.1));
+    }
+
+    .edit-banner-close-icon {
+        width: 14px;
+        height: 14px;
+        background: var(--color-font-secondary);
+    }
 </style>

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Playwright Worker Script
+# DEPRECATED: Replaced by python3 scripts/run_tests.py.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
+# Playwright Worker Script (LEGACY)
 #
 # Called by run-tests.sh for each worker slot. Runs assigned spec files
 # sequentially in a Docker container with the slot's test account credentials.
@@ -95,14 +99,37 @@ print(json.dumps(entry))
     )
   fi
 
+  spec_path="tests/$spec"
+
+  # Derive scoped E2E debug token from INTERNAL_API_SHARED_TOKEN.
+  # This is HMAC-SHA256(INTERNAL_API_SHARED_TOKEN, "e2e-client-logs") — a single-purpose
+  # token that only authenticates to /e2e/client-logs. The full INTERNAL_API_SHARED_TOKEN
+  # is NEVER passed to the browser or Docker container.
+  E2E_DEBUG_TOKEN=""
+  if [[ -n "${INTERNAL_API_SHARED_TOKEN:-}" ]]; then
+    E2E_DEBUG_TOKEN="$(python3 -c "
+import hmac, hashlib, sys
+token = sys.argv[1]
+print(hmac.new(token.encode(), b'e2e-client-logs', hashlib.sha256).hexdigest())
+" "$INTERNAL_API_SHARED_TOKEN" 2>/dev/null || echo "")"
+  fi
+
   spec_output="$(
     cd "$PROJECT_ROOT" && \
     docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
       -e "PLAYWRIGHT_WORKER_SLOT=$SLOT" \
-      -e "PLAYWRIGHT_TEST_FILE=$spec" \
+      -e "PLAYWRIGHT_TEST_FILE=$spec_path" \
       -e SIGNUP_TEST_EMAIL_DOMAINS \
       -e MAILOSAUR_API_KEY \
       -e MAILOSAUR_SERVER_ID \
+      -e "E2E_REPORT_API_URL=${E2E_REPORT_API_URL:-http://api:8000}" \
+      -e "E2E_REPORT_API_TOKEN=${INTERNAL_API_SHARED_TOKEN:-}" \
+      -e "E2E_REPORT_ENVIRONMENT=${DAILY_RUN_ENVIRONMENT:-development}" \
+      -e "E2E_REPORT_ENABLED=${E2E_REPORT_ENABLED:-true}" \
+      -e "GIT_BRANCH=${GIT_BRANCH:-$(cd "$PROJECT_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}" \
+      -e "RUN_ID=${RUN_ID:-}" \
+      -e "E2E_RUN_ID=${RUN_ID:-}" \
+      -e "E2E_DEBUG_TOKEN=${E2E_DEBUG_TOKEN:-}" \
       "${DOCKER_EXTRA_ARGS[@]}" \
       playwright 2>&1
   )" || spec_exit=$?

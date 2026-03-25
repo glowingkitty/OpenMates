@@ -51,6 +51,8 @@ def send_test_run_summary(
     suites: List[Dict[str, Any]],
     failed_tests: List[Dict[str, Any]],
     environment: str = "development",
+    all_tests: List[Dict[str, Any]] = None,
+    opencode_chat_url: str = None,
 ) -> bool:
     """
     Celery task to send a single daily test run summary email to the admin.
@@ -71,14 +73,20 @@ def send_test_run_summary(
         failed_tests: List of failed test dicts with keys:
             suite, name, error (truncated snippet)
         environment: Server environment, "development" or "production".
+        all_tests: Optional list of all individual test dicts with keys:
+            suite, name, status, duration_seconds. When provided, the email
+            shows every test with pass/fail/skip icons.
 
     Returns:
         bool: True if the email was sent successfully, False otherwise.
     """
+    if all_tests is None:
+        all_tests = []
     logger.info(
         f"Starting test run summary email task: run_id='{run_id}', "
         f"environment='{environment}', total={total}, passed={passed}, "
-        f"failed={failed}, recipient={admin_email}"
+        f"failed={failed}, recipient={admin_email}, "
+        f"all_tests_count={len(all_tests)}"
     )
     try:
         result = asyncio.run(
@@ -97,6 +105,8 @@ def send_test_run_summary(
                 suites=suites,
                 failed_tests=failed_tests,
                 environment=environment,
+                all_tests=all_tests,
+                opencode_chat_url=opencode_chat_url,
             )
         )
         if result:
@@ -134,6 +144,8 @@ async def _async_send_test_run_summary(
     suites: List[Dict[str, Any]],
     failed_tests: List[Dict[str, Any]],
     environment: str = "development",
+    all_tests: List[Dict[str, Any]] = None,
+    opencode_chat_url: str = None,
 ) -> bool:
     """
     Async implementation for sending the daily test run summary email.
@@ -144,6 +156,9 @@ async def _async_send_test_run_summary(
     - "Warning: X of Y tests failed!" when failed > 0
     """
     from html import escape
+
+    if all_tests is None:
+        all_tests = []
 
     try:
         logger.info("Initializing services for test run summary email task...")
@@ -200,6 +215,43 @@ async def _async_send_test_run_summary(
                 "error": escape(error_raw) if error_raw else None,
             })
 
+        # Build all_tests grouped by suite for the full test list in the email.
+        # Each entry gets a status icon and sanitized name.
+        sanitized_all_tests_by_suite: Dict[str, List[Dict[str, Any]]] = {}
+        for t in all_tests:
+            suite_name = escape(str(t.get("suite", "unknown")))
+            status_raw = str(t.get("status", "unknown"))
+            test_name = escape(str(t.get("name", "")))
+            duration_s = t.get("duration_seconds", 0)
+
+            # Choose status icon
+            if status_raw == "passed":
+                icon = "✅"
+            elif status_raw == "failed":
+                icon = "❌"
+            elif status_raw == "skipped":
+                icon = "⏭️"
+            elif status_raw == "not_started":
+                icon = "⏸️"
+            else:
+                icon = "❓"
+
+            entry = {
+                "name": test_name,
+                "status": status_raw,
+                "icon": icon,
+                "duration_seconds": duration_s,
+            }
+
+            if suite_name not in sanitized_all_tests_by_suite:
+                sanitized_all_tests_by_suite[suite_name] = []
+            sanitized_all_tests_by_suite[suite_name].append(entry)
+
+        # Sanitize the opencode chat URL — only allow https://opencode.ai/s/... links
+        sanitized_chat_url = None
+        if opencode_chat_url and opencode_chat_url.startswith("https://opencode.ai/s/"):
+            sanitized_chat_url = escape(opencode_chat_url)
+
         email_context = {
             "darkmode": True,  # Admin emails always use dark mode
             "subject": subject,
@@ -216,6 +268,9 @@ async def _async_send_test_run_summary(
             "not_started": not_started,
             "suites": sanitized_suites,
             "failed_tests": sanitized_failed,
+            "all_tests_by_suite": sanitized_all_tests_by_suite,
+            "has_all_tests": len(all_tests) > 0,
+            "opencode_chat_url": sanitized_chat_url,  # AI analysis session link (None if no failures or analysis unavailable)
         }
 
         logger.info(

@@ -11,6 +11,7 @@
     import { text } from '@repo/ui';
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
+    import { getCategoryGradientColors } from '../../utils/categoryUtils';
     import { chatDB } from '../../services/db';
     import { userDB } from '../../services/userDB';
     import { authStore } from '../../stores/authStore';
@@ -19,6 +20,13 @@
     import { chatSyncService } from '../../services/chatSyncService';
     import { get } from 'svelte/store';
     import type { Chat } from '../../types/chat';
+
+    /** Convert a category string to a CSS gradient value for the icon color */
+    function getCategoryIconColor(category: string | null | undefined): string | undefined {
+        if (!category) return undefined;
+        const colors = getCategoryGradientColors(category);
+        return colors ? `linear-gradient(135deg, ${colors.start} 9.04%, ${colors.end} 90.06%)` : undefined;
+    }
 
     // Event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -311,10 +319,9 @@
                             <SettingsItem
                                 type="submenu"
                                 icon="chat"
-                                iconType={metadata?.category ? 'category' : 'default'}
-                                category={metadata?.category}
-                                categoryIcon={metadata?.icon}
-                                title={metadata?.title || chat.title || $text('settings.share.untitled_chat')}
+                                iconBackground={metadata?.category ? 'none' : 'primary'}
+                                iconColor={getCategoryIconColor(metadata?.category)}
+                                title={metadata?.title || chat.title || $text('common.untitled_chat')}
                                 onClick={() => navigateToShare(chat.chat_id)}
                             />
                             <button
@@ -350,10 +357,9 @@
                         <SettingsItem
                             type="submenu"
                             icon="chat"
-                            iconType={metadata?.category ? 'category' : 'default'}
-                            category={metadata?.category}
-                            categoryIcon={metadata?.icon}
-                            title={metadata?.title || chat.title || $text('settings.share.untitled_chat')}
+                            iconBackground={metadata?.category ? 'none' : 'primary'}
+                            iconColor={getCategoryIconColor(metadata?.category)}
+                            title={metadata?.title || chat.title || $text('common.untitled_chat')}
                             onClick={() => {
                                 // Navigate to the chat
                                 activeChatStore.setActiveChat(chat.chat_id);

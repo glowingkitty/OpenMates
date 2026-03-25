@@ -7,6 +7,7 @@ Handles the Python-heavy steps of the daily test run:
   - split-results: parse last-run.json, write last-passed-tests.json and last-failed-tests.json
   - dispatch-start-email: notify admin that the test run has started (before tests run)
   - dispatch-email: read last-run.json, dispatch the summary email via internal API
+  - dispatch-openobserve-test-run: push normalized run summary to OpenObserve via internal API
 
 Not intended to be called directly by users; use run-tests-daily.sh instead.
 """
@@ -14,6 +15,10 @@ Not intended to be called directly by users; use run-tests-daily.sh instead.
 import json
 import os
 import sys
+import urllib.error
+import urllib.request
+
+from _claude_utils import run_claude_session
 
 # Maximum error snippet length per failed test entry (characters)
 MAX_ERROR_SNIPPET_LEN = 600
@@ -61,6 +66,14 @@ def split_results() -> None:
     passed_path = os.path.join(results_dir, "last-passed-tests.json")
     failed_path = os.path.join(results_dir, "last-failed-tests.json")
 
+    # Remove files first to avoid PermissionError when a previous run
+    # created them as a different user (e.g. root via cron, then superdev manually).
+    for path in (passed_path, failed_path):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+
     with open(passed_path, "w") as f:
         json.dump({"run_id": run_id, "tests": passed_tests}, f, indent=2)
 
@@ -93,15 +106,148 @@ def _read_env_file(project_root: str) -> dict:
     return env_vars
 
 
+def _build_test_run_payload(results_dir: str, environment: str) -> dict:
+    """
+    Build the normalized daily test-run payload consumed by internal API bridges.
+
+    Includes dev-run suites from last-run.json and optionally merges
+    last-run-prod-smoke.json as a separate playwright_prod_smoke suite.
+    """
+    data = _load_last_run(results_dir)
+    summary = data.get("summary", {})
+    total = summary.get("total", 0)
+    passed = summary.get("passed", 0)
+    failed = summary.get("failed", 0)
+    skipped = summary.get("skipped", 0)
+    not_started = summary.get("not_started", 0)
+
+    # Load prod smoke test results (if available) and merge as an extra suite.
+    prod_smoke_path = os.path.join(results_dir, "last-run-prod-smoke.json")
+    prod_smoke_suite = None
+    if os.path.isfile(prod_smoke_path):
+        try:
+            with open(prod_smoke_path) as f:
+                prod_smoke_data = json.load(f)
+            prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
+            if prod_smoke_suite:
+                for test_entry in prod_smoke_suite.get("tests", []):
+                    total += 1
+                    status = test_entry.get("status", "")
+                    if status == "passed":
+                        passed += 1
+                    elif status == "failed":
+                        failed += 1
+                    elif status == "not_started":
+                        not_started += 1
+                    else:
+                        skipped += 1
+                print(
+                    f"[daily-runner] Loaded prod smoke test results from {prod_smoke_path}"
+                )
+        except Exception as e:
+            print(
+                f"[daily-runner] WARNING: could not load prod smoke results: {e}",
+                file=sys.stderr,
+            )
+
+    suites = []
+    for suite_name, suite_data in data.get("suites", {}).items():
+        if not isinstance(suite_data, dict):
+            continue
+        tests = suite_data.get("tests", [])
+        suite_passed = sum(1 for t in tests if t.get("status") == "passed")
+        suite_failed = sum(1 for t in tests if t.get("status") == "failed")
+        suite_not_started = sum(1 for t in tests if t.get("status") == "not_started")
+        suites.append({
+            "name": suite_name,
+            "total": len(tests),
+            "passed": suite_passed,
+            "failed": suite_failed,
+            "not_started": suite_not_started,
+            "status": suite_data.get("status", "unknown"),
+        })
+
+    if prod_smoke_suite:
+        ps_tests = prod_smoke_suite.get("tests", [])
+        suites.append({
+            "name": "playwright_prod_smoke",
+            "total": len(ps_tests),
+            "passed": sum(1 for t in ps_tests if t.get("status") == "passed"),
+            "failed": sum(1 for t in ps_tests if t.get("status") == "failed"),
+            "not_started": sum(1 for t in ps_tests if t.get("status") == "not_started"),
+            "status": prod_smoke_suite.get("status", "unknown"),
+        })
+
+    failed_tests = []
+    for suite_name, suite_data in data.get("suites", {}).items():
+        if not isinstance(suite_data, dict):
+            continue
+        for test_entry in suite_data.get("tests", []):
+            if test_entry.get("status") == "failed":
+                error = test_entry.get("error", "") or ""
+                failed_tests.append({
+                    "suite": suite_name,
+                    "name": test_entry.get("name", test_entry.get("file", "")),
+                    "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
+                })
+
+    if prod_smoke_suite:
+        for test_entry in prod_smoke_suite.get("tests", []):
+            if test_entry.get("status") == "failed":
+                error = test_entry.get("error", "") or ""
+                failed_tests.append({
+                    "suite": "playwright_prod_smoke",
+                    "name": test_entry.get("name", test_entry.get("file", "")),
+                    "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
+                })
+
+    # Build all_tests list — every individual test with suite, name, status, duration
+    all_tests = []
+    for suite_name, suite_data in data.get("suites", {}).items():
+        if not isinstance(suite_data, dict):
+            continue
+        for test_entry in suite_data.get("tests", []):
+            all_tests.append({
+                "suite": suite_name,
+                "name": test_entry.get("name", test_entry.get("file", "")),
+                "status": test_entry.get("status", "unknown"),
+                "duration_seconds": test_entry.get("duration_seconds", 0),
+            })
+
+    if prod_smoke_suite:
+        for test_entry in prod_smoke_suite.get("tests", []):
+            all_tests.append({
+                "suite": "playwright_prod_smoke",
+                "name": test_entry.get("name", test_entry.get("file", "")),
+                "status": test_entry.get("status", "unknown"),
+                "duration_seconds": test_entry.get("duration_seconds", 0),
+            })
+
+    return {
+        "environment": environment,
+        "run_id": data.get("run_id", ""),
+        "git_sha": data.get("git_sha", ""),
+        "git_branch": data.get("git_branch", ""),
+        "duration_seconds": int(data.get("duration_seconds", 0)),
+        "total": total,
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "not_started": not_started,
+        "suites": suites,
+        "failed_tests": failed_tests,
+        "all_tests": all_tests,
+    }
+
+
 def dispatch_email() -> None:
     """
     Read last-run.json (and optionally last-run-prod-smoke.json) and dispatch
     the test run summary email via POST /internal/dispatch-test-summary-email.
 
-    This script runs inside the admin-sidecar container (which does not have
-    celery installed), so we use an HTTP call to the API container instead of
-    importing celery directly. The API container dispatches the Celery email
-    task on our behalf.
+    This script runs on the host (via crontab), so we use an HTTP call to the
+    API container instead of importing celery directly. The API container
+    dispatches the Celery email task on our behalf.
 
     Required env vars (read from .env if not in environment):
         ADMIN_NOTIFY_EMAIL          — recipient for the summary email
@@ -111,9 +257,6 @@ def dispatch_email() -> None:
     Optional: if test-results/last-run-prod-smoke.json exists, its playwright
     suite is merged into the email as a "playwright_prod_smoke" suite.
     """
-    import urllib.request
-    import urllib.error
-
     results_dir = os.environ.get("RESULTS_DIR", "test-results")
 
     # Determine project root (parent of scripts/)
@@ -135,121 +278,23 @@ def dispatch_email() -> None:
         print("[daily-runner] ERROR: INTERNAL_API_SHARED_TOKEN not set — cannot dispatch email.", file=sys.stderr)
         sys.exit(1)
 
-    data = _load_last_run(results_dir)
-    summary = data.get("summary", {})
-    total = summary.get("total", 0)
-    passed = summary.get("passed", 0)
-    failed = summary.get("failed", 0)
-    skipped = summary.get("skipped", 0)
-    not_started = summary.get("not_started", 0)
+    normalized_payload = _build_test_run_payload(results_dir, environment)
 
-    # Load prod smoke test results (if available) and merge as an extra suite
-    prod_smoke_path = os.path.join(results_dir, "last-run-prod-smoke.json")
-    prod_smoke_suite = None
-    if os.path.isfile(prod_smoke_path):
-        try:
-            with open(prod_smoke_path) as f:
-                prod_smoke_data = json.load(f)
-            # Extract the playwright suite from the prod smoke run
-            prod_smoke_suite = prod_smoke_data.get("suites", {}).get("playwright")
-            if prod_smoke_suite:
-                # Accumulate prod smoke counts into the overall summary
-                for t in prod_smoke_suite.get("tests", []):
-                    total += 1
-                    st = t.get("status", "")
-                    if st == "passed":
-                        passed += 1
-                    elif st == "failed":
-                        failed += 1
-                    elif st == "not_started":
-                        not_started += 1
-                    else:
-                        skipped += 1
-                print(
-                    f"[daily-runner] Loaded prod smoke test results from {prod_smoke_path}"
-                )
-        except Exception as e:
-            print(
-                f"[daily-runner] WARNING: could not load prod smoke results: {e}",
-                file=sys.stderr,
-            )
-
-    # Build suite summaries for the email template
-    suites = []
-    for suite_name, suite_data in data.get("suites", {}).items():
-        if not isinstance(suite_data, dict):
-            continue
-        tests = suite_data.get("tests", [])
-        suite_passed = sum(1 for t in tests if t.get("status") == "passed")
-        suite_failed = sum(1 for t in tests if t.get("status") == "failed")
-        suite_not_started = sum(1 for t in tests if t.get("status") == "not_started")
-        suites.append({
-            "name": suite_name,
-            "total": len(tests),
-            "passed": suite_passed,
-            "failed": suite_failed,
-            "not_started": suite_not_started,
-            "status": suite_data.get("status", "unknown"),
-        })
-
-    # Append prod smoke suite to the list (shown as a separate row in the email)
-    if prod_smoke_suite:
-        ps_tests = prod_smoke_suite.get("tests", [])
-        suites.append({
-            "name": "playwright_prod_smoke",
-            "total": len(ps_tests),
-            "passed": sum(1 for t in ps_tests if t.get("status") == "passed"),
-            "failed": sum(1 for t in ps_tests if t.get("status") == "failed"),
-            "not_started": sum(1 for t in ps_tests if t.get("status") == "not_started"),
-            "status": prod_smoke_suite.get("status", "unknown"),
-        })
-
-    # Build failed test entries for the email (one row per failing test)
-    failed_tests = []
-    for suite_name, suite_data in data.get("suites", {}).items():
-        if not isinstance(suite_data, dict):
-            continue
-        for t in suite_data.get("tests", []):
-            if t.get("status") == "failed":
-                error = t.get("error", "") or ""
-                failed_tests.append({
-                    "suite": suite_name,
-                    "name": t.get("name", t.get("file", "")),
-                    "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
-                })
-
-    # Append prod smoke failures
-    if prod_smoke_suite:
-        for t in prod_smoke_suite.get("tests", []):
-            if t.get("status") == "failed":
-                error = t.get("error", "") or ""
-                failed_tests.append({
-                    "suite": "playwright_prod_smoke",
-                    "name": t.get("name", t.get("file", "")),
-                    "error": error[:MAX_ERROR_SNIPPET_LEN] if error else None,
-                })
+    # Include claude analysis session ID if one was produced during this run
+    # (set by run-tests-daily.sh after calling start-claude-analysis).
+    claude_session_id = os.environ.get("CLAUDE_SESSION_ID", "").strip() or None
 
     # Dispatch via internal API endpoint.
-    # When running on the host (via docker+chroot from admin-sidecar), use
-    # localhost:8000 since port 8000 is forwarded from the API container.
+    # When running on the host (via crontab), use localhost:8000 since
+    # port 8000 is forwarded from the API container.
     api_url = os.environ.get(
         "INTERNAL_API_URL",
         "http://localhost:8000",
     ).rstrip("/") + "/internal/dispatch-test-summary-email"
     payload = {
         "recipient_email": admin_email,
-        "environment": environment,
-        "run_id": data.get("run_id", ""),
-        "git_sha": data.get("git_sha", ""),
-        "git_branch": data.get("git_branch", ""),
-        "duration_seconds": int(data.get("duration_seconds", 0)),
-        "total": total,
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "not_started": not_started,
-        "suites": suites,
-        "failed_tests": failed_tests,
+        **normalized_payload,
+        "claude_session_id": claude_session_id,
     }
 
     try:
@@ -267,7 +312,7 @@ def dispatch_email() -> None:
             resp.read()  # consume response body
             print(
                 f"[daily-runner] Email task dispatched successfully via internal API "
-                f"(failed={failed}, total={total}, recipient={admin_email})"
+                f"(failed={normalized_payload['failed']}, total={normalized_payload['total']}, recipient={admin_email})"
             )
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
@@ -279,6 +324,66 @@ def dispatch_email() -> None:
         sys.exit(1)
     except Exception as e:
         print(f"[daily-runner] ERROR dispatching email via internal API: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def dispatch_openobserve_test_run() -> None:
+    """
+    Push the daily test-run result to OpenObserve via internal API bridge.
+
+    This is intentionally non-fatal in run-tests-daily.sh so observability
+    ingestion issues do not block test execution or email notifications.
+    """
+    results_dir = os.environ.get("RESULTS_DIR", "test-results")
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    dot_env = _read_env_file(project_root)
+
+    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN") or dot_env.get("INTERNAL_API_SHARED_TOKEN", "")
+    environment = os.environ.get("DAILY_RUN_ENVIRONMENT", "development")
+
+    if not internal_token:
+        print(
+            "[daily-runner] ERROR: INTERNAL_API_SHARED_TOKEN not set — cannot push test run to OpenObserve.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    payload = _build_test_run_payload(results_dir, environment)
+
+    api_url = os.environ.get(
+        "INTERNAL_API_URL",
+        "http://localhost:8000",
+    ).rstrip("/") + "/internal/openobserve/push-test-run"
+
+    try:
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            api_url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Internal-Service-Token": internal_token,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+            print(
+                "[daily-runner] OpenObserve test-runs push succeeded "
+                f"(run_id={payload.get('run_id', '')}, failed={payload.get('failed', 0)}, total={payload.get('total', 0)})"
+            )
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        print(
+            f"[daily-runner] ERROR pushing test run to OpenObserve via internal API: "
+            f"HTTP {e.code} — {err_body[:500]}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except Exception as e:
+        print(f"[daily-runner] ERROR pushing test run to OpenObserve via internal API: {e}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -381,9 +486,113 @@ def dispatch_start_email() -> None:
         print(f"[daily-runner] WARNING: could not dispatch start email: {e}", file=sys.stderr)
 
 
+def start_claude_analysis() -> None:
+    """
+    Start a claude analysis session for test failures.
+
+    Reads the failed tests from last-failed-tests.json (written by split-results),
+    loads the prompt template from scripts/prompts/test-failure-analysis.md,
+    substitutes placeholders, then runs claude in plan mode.
+
+    Output convention (for run-tests-daily.sh to capture):
+        Prints "CLAUDE_SESSION_ID:<id>" to stdout when a session ID is found.
+
+    Only called when failed_count > 0. Non-fatal — does not abort the test run.
+    """
+    from datetime import datetime, timezone
+
+    results_dir = os.environ.get("RESULTS_DIR", "test-results")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+
+    # Load failed tests
+    failed_path = os.path.join(results_dir, "last-failed-tests.json")
+    if not os.path.isfile(failed_path):
+        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping claude analysis.", file=sys.stderr)
+        return
+
+    with open(failed_path) as f:
+        failed_data = json.load(f)
+
+    failed_tests = failed_data.get("tests", [])
+    run_id = failed_data.get("run_id", "unknown")
+
+    if not failed_tests:
+        print("[daily-runner] No failed tests in last-failed-tests.json — skipping claude analysis.", file=sys.stderr)
+        return
+
+    # Load last-run.json for git info
+    last_run_path = os.path.join(results_dir, "last-run.json")
+    git_sha = "unknown"
+    git_branch = "unknown"
+    total_count = 0
+    if os.path.isfile(last_run_path):
+        with open(last_run_path) as f:
+            last_run = json.load(f)
+        git_sha = last_run.get("git_sha", "unknown")
+        git_branch = last_run.get("git_branch", "unknown")
+        total_count = last_run.get("summary", {}).get("total", 0)
+
+    failed_count = len(failed_tests)
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Load prompt template
+    prompt_template_path = os.path.join(script_dir, "prompts", "test-failure-analysis.md")
+    if not os.path.isfile(prompt_template_path):
+        print(
+            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping claude analysis.",
+            file=sys.stderr,
+        )
+        return
+
+    with open(prompt_template_path) as f:
+        prompt_template = f.read()
+
+    # Build a compact JSON representation of failures (cap at 20 to keep prompt size reasonable)
+    MAX_FAILURES_IN_PROMPT = 20
+    truncated = failed_tests[:MAX_FAILURES_IN_PROMPT]
+    failed_tests_json = json.dumps(truncated, indent=2)
+
+    # Substitute placeholders
+    prompt = (
+        prompt_template
+        .replace("{{DATE}}", date_str)
+        .replace("{{RUN_ID}}", run_id)
+        .replace("{{GIT_SHA}}", git_sha)
+        .replace("{{GIT_BRANCH}}", git_branch)
+        .replace("{{FAILED_COUNT}}", str(failed_count))
+        .replace("{{TOTAL_COUNT}}", str(total_count))
+        .replace("{{FAILED_TESTS_JSON}}", failed_tests_json)
+    )
+
+    session_title = f"test-failures {date_str}"
+    print(f"[daily-runner] Running claude analysis for {failed_count} failed test(s)...")
+
+    # Non-fatal: test run email is already sent; this is a best-effort analysis session.
+    try:
+        _, session_id = run_claude_session(
+            prompt=prompt,
+            session_title=session_title,
+            project_root=project_root,
+            log_prefix="[daily-runner]",
+            agent="plan",
+            timeout=600,
+            job_type="test-analysis",
+            context_summary=f"{failed_count} test(s) failed (run_id={run_id})",
+        )
+        if session_id:
+            # Emit parseable line for run-tests-daily.sh to capture via grep
+            print(f"CLAUDE_SESSION_ID:{session_id}")
+    except Exception as e:
+        print(f"[daily-runner] WARNING: claude analysis failed: {e} (non-fatal)", file=sys.stderr)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email>", file=sys.stderr)
+        print(
+            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-claude-analysis>",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     command = sys.argv[1]
@@ -393,6 +602,10 @@ if __name__ == "__main__":
         dispatch_start_email()
     elif command == "dispatch-email":
         dispatch_email()
+    elif command == "dispatch-openobserve-test-run":
+        dispatch_openobserve_test_run()
+    elif command == "start-claude-analysis":
+        start_claude_analysis()
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         sys.exit(1)

@@ -1012,7 +1012,7 @@ export async function sendNewMessageImpl(
       const { extractMentionedSettingsMemoriesCleartext } =
         await import("./mentionedSettingsMemoriesCleartext");
       const mentionedCleartext =
-        extractMentionedSettingsMemoriesCleartext(contentForServer);
+        await extractMentionedSettingsMemoriesCleartext(contentForServer);
       const keys = Object.keys(mentionedCleartext);
       if (keys.length > 0) {
         payload.mentioned_settings_memories_cleartext = mentionedCleartext;
@@ -1034,7 +1034,7 @@ export async function sendNewMessageImpl(
   // so we decrypt it here and send the plaintext focus_id to the server for AI context.
   if (!isIncognitoChat && chat?.encrypted_active_focus_id) {
     try {
-      const chatKey = chatDB.getChatKey(message.chat_id);
+      const chatKey = await chatKeyManager.getKey(message.chat_id);
       if (chatKey) {
         const { decryptWithChatKey } = await import("./cryptoService");
         const activeFocusId = await decryptWithChatKey(
@@ -1127,6 +1127,7 @@ export async function sendNewMessageImpl(
 
         const {
           generateEmbedKey,
+          deriveEmbedKeyFromChatKey,
           encryptWithEmbedKey,
           wrapEmbedKeyWithMasterKey,
           wrapEmbedKeyWithChatKey,
@@ -1208,8 +1209,17 @@ export async function sendNewMessageImpl(
                 continue;
               }
 
-              // Generate unique embed key for this embed
-              const embedKey = generateEmbedKey();
+              // Derive embed key deterministically from chat key — all tabs produce the same result.
+              // This prevents multi-tab race conditions where different tabs generate different
+              // random keys for the same embed (causing permanent key/content mismatch on reload).
+              let embedKey: Uint8Array;
+              if (chatKey) {
+                embedKey = await deriveEmbedKeyFromChatKey(chatKey, embed.embed_id);
+              } else {
+                // Fallback to random (should not happen — chatKey is validated above)
+                embedKey = generateEmbedKey();
+                console.warn(`[ChatSyncService:Senders] ⚠️ Chat key unavailable for HKDF, using random key for embed ${embed.embed_id}`);
+              }
               const hashedEmbedId = await computeSHA256(embed.embed_id);
 
               // Encrypt embed data with the embed key
@@ -1933,6 +1943,13 @@ export async function sendEncryptedStoragePackage(
   }
   serviceInstance.markMessageSyncing(messageId);
 
+  // CRITICAL FIX: Acquire critical operation lock to prevent clearAll() from wiping
+  // the key cache mid-flight. Without this lock, an auth disruption (e.g. token expiry
+  // triggering WebSocket "Authentication failed") calls clearAll() which wipes keys.
+  // This function then falls through to CASE 2 (new key generation), creating key K2
+  // while the user message in IDB was encrypted with K1 — permanent decryption failure.
+  chatKeyManager.acquireCriticalOp();
+
   try {
     const {
       chat_id,
@@ -1971,7 +1988,7 @@ export async function sendEncryptedStoragePackage(
 
     let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
     // Prefer any cached chat key first (covers hidden chats already unlocked).
-    let chatKey: Uint8Array | null = chatDB.getChatKey(chat_id);
+    let chatKey: Uint8Array | null = await chatKeyManager.getKey(chat_id);
 
     if (!chatKey && encryptedChatKey) {
       // CASE 1: encrypted_chat_key exists - MUST decrypt it to get the original key
@@ -2036,31 +2053,67 @@ export async function sendEncryptedStoragePackage(
 
     if (!encryptedChatKey) {
       // CASE 2: No encrypted_chat_key - this is a new chat, generate and save key
+      // SAFETY: Re-read IDB before generating a new key. Another tab or a deferred
+      // write from this tab might have stored encrypted_chat_key since our first read.
+      const freshChat = await chatDB.getChat(chat_id);
+      const freshEncKey = freshChat?.encrypted_chat_key;
+      if (freshEncKey) {
+        console.info(
+          `[ChatSyncService:Senders] encrypted_chat_key appeared on re-read for ${chat_id} — using existing key instead of generating`,
+        );
+        encryptedChatKey = freshEncKey;
+        if (!chatKey) {
+          const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
+          chatKey = await decryptChatKeyWithMasterKey(freshEncKey);
+          if (chatKey) {
+            chatDB.setChatKey(chat_id, chatKey);
+          }
+        }
+      }
+    }
+
+    if (!encryptedChatKey) {
       console.warn(
         `[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating new key (new chat)`,
       );
-      // CASE 2: New chat on originating device — safe to create key
+      // New chat on originating device — use atomic createAndPersistKey to ensure
+      // the key is persisted to IDB before any data is encrypted with it.
+      // This prevents the race where key K1 is in memory but not in IDB, a
+      // disruption wipes memory, and a new key K2 is generated.
       if (!chatKey) {
-        chatKey =
-          chatKeyManager.getKeySync(chat_id) ||
-          chatKeyManager.createKeyForNewChat(chat_id);
+        chatKey = chatKeyManager.getKeySync(chat_id);
       }
 
-      // Encrypt and save the new key
-      const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
-      encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-
-      if (encryptedChatKey) {
-        // Update chat in DB with the encrypted key
-        chat.encrypted_chat_key = encryptedChatKey;
-        await chatDB.updateChat(chat);
-        console.log(
-          `[ChatSyncService:Senders] ✅ Generated and saved encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
-        );
+      if (!chatKey) {
+        try {
+          const result = await chatKeyManager.createAndPersistKey(chat_id);
+          chatKey = result.chatKey;
+          encryptedChatKey = result.encryptedChatKey;
+          chat.encrypted_chat_key = encryptedChatKey;
+          console.log(
+            `[ChatSyncService:Senders] ✅ Atomically created and persisted key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
+          );
+        } catch (error) {
+          console.error(
+            `[ChatSyncService:Senders] ❌ Failed to create/persist chat key for ${chat_id}:`,
+            error,
+          );
+        }
       } else {
-        console.error(
-          `[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`,
-        );
+        // Key found in memory but not persisted — encrypt and save
+        const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
+        encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+        if (encryptedChatKey) {
+          chat.encrypted_chat_key = encryptedChatKey;
+          await chatDB.updateChat(chat);
+          console.log(
+            `[ChatSyncService:Senders] ✅ Persisted existing key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`,
+          );
+        } else {
+          console.error(
+            `[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`,
+          );
+        }
       }
     }
 
@@ -2287,6 +2340,9 @@ export async function sendEncryptedStoragePackage(
     );
     // Unmark on error so a legitimate retry can proceed
     serviceInstance.unmarkMessageSyncing(messageId);
+  } finally {
+    // CRITICAL: Always release the lock so deferred clearAll() can proceed.
+    chatKeyManager.releaseCriticalOp();
   }
 }
 

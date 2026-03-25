@@ -9,6 +9,7 @@ Passkey Management - View, rename, delete, and add passkeys
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { createEventDispatcher } from 'svelte';
+    import SettingsInput from './elements/SettingsInput.svelte';
     import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64 } from '../../services/cryptoService';
     import { getMasterKeyFromIndexedDB, isDeviceTrusted } from '../../services/cryptoKeyStorage';
     import { userProfile } from '../../stores/userProfile';
@@ -604,17 +605,13 @@ Passkey Management - View, rename, delete, and add passkeys
                     {#if editingPasskeyId === passkey.id}
                         <!-- Edit Mode -->
                         <div class="edit-form">
-                            <input
+                            <SettingsInput
                                 type="text"
                                 bind:value={editingDeviceName}
                                 placeholder="Device name"
-                                class="device-name-input"
-                                onkeydown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        saveRename(passkey.id);
-                                    } else if (e.key === 'Escape') {
-                                        cancelEdit();
-                                    }
+                                onKeydown={(e) => {
+                                    if (e.key === 'Enter') saveRename(passkey.id);
+                                    else if (e.key === 'Escape') cancelEdit();
                                 }}
                             />
                             <div class="edit-actions">
@@ -815,13 +812,6 @@ Passkey Management - View, rename, delete, and add passkeys
         display: flex;
         flex-direction: column;
         gap: 10px;
-    }
-
-    .device-name-input {
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
     }
 
     .edit-actions,

@@ -5,21 +5,21 @@ via:
   zh: 通过
   es: vía
   fr: via
-  pt: ''
-  ru: ''
+  pt: via
+  ru: через
   ja: 経由
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 통해
+  it: tramite
+  tr: aracılığıyla
+  vi: qua
+  id: melalui
+  pl: przez
+  nl: via
+  ar: عبر
+  hi: के माध्यम से
+  th: ผ่าน
+  cs: přes
+  sv: via
   he: דרך
   verified_by_human: []
 web:
@@ -29,21 +29,21 @@ web:
   zh: 网页
   es: Web
   fr: Web
-  pt: ''
-  ru: ''
+  pt: Web
+  ru: Веб
   ja: ウェブ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 웹
+  it: Web
+  tr: Web
+  vi: Web
+  id: Web
+  pl: Web
+  nl: Web
+  ar: الويب
+  hi: वेब
+  th: เว็บ
+  cs: Web
+  sv: Webb
   he: Web
   verified_by_human: []
 mattermost:
@@ -53,21 +53,21 @@ mattermost:
   zh: Mattermost
   es: Mattermost
   fr: Mattermost
-  pt: ''
-  ru: ''
+  pt: Mattermost
+  ru: Mattermost
   ja: Mattermost
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: Mattermost
+  it: Mattermost
+  tr: Mattermost
+  vi: Mattermost
+  id: Mattermost
+  pl: Mattermost
+  nl: Mattermost
+  ar: Mattermost
+  hi: Mattermost
+  th: Mattermost
+  cs: Mattermost
+  sv: Mattermost
   he: Mattermost
   verified_by_human: []
 discord:
@@ -77,21 +77,21 @@ discord:
   zh: Discord
   es: Discord
   fr: Discord
-  pt: ''
-  ru: ''
+  pt: Discord
+  ru: Discord
   ja: Discord
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: Discord
+  it: Discord
+  tr: Discord
+  vi: Discord
+  id: Discord
+  pl: Discord
+  nl: Discord
+  ar: Discord
+  hi: Discord
+  th: Discord
+  cs: Discord
+  sv: Discord
   he: Discord
   verified_by_human: []
 and_more:
@@ -101,20 +101,20 @@ and_more:
   zh: 及更多
   es: y más
   fr: et plus
-  pt: ''
-  ru: ''
+  pt: e mais
+  ru: и другие
   ja: など
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 및 더 보기
+  it: e altro
+  tr: ve daha fazlası
+  vi: và nhiều hơn
+  id: dan lainnya
+  pl: i więcej
+  nl: en meer
+  ar: وأكثر
+  hi: और अधिक
+  th: และอื่นๆ
+  cs: a další
+  sv: och mer
   he: ועוד
   verified_by_human: []

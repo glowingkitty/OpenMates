@@ -222,7 +222,7 @@
             settingsPath: `app_store/${appId}/settings_memories/${categoryId}/create`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
-            title: $text('settings.app_settings_memories.add_entry')
+            title: $text('common.add_entry')
         });
     }
     
@@ -318,7 +318,7 @@
         const now = Math.floor(Date.now() / 1000);
         const diff = now - timestamp;
         
-        if (diff < 60) return $text('settings.app_settings_memories.just_now');
+        if (diff < 60) return $text('common.just_now');
         if (diff < 3600) {
             const mins = Math.floor(diff / 60);
             return `${mins}m ago`;
@@ -411,7 +411,7 @@
                         <SettingsItem
                             type="submenu"
                             icon={getCategoryIconName(category?.icon_image)}
-                            iconType="memory"
+                            iconColor="var(--icon-memory-background)"
                             title={entryTitle}
                             subtitleBottom={entrySubtitle}
                             hasModifyButton={true}
@@ -427,7 +427,7 @@
                 <SettingsItem
                     type="submenu"
                     icon="create"
-                    title={$text('settings.app_settings_memories.add_entry')}
+                    title={$text('common.add_entry')}
                     onClick={handleAddEntry}
                 />
             </div>
@@ -448,7 +448,7 @@
                         <SettingsItem
                             type="submenu"
                             icon={getCategoryIconName(category?.icon_image)}
-                            iconType="memory"
+                            iconColor="var(--icon-memory-background)"
                             title={$text(exampleKey)}
                             onClick={() => handleExampleClick(index, exampleKey)}
                         />

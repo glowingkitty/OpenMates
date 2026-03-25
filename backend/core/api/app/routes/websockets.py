@@ -35,12 +35,14 @@ from .handlers.websocket_handlers.post_processing_metadata_handler import handle
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
+from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
+from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
@@ -1458,13 +1460,29 @@ async def listen_for_user_updates(app: FastAPI):
                         f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
                     )
                     continue
-                
+
+                # For force_logout events, exclude the revoking device's WebSocket
+                # connection so the device that initiated the revocation does not
+                # receive the event and does not log itself out.
+                # exclude_connection_hash is a server-internal routing hint stored
+                # in the Redis payload by auth_sessions.py — it must never be
+                # forwarded to clients (it is only used here for routing).
+                exclude_connection_hash: Optional[str] = None
+                if event_for_client == "force_logout":
+                    exclude_connection_hash = redis_payload.get("exclude_connection_hash")
+                    if exclude_connection_hash:
+                        logger.debug(
+                            f"User Updates Listener: force_logout for user {user_id_uuid} — "
+                            f"excluding revoking connection {exclude_connection_hash[:8]}..."
+                        )
+
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
                 await manager.broadcast_to_user_specific_event(
                     user_id=user_id_uuid,
                     event_name=event_for_client,
-                    payload=client_payload
+                    payload=client_payload,
+                    exclude_device_hash=exclude_connection_hash,
                 )
                 logger.debug(
                     f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
@@ -2332,6 +2350,19 @@ async def websocket_endpoint(
                     payload=payload
                 )
 
+            elif message_type == "delete_app_settings_memories_entry":
+                # Handle deletion of an app settings/memories entry
+                # Deletes from Directus and broadcasts to other devices for cross-device sync
+                await handle_delete_app_settings_memories_entry(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
             elif message_type == "scroll_position_update":
                 # Handle scroll position updates
                 chat_id = payload.get("chat_id")
@@ -2463,6 +2494,18 @@ async def websocket_endpoint(
 
             elif message_type == "load_more_chats":
                 await handle_load_more_chats(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "sync_metadata_chats":
+                await handle_sync_metadata_chats(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

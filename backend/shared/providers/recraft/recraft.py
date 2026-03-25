@@ -15,6 +15,8 @@
 # Authentication: Bearer token stored in Vault at kv/data/providers/recraft
 
 import logging
+from typing import Optional
+
 import httpx
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -37,6 +39,7 @@ async def generate_vector_recraft(
     secrets_manager: SecretsManager,
     model_id: str = RECRAFT_MODEL_DEFAULT,
     size: str = "1:1",
+    style_id: Optional[str] = None,
 ) -> bytes:
     """
     Generate an SVG vector image using the Recraft V4 API.
@@ -83,6 +86,8 @@ async def generate_vector_recraft(
         "response_format": "url",  # returns {"data": [{"url": "..."}]}
         "n": 1,
     }
+    if style_id:
+        payload["style_id"] = style_id
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -136,6 +141,7 @@ async def generate_raster_recraft(
     secrets_manager: SecretsManager,
     model_id: str = RECRAFT_RASTER_MODEL_DEFAULT,
     size: str = "1:1",
+    style_id: Optional[str] = None,
 ) -> bytes:
     """
     Generate a raster (PNG) image using the Recraft V4 API.
@@ -190,6 +196,8 @@ async def generate_raster_recraft(
         "response_format": "url",  # returns {"data": [{"url": "..."}]}
         "n": 1,
     }
+    if style_id:
+        payload["style_id"] = style_id
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:

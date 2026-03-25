@@ -1,5 +1,6 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
 import logging
+import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 
@@ -702,7 +703,8 @@ async def _handle_phase2_sync(
     CACHE-FIRST: Uses cached chat list from predictive cache warming for instant sync.
     """
     logger.info(f"Processing Phase 2 sync for user {user_id}")
-    
+    phase2_start = time.perf_counter()
+
     try:
         # CACHE-FIRST STRATEGY: Get last 20 chat IDs from Redis cache (already populated by cache warming)
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=19, with_scores=False)
@@ -719,14 +721,16 @@ async def _handle_phase2_sync(
             )
         else:
             logger.info(f"Phase 2: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
-            # Build chat wrappers from cache
+            # Build chat wrappers from cache — batch Redis lookups for all chats at once
             all_recent_chats = []
             chat_ids_needing_directus_fetch = []
 
+            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
+            batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
+
             for chat_id in cached_chat_ids:
-                # Get chat metadata from cache
-                cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                cached_list_item = batch_list_items.get(chat_id)
+                cached_versions = batch_versions.get(chat_id)
 
                 if not cached_list_item or not cached_versions:
                     logger.warning(f"Phase 2: Incomplete cache data for chat {chat_id} (list_item: {bool(cached_list_item)}, versions: {bool(cached_versions)}), will fetch from Directus")
@@ -763,15 +767,14 @@ async def _handle_phase2_sync(
                 }
                 all_recent_chats.append(chat_wrapper)
 
-            # Fetch missing chats from Directus if needed
+            # Fetch missing chats from Directus in a single batch query
             if chat_ids_needing_directus_fetch:
                 logger.info(f"Phase 2: Fetching {len(chat_ids_needing_directus_fetch)} chats with incomplete cache from Directus")
                 try:
-                    # Fetch each chat's metadata and versions from Directus
+                    batch_metadata = await directus_service.chat.get_chats_metadata_batch(chat_ids_needing_directus_fetch)
                     for chat_id in chat_ids_needing_directus_fetch:
-                        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                        chat_metadata = batch_metadata.get(chat_id)
                         if chat_metadata:
-                            # Build chat wrapper with Directus data
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
@@ -803,7 +806,7 @@ async def _handle_phase2_sync(
                             logger.debug(f"Phase 2: Added chat {chat_id} from Directus fallback")
                         else:
                             logger.warning(f"Phase 2: Could not fetch chat {chat_id} from Directus")
-                    logger.info(f"Phase 2: Added {len([c for c in all_recent_chats if c['chat_details']['id'] in chat_ids_needing_directus_fetch])} chats from Directus fallback")
+                    logger.info(f"Phase 2: Added {len(batch_metadata)} chats from Directus batch fallback")
                 except Exception as e:
                     logger.error(f"Phase 2: Failed to fetch chats from Directus: {e}", exc_info=True)
         
@@ -825,7 +828,7 @@ async def _handle_phase2_sync(
             return
         
         client_chat_ids_set = set(client_chat_ids)
-        
+
         # Filter chats to only include missing or outdated ones.
         # Version-matched chats are fully skipped — title_v already tracks title changes,
         # so there is no need to send a metadata-only wrapper for encrypted_title/category/icon.
@@ -833,69 +836,77 @@ async def _handle_phase2_sync(
         # "703 embeds / 0 skipped" flood that blocked the WebSocket for active users.
         chats_to_send = []
         chats_skipped = 0
-        
+
+        # Batch fetch versions for all chats that exist on the client (for delta comparison)
+        existing_chat_ids = [cw["chat_details"]["id"] for cw in all_recent_chats if cw["chat_details"]["id"] in client_chat_ids_set]
+        batch_server_versions = await cache_service.get_batch_chat_versions(user_id, existing_chat_ids) if existing_chat_ids else {}
+
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
             chat_is_missing = chat_id not in client_chat_ids_set
-            
+
             if not chat_is_missing:
                 # Client has the chat - check if it's up-to-date
-                cached_server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                cached_server_versions = batch_server_versions.get(chat_id)
                 client_versions = client_chat_versions.get(chat_id, {})
-                
+
                 if cached_server_versions:
                     client_messages_v = client_versions.get("messages_v", 0)
                     client_title_v = client_versions.get("title_v", 0)
-                    
+
                     # CRITICAL FIX: Use the higher of cache vs chat_details messages_v
                     # Cache may be stale if Celery task updated Directus but cache wasn't refreshed
                     chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
                     server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
                     server_title_v = cached_server_versions.title_v
-                    
+
                     # If both message and title versions are up-to-date, skip entirely.
                     # title_v covers all metadata fields (title, category, icon) so a version
                     # match means the client already has the correct encrypted metadata.
-                    if (client_messages_v >= server_messages_v and 
+                    if (client_messages_v >= server_messages_v and
                         client_title_v >= server_title_v):
                         logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date "
                                    f"(client: m={client_messages_v}, t={client_title_v}; "
                                    f"server: m={server_messages_v}, t={server_title_v})")
                         chats_skipped += 1
                         continue
-            
+
             # Chat is missing or outdated - add to send list with messages
             chats_to_send.append(chat_wrapper)
             logger.debug(f"Phase 2: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
-        
+
         logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} chats (skipped {chats_skipped} up-to-date)")
         
         if chats_to_send:
             # Try sync cache first, fallback to Directus
             messages_added_count = 0
             chat_ids_to_fetch_from_directus = []
-            
+
+            # Batch fetch versions for chats_to_send (reuse batch_server_versions if available, fetch missing)
+            send_chat_ids = [cw["chat_details"]["id"] for cw in chats_to_send]
+            batch_send_versions = await cache_service.get_batch_chat_versions(user_id, send_chat_ids) if send_chat_ids else {}
+
             # Try sync cache for each chat, but ONLY if messages are actually needed
             for chat_wrapper in chats_to_send:
                 chat_id = chat_wrapper["chat_details"]["id"]
-                
+
                 # CRITICAL FIX: Check if messages are actually needed before fetching
                 # A chat can be in chats_to_send because title_v is outdated, but messages_v might be up-to-date
                 # Skip fetching messages if client already has up-to-date messages (even if sync cache is empty)
                 client_versions = client_chat_versions.get(chat_id, {})
-                
-                # Get server versions from cache first, fallback to chat metadata if cache is empty
+
+                # Get server versions from batch fetch, fallback to chat metadata if cache is empty
                 # CRITICAL FIX: Use max(cache, chat_details) to avoid stale cache versions
-                server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                server_versions = batch_send_versions.get(chat_id)
                 chat_details_messages_v = chat_wrapper.get("chat_details", {}).get("messages_v", 0)
                 if not server_versions:
                     server_messages_v = chat_details_messages_v
                 else:
                     server_messages_v = max(server_versions.messages_v, chat_details_messages_v)
-                
+
                 if client_versions:
                     client_messages_v = client_versions.get("messages_v", 0)
-                    
+
                     # If client already has up-to-date messages, skip fetching entirely
                     # Client will use messages from IndexedDB
                     if client_messages_v >= server_messages_v:
@@ -904,7 +915,7 @@ async def _handle_phase2_sync(
                         try:
                             server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
                             chat_wrapper["server_message_count"] = server_message_count
-                            
+
                             # CRITICAL FIX: Version mismatch detection (same as Phase 1)
                             # If Directus has more messages than messages_v indicates,
                             # the version is stale — force full message fetch
@@ -1042,13 +1053,17 @@ async def _handle_phase2_sync(
         all_embed_keys = []
         seen_embed_key_ids = set()  # Deduplicate by id
         
-        # Collect all hashed_chat_ids for batch fetch
+        # Collect hashed_chat_ids for batch embed_keys fetch.
+        # CRITICAL: Use ALL chats (not just chats_to_send) because embed_keys may be
+        # missing from the client's IDB even when chat versions match (e.g., after cache
+        # clear, IDB corruption, or new device). Without this, version-matched chats
+        # never get their embed_keys re-delivered, permanently breaking embed decryption.
         hashed_chat_ids_for_keys = []
-        for chat_wrapper in chats_to_send:
+        for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
                 hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
-        
+
         if hashed_chat_ids_for_keys:
             try:
                 # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
@@ -1061,9 +1076,9 @@ async def _handle_phase2_sync(
                             seen_embed_key_ids.add(key_id)
             except Exception as e:
                 logger.warning(f"Phase 2: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
-        
+
         if all_embed_keys:
-            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats (batch optimized)")
+            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(all_recent_chats)} chats (batch optimized, includes version-matched)")
         
         # Send Phase 2 data to client (only chats that need updating)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
@@ -1082,8 +1097,9 @@ async def _handle_phase2_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys, skipped: {chats_skipped}")
-        
+        phase2_elapsed = time.perf_counter() - phase2_start
+        logger.info(f"Phase 2 sync complete for user {user_id} in {phase2_elapsed:.3f}s, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys, skipped: {chats_skipped}")
+
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
 
@@ -1107,7 +1123,8 @@ async def _handle_phase3_sync(
     CACHE-FIRST: Uses cached chat list from predictive cache warming for instant sync.
     """
     logger.info(f"Processing Phase 3 sync for user {user_id}")
-    
+    phase3_start = time.perf_counter()
+
     try:
         # CACHE-FIRST STRATEGY: Get last 100 chat IDs from Redis cache (already populated by cache warming)
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
@@ -1134,14 +1151,16 @@ async def _handle_phase3_sync(
             )
         else:
             logger.info(f"Phase 3: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
-            # Build chat wrappers from cache
+            # Build chat wrappers from cache — batch Redis lookups for all chats at once
             all_chats_from_server = []
             chat_ids_needing_directus_fetch = []
 
+            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
+            batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
+
             for chat_id in cached_chat_ids:
-                # Get chat metadata from cache
-                cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                cached_list_item = batch_list_items.get(chat_id)
+                cached_versions = batch_versions.get(chat_id)
 
                 if not cached_list_item or not cached_versions:
                     logger.warning(f"Phase 3: Incomplete cache data for chat {chat_id} (list_item: {bool(cached_list_item)}, versions: {bool(cached_versions)}), will fetch from Directus")
@@ -1178,15 +1197,14 @@ async def _handle_phase3_sync(
                 }
                 all_chats_from_server.append(chat_wrapper)
 
-            # Fetch missing chats from Directus if needed
+            # Fetch missing chats from Directus in a single batch query
             if chat_ids_needing_directus_fetch:
                 logger.info(f"Phase 3: Fetching {len(chat_ids_needing_directus_fetch)} chats with incomplete cache from Directus")
                 try:
-                    # Fetch each chat's metadata and versions from Directus
+                    batch_metadata = await directus_service.chat.get_chats_metadata_batch(chat_ids_needing_directus_fetch)
                     for chat_id in chat_ids_needing_directus_fetch:
-                        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                        chat_metadata = batch_metadata.get(chat_id)
                         if chat_metadata:
-                            # Build chat wrapper with Directus data
                             chat_wrapper = {
                                 "chat_details": {
                                     "id": chat_id,
@@ -1218,7 +1236,7 @@ async def _handle_phase3_sync(
                             logger.debug(f"Phase 3: Added chat {chat_id} from Directus fallback")
                         else:
                             logger.warning(f"Phase 3: Could not fetch chat {chat_id} from Directus")
-                    logger.info(f"Phase 3: Added {len([c for c in all_chats_from_server if c['chat_details']['id'] in chat_ids_needing_directus_fetch])} chats from Directus fallback")
+                    logger.info(f"Phase 3: Added {len(batch_metadata)} chats from Directus batch fallback")
                 except Exception as e:
                     logger.error(f"Phase 3: Failed to fetch chats from Directus: {e}", exc_info=True)
         
@@ -1227,43 +1245,47 @@ async def _handle_phase3_sync(
             # Send empty phase 3 completion
         
         client_chat_ids_set = set(client_chat_ids)
-        
+
         # Filter chats to only include missing or outdated ones.
         # Version-matched chats are fully skipped — title_v already tracks title changes,
         # so there is no need to send a metadata-only wrapper for encrypted_title/category/icon.
         # See Phase 2 for detailed rationale.
         chats_to_send = []
         chats_skipped = 0
-        
+
         if all_chats_from_server:
+            # Batch fetch versions for all chats that exist on the client (for delta comparison)
+            existing_chat_ids_p3 = [cw["chat_details"]["id"] for cw in all_chats_from_server if cw["chat_details"]["id"] in client_chat_ids_set]
+            batch_server_versions_p3 = await cache_service.get_batch_chat_versions(user_id, existing_chat_ids_p3) if existing_chat_ids_p3 else {}
+
             for chat_wrapper in all_chats_from_server:
                 chat_id = chat_wrapper["chat_details"]["id"]
                 chat_is_missing = chat_id not in client_chat_ids_set
-                
+
                 if not chat_is_missing:
                     # Client has the chat - check if it's up-to-date
-                    cached_server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                    cached_server_versions = batch_server_versions_p3.get(chat_id)
                     client_versions = client_chat_versions.get(chat_id, {})
-                    
+
                     if cached_server_versions:
                         client_messages_v = client_versions.get("messages_v", 0)
                         client_title_v = client_versions.get("title_v", 0)
-                        
+
                         # CRITICAL FIX: Use the higher of cache vs chat_details messages_v
                         # Cache may be stale if Celery task updated Directus but cache wasn't refreshed
                         chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
                         server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
                         server_title_v = cached_server_versions.title_v
-                        
+
                         # If both message and title versions are up-to-date, skip entirely.
-                        if (client_messages_v >= server_messages_v and 
+                        if (client_messages_v >= server_messages_v and
                             client_title_v >= server_title_v):
                             logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date "
                                        f"(client: m={client_messages_v}, t={client_title_v}; "
                                        f"server: m={server_messages_v}, t={server_title_v})")
                             chats_skipped += 1
                             continue
-                
+
                 # Chat is missing or outdated - add to send list with messages
                 chats_to_send.append(chat_wrapper)
                 logger.debug(f"Phase 3: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
@@ -1274,28 +1296,32 @@ async def _handle_phase3_sync(
                 # Try sync cache first, fallback to Directus
                 messages_added_count = 0
                 chat_ids_to_fetch_from_directus = []
-                
+
+                # Batch fetch versions for chats_to_send
+                send_chat_ids_p3 = [cw["chat_details"]["id"] for cw in chats_to_send]
+                batch_send_versions_p3 = await cache_service.get_batch_chat_versions(user_id, send_chat_ids_p3) if send_chat_ids_p3 else {}
+
                 # Try sync cache for each chat, but ONLY if messages are actually needed
                 for chat_wrapper in chats_to_send:
                     chat_id = chat_wrapper["chat_details"]["id"]
-                    
+
                     # CRITICAL FIX: Check if messages are actually needed before fetching
                     # A chat can be in chats_to_send because title_v is outdated, but messages_v might be up-to-date
                     # Skip fetching messages if client already has up-to-date messages (even if sync cache is empty)
                     client_versions = client_chat_versions.get(chat_id, {})
-                    
-                    # Get server versions from cache first, fallback to chat metadata if cache is empty
+
+                    # Get server versions from batch fetch, fallback to chat metadata if cache is empty
                     # CRITICAL FIX: Use max(cache, chat_details) to avoid stale cache versions
-                    server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                    server_versions = batch_send_versions_p3.get(chat_id)
                     chat_details_messages_v = chat_wrapper.get("chat_details", {}).get("messages_v", 0)
                     if not server_versions:
                         server_messages_v = chat_details_messages_v
                     else:
                         server_messages_v = max(server_versions.messages_v, chat_details_messages_v)
-                    
+
                     if client_versions:
                         client_messages_v = client_versions.get("messages_v", 0)
-                        
+
                         # If client already has up-to-date messages, skip fetching entirely
                         # Client will use messages from IndexedDB
                         if client_messages_v >= server_messages_v:
@@ -1304,7 +1330,7 @@ async def _handle_phase3_sync(
                             try:
                                 server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
                                 chat_wrapper["server_message_count"] = server_message_count
-                                
+
                                 # CRITICAL FIX: Version mismatch detection (same as Phase 1)
                                 # If Directus has more messages than messages_v indicates,
                                 # the version is stale — force full message fetch
@@ -1442,13 +1468,15 @@ async def _handle_phase3_sync(
         all_embed_keys = []
         seen_embed_key_ids = set()  # Deduplicate by id
         
-        # Collect all hashed_chat_ids for batch fetch
+        # Collect hashed_chat_ids for batch embed_keys fetch.
+        # CRITICAL: Use ALL chats (not just chats_to_send) — same rationale as Phase 2:
+        # embed_keys may be missing from client IDB even when chat versions match.
         hashed_chat_ids_for_keys = []
-        for chat_wrapper in chats_to_send:
+        for chat_wrapper in all_chats_from_server:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
                 hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
-        
+
         if hashed_chat_ids_for_keys:
             try:
                 # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
@@ -1461,9 +1489,9 @@ async def _handle_phase3_sync(
                             seen_embed_key_ids.add(key_id)
             except Exception as e:
                 logger.warning(f"Phase 3: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
-        
+
         if all_embed_keys:
-            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats (batch optimized)")
+            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(all_chats_from_server)} chats (batch optimized, includes version-matched)")
 
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
@@ -1484,8 +1512,9 @@ async def _handle_phase3_sync(
             device_fingerprint_hash
         )
 
-        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys (skipped: {chats_skipped})")
-        
+        phase3_elapsed = time.perf_counter() - phase3_start
+        logger.info(f"Phase 3 sync complete for user {user_id} in {phase3_elapsed:.3f}s, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys (skipped: {chats_skipped})")
+
         # Clear sync cache after successful Phase 3 completion (1h TTL, no longer needed)
         try:
             deleted_count = await cache_service.clear_all_sync_messages_for_user(user_id)

@@ -1682,30 +1682,120 @@ reminder.active_reminders.title:
   context: Heading for the active reminders list in reminder app settings
   en: Active Reminders
   de: Aktive Erinnerungen
+  zh: 活跃提醒
+  es: Recordatorios activos
+  fr: Rappels actifs
+  pt: Lembretes ativos
+  ru: Активные напоминания
+  ja: アクティブなリマインダー
+  ko: 활성 알림
+  it: Promemoria attivi
+  tr: Aktif hatırlatıcılar
+  vi: Nhắc nhở đang hoạt động
+  id: Pengingat aktif
+  pl: Aktywne przypomnienia
+  nl: Actieve herinneringen
+  ar: التذكيرات النشطة
+  hi: सक्रिय अनुस्मारक
+  th: การแจ้งเตือนที่ใช้งานอยู่
+  cs: Aktivní připomínky
+  sv: Aktiva påminnelser
   he: תזכורות פעילות
   verified_by_human: []
 reminder.active_reminders.empty:
   context: Message when user has no active reminders
   en: No active reminders
   de: Keine aktiven Erinnerungen
+  zh: 没有活跃提醒
+  es: Sin recordatorios activos
+  fr: Aucun rappel actif
+  pt: Nenhum lembrete ativo
+  ru: Нет активных напоминаний
+  ja: アクティブなリマインダーなし
+  ko: 활성 알림 없음
+  it: Nessun promemoria attivo
+  tr: Aktif hatırlatıcı yok
+  vi: Không có nhắc nhở đang hoạt động
+  id: Tidak ada pengingat aktif
+  pl: Brak aktywnych przypomnień
+  nl: Geen actieve herinneringen
+  ar: لا توجد تذكيرات نشطة
+  hi: कोई सक्रिय अनुस्मारक नहीं
+  th: ไม่มีการแจ้งเตือนที่ใช้งานอยู่
+  cs: Žádné aktivní připomínky
+  sv: Inga aktiva påminnelser
   he: אין תזכורות פעילות
   verified_by_human: []
 reminder.active_reminders.loading:
   context: Loading text while fetching reminders
   en: Loading reminders...
   de: Lade Erinnerungen...
+  zh: 正在加载提醒...
+  es: Cargando recordatorios...
+  fr: Chargement des rappels...
+  pt: Carregando lembretes...
+  ru: Загрузка напоминаний...
+  ja: リマインダーを読み込み中...
+  ko: 알림 불러오는 중...
+  it: Caricamento promemoria...
+  tr: Hatırlatıcılar yükleniyor...
+  vi: Đang tải nhắc nhở...
+  id: Memuat pengingat...
+  pl: Ładowanie przypomnień...
+  nl: Herinneringen laden...
+  ar: جارٍ تحميل التذكيرات...
+  hi: अनुस्मारक लोड हो रहे हैं...
+  th: กำลังโหลดการแจ้งเตือน...
+  cs: Načítání připomínek...
+  sv: Laddar påminnelser...
   he: טוען תזכורות...
   verified_by_human: []
 reminder.active_reminders.error:
   context: Error message when fetching reminders fails
   en: Could not load reminders
   de: Erinnerungen konnten nicht geladen werden
+  zh: 无法加载提醒
+  es: No se pudieron cargar los recordatorios
+  fr: Impossible de charger les rappels
+  pt: Não foi possível carregar os lembretes
+  ru: Не удалось загрузить напоминания
+  ja: リマインダーを読み込めませんでした
+  ko: 알림을 불러올 수 없음
+  it: Impossibile caricare i promemoria
+  tr: Hatırlatıcılar yüklenemedi
+  vi: Không thể tải nhắc nhở
+  id: Tidak dapat memuat pengingat
+  pl: Nie można załadować przypomnień
+  nl: Herinneringen kunnen niet worden geladen
+  ar: تعذّر تحميل التذكيرات
+  hi: अनुस्मारक लोड नहीं हो सके
+  th: ไม่สามารถโหลดการแจ้งเตือนได้
+  cs: Připomínky nelze načíst
+  sv: Kunde inte ladda påminnelser
   he: לא ניתן לטעון תזכורות
   verified_by_human: []
 reminder.active_reminders.repeating:
   context: Badge text for repeating reminders in the list
   en: Repeating
   de: Wiederkehrend
+  zh: 重复
+  es: Repetitivo
+  fr: Récurrent
+  pt: Repetindo
+  ru: Повторяющееся
+  ja: 繰り返し
+  ko: 반복
+  it: Ripetuto
+  tr: Tekrarlayan
+  vi: Lặp lại
+  id: Berulang
+  pl: Powtarzające się
+  nl: Herhalend
+  ar: متكرر
+  hi: दोहराना
+  th: ซ้ำ
+  cs: Opakující se
+  sv: Återkommande
   he: חוזרת
   verified_by_human: []
 openmates:

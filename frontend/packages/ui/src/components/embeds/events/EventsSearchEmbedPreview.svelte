@@ -99,18 +99,22 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Meetup');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<EventResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
+  let isLoadingChildren = $state(false);
 
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Meetup';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Meetup';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+    }
   });
 
   // Use local state as source of truth
@@ -138,6 +142,7 @@
     // Update status
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
 
     const content = data.decodedContent;
@@ -160,8 +165,9 @@
           const childEmbedIds: string[] = typeof embedIds === 'string'
             ? (embedIds as string).split('|').filter((eid: string) => eid.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[EventsSearchEmbedPreview] Loading child embeds for count (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedCount(childEmbedIds);
           }
         }
@@ -186,11 +192,13 @@
     } catch (error) {
       console.warn('[EventsSearchEmbedPreview] Error loading child embeds for count:', error);
       // Continue without results — preview will just show query/provider without count
+    } finally {
+      isLoadingChildren = false;
     }
   }
 
   // Get skill name from translations (reuse embeds.search key — "Search")
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
 
   // Use "search" icon (magnifying glass) matching WebSearch and TravelSearch conventions.
   // The app-level icon is "event" (calendar), but the search *skill* uses "search".
@@ -250,12 +258,16 @@
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
 
-      <!-- Finished state: show event count -->
-      {#if status === 'finished' && eventCount > 0}
+      <!-- Finished state: show event count or loading -->
+      {#if status === 'finished'}
         <div class="search-results-info">
-          <span class="event-count">
-            {$text('embeds.more_results').replace('{count}', String(eventCount))}
-          </span>
+          {#if eventCount > 0}
+            <span class="event-count">
+              {$text('embeds.more_results').replace('{count}', String(eventCount))}
+            </span>
+          {:else if isLoadingChildren}
+            <span class="loading-text">{$text('common.loading')}</span>
+          {/if}
         </div>
       {/if}
     </div>
@@ -326,6 +338,13 @@
 
   .events-search-details.mobile .search-results-info {
     margin-top: 2px;
+  }
+
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
   }
 
   /* Event count badge */

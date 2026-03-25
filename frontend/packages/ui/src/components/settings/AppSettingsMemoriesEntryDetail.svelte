@@ -772,12 +772,12 @@
                     >
                         {isSaving 
                             ? $text('settings.app_settings_memories.saving')
-                            : $text('settings.app_settings_memories.save')
+                            : $text('common.save')
                         }
                     </button>
                 {/if}
                 <button class="cancel-link" onclick={cancelEdit} disabled={isSaving} type="button">
-                    {$text('settings.app_settings_memories.cancel')}
+                    {$text('common.cancel')}
                 </button>
             </div>
             <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->
@@ -968,7 +968,6 @@
     input:focus,
     textarea:focus,
     select:focus {
-        outline: none;
         border-color: var(--color-primary);
         box-shadow: 0 0 0 3px rgba(0, 95, 163, 0.1);
     }

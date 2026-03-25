@@ -8,6 +8,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService # Import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_encryption_service # Add get_encryption_service
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 import time
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.tasks.celery_config import app as celery_app # Import the Celery app instance
@@ -15,7 +16,9 @@ from backend.core.api.app.tasks.celery_config import app as celery_app # Import 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/logout", response_model=LogoutResponse)
+# SECURITY: verify_allowed_origin prevents CSRF attacks — a cross-site form POST cannot
+# forge the Origin header, so logout cannot be triggered from an attacker-controlled page.
+@router.post("/logout", response_model=LogoutResponse, dependencies=[Depends(verify_allowed_origin)])
 async def logout(
     request: Request,
     response: Response,
@@ -162,7 +165,7 @@ async def logout(
         # Clear all auth cookies regardless of server response
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=True,
@@ -174,14 +177,15 @@ async def logout(
         # Still clear cookies on error
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=False,
             message="An error occurred during logout"
         )
 
-@router.post("/logout-all", response_model=LogoutResponse)
+# SECURITY: verify_allowed_origin prevents CSRF-triggered logout of all sessions.
+@router.post("/logout-all", response_model=LogoutResponse, dependencies=[Depends(verify_allowed_origin)])
 async def logout_all(
     request: Request,
     response: Response,
@@ -254,7 +258,7 @@ async def logout_all(
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=True,
@@ -266,14 +270,15 @@ async def logout_all(
         # Still clear cookies on error
         for cookie in request.cookies:
             if cookie.startswith("auth_"):
-                response.delete_cookie(key=cookie, httponly=True, secure=True)
+                response.delete_cookie(key=cookie, httponly=True, secure=True, samesite="lax", path="/")
         
         return LogoutResponse(
             success=False,
             message="An error occurred during logout-all operation"
         )
 
-@router.post("/policy-violation-logout")
+# SECURITY: verify_allowed_origin prevents CSRF-triggered policy violation logout + cache wipe.
+@router.post("/policy-violation-logout", dependencies=[Depends(verify_allowed_origin)])
 async def policy_violation_logout(
     request: Request,
     response: Response,

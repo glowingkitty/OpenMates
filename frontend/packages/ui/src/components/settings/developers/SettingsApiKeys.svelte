@@ -2,6 +2,7 @@
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import {
         encryptWithMasterKeyDirect,
         decryptWithMasterKey,
@@ -11,6 +12,7 @@
         uint8ArrayToBase64,
     } from '../../../services/cryptoService';
     import { copyToClipboard as clipboardCopy } from '../../../utils/clipboardUtils';
+    import { focusTrap } from '../../../actions/focusTrap';
 
     const _dispatch = createEventDispatcher();
 
@@ -43,6 +45,8 @@
         try {
             loading = true;
             error = '';
+            // Keep this endpoint aligned with CLI safety gates:
+            // frontend/packages/openmates-cli/src/client.ts (BLOCKED_SETTINGS_POST_PATHS)
             const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
                 method: 'GET',
                 headers: {
@@ -242,13 +246,14 @@
     }
 </script>
 
-<div class="api-keys-container">
+<div class="api-keys-container" data-testid="api-keys-container">
     <div class="header">
         <h2 class="title">{$text('settings.developers_api_keys')}</h2>
         <p class="description">{$text('settings.developers_api_keys_description')}</p>
 
         <button
             class="btn-create"
+            data-testid="api-key-create-button"
             onclick={() => showCreateForm = true}
             disabled={apiKeys.length >= 5}
         >
@@ -271,9 +276,9 @@
     {:else}
         <div class="api-keys-list">
             {#each apiKeys as key (key.id)}
-                <div class="api-key-item">
+                <div class="api-key-item" data-testid="api-key-item">
                     <div class="key-info">
-                        <h4 class="key-name">{key.name}</h4>
+                        <h4 class="key-name" data-testid="api-key-name">{key.name}</h4>
                         <p class="key-prefix">{key.key_prefix}</p>
                         <div class="key-meta">
                             <span>Created: {formatDate(key.created_at)}</span>
@@ -287,6 +292,7 @@
                     <div class="key-actions">
                         <button
                             class="btn-delete"
+                            data-testid="api-key-delete-button"
                             onclick={() => deleteApiKey(key.id, key.name)}
                         >
                             Delete
@@ -298,7 +304,7 @@
     {/if}
 
     {#if apiKeys.length >= 5}
-        <div class="limit-warning">
+        <div class="limit-warning" data-testid="api-key-limit-warning">
             You've reached the maximum number of API keys (5). Delete an existing key to create a new one.
         </div>
     {/if}
@@ -306,33 +312,29 @@
 
 <!-- Create API Key Modal -->
 {#if showCreateForm}
-    <div 
-        class="modal-overlay" 
-        role="button"
-        tabindex="0"
-        onclick={() => showCreateForm = false}
-        onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                showCreateForm = false;
-            }
-        }}
+    <div
+        class="modal-overlay"
+        role="presentation"
+        onmousedown={(e) => { if (e.target === e.currentTarget) showCreateForm = false; }}
     >
-        <div 
-            class="modal" 
-            role="presentation"
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
+        <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="apikey-create-title"
+            tabindex="-1"
+            use:focusTrap={{ onEscape: () => showCreateForm = false }}
+            onmousedown={(e) => e.stopPropagation()}
         >
-            <h3>Create New API Key</h3>
+            <h3 id="apikey-create-title">Create New API Key</h3>
             <p>Choose a name for your API key to help you remember what it's for.</p>
 
-            <input
+            <SettingsInput
                 type="text"
                 placeholder="e.g., My App Integration"
                 bind:value={newKeyName}
                 maxlength={100}
-                class="name-input"
+                dataTestid="api-key-name-input"
             />
 
             <div class="modal-actions">
@@ -357,29 +359,25 @@
 
 <!-- Show Created Key Modal -->
 {#if showCreatedKey}
-    <div 
-        class="modal-overlay" 
-        role="button"
-        tabindex="0"
-        onclick={() => showCreatedKey = false}
-        onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                showCreatedKey = false;
-            }
-        }}
+    <div
+        class="modal-overlay"
+        role="presentation"
+        onmousedown={(e) => { if (e.target === e.currentTarget) showCreatedKey = false; }}
     >
-        <div 
-            class="modal" 
-            role="presentation"
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
+        <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="apikey-created-title"
+            tabindex="-1"
+            use:focusTrap={{ onEscape: () => showCreatedKey = false }}
+            onmousedown={(e) => e.stopPropagation()}
         >
-            <h3>API Key Created</h3>
+            <h3 id="apikey-created-title">API Key Created</h3>
             <p><strong>Important:</strong> Copy this API key now. You won't be able to see it again!</p>
 
             <div class="created-key-container">
-                <code class="created-key">{createdKey}</code>
+                <code class="created-key" data-testid="api-key-created-value">{createdKey}</code>
                 <button
                     class="btn-copy"
                     onclick={() => copyToClipboard(createdKey)}
@@ -574,22 +572,6 @@
         color: var(--text-secondary);
         font-size: 14px;
         line-height: 1.5;
-    }
-
-    .name-input {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 14px;
-        margin-bottom: 20px;
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-    }
-
-    .name-input:focus {
-        outline: none;
-        border-color: var(--accent-color);
     }
 
     .modal-actions {

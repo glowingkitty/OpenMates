@@ -36,7 +36,7 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint } from './EmbedLeafletMap.svelte';
   import type { Snippet } from 'svelte';
 
@@ -60,6 +60,15 @@
     showChatButton?: boolean;
     onShowChat?: () => void;
 
+    // ── Child embed loading passthrough (for search-style map pages) ──
+    embedIds?: string | string[];
+    childEmbedTransformer?: (embedId: string, content: Record<string, unknown>) => unknown;
+    legacyResults?: unknown[];
+    onChildrenLoaded?: (children: unknown[]) => void;
+    initialChildEmbedId?: string;
+    onAutoOpenChild?: (index: number, children: unknown[]) => void;
+    onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
+
     // ── Map configuration ──
     /** Map center. If undefined, map is hidden and details-only layout is used. */
     mapCenter?: { lat: number; lon: number };
@@ -80,7 +89,7 @@
 
     // ── Consumer snippets ──
     /** The detail content to show in the left card (wide) or below map (narrow) */
-    detailContent: Snippet;
+    detailContent: Snippet<[ChildEmbedContext]>;
     /** Optional CTA area at the bottom of the detail card */
     ctaContent?: Snippet;
     /** Optional: custom content for the EmbedHeader CTA area */
@@ -106,6 +115,14 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
+
+    embedIds,
+    childEmbedTransformer,
+    legacyResults,
+    onChildrenLoaded,
+    initialChildEmbedId,
+    onAutoOpenChild,
+    onEmbedDataUpdated,
 
     // Map config
     mapCenter,
@@ -152,9 +169,16 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  {embedIds}
+  {childEmbedTransformer}
+  {legacyResults}
+  {onChildrenLoaded}
+  {initialChildEmbedId}
+  {onAutoOpenChild}
+  {onEmbedDataUpdated}
   {embedHeaderCta}
 >
-  {#snippet content()}
+  {#snippet content(childEmbedContext)}
     <div class="entry-map-layout" class:has-map={hasMap} class:no-map={!hasMap}>
       <!-- Map section -->
       {#if hasStaticImage}
@@ -186,7 +210,7 @@
       <!-- Detail card (overlaps map on wide, below map on narrow) -->
       <div class="detail-card" class:with-map={hasMap}>
         <div class="detail-content">
-          {@render detailContent()}
+          {@render detailContent(childEmbedContext)}
         </div>
 
         {#if ctaContent}

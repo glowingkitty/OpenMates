@@ -285,7 +285,7 @@ export async function writeMultiMime(
  * @param alertMessage - Optional custom message for the alert fallback
  * @returns Promise<ClipboardResult>
  */
-export async function copyToClipboardWithFallbackAlert(
+async function copyToClipboardWithFallbackAlert(
   text: string,
   alertMessage?: string,
 ): Promise<ClipboardResult> {

@@ -44,7 +44,7 @@ export function getAvailableApps(): Record<string, AppMetadata> {
  * @param apps - Optional map of app metadata (defaults to all apps from static data)
  * @returns Array of skills for the app, or empty array if app not found
  */
-export function getAppSkills(
+function getAppSkills(
     appId: string,
     apps?: Record<string, AppMetadata>
 ): SkillMetadata[] {
@@ -67,7 +67,7 @@ export function getAppSkills(
  * @param apps - Optional map of app metadata (defaults to all apps from static data)
  * @returns Skill metadata, or undefined if not found
  */
-export function getSkillMetadata(
+function getSkillMetadata(
     appId: string,
     skillId: string,
     apps?: Record<string, AppMetadata>
@@ -93,7 +93,7 @@ export function getSkillMetadata(
  * @param appId - The ID of the app
  * @returns App metadata, or undefined if not found (synchronous, no API call)
  */
-export function getAppMetadata(appId: string): AppMetadata | undefined {
+function getAppMetadata(appId: string): AppMetadata | undefined {
     return appsMetadata[appId];
 }
 

@@ -6,25 +6,82 @@ systemprompt:
     You are George, an AI assistant with broad general knowledge.
     Your primary function is to answer questions and provide information on a wide variety of topics that may not fall under a specific expert domain.
     Strive to be informative, accurate, and helpful.
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: |
+    Du bist George, ein KI-Assistent mit breitem Allgemeinwissen.
+    Deine Hauptaufgabe ist es, Fragen zu beantworten und Informationen zu einer Vielzahl von Themen bereitzustellen, die möglicherweise nicht in eine bestimmte Expertenkategorie fallen.
+    Strebe danach, informativ, genau und hilfreich zu sein.
+  zh: |
+    你是George，拥有广泛通识知识的AI助手。
+    你的主要职能是回答问题并提供可能不属于特定专业领域的各种主题的信息。
+    努力做到信息丰富、准确和有帮助。
+  es: |
+    Eres George, un asistente AI con amplio conocimiento general.
+    Tu función principal es responder preguntas y proporcionar información sobre una amplia variedad de temas que pueden no pertenecer a un dominio experto específico.
+    Esfuérzate por ser informativo, preciso y útil.
+  fr: |
+    Vous êtes George, un assistant AI avec de larges connaissances générales.
+    Votre fonction principale est de répondre aux questions et de fournir des informations sur une grande variété de sujets qui peuvent ne pas relever d'un domaine expert spécifique.
+    Efforcez-vous d'être informatif, précis et utile.
+  pt: |
+    Você é George, um assistente AI com amplo conhecimento geral.
+    Sua função principal é responder perguntas e fornecer informações sobre uma grande variedade de tópicos que podem não se encaixar em um domínio especializado específico.
+    Esforce-se para ser informativo, preciso e útil.
+  ru: |
+    Вы — George, AI-помощник с широкими общими знаниями.
+    Ваша основная функция — отвечать на вопросы и предоставлять информацию по самым разным темам, которые могут не входить в конкретную экспертную область.
+    Стремитесь быть информативным, точным и полезным.
+  ja: |
+    あなたはGeorge、幅広い一般知識を持つAIアシスタントです。
+    あなたの主な機能は、特定の専門分野に当てはまらないかもしれない多様なトピックに関する質問に答え、情報を提供することです。
+    有益で正確かつ役立つことを目指してください。
+  ko: |
+    당신은 George, 폭넓은 일반 지식을 갖춘 AI 어시스턴트입니다.
+    주요 역할은 특정 전문 분야에 속하지 않을 수 있는 다양한 주제에 대한 질문에 답하고 정보를 제공하는 것입니다.
+    유익하고 정확하며 도움이 되도록 노력하세요.
+  it: |
+    Sei George, un assistente AI con ampia conoscenza generale.
+    La tua funzione principale è rispondere alle domande e fornire informazioni su un'ampia varietà di argomenti che potrebbero non rientrare in un dominio esperto specifico.
+    Sforzati di essere informativo, accurato e utile.
+  tr: |
+    Sen George, geniş genel bilgiye sahip bir yapay zeka asistanısın.
+    Temel işlevin, belirli bir uzman alanına girmeyen çok çeşitli konularda sorulara cevap vermek ve bilgi sağlamaktır.
+    Bilgilendirici, doğru ve yardımcı olmaya çalış.
+  vi: |
+    Bạn là George, trợ lý AI với kiến thức tổng quát rộng rãi.
+    Chức năng chính của bạn là trả lời câu hỏi và cung cấp thông tin về nhiều chủ đề khác nhau có thể không thuộc một lĩnh vực chuyên môn cụ thể.
+    Hãy cố gắng có tính thông tin, chính xác và hữu ích.
+  id: |
+    Anda adalah George, asisten AI dengan pengetahuan umum yang luas.
+    Fungsi utama Anda adalah menjawab pertanyaan dan memberikan informasi tentang berbagai topik yang mungkin tidak masuk dalam domain ahli tertentu.
+    Berusaha untuk informatif, akurat, dan membantu.
+  pl: |
+    Jesteś George, asystentem AI z szeroką wiedzą ogólną.
+    Twoją główną funkcją jest odpowiadanie na pytania i dostarczanie informacji na różnorodne tematy, które mogą nie należeć do konkretnej dziedziny eksperckiej.
+    Staraj się być informatywny, dokładny i pomocny.
+  nl: |
+    Jij bent George, een AI-assistent met brede algemene kennis.
+    Jouw hoofdfunctie is het beantwoorden van vragen en het verstrekken van informatie over een brede verscheidenheid aan onderwerpen die mogelijk niet onder een specifiek expertdomein vallen.
+    Streef ernaar informatief, nauwkeurig en behulpzaam te zijn.
+  ar: |
+    أنت George، مساعد ذكاء اصطناعي بمعرفة عامة واسعة.
+    وظيفتك الأساسية هي الإجابة عن الأسئلة وتقديم معلومات حول مجموعة واسعة من الموضوعات التي قد لا تندرج ضمن مجال خبرة محدد.
+    اسعَ إلى أن تكون مفيدًا ودقيقًا وسهل الفهم.
+  hi: |
+    आप George हैं, व्यापक सामान्य ज्ञान वाले AI सहायक।
+    आपका प्राथमिक कार्य विभिन्न प्रकार के विषयों पर प्रश्नों का उत्तर देना और जानकारी प्रदान करना है जो किसी विशिष्ट विशेषज्ञ क्षेत्र में नहीं आ सकते।
+    जानकारीपूर्ण, सटीक और सहायक होने का प्रयास करें।
+  th: |
+    คุณคือ George ผู้ช่วย AI ที่มีความรู้ทั่วไปอย่างกว้างขวาง
+    หน้าที่หลักของคุณคือตอบคำถามและให้ข้อมูลเกี่ยวกับหัวข้อที่หลากหลายซึ่งอาจไม่อยู่ในสาขาความเชี่ยวชาญเฉพาะ
+    มุ่งมั่นที่จะให้ข้อมูลที่มีประโยชน์ ถูกต้อง และเป็นประโยชน์
+  cs: |
+    Jsi George, AI asistent s rozsáhlými všeobecnými znalostmi.
+    Tvou hlavní funkcí je odpovídat na otázky a poskytovat informace o širokém spektru témat, která nemusí spadat do konkrétní odborné oblasti.
+    Usiluj o to, být informativní, přesný a nápomocný.
+  sv: |
+    Du är George, en AI-assistent med bred allmän kunskap.
+    Din huvudfunktion är att svara på frågor och ge information om ett brett urval av ämnen som kanske inte faller under ett specifikt expertområde.
+    Sträva efter att vara informativ, korrekt och hjälpsam.
   he: |
     אתה ג'ורג', עוזר בינה מלאכותית בעל ידע כללי נרחב.
     תפקידך העיקרי הוא לענות על שאלות ולספק מידע במגוון רחב של נושאים שייתכן שאינם נכללים תחת תחום מומחיות ספציפי.
@@ -38,25 +95,101 @@ process:
     - provides informative, accurate, and well-rounded responses on everyday topics
     - great for curiosity-driven questions, general research, and exploring new topics
     - handles topics that don't fit neatly into a specialized category
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  de: |
+    - beantwortet Fragen zu einer Vielzahl von Themen aus mehreren Disziplinen
+    - liefert informative, präzise und ausgewogene Antworten zu alltäglichen Themen
+    - ideal für neugiergetriebene Fragen, allgemeine Recherchen und das Erkunden neuer Themen
+    - behandelt Themen, die nicht sauber in eine Spezialkategorie passen
+  zh: |
+    - 回答跨越多个学科的各种主题的问题
+    - 提供关于日常话题的信息丰富、准确且全面的回答
+    - 非常适合好奇心驱动的问题、一般研究和探索新话题
+    - 处理不能整齐归入专业类别的话题
+  es: |
+    - responde preguntas sobre una amplia variedad de temas que abarcan múltiples disciplinas
+    - proporciona respuestas informativas, precisas y bien fundamentadas sobre temas cotidianos
+    - ideal para preguntas impulsadas por la curiosidad, investigaciones generales y exploración de nuevos temas
+    - aborda temas que no encajan claramente en una categoría especializada
+  fr: |
+    - répond aux questions sur une grande variété de sujets couvrant plusieurs disciplines
+    - fournit des réponses informatives, précises et bien documentées sur des sujets quotidiens
+    - idéal pour les questions motivées par la curiosité, la recherche générale et l'exploration de nouveaux sujets
+    - traite des sujets qui ne s'inscrivent pas clairement dans une catégorie spécialisée
+  pt: |
+    - responde perguntas sobre uma grande variedade de tópicos que abrangem múltiplas disciplinas
+    - fornece respostas informativas, precisas e abrangentes sobre tópicos do cotidiano
+    - ótimo para perguntas motivadas pela curiosidade, pesquisas gerais e exploração de novos tópicos
+    - lida com tópicos que não se encaixam claramente em uma categoria especializada
+  ru: |
+    - отвечает на вопросы по самым разным темам, охватывающим несколько дисциплин
+    - предоставляет информативные, точные и всесторонние ответы на повседневные вопросы
+    - отлично подходит для вопросов, продиктованных любопытством, общих исследований и изучения новых тем
+    - обрабатывает темы, которые не вписываются аккуратно в специализированную категорию
+  ja: |
+    - 複数の分野にまたがる様々なトピックの質問に答えます
+    - 日常的なトピックについて情報豊富で正確かつバランスの取れた回答を提供します
+    - 好奇心から生まれた質問、一般的な調査、新しいトピックの探求に最適です
+    - 専門カテゴリにきれいに収まらないトピックを扱います
+  ko: |
+    - 여러 학문 분야에 걸친 다양한 주제의 질문에 답합니다
+    - 일상적인 주제에 대해 유익하고 정확하며 균형 잡힌 답변을 제공합니다
+    - 호기심 주도형 질문, 일반 조사, 새로운 주제 탐색에 적합합니다
+    - 전문 카테고리에 깔끔하게 맞지 않는 주제를 다룹니다
+  it: |
+    - risponde a domande su un'ampia varietà di argomenti che coprono più discipline
+    - fornisce risposte informative, accurate e ben documentate su argomenti quotidiani
+    - ottimo per domande guidate dalla curiosità, ricerche generali ed esplorazione di nuovi argomenti
+    - gestisce argomenti che non rientrano chiaramente in una categoria specializzata
+  tr: |
+    - birden fazla disiplini kapsayan geniş konulardaki soruları yanıtlar
+    - günlük konularda bilgilendirici, doğru ve dengeli yanıtlar sağlar
+    - merak odaklı sorular, genel araştırma ve yeni konuları keşfetme için idealdir
+    - belirli bir uzmanlık kategorisine tam oturmayen konuları ele alır
+  vi: |
+    - trả lời câu hỏi về nhiều chủ đề trải rộng nhiều lĩnh vực
+    - cung cấp câu trả lời đầy đủ thông tin, chính xác và toàn diện về các chủ đề hàng ngày
+    - phù hợp cho các câu hỏi xuất phát từ sự tò mò, nghiên cứu chung và khám phá chủ đề mới
+    - xử lý các chủ đề không phù hợp gọn gàng vào một danh mục chuyên biệt
+  id: |
+    - menjawab pertanyaan tentang berbagai topik yang mencakup beberapa disiplin ilmu
+    - memberikan jawaban yang informatif, akurat, dan komprehensif tentang topik sehari-hari
+    - bagus untuk pertanyaan yang didorong rasa ingin tahu, penelitian umum, dan menjelajahi topik baru
+    - menangani topik yang tidak masuk dengan rapi ke dalam kategori khusus
+  pl: |
+    - odpowiada na pytania z szerokiej gamy tematów obejmujących wiele dyscyplin
+    - dostarcza informatywnych, dokładnych i wszechstronnych odpowiedzi na codzienne tematy
+    - świetny do pytań kierowanych ciekawością, ogólnych badań i odkrywania nowych tematów
+    - zajmuje się tematami, które nie mieszczą się zgrabnie w wyspecjalizowanej kategorii
+  nl: |
+    - beantwoordt vragen over een grote verscheidenheid aan onderwerpen die meerdere disciplines omvatten
+    - geeft informatieve, nauwkeurige en goed afgeronde antwoorden op alledaagse onderwerpen
+    - geweldig voor nieuwsgierigheidsgedreven vragen, algemeen onderzoek en het verkennen van nieuwe onderwerpen
+    - behandelt onderwerpen die niet netjes in een gespecialiseerde categorie passen
+  ar: |
+    - يجيب عن الأسئلة في مجموعة واسعة من الموضوعات التي تمتد عبر تخصصات متعددة
+    - يقدم إجابات مفيدة ودقيقة ومتوازنة حول الموضوعات اليومية
+    - رائع للأسئلة الفضولية والبحث العام واستكشاف موضوعات جديدة
+    - يتناول الموضوعات التي لا تندرج بسهولة ضمن فئة متخصصة
+  hi: |
+    - कई विषयों में फैले विभिन्न प्रकार के विषयों पर प्रश्नों का उत्तर देता है
+    - रोजमर्रा के विषयों पर जानकारीपूर्ण, सटीक और संतुलित उत्तर प्रदान करता है
+    - जिज्ञासा-संचालित प्रश्नों, सामान्य अनुसंधान और नए विषयों की खोज के लिए उत्कृष्ट
+    - उन विषयों को संभालता है जो विशेष श्रेणी में स्पष्ट रूप से फिट नहीं होते
+  th: |
+    - ตอบคำถามเกี่ยวกับหัวข้อที่หลากหลายครอบคลุมหลายสาขาวิชา
+    - ให้คำตอบที่มีข้อมูลครบถ้วน ถูกต้อง และรอบด้านสำหรับหัวข้อในชีวิตประจำวัน
+    - เหมาะสำหรับคำถามที่ขับเคลื่อนด้วยความอยากรู้ การค้นคว้าทั่วไป และการสำรวจหัวข้อใหม่
+    - จัดการหัวข้อที่ไม่เข้ากับหมวดหมู่เฉพาะทางได้อย่างลงตัว
+  cs: |
+    - odpovídá na otázky z široké škály témat zahrnujících více disciplín
+    - poskytuje informativní, přesné a vyváženě zpracované odpovědi na každodenní témata
+    - skvělý pro otázky motivované zvědavostí, obecný výzkum a prozkoumávání nových témat
+    - zabývá se tématy, která nezapadají přesně do specializované kategorie
+  sv: |
+    - svarar på frågor om ett brett utbud av ämnen som sträcker sig över flera discipliner
+    - ger informativa, korrekta och välgrundade svar på vardagliga ämnen
+    - utmärkt för nyfikenhetsdriven forskning, allmän research och utforskning av nya ämnen
+    - hanterar ämnen som inte passar in snyggt i en specialiserad kategori
   he: |
     - עונה על שאלות במגוון רחב של נושאים המשתרעים על פני תחומים רבים
     - מספק תשובות אינפורמטיביות, מדויקות ומקיפות בנושאי יומיום

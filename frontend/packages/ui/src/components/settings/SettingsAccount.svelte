@@ -163,7 +163,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/storage',
             direction: 'forward',
             icon: 'storage',
-            title: $text('settings.storage')
+            title: $text('common.storage')
         });
     }
 
@@ -176,7 +176,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/delete',
             direction: 'forward',
             icon: 'delete',
-            title: $text('settings.account.delete')
+            title: $text('common.delete')
         });
     }
 
@@ -189,7 +189,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/chats',
             direction: 'forward',
             icon: 'chat',
-            title: $text('settings.account.chats')
+            title: $text('common.chats')
         });
     }
 </script>
@@ -266,21 +266,21 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem
     type="submenu"
     icon="storage"
-    title={$text('settings.storage')}
+    title={$text('common.storage')}
     onClick={navigateToStorage}
 />
 
 <SettingsItem
     type="submenu"
     icon="chat"
-    title={$text('settings.account.chats')}
+    title={$text('common.chats')}
     onClick={navigateToChats}
 />
 
 <SettingsItem
     type="submenu"
     icon="delete"
-    title={$text('settings.account.delete')}
+    title={$text('common.delete')}
     onClick={navigateToDeleteAccount}
 />
 

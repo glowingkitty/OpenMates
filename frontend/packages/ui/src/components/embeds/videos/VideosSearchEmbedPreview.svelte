@@ -92,18 +92,22 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Brave Search');
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<VideoSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let isLoadingChildren = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Brave Search';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Brave Search';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+    }
   });
   
   // Use local state as the source of truth
@@ -129,8 +133,9 @@
     
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
-    
+
     const content = data.decodedContent;
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
@@ -154,8 +159,9 @@
             ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[VideosSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -220,6 +226,8 @@
     } catch (error) {
       console.warn('[VideosSearchEmbedPreview] Error loading child embeds for preview:', error);
       // Continue without results - preview will just show query/provider
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
@@ -250,7 +258,7 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
@@ -331,8 +339,10 @@
       <!-- Finished state: show channel thumbnails (circular) and remaining count -->
       {#if status === 'finished'}
         <div class="search-results-info">
-          <!-- Channel thumbnails row (circular, overlapping - like favicons in WebSearchEmbedPreview) -->
-          {#if channelThumbnailResults.length > 0}
+          {#if channelThumbnailResults.length === 0 && remainingCount === 0 && isLoadingChildren}
+            <!-- Child embeds are being fetched — show loading instead of empty state -->
+            <span class="loading-text">{$text('common.loading')}</span>
+          {:else if channelThumbnailResults.length > 0}
             <div class="channel-thumbnail-row">
               {#each channelThumbnailResults as result, index}
                 {@const rawChannelThumbnailUrl = getChannelThumbnailUrl(result)}
@@ -457,6 +467,13 @@
     margin-left: 0;
   }
   
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
+  }
+
   /* Remaining count */
   .remaining-count {
     font-size: 14px;

@@ -2,3 +2,13 @@
 # Keep versions pinned to ensure consistent lint results across machines.
 ruff==0.14.11
 yamllint==1.37.1
+
+# Test-only packages required by the unit test suite (backend/tests/).
+# These packages are installed in Docker containers via backend/core/api/requirements.txt
+# but must also be available in the local backend/.venv for `run-tests.sh --suite pytest`.
+# When adding a new import to production code that unit tests exercise, add it here too.
+aiohttp==3.13.3
+pynacl==1.6.2
+prometheus-client==0.21.1
+slowapi==0.1.9
+regex==2024.11.6

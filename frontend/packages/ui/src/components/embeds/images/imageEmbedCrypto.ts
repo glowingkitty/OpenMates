@@ -101,7 +101,9 @@ export function getCachedImageUrl(s3Key: string): string | undefined {
  * @param s3BaseUrl - Base URL of the S3 bucket (unused, kept for interface compat — presigned URL is used instead)
  * @param s3Key - Relative file key in the bucket (e.g. "user_id/timestamp_id_preview.webp")
  * @param aesKeyBase64 - Base64-encoded plaintext AES-256 key (32 bytes)
- * @param nonceBase64 - Base64-encoded GCM nonce (12 bytes)
+ * @param nonceBase64 - Base64-encoded GCM nonce (12 bytes), OR empty string "" if the
+ *   nonce is prepended as the first 12 bytes of the ciphertext (PDF screenshot artefacts
+ *   use this format to ensure each S3 object has a unique nonce).
  * @returns Decrypted image as a Blob
  */
 export async function fetchAndDecryptImage(
@@ -122,11 +124,26 @@ export async function fetchAndDecryptImage(
   // 1. Fetch the encrypted blob via presigned URL (with automatic 403 retry)
   const encryptedData = await fetchWithPresignedUrl(s3Key);
 
-  // 2. Decode the base64 AES key and nonce
-  const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
-  const nonceBytes = base64ToArrayBuffer(nonceBase64);
+  // 2. Resolve nonce and ciphertext.
+  //    When nonceBase64 is empty the nonce is embedded as the first 12 bytes of
+  //    the ciphertext (PDF artefact format introduced to prevent nonce reuse).
+  //    When nonceBase64 is non-empty the legacy format is used (images, audio).
+  const NONCE_BYTES = 12;
+  let nonceBuffer: ArrayBuffer;
+  let ciphertext: ArrayBuffer;
+  if (nonceBase64 === "") {
+    // Nonce-prefixed format: first 12 bytes = nonce, remainder = ciphertext+tag
+    nonceBuffer = encryptedData.slice(0, NONCE_BYTES);
+    ciphertext = encryptedData.slice(NONCE_BYTES);
+  } else {
+    nonceBuffer = base64ToArrayBuffer(nonceBase64);
+    ciphertext = encryptedData;
+  }
 
-  // 3. Import the AES key for Web Crypto API
+  // 3. Decode the base64 AES key
+  const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
+
+  // 4. Import the AES key for Web Crypto API
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
     aesKeyBytes,
@@ -135,24 +152,24 @@ export async function fetchAndDecryptImage(
     ["decrypt"],
   );
 
-  // 4. Decrypt using AES-256-GCM
+  // 5. Decrypt using AES-256-GCM
   // Note: AES-GCM ciphertext includes the 16-byte auth tag at the end
   const decryptedData = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
-      iv: nonceBytes,
+      iv: nonceBuffer,
       // No additional data (AAD) — matches server-side encrypt(nonce, content, None)
     },
     cryptoKey,
-    encryptedData,
+    ciphertext,
   );
 
-  // 5. Determine MIME type from the s3_key extension
+  // 6. Determine MIME type from the s3_key extension
   const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
 
   const blob = new Blob([decryptedData], { type: mimeType });
 
-  // 6. Cache the decrypted blob URL for future use
+  // 7. Cache the decrypted blob URL for future use
   const blobUrl = URL.createObjectURL(blob);
   imageCache.set(s3Key, { blobUrl, refCount: 0, revokeTimer: null });
 

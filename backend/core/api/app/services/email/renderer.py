@@ -1,7 +1,7 @@
 import os
 import logging
 import re
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 from mjml import mjml2html
 from jinja2 import Template
 from premailer import transform

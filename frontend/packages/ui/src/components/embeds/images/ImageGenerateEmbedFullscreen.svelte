@@ -124,7 +124,7 @@
   let embedHeaderTitle = $derived.by(() => {
     const name = skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
-      : $text('embeds.image_generate');
+      : $text('common.generate');
     if (!prompt) return name;
     return prompt.length > 80 ? prompt.slice(0, 79) + '\u2026' : prompt;
   });
@@ -133,7 +133,7 @@
   let embedHeaderSubtitle = $derived(
     skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
-      : $text('embeds.image_generate')
+      : $text('common.generate')
   );
   
   // Look up full model metadata (name, logo) from modelsMetadata registry

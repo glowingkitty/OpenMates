@@ -68,17 +68,17 @@ Security Notes:
             
             // Get the appropriate translation based on the login method
             if (loginMethod === 'password') {
-                loginSecretText = $text('signup.password');
+                loginSecretText = $text('common.password');
             } else if (loginMethod === 'passkey') {
                 loginSecretText = $text('signup.passkey');
             } else if (loginMethod === 'security_key') {
                 loginSecretText = $text('signup.security_key');
             } else {
-                loginSecretText = $text('signup.password');
+                loginSecretText = $text('common.password');
             }
         } catch (error) {
             console.error("Error retrieving login method:", error);
-            loginSecretText = $text('signup.password');
+            loginSecretText = $text('common.password');
         }
         
         // Auto-generate recovery key immediately on mount
@@ -203,7 +203,7 @@ Security Notes:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size warning"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.recovery_key')}</h2>
+        <h2 class="signup-menu-title">{@html $text('common.recovery_key')}</h2>
     </div>
 
     <div class="recovery-content" in:fade>
@@ -218,7 +218,7 @@ Security Notes:
             <div class="error-container">
                 <p class="error-text">{errorMessage}</p>
                 <button class="retry-button" onclick={handleRetry}>
-                    {$text('login.retry')}
+                    {$text('common.retry')}
                 </button>
             </div>
         {:else}
@@ -238,11 +238,11 @@ Security Notes:
                         class="save-button"
                         class:used={hasDownloaded}
                         onclick={handleDownload}
-                        aria-label={$text('enter_message.press_and_hold_menu.download')}
+                        aria-label={$text('common.download')}
                         use:tooltip
                     >
                         <div class="clickable-icon icon_download" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.download')}</span>
+                        <span>{$text('common.download')}</span>
                         {#if hasDownloaded}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -254,11 +254,11 @@ Security Notes:
                         class="save-button"
                         class:used={hasCopied}
                         onclick={handleCopy}
-                        aria-label={$text('signup.copy')}
+                        aria-label={$text('common.copy')}
                         use:tooltip
                     >
                         <div class="clickable-icon icon_copy" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.copy')}</span>
+                        <span>{$text('common.copy')}</span>
                         {#if hasCopied}
                             <span class="check-mark">✓</span>
                         {/if}

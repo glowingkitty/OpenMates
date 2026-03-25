@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.transitous_provider import TransitousProvider
@@ -32,12 +33,92 @@ logger = logging.getLogger(__name__)
 # Pydantic request/response models
 # ---------------------------------------------------------------------------
 
+class LegItem(BaseModel):
+    """A single leg of a trip (origin → destination on a specific date)."""
+
+    origin: str = Field(
+        description="Origin city or location name (e.g. 'Munich', 'London Heathrow', 'Berlin'). "
+        "The system resolves this to airport codes or coordinates internally."
+    )
+    destination: str = Field(description="Destination city or location name.")
+    date: str = Field(description="Departure date in YYYY-MM-DD format.")
+
+
+class SearchConnectionsRequestItem(BaseModel):
+    """A single connection search request (one-way, round trip, or multi-stop)."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    legs: List[LegItem] = Field(
+        description="Ordered list of trip legs. One-way trip = 1 leg. "
+        "Round trip = 2 legs (outbound + return). Multi-stop = N legs."
+    )
+    transport_methods: List[str] = Field(
+        default=["airplane"],
+        description="Transport types to search. Currently supported: ['airplane']. "
+        "Future: 'train', 'bus', 'boat'.",
+    )
+    passengers: int = Field(default=1, description="Number of adult passengers.")
+    children: int = Field(
+        default=0,
+        description="Number of child passengers (ages 2-11).",
+    )
+    infants_in_seat: int = Field(
+        default=0,
+        description="Number of infant passengers with their own seat (under 2).",
+    )
+    infants_on_lap: int = Field(
+        default=0,
+        description="Number of lap infants (under 2, seated on adult's lap).",
+    )
+    travel_class: str = Field(
+        default="economy",
+        description="Cabin class for flights. One of: economy, premium_economy, business, first.",
+    )
+    max_results: int = Field(
+        default=6,
+        description="Maximum number of connection options to return per transport method.",
+    )
+    non_stop_only: bool = Field(
+        default=False,
+        description="If true, only return direct/non-stop connections.",
+    )
+    max_stops: Optional[int] = Field(
+        default=None,
+        description="Maximum number of stops allowed: 0 (non-stop only), 1 (up to 1 stop), "
+        "2 (up to 2 stops). When set, overrides non_stop_only.",
+    )
+    include_airlines: Optional[List[str]] = Field(
+        default=None,
+        description="Only show flights from these airlines (IATA codes, e.g. ['LH', 'BA']). "
+        "Cannot be combined with exclude_airlines.",
+    )
+    exclude_airlines: Optional[List[str]] = Field(
+        default=None,
+        description="Exclude flights from these airlines (IATA codes, e.g. ['FR', 'W6']). "
+        "Cannot be combined with include_airlines.",
+    )
+    currency: str = Field(
+        default="EUR",
+        description="Preferred currency for prices (ISO 4217 code).",
+    )
+    sort_by: str = Field(
+        default="price_asc",
+        description="How to sort the results. Options: price_asc, price_desc, duration_asc, "
+        "duration_desc, departure_asc, departure_desc, stops_asc, stops_desc.",
+    )
+
+
 class SearchConnectionsRequest(BaseModel):
     """Incoming request payload for the search_connections skill."""
 
-    requests: List[Dict[str, Any]] = Field(
-        description="Array of connection search request objects, each with 'legs', "
-        "'transport_methods', 'passengers', 'travel_class', etc."
+    requests: List[SearchConnectionsRequestItem] = Field(
+        description="Array of connection search requests. Each request searches for "
+        "transport connections for a complete trip (one-way, round trip, or multi-stop)."
     )
 
 
@@ -175,6 +256,8 @@ class SearchConnectionsSkill(BaseSkill):
             skill_name="SearchConnectionsSkill",
             logger=logger,
             all_providers=all_providers,
+            secrets_manager=secrets_manager,
+            cache_service=kwargs.get("cache_service"),
         )
 
         # 5. Group results by request ID
@@ -212,14 +295,22 @@ class SearchConnectionsSkill(BaseSkill):
             Tuple of (request_id, results_list, error_string_or_none)
         """
         all_providers: List[BaseTransportProvider] = kwargs.get("all_providers", [])
+        secrets_manager = kwargs.get("secrets_manager")
+        cache_service = kwargs.get("cache_service")
 
         # Extract parameters with defaults
         legs = req.get("legs", [])
         transport_methods = req.get("transport_methods", ["airplane"])
         passengers = req.get("passengers", 1)
+        children = req.get("children", 0)
+        infants_in_seat = req.get("infants_in_seat", 0)
+        infants_on_lap = req.get("infants_on_lap", 0)
         travel_class = req.get("travel_class", "economy")
         max_results = req.get("max_results", 5)
         non_stop_only = req.get("non_stop_only", False)
+        max_stops = req.get("max_stops")
+        include_airlines = req.get("include_airlines")
+        exclude_airlines = req.get("exclude_airlines")
         currency = req.get("currency", "EUR")
         sort_by = req.get("sort_by", "price_asc")
 
@@ -255,9 +346,15 @@ class SearchConnectionsSkill(BaseSkill):
                 connections = await provider.search_connections(
                     legs=legs,
                     passengers=passengers,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
                     travel_class=travel_class,
                     max_results=max_results,
                     non_stop_only=non_stop_only,
+                    max_stops=max_stops,
+                    include_airlines=include_airlines,
+                    exclude_airlines=exclude_airlines,
                     currency=currency,
                 )
                 all_connections.extend(connections)
@@ -358,6 +455,22 @@ class SearchConnectionsSkill(BaseSkill):
 
         # Sort results according to the requested sort_by parameter
         self._sort_results(results, sort_by)
+
+        try:
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"travel_connections_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+            )
+        except Exception as sanitize_error:
+            logger.error(
+                "Connection search content sanitization failed for request %s: %s",
+                request_id,
+                sanitize_error,
+                exc_info=True,
+            )
+            return (request_id, [], "Content sanitization failed")
 
         error_str = "; ".join(errors) if errors else None
         return (request_id, results, error_str)

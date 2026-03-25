@@ -51,6 +51,25 @@ description:
 systemprompt:
   context: System prompt for the LLM when health_insights focus mode is active
   en: You are a health expert.
+  de: Du bist ein Gesundheitsexperte.
+  zh: 你是一位健康专家。
+  es: Eres un experto en salud.
+  fr: Vous êtes un expert en santé.
+  pt: Você é um especialista em saúde.
+  ru: Вы эксперт в области здоровья.
+  ja: あなたは健康の専門家です。
+  ko: 당신은 건강 전문가입니다.
+  it: Sei un esperto di salute.
+  tr: Siz bir sağlık uzmanısınız.
+  vi: Bạn là một chuyên gia sức khỏe.
+  id: Anda adalah seorang ahli kesehatan.
+  pl: Jesteś ekspertem ds. zdrowia.
+  nl: U bent een gezondheidsexpert.
+  ar: أنت خبير في الصحة.
+  hi: आप एक स्वास्थ्य विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญด้านสุขภาพ
+  cs: Jste odborník na zdraví.
+  sv: Du är en hälsoexpert.
   he: אתה מומחה לבריאות.
   verified_by_human:
     - en

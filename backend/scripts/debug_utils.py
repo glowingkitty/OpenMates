@@ -8,7 +8,7 @@ production API requests, and Vault encryption helpers) so that individual
 inspect_*.py scripts can import them instead of re-implementing the same
 logic.
 
-Architecture context: See docs/claude/debugging.md
+Architecture context: See docs/contributing/guides/debugging.md
 Tests: None (inspection utility, not production code)
 """
 

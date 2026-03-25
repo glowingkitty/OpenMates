@@ -40,7 +40,12 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * Focus mode tests: Verify the "Career insights" focus mode from the Jobs app
@@ -88,10 +93,10 @@ const SELECTORS = {
 	// -----------------------------------------------------------------------
 	// New selectors for additional requirements
 	// -----------------------------------------------------------------------
-	/** Fixed "Focus active" header banner shown above message input when focus mode is active */
-	focusActiveBanner: '.focus-active-banner[data-app-id="jobs"]',
-	/** Text inside the focus active banner */
-	focusActiveBannerText: '.focus-active-banner[data-app-id="jobs"] .focus-active-banner-text',
+	/** Focus pill shown above message input when focus mode is active */
+	focusActiveBanner: '.focus-pill',
+	/** Label text inside the focus pill */
+	focusActiveBannerText: '.focus-pill .focus-pill-label',
 	/** Focus mode badge on Chat.svelte entry (bottom-right of category circle) */
 	focusModeBadge: '.focus-mode-badge',
 	/** Mention dropdown shown when user types @ in the message editor */
@@ -115,80 +120,6 @@ const SELECTORS = {
 // ---------------------------------------------------------------------------
 
 /**
- * Login to the test account with email, password, and 2FA OTP.
- * Includes retry logic for OTP timing edge cases.
- */
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeStepScreenshot(page, 'password-entered');
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-		if (attempt === 1) {
-			await takeStepScreenshot(page, 'otp-entered');
-		}
-
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
-
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
-
-	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(3000);
-
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
-}
-
-/**
  * Open the sidebar (activity history panel) if it's not already visible.
  * The toggle button is `button.icon_menu` inside `.menu-button-container`.
  * It's hidden when the sidebar is already open (class:hidden applied).
@@ -205,7 +136,7 @@ async function ensureSidebarOpen(
 	}
 
 	// Try clicking the hamburger menu button to open the sidebar
-	const menuButton = page.locator('.menu-button-container button.icon_menu');
+	const menuButton = page.locator('[data-testid="sidebar-toggle"]');
 	if (await menuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await menuButton.click();
 		logCheckpoint('Clicked hamburger menu to open sidebar.');
@@ -214,144 +145,6 @@ async function ensureSidebarOpen(
 		logCheckpoint(
 			'Hamburger menu button not visible (sidebar may already be open or layout is wide).'
 		);
-	}
-}
-
-/**
- * Start a new chat session by navigating to the root URL (clears any chat hash).
- * This ensures we're always on a fresh new chat, not a demo or existing chat.
- *
- * Uses a longer wait + URL polling to avoid an intermittent routing bug where
- * page.goto('/#') lands on the correct URL but the app still has the previous
- * chat_id in memory, causing AI responses to arrive for the wrong chat.
- */
-async function startNewChat(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
-): Promise<void> {
-	const currentUrl = page.url();
-	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
-
-	// Navigate to /# to clear the chat hash and land on a fresh new chat.
-	// Using page.goto with a hash fragment ensures we stay logged in (auth is in IndexedDB)
-	// while clearing any demo or previous chat context.
-	await page.goto('/#');
-
-	// Poll until the URL no longer contains a chat-id query param.
-	// This guards against a race where the app re-navigates back to the last chat.
-	await page
-		.waitForFunction(
-			() =>
-				!window.location.hash.includes('chat-id=') && !window.location.search.includes('chat-id='),
-			{ timeout: 10000 }
-		)
-		.catch(() => {
-			logCheckpoint('Warning: URL still contains chat-id after 10s — proceeding anyway.');
-		});
-
-	// Extra settle time to let the app fully reset its internal chat state
-	await page.waitForTimeout(3000);
-
-	// Wait for the message editor to be ready
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 15000 });
-
-	const newUrl = page.url();
-	logCheckpoint(`URL after navigating to fresh chat: ${newUrl}`);
-}
-
-/**
- * Send a message in the chat editor and wait for the send to complete.
- */
-async function sendMessage(
-	page: any,
-	message: string,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>,
-	stepLabel: string
-): Promise<void> {
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(message);
-	logCheckpoint(`Typed message: "${message}"`);
-	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
-
-	const sendButton = page.locator('.send-button');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
-	logCheckpoint('Clicked send button.');
-	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
-}
-
-/**
- * Delete the active chat via context menu (best-effort cleanup).
- * Uses short timeouts to avoid consuming the test's remaining time budget.
- */
-async function deleteActiveChat(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>,
-	stepLabel: string
-): Promise<void> {
-	logCheckpoint('Attempting to delete the chat (best-effort cleanup)...');
-
-	try {
-		// Ensure sidebar is open so we can find the active chat item
-		await ensureSidebarOpen(page, logCheckpoint);
-
-		// Use .chat-item-wrapper.active inside Chat.svelte (rendered within sidebar)
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
-
-		if (!(await activeChatItem.isVisible({ timeout: 3000 }).catch(() => false))) {
-			logCheckpoint('No active chat item visible in sidebar - skipping cleanup.');
-			return;
-		}
-
-		// Safety check: don't delete the demo chat
-		try {
-			const chatTitle = await activeChatItem.locator('.chat-title').textContent({ timeout: 1000 });
-			logCheckpoint(`Active chat title: "${chatTitle}"`);
-
-			if (
-				chatTitle &&
-				(chatTitle.includes('demo') ||
-					chatTitle.includes('Demo') ||
-					chatTitle.includes('OpenMates'))
-			) {
-				logCheckpoint('Skipping deletion - appears to be a demo chat.');
-				return;
-			}
-		} catch {
-			logCheckpoint('Could not get active chat title - continuing with deletion.');
-		}
-
-		// Right-click to open context menu
-		await activeChatItem.click({ button: 'right' });
-		logCheckpoint('Opened chat context menu.');
-
-		await page.waitForTimeout(300);
-		const deleteButton = page.locator('.menu-item.delete');
-
-		if (!(await deleteButton.isVisible({ timeout: 2000 }).catch(() => false))) {
-			logCheckpoint('Delete button not visible in context menu - skipping cleanup.');
-			await page.keyboard.press('Escape');
-			return;
-		}
-
-		// First click: enter confirm mode. Second click: confirm deletion.
-		await deleteButton.click();
-		logCheckpoint('Clicked delete (confirm mode).');
-		await page.waitForTimeout(300);
-		await deleteButton.click();
-		logCheckpoint('Confirmed chat deletion.');
-
-		// Brief wait to verify deletion, but don't block for long
-		await expect(activeChatItem).not.toBeVisible({ timeout: 5000 });
-		await takeStepScreenshot(page, `${stepLabel}-chat-deleted`);
-		logCheckpoint('Chat deleted successfully.');
-	} catch (error) {
-		logCheckpoint(`Cleanup failed (non-fatal): ${error}`);
 	}
 }
 
@@ -418,9 +211,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 		filenamePrefix: 'focus-mode-career'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting career insights focus mode test.', { email: TEST_EMAIL });
@@ -439,7 +230,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 		"I don't feel like I'm growing anymore and I'm not sure what direction to take my career. " +
 		'Can you help me figure out what I should do next?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'career-advice');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_1'), logCheckpoint, takeStepScreenshot, 'career-advice');
 
 	// ======================================================================
 	// STEP 3: Wait for assistant response
@@ -588,9 +379,7 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 		filenamePrefix: 'focus-mode-reject'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode rejection test.', { email: TEST_EMAIL });
@@ -609,7 +398,7 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 		"I've been in the same position for 3 years with no growth opportunities. " +
 		'What career path should I consider?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'reject-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_2'), logCheckpoint, takeStepScreenshot, 'reject-career');
 
 	// ======================================================================
 	// STEP 3: Wait for the focus mode embed to appear during streaming
@@ -760,9 +549,7 @@ test('chat context menu shows focus mode indicator when career insights is activ
 		filenamePrefix: 'focus-mode-context-menu'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode context menu test.', { email: TEST_EMAIL });
@@ -780,7 +567,7 @@ test('chat context menu shows focus mode indicator when career insights is activ
 		"I'm very frustrated with my career. I've been doing the same thing for years " +
 		'and I need help figuring out my next career move. What should I do?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'ctx-menu-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_3'), logCheckpoint, takeStepScreenshot, 'ctx-menu-career');
 
 	logCheckpoint('Waiting for assistant response...');
 	const assistantMessage = page.locator('.message-wrapper.assistant');
@@ -891,9 +678,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 		filenamePrefix: 'focus-mode-followup'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode follow-up persistence test.', { email: TEST_EMAIL });
@@ -912,7 +697,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 		"I've been working as a software developer for 5 years but feel stuck. " +
 		'What career options should I explore?';
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'followup-initial');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_4'), logCheckpoint, takeStepScreenshot, 'followup-initial');
 
 	logCheckpoint('Waiting for assistant response...');
 	const assistantMessage = page.locator('.message-wrapper.assistant');
@@ -944,7 +729,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 		"I'm particularly interested in transitioning to a product management role. " +
 		'What skills do I need and how should I prepare?';
 
-	await sendMessage(page, followUpMessage, logCheckpoint, takeStepScreenshot, 'followup-msg');
+	await sendMessage(page, withMockMarker(followUpMessage, 'focus_career_5'), logCheckpoint, takeStepScreenshot, 'followup-msg');
 
 	// ======================================================================
 	// STEP 5: Wait for follow-up assistant response
@@ -1089,9 +874,7 @@ test('focus active banner is shown when career insights focus mode is active', a
 		filenamePrefix: 'focus-banner'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus active banner test.');
@@ -1104,7 +887,7 @@ test('focus active banner is shown when career insights focus mode is active', a
 	const careerMessage =
 		"I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?";
 
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'banner-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_6'), logCheckpoint, takeStepScreenshot, 'banner-career');
 
 	logCheckpoint('Waiting for assistant response...');
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
@@ -1186,9 +969,7 @@ test('focus mode can be manually triggered via mention dropdown', async ({
 		filenamePrefix: 'focus-mention'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode mention dropdown test.');
@@ -1279,9 +1060,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 		filenamePrefix: 'focus-stop'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode stop button test.');
@@ -1293,7 +1072,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 	// STEP 2: Trigger focus mode activation
 	const careerMessage =
 		"I'm very stuck in my career. I need help figuring out my professional direction.";
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'stop-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_7'), logCheckpoint, takeStepScreenshot, 'stop-career');
 
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'stop-focus');
@@ -1397,9 +1176,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 		filenamePrefix: 'focus-details'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode details link test.');
@@ -1411,7 +1188,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 	// STEP 2: Trigger focus mode activation
 	const careerMessage =
 		"I'm feeling stuck in my career and not sure where to go professionally. Please help.";
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'details-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_8'), logCheckpoint, takeStepScreenshot, 'details-career');
 
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'details-focus');
@@ -1511,9 +1288,7 @@ test('chat entry shows focus mode badge when career insights is active', async (
 		filenamePrefix: 'focus-badge'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting focus mode chat entry badge test.');
@@ -1525,7 +1300,7 @@ test('chat entry shows focus mode badge when career insights is active', async (
 	// STEP 2: Trigger focus mode activation
 	const careerMessage =
 		"I need serious career guidance. I've been in the same job for 5 years with no growth.";
-	await sendMessage(page, careerMessage, logCheckpoint, takeStepScreenshot, 'badge-career');
+	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_9'), logCheckpoint, takeStepScreenshot, 'badge-career');
 
 	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'badge-focus');

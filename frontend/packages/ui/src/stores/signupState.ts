@@ -73,12 +73,13 @@ export let forcedLogoutSetAt = 0;
 
 /**
  * Maximum time (ms) that forcedLogoutInProgress should stay true before being
- * considered stale. 10 seconds is generous — the logout flow (server request +
- * DB deletion) should complete in 2–5 seconds in normal conditions.
- * Reduced from 30s so that false-positive triggers (e.g., iOS memory eviction
- * on wake) recover within 10s instead of 30s.
+ * considered stale. The logout flow (server request + DB deletion) completes
+ * in under 1 second normally. 3 seconds is generous enough while keeping the
+ * blank-screen duration short on false positives. Aligns with
+ * RESUME_ORPHAN_GRACE_MS (3s) for consistent timing.
+ * History: 30s → 10s → 3s as false-positive recovery time was reduced.
  */
-export const FORCED_LOGOUT_STALENESS_MS = 10_000;
+export const FORCED_LOGOUT_STALENESS_MS = 3_000;
 
 /**
  * Timestamp (ms since epoch) of the most recent page-resume event

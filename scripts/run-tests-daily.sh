@@ -1,25 +1,30 @@
 #!/usr/bin/env bash
 # =============================================================================
-# OpenMates Daily Automated Test Runner
+# DEPRECATED: Use python3 scripts/run_tests.py --daily instead.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
+# OpenMates Daily Automated Test Runner (LEGACY)
 #
 # Runs all tests once per day (only if git commits were made in the last 24h),
 # saves separate pass/fail log files, then dispatches a single summary email
 # via the existing Celery email infrastructure (Brevo/Mailjet — no SMTP needed).
 #
-# Called by the Celery Beat scheduled task (e2e_test_tasks.run_daily_all_tests).
+# Triggered by a system crontab entry (see `crontab -l`):
+#   0 3 * * * . /path/to/.env && /path/to/scripts/run-tests-daily.sh
+#
 # Can also be invoked manually:
 #   ./scripts/run-tests-daily.sh
 #   ./scripts/run-tests-daily.sh --force   # skip the commit-activity check
 #
-# Environment variables:
+# Environment variables (sourced from .env by the crontab entry):
 #   ADMIN_NOTIFY_EMAIL        — recipient for the summary email (required)
+#   INTERNAL_API_SHARED_TOKEN — auth token for internal API email dispatch
 #
 # Env-gate variables (set on dev server only — NOT on production):
 #   E2E_DAILY_RUN_ENABLED     — must be "true" for this script to run at all.
-#                               If not set, the Celery Beat schedule in
-#                               celery_config.py never fires this task.
-#                               This script also checks it directly so a manual
-#                               invocation on the wrong server is also safe.
+#                               This script checks it directly so a manual
+#                               invocation on the wrong server is a safe no-op.
 #
 # Prod smoke test (optional — runs from dev server against production URL):
 #   E2E_PROD_TEST_ENABLED     — set to "true" to also run a smoke test against
@@ -34,12 +39,35 @@
 #   last-passed-tests.json     — passing tests only from the latest run
 #   last-failed-tests.json     — failing tests only from the latest run
 #   daily-run-<YYYY-MM-DD>.json — per-day archive; pruned to keep last 30
+#
+# Observability:
+#   After each run, a normalized summary is forwarded to OpenObserve test-runs
+#   stream via /internal/openobserve/push-test-run (best-effort, non-fatal).
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_DIR="$PROJECT_ROOT/test-results"
+
+# --- Lockfile guard: prevents double-run if crontab fires while previous run is still active ---
+# Uses flock(1) on a well-known path so the lock is released automatically if the process dies.
+LOCKFILE="/tmp/openmates-daily-tests.lock"
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+  echo "[daily-runner] Another instance is already running (lockfile: $LOCKFILE) — exiting."
+  exit 0
+fi
+
+# --- Source .env if present (makes manual invocation work without pre-exporting) ---
+# The crontab entry also sources .env, but doing it here too means
+# `./scripts/run-tests-daily.sh --force` works out of the box.
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_ROOT/.env"
+  set +a
+fi
 
 # --- Parse CLI args ---
 FORCE=false
@@ -56,8 +84,7 @@ done
 
 # --- Env gate ---
 # If E2E_DAILY_RUN_ENABLED is not "true", exit silently.
-# The Beat schedule in celery_config.py already gates this, but we double-check
-# here so manual invocations on production are also a safe no-op.
+# This prevents manual invocations on production from running tests.
 if [[ "${E2E_DAILY_RUN_ENABLED:-}" != "true" ]]; then
   echo "[daily-runner] E2E_DAILY_RUN_ENABLED is not set — skipping test run."
   echo "[daily-runner] Set E2E_DAILY_RUN_ENABLED=true on the dev server to enable tests."
@@ -113,6 +140,7 @@ if [[ ! -f "$LAST_RUN" ]]; then
 fi
 
 # Back up the dev run result before we potentially overwrite it with the prod smoke run
+rm -f "$LAST_RUN.bak"
 cp "$LAST_RUN" "$LAST_RUN.bak"
 
 # --- Production smoke test (optional, runs from dev server against prod URL) ---
@@ -139,6 +167,7 @@ if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
 
     PROD_SMOKE_RUN="$RESULTS_DIR/last-run.json"
     if [[ -f "$PROD_SMOKE_RUN" ]]; then
+      rm -f "$RESULTS_DIR/last-run-prod-smoke.json"
       cp "$PROD_SMOKE_RUN" "$RESULTS_DIR/last-run-prod-smoke.json"
       echo "[daily-runner] Prod smoke test complete (exit=$PROD_SMOKE_EXIT_CODE)"
     else
@@ -146,17 +175,62 @@ if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
     fi
 
     # Restore the dev last-run.json (it was overwritten by the prod smoke run)
+    rm -f "$LAST_RUN"
     cp "$LAST_RUN.bak" "$LAST_RUN" 2>/dev/null || true
   fi
 fi
+
+# --- Collect coverage metrics (informational, non-blocking) ---
+echo "[daily-runner] Collecting coverage metrics..."
+COVERAGE_DIR="$RESULTS_DIR/coverage"
+mkdir -p "$COVERAGE_DIR"
+
+# Frontend (vitest) coverage — writes JSON summary
+VITEST_DIR="$PROJECT_ROOT/frontend/packages/ui"
+if [[ -f "$VITEST_DIR/vitest.simple.config.ts" ]]; then
+  echo "[daily-runner] Running vitest with coverage..."
+  (cd "$VITEST_DIR" && npx vitest run --config vitest.simple.config.ts --coverage --coverage.reporter=json-summary 2>/dev/null) || true
+  if [[ -f "$VITEST_DIR/coverage/coverage-summary.json" ]]; then
+    cp "$VITEST_DIR/coverage/coverage-summary.json" "$COVERAGE_DIR/vitest-coverage.json"
+    echo "[daily-runner] Vitest coverage saved."
+  fi
+fi
+
+# Backend (pytest) coverage — requires pytest-cov
+PYTEST_BIN="$PROJECT_ROOT/backend/.venv/bin/python3"
+if [[ ! -x "$PYTEST_BIN" ]]; then
+  PYTEST_BIN="/OpenMates/.venv/bin/python3"
+fi
+if [[ -x "$PYTEST_BIN" ]]; then
+  echo "[daily-runner] Running pytest with coverage..."
+  # Auto-detect: run all test_*.py in backend/tests/ excluding integration and benchmark
+  ($PYTEST_BIN -m pytest backend/tests/ \
+    -m "not integration and not benchmark" \
+    --cov=backend/core/api/app --cov-report=json:"$COVERAGE_DIR/pytest-coverage.json" \
+    -q --tb=no 2>/dev/null) || true
+  if [[ -f "$COVERAGE_DIR/pytest-coverage.json" ]]; then
+    echo "[daily-runner] Pytest coverage saved."
+  fi
+fi
+
+echo "[daily-runner] Coverage collection complete."
 
 # --- Save split pass/fail log files for easy Claude consumption ---
 export RESULTS_DIR
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" split-results
 
+# --- Push normalized test-run summary to OpenObserve (non-fatal) ---
+# This writes one compact event per daily run into the OpenObserve test-runs
+# stream so failures can be correlated with backend/container logs by git SHA,
+# branch, environment, and run window.
+echo "[daily-runner] Pushing test run summary to OpenObserve..."
+python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-openobserve-test-run || \
+  echo "[daily-runner] WARNING: could not push test run summary to OpenObserve (non-fatal)"
+
 # --- Archive daily result (one file per calendar day, UTC) ---
 TODAY="$(date -u '+%Y-%m-%d')"
 DAILY_ARCHIVE="$RESULTS_DIR/daily-run-${TODAY}.json"
+rm -f "$DAILY_ARCHIVE"
 cp "$LAST_RUN" "$DAILY_ARCHIVE"
 echo "[daily-runner] Archived result to $DAILY_ARCHIVE"
 
@@ -173,6 +247,32 @@ fi
 
 echo "[daily-runner] Dispatching test run summary email to $ADMIN_EMAIL..."
 export ADMIN_NOTIFY_EMAIL="$ADMIN_EMAIL"
+
+# --- Start claude analysis session on failures (before email so session ID is included) ---
+# Only runs if there were test failures. The helper writes the session ID to stdout
+# so we can capture it and pass it to the summary email.
+OPENCODE_CHAT_URL=""
+FAILED_COUNT=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('$RESULTS_DIR/last-run.json'))
+    print(d.get('summary', {}).get('failed', 0))
+except Exception as e:
+    print(0)
+" 2>/dev/null || echo "0")
+
+if [[ "$FAILED_COUNT" -gt 0 ]]; then
+  echo "[daily-runner] $FAILED_COUNT test(s) failed — starting claude analysis session..."
+  CLAUDE_SESSION_ID=$(python3 "$SCRIPT_DIR/_daily_runner_helper.py" start-claude-analysis 2>&1 | grep "^CLAUDE_SESSION_ID:" | sed 's/^CLAUDE_SESSION_ID://' | tr -d '[:space:]') || true
+  if [[ -n "$CLAUDE_SESSION_ID" ]]; then
+    echo "[daily-runner] claude analysis session: $CLAUDE_SESSION_ID"
+    export CLAUDE_SESSION_ID
+  else
+    echo "[daily-runner] WARNING: claude analysis did not return a session ID (non-fatal)"
+  fi
+else
+  echo "[daily-runner] All tests passed — skipping claude analysis."
+fi
 
 python3 "$SCRIPT_DIR/_daily_runner_helper.py" dispatch-email
 

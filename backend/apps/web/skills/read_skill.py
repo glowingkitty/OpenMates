@@ -8,7 +8,6 @@
 
 import logging
 import os
-import json
 import yaml
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
@@ -30,16 +29,43 @@ from backend.core.api.app.utils.encryption import EncryptionService
 logger = logging.getLogger(__name__)
 
 
+class WebReadRequestItem(BaseModel):
+    """A single web page read request."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    url: str = Field(description="URL of the web page to read and extract content from.")
+    formats: Optional[List[str]] = Field(
+        default=None,
+        description="Output formats to return (e.g. ['markdown', 'html']). Defaults to ['markdown'].",
+    )
+    only_main_content: Optional[bool] = Field(
+        default=None,
+        description="If true, extract only the main article content (no nav/footer/ads). Default: true.",
+    )
+    max_age: Optional[int] = Field(
+        default=None,
+        description="Max cache age in seconds. Uses cached version if available within this age.",
+    )
+    timeout: Optional[int] = Field(
+        default=None,
+        description="Request timeout in seconds.",
+    )
+
+
 class ReadRequest(BaseModel):
     """
     Request model for web read skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple URLs (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[WebReadRequestItem] = Field(
         ...,
-        description="Array of read request objects. Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout) with defaults from schema."
+        description="Array of web read request objects. Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout)."
     )
 
 
@@ -254,12 +280,12 @@ class ReadSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for read skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for read skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If read skill not found
-            logger.error(f"Read skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Read skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -298,7 +324,7 @@ class ReadSkill(BaseSkill):
         # Extract URL and parameters from request
         read_url = req.get("url")
         if not read_url:
-            return (request_id, [], f"Missing 'url' parameter")
+            return (request_id, [], "Missing 'url' parameter")
         
         # Sanitize URL by removing fragment parameters (#{text}) as a security measure
         # Fragments can contain malicious content and are not needed for web scraping
@@ -313,9 +339,14 @@ class ReadSkill(BaseSkill):
         # Use sanitized URL for processing
         read_url = sanitized_url
         
-        # Extract request-specific parameters (with defaults from schema)
-        req_formats = req.get("formats", ["markdown"])
-        req_only_main_content = req.get("only_main_content", True)
+        # Extract request-specific parameters (with defaults from schema).
+        # NOTE: Pydantic model_dump() serialises Optional fields as None (not absent), so
+        # req.get(key, default) returns None when the key is present with value None.
+        # Use "or default" to treat both None and missing as "not provided".
+        req_formats = req.get("formats") or ["markdown"]
+        req_only_main_content = req.get("only_main_content")
+        if req_only_main_content is None:
+            req_only_main_content = True
         req_max_age = req.get("max_age")
         req_timeout = req.get("timeout")
         
@@ -365,7 +396,7 @@ class ReadSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise

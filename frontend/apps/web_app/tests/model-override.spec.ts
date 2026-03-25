@@ -31,8 +31,13 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * Model override test via MentionDropdown autocomplete.
@@ -56,141 +61,6 @@ const {
  */
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-
-/**
- * Helper function to log in to the test account.
- */
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	// Wait for password field with longer timeout - login flow transition may take time
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeStepScreenshot(page, 'password-entered');
-
-	// Wait for OTP input with longer timeout
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	// OTP submission with retry logic for timing edge cases
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		// Generate fresh OTP right before submitting to avoid expiration issues
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-		if (attempt === 1) {
-			await takeStepScreenshot(page, 'otp-entered');
-		}
-
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
-
-		// Wait for login success by checking if the login dialog disappears.
-		// NOTE: We cannot use waitForURL(/chat/) because the homepage URL
-		// already contains "chat" (SvelteKit routes / to /chat), so the URL
-		// match resolves before the login response arrives.
-		// Instead, wait for the login dialog to close (submit button disappears)
-		// OR an error message to appear (wrong OTP).
-		try {
-			// Wait for submit button to disappear (login dialog closes on success)
-			await expect(submitLoginButton).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Logged in successfully - login dialog closed.');
-		} catch {
-			// Submit button is still visible - login didn't succeed
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				// Wait for next TOTP window (up to 5 seconds) to ensure fresh code
-				await page.waitForTimeout(3000);
-			} else if (attempt === 3) {
-				// Final attempt failed, throw the error
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
-
-	// Wait for chat interface to fully load
-	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(5000);
-
-	// Verify we're in the chat - the message editor should be visible
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 15000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
-}
-
-/**
- * Helper function to start a new chat session.
- * Attempts to click the new chat button if visible to ensure a fresh state.
- * Based on the pattern in chat-flow.spec.ts.
- */
-async function startNewChat(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
-): Promise<void> {
-	// Wait a moment for UI to stabilize after any previous operations
-	await page.waitForTimeout(1000);
-
-	// Log current URL state
-	const currentUrl = page.url();
-	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
-
-	// Try to click the New Chat button if visible
-	// The button may not be visible if we're already in a fresh chat state
-	// Try multiple selectors since the button can appear in different places
-	const newChatButtonSelectors = [
-		'.icon_create',
-		'.new-chat-cta-button',
-		'button[aria-label*="New"]',
-		'button[aria-label*="new"]'
-	];
-
-	for (const selector of newChatButtonSelectors) {
-		const button = page.locator(selector).first();
-		if (await button.isVisible({ timeout: 2000 }).catch(() => false)) {
-			logCheckpoint(`Found New Chat button with selector: ${selector}`);
-			await button.click();
-			await page.waitForTimeout(2000); // Wait for new chat to initialize
-			break;
-		}
-	}
-
-	// Log the state after attempting to start a new chat
-	const newUrl = page.url();
-	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
-
-	// Log assistant message count for debugging
-	const assistantMessages = page.locator('.message-wrapper.assistant');
-	const messageCount = await assistantMessages.count();
-	logCheckpoint(`Current assistant message count: ${messageCount}`);
-}
 
 /**
  * Helper function to select a model via @ mention autocomplete.
@@ -279,7 +149,7 @@ async function typeQuestionAndSend(
 	stepLabel: string
 ): Promise<void> {
 	// Type a space after the autocompleted model, then the question
-	await page.keyboard.type(' ' + question);
+	await page.keyboard.type(withMockMarker(' ' + question, 'model_override'));
 	logCheckpoint(`Typed question: "${question}"`);
 	await takeStepScreenshot(page, `${stepLabel}-question-typed`);
 
@@ -352,94 +222,6 @@ async function waitForResponseAndVerifyModel(
 }
 
 /**
- * Helper function to delete the active chat.
- * Based on the working pattern from chat-flow.spec.ts.
- *
- * This is a best-effort cleanup function - it will attempt to delete
- * but won't fail the test if it can't (e.g., if we're on a demo chat
- * that can't be deleted).
- */
-async function deleteActiveChat(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>,
-	stepLabel: string
-): Promise<void> {
-	logCheckpoint('Attempting to delete the chat (best-effort cleanup)...');
-
-	try {
-		// Ensure sidebar is open (if on mobile/narrow screen)
-		const sidebarToggle = page.locator('.sidebar-toggle-button');
-		if (await sidebarToggle.isVisible()) {
-			await sidebarToggle.click();
-			await page.waitForTimeout(500);
-		}
-
-		// Find the active chat in the sidebar
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
-
-		// Check if the active chat is visible
-		if (!(await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false))) {
-			logCheckpoint('No active chat item visible - skipping cleanup.');
-			return;
-		}
-		logCheckpoint('Active chat item is visible.');
-
-		// Debug: Get the chat title if available
-		try {
-			const chatTitle = await activeChatItem.locator('.chat-title').textContent();
-			logCheckpoint(`Active chat title: "${chatTitle}"`);
-
-			// Skip deletion for demo chats
-			if (
-				chatTitle &&
-				(chatTitle.includes('demo') ||
-					chatTitle.includes('Demo') ||
-					chatTitle.includes('OpenMates'))
-			) {
-				logCheckpoint('Skipping deletion - appears to be a demo chat.');
-				return;
-			}
-		} catch {
-			logCheckpoint('Could not get active chat title.');
-		}
-
-		// Right-click to open context menu
-		await activeChatItem.click({ button: 'right' });
-		await takeStepScreenshot(page, `${stepLabel}-context-menu-open`);
-		logCheckpoint('Opened chat context menu.');
-
-		// Wait for context menu and check if delete button is visible
-		await page.waitForTimeout(300);
-		const deleteButton = page.locator('.menu-item.delete');
-
-		if (!(await deleteButton.isVisible({ timeout: 3000 }).catch(() => false))) {
-			logCheckpoint('Delete button not visible in context menu - skipping cleanup.');
-			// Press Escape to close context menu
-			await page.keyboard.press('Escape');
-			return;
-		}
-
-		// Click delete button (first time to enter confirm mode)
-		await deleteButton.click();
-		await takeStepScreenshot(page, `${stepLabel}-delete-confirm-mode`);
-		logCheckpoint('Clicked delete, now in confirm mode.');
-
-		// Click delete button again to confirm
-		await deleteButton.click();
-		logCheckpoint('Confirmed chat deletion.');
-
-		// Verify chat is removed (should redirect to home or another chat)
-		await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
-		await takeStepScreenshot(page, `${stepLabel}-chat-deleted`);
-		logCheckpoint('Verified chat deletion successfully.');
-	} catch (error) {
-		// Log the error but don't fail the test - cleanup is best-effort
-		logCheckpoint(`Cleanup failed (non-fatal): ${error}`);
-	}
-}
-
-/**
  * Test: Select Qwen model via @ mention dropdown and verify it's used.
  *
  * Flow:
@@ -472,9 +254,7 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_QWEN');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'qwen' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -563,9 +343,7 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_GPT');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'gpt' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -649,9 +427,7 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_SWITCH');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'switch' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -768,9 +544,7 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_KIMI');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'kimi' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 

@@ -9,8 +9,7 @@ import html
 import re
 from typing import Any, Dict, List, Tuple
 
-import httpx
-
+from backend.shared.testing.caching_http_transport import create_http_client
 
 BASE_URL = "https://www.classictic.com"
 DEFAULT_TIMEOUT_SECONDS = 25.0
@@ -52,7 +51,7 @@ def _resolve_category(categories: List[str]) -> str:
 
 
 async def _fetch_category_html(category_url: str) -> str:
-    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
+    async with create_http_client("classictic", timeout=DEFAULT_TIMEOUT_SECONDS, follow_redirects=True) as client:
         response = await client.get(category_url, headers=REQUEST_HEADERS)
     response.raise_for_status()
     return response.text

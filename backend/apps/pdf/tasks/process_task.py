@@ -145,10 +145,11 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         # extracted images). This key is Vault-wrapped with the user's transit key,
         # stored in the embed content, and used by the skill to decrypt artefacts.
         output_aes_key = os.urandom(32)
-        output_nonce = os.urandom(12)
         output_aesgcm = AESGCM(output_aes_key)
         output_aes_key_b64 = base64.b64encode(output_aes_key).decode("ascii")
-        output_nonce_b64 = base64.b64encode(output_nonce).decode("ascii")
+        # Note: output_nonce is NOT generated here. Each artefact (screenshot, OCR image,
+        # OCR blob) generates its own nonce via os.urandom(12) immediately before encryption
+        # to prevent AES-GCM nonce reuse across multiple plaintexts with the same key.
 
         # Vault-wrap the output AES key
         output_vault_wrapped_key = await _wrap_key_via_vault(
@@ -209,6 +210,75 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         )
 
         # -----------------------------------------------------------------------
+        # Step 5.5: SightEngine content safety scan on rendered page screenshots
+        #
+        # We scan every page screenshot for harmful/illegal/AI-generated content
+        # before storing them in S3. This mirrors the scan done for user-uploaded
+        # images in the upload service.
+        #
+        # Behaviour:
+        #   - If SightEngine is not configured (no credentials in Vault) → scan skipped,
+        #     screenshots proceed as normal (same as upload service behaviour).
+        #   - If SightEngine API returns an error (service down) → upload is REJECTED
+        #     (fail-closed policy, same as upload service post-fix).
+        #   - If any page fails the content safety threshold → the entire PDF
+        #     processing is aborted and the embed is marked as failed.
+        # -----------------------------------------------------------------------
+        logger.info(f"{log_prefix} Step 5.5: SightEngine safety scan of page screenshots")
+        try:
+            from backend.upload.services.sightengine_service import SightEngineService
+            _se = SightEngineService()
+            await _se.initialize_from_vault(
+                vault_url=os.getenv("VAULT_ADDR", "http://vault:8200"),
+                vault_token_path=os.getenv("VAULT_TOKEN_PATH", "/vault-data/api.token"),
+            )
+
+            if not _se.is_enabled:
+                logger.info(
+                    f"{log_prefix} Step 5.5: SightEngine SKIPPED "
+                    "(credentials not configured — set SECRET__SIGHTENGINE__* to enable)"
+                )
+            else:
+                rejected_page: int | None = None
+                for page_num, png_bytes in sorted(screenshots.items()):
+                    filename_hint = f"pdf_{embed_id[:8]}_p{page_num}.png"
+                    safety_result, _ = await _se.check_all(png_bytes, filename=filename_hint)
+                    if not safety_result.is_safe:
+                        if safety_result.reason == "safety_service_unavailable":
+                            logger.error(
+                                f"{log_prefix} Step 5.5: SightEngine service unavailable "
+                                f"while scanning page {page_num}. Aborting PDF processing."
+                            )
+                            raise RuntimeError(
+                                "Safety processing failed. Try again later. "
+                                "(SightEngine service unavailable during PDF scan)"
+                            )
+                        logger.warning(
+                            f"{log_prefix} Step 5.5: Page {page_num} REJECTED — "
+                            f"reason: {safety_result.reason}"
+                        )
+                        rejected_page = page_num
+                        break
+
+                if rejected_page is not None:
+                    raise RuntimeError(
+                        f"PDF contains content that violates community guidelines "
+                        f"(detected on page {rejected_page})"
+                    )
+
+                logger.info(
+                    f"{log_prefix} Step 5.5: All {len(screenshots)} page screenshots "
+                    "passed SightEngine safety scan ✓"
+                )
+        except RuntimeError:
+            raise  # Re-raise safety/service errors so the task retries/fails cleanly
+        except Exception as _se_err:
+            # Non-fatal import or init error: log and continue (do not block PDF processing)
+            logger.warning(
+                f"{log_prefix} Step 5.5: SightEngine scan skipped due to unexpected error: {_se_err}"
+            )
+
+        # -----------------------------------------------------------------------
         # Step 6: Encrypt and upload page screenshots to S3
         # -----------------------------------------------------------------------
         logger.info(f"{log_prefix} Step 6: Uploading {len(screenshots)} page screenshots")
@@ -217,7 +287,13 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         screenshot_s3_keys: Dict[str, str] = {}
 
         for page_num, png_bytes in sorted(screenshots.items()):
-            encrypted = output_aesgcm.encrypt(output_nonce, png_bytes, None)
+            # Each artefact gets its own fresh 96-bit nonce to prevent AES-GCM
+            # nonce reuse across multiple plaintexts with the same key.
+            # The nonce is prepended to the ciphertext (first 12 bytes) so
+            # decryptors can recover it without a separate metadata field.
+            # See: docs/architecture/pdf-encryption.md
+            page_nonce = os.urandom(12)
+            encrypted = page_nonce + output_aesgcm.encrypt(page_nonce, png_bytes, None)
             s3_screenshot_key = (
                 f"chatfiles/{user_id}/{timestamp}_{unique_id}_pdf_{embed_id[:8]}_p{page_num}.png.bin"
             )
@@ -246,7 +322,9 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
                     continue
                 try:
                     img_bytes = base64.b64decode(img_b64)
-                    encrypted_img = output_aesgcm.encrypt(output_nonce, img_bytes, None)
+                    # Fresh nonce per extracted image — see step 6 comment.
+                    img_nonce = os.urandom(12)
+                    encrypted_img = img_nonce + output_aesgcm.encrypt(img_nonce, img_bytes, None)
                     img_s3_key = (
                         f"chatfiles/{user_id}/{timestamp}_{unique_id}_"
                         f"pdf_{embed_id[:8]}_p{page_num}_img{img_idx}.bin"
@@ -295,7 +373,9 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
 
         ocr_blob = {"pages": ocr_blob_pages}
         ocr_blob_bytes = json.dumps(ocr_blob, ensure_ascii=False).encode("utf-8")
-        encrypted_ocr_blob = output_aesgcm.encrypt(output_nonce, ocr_blob_bytes, None)
+        # Fresh nonce for the OCR JSON blob — see step 6 comment.
+        ocr_nonce = os.urandom(12)
+        encrypted_ocr_blob = ocr_nonce + output_aesgcm.encrypt(ocr_nonce, ocr_blob_bytes, None)
 
         ocr_s3_key = (
             f"chatfiles/{user_id}/{timestamp}_{unique_id}_pdf_{embed_id[:8]}_ocr.json.bin"
@@ -336,14 +416,21 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
             "ocr_data_s3_key": ocr_s3_key,
             "screenshot_s3_keys": screenshot_s3_keys,
             "extracted_image_s3_keys": extracted_image_s3_keys,
-            # Plaintext AES key/nonce for CLIENT-SIDE decryption of screenshots.
+            # Plaintext AES key for CLIENT-SIDE decryption of screenshots.
             # The embed TOON content is itself encrypted with the chat's master key
             # (stored only in IndexedDB), so storing the plaintext key here is safe —
             # it follows the same pattern as images.generate (generate_task.py line 768).
             # This allows PDFEmbedPreview and PDFEmbedFullscreen to decrypt and render
             # page screenshots directly in the browser without a server round-trip.
+            #
+            # NOTE: aes_nonce is intentionally omitted for output artefacts (screenshots,
+            # OCR images, OCR blob). Each S3 object has its own unique nonce prepended as
+            # the first 12 bytes of the ciphertext — fetch and extract [:12] as the nonce,
+            # then decrypt [12:] with AES-256-GCM. This prevents nonce reuse across artefacts.
+            # The frontend should pass aesNonce="" to fetchAndDecryptImage for PDF screenshots;
+            # the function will extract the nonce from the blob prefix.
             "aes_key": output_aes_key_b64,
-            "aes_nonce": output_nonce_b64,
+            "aes_nonce": "",  # Nonce is embedded in each artefact's ciphertext — see note above
             # Vault-wrapped key for SERVER-SIDE skill decryption (pdf.read / pdf.view / pdf.search).
             "vault_wrapped_aes_key": output_vault_wrapped_key,
             "s3_base_url": s3_base_url,

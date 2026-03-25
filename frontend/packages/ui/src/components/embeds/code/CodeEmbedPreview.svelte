@@ -74,15 +74,18 @@
   let localLineCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
-  
+  let storeResolved = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    localCodeContent = codeContentProp || '';
-    localLanguage = languageProp || '';
-    localFilename = filenameProp;
-    localLineCount = lineCountProp || 0;
-    localStatus = statusProp || 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localCodeContent = codeContentProp || '';
+      localLanguage = languageProp || '';
+      localFilename = filenameProp;
+      localLineCount = lineCountProp || 0;
+      localStatus = statusProp || 'processing';
+      localTaskId = taskIdProp;
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -284,6 +287,9 @@
     if (data.status) {
       localStatus = data.status as 'processing' | 'finished' | 'error';
     }
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
   }
   
   // Handle stop button click (not applicable for code, but included for consistency)
@@ -334,7 +340,7 @@
 	        <!-- Processing state -->
 	        <div class="processing-placeholder">
           <span class="processing-dot"></span>
-          <span class="processing-text">{$text('embeds.processing')}</span>
+          <span class="processing-text">{$text('common.processing')}</span>
         </div>
       {:else}
         <!-- Error/empty state -->

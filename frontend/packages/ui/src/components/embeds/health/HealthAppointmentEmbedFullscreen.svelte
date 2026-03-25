@@ -1,16 +1,16 @@
 <!--
   frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
 
-  Fullscreen detail view for a single doctor appointment result.
+  Fullscreen detail view for a single appointment slot.
   Uses EntryWithMapTemplate for responsive map + detail card layout.
 
   Shows map when gps_coordinates are available (Doctolib provides gpsPoint).
   Falls back to details-only layout when no coordinates.
 
   Shows:
+  - Appointment slot datetime (prominent)
   - Doctor name, speciality, address
   - Telehealth/insurance badges
-  - Available appointment slots (informational, not clickable -- they expire)
   - "Book on Doctolib" CTA linking to the practice_url
 
   See docs/architecture/embeds.md
@@ -28,39 +28,116 @@
 
   interface AppointmentData {
     embed_id: string;
+    /** ISO datetime for this specific appointment slot */
+    slot_datetime?: string;
     name?: string;
     speciality?: string;
     address?: string;
     gps_coordinates?: { latitude: number; longitude: number };
-    slots_count?: number;
-    next_slot?: string;
-    next_slot_url?: string;
-    slots?: SlotData[];
     insurance?: string;
     telehealth?: boolean;
     practice_url?: string;
     provider?: string;
+    provider_platform?: string;
+    // Jameda-specific fields (null for Doctolib results)
+    booking_url?: string;
+    rating?: number;
+    rating_count?: number;
+    price?: number;
+    service_name?: string;
+    // Legacy backward-compat (old per-doctor cached embeds)
+    slots_count?: number;
+    next_slot?: string;
+    slots?: SlotData[];
   }
 
   interface Props {
-    appointment: AppointmentData;
+    appointment?: AppointmentData;
+    slot_datetime?: string;
+    name?: string;
+    speciality?: string;
+    address?: string;
+    gps_coordinates?: { latitude: number; longitude: number };
+    insurance?: string;
+    telehealth?: boolean;
+    practice_url?: string;
+    provider?: string;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
     onNavigateNext?: () => void;
+    // Legacy backward-compat
+    slots_count?: number;
+    next_slot?: string;
+    slots?: SlotData[];
   }
 
   let {
     appointment,
+    slot_datetime,
+    name,
+    speciality,
+    address,
+    gps_coordinates,
+    insurance,
+    telehealth,
+    practice_url,
+    provider,
     onClose,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
+    slots_count,
+    next_slot,
+    slots: slotsProp,
   }: Props = $props();
+
+  function isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  function getAddressLines(value: unknown): string[] {
+    if (!isNonEmptyString(value)) return [];
+    return value
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+  }
+
+  let activeAppointment = $derived.by(() => {
+    if (appointment) return appointment;
+
+    const hasFlatData =
+      isNonEmptyString(name) ||
+      isNonEmptyString(speciality) ||
+      isNonEmptyString(address) ||
+      isNonEmptyString(slot_datetime) ||
+      isNonEmptyString(next_slot) ||
+      isNonEmptyString(practice_url);
+
+    if (!hasFlatData) return undefined;
+
+    return {
+      embed_id: embedId || 'health-appointment-preview',
+      slot_datetime,
+      name,
+      speciality,
+      address,
+      gps_coordinates,
+      insurance,
+      telehealth,
+      practice_url,
+      provider,
+      // Legacy backward-compat
+      slots_count,
+      next_slot,
+      slots: slotsProp,
+    } as AppointmentData;
+  });
 
   function formatSlot(iso: string): string {
     try {
@@ -71,40 +148,48 @@
     } catch { return iso; }
   }
 
-  // Defensive: appointment may be undefined during async component loading in dev preview
-  let hasSlots = $derived(((appointment as AppointmentData | undefined)?.slots_count ?? 0) > 0);
+  // Effective slot datetime: new per-slot format, or legacy per-doctor format
+  let effectiveSlotDatetime = $derived(
+    activeAppointment?.slot_datetime || activeAppointment?.next_slot || null
+  );
 
-  function getSlotsFromAppointment(appt: AppointmentData | undefined): SlotData[] {
+  // Legacy support: old per-doctor embeds may have multiple slots
+  function getLegacySlots(appt: AppointmentData | undefined): SlotData[] {
     if (!appt) return [];
     if (appt.slots && Array.isArray(appt.slots) && appt.slots.length > 0) return appt.slots;
-    if (appt.next_slot) return [{ datetime: appt.next_slot }];
     return [];
   }
 
-  let slots = $derived(getSlotsFromAppointment(appointment as AppointmentData | undefined));
+  let legacySlots = $derived(getLegacySlots(activeAppointment));
+  let isLegacyMultiSlot = $derived(!activeAppointment?.slot_datetime && legacySlots.length > 1);
 
   // Map data from gps_coordinates
   let mapCenter = $derived(
-    (appointment as AppointmentData | undefined)?.gps_coordinates?.latitude != null &&
-    (appointment as AppointmentData | undefined)?.gps_coordinates?.longitude != null
-      ? { lat: appointment.gps_coordinates!.latitude, lon: appointment.gps_coordinates!.longitude }
+    activeAppointment?.gps_coordinates?.latitude != null &&
+    activeAppointment?.gps_coordinates?.longitude != null
+      ? {
+          lat: activeAppointment.gps_coordinates.latitude,
+          lon: activeAppointment.gps_coordinates.longitude,
+        }
       : undefined
   );
 
   let mapMarkers = $derived(
     mapCenter
-      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: appointment?.name || appointment?.speciality }]
+      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: activeAppointment?.name || activeAppointment?.speciality }]
       : []
   );
+
+  let addressLines = $derived(getAddressLines(activeAppointment?.address));
 </script>
 
-{#if appointment}
+{#if activeAppointment}
 <EntryWithMapTemplate
   appId="health"
   skillId="appointment"
   {onClose}
   skillIconName="health"
-  embedHeaderTitle={appointment.name || appointment.speciality || 'Doctor'}
+  embedHeaderTitle={activeAppointment.name || activeAppointment.speciality || 'Doctor'}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -114,39 +199,68 @@
   mapZoom={16}
   {mapMarkers}
 >
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
+    <!-- Slot datetime — prominent -->
+    {#if effectiveSlotDatetime}
+      <div class="slot-highlight">
+        <span class="slot-highlight-datetime">{formatSlot(effectiveSlotDatetime)}</span>
+      </div>
+    {/if}
+
     <!-- Doctor info -->
     <div class="doctor-header">
-      {#if appointment.name}
-        <div class="doctor-name">{appointment.name}</div>
+      {#if activeAppointment.name}
+        <div class="doctor-name">{activeAppointment.name}</div>
       {/if}
-      {#if appointment.speciality}
-        <div class="doctor-speciality">{appointment.speciality}</div>
+      {#if activeAppointment.speciality}
+        <div class="doctor-speciality">{activeAppointment.speciality}</div>
       {/if}
-      {#if appointment.address}
+      {#if addressLines.length > 0}
         <div class="doctor-address">
-          {#each appointment.address.split('\n') as line}
+          {#each addressLines as line}
             <span>{line}</span><br />
           {/each}
         </div>
       {/if}
     </div>
 
+    <!-- Rating (Jameda) -->
+    {#if activeAppointment.rating != null}
+      <div class="rating-row">
+        <span class="rating-stars">{activeAppointment.rating.toFixed(1)} ★</span>
+        {#if activeAppointment.rating_count}
+          <span class="rating-count">({activeAppointment.rating_count} {$text('embeds.health.reviews')})</span>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Service + Price (Jameda) -->
+    {#if activeAppointment.service_name || activeAppointment.price != null}
+      <div class="service-row">
+        {#if activeAppointment.service_name}
+          <span class="service-name">{activeAppointment.service_name}</span>
+        {/if}
+        {#if activeAppointment.price != null}
+          <span class="service-price">{activeAppointment.price} €</span>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Badges -->
     <div class="badges-row">
-      {#if appointment.telehealth}
+      {#if activeAppointment.telehealth}
         <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
       {/if}
-      {#if appointment.insurance}
-        <span class="badge insurance-badge">{appointment.insurance}</span>
+      {#if activeAppointment.insurance}
+        <span class="badge insurance-badge">{activeAppointment.insurance}</span>
       {/if}
     </div>
 
-    <!-- Slots -->
-    {#if hasSlots && slots.length > 0}
+    <!-- Legacy: old per-doctor embeds with multiple slots -->
+    {#if isLegacyMultiSlot}
       <div class="slots-section">
         <div class="slots-grid">
-          {#each slots as slot}
+          {#each legacySlots as slot}
             <div class="slot-card">
               <span class="slot-datetime">{formatSlot(slot.datetime)}</span>
             </div>
@@ -154,16 +268,27 @@
         </div>
         <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
       </div>
-    {:else}
-      <div class="no-slots">{$text('embeds.health.no_slots_available')}</div>
+    {:else if effectiveSlotDatetime}
+      <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
     {/if}
   {/snippet}
 
   {#snippet ctaContent()}
-    {#if appointment.practice_url}
+    {#if activeAppointment.booking_url}
+      <!-- Jameda: direct booking URL for this specific slot -->
       <a
-        class="doctolib-link"
-        href={appointment.practice_url}
+        class="booking-link jameda-link"
+        href={activeAppointment.booking_url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {$text('embeds.health.book_on_jameda')}
+      </a>
+    {:else if activeAppointment.practice_url}
+      <!-- Doctolib: practice page with live availability -->
+      <a
+        class="booking-link doctolib-link"
+        href={activeAppointment.practice_url}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -176,6 +301,20 @@
 {/if}
 
 <style>
+  .slot-highlight {
+    text-align: center;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
+    border: 1px solid rgba(var(--color-primary-rgb, 74, 144, 226), 0.2);
+  }
+  .slot-highlight-datetime {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.3;
+  }
+
   .doctor-header { text-align: center; }
   .doctor-name {
     font-size: 22px;
@@ -246,13 +385,65 @@
     text-align: center;
     margin: 0;
   }
-  .no-slots {
-    text-align: center;
-    padding: 20px 0;
+  /* Rating row */
+  .rating-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .rating-stars {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-warning, #f5a623);
+  }
+  .rating-count {
+    font-size: 13px;
     color: var(--color-font-secondary);
-    font-size: 14px;
   }
 
+  /* Service + Price row */
+  .service-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .service-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-font-primary);
+  }
+  .service-price {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-font-primary);
+  }
+
+  /* Shared booking link base */
+  .booking-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    transition: background-color 0.15s;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .jameda-link {
+    background-color: #00a98f;
+    border: 1.5px solid #00a98f;
+  }
+  .jameda-link:hover {
+    background-color: #009880;
+  }
   .doctolib-link {
     display: inline-flex;
     align-items: center;

@@ -107,18 +107,22 @@
   let localProvider = $state<string>('Brave Search');
   // NOTE: Must include 'cancelled' to match SkillExecutionStatus type
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<NewsSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let isLoadingChildren = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Brave Search';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Brave Search';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -145,8 +149,9 @@
     // Update status - handle all SkillExecutionStatus values
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
-    
+
     // Update news-search-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {
@@ -172,8 +177,9 @@
             ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[NewsSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -241,11 +247,13 @@
     } catch (error) {
       console.warn('[NewsSearchEmbedPreview] Error loading child embeds for preview:', error);
       // Continue without results - preview will just show query/provider
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
@@ -433,8 +441,10 @@
       <!-- Finished state: show favicons and remaining count -->
       {#if status === 'finished'}
         <div class="search-results-info">
-          <!-- Favicons row -->
-          {#if faviconResults.length > 0}
+          {#if faviconResults.length === 0 && remainingCount === 0 && isLoadingChildren}
+            <!-- Child embeds are being fetched — show loading instead of empty state -->
+            <span class="loading-text">{$text('common.loading')}</span>
+          {:else if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
                 {@const rawFaviconUrl = getFaviconUrl(result)}
@@ -558,6 +568,13 @@
     margin-left: 0;
   }
   
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
+  }
+
   /* Remaining count */
   .remaining-count {
     font-size: 14px;

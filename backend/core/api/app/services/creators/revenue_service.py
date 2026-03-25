@@ -6,7 +6,7 @@
 import logging
 import time
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Optional
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import (
     EncryptionService,

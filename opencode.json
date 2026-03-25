@@ -1,3 +1,4 @@
 {
-  "$schema": "https://opencode.ai/config.json"
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@thehugeman/opencode-anthropic-auth-community@latest"]
 }

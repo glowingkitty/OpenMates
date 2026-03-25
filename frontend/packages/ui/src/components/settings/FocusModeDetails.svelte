@@ -307,7 +307,7 @@
                         class="instructions-toggle"
                         onclick={() => (showFullPrompt = !showFullPrompt)}
                     >{showFullPrompt
-                            ? $text('settings.app_store.focus_modes.show_less')
+                            ? $text('common.show_less')
                             : $text('settings.app_store.focus_modes.show_full_instruction')}</button>
                 {/if}
             {:else}

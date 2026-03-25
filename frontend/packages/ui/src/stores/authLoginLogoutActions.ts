@@ -31,6 +31,7 @@ import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
 import { resetChatNavigationList } from "./chatNavigationStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
+import { resetUserAvailableSkills } from "./appSkillsStore";
 import { applyServerDarkMode } from "./theme";
 
 // Import core auth state and related flags
@@ -44,6 +45,25 @@ import {
 // Import auth types
 import type { LoginResult, LogoutCallbacks } from "./authTypes";
 import { getSessionId } from "../utils/sessionId";
+
+// Login session generation counter.
+// Incremented on every successful login. The background logout IIFE captures the
+// current value when it starts; before doing destructive operations (server logout
+// fetch with credentials, cookie deletion) it re-checks the counter. If a new
+// login happened in the meantime the counter will have changed, so the IIFE skips
+// those operations to avoid invalidating the freshly-established session.
+// This fixes the race condition where: forced-logout detects stale profile →
+// fires background server-logout → user logs in via passkey → background IIFE
+// sends POST /auth/logout with the *new* session's cookies → new session destroyed.
+let loginSessionGeneration = 0;
+
+/**
+ * Returns the current login session generation.
+ * Used by authSessionActions to capture before starting background logout.
+ */
+function getLoginSessionGeneration(): number {
+  return loginSessionGeneration;
+}
 
 /**
  * Detects the user's timezone from the browser and syncs it to the server.
@@ -198,6 +218,15 @@ export async function login(
           );
         }
 
+        // CRITICAL: Increment login session generation BEFORE resetting logout flags.
+        // Any in-flight background logout IIFE from a previous forced-logout will see
+        // the bumped counter and skip destructive operations (server logout fetch,
+        // cookie deletion) that would otherwise invalidate this new session.
+        loginSessionGeneration++;
+        console.debug(
+          `[AuthStore] Login success — bumped loginSessionGeneration to ${loginSessionGeneration}`,
+        );
+
         // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags on successful login
         // This handles the race condition where orphaned database cleanup was triggered on page load
         // (setting these flags to true) but the user then successfully logs in.
@@ -255,6 +284,7 @@ export async function login(
             }
 
             updateProfile({
+              user_id: (data.user as any).id || null,
               username: data.user.username,
               profile_image_url: data.user.profile_image_url,
               tfa_app_name: data.user.tfa_app_name,
@@ -319,6 +349,24 @@ export async function login(
         // forwarder from starting — a DB error is non-fatal for log forwarding.
         if (data.user?.is_admin) {
           clientLogForwarder.start();
+        } else {
+          // Non-admin: resume debug log sharing session if one was active
+          try {
+            const debugSession = localStorage.getItem("debug_session");
+            if (debugSession) {
+              const parsed = JSON.parse(debugSession);
+              const expiresAt = parsed.expires_at
+                ? new Date(parsed.expires_at).getTime()
+                : Infinity;
+              if (expiresAt > Date.now() && parsed.debugging_id) {
+                clientLogForwarder.startDebugSession(parsed.debugging_id);
+              } else {
+                localStorage.removeItem("debug_session");
+              }
+            }
+          } catch {
+            // Non-critical — debug session resume is best-effort
+          }
         }
 
         return {
@@ -369,6 +417,11 @@ export async function login(
  * @returns True if local logout initiated successfully, false otherwise.
  */
 export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
+  // Capture login session generation BEFORE any async work.
+  // Both the happy-path and error-recovery background IIFEs use this to detect
+  // whether a new login() call succeeded while they were in flight.
+  const logoutGeneration = loginSessionGeneration;
+
   try {
     // --- Pre-request cleanup (non-cookie items) ---
     // Stop admin log streaming before clearing auth state
@@ -410,6 +463,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     deviceVerificationReason.set(null);
     phasedSyncState.reset(); // Reset phased sync state on logout
     aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
+    resetUserAvailableSkills(); // Reset user-specific skill availability so next user gets fresh data
     dailyInspirationStore.reset(); // Clear user-specific inspirations on logout so defaults are shown to logged-out users
     // Immediately repopulate public default inspirations in the same tab session.
     // We intentionally skip IndexedDB on logout because the master key was just
@@ -470,6 +524,12 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // --- Background cleanup and server logout (non-blocking) ---
     // These operations run asynchronously and do NOT block the return.
     // This ensures the logout works regardless of server connectivity or DB speed.
+    //
+    // RACE CONDITION GUARD: logoutGeneration was captured at the top of logout()
+    // before any async work. If a new login() succeeds while this IIFE is in-flight,
+    // loginSessionGeneration will have been incremented. We check before server logout
+    // fetch and cookie deletion — the two operations that would destroy a freshly-
+    // established session. Database deletion is safe regardless (stale old-session data).
     (async () => {
       try {
         // Delete local databases in the background
@@ -502,6 +562,27 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             "[AuthStore] Failed to clear pending chat deletions:",
             clearError,
           );
+        }
+
+        // RACE CONDITION CHECK: If a new login happened while we were deleting
+        // databases, skip the server logout and cookie deletion — they would
+        // invalidate the new session's credentials.
+        if (loginSessionGeneration !== logoutGeneration) {
+          console.warn(
+            `[AuthStore] New login detected during background logout (gen ${logoutGeneration} → ${loginSessionGeneration}) — skipping server logout and cookie deletion to protect new session`,
+          );
+          // Still run afterServerCleanup so forcedLogoutInProgress gets reset
+          if (callbacks?.afterServerCleanup) {
+            try {
+              await callbacks.afterServerCleanup();
+            } catch (cbError) {
+              console.error(
+                "[AuthStore] Error in afterServerCleanup callback (skipped-logout path):",
+                cbError,
+              );
+            }
+          }
+          return;
         }
 
         // Perform server logout - this ensures the backend is notified even if it's slow
@@ -574,17 +655,28 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
           }
         }
 
-        // --- CRITICAL: Delete cookies AFTER server logout request ---
-        // This ensures the server receives the refresh token to properly invalidate the session
-        deleteAllCookies();
+        // RACE CONDITION CHECK (post-fetch): A login may have succeeded while the
+        // server logout request was in flight. Skip cookie deletion to keep the
+        // new session's cookies intact.
+        if (loginSessionGeneration !== logoutGeneration) {
+          console.warn(
+            `[AuthStore] New login detected after server logout fetch (gen ${logoutGeneration} → ${loginSessionGeneration}) — skipping cookie deletion to protect new session`,
+          );
+        } else {
+          // --- CRITICAL: Delete cookies AFTER server logout request ---
+          // This ensures the server receives the refresh token to properly invalidate the session
+          deleteAllCookies();
+        }
       } catch (serverError) {
         console.error(
           "[AuthStore] Unexpected error during background server logout processing:",
           serverError,
         );
         if (callbacks?.onError) await callbacks.onError(serverError);
-        // Still delete cookies even on error
-        deleteAllCookies();
+        // Only delete cookies if no new login happened
+        if (loginSessionGeneration === logoutGeneration) {
+          deleteAllCookies();
+        }
       }
 
       // --- Final Callbacks --- (after server operations)
@@ -642,9 +734,15 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
     // Still attempt server logout and cleanup in background even on error
     // This ensures that even if something fails locally, the backend is still notified
+    // Uses logoutGeneration captured at the top of logout() to guard against new logins.
     (async () => {
       try {
-        if (!callbacks?.skipServerLogout) {
+        // RACE CONDITION CHECK: Skip server logout if a new login happened
+        if (loginSessionGeneration !== logoutGeneration) {
+          console.warn(
+            `[AuthStore] New login detected during error-recovery logout (gen ${logoutGeneration} → ${loginSessionGeneration}) — skipping server logout`,
+          );
+        } else if (!callbacks?.skipServerLogout) {
           try {
             const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
             const response = await fetch(logoutApiUrl, {
@@ -666,13 +764,17 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
           }
         }
 
-        // Delete cookies and session_id after server request
-        deleteAllCookies();
-        // Ensure session_id is cleared even in error recovery path
-        deleteSessionId();
-        // Clear WebSocket token from sessionStorage
-        const { clearWebSocketToken } = await import("../utils/cookies");
-        clearWebSocketToken();
+        // Only delete cookies/session if no new login happened
+        if (loginSessionGeneration === logoutGeneration) {
+          deleteAllCookies();
+          deleteSessionId();
+          const { clearWebSocketToken } = await import("../utils/cookies");
+          clearWebSocketToken();
+        } else {
+          console.warn(
+            "[AuthStore] Skipping cookie/session deletion in error recovery — new login active",
+          );
+        }
 
         // Try afterServerCleanup even in error recovery
         if (callbacks?.afterServerCleanup) {
@@ -698,9 +800,12 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 }
 
 /**
- * Deletes all cookies by setting their expiration date to the past.
- * This ensures complete cookie cleanup during logout for enhanced security.
- * Includes deletion of Stripe cookies (__stripe_mid, __stripe_sid) and all other cookies.
+ * Deletes all cookies visible to JavaScript by setting their expiration date to the past.
+ *
+ * LIMITATION: This function CANNOT delete httpOnly cookies (e.g., auth_refresh_token)
+ * because document.cookie cannot enumerate them (browser security by design).
+ * The backend logout endpoint (auth_logout.py) is the ONLY reliable mechanism for
+ * clearing httpOnly auth cookies via Set-Cookie response headers.
  */
 export function deleteAllCookies(): void {
   const cookies = document.cookie.split(";");

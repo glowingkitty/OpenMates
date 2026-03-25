@@ -29,10 +29,14 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * PII detection flow tests: verify that the PII (Personally Identifiable Information)
@@ -48,8 +52,8 @@ const {
  *       - Verifies all highlights are removed after undo all
  *       - Clears input, types a message with an email to send
  *       - Sends the message and verifies:
- *         - The user message shows the [EMAIL_1] placeholder (green, hidden mode)
- *         - The assistant response references [EMAIL_1]
+ *         - The user message shows the [EMAIL_com] placeholder (green, hidden mode)
+ *         - The assistant response references [EMAIL_com]
  *       - Tests the PII show/hide toggle button in the chat header
  *         - Clicks "Show sensitive data" to reveal the original email (orange)
  *         - Clicks "Hide sensitive data" to re-hide (green placeholder)
@@ -68,213 +72,6 @@ const {
  */
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-
-// ---------------------------------------------------------------------------
-// Shared helpers (same pattern as other spec files)
-// ---------------------------------------------------------------------------
-
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeStepScreenshot(page, 'password-entered');
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-		if (attempt === 1) {
-			await takeStepScreenshot(page, 'otp-entered');
-		}
-
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
-
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
-
-	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(3000);
-
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
-}
-
-async function startNewChat(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
-): Promise<void> {
-	await page.waitForTimeout(1000);
-
-	const currentUrl = page.url();
-	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
-
-	const newChatButtonSelectors = [
-		'.new-chat-cta-button',
-		'.icon_create',
-		'button[aria-label*="New"]',
-		'button[aria-label*="new"]'
-	];
-
-	let clicked = false;
-	for (const selector of newChatButtonSelectors) {
-		const button = page.locator(selector).first();
-		if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-			logCheckpoint(`Found New Chat button with selector: ${selector}`);
-			await button.click();
-			clicked = true;
-			await page.waitForTimeout(2000);
-			break;
-		}
-	}
-
-	if (!clicked) {
-		logCheckpoint('New Chat button not initially visible, trying to trigger it...');
-		const messageEditor = page.locator('.editor-content.prose');
-		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await messageEditor.click();
-			await page.keyboard.type(' ');
-			await page.waitForTimeout(500);
-
-			for (const selector of newChatButtonSelectors) {
-				const button = page.locator(selector).first();
-				if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-					logCheckpoint(`Found New Chat button after typing: ${selector}`);
-					await button.click();
-					clicked = true;
-					await page.waitForTimeout(2000);
-					break;
-				}
-			}
-
-			if (clicked) {
-				const newEditor = page.locator('.editor-content.prose');
-				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
-					await newEditor.click();
-					await page.keyboard.press('Control+A');
-					await page.keyboard.press('Backspace');
-				}
-			}
-		}
-	}
-
-	if (!clicked) {
-		logCheckpoint('WARNING: Could not find New Chat button with any selector.');
-	}
-
-	const newUrl = page.url();
-	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
-}
-
-async function deleteActiveChat(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>,
-	stepLabel: string
-): Promise<void> {
-	logCheckpoint('Attempting to delete the chat (best-effort cleanup)...');
-
-	try {
-		const sidebarToggle = page.locator('.sidebar-toggle-button');
-		if (await sidebarToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await sidebarToggle.click();
-			await page.waitForTimeout(500);
-		}
-
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
-
-		if (!(await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false))) {
-			logCheckpoint('No active chat item visible - skipping cleanup.');
-			return;
-		}
-
-		try {
-			const chatTitle = await activeChatItem.locator('.chat-title').textContent({ timeout: 3000 });
-			logCheckpoint(`Active chat title: "${chatTitle}"`);
-
-			if (
-				chatTitle &&
-				(chatTitle.includes('demo') ||
-					chatTitle.includes('Demo') ||
-					chatTitle.includes('OpenMates'))
-			) {
-				logCheckpoint('Skipping deletion - appears to be a demo chat.');
-				return;
-			}
-		} catch {
-			logCheckpoint('Could not get active chat title.');
-		}
-
-		await activeChatItem.click({ button: 'right' });
-		await takeStepScreenshot(page, `${stepLabel}-context-menu-open`);
-		logCheckpoint('Opened chat context menu.');
-
-		await page.waitForTimeout(300);
-		const deleteButton = page.locator('.menu-item.delete');
-
-		if (!(await deleteButton.isVisible({ timeout: 3000 }).catch(() => false))) {
-			logCheckpoint('Delete button not visible in context menu - skipping cleanup.');
-			await page.keyboard.press('Escape');
-			return;
-		}
-
-		await deleteButton.click();
-		await takeStepScreenshot(page, `${stepLabel}-delete-confirm-mode`);
-		logCheckpoint('Clicked delete, now in confirm mode.');
-
-		await deleteButton.click();
-		logCheckpoint('Confirmed chat deletion.');
-
-		await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
-		await takeStepScreenshot(page, `${stepLabel}-chat-deleted`);
-		logCheckpoint('Verified chat deletion successfully.');
-	} catch (error) {
-		logCheckpoint(`Cleanup failed (non-fatal): ${error}`);
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Test: PII detection, click-to-undo, undo all, send, show/hide toggle
@@ -307,9 +104,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		filenamePrefix: 'pii-detection'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -347,7 +142,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	await messageEditor.click();
 	// Type slowly enough for PII detection to process but not too slowly
-	await page.keyboard.type(piiText, { delay: 5 });
+	await page.keyboard.type(withMockMarker(piiText, 'pii_detection_check'), { delay: 5 });
 	logCheckpoint(`Typed PII text (${piiText.length} chars).`);
 
 	// PII detection triggers on delimiters (space, period, etc.) or after 800ms debounce.
@@ -525,7 +320,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// Type a simple message with an email that should be replaced on send
 	const sendText = 'Please contact me at testuser@privateemail.org about my account.';
-	await page.keyboard.type(sendText, { delay: 5 });
+	await page.keyboard.type(withMockMarker(sendText, 'pii_detection_send'), { delay: 5 });
 	logCheckpoint(`Typed send message: "${sendText}"`);
 
 	// Wait for PII detection
@@ -565,7 +360,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// Give extra time for message rendering and PII decorations
 	await page.waitForTimeout(5000);
 
-	// Find the user message that contains our text with [EMAIL_1] placeholder.
+	// Find the user message that contains our text with [EMAIL_com] placeholder.
 	// Messages are E2E encrypted, so ReadOnlyMessage needs to decrypt + init TipTap.
 	// The ReadOnlyMessage component uses lazy TipTap initialization — it only creates
 	// the TipTap editor when the element becomes visible in the viewport via
@@ -624,7 +419,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		const historyText = (await chatHistory.first().textContent()) || '';
 		logCheckpoint(`Chat history text (excerpt): "${historyText.substring(0, 300)}"`);
 
-		const emailMatch = historyText.match(/\[EMAIL_\d+\]/);
+		const emailMatch = historyText.match(/\[EMAIL_\w+\]/);
 		if (emailMatch) {
 			logCheckpoint(`Found ${emailMatch[0]} in chat history text.`);
 			userMsgText = historyText;
@@ -638,10 +433,10 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		}
 	}
 
-	// The user message text should contain [EMAIL_1] placeholder
+	// The user message text should contain [EMAIL_com] placeholder
 	logCheckpoint(`User message text for PII check: "${userMsgText.trim().substring(0, 150)}"`);
-	expect(userMsgText).toMatch(/\[EMAIL_\d+\]/);
-	logCheckpoint('User message contains [EMAIL_N] placeholder text.');
+	expect(userMsgText).toMatch(/\[EMAIL_\w+\]/);
+	logCheckpoint('User message contains [EMAIL_*] placeholder text.');
 
 	// Check if PII decoration spans are rendered (pii-restored class)
 	// These may take a moment to render since ReadOnlyMessage uses TipTap decorations
@@ -657,7 +452,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	}
 
 	if (piiSpanCount > 0) {
-		// In hidden mode (default), the placeholder text like [EMAIL_1] should be displayed
+		// In hidden mode (default), the placeholder text like [EMAIL_com] should be displayed
 		const userPiiText = await userPiiSpan.first().textContent();
 		logCheckpoint(`User message PII span text (hidden mode): "${userPiiText}"`);
 
@@ -666,9 +461,9 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		logCheckpoint(`User message PII span class: "${userPiiClass}"`);
 		expect(userPiiClass).toContain('pii-hidden');
 
-		// Verify the placeholder format [EMAIL_1]
-		expect(userPiiText).toMatch(/\[EMAIL_\d+\]/);
-		logCheckpoint('User message PII span correctly shows [EMAIL_N] in hidden mode.');
+		// Verify the placeholder format [EMAIL_com]
+		expect(userPiiText).toMatch(/\[EMAIL_\w+\]/);
+		logCheckpoint('User message PII span correctly shows [EMAIL_*] in hidden mode.');
 	} else {
 		logCheckpoint(
 			'PII decoration spans not rendered yet — placeholder text verified in raw content.'
@@ -689,10 +484,10 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	const assistantText = await assistantMessage.textContent();
 	logCheckpoint(`Assistant response text (first 200 chars): "${assistantText?.substring(0, 200)}"`);
 
-	// The assistant should see and potentially reference [EMAIL_1] since the original was replaced
+	// The assistant should see and potentially reference [EMAIL_com] since the original was replaced
 	// This is not always guaranteed (the assistant may or may not echo it), so we just log it
-	const assistantRefersPlaceholder = assistantText?.includes('[EMAIL_1]');
-	logCheckpoint(`Assistant references [EMAIL_1]: ${assistantRefersPlaceholder}`);
+	const assistantRefersPlaceholder = assistantText?.match(/\[EMAIL_\w+\]/);
+	logCheckpoint(`Assistant references [EMAIL_*]: ${!!assistantRefersPlaceholder}`);
 
 	await takeStepScreenshot(page, 'pii-assistant-response');
 
@@ -759,7 +554,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		// Re-read user message text — it should go back to showing the placeholder
 		const reHiddenMsgText = await userMessage.textContent();
 		logCheckpoint(`User message text after re-hide: "${reHiddenMsgText?.substring(0, 150)}"`);
-		expect(reHiddenMsgText).toMatch(/\[EMAIL_\d+\]/);
+		expect(reHiddenMsgText).toMatch(/\[EMAIL_\w+\]/);
 		logCheckpoint('User message correctly re-hidden with placeholder.');
 
 		// Check decoration spans reverted
@@ -770,7 +565,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		if (hiddenCountAfterReHide > 0) {
 			const hiddenTextAgain = await hiddenPiiAfterReHide.first().textContent();
 			logCheckpoint(`Re-hidden PII span text: "${hiddenTextAgain}"`);
-			expect(hiddenTextAgain).toMatch(/\[EMAIL_\d+\]/);
+			expect(hiddenTextAgain).toMatch(/\[EMAIL_\w+\]/);
 			logCheckpoint('PII decoration span correctly re-hidden to placeholder format.');
 		}
 

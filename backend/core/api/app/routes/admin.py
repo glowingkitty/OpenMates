@@ -4,7 +4,6 @@ REST API endpoints for server administration functionality.
 """
 
 import logging
-import os
 import random
 import string
 from typing import Dict, Any, List, Optional
@@ -225,6 +224,133 @@ async def get_community_suggestions(
         logger.error(f"Error getting community suggestions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get community suggestions")
 
+@router.get("/demo-chat/{demo_chat_id}/preview")
+@limiter.limit("60/minute")
+async def get_demo_chat_preview(
+    request: Request,
+    demo_chat_id: str,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get decrypted messages and embeds for a pending demo chat (for admin preview).
+
+    Since the user submitted decrypted content when sharing with the community,
+    the server stores it in demo_messages / demo_embeds tables.
+    This endpoint lets admins review the full chat content before approving.
+
+    Returns messages and embeds in cleartext (already decrypted by client at submission time).
+    Includes embed children with parent_embed_id for correct rendering.
+    """
+    try:
+        import json
+
+        # Verify the demo chat exists and belongs to a pending_approval entry
+        demo_chats = await directus_service.get_items("demo_chats", {
+            "filter": {"id": {"_eq": demo_chat_id}, "is_active": {"_eq": True}},
+            "limit": 1
+        })
+        if not demo_chats:
+            raise HTTPException(status_code=404, detail="Demo chat not found")
+
+        demo_chat = demo_chats[0]
+
+        # Get messages (language="original" for pending chats, not yet translated)
+        messages = await directus_service.demo_chat.get_demo_messages_by_uuid(demo_chat_id, "original")
+        if not messages:
+            # Fallback: try without language filter (some older entries may differ)
+            messages = []
+
+        # Get embeds (always "original" language - embeds are never translated)
+        embeds = await directus_service.demo_chat.get_demo_embeds_by_uuid(demo_chat_id, "original")
+
+        # Build message list
+        parsed_messages = []
+        for msg in (messages or []):
+            content = msg.get("content", "")
+            # Strip user_message_id from system messages (privacy — leaks original chat metadata)
+            if msg.get("role") == "system" and content:
+                try:
+                    parsed_content = json.loads(content)
+                    if isinstance(parsed_content, dict) and "user_message_id" in parsed_content:
+                        del parsed_content["user_message_id"]
+                        content = json.dumps(parsed_content)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            parsed_messages.append({
+                "message_id": str(msg.get("id")),
+                "role": msg.get("role"),
+                "content": content,
+                "category": msg.get("category"),
+                "model_name": msg.get("model_name"),
+                "created_at": msg.get("original_created_at")
+            })
+
+        # Build embed list — derive parent-child relationships from embed content.
+        # The demo_embeds table doesn't store embed_ids or parent_embed_id.
+        # However, we can detect parent embeds by looking for embed_ids arrays in
+        # the TOON content (JSON), and child embeds by checking if their
+        # original_embed_id appears in any parent's child list.
+        all_embed_ids = {emb.get("original_embed_id") for emb in (embeds or []) if emb.get("original_embed_id")}
+        
+        # Step 1: Extract child embed ID lists from parent embed content (TOON JSON)
+        parent_child_map: Dict[str, list] = {}  # parent_eid → [child_eid, ...]
+        parent_by_child: Dict[str, str] = {}     # child_eid → parent_eid
+        for emb in (embeds or []):
+            eid = emb.get("original_embed_id")
+            content_str = emb.get("content", "")
+            if not eid or not content_str:
+                continue
+            try:
+                parsed = json.loads(content_str)
+                if isinstance(parsed, dict):
+                    child_ids = parsed.get("embed_ids")
+                    if isinstance(child_ids, list) and len(child_ids) > 0:
+                        # Validate that referenced children exist in our embed set
+                        valid_children = [cid for cid in child_ids if isinstance(cid, str) and cid in all_embed_ids]
+                        if valid_children:
+                            parent_child_map[eid] = valid_children
+                            for cid in valid_children:
+                                parent_by_child.setdefault(cid, eid)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Step 2: Sort embeds — parents first, then children
+        parent_embeds = [e for e in (embeds or []) if e.get("original_embed_id") in parent_child_map]
+        child_embeds = [e for e in (embeds or []) if e.get("original_embed_id") not in parent_child_map]
+        sorted_embeds = parent_embeds + child_embeds
+
+        parsed_embeds = []
+        for emb in sorted_embeds:
+            eid = emb.get("original_embed_id")
+            parsed_embeds.append({
+                "embed_id": eid,
+                "type": emb.get("type"),
+                "content": emb.get("content", ""),
+                "embed_ids": parent_child_map.get(eid),  # Child embed IDs (for parent embeds)
+                "parent_embed_id": parent_by_child.get(eid) if eid else None,  # For child embeds
+                "created_at": emb.get("original_created_at")
+            })
+
+        return {
+            "demo_chat_id": demo_chat_id,
+            "chat_id": demo_chat.get("original_chat_id"),
+            "title": demo_chat.get("title"),
+            "summary": demo_chat.get("summary"),
+            "status": demo_chat.get("status"),
+            "messages": parsed_messages,
+            "embeds": parsed_embeds,
+            "message_count": len(parsed_messages),
+            "embed_count": len(parsed_embeds)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching demo chat preview {demo_chat_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load demo chat preview")
+
+
 @router.post("/approve-demo-chat")
 @limiter.limit("10/hour")  # Limit demo chat approvals
 async def approve_demo_chat(
@@ -239,8 +365,8 @@ async def approve_demo_chat(
     Updates an existing demo_chat entry (status='pending_approval') to
     status='translating' and triggers the translation task.
     
-    Enforces a limit of 10 published demo chats total (6 for_everyone + 4 for_developers).
     Admin selects the demo_chat_category ("for_everyone" or "for_developers") during approval.
+    Published demo chats are retained until an admin explicitly removes them.
     """
     try:
         from datetime import datetime, timezone
@@ -251,10 +377,6 @@ async def approve_demo_chat(
                 status_code=400,
                 detail=f"Invalid demo_chat_category: {payload.demo_chat_category}. Must be 'for_everyone' or 'for_developers'."
             )
-        
-        # Category-specific limits: 6 for "for_everyone", 4 for "for_developers"
-        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
-        category_limit = CATEGORY_LIMITS[payload.demo_chat_category]
         
         # Verify the pending demo_chat exists (payload.demo_chat_id is the UUID)
         demo_chats = await directus_service.get_items("demo_chats", {
@@ -280,51 +402,6 @@ async def approve_demo_chat(
         # The demo_chat entry already contains all content needed for translation,
         # independent of whether the original user chat was deleted.
 
-        # Check current published demo chat count for the selected category
-        # Query Directus directly to avoid cache format issues
-        current_demos = await directus_service.get_items("demo_chats", {
-            "filter": {
-                "is_active": {"_eq": True},
-                "status": {"_eq": "published"}
-            },
-            "sort": "-created_at"
-        })
-        current_demos = current_demos or []
-        # Filter demos by the target category
-        category_demos = [d for d in current_demos if d.get("demo_chat_category") == payload.demo_chat_category]
-        
-        if len(category_demos) >= category_limit:
-            # Determine which demo to replace (from the same category)
-            demo_to_remove_id = None
-            
-            if payload.replace_demo_chat_id:
-                # Admin specified which demo to replace - validate it exists in current demos
-                demo_ids = [d["id"] for d in current_demos]
-                if payload.replace_demo_chat_id not in demo_ids:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="Specified replacement demo chat not found or not currently published"
-                    )
-                demo_to_remove_id = payload.replace_demo_chat_id
-                logger.info(f"Admin selected demo chat {demo_to_remove_id} for replacement")
-            else:
-                # No replacement specified - fall back to oldest demo in the same category
-                category_demos.sort(key=lambda x: x.get("created_at", ""))
-                demo_to_remove_id = category_demos[0]["id"]
-                logger.info(f"No replacement specified, defaulting to oldest '{payload.demo_chat_category}' demo chat {demo_to_remove_id}")
-            
-            logger.info(f"Deleting demo chat {demo_to_remove_id} to make room for new demo")
-            
-            # Batch delete all related data using filters
-            # Note: Directus batch delete uses filter parameters
-            await directus_service.delete_items("demo_messages", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
-            await directus_service.delete_items("demo_embeds", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
-            await directus_service.delete_items("demo_chat_translations", {"demo_chat_id": {"_eq": demo_to_remove_id}}, admin_required=True)
-            
-            # Finally, delete the demo_chat entry itself
-            await directus_service.delete_item("demo_chats", demo_to_remove_id, admin_required=True)
-            logger.info(f"Deleted demo chat {demo_to_remove_id} and all related data")
-        
         # Update the demo_chat entry: status -> 'translating', approved_by_admin -> admin UUID, demo_chat_category
         updates = {
             "status": "translating",
@@ -502,8 +579,7 @@ async def get_admin_demo_chats(
         return {
             "demo_chats": enriched_demos,
             "count": len(enriched_demos),
-            "limit": 10,
-            "category_limits": {"for_everyone": 6, "for_developers": 4}
+            "ui_limits": {"for_everyone": 10, "for_developers": 4}
         }
 
     except Exception as e:
@@ -560,8 +636,7 @@ async def update_demo_chat_category(
     """
     Update the demo_chat_category of an existing published demo chat.
     
-    Enforces per-category limits (6 for_everyone, 4 for_developers).
-    If the target category is already at its limit, the request is rejected.
+    No hard cap is enforced; categories can contain any number of published chats.
     """
     try:
         new_category = payload.demo_chat_category
@@ -587,25 +662,6 @@ async def update_demo_chat_category(
                 "message": "Category unchanged",
                 "demo_chat_category": new_category
             }
-
-        # Check that the target category has room (excluding this demo from the count)
-        # Query Directus directly to avoid cache format issues
-        CATEGORY_LIMITS = {"for_everyone": 6, "for_developers": 4}
-        published_demos = await directus_service.get_items("demo_chats", {
-            "filter": {
-                "is_active": {"_eq": True},
-                "status": {"_eq": "published"},
-                "demo_chat_category": {"_eq": new_category},
-                "id": {"_neq": demo_chat_id}
-            }
-        })
-        target_category_count = len(published_demos) if published_demos else 0
-
-        if target_category_count >= CATEGORY_LIMITS[new_category]:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Category '{new_category}' is already at its limit of {CATEGORY_LIMITS[new_category]}. Remove a demo from that category first."
-            )
 
         # Update the category
         result = await directus_service.update_item(
@@ -1020,12 +1076,6 @@ async def delete_compression_threshold(
 # See scripts/run-tests.sh and scripts/run-tests-daily.sh for the file format.
 # =============================================================================
 
-# Cache key for tracking whether a manual test run is currently in progress
-MANUAL_TEST_RUN_CACHE_KEY = "admin:manual_test_run"
-# How long to keep the "in progress" flag before it auto-expires (seconds)
-MANUAL_TEST_RUN_TTL_SECONDS = 3600  # 1 hour max
-
-
 class TestResultsResponse(BaseModel):
     """Response model for GET /v1/admin/test-results."""
     has_results: bool = Field(description="Whether any test results are available")
@@ -1033,15 +1083,6 @@ class TestResultsResponse(BaseModel):
     last_run_timestamp: Optional[str] = Field(None, description="ISO timestamp of last run")
     next_scheduled_run_utc: str = Field(description="ISO timestamp of next scheduled daily run (03:00 UTC)")
     hours_until_next_run: float = Field(description="Hours until next scheduled daily run")
-    is_running: bool = Field(False, description="Whether a test run is currently in progress")
-    run_started_at: Optional[str] = Field(None, description="ISO timestamp when current run started (if running)")
-
-
-class TriggerTestRunResponse(BaseModel):
-    """Response model for POST /v1/admin/tests/run."""
-    success: bool = Field(description="Whether the test run was triggered")
-    message: str = Field(description="Status message")
-    already_running: bool = Field(False, description="True if a run was already in progress")
 
 
 def _get_project_root():
@@ -1082,12 +1123,13 @@ def _compute_next_daily_run_utc() -> tuple:
 async def get_test_results(
     request: Request,
     admin_user: User = Depends(require_admin),
-    cache_service: CacheService = Depends(get_cache_service),
 ) -> TestResultsResponse:
     """
     Get the latest test run results and scheduling info.
 
     Reads test-results/last-run.json from disk and computes scheduling metadata.
+    Daily tests are triggered by a system crontab (see `crontab -l` on the host).
+    Manual runs can be started via: ./scripts/run-tests-daily.sh --force
     Admin-only endpoint.
     """
     import json
@@ -1096,44 +1138,6 @@ async def get_test_results(
 
     next_run_utc, hours_until = _compute_next_daily_run_utc()
 
-    # Check if a manual run is in progress.
-    # The Redis flag is set when a run is triggered and has a 1-hour TTL.
-    # However, the sidecar may finish (or fail) much sooner. To avoid stale
-    # "running" state, we cross-check with the sidecar's actual status and
-    # clear the Redis flag if the sidecar reports the run is no longer active.
-    is_running = False
-    run_started_at = None
-    try:
-        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
-        if run_data and run_data.get("status") == "running":
-            is_running = True
-            run_started_at = run_data.get("started_at")
-
-            # Cross-check with sidecar: if sidecar says idle, clear stale flag
-            try:
-                import httpx
-                sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
-                sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    status_resp = await client.get(
-                        f"{sidecar_url}/admin/run-tests/status",
-                        headers={"X-Admin-Log-Key": sidecar_key},
-                    )
-                if status_resp.status_code == 200:
-                    sidecar_data = status_resp.json()
-                    sidecar_status = sidecar_data.get("status", "")
-                    if sidecar_status != "in_progress":
-                        # Sidecar is idle — run finished or failed; clear stale flag
-                        logger.info("Sidecar reports idle but Redis flag was 'running' — clearing stale flag")
-                        await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
-                        is_running = False
-                        run_started_at = None
-            except Exception as sidecar_err:
-                # If we can't reach the sidecar, keep the Redis state as-is
-                logger.debug(f"Could not verify sidecar status: {sidecar_err}")
-    except Exception as e:
-        logger.warning(f"Failed to check test run status from cache: {e}")
-
     if not last_run_path.exists():
         return TestResultsResponse(
             has_results=False,
@@ -1141,8 +1145,6 @@ async def get_test_results(
             last_run_timestamp=None,
             next_scheduled_run_utc=next_run_utc,
             hours_until_next_run=hours_until,
-            is_running=is_running,
-            run_started_at=run_started_at,
         )
 
     try:
@@ -1157,8 +1159,6 @@ async def get_test_results(
             last_run_timestamp=last_run_timestamp,
             next_scheduled_run_utc=next_run_utc,
             hours_until_next_run=hours_until,
-            is_running=is_running,
-            run_started_at=run_started_at,
         )
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse last-run.json: {e}", exc_info=True)
@@ -1166,131 +1166,3 @@ async def get_test_results(
     except Exception as e:
         logger.error(f"Failed to read test results: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to read test results")
-
-
-@router.post("/tests/run", response_model=TriggerTestRunResponse)
-@limiter.limit("5/minute")
-async def trigger_test_run(
-    request: Request,
-    admin_user: User = Depends(require_admin),
-    cache_service: CacheService = Depends(get_cache_service),
-) -> TriggerTestRunResponse:
-    """
-    Trigger an out-of-schedule full test run via the admin sidecar.
-
-    The sidecar executes scripts/run-tests-daily.sh on the host filesystem
-    (where Node.js, pnpm, pytest, and Docker CLI are available). The --force
-    flag is passed to skip the 24h commit-activity gate.
-    Only one run can be active at a time.
-    Admin-only endpoint.
-    """
-    import httpx
-    from datetime import datetime, timezone
-
-    # Check if a run is already in progress
-    try:
-        run_data = await cache_service.redis.hgetall(MANUAL_TEST_RUN_CACHE_KEY)
-        if run_data and run_data.get("status") == "running":
-            return TriggerTestRunResponse(
-                success=False,
-                message="A test run is already in progress",
-                already_running=True,
-            )
-    except Exception as e:
-        logger.warning(f"Failed to check test run status: {e}")
-
-    # Mark run as in progress
-    started_at = datetime.now(timezone.utc).isoformat()
-    try:
-        await cache_service.redis.hset(MANUAL_TEST_RUN_CACHE_KEY, mapping={
-            "status": "running",
-            "started_at": started_at,
-            "triggered_by": admin_user.id,
-        })
-        await cache_service.redis.expire(MANUAL_TEST_RUN_CACHE_KEY, MANUAL_TEST_RUN_TTL_SECONDS)
-    except Exception as e:
-        logger.warning(f"Failed to set test run status in cache: {e}")
-
-    # Trigger test run via the admin sidecar HTTP endpoint.
-    # The sidecar runs the script on the host filesystem where all tools exist.
-    # Manual triggers always use --force to skip the commit-activity gate.
-    sidecar_url = os.environ.get("CORE_SIDECAR_URL", "http://core-admin-sidecar:8001")
-    sidecar_key = os.environ.get("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{sidecar_url}/admin/run-tests",
-                params={"force": "true"},
-                headers={"X-Admin-Log-Key": sidecar_key},
-            )
-            if resp.status_code == 409:
-                return TriggerTestRunResponse(
-                    success=False,
-                    message="A test run is already in progress on the sidecar",
-                    already_running=True,
-                )
-            if resp.status_code != 202:
-                raise Exception(f"Sidecar returned {resp.status_code}: {resp.text[:200]}")
-    except httpx.ConnectError:
-        logger.error("Failed to connect to admin sidecar at %s", sidecar_url)
-        try:
-            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=503,
-            detail="Admin sidecar not reachable. Ensure core-admin-sidecar container is running.",
-        )
-    except Exception as e:
-        logger.error(f"Failed to trigger test run via sidecar: {e}", exc_info=True)
-        try:
-            await cache_service.redis.delete(MANUAL_TEST_RUN_CACHE_KEY)
-        except Exception:
-            pass
-        raise HTTPException(status_code=500, detail=f"Failed to trigger test run: {e}")
-
-    logger.info(f"Manual test run triggered via sidecar by admin {admin_user.id}")
-
-    # Notify admin that the test run has started.
-    # This is non-fatal — a missing email must not break the trigger response.
-    try:
-        admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL") or os.environ.get("SERVER_OWNER_EMAIL")
-        if admin_email:
-            import subprocess as _subprocess
-            git_sha, git_branch = "unknown", "unknown"
-            try:
-                git_sha = _subprocess.check_output(
-                    ["git", "rev-parse", "--short", "HEAD"],
-                    stderr=_subprocess.DEVNULL, text=True,
-                ).strip()
-                git_branch = _subprocess.check_output(
-                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                    stderr=_subprocess.DEVNULL, text=True,
-                ).strip()
-            except Exception:
-                pass
-            from backend.core.api.app.tasks.celery_config import app as celery_app
-            server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
-            celery_app.send_task(
-                name="app.tasks.email_tasks.test_run_started_email_task.send_test_run_started",
-                args=[admin_email, "Manual (admin)", git_sha, git_branch, started_at, server_environment],
-                queue="email",
-            )
-            logger.info(
-                "Dispatched test run started email for manual trigger (environment=%s)",
-                server_environment,
-            )
-        else:
-            logger.warning(
-                "ADMIN_NOTIFY_EMAIL / SERVER_OWNER_EMAIL not set — "
-                "skipping test run started email"
-            )
-    except Exception as email_err:
-        logger.warning(f"Could not dispatch test run started email: {email_err}")
-
-    return TriggerTestRunResponse(
-        success=True,
-        message="Test run started on the host. Results will appear once the run completes.",
-        already_running=False,
-    )

@@ -42,6 +42,7 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -49,6 +50,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const consoleLogs: string[] = [];
@@ -95,9 +97,7 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('LOCATION_SECURITY_2FA');
 	const screenshot = createStepScreenshotter(log);
@@ -106,22 +106,22 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 	// Step 1: First, login normally to get a valid session cookie
 	// This ensures we have an authenticated session before triggering re-auth
 	log('Performing initial login to establish session...');
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
@@ -266,9 +266,7 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('LOCATION_SECURITY_PASSKEY');
 	const screenshot = createStepScreenshotter(log);
@@ -276,21 +274,21 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 
 	// Login first
 	log('Performing initial login...');
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });

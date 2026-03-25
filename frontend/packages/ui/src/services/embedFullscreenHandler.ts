@@ -491,7 +491,7 @@ export async function getFullscreenComponent(
 /**
  * Check if a fullscreen component exists for an embed type
  */
-export async function hasFullscreenComponent(
+async function hasFullscreenComponent(
   embedType: string,
 ): Promise<boolean> {
   await initializeRegistry();

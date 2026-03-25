@@ -458,7 +458,7 @@ Supports both saved payment methods and new payment form
             onclick={handleBuyNow}
             disabled={!selectedPaymentMethodId || isProcessingPayment}
         >
-            {isProcessingPayment ? $text('settings.billing.processing') : $text('settings.billing.buy_now')}
+            {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
         <!-- Switch to Polar for non-EU cards — mirrors credits purchase flow -->

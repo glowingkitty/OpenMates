@@ -48,8 +48,10 @@ skills:
       per_unit:
         credits: 5
     providers:
-      - Meetup
-      - Luma
+      - name: Meetup
+        no_api_key: true
+      - name: Luma
+        no_api_key: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"

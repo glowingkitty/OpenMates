@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# OpenMates Test Runner
+# DEPRECATED: Use python3 scripts/run_tests.py instead.
+# This script is kept for backward compatibility but will be removed.
+# =============================================================================
+#
+# OpenMates Test Runner (LEGACY)
 #
 # Orchestrates all test suites (vitest, pytest, Playwright) and produces
 # a single JSON results file at test-results/run-<timestamp>.json plus
@@ -90,6 +94,9 @@ RUN_ID="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 RUN_FILE="$RESULTS_DIR/run-${RUN_ID//:/}.json"
 GIT_SHA="$(cd "$PROJECT_ROOT" && git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 GIT_BRANCH="$(cd "$PROJECT_ROOT" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')"
+
+# Export for Playwright workers (api-reporter.ts reads these for OpenObserve tagging)
+export RUN_ID GIT_BRANCH
 START_TIME="$(date +%s)"
 
 # Temporary directory for intermediate results from workers
@@ -184,41 +191,84 @@ run_vitest() {
   local suite_start
   suite_start="$(now_seconds)"
 
-  local vitest_dir="$PROJECT_ROOT/frontend/packages/ui"
-  if [[ ! -f "$vitest_dir/vitest.simple.config.ts" ]]; then
-    echo "  SKIP: vitest.simple.config.ts not found"
-    echo '{"status":"skipped","reason":"config not found","duration_seconds":0,"tests":[]}' \
-      > "$WORK_DIR/vitest_suite.json"
+  # Auto-detect vitest directories: find all frontend dirs that contain
+  # *.test.ts files AND have vitest as a dependency (direct or dev).
+  # Each dir is run with `npx vitest run` using the appropriate config.
+  local vitest_dirs=()
+  local vitest_configs=()
+
+  # 1) packages/ui — has a dedicated vitest.simple.config.ts
+  local ui_dir="$PROJECT_ROOT/frontend/packages/ui"
+  if [[ -f "$ui_dir/vitest.simple.config.ts" ]]; then
+    vitest_dirs+=("$ui_dir")
+    vitest_configs+=("--config vitest.simple.config.ts")
+  fi
+
+  # 2) Auto-discover: any frontend dir with vitest in package.json AND *.test.ts files
+  #    (excludes packages/ui which is handled above, and node_modules)
+  while IFS= read -r pkg_json; do
+    local pkg_dir
+    pkg_dir="$(dirname "$pkg_json")"
+    # Skip ui (already handled) and node_modules
+    [[ "$pkg_dir" == "$ui_dir" ]] && continue
+    # Check if vitest is in dependencies or devDependencies
+    if python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+deps = {**d.get('dependencies',{}), **d.get('devDependencies',{})}
+sys.exit(0 if 'vitest' in deps else 1)
+" "$pkg_json" 2>/dev/null; then
+      # Check if there are any .test.ts files in src/
+      if find "$pkg_dir/src" -name "*.test.ts" -type f 2>/dev/null | grep -q .; then
+        vitest_dirs+=("$pkg_dir")
+        # Use vitest.config.ts if present, otherwise default
+        if [[ -f "$pkg_dir/vitest.config.ts" ]]; then
+          vitest_configs+=("--config vitest.config.ts")
+        else
+          vitest_configs+=("")
+        fi
+      fi
+    fi
+  done < <(find "$PROJECT_ROOT/frontend" -maxdepth 4 -name "package.json" -not -path "*/node_modules/*" | sort)
+
+  if [[ ${#vitest_dirs[@]} -eq 0 ]]; then
+    echo "  No vitest directories found"
+    echo '{"status":"skipped","reason":"no vitest dirs","duration_seconds":0,"tests":[]}'       > "$WORK_DIR/vitest_suite.json"
     return
   fi
 
-  local vitest_exit=0
-  # Write output to a temp file to avoid "Argument list too long" (execve limit
-  # ~130K bytes) when passing large JSON output as a shell argument.
-  local vitest_tmp="$WORK_DIR/vitest_raw_output.txt"
-  (cd "$vitest_dir" && npx vitest run --config vitest.simple.config.ts --reporter=json 2>&1) \
-    > "$vitest_tmp" || vitest_exit=$?
+  echo "  Found ${#vitest_dirs[@]} vitest dir(s)"
+  local all_vitest_tests="[]"
+  local overall_vitest_status="passed"
 
-  local suite_dur=$(( $(now_seconds) - suite_start ))
+  for ((idx=0; idx<${#vitest_dirs[@]}; idx++)); do
+    local vdir="${vitest_dirs[$idx]}"
+    local vconfig="${vitest_configs[$idx]}"
+    local vname
+    vname="$(python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "$vdir" "$PROJECT_ROOT")"
 
-  # Parse the JSON reporter output to extract individual test results
-  python3 -c "
+    echo "  Running vitest in $vname..."
+    local vitest_exit=0
+    local vitest_tmp="$WORK_DIR/vitest_${idx}_raw_output.txt"
+    # shellcheck disable=SC2086
+    (cd "$vdir" && npx vitest run $vconfig --reporter=json 2>&1)       > "$vitest_tmp" || vitest_exit=$?
+
+    # Parse the JSON reporter output and merge into all_vitest_tests
+    all_vitest_tests=$(python3 -c "
 import json, sys
 
 output_file = sys.argv[1]
 exit_code = int(sys.argv[2])
-dur = int(sys.argv[3])
-work_dir = sys.argv[4]
+vname = sys.argv[3]
+existing = json.loads(sys.argv[4])
 
 with open(output_file, 'r', errors='replace') as fh:
     raw = fh.read()
 
-# Try to extract JSON from the output (vitest --reporter=json outputs JSON)
-# The JSON may be mixed with other output, so find the JSON object
 json_start = raw.find('{')
 json_end = raw.rfind('}')
 tests = []
-suite_status = 'passed'
+dir_status = 'passed'
 
 if json_start >= 0 and json_end > json_start:
     try:
@@ -230,7 +280,7 @@ if json_start >= 0 and json_end > json_start:
                 test_dur = ar.get('duration', 0) / 1000.0
                 error = ''
                 if status == 'failed':
-                    suite_status = 'failed'
+                    dir_status = 'failed'
                     msgs = ar.get('failureMessages', [])
                     error = msgs[0][:500] if msgs else 'unknown error'
                 tests.append({
@@ -243,28 +293,49 @@ if json_start >= 0 and json_end > json_start:
         pass
 
 if not tests and exit_code != 0:
-    suite_status = 'failed'
+    dir_status = 'failed'
     tests.append({
-        'name': 'vitest-run',
+        'name': f'{vname}/vitest-run',
         'status': 'failed',
-        'duration_seconds': dur,
-        'error': raw[:1000] if raw else 'vitest exited with code ' + str(exit_code)
+        'duration_seconds': 0,
+        'error': raw[:1000] if raw else f'vitest exited with code {exit_code}'
     })
-elif not tests:
-    suite_status = 'passed'
-
-suite = {
-    'status': suite_status,
-    'duration_seconds': dur,
-    'tests': tests
-}
-with open(work_dir + '/vitest_suite.json', 'w') as f:
-    json.dump(suite, f)
 
 passed = sum(1 for t in tests if t['status'] == 'passed')
 failed = sum(1 for t in tests if t['status'] == 'failed')
-print(f'  {passed} passed, {failed} failed ({dur}s)')
-" "$vitest_tmp" "$vitest_exit" "$suite_dur" "$WORK_DIR"
+print(json.dumps(existing + tests), file=sys.stderr)
+print(f'    {vname}: {passed} passed, {failed} failed')
+if dir_status == 'failed':
+    print('FAILED', file=open('/dev/fd/3', 'w'))
+" "$vitest_tmp" "$vitest_exit" "$vname" "$all_vitest_tests" 3>"$WORK_DIR/vitest_${idx}_status.txt" 2>"$WORK_DIR/vitest_${idx}_merged.json") || true
+
+    # Read merged tests back
+    if [[ -f "$WORK_DIR/vitest_${idx}_merged.json" ]]; then
+      all_vitest_tests="$(cat "$WORK_DIR/vitest_${idx}_merged.json")"
+    fi
+    # Check status
+    if [[ -f "$WORK_DIR/vitest_${idx}_status.txt" ]] && grep -q "FAILED" "$WORK_DIR/vitest_${idx}_status.txt" 2>/dev/null; then
+      overall_vitest_status="failed"
+    fi
+  done
+
+  local suite_dur=$(( $(now_seconds) - suite_start ))
+
+  # Write final vitest_suite.json
+  python3 -c "
+import json, sys
+tests = json.loads(sys.argv[1])
+dur = int(sys.argv[2])
+status = sys.argv[3]
+if not tests:
+    status = 'passed'
+suite = {'status': status, 'duration_seconds': dur, 'tests': tests}
+with open(sys.argv[4] + '/vitest_suite.json', 'w') as f:
+    json.dump(suite, f)
+passed = sum(1 for t in tests if t['status'] == 'passed')
+failed = sum(1 for t in tests if t['status'] == 'failed')
+print(f'  Vitest total: {passed} passed, {failed} failed ({dur}s)')
+" "$all_vitest_tests" "$suite_dur" "$overall_vitest_status" "$WORK_DIR"
 }
 
 # =============================================================================
@@ -294,36 +365,30 @@ run_pytest() {
   fi
 
   # --- Unit tests ---
-  # These are tests that don't hit live services (mocked/self-contained).
-  local unit_tests=(
-    "test_url_validator.py"
-    "test_encryption_service.py"
-    "test_toon_fake_tool_call_filter.py"
-    "test_model_selection.py"
-    "test_payment_provider_routing.py"
-    "test_integration_encryption.py"
-    "test_app_skills.py"
-  )
-
-  echo "  Running unit tests..."
+  # Auto-detected: all test_*.py files in backend/tests/, filtered by pytest
+  # markers. Tests marked @pytest.mark.integration or @pytest.mark.benchmark
+  # are excluded here and run separately in the integration phase (with --all).
+  echo "  Discovering unit tests..."
   local unit_start
   unit_start="$(now_seconds)"
   local unit_output unit_exit=0
 
-  # Build the test file args, filtering for --only-failed if needed
+  # Build the test file args via auto-discovery
   local unit_args=()
-  for t in "${unit_tests[@]}"; do
+  while IFS= read -r t; do
+    local basename_t
+    basename_t="$(basename "$t")"
     if [[ "$ONLY_FAILED" == "true" ]]; then
       local found=false
       for f in "${FAILED_SPECS[@]}"; do
-        if [[ "$f" == "$t" || "$f" == *"$t"* ]]; then
+        if [[ "$f" == "$basename_t" || "$f" == *"$basename_t"* ]]; then
           found=true; break
         fi
       done
       [[ "$found" == "false" ]] && continue
     fi
-    unit_args+=("backend/tests/$t")
-  done
+    unit_args+=("$t")
+  done < <(find "$PROJECT_ROOT/backend/tests" -maxdepth 1 -name "test_*.py" -type f | sort)
 
   if [[ ${#unit_args[@]} -eq 0 ]]; then
     echo "  No unit tests to run (filtered by --only-failed)"
@@ -332,7 +397,7 @@ run_pytest() {
   else
     # Write output to a temp file to avoid "Argument list too long" (execve limit).
     local unit_tmp="$WORK_DIR/pytest_unit_raw_output.txt"
-    ($pytest_bin -m pytest --tb=short -q "${unit_args[@]}" 2>&1) \
+    (cd "$PROJECT_ROOT" && $pytest_bin -m pytest --tb=short -q -m "not integration and not benchmark" "${unit_args[@]}" 2>&1) \
       > "$unit_tmp" || unit_exit=$?
     local unit_dur=$(( $(now_seconds) - unit_start ))
 
@@ -393,32 +458,27 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
     echo '{"status":"skipped","reason":"--unit-only","duration_seconds":0,"tests":[]}' \
       > "$WORK_DIR/pytest_integration_suite.json"
   else
-    echo "  Running integration tests..."
+    echo "  Discovering integration tests..."
     local integ_start
     integ_start="$(now_seconds)"
     local integ_output integ_exit=0
-    local integ_tests=(
-      "test_rest_api_ai.py"
-      "test_rest_api_apps.py"
-      "test_rest_api_core.py"
-      "test_rest_api_images.py"
-      "test_rest_api_media.py"
-      "test_rest_api_web.py"
-    )
 
+    # Auto-detected: all test_*.py in backend/tests/ that have integration-marked tests
     local integ_args=()
-    for t in "${integ_tests[@]}"; do
+    while IFS= read -r t; do
+      local basename_t
+      basename_t="$(basename "$t")"
       if [[ "$ONLY_FAILED" == "true" ]]; then
         local found=false
         for f in "${FAILED_SPECS[@]}"; do
-          if [[ "$f" == "$t" || "$f" == *"$t"* ]]; then
+          if [[ "$f" == "$basename_t" || "$f" == *"$basename_t"* ]]; then
             found=true; break
           fi
         done
         [[ "$found" == "false" ]] && continue
       fi
-      integ_args+=("backend/tests/$t")
-    done
+      integ_args+=("$t")
+    done < <(find "$PROJECT_ROOT/backend/tests" -maxdepth 1 -name "test_*.py" -type f | sort)
 
     if [[ ${#integ_args[@]} -eq 0 ]]; then
       echo "  No integration tests to run (filtered by --only-failed)"
@@ -427,7 +487,7 @@ print(f'  Unit: {passed} passed, {failed} failed ({dur}s)')
     else
       # Write output to a temp file to avoid "Argument list too long" (execve limit).
       local integ_tmp="$WORK_DIR/pytest_integ_raw_output.txt"
-      ($pytest_bin -m pytest --tb=short -q "${integ_args[@]}" 2>&1) \
+      (cd "$PROJECT_ROOT" && $pytest_bin -m pytest --tb=short -q -m "integration and not benchmark" "${integ_args[@]}" 2>&1) \
         > "$integ_tmp" || integ_exit=$?
       local integ_dur=$(( $(now_seconds) - integ_start ))
 
@@ -467,6 +527,106 @@ print(f'  Integration: {passed} passed, {failed} failed ({dur}s)')
 " "$integ_tmp" "$integ_exit" "$integ_dur" "$WORK_DIR"
     fi
   fi
+}
+
+# =============================================================================
+# NODE UNIT (openmates-cli + secret-scanner)
+# These packages use Node's built-in test runner (node --test) instead of
+# vitest, so they are not picked up by the vitest config in packages/ui.
+# =============================================================================
+run_node_unit() {
+  if [[ "$SUITE" != "all" && "$SUITE" != "vitest" ]]; then
+    return
+  fi
+
+  echo "━━━ Node Unit (CLI + secret-scanner) ━━━"
+  local suite_start
+  suite_start="$(now_seconds)"
+
+  # Auto-detect: find frontend packages whose "test" script uses node --test
+  # (as opposed to vitest, which is handled by run_vitest).
+  local packages=()
+  while IFS= read -r pkg_json; do
+    local pkg_rel
+    pkg_rel="$(python3 -c "import os,sys; print(os.path.relpath(os.path.dirname(sys.argv[1]), sys.argv[2]))" "$pkg_json" "$PROJECT_ROOT")"
+    packages+=("$pkg_rel")
+  done < <(find "$PROJECT_ROOT/frontend/packages" -maxdepth 2 -name "package.json" -not -path "*/node_modules/*" -exec grep -l '"node --test' {} \;  | sort)
+
+  local overall_status="passed"
+
+  for pkg_rel in "${packages[@]}"; do
+    local pkg_dir="$PROJECT_ROOT/$pkg_rel"
+    if [[ ! -f "$pkg_dir/package.json" ]]; then
+      echo "  SKIP: $pkg_rel (package.json not found)"
+      continue
+    fi
+
+    local pkg_exit=0
+    local pkg_tmp="$WORK_DIR/node_unit_$(basename "$pkg_rel")_raw.txt"
+    local parsed_tmp="$WORK_DIR/node_unit_$(basename "$pkg_rel")_parsed.json"
+
+    echo "  Running tests in $pkg_rel..."
+    (cd "$pkg_dir" && npm test 2>&1) > "$pkg_tmp" || pkg_exit=$?
+
+    python3 -c "
+import re, sys, json
+
+output_file, pkg_name, exit_code_s, out_file = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+exit_code = int(exit_code_s)
+with open(output_file, 'r', errors='replace') as fh:
+    raw = fh.read()
+tests = []
+lines = raw.split(chr(10))
+i = 0
+while i < len(lines):
+    line = lines[i].strip()
+    m = re.match(r'^(not ok|ok)\\s+\\d+\\s+-\\s+(.+)$', line)
+    if m:
+        passed_str, name = m.group(1), m.group(2).strip()
+        typ, dur = None, 0.0
+        for j in range(i+1, min(i+8, len(lines))):
+            tl = lines[j].strip()
+            tm = re.match(r\"type:\\s+'?([^']+)'?\", tl)
+            dm = re.match(r'duration_ms:\\s+([0-9.]+)', tl)
+            if tm: typ = tm.group(1)
+            if dm: dur = round(float(dm.group(1)) / 1000.0, 4)
+        if typ == 'test':
+            status = 'passed' if passed_str == 'ok' else 'failed'
+            entry = {'name': f'{pkg_name} > {name}', 'status': status, 'duration_seconds': dur}
+            if status == 'failed': entry['error'] = 'see node --test output'
+            tests.append(entry)
+    i += 1
+if not tests and exit_code != 0:
+    tests.append({'name': f'{pkg_name} > run', 'status': 'failed', 'duration_seconds': 0, 'error': raw[:800] or f'npm test exited {exit_code}'})
+elif not tests:
+    tests.append({'name': f'{pkg_name} > run', 'status': 'passed', 'duration_seconds': 0})
+with open(out_file, 'w') as f: json.dump(tests, f)
+passed = sum(1 for t in tests if t['status'] == 'passed')
+failed = sum(1 for t in tests if t['status'] == 'failed')
+print(f'  {pkg_name}: {passed} passed, {failed} failed')
+if failed > 0: sys.exit(1)
+" "$pkg_tmp" "$(basename "$pkg_rel")" "$pkg_exit" "$parsed_tmp" || overall_status="failed"
+
+  done
+
+  local suite_dur=$(( $(now_seconds) - suite_start ))
+
+  python3 -c "
+import json, glob, sys, os
+work_dir, dur = sys.argv[1], int(sys.argv[2])
+all_tests = []
+for fpath in sorted(glob.glob(os.path.join(work_dir, 'node_unit_*_parsed.json'))):
+    with open(fpath) as f: all_tests.extend(json.load(f))
+if not all_tests:
+    suite = {'status': 'skipped', 'reason': 'no packages found', 'duration_seconds': dur, 'tests': []}
+else:
+    computed_status = 'failed' if any(t.get('status') == 'failed' for t in all_tests) else 'passed'
+    suite = {'status': computed_status, 'duration_seconds': dur, 'tests': all_tests}
+with open(os.path.join(work_dir, 'node_unit_suite.json'), 'w') as f: json.dump(suite, f)
+passed = sum(1 for t in all_tests if t['status'] == 'passed')
+failed = sum(1 for t in all_tests if t['status'] == 'failed')
+print(f'  Node unit total: {passed} passed, {failed} failed ({dur}s)')
+" "$WORK_DIR" "$suite_dur"
 }
 
 # =============================================================================
@@ -643,8 +803,9 @@ fi
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
-# Run suites in order: vitest (fastest) → pytest → playwright (slowest)
+# Run suites in order: vitest (fastest) → node unit → pytest → playwright (slowest)
 run_vitest
+run_node_unit
 run_pytest
 run_playwright
 
@@ -672,6 +833,7 @@ suites = {}
 # Load each suite's results
 for suite_name, filename in [
     ('vitest', 'vitest_suite.json'),
+    ('node_unit', 'node_unit_suite.json'),
     ('pytest_unit', 'pytest_unit_suite.json'),
     ('pytest_integration', 'pytest_integration_suite.json'),
     ('playwright', 'playwright_suite.json'),
@@ -722,14 +884,22 @@ result = {
     'suites': suites,
 }
 
+# Helper: remove file first to avoid PermissionError when a previous run
+# created the file as a different user (e.g. root via cron).
+def safe_write_json(path, obj):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    with open(path, 'w') as f:
+        json.dump(obj, f, indent=2)
+
 # Write run file
-with open(run_file, 'w') as f:
-    json.dump(result, f, indent=2)
+safe_write_json(run_file, result)
 
 # Write last-run.json (always overwrite)
 last_run = os.path.join(results_dir, 'last-run.json')
-with open(last_run, 'w') as f:
-    json.dump(result, f, indent=2)
+safe_write_json(last_run, result)
 
 # Print summary
 print()
@@ -748,3 +918,38 @@ if failed > 0:
                 print(f'  [{sname}] {t.get(\"file\", t.get(\"name\", \"?\"))}: {err}')
     sys.exit(1)
 " "$WORK_DIR" "$RUN_ID" "$GIT_SHA" "$GIT_BRANCH" "$UNIT_ONLY" "$ONLY_FAILED" "$SUITE" "$TOTAL_DURATION" "$RUN_FILE" "$RESULTS_DIR"
+
+# ─── Post-run: fetch E2E client-side logs from OpenObserve ───────────────────
+# After Playwright specs complete, query OpenObserve for all browser console logs
+# forwarded during the run (tagged with run_id via getE2EDebugUrl). These logs
+# are appended to the run results JSON so failures can be diagnosed without
+# re-running tests.
+#
+# Only runs when:
+#   1. E2E specs were executed (not unit-only)
+#   2. INTERNAL_API_SHARED_TOKEN is set (needed by debug.py)
+#   3. docker exec api is available
+if [[ "$UNIT_ONLY" != "true" && -n "${INTERNAL_API_SHARED_TOKEN:-}" ]]; then
+  echo ""
+  echo "━━━ E2E Client-Side Log Summary (run_id=${RUN_ID}) ━━━"
+  SINCE_SECS=$(( $(date +%s) - $(date -d "${RUN_ID}" +%s 2>/dev/null || echo "$(date +%s)") + 60 ))
+  # Cap at 600s to avoid overly broad queries
+  [[ $SINCE_SECS -gt 600 ]] && SINCE_SECS=600
+
+  CLIENT_LOG_OUTPUT=""
+  if docker exec api true 2>/dev/null; then
+    CLIENT_LOG_OUTPUT="$(
+      docker exec api python /app/backend/scripts/debug.py logs --debug-id "$RUN_ID" --level error --since "$SINCE_SECS" 2>&1
+    )" || true
+  fi
+
+  if [[ -n "$CLIENT_LOG_OUTPUT" ]]; then
+    echo "$CLIENT_LOG_OUTPUT"
+    # Save to results dir for the email summary and future analysis
+    echo "$CLIENT_LOG_OUTPUT" > "$RESULTS_DIR/client-errors-${RUN_ID}.txt"
+    echo "  Saved to: $RESULTS_DIR/client-errors-${RUN_ID}.txt"
+  else
+    echo "  No client-side errors found (or OpenObserve query timed out)."
+    echo "  Tip: query manually with: debug.py logs --debug-id $RUN_ID"
+  fi
+fi

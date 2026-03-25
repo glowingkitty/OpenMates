@@ -27,6 +27,7 @@
     import AiAskModelDetails from './AiAskModelDetails.svelte';
     import AppSkillModelDetails from './AppSkillModelDetails.svelte';
     import ProviderDetails from './ProviderDetails.svelte';
+    import SettingsReminders from './notifications/SettingsReminders.svelte';
     import { createEventDispatcher } from 'svelte';
     
     interface Props {
@@ -45,7 +46,8 @@
         | { type: 'focus_details'; appId: string; focusModeId: string }
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
         | { type: 'settings_memories_create'; appId: string; categoryId: string }
-        | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string; startInEditMode: boolean };
+        | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string; startInEditMode: boolean }
+        | { type: 'reminder_create'; appId: string };
     
     let { activeSettingsView = '' }: Props = $props();
     
@@ -61,6 +63,9 @@
         if (parts.length === 1) {
             // app_store/{app_id}
             return { type: 'app_details', appId: parts[0] };
+        } else if (parts.length === 2 && parts[0] === 'reminder' && parts[1] === 'create') {
+            // app_store/reminder/create
+            return { type: 'reminder_create', appId: 'reminder' };
         } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'provider') {
             // app_store/{app_id}/skill/{skill_id}/provider/{provider_id}
             return { type: 'provider_details', appId: parts[0], skillId: parts[2], providerId: parts[4] };
@@ -180,6 +185,8 @@
     {@const route = providerRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
     <ProviderDetails appId={route.appId} skillId={route.skillId} providerId={route.providerId} on:openSettings={handleOpenSettings} />
+{:else if routeInfo.type === 'reminder_create'}
+    <SettingsReminders on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
     <SkillDetails appId={routeInfo.appId} skillId={routeInfo.skillId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'focus_details'}

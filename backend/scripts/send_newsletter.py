@@ -25,7 +25,6 @@ import logging
 import sys
 import os
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 
 # Add the backend directory to the Python path
 sys.path.insert(0, '/app/backend')
@@ -170,7 +169,6 @@ async def send_newsletter_to_subscriber(
         True if email was sent successfully (or dry-run), False otherwise
     """
     language = subscriber.get("language", "en")
-    hashed_email = subscriber.get("hashed_email", "")
     
     # Log subscriber info (masked for privacy)
     masked_email = f"{email[:2]}***" if len(email) > 2 else "***"

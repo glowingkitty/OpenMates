@@ -130,6 +130,24 @@ price_calendar:
   context: Skill name for travel price calendar (monthly flight price heatmap)
   en: Price Calendar
   de: Preiskalender
+  zh: 价格日历
+  es: Calendario de precios
+  fr: Calendrier des prix
+  pt: Calendário de preços
+  ru: Ценовой календарь
+  ja: 料金カレンダー
+  ko: 가격 캘린더
+  it: Calendario prezzi
+  tr: Fiyat takvimi
+  vi: Lịch giá
+  id: Kalender harga
+  pl: Kalendarz cen
+  nl: Prijskalender
+  ar: تقويم الأسعار
+  hi: मूल्य कैलेंडर
+  th: ปฏิทินราคา
+  cs: Cenový kalendář
+  sv: Priskalender
   he: לוח מחירים
   verified_by_human:
     - en
@@ -138,6 +156,24 @@ price_calendar.description:
   context: Description for the travel price calendar skill - shows cheapest flight prices for each day of a month
   en: Show flight price trends for a month on a route.
   de: Flugpreistrends für einen Monat auf einer Strecke.
+  zh: 显示某条航线一个月内的航班价格趋势。
+  es: Muestra tendencias de precios de vuelos durante un mes en una ruta.
+  fr: Affiche les tendances de prix des vols sur un mois pour un itinéraire.
+  pt: Mostra tendências de preços de voos por um mês em uma rota.
+  ru: Показывает тенденции цен на рейсы за месяц по маршруту.
+  ja: ルートの1ヶ月間のフライト価格動向を表示します。
+  ko: 노선의 한 달간 항공권 가격 추이를 보여줍니다.
+  it: Mostra le tendenze dei prezzi dei voli per un mese su un percorso.
+  tr: Bir güzergahta aylık uçuş fiyatı trendlerini gösterir.
+  vi: Hiển thị xu hướng giá vé máy bay trong một tháng trên một tuyến đường.
+  id: Tampilkan tren harga penerbangan selama satu bulan pada suatu rute.
+  pl: Pokazuje trendy cen lotów przez miesiąc na trasie.
+  nl: Toont vluchtprijstrends voor een maand op een route.
+  ar: يعرض اتجاهات أسعار الرحلات لمدة شهر على مسار معين.
+  hi: एक मार्ग पर एक महीने के लिए उड़ान मूल्य रुझान दिखाएं।
+  th: แสดงแนวโน้มราคาเที่ยวบินสำหรับหนึ่งเดือนบนเส้นทาง
+  cs: Zobrazí trendy cen letů za měsíc na trase.
+  sv: Visar prisutveckling för flyg under en månad på en rutt.
   he: הצגת מגמות מחירי טיסות למשך חודש במסלול מסוים.
   verified_by_human:
     - en
@@ -146,6 +182,24 @@ search_stays:
   context: Skill name for travel search stays (hotels, hostels, accommodations)
   en: Search stays
   de: Unterkünfte suchen
+  zh: 搜索住宿
+  es: Buscar alojamientos
+  fr: Rechercher des hébergements
+  pt: Pesquisar estadias
+  ru: Поиск жилья
+  ja: 宿泊施設を検索
+  ko: 숙소 검색
+  it: Cerca alloggi
+  tr: Konaklama ara
+  vi: Tìm chỗ ở
+  id: Cari penginapan
+  pl: Szukaj noclegów
+  nl: Verblijven zoeken
+  ar: البحث عن إقامات
+  hi: आवास खोजें
+  th: ค้นหาที่พัก
+  cs: Hledat ubytování
+  sv: Sök boenden
   he: חיפוש מקומות אירוח
   verified_by_human:
     - en
@@ -154,6 +208,24 @@ search_stays.description:
   context: Description for the travel search stays skill - searches for hotels, hostels, and accommodations
   en: Find hotels, hostels and accommodations nearby.
   de: Finde Hotels, Hostels und Unterkünfte vor Ort.
+  zh: 查找附近的酒店、青年旅舍和住宿。
+  es: Encuentra hoteles, hostales y alojamientos cercanos.
+  fr: Trouvez des hôtels, auberges et hébergements à proximité.
+  pt: Encontre hotéis, hostels e acomodações por perto.
+  ru: Найдите отели, хостелы и жильё поблизости.
+  ja: 近くのホテル、ホステル、宿泊施設を検索します。
+  ko: 근처 호텔, 호스텔 및 숙박 시설을 찾으세요.
+  it: Trova hotel, ostelli e alloggi nelle vicinanze.
+  tr: Yakınlardaki otelleri, hosteli ve konaklama yerlerini bulun.
+  vi: Tìm khách sạn, hostel và chỗ ở gần đây.
+  id: Temukan hotel, hostel dan akomodasi terdekat.
+  pl: Znajdź hotele, hostele i noclegi w pobliżu.
+  nl: Vind hotels, hostels en accommodaties in de buurt.
+  ar: ابحث عن فنادق ونزل وأماكن إقامة قريبة.
+  hi: पास में होटल, हॉस्टल और आवास खोजें।
+  th: ค้นหาโรงแรม โฮสเทล และที่พักใกล้เคียง
+  cs: Najděte hotely, hostely a ubytování v okolí.
+  sv: Hitta hotell, vandrarhem och boenden i närheten.
   he: חיפוש מלונות, אכסניות ומקומות אירוח בקרבת מקום.
   verified_by_human:
     - en

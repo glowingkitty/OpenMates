@@ -52,7 +52,7 @@ const ALL_APPS = [
  */
 /**
  * Search skills whose fullscreen uses SearchResultsTemplate with .search-template-grid.
- * Apps that use a custom grid/list layout (maps, pdf, shopping) are excluded here
+ * Apps that use a custom grid/list layout (maps, pdf) are excluded here
  * since their fullscreen doesn't have .search-template-grid.
  */
 const SEARCH_SKILLS: Record<string, string[]> = {
@@ -62,7 +62,8 @@ const SEARCH_SKILLS: Record<string, string[]> = {
 	news: ['Search'],
 	travel: ['Search', 'Stays Search'],
 	events: ['Search'],
-	health: ['Search']
+	health: ['Search'],
+	shopping: ['Search']
 };
 
 /** How long to wait for all sections to finish loading (ms) */

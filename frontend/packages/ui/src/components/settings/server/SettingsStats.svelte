@@ -568,10 +568,10 @@
                 <p class="no-data-chart">{$text('settings.server_stats.no_data')}</p>
             {:else}
                 <div class="chart-container">
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <svg
                         class="chart"
                         viewBox="0 0 700 200"
+                        role="img"
                         onmousemove={handleChartMouseMove}
                         onmouseleave={() => { hoveredPoint = null; }}
                     >
@@ -694,7 +694,7 @@
         <!-- Devices -->
         <div class="chart-section">
             <div class="chart-header">
-                <h3>{$text('settings.server_stats.devices')}</h3>
+                <h3>{$text('common.devices')}</h3>
             </div>
             {#if deviceData.length === 0}
                 <p class="no-data">{$text('settings.server_stats.no_data')}</p>

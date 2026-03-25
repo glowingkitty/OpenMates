@@ -14,6 +14,7 @@ import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
 import { normalizeEmbedType as registryNormalizeEmbedType } from "../data/embedRegistry.generated";
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import {
   encryptWithMasterKey,
   decryptWithMasterKey,
@@ -795,6 +796,93 @@ export class EmbedStore {
   }
 
   /**
+   * Batch-store encrypted embeds in a single IDB transaction for performance.
+   * On iPhone Safari, writing 1300+ embeds individually takes ~15s due to
+   * per-transaction overhead. A single transaction takes ~1s.
+   * Skips metadata extraction — callers should set app_id/skill_id later if needed.
+   */
+  async putEncryptedBatch(
+    items: Array<{
+      contentRef: string;
+      data: Record<string, unknown>;
+      type: EmbedType;
+    }>,
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    // Build entries and populate memory cache
+    const entries: EmbedStoreEntry[] = [];
+    for (const item of items) {
+      const normalizedType = this.normalizeEmbedType(
+        item.type as unknown as string,
+      );
+      const d = item.data;
+
+      const createdAt =
+        (d.createdAt as number | undefined) ??
+        (d.created_at as number | undefined) ??
+        Date.now();
+      const updatedAt =
+        (d.updatedAt as number | undefined) ??
+        (d.updated_at as number | undefined) ??
+        Date.now();
+
+      const entry: EmbedStoreEntry = {
+        contentRef: item.contentRef,
+        type: normalizedType,
+        createdAt,
+        updatedAt,
+        embed_id: d.embed_id as string | undefined,
+        encrypted_content: d.encrypted_content as string | undefined,
+        encrypted_type: d.encrypted_type as string | undefined,
+        encrypted_text_preview: d.encrypted_text_preview as
+          | string
+          | undefined,
+        status: d.status as EmbedStoreEntry["status"],
+        hashed_chat_id: d.hashed_chat_id as string | undefined,
+        hashed_message_id: d.hashed_message_id as string | undefined,
+        hashed_task_id: d.hashed_task_id as string | undefined,
+        hashed_user_id: d.hashed_user_id as string | undefined,
+        embed_ids: d.embed_ids as string[] | undefined,
+        parent_embed_id: d.parent_embed_id as string | undefined,
+        version_number: d.version_number as number | undefined,
+        file_path: d.file_path as string | undefined,
+        content_hash: d.content_hash as string | undefined,
+        text_length_chars: d.text_length_chars as number | undefined,
+        is_private: (d.is_private as boolean | undefined) ?? false,
+        is_shared: (d.is_shared as boolean | undefined) ?? false,
+        encryption_mode: "client",
+      };
+
+      embedCache.set(item.contentRef, entry);
+      entries.push(entry);
+    }
+
+    // Write all entries in a single IDB transaction
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readwrite",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      for (const entry of entries) {
+        store.put(entry);
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+    } catch (error) {
+      console.warn(
+        `[EmbedStore] Failed to batch-store ${entries.length} embeds in IndexedDB, using memory cache only:`,
+        error,
+      );
+    }
+  }
+
+  /**
    * Reconstruct embed object from separate fields (new format)
    * @param entry - The EmbedStoreEntry with separate fields
    * @param contentRef - The embed reference key
@@ -1126,7 +1214,16 @@ export class EmbedStore {
           }
         }
       } catch (error) {
-        console.warn("[EmbedStore] Failed to load from IndexedDB:", error);
+        if (
+          error instanceof Error &&
+          error.message?.includes("blocked during logout")
+        ) {
+          console.debug(
+            "[EmbedStore] DB unavailable during cleanup, skipping",
+          );
+        } else {
+          console.warn("[EmbedStore] Failed to load from IndexedDB:", error);
+        }
         return undefined;
       }
     }
@@ -1909,7 +2006,7 @@ export class EmbedStore {
       for (const chat of allChats) {
         const chatIdHash = await computeSHA256(chat.chat_id);
         if (chatIdHash === entry.hashed_chat_id) {
-          const chatKey = chatDB.getChatKey(chat.chat_id);
+          const chatKey = await chatKeyManager.getKey(chat.chat_id);
           if (chatKey) {
             const embedKey = await unwrapEmbedKeyWithChatKey(
               entry.encrypted_embed_key,

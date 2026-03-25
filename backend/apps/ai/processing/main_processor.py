@@ -23,9 +23,11 @@ from backend.apps.ai.utils.llm_utils import (
     STANDARDIZED_USER_ERROR_MESSAGE,
 )
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
+from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
+from backend.apps.ai.llm_providers.bedrock_shared import ParsedBedrockToolCall, BedrockUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
@@ -405,15 +407,18 @@ def _validate_skill_provider(
     if not app_metadata:
         return provider
 
-    skill_providers: Optional[List[str]] = None
+    skill_provider_refs = None
     for skill_def in (app_metadata.skills or []):
         if skill_def.id == skill_id:
-            skill_providers = skill_def.providers
+            skill_provider_refs = skill_def.providers
             break
 
-    if not skill_providers:
+    if not skill_provider_refs:
         # No providers list in app.yml — cannot validate, return as-is
         return provider
+
+    # Extract provider names from ProviderRef objects for comparison
+    skill_providers = [ref.name for ref in skill_provider_refs]
 
     if provider in skill_providers:
         return provider
@@ -505,7 +510,7 @@ async def _charge_skill_credits(
         if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
             # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
             # Use the first provider (most skills will have one primary provider)
-            provider_name = skill_def.providers[0]
+            provider_name = skill_def.providers[0].name
             # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
             provider_id = provider_name.lower()
             
@@ -635,7 +640,7 @@ async def _charge_skill_credits(
             info_provider_id = skill_def.full_model_reference.split("/", 1)[0]
         elif skill_def.providers and len(skill_def.providers) > 0:
             # Re-use the same name-to-ID mapping as the pricing lookup
-            pname = skill_def.providers[0]
+            pname = skill_def.providers[0].name
             info_provider_id = pname.lower()
             if pname == "Google" and app_id == "maps":
                 info_provider_id = "google_maps"
@@ -788,7 +793,8 @@ async def handle_main_processing(
     discovered_apps_metadata: Dict[str, AppYAML],
     secrets_manager: Optional[SecretsManager] = None,
     cache_service: Optional[CacheService] = None,
-    always_include_skills: Optional[List[str]] = None  # Skills to ALWAYS include regardless of preprocessing
+    always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
+    user_overrides: Optional[UserOverrides] = None  # User overrides from @mention syntax (for skip-permission logic)
 ) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -858,7 +864,7 @@ async def handle_main_processing(
             for key, value in mentioned.items():
                 if isinstance(key, str) and value is not None:
                     loaded_app_settings_and_memories_content[key] = value
-            logger.debug(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
+            logger.info(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
 
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         logger.debug(f"{log_prefix} Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
@@ -939,7 +945,7 @@ async def handle_main_processing(
                 key for key in requested_keys
                 if key not in loaded_app_settings_and_memories_content
             ]
-            
+
             if missing_keys and getattr(request_data, "is_app_settings_memories_continuation", False):
                 # This is a continuation task (user already confirmed/rejected the original request).
                 # Do NOT issue another permission dialog — the user's decision was already recorded.
@@ -1797,6 +1803,7 @@ async def handle_main_processing(
     # Track total skill calls across all iterations to prevent runaway research loops.
     # Each request within a tool call counts as one skill call.
     total_skill_calls = 0
+    streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     
@@ -1899,7 +1906,7 @@ async def handle_main_processing(
                     ) from model_error
 
         current_turn_text_buffer = []
-        tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall]] = []
+        tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
         llm_turn_had_content = False
         
         # Dictionary to store placeholder embeds created for tool calls during stream processing
@@ -1907,6 +1914,10 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+
+        # Sync streaming budget counter with execution-phase counter at each iteration start
+        # so it carries over correctly from previous iterations
+        streaming_skill_count = total_skill_calls
         
         # Flag set when AllServersFailedError is caught during stream consumption.
         # When set, the outer loop will attempt the next model in the fallback list.
@@ -1914,7 +1925,7 @@ async def handle_main_processing(
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         try:
           async for chunk in aggregate_paragraphs(llm_stream):
-            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.
                 # Each tool-use iteration re-sends the full history plus tool results,
@@ -1927,7 +1938,7 @@ async def handle_main_processing(
                 elif isinstance(chunk, GoogleUsageMetadata):
                     _iter_input = chunk.prompt_token_count or 0
                     _iter_output = chunk.candidates_token_count or 0
-                elif isinstance(chunk, AnthropicUsageMetadata):
+                elif isinstance(chunk, (AnthropicUsageMetadata, BedrockUsageMetadata)):
                     _iter_input = chunk.input_tokens or 0
                     _iter_output = chunk.output_tokens or 0
                 elif isinstance(chunk, OpenAIUsageMetadata):
@@ -1941,7 +1952,7 @@ async def handle_main_processing(
                     f"Running totals: {cumulative_input_tokens} in / {cumulative_output_tokens} out"
                 )
                 continue
-            if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall)):
+            if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
                 tool_calls_for_this_turn.append(chunk)
                 
                 # === IMMEDIATE PLACEHOLDER CREATION ===
@@ -1986,6 +1997,26 @@ async def handle_main_processing(
                         # The execution phase will also detect this duplicate and skip execution
                         continue
                     
+                    # === STREAMING-PHASE BUDGET CHECK ===
+                    # Count requests in this tool call to check against budget.
+                    # Skip placeholder creation entirely when the budget would be exceeded,
+                    # preventing phantom "Searching..." cards that flash then transition to error.
+                    _streaming_requests_count = 1
+                    _streaming_requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                    if isinstance(_streaming_requests_list, list) and len(_streaming_requests_list) > 0:
+                        _streaming_requests_count = len(_streaming_requests_list)
+
+                    if app_id != "system" and (
+                        streaming_skill_count >= HARD_LIMIT_SKILL_CALLS
+                        or streaming_skill_count + _streaming_requests_count > HARD_LIMIT_SKILL_CALLS
+                    ):
+                        logger.info(
+                            f"{log_prefix} INLINE: [BUDGET_SKIP] Suppressing placeholder for '{tool_name}' "
+                            f"({_streaming_requests_count} requests) - would exceed budget "
+                            f"(streaming_skill_count={streaming_skill_count}, limit={HARD_LIMIT_SKILL_CALLS})"
+                        )
+                        continue  # Skip placeholder creation entirely
+
                     # Create placeholder embed IMMEDIATELY (before skill execution)
                     # Skip for system tools (e.g., activate_focus_mode, deactivate_focus_mode)
                     # because they create their own specific embed types (focus_mode_activation)
@@ -2123,6 +2154,10 @@ async def handle_main_processing(
                                     status="processing",
                                     preview_data={"request_count": len(placeholder_embeds_list)}
                                 )
+
+                                # Track streaming budget for multi-request placeholder
+                                if app_id != "system":
+                                    streaming_skill_count += _streaming_requests_count
                         else:
                             # SINGLE REQUEST: Extract ALL input parameters
                             # This ensures placeholders include all relevant metadata (query, url, languages, etc.)
@@ -2212,6 +2247,10 @@ async def handle_main_processing(
                                     status="processing",
                                     preview_data=metadata  # Include query/provider in preview
                                 )
+
+                                # Track streaming budget for single-request placeholder
+                                if app_id != "system":
+                                    streaming_skill_count += _streaming_requests_count
                             else:
                                 logger.warning(f"{log_prefix} INLINE: Failed to create placeholder embed for '{tool_name}'")
                 except Exception as e:
@@ -2399,10 +2438,11 @@ async def handle_main_processing(
                     # Set force_no_tools to prevent further tool calls
                     force_no_tools = True
 
-                    # === BUG FIX: Update orphaned placeholder embeds to error ===
-                    # When the budget check skips a tool call, placeholder embeds that were
-                    # already created (status=processing) are left stuck forever.
-                    # We must update them to error so the frontend shows the correct state.
+                    # === SAFETY NET: Cancel any orphaned placeholder embeds ===
+                    # With the streaming-phase budget check, orphaned placeholders should be rare.
+                    # This handles edge cases where a placeholder slipped through (e.g., counter
+                    # desync between streaming and execution phases). Use "cancelled" instead of
+                    # "error" for a cleaner UX — the frontend silently removes cancelled embeds.
                     orphaned_placeholder = inline_placeholder_embeds.get(tool_call_id)
                     if orphaned_placeholder and cache_service and user_vault_key_id and directus_service:
                         try:
@@ -2412,37 +2452,22 @@ async def handle_main_processing(
                                 directus_service=directus_service,
                                 encryption_service=encryption_service
                             )
-                            error_msg = "Research limit reached — this result was not fetched."
 
+                            # Collect embed IDs from both single and multi-request placeholders
+                            _orphaned_ids = []
                             if isinstance(orphaned_placeholder, dict) and orphaned_placeholder.get("multiple"):
-                                # Multiple placeholder embeds (multi-request tool call)
                                 for _p in orphaned_placeholder.get("placeholders", []):
                                     _eid = _p.get("embed_id") if isinstance(_p, dict) else None
                                     if _eid:
-                                        await _budget_embed_service.update_embed_status_to_error(
-                                            embed_id=_eid,
-                                            app_id=app_id,
-                                            skill_id=skill_id,
-                                            error_message=error_msg,
-                                            chat_id=request_data.chat_id,
-                                            message_id=request_data.message_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            task_id=task_id,
-                                            log_prefix=log_prefix
-                                        )
-                                        logger.info(
-                                            f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
-                                        )
+                                        _orphaned_ids.append(_eid)
                             elif isinstance(orphaned_placeholder, dict) and "embed_id" in orphaned_placeholder:
-                                # Single placeholder embed
-                                _eid = orphaned_placeholder["embed_id"]
-                                await _budget_embed_service.update_embed_status_to_error(
+                                _orphaned_ids.append(orphaned_placeholder["embed_id"])
+
+                            for _eid in _orphaned_ids:
+                                await _budget_embed_service.update_embed_status_to_cancelled(
                                     embed_id=_eid,
                                     app_id=app_id,
                                     skill_id=skill_id,
-                                    error_message=error_msg,
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
@@ -2451,12 +2476,14 @@ async def handle_main_processing(
                                     task_id=task_id,
                                     log_prefix=log_prefix
                                 )
-                                logger.info(
-                                    f"{log_prefix} [SKILL_BUDGET] Updated orphaned placeholder {_eid} to error"
+                            if _orphaned_ids:
+                                logger.warning(
+                                    f"{log_prefix} [SKILL_BUDGET] Cancelled {len(_orphaned_ids)} orphaned placeholder(s) "
+                                    f"for '{tool_name}' — streaming budget check should have prevented these"
                                 )
                         except Exception as _budget_err:
                             logger.warning(
-                                f"{log_prefix} [SKILL_BUDGET] Failed to update orphaned placeholder to error: {_budget_err}"
+                                f"{log_prefix} [SKILL_BUDGET] Failed to cancel orphaned placeholder: {_budget_err}"
                             )
 
                     continue  # Skip to next tool call

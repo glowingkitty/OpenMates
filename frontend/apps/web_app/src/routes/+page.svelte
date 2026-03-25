@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable no-console */
 	import {
 		// components
 		Chats,
@@ -50,12 +51,15 @@
 		NEW_CHAT_SENTINEL,
 		loadCommunityDemos,
 		loadDefaultInspirations,
-		DevConsole
+		DevConsole,
+		openSearch,
+		notFoundPathStore
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
 		isProgrammaticHashUpdate,
-		isProgrammaticEmbedHashUpdate
+		isProgrammaticEmbedHashUpdate,
+		cryptoReady
 	} from '@repo/ui';
 	import { pushNotificationService } from '@repo/ui';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
@@ -77,7 +81,12 @@
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
+	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
+
+	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
+	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
+	const SHORTCUT_TOGGLE_SETTINGS_KEY = '.';
 
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
@@ -659,7 +668,8 @@
 		// For authenticated users: new chat window
 		// Exception: ?og=1 skips the demo-for-everyone redirect so the welcome screen
 		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
-		const isOgMode = browser && new URLSearchParams(window.location.search).get('og') === '1';
+		const ogMediaParams = browser ? new URLSearchParams(window.location.search) : null;
+		const isOgMode = ogMediaParams?.get('og') === '1' || ogMediaParams?.get('media') === '1';
 		if (!$activeChatStore && activeChat) {
 			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
@@ -792,6 +802,86 @@
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 
+		// Persistent Cmd/Ctrl+F interceptor at page level.
+		// Chats.svelte is conditionally mounted, so its KeyboardShortcuts instance can be
+		// unavailable while the sidebar is closed. Keeping this at page level guarantees we
+		// always intercept browser find and open in-app sidebar search instead.
+		const handleGlobalOpenSearchShortcut = (event: KeyboardEvent) => {
+			const isMac = navigator.platform.toUpperCase().includes('MAC');
+			const isCmdOrCtrlPressed = isMac ? event.metaKey : event.ctrlKey;
+			if (!isCmdOrCtrlPressed) {
+				return;
+			}
+
+			const closeChatsIfOpen = () => {
+				if ($panelState.isActivityHistoryOpen) {
+					panelState.toggleChats();
+				}
+			};
+
+			const key = event.key.toLowerCase();
+
+			if (key === SHORTCUT_OPEN_SEARCH_KEY) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				const wasChatsOpen = $panelState.isActivityHistoryOpen;
+				// Open the chats panel (required so the search bar is visible)
+				panelState.openChats();
+				// Activate search via the global store — no window event needed.
+				// The store state persists across the Chats component mount boundary,
+				// so the SearchBar renders immediately when Chats mounts.
+				openSearch({ closeChatsOnEscape: !wasChatsOpen });
+				return;
+			}
+
+			if (!event.shiftKey && event.code === SHORTCUT_TOGGLE_CHATS_CODE) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				if ($panelState.isActivityHistoryOpen) {
+					panelState.toggleChats();
+				} else {
+					panelState.closeSettings();
+					panelState.openChats();
+				}
+				return;
+			}
+
+			if (!event.shiftKey && key === SHORTCUT_TOGGLE_SETTINGS_KEY) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				if ($panelState.isSettingsOpen) {
+					panelState.closeSettings();
+				} else {
+					closeChatsIfOpen();
+					panelState.openSettings();
+				}
+				return;
+			}
+
+			if (event.shiftKey && event.code === SHORTCUT_TOGGLE_CHATS_CODE) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+
+				const areBothOpen = $panelState.isActivityHistoryOpen && $panelState.isSettingsOpen;
+				if (areBothOpen) {
+					closeChatsIfOpen();
+					panelState.closeSettings();
+				} else {
+					panelState.openChats();
+					panelState.openSettings();
+				}
+			}
+		};
+		globalOpenSearchShortcutHandler = handleGlobalOpenSearchShortcut;
+		window.addEventListener('keydown', handleGlobalOpenSearchShortcut, true);
+
 		// --- Pair session rehydration ---
 		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
 		// active before a page reload. Must run before any auth checks.
@@ -804,11 +894,17 @@
 			await checkAuth(undefined, true);
 		});
 
-		// --- OG image mode (?og=1) ---
-		// When loaded inside /dev/og-image iframes, add a body class so CSS can hide
-		// dev-only UI (development server label, report issue button).
-		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
+		// --- Media mode (?media=1) / OG image mode (?og=1) ---
+		// When loaded inside /dev/media iframes, add body classes so CSS can hide
+		// non-essential UI (notifications, cookie banner, login overlay, footer, etc.).
+		// ?media=1 is a superset of ?og=1 — both skip demo-for-everyone and hide dev UI.
+		const searchParams = new URLSearchParams(window.location.search);
+		const isMediaMode = searchParams.get('media') === '1';
+		if (browser && (isMediaMode || searchParams.get('og') === '1')) {
 			document.body.classList.add('og-mode');
+		}
+		if (browser && isMediaMode) {
+			document.body.classList.add('media-mode');
 		}
 
 		// --- Developer Console activation via /#console-on ---
@@ -819,6 +915,39 @@
 			// Remove the hash without triggering a hashchange event
 			history.replaceState(null, '', window.location.pathname + window.location.search);
 			console.debug('[+page.svelte] Developer console activated via #console-on');
+		}
+
+		// --- E2E test debug log forwarding via #e2e-debug= hash param ---
+		// Activated by the Playwright test runner injecting:
+		//   /#e2e-debug={runId}&e2e-token={scopedHmacToken}
+		//
+		// The e2e-debug and e2e-token params are extracted from the hash and the
+		// remaining hash is preserved for normal deep-link processing.
+		// Works pre-login so the login flow itself is captured in OpenObserve.
+		// Query via: debug.py logs --debug-id {runId}
+		//
+		// Privacy: Only activates when the specific hash params are present.
+		// Regular users never see these params — they are injected by Docker test runner.
+		if (browser) {
+			const rawHash = window.location.hash.replace(/^#/, '');
+			const hashParams = new URLSearchParams(rawHash);
+			const e2eRunId = hashParams.get('e2e-debug');
+			const e2eToken = hashParams.get('e2e-token');
+			if (e2eRunId && e2eToken) {
+				// Strip e2e params, preserve the rest for downstream hash parsing
+				hashParams.delete('e2e-debug');
+				hashParams.delete('e2e-token');
+				const remaining = hashParams.toString();
+				history.replaceState(
+					null,
+					'',
+					window.location.pathname + window.location.search + (remaining ? '#' + remaining : '')
+				);
+				// Start E2E log forwarding immediately (pre-login, no session cookie needed)
+				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
+				clientLogForwarder.startE2E(e2eRunId, e2eToken);
+				console.debug(`[+page.svelte] E2E debug log forwarding started, run_id=${e2eRunId}`);
+			}
 		}
 
 		// Load community demo chats (example chats) on page load so they appear in for-everyone
@@ -849,6 +978,31 @@
 			console.debug(
 				'[+page.svelte] [INIT] No chat hash in URL — cleared activeChatStore to prevent stale auto-open'
 			);
+		}
+
+		// 404 NOT-FOUND DETECTION: Vercel serves index.html for all unknown paths (the SPA
+		// catches everything at the CDN edge). When the SPA boots at a non-root path like
+		// /iphone-review, window.location.pathname !== "/" — detect that here and show the
+		// Not404Screen instead of the normal welcome screen.
+		// Also handles the /#404=<path> hash emitted by the [...path]/+server.ts redirect
+		// (belt-and-suspenders for environments where the server route fires before CDN).
+		if (browser) {
+			let notFoundPath: string | null = null;
+			if (window.location.hash.startsWith('#404=')) {
+				// Server-redirect path: /#404=<encodedPath>
+				notFoundPath = decodeURIComponent(window.location.hash.slice('#404='.length));
+				console.debug('[+page.svelte] [404] Unknown path detected via #404= hash:', notFoundPath);
+				history.replaceState(null, '', '/');
+			} else if (window.location.pathname !== '/') {
+				// CDN-served SPA path: browser URL is still the original unknown path
+				notFoundPath = window.location.pathname + window.location.search;
+				console.debug('[+page.svelte] [404] Unknown path detected via pathname:', notFoundPath);
+				history.replaceState(null, '', '/');
+			}
+			if (notFoundPath) {
+				notFoundPathStore.set(notFoundPath);
+				// Do not process as a deep link — Not404Screen handles the UX from here
+			}
 		}
 
 		// SHARED-CHAT REDIRECT: Read and consume the sessionStorage flag set by the share
@@ -890,6 +1044,21 @@
 				// Navigation handed off to the share page — stop processing this page's onMount
 				return;
 			}
+		}
+
+		// PAIR LOGIN DEEP LINK: Detect /#pair=TOKEN early so the forced-logout path
+		// can skip destructive cleanup. Pair login opens the login screen — the user will
+		// authenticate fresh and derive a new master key. Firing forced-logout would:
+		// 1. Send POST /auth/logout invalidating the existing session cookie
+		// 2. Delete IndexedDB databases
+		// 3. Delete all cookies
+		// If the user then logs in via passkey, the background logout IIFE could race
+		// and invalidate the brand-new session. Pattern matches deepLinkHandler.ts pair regex.
+		const isPairDeepLink = browser && /^#pair=[A-Za-z0-9]{6}$/i.test(originalHash);
+		if (isPairDeepLink) {
+			console.debug(
+				'[+page.svelte] [INIT] Pair login deep link detected — will skip forced logout'
+			);
 		}
 
 		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
@@ -974,9 +1143,19 @@
 				// Shared chats use URL-embedded keys (not master key) — they're fully functional.
 				// Setting the flag would interfere with chatDB.init() and trigger destructive cleanup
 				// that wipes the shared chat data.
+				//
+				// EXCEPTION: For pair login deep links (/#pair=TOKEN), skip forcedLogoutInProgress.
+				// The user is about to authenticate fresh via the login screen. Firing forced-logout
+				// would trigger a background server logout that races with the new login and can
+				// invalidate the freshly-established session (the background IIFE sends POST /auth/logout
+				// with credentials: 'include', which sends the new session's cookies).
 				if (sharedChatRedirectId) {
 					console.debug(
 						'[+page.svelte] Skipping forcedLogoutInProgress — shared chat redirect in progress, stale profile is harmless'
+					);
+				} else if (isPairDeepLink) {
+					console.debug(
+						'[+page.svelte] Skipping forcedLogoutInProgress — pair login deep link detected, user will authenticate fresh'
 					);
 				} else {
 					console.debug(
@@ -988,12 +1167,17 @@
 				// Show auto-logout notification with context-appropriate message.
 				// This must be triggered here because checkAuth() will skip its notification
 				// when forcedLogoutInProgress is already true (to prevent duplicate triggers).
-				// EXCEPTION: Skip for shared chat sessions — users opening a share link
-				// shouldn't see logout alerts. The shared chat is valid without master key.
+				// EXCEPTION: Skip for shared chat sessions and pair login deep links —
+				// shared chat users shouldn't see logout alerts, and pair login users are
+				// about to log in anyway.
 				// Use setTimeout to ensure the notification container is rendered first.
 				if (sharedChatRedirectId) {
 					console.debug(
 						'[+page.svelte] Suppressing auto-logout notification — shared chat redirect in progress'
+					);
+				} else if (isPairDeepLink) {
+					console.debug(
+						'[+page.svelte] Suppressing auto-logout notification — pair login in progress'
 					);
 				} else
 					setTimeout(async () => {
@@ -1303,19 +1487,21 @@
 			);
 		}
 
-		// CRITICAL: Start IndexedDB initialization IMMEDIATELY in parallel (non-blocking)
-		// This ensures DB is ready when sync data arrives, but doesn't block anything
-		// Note: Demo chats are now loaded from static bundle, not IndexedDB
-		let dbInitPromise: Promise<void> | null = null;
+		// PERF: Start IndexedDB + chat key decryption IMMEDIATELY in parallel.
+		// cryptoReady = chatDB.init() → loadChatKeysFromDatabase() — resolves once
+		// per page load. Running it alongside initialize() (auth check) means IDB is
+		// warm and chat keys are decrypted by the time startPhasedSync() needs them.
+		// Also collects a version map during the cursor pass, letting startPhasedSync()
+		// skip a redundant getAllChats() IDB scan.
+		let cryptoReadyPromise: Promise<void> | null = null;
 		if (isAuth) {
-			console.debug('[+page.svelte] Starting IndexedDB initialization (non-blocking)...');
-			dbInitPromise = chatDB
-				.init()
+			console.debug('[+page.svelte] Starting cryptoReady (IDB init + key loading) in parallel with auth...');
+			cryptoReadyPromise = cryptoReady
 				.then(() => {
-					console.debug('[+page.svelte] ✅ IndexedDB initialized and ready');
+					console.debug('[+page.svelte] ✅ cryptoReady resolved — IDB warm, chat keys loaded');
 				})
 				.catch((error) => {
-					console.error('[+page.svelte] ❌ IndexedDB initialization failed:', error);
+					console.error('[+page.svelte] ❌ cryptoReady failed:', error);
 				});
 		}
 
@@ -1502,8 +1688,14 @@
 		}
 
 		// Initialize authentication state (panelState will react to this)
-		await initialize(); // Call the imported initialize function
-		console.debug('[+page.svelte] initialize() finished');
+		// PERF: Await initialize() and cryptoReady in parallel so IDB + key loading
+		// completes alongside the auth check instead of after it.
+		if (cryptoReadyPromise) {
+			await Promise.all([initialize(), cryptoReadyPromise]);
+		} else {
+			await initialize();
+		}
+		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
 
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.
 		// checkAuth() (called inside initialize()) has already had a chance to read it.
@@ -1701,9 +1893,9 @@
 		// On login, server state will be used (via handleSyncCompleteAndLoadChat)
 		// CRITICAL: URL hash chat has priority - skip last opened chat if hash is present or deep link processed
 		// Use originalHashChatId and deepLinkProcessed flags (read before anything could modify it)
-		if ($authStore.isAuthenticated && dbInitPromise && !originalHashChatId && !deepLinkProcessed) {
+		if ($authStore.isAuthenticated && cryptoReadyPromise && !originalHashChatId && !deepLinkProcessed) {
 			// Only load last opened chat if we don't have a chat hash
-			dbInitPromise.then(async () => {
+			cryptoReadyPromise.then(async () => {
 				// Double-check original hash still applies (shouldn't change, but be safe)
 				if (originalHashChatId || deepLinkProcessed) {
 					console.debug(
@@ -1944,6 +2136,19 @@
 		window.addEventListener('pageshow', handleBfcacheRestore);
 
 		console.debug('[+page.svelte] onMount finished');
+
+		// --- Media mode ready signal ---
+		// After all initialization, wait for fonts to load then signal that the app
+		// is ready for screenshot capture. The parent iframe (DeviceIframe) watches
+		// for this class via MutationObserver.
+		if (browser && document.body.classList.contains('media-mode')) {
+			// Wait for fonts + one animation frame for paint to settle
+			await document.fonts.ready;
+			requestAnimationFrame(() => {
+				document.body.classList.add('media-app-ready');
+				console.debug('[+page.svelte] media-app-ready signal emitted');
+			});
+		}
 	});
 
 	// Cleanup function for onDestroy
@@ -1972,6 +2177,9 @@
 		if (bfcacheRestoreHandler) {
 			window.removeEventListener('pageshow', bfcacheRestoreHandler);
 		}
+		if (globalOpenSearchShortcutHandler) {
+			window.removeEventListener('keydown', globalOpenSearchShortcutHandler, true);
+		}
 		// Note: hashchange, visibilitychange, and beforeunload handlers are cleaned up automatically on page unload
 	});
 
@@ -1981,11 +2189,14 @@
 	 * we should restore their most recent draft instead of overwriting with the demo chat.
 	 */
 	async function loadDemoWelcomeChat() {
-		// OG image mode: skip demo-for-everyone so the welcome screen stays visible
+		// OG/media mode: skip demo-for-everyone so the welcome screen stays visible
 		// This guards ALL callers (onNoHash, handleChatDeepLink, etc.)
-		if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
-			console.debug('[+page.svelte] loadDemoWelcomeChat: og=1 mode, skipping demo-for-everyone');
-			return;
+		if (browser) {
+			const params = new URLSearchParams(window.location.search);
+			if (params.get('og') === '1' || params.get('media') === '1') {
+				console.debug('[+page.svelte] loadDemoWelcomeChat: og/media mode, skipping demo-for-everyone');
+				return;
+			}
 		}
 		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
 
@@ -2156,6 +2367,25 @@
 					await loadDemoWelcomeChat();
 				}
 			},
+			onNotFound: (failedPath: string) => {
+				// /#404=<path> fired from catch-all server route or back-navigation
+				console.debug('[+page.svelte] onNotFound deep link:', failedPath);
+				history.replaceState(null, '', '/');
+				notFoundPathStore.set(failedPath);
+			},
+			onMessage: async (messageText: string, autoSend: boolean) => {
+				deepLinkProcessed = true;
+				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
+				// Store message for MessageInput to pick up via custom event
+				// ActiveChat will be in new-chat mode (no hash = welcome screen)
+				activeChatStore.clearActiveChat();
+				// Dispatch after a short delay to let ActiveChat mount and render MessageInput
+				setTimeout(() => {
+					window.dispatchEvent(new CustomEvent('docsMessagePrefill', {
+						detail: { text: messageText, autoSend }
+					}));
+				}, 500);
+			},
 			onPair: (token: string) => {
 				// Set the token store BEFORE navigating so SettingsSessionsConfirmPair reads it on mount.
 				pendingPairToken.set(token);
@@ -2248,6 +2478,9 @@
 		};
 
 		await loadChatWithRetry();
+
+		// Move focus to main chat area for keyboard/screen reader users
+		document.getElementById('main-chat')?.focus();
 
 		// Optionally close Activity History on mobile after selection
 		// if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
@@ -2393,6 +2626,9 @@
 
 <!-- Removed svelte:window binding for innerWidth -->
 
+<!-- Accessibility: skip navigation link for keyboard users (WCAG 2.4.1) -->
+<a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
+
 <!-- Notification overlay - positioned outside main-content to stay visible when chats menu is open on mobile -->
 <div class="notification-container">
 	{#each $notificationStore.notifications as notification (notification.id)}
@@ -2429,7 +2665,7 @@
 		class:authenticated={$authStore.isAuthenticated}
 		class:signup-process={$isInSignupProcess}
 	>
-		<div class="chat-wrapper">
+		<div class="chat-wrapper" id="main-chat" tabindex="-1">
 			<!-- ActiveChat component - loads welcome chat via JS for PWA -->
 			<ActiveChat bind:this={activeChat} />
 		</div>
@@ -2718,5 +2954,27 @@
 	/* Report issue button wrapper — icon_bug class is unique to that button */
 	:global(body.og-mode .new-chat-button-wrapper:has(.icon_bug)) {
 		display: none;
+	}
+
+	/* ── Media mode (?media=1) — superset of og-mode ──────────────────── */
+	/* Hide all non-essential UI for pixel-perfect screenshot capture.
+	   The real app renders inside iframes in /dev/media device mockups. */
+	:global(body.media-mode .notification-container) {
+		display: none !important;
+	}
+	:global(body.media-mode .cookie-banner) {
+		display: none !important;
+	}
+	:global(body.media-mode .keyboard-shortcuts-hint) {
+		display: none !important;
+	}
+	:global(body.media-mode .footer) {
+		display: none !important;
+	}
+	:global(body.media-mode .dev-console) {
+		display: none !important;
+	}
+	:global(body.media-mode .login-interface) {
+		display: none !important;
 	}
 </style>

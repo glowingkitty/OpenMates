@@ -5,21 +5,21 @@ open_settings_menu:
   zh: 打开设置菜单
   es: Abrir menú de configuración
   fr: Ouvrir le menu des paramètres
-  pt: ""
-  ru: ""
+  pt: Abrir menu de configurações
+  ru: Открыть меню настроек
   ja: 設定メニューを開く
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설정 메뉴 열기
+  it: Apri menu impostazioni
+  tr: Ayarlar menüsünü aç
+  vi: Mở menu cài đặt
+  id: Buka menu pengaturan
+  pl: Otwórz menu ustawień
+  nl: Instellingenmenu openen
   ar: افتح قائمة الإعدادات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सेटिंग्स मेनू खोलें
+  th: เปิดเมนูการตั้งค่า
+  cs: Otevřít menu nastavení
+  sv: Öppna inställningsmenyn
   he: פתיחת תפריט ההגדרות
   verified_by_human: []
 close_settings_menu:
@@ -29,21 +29,21 @@ close_settings_menu:
   zh: 关闭设置菜单
   es: Cerrar menú de configuración
   fr: Fermer le menu des paramètres
-  pt: ""
-  ru: ""
+  pt: Fechar menu de configurações
+  ru: Закрыть меню настроек
   ja: 設定メニューを閉じる
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설정 메뉴 닫기
+  it: Chiudi menu impostazioni
+  tr: Ayarlar menüsünü kapat
+  vi: Đóng menu cài đặt
+  id: Tutup menu pengaturan
+  pl: Zamknij menu ustawień
+  nl: Instellingenmenu sluiten
   ar: إغلاق قائمة الإعدادات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सेटिंग्स मेनू बंद करें
+  th: ปิดเมนูการตั้งค่า
+  cs: Zavřít menu nastavení
+  sv: Stäng inställningsmenyn
   he: סגירת תפריט ההגדרות
   verified_by_human: []
 search:
@@ -53,21 +53,21 @@ search:
   zh: 搜索
   es: Buscar
   fr: Rechercher
-  pt: ""
-  ru: ""
+  pt: Pesquisar
+  ru: Поиск
   ja: 検索
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
   ar: بحث
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
   he: חיפוש
   verified_by_human: []
 add_credits:
@@ -77,21 +77,21 @@ add_credits:
   zh: 添加额度
   es: Añadir créditos
   fr: Ajouter des crédits
-  pt: ""
-  ru: ""
+  pt: Adicionar créditos
+  ru: Добавить кредиты
   ja: クレジットを追加
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 크레딧 추가
+  it: Aggiungi crediti
+  tr: Kredi ekle
+  vi: Thêm tín dụng
+  id: Tambah kredit
+  pl: Dodaj kredyty
+  nl: Credits toevoegen
   ar: إضافة رصيد
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: क्रेडिट जोड़ें
+  th: เพิ่มเครดิต
+  cs: Přidat kredity
+  sv: Lägg till krediter
   he: הוספת קרדיטים
   verified_by_human: []
 credits:
@@ -101,21 +101,21 @@ credits:
   zh: "{credits_amount} 信用"
   es: "{credits_amount} Créditos"
   fr: "{credits_amount} Crédits"
-  pt: ""
-  ru: ""
+  pt: "{credits_amount} Créditos"
+  ru: "{credits_amount} кредитов"
   ja: "{credits_amount} クレジット"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "{credits_amount} 크레딧"
+  it: "{credits_amount} Crediti"
+  tr: "{credits_amount} Kredi"
+  vi: "{credits_amount} Tín dụng"
+  id: "{credits_amount} Kredit"
+  pl: "{credits_amount} Kredytów"
+  nl: "{credits_amount} Credits"
   ar: الاعتمادات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "{credits_amount} क्रेडिट"
+  th: "{credits_amount} เครดิต"
+  cs: "{credits_amount} Kreditů"
+  sv: "{credits_amount} Krediter"
   he: קרדיטים
   verified_by_human: []
 settings:
@@ -125,93 +125,93 @@ settings:
   zh: 设置
   es: Ajustes
   fr: Paramètres
-  pt: ""
-  ru: ""
+  pt: Configurações
+  ru: Настройки
   ja: 設定
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
   ar: الإعدادات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सेटिंग्स
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
   he: הגדרות
   verified_by_human: []
 enabled:
   context: Status indicating a feature is enabled
   en: Enabled
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Aktiviert
+  zh: 已启用
+  es: Habilitado
+  fr: Activé
+  pt: Ativado
+  ru: Включено
+  ja: 有効
+  ko: 활성화됨
+  it: Abilitato
+  tr: Etkin
+  vi: Đã bật
+  id: Diaktifkan
+  pl: Włączony
+  nl: Ingeschakeld
   ar: مُفعّل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सक्षम
+  th: เปิดใช้งาน
+  cs: Povoleno
+  sv: Aktiverat
   he: מופעל
   verified_by_human: []
 disabled:
   context: Status indicating a feature is disabled
   en: Disabled
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Deaktiviert
+  zh: 已禁用
+  es: Deshabilitado
+  fr: Désactivé
+  pt: Desativado
+  ru: Отключено
+  ja: 無効
+  ko: 비활성화됨
+  it: Disabilitato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Wyłączony
+  nl: Uitgeschakeld
   ar: مُعطّل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अक्षम
+  th: ปิดใช้งาน
+  cs: Zakázáno
+  sv: Inaktiverat
   he: מושבת
   verified_by_human: []
 active:
   context: Status indicating a service is active
   en: Active
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Aktiv
+  zh: 活跃
+  es: Activo
+  fr: Actif
+  pt: Ativo
+  ru: Активный
+  ja: アクティブ
+  ko: 활성
+  it: Attivo
+  tr: Aktif
+  vi: Đang hoạt động
+  id: Aktif
+  pl: Aktywny
+  nl: Actief
   ar: نشط
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सक्रिय
+  th: ใช้งานอยู่
+  cs: Aktivní
+  sv: Aktiv
   he: פעיל
   verified_by_human: []
 team:
@@ -221,21 +221,21 @@ team:
   zh: 团队
   es: Equipo
   fr: Équipe
-  pt: ""
-  ru: ""
+  pt: Equipe
+  ru: Команда
   ja: チーム
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 팀
+  it: Team
+  tr: Takım
+  vi: Nhóm
+  id: Tim
+  pl: Zespół
+  nl: Team
   ar: فريق
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: टीम
+  th: ทีม
+  cs: Tým
+  sv: Team
   he: צוות
   verified_by_human: []
 incognito:
@@ -245,21 +245,21 @@ incognito:
   zh: 隐身模式
   es: Incógnito
   fr: Incognito
-  pt: ""
-  ru: ""
+  pt: Incógnito
+  ru: Инкогнито
   ja: シークレット
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시크릿
+  it: Incognito
+  tr: Gizli
+  vi: Ẩn danh
+  id: Penyamaran
+  pl: Incognito
+  nl: Incognito
   ar: متخفٍ
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: गुप्त
+  th: ไม่ระบุตัวตน
+  cs: Anonymní
+  sv: Inkognito
   he: גלישה בסתר
   verified_by_human: []
 incognito_explainer_description:
@@ -269,21 +269,21 @@ incognito_explainer_description:
   zh: "隐身模式仅适用于您创建的新聊天。在隐身模式激活时创建的新聊天不会跨设备同步，不会存储在服务器上，也不会被缓存。这些聊天仅存在于您当前的浏览器会话中。现有聊天保持不变。"
   es: "El modo incógnito se aplica solo a los nuevos chats que cree. Los nuevos chats creados mientras el modo incógnito está activo no se sincronizan entre dispositivos, no se almacenan en el servidor y no se almacenan en caché. Estos chats solo existen en su sesión actual del navegador. Los chats existentes permanecen sin cambios."
   fr: "Le mode incognito s'applique uniquement aux nouveaux chats que vous créez. Les nouveaux chats créés lorsque le mode incognito est actif ne sont pas synchronisés entre les appareils, ne sont pas stockés sur le serveur et ne sont pas mis en cache. Ces chats n'existent que dans votre session de navigateur actuelle. Les chats existants restent inchangés."
-  pt: ""
-  ru: ""
+  pt: "O modo incógnito aplica-se apenas aos novos chats que você cria. Os novos chats criados enquanto o modo incógnito está ativo não são sincronizados entre dispositivos, não são armazenados no servidor e não são armazenados em cache. Esses chats existem apenas na sua sessão atual do navegador. Os chats existentes permanecem inalterados."
+  ru: "Режим инкогнито применяется только к новым чатам, которые вы создаёте. Новые чаты, созданные в режиме инкогнито, не синхронизируются между устройствами, не хранятся на сервере и не кэшируются. Эти чаты существуют только в текущей сессии браузера. Существующие чаты остаются без изменений."
   ja: "シークレットモードは、作成する新しいチャットにのみ適用されます。シークレットモードがアクティブな間に作成された新しいチャットは、デバイス間で同期されず、サーバーに保存されず、キャッシュされません。これらのチャットは、現在のブラウザセッションにのみ存在します。既存のチャットは変更されません。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "시크릿 모드는 새로 만드는 채팅에만 적용됩니다. 시크릿 모드가 활성화된 동안 만들어진 새 채팅은 기기 간에 동기화되지 않고, 서버에 저장되지 않으며, 캐시되지 않습니다. 이 채팅은 현재 브라우저 세션에서만 존재합니다. 기존 채팅은 변경되지 않습니다."
+  it: "La modalità incognito si applica solo alle nuove chat che crei. Le nuove chat create mentre la modalità incognito è attiva non vengono sincronizzate tra i dispositivi, non vengono memorizzate sul server e non vengono memorizzate nella cache. Queste chat esistono solo nella sessione corrente del browser. Le chat esistenti rimangono invariate."
+  tr: "Gizli mod yalnızca oluşturduğunuz yeni sohbetlere uygulanır. Gizli mod etkinken oluşturulan yeni sohbetler cihazlar arasında senkronize edilmez, sunucuda saklanmaz ve önbelleğe alınmaz. Bu sohbetler yalnızca mevcut tarayıcı oturumunuzda mevcuttur. Mevcut sohbetler değişmeden kalır."
+  vi: "Chế độ ẩn danh chỉ áp dụng cho các cuộc trò chuyện mới bạn tạo. Các cuộc trò chuyện mới được tạo khi chế độ ẩn danh đang hoạt động sẽ không được đồng bộ giữa các thiết bị, không được lưu trữ trên máy chủ và không được lưu vào bộ nhớ đệm. Các cuộc trò chuyện này chỉ tồn tại trong phiên trình duyệt hiện tại của bạn. Các cuộc trò chuyện hiện có vẫn không thay đổi."
+  id: "Mode penyamaran hanya berlaku untuk obrolan baru yang Anda buat. Obrolan baru yang dibuat saat mode penyamaran aktif tidak disinkronkan antar perangkat, tidak disimpan di server, dan tidak di-cache. Obrolan ini hanya ada dalam sesi browser Anda saat ini. Obrolan yang ada tetap tidak berubah."
+  pl: "Tryb incognito dotyczy tylko nowych czatów, które tworzysz. Nowe czaty tworzone w trybie incognito nie są synchronizowane między urządzeniami, nie są przechowywane na serwerze i nie są buforowane. Te czaty istnieją tylko w bieżącej sesji przeglądarki. Istniejące czaty pozostają bez zmian."
+  nl: "Incognitomodus is alleen van toepassing op nieuwe chats die je aanmaakt. Nieuwe chats die zijn aangemaakt terwijl de incognitomodus actief is, worden niet gesynchroniseerd op apparaten, niet opgeslagen op de server en niet gecached. Deze chats bestaan alleen in je huidige browsersessie. Bestaande chats blijven ongewijzigd."
   ar: ينطبق وضع التصفح المتخفي فقط على الدردشات الجديدة التي تنشئها. الدردشات الجديدة التي يتم إنشاؤها أثناء تفعيل وضع التصفح المتخفي لا تتم مزامنتها عبر الأجهزة، ولا يتم تخزينها على الخادم، ولا يتم تخزينها مؤقتًا. توجد هذه الدردشات فقط في جلسة المتصفح الحالية. تظل الدردشات الحالية دون تغيير.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "गुप्त मोड केवल आपके द्वारा बनाए गए नए चैट पर लागू होता है। गुप्त मोड सक्रिय रहने के दौरान बनाए गए नए चैट डिवाइस में सिंक नहीं होते, सर्वर पर संग्रहीत नहीं होते और कैश नहीं होते। ये चैट केवल आपके वर्तमान ब्राउज़र सत्र में मौजूद हैं। मौजूदा चैट अपरिवर्तित रहते हैं।"
+  th: "โหมดไม่ระบุตัวตนใช้ได้กับแชทใหม่ที่คุณสร้างเท่านั้น แชทใหม่ที่สร้างขณะที่โหมดไม่ระบุตัวตนเปิดใช้งานอยู่จะไม่ถูกซิงค์ข้ามอุปกรณ์ ไม่ถูกเก็บไว้บนเซิร์ฟเวอร์ และไม่ถูกแคช แชทเหล่านี้มีอยู่เฉพาะในเซสชันเบราว์เซอร์ปัจจุบันของคุณเท่านั้น แชทที่มีอยู่แล้วยังคงไม่เปลี่ยนแปลง"
+  cs: "Anonymní režim se vztahuje pouze na nové chaty, které vytvoříte. Nové chaty vytvořené v anonymním režimu nejsou synchronizovány mezi zařízeními, nejsou uloženy na serveru a nejsou ukládány do mezipaměti. Tyto chaty existují pouze v aktuální relaci prohlížeče. Stávající chaty zůstávají nezměněny."
+  sv: "Inkognitoläget gäller bara för nya chattar du skapar. Nya chattar som skapas i inkognitoläget synkroniseras inte mellan enheter, lagras inte på servern och cachas inte. Dessa chattar finns bara i din nuvarande webbläsarsession. Befintliga chattar förblir oförändrade."
   he: "מצב גלישה בסתר חל רק על צ'אטים חדשים שתיצור. צ'אטים חדשים שנוצרו בזמן שמצב גלישה בסתר פעיל אינם מסונכרנים בין מכשירים, אינם נשמרים בשרת ואינם נשמרים במטמון. צ'אטים אלו קיימים רק בהפעלת הדפדפן הנוכחית שלך. צ'אטים קיימים נותרים ללא שינוי."
   verified_by_human: []
 incognito_explainer_feature_device_specific:
@@ -293,21 +293,21 @@ incognito_explainer_feature_device_specific:
   zh: 设备特定：仅适用于此浏览器标签页
   es: "Específico del dispositivo: Solo se aplica a esta pestaña del navegador"
   fr: "Spécifique à l'appareil : Ne s'applique qu'à cet onglet du navigateur"
-  pt: ""
-  ru: ""
+  pt: "Específico do dispositivo: Aplica-se apenas a esta guia do navegador"
+  ru: "Специфично для устройства: Применяется только к этой вкладке браузера"
   ja: デバイス固有：このブラウザタブにのみ適用されます
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "기기별: 이 브라우저 탭에만 적용됩니다"
+  it: "Specifico del dispositivo: Si applica solo a questa scheda del browser"
+  tr: "Cihaza özgü: Yalnızca bu tarayıcı sekmesine uygulanır"
+  vi: "Dành riêng cho thiết bị: Chỉ áp dụng cho tab trình duyệt này"
+  id: "Khusus perangkat: Hanya berlaku untuk tab browser ini"
+  pl: "Specyficzne dla urządzenia: Dotyczy tylko tej karty przeglądarki"
+  nl: "Apparaatspecifiek: Geldt alleen voor dit browsertabblad"
   ar: "خاص بالجهاز: ينطبق فقط على علامة تبويب المتصفح هذه"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "डिवाइस-विशिष्ट: केवल इस ब्राउज़र टैब पर लागू होता है"
+  th: "เฉพาะอุปกรณ์: ใช้ได้กับแท็บเบราว์เซอร์นี้เท่านั้น"
+  cs: "Specifické pro zařízení: Vztahuje se pouze na tuto záložku prohlížeče"
+  sv: "Enhetsspecifikt: Gäller bara denna webbläsarflik"
   he: "ספציפי למכשיר: חל רק על לשונית דפדפן זו"
   verified_by_human: []
 incognito_explainer_feature_not_stored:
@@ -317,21 +317,21 @@ incognito_explainer_feature_not_stored:
   zh: 不存储：聊天不会保存到服务器
   es: "No almacenado: Los chats no se guardan en el servidor"
   fr: "Non stocké : Les chats ne sont pas enregistrés sur le serveur"
-  pt: ""
-  ru: ""
+  pt: "Não armazenado: Os chats não são salvos no servidor"
+  ru: "Не хранится: Чаты не сохраняются на сервере"
   ja: 保存されない：チャットはサーバーに保存されません
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "저장되지 않음: 채팅이 서버에 저장되지 않습니다"
+  it: "Non memorizzato: Le chat non vengono salvate sul server"
+  tr: "Saklanmıyor: Sohbetler sunucuya kaydedilmez"
+  vi: "Không được lưu trữ: Các cuộc trò chuyện không được lưu vào máy chủ"
+  id: "Tidak disimpan: Obrolan tidak disimpan ke server"
+  pl: "Nie przechowywane: Czaty nie są zapisywane na serwerze"
+  nl: "Niet opgeslagen: Chats worden niet opgeslagen op de server"
   ar: "غير مخزنة: لا يتم حفظ الدردشات على الخادم"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "संग्रहीत नहीं: चैट सर्वर पर सहेजे नहीं जाते"
+  th: "ไม่ถูกเก็บ: แชทไม่ถูกบันทึกไว้บนเซิร์ฟเวอร์"
+  cs: "Neuloženo: Chaty nejsou uloženy na serveru"
+  sv: "Inte lagrat: Chattar sparas inte på servern"
   he: "לא נשמר: הצ'אטים אינם נשמרים בשרת"
   verified_by_human: []
 incognito_explainer_feature_session_only:
@@ -341,21 +341,21 @@ incognito_explainer_feature_session_only:
   zh: 仅会话：关闭标签页时聊天会消失
   es: "Solo sesión: Los chats desaparecen cuando cierra la pestaña"
   fr: "Session uniquement : Les chats disparaissent lorsque vous fermez l'onglet"
-  pt: ""
-  ru: ""
+  pt: "Apenas sessão: Os chats desaparecem quando você fecha a guia"
+  ru: "Только сессия: Чаты исчезают при закрытии вкладки"
   ja: セッションのみ：タブを閉じるとチャットが消えます
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "세션 전용: 탭을 닫으면 채팅이 사라집니다"
+  it: "Solo sessione: Le chat scompaiono quando chiudi la scheda"
+  tr: "Yalnızca oturum: Sekmeyi kapattığınızda sohbetler kaybolur"
+  vi: "Chỉ trong phiên: Các cuộc trò chuyện biến mất khi bạn đóng tab"
+  id: "Hanya sesi: Obrolan menghilang saat Anda menutup tab"
+  pl: "Tylko sesja: Czaty znikają po zamknięciu karty"
+  nl: "Alleen sessie: Chats verdwijnen als je het tabblad sluit"
   ar: "للجلسة فقط: تختفي الدردشات عند إغلاق علامة التبويب"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "केवल सत्र: टैब बंद करने पर चैट गायब हो जाते हैं"
+  th: "เฉพาะเซสชัน: แชทจะหายไปเมื่อคุณปิดแท็บ"
+  cs: "Pouze pro relaci: Chaty zmizí při zavření karty"
+  sv: "Sessionsenbart: Chattar försvinner när du stänger fliken"
   he: "לסשן בלבד: הצ'אטים נעלמים כשסוגרים את הלשונית"
   verified_by_human: []
 incognito_explainer_feature_no_recovery:
@@ -365,21 +365,21 @@ incognito_explainer_feature_no_recovery:
   zh: "无法恢复：已删除的隐身聊天无法恢复"
   es: "Sin recuperación: Los chats incógnitos eliminados no se pueden recuperar"
   fr: "Aucune récupération : Les chats incognito supprimés ne peuvent pas être récupérés"
-  pt: ""
-  ru: ""
+  pt: "Sem recuperação: Os chats incógnitos excluídos não podem ser recuperados"
+  ru: "Нет восстановления: Удалённые чаты в режиме инкогнито не подлежат восстановлению"
   ja: 回復不可：削除されたシークレットチャットは回復できません
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "복구 불가: 삭제된 시크릿 채팅은 복구할 수 없습니다"
+  it: "Nessun recupero: Le chat incognito eliminate non possono essere recuperate"
+  tr: "Kurtarma yok: Silinen gizli sohbetler kurtarılamaz"
+  vi: "Không thể khôi phục: Các cuộc trò chuyện ẩn danh đã xóa không thể được khôi phục"
+  id: "Tidak dapat dipulihkan: Obrolan penyamaran yang dihapus tidak dapat dipulihkan"
+  pl: "Brak odzyskiwania: Usuniętych czatów incognito nie można odzyskać"
+  nl: "Geen herstel: Verwijderde incognitochats kunnen niet worden hersteld"
   ar: "لا يمكن الاسترداد: لا يمكن استعادة دردشات التصفح المتخفي المحذوفة"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "कोई पुनर्प्राप्ति नहीं: हटाए गए गुप्त चैट पुनर्प्राप्त नहीं किए जा सकते"
+  th: "ไม่สามารถกู้คืนได้: แชทไม่ระบุตัวตนที่ลบแล้วไม่สามารถกู้คืนได้"
+  cs: "Žádné obnovení: Smazané anonymní chaty nelze obnovit"
+  sv: "Ingen återställning: Raderade inkognitochattar kan inte återställas"
   he: "אין אפשרות שחזור: לא ניתן לשחזר צ'אטים שנמחקו במצב גלישה בסתר"
   verified_by_human: []
 incognito_explainer_warning_title:
@@ -389,21 +389,21 @@ incognito_explainer_warning_title:
   zh: 重要隐私提示
   es: Aviso importante de privacidad
   fr: Avis important sur la confidentialité
-  pt: ""
-  ru: ""
+  pt: Aviso importante de privacidade
+  ru: Важное уведомление о конфиденциальности
   ja: 重要なプライバシー通知
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 중요 개인정보 보호 공지
+  it: Avviso importante sulla privacy
+  tr: Önemli Gizlilik Bildirimi
+  vi: Thông báo quyền riêng tư quan trọng
+  id: Pemberitahuan Privasi Penting
+  pl: Ważna informacja o prywatności
+  nl: Belangrijke privacymededeling
   ar: إشعار خصوصية هام
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: महत्वपूर्ण गोपनीयता सूचना
+  th: ประกาศสำคัญเกี่ยวกับความเป็นส่วนตัว
+  cs: Důležité oznámení o ochraně soukromí
+  sv: Viktig sekretessnotis
   he: הודעת פרטיות חשובה
   verified_by_human: []
 incognito_explainer_warning_providers:
@@ -413,21 +413,21 @@ incognito_explainer_warning_providers:
   zh: "即使在隐身模式下，您的聊天仍会发送给选定的第三方AI提供商以处理您的请求。虽然这些提供商无法直接看到是哪个用户发送的请求，但您的消息仍会由他们的系统处理。"
   es: "Incluso en modo incógnito, sus chats se envían a los proveedores de IA de terceros seleccionados para procesar sus solicitudes. Aunque estos proveedores no pueden ver directamente qué usuario envió la solicitud, sus mensajes siguen siendo procesados por sus sistemas."
   fr: "Même en mode incognito, vos chats sont toujours envoyés aux fournisseurs d'IA tiers sélectionnés pour traiter vos demandes. Bien que ces fournisseurs ne puissent pas voir directement quel utilisateur a envoyé la demande, vos messages sont toujours traités par leurs systèmes."
-  pt: ""
-  ru: ""
+  pt: "Mesmo no modo incógnito, seus chats ainda são enviados aos provedores de IA de terceiros selecionados para processar suas solicitações. Embora esses provedores não possam ver diretamente qual usuário enviou a solicitação, suas mensagens ainda são processadas por seus sistemas."
+  ru: "Даже в режиме инкогнито ваши чаты всё равно отправляются выбранным сторонним провайдерам ИИ для обработки ваших запросов. Хотя эти провайдеры не могут напрямую видеть, какой пользователь отправил запрос, ваши сообщения всё равно обрабатываются их системами."
   ja: "シークレットモードでも、チャットは選択したサードパーティのAIプロバイダーに送信され、リクエストを処理します。これらのプロバイダーはどのユーザーがリクエストを送信したかを直接確認することはできませんが、メッセージは引き続きこれらのシステムによって処理されます。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "시크릿 모드에서도 채팅은 여전히 선택된 타사 AI 제공업체로 전송되어 요청을 처리합니다. 이 제공업체들은 어느 사용자가 요청을 보냈는지 직접 볼 수 없지만, 메시지는 여전히 해당 시스템에 의해 처리됩니다."
+  it: "Anche in modalità incognito, le tue chat vengono comunque inviate ai provider AI di terze parti selezionati per elaborare le tue richieste. Sebbene questi provider non possano vedere direttamente quale utente ha inviato la richiesta, i tuoi messaggi vengono comunque elaborati dai loro sistemi."
+  tr: "Gizli modda bile sohbetleriniz isteklerinizi işlemek için seçilen üçüncü taraf yapay zeka sağlayıcılarına gönderilmeye devam eder. Bu sağlayıcılar hangi kullanıcının isteği gönderdiğini doğrudan göremese de mesajlarınız yine de sistemleri tarafından işlenir."
+  vi: "Ngay cả trong chế độ ẩn danh, các cuộc trò chuyện của bạn vẫn được gửi đến các nhà cung cấp AI bên thứ ba đã chọn để xử lý yêu cầu của bạn. Mặc dù các nhà cung cấp này không thể trực tiếp xem người dùng nào đã gửi yêu cầu, tin nhắn của bạn vẫn được xử lý bởi hệ thống của họ."
+  id: "Bahkan dalam mode penyamaran, obrolan Anda tetap dikirim ke penyedia AI pihak ketiga yang dipilih untuk memproses permintaan Anda. Meskipun penyedia ini tidak dapat langsung melihat pengguna mana yang mengirim permintaan, pesan Anda tetap diproses oleh sistem mereka."
+  pl: "Nawet w trybie incognito Twoje czaty są nadal wysyłane do wybranych zewnętrznych dostawców AI w celu przetworzenia Twoich żądań. Chociaż ci dostawcy nie mogą bezpośrednio zobaczyć, który użytkownik wysłał żądanie, Twoje wiadomości są nadal przetwarzane przez ich systemy."
+  nl: "Zelfs in incognitomodus worden je chats nog steeds naar de geselecteerde AI-providers van derden gestuurd om je verzoeken te verwerken. Hoewel deze providers niet direct kunnen zien welke gebruiker de aanvraag heeft ingediend, worden je berichten nog steeds verwerkt door hun systemen."
   ar: حتى في وضع التصفح المتخفي، لا تزال دردشاتك تُرسل إلى مزودي خدمات الذكاء الاصطناعي الخارجيين المحددين لمعالجة طلباتك. وبينما لا يمكن لهؤلاء المزودين معرفة أي مستخدم أرسل الطلب بشكل مباشر، إلا أن رسائلك لا تزال تُعالج بواسطة أنظمتهم.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "गुप्त मोड में भी, आपके चैट आपके अनुरोधों को संसाधित करने के लिए चयनित तृतीय-पक्ष AI प्रदाताओं को भेजे जाते हैं। हालांकि ये प्रदाता सीधे नहीं देख सकते कि किस उपयोगकर्ता ने अनुरोध भेजा, आपके संदेश अभी भी उनके सिस्टम द्वारा संसाधित किए जाते हैं।"
+  th: "แม้ในโหมดไม่ระบุตัวตน แชทของคุณยังคงถูกส่งไปยังผู้ให้บริการ AI บุคคลที่สามที่เลือกไว้เพื่อประมวลผลคำขอของคุณ แม้ว่าผู้ให้บริการเหล่านี้จะไม่สามารถเห็นโดยตรงว่าผู้ใช้คนใดส่งคำขอ แต่ข้อความของคุณยังคงถูกประมวลผลโดยระบบของพวกเขา"
+  cs: "I v anonymním režimu jsou vaše chaty stále odesílány vybraným poskytovatelům AI třetích stran ke zpracování vašich požadavků. Přestože tito poskytovatelé nemohou přímo vidět, který uživatel požadavek odeslal, vaše zprávy jsou stále zpracovávány jejich systémy."
+  sv: "Även i inkognitoläget skickas dina chattar fortfarande till de valda AI-leverantörerna från tredje part för att behandla dina förfrågningar. Även om dessa leverantörer inte direkt kan se vilken användare som skickade förfrågan, behandlas dina meddelanden fortfarande av deras system."
   he: "גם במצב גלישה בסתר, הצ'אטים שלך עדיין נשלחים לספקי ה-AI הנבחרים של צד שלישי כדי לעבד את הבקשות שלך. למרות שספקים אלו אינם יכולים לראות ישירות איזה משתמש שלח את הבקשה, ההודעות שלך עדיין מעובדות על ידי המערכות שלהם."
   verified_by_human: []
 incognito_explainer_warning_personal_info:
@@ -437,21 +437,21 @@ incognito_explainer_warning_personal_info:
   zh: "强烈建议不要在隐身聊天中包含任何个人信息、敏感数据或机密详情。"
   es: "Se recomienda encarecidamente no incluir información personal, datos sensibles o detalles confidenciales en los chats incógnitos."
   fr: "Il est fortement recommandé de ne pas inclure d'informations personnelles, de données sensibles ou de détails confidentiels dans les chats incognito."
-  pt: ""
-  ru: ""
+  pt: "É altamente recomendado não incluir nenhuma informação pessoal, dados confidenciais ou detalhes sigilosos nos chats incógnitos."
+  ru: "Настоятельно рекомендуется не включать личную информацию, конфиденциальные данные или секретные сведения в чаты в режиме инкогнито."
   ja: "シークレットチャットには、個人情報、機密データ、または機密の詳細を含めないことを強くお勧めします。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "시크릿 채팅에 개인 정보, 민감한 데이터 또는 기밀 세부 정보를 포함하지 않도록 강력히 권장합니다."
+  it: "Si raccomanda vivamente di non includere informazioni personali, dati sensibili o dettagli riservati nelle chat incognito."
+  tr: "Gizli sohbetlere herhangi bir kişisel bilgi, hassas veri veya gizli ayrıntı eklememek şiddetle tavsiye edilir."
+  vi: "Rất khuyến nghị không bao gồm bất kỳ thông tin cá nhân, dữ liệu nhạy cảm hoặc chi tiết bí mật nào trong các cuộc trò chuyện ẩn danh."
+  id: "Sangat disarankan untuk tidak menyertakan informasi pribadi, data sensitif, atau detail rahasia dalam obrolan penyamaran."
+  pl: "Zdecydowanie zaleca się, aby nie umieszczać żadnych danych osobowych, wrażliwych danych ani poufnych szczegółów w czatach incognito."
+  nl: "Het wordt sterk aanbevolen om geen persoonlijke informatie, gevoelige gegevens of vertrouwelijke details op te nemen in incognitochats."
   ar: يُنصح بشدة بعدم تضمين أي معلومات شخصية أو بيانات حساسة أو تفاصيل سرية في الدردشات المتخفية.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "गुप्त चैट में कोई भी व्यक्तिगत जानकारी, संवेदनशील डेटा या गोपनीय विवरण शामिल न करने की दृढ़ता से अनुशंसा की जाती है।"
+  th: "แนะนำอย่างยิ่งว่าอย่าใส่ข้อมูลส่วนตัว ข้อมูลที่ละเอียดอ่อน หรือรายละเอียดที่เป็นความลับในแชทไม่ระบุตัวตน"
+  cs: "Důrazně se doporučuje nezahrnovat žádné osobní informace, citlivé údaje ani důvěrné podrobnosti do anonymních chatů."
+  sv: "Det rekommenderas starkt att inte inkludera personlig information, känsliga uppgifter eller konfidentiella detaljer i inkognitochattar."
   he: "מומלץ מאוד לא לכלול מידע אישי, נתונים רגישים או פרטים חסויים בצ'אטים במצב גלישה בסתר."
   verified_by_human: []
 incognito_mode_active:
@@ -461,21 +461,21 @@ incognito_mode_active:
   zh: 隐身模式
   es: Modo incógnito
   fr: Mode incognito
-  pt: ""
-  ru: ""
+  pt: Modo Incógnito
+  ru: Режим инкогнито
   ja: シークレットモード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시크릿 모드
+  it: Modalità incognito
+  tr: Gizli Mod
+  vi: Chế độ ẩn danh
+  id: Mode penyamaran
+  pl: Tryb incognito
+  nl: Incognitomodus
   ar: وضع التصفح المتخفي
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: गुप्त मोड
+  th: โหมดไม่ระบุตัวตน
+  cs: Anonymní režim
+  sv: Inkognitoläge
   he: מצב גלישה בסתר
   verified_by_human: []
 incognito_mode_applies_to_new_chats_only:
@@ -485,21 +485,21 @@ incognito_mode_applies_to_new_chats_only:
   zh: 隐身模式仅适用于新聊天。不适用于此聊天。
   es: El modo incógnito se aplica solo a chats nuevos. No a este chat.
   fr: Le mode incognito s'applique uniquement aux nouveaux chats. Pas à ce chat.
-  pt: ""
-  ru: ""
+  pt: O modo incógnito aplica-se apenas a novos chats. Não a este chat.
+  ru: Режим инкогнито применяется только к новым чатам. Не к этому чату.
   ja: シークレットモードは新しいチャットにのみ適用されます。このチャットには適用されません。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 시크릿 모드는 새 채팅에만 적용됩니다. 이 채팅에는 적용되지 않습니다.
+  it: La modalità incognito si applica solo alle nuove chat. Non a questa chat.
+  tr: Gizli mod yalnızca yeni sohbetlere uygulanır. Bu sohbete değil.
+  vi: Chế độ ẩn danh chỉ áp dụng cho các cuộc trò chuyện mới. Không áp dụng cho cuộc trò chuyện này.
+  id: Mode penyamaran hanya berlaku untuk obrolan baru. Bukan obrolan ini.
+  pl: Tryb incognito dotyczy tylko nowych czatów. Nie tego czatu.
+  nl: Incognitomodus is alleen van toepassing op nieuwe chats. Niet op deze chat.
   ar: ينطبق وضع التصفح المتخفي على الدردشات الجديدة فقط، وليس على هذه الدردشة.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: गुप्त मोड केवल नए चैट पर लागू होता है। इस चैट पर नहीं।
+  th: โหมดไม่ระบุตัวตนใช้ได้กับแชทใหม่เท่านั้น ไม่ใช่แชทนี้
+  cs: Anonymní režim platí pouze pro nové chaty. Ne pro tento chat.
+  sv: Inkognitoläget gäller bara nya chattar. Inte den här chatten.
   he: "מצב גלישה בסתר חל על צ'אטים חדשים בלבד. לא על צ'אט זה."
   verified_by_human: []
 incognito_explainer_understood:
@@ -509,21 +509,21 @@ incognito_explainer_understood:
   zh: 知道了
   es: Entendido
   fr: Compris
-  pt: ""
-  ru: ""
+  pt: Entendido
+  ru: Понятно
   ja: 了解しました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 알겠습니다
+  it: Capito
+  tr: Anladım
+  vi: Hiểu rồi
+  id: Mengerti
+  pl: Rozumiem
+  nl: Begrepen
   ar: فهمتُ ذلك
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: समझ गया
+  th: เข้าใจแล้ว
+  cs: Rozuměl jsem
+  sv: Förstått
   he: הבנתי
   verified_by_human: []
 guest:
@@ -533,21 +533,21 @@ guest:
   zh: 访客
   es: Invitado
   fr: Invité
-  pt: ""
-  ru: ""
+  pt: Convidado
+  ru: Гость
   ja: ゲスト
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 게스트
+  it: Ospite
+  tr: Misafir
+  vi: Khách
+  id: Tamu
+  pl: Gość
+  nl: Gast
   ar: ضيف
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अतिथि
+  th: ผู้เยี่ยมชม
+  cs: Host
+  sv: Gäst
   he: אורח
   verified_by_human: []
 offline:
@@ -557,21 +557,21 @@ offline:
   zh: 离线
   es: Desconectado
   fr: Hors ligne
-  pt: ""
-  ru: ""
+  pt: Offline
+  ru: Не в сети
   ja: オフライン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 오프라인
+  it: Offline
+  tr: Çevrimdışı
+  vi: Ngoại tuyến
+  id: Offline
+  pl: Offline
+  nl: Offline
   ar: غير متصل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ऑफलाइन
+  th: ออฟไลน์
+  cs: Offline
+  sv: Offline
   he: אופליין
   verified_by_human: []
 user:
@@ -581,21 +581,21 @@ user:
   zh: 用户
   es: Usuario
   fr: Utilisateur
-  pt: ""
-  ru: ""
+  pt: Usuário
+  ru: Пользователь
   ja: ユーザー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 사용자
+  it: Utente
+  tr: Kullanıcı
+  vi: Người dùng
+  id: Pengguna
+  pl: Użytkownik
+  nl: Gebruiker
   ar: المستخدم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: उपयोगकर्ता
+  th: ผู้ใช้
+  cs: Uživatel
+  sv: Användare
   he: משתמש
   verified_by_human: []
 usage:
@@ -605,21 +605,21 @@ usage:
   zh: 使用情况
   es: Uso
   fr: Utilisation
-  pt: ""
-  ru: ""
+  pt: Uso
+  ru: Использование
   ja: 使用状況
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 사용량
+  it: Utilizzo
+  tr: Kullanım
+  vi: Sử dụng
+  id: Penggunaan
+  pl: Użycie
+  nl: Gebruik
   ar: الاستخدام
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: उपयोग
+  th: การใช้งาน
+  cs: Využití
+  sv: Användning
   he: שימוש
   verified_by_human: []
 apps:
@@ -629,21 +629,21 @@ apps:
   zh: 应用
   es: Aplicaciones
   fr: Applis
-  pt: ""
-  ru: ""
+  pt: Aplicativos
+  ru: Приложения
   ja: アプリ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
   ar: تطبيقات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
   he: אפליקציות
   verified_by_human: []
 mates.description:
@@ -653,21 +653,21 @@ mates.description:
   zh: 配置您的AI伙伴及其个性
   es: Configura tus compañeros de IA y sus personalidades
   fr: Configurez vos compagnons IA et leurs personnalités
-  pt: ""
-  ru: ""
+  pt: Configure seus companheiros de IA e suas personalidades
+  ru: Настройте ваших ИИ-напарников и их личности
   ja: AIメイトとそのパーソナリティを設定する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: AI 동료와 그 성격을 설정하세요
+  it: Configura i tuoi compagni AI e le loro personalità
+  tr: Yapay zeka arkadaşlarınızı ve kişiliklerini yapılandırın
+  vi: Cấu hình các bạn AI của bạn và tính cách của họ
+  id: Konfigurasikan teman AI Anda dan kepribadian mereka
+  pl: Skonfiguruj swoich towarzyszy AI i ich osobowości
+  nl: Configureer je AI-maatjes en hun persoonlijkheden
   ar: قم بتهيئة رفاق الذكاء الاصطناعي الخاصين بك وشخصياتهم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने AI साथियों और उनके व्यक्तित्व को कॉन्फ़िगर करें
+  th: กำหนดค่าเพื่อนเอไอของคุณและบุคลิกภาพของพวกเขา
+  cs: Nakonfigurujte své AI společníky a jejich osobnosti
+  sv: Konfigurera dina AI-kompisar och deras personligheter
   he: הגדר את חברי ה-AI שלך ואת האישיות שלהם
   verified_by_human: []
 mates:
@@ -677,21 +677,21 @@ mates:
   zh: 伙伴
   es: Compañeros
   fr: Collègues
-  pt: ""
-  ru: ""
+  pt: Companheiros
+  ru: Напарники
   ja: チームメイト
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 동료
+  it: Compagni
+  tr: Arkadaşlar
+  vi: Đồng đội
+  id: Teman
+  pl: Towarzysze
+  nl: Maatjes
   ar: أصدقاء
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: साथी
+  th: เพื่อน
+  cs: Společníci
+  sv: Kompisar
   he: חברים
   verified_by_human: []
 pricing.description:
@@ -701,21 +701,21 @@ pricing.description:
   zh: 探索积分包和技能费用
   es: Explora paquetes de créditos y costos de habilidades
   fr: Explorez les forfaits de crédits et les coûts des compétences
-  pt: ""
-  ru: ""
+  pt: Explore pacotes de créditos e custos de habilidades
+  ru: Изучите пакеты кредитов и стоимость навыков
   ja: クレジットパッケージとスキルコストを確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 크레딧 패키지와 스킬 비용을 확인하세요
+  it: Esplora i pacchetti di crediti e i costi delle abilità
+  tr: Kredi paketlerini ve beceri maliyetlerini keşfedin
+  vi: Khám phá các gói tín dụng và chi phí kỹ năng
+  id: Jelajahi paket kredit dan biaya skill
+  pl: Przeglądaj pakiety kredytów i koszty umiejętności
+  nl: Ontdek creditpakketten en vaardigheidskosten
   ar: استكشف باقات الرصيد وتكاليف المهارات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: क्रेडिट पैकेज और स्किल लागत देखें
+  th: สำรวจแพ็กเกจเครดิตและค่าใช้จ่ายของทักษะ
+  cs: Prozkoumejte balíčky kreditů a náklady na dovednosti
+  sv: Utforska kreditpaket och kompetenskostnader
   he: גלה חבילות קרדיטים ועלויות של מיומנויות
   verified_by_human: []
 pricing:
@@ -725,21 +725,21 @@ pricing:
   zh: 定价
   es: Precios
   fr: Tarifs
-  pt: ""
-  ru: ""
+  pt: Preços
+  ru: Цены
   ja: 料金
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 가격
+  it: Prezzi
+  tr: Fiyatlandırma
+  vi: Giá cả
+  id: Harga
+  pl: Cennik
+  nl: Prijzen
   ar: التسعير
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: मूल्य निर्धारण
+  th: ราคา
+  cs: Ceny
+  sv: Prissättning
   he: תמחור
   verified_by_human: []
 shared.description:
@@ -749,21 +749,21 @@ shared.description:
   zh: 管理您的共享聊天和小费
   es: Gestiona tus chats compartidos y propinas
   fr: Gérez vos chats partagés et vos pourboires
-  pt: ""
-  ru: ""
+  pt: Gerencie seus chats compartilhados e gorjetas
+  ru: Управляйте общими чатами и чаевыми
   ja: 共有チャットとチップを管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 공유 채팅과 팁을 관리하세요
+  it: Gestisci le tue chat condivise e le mance
+  tr: Paylaşılan sohbetlerinizi ve bahşişlerinizi yönetin
+  vi: Quản lý các cuộc trò chuyện được chia sẻ và tiền boa của bạn
+  id: Kelola obrolan bersama dan tips Anda
+  pl: Zarządzaj udostępnionymi czatami i napiwkami
+  nl: Beheer je gedeelde chats en fooien
   ar: إدارة دردشاتك المشتركة ونصائحك
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने साझा चैट और टिप्स प्रबंधित करें
+  th: จัดการแชทที่แชร์และทิปของคุณ
+  cs: Spravujte sdílené chaty a spropitné
+  sv: Hantera dina delade chattar och tips
   he: "נהל את הצ'אטים והטיפים המשותפים שלך"
   verified_by_human: []
 shared:
@@ -773,21 +773,21 @@ shared:
   zh: 共享
   es: Compartido
   fr: Partagé
-  pt: ""
-  ru: ""
+  pt: Compartilhado
+  ru: Общие
   ja: 共有
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 공유됨
+  it: Condiviso
+  tr: Paylaşılan
+  vi: Đã chia sẻ
+  id: Dibagikan
+  pl: Udostępnione
+  nl: Gedeeld
   ar: تمت المشاركة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: साझा किया गया
+  th: แชร์แล้ว
+  cs: Sdílené
+  sv: Delat
   he: משותפים
   verified_by_human: []
 share:
@@ -845,21 +845,21 @@ messengers:
   zh: 通讯工具
   es: Mensajeros
   fr: Messageries
-  pt: ""
-  ru: ""
+  pt: Mensageiros
+  ru: Мессенджеры
   ja: メッセンジャー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 메신저
+  it: Messaggistica
+  tr: Mesajlaşma uygulamaları
+  vi: Ứng dụng nhắn tin
+  id: Pesan
+  pl: Komunikatory
+  nl: Berichtenapps
   ar: المراسلون
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: मैसेंजर
+  th: แอปส่งข้อความ
+  cs: Mesengery
+  sv: Meddelandeappar
   he: "מסנג'רים"
   verified_by_human: []
 settings_memories:
@@ -869,21 +869,21 @@ settings_memories:
   zh: 应用设置与记忆
   es: Ajustes y memorias de apps
   fr: Paramètres & mémoires des apps
-  pt: ""
-  ru: ""
+  pt: Configurações e memórias de apps
+  ru: Настройки и память приложений
   ja: アプリ設定とメモリ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 앱 설정 및 기억
+  it: Impostazioni e memorie delle app
+  tr: Uygulama ayarları ve anılar
+  vi: Cài đặt ứng dụng & Ký ức
+  id: Pengaturan & Memori Aplikasi
+  pl: Ustawienia i wspomnienia aplikacji
+  nl: App-instellingen & herinneringen
   ar: إعدادات وذكريات التطبيقات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ऐप सेटिंग्स और यादें
+  th: การตั้งค่าแอปและความทรงจำ
+  cs: Nastavení a vzpomínky aplikací
+  sv: App-inställningar och minnen
   he: הגדרות וזיכרונות אפליקציה
   verified_by_human: []
 
@@ -894,21 +894,21 @@ settings_memories.description:
   zh: 所有应用设置和记忆集中在一处。
   es: Todos tus ajustes y memorias de apps en un lugar.
   fr: Tous vos paramètres et mémoires d'apps au même endroit.
-  pt: ""
-  ru: ""
+  pt: Todas as suas configurações e memórias de apps em um só lugar.
+  ru: Все настройки и память ваших приложений в одном месте.
   ja: アプリの設定とメモリをまとめて管理。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 모든 앱 설정과 기억을 한 곳에서 관리하세요.
+  it: Tutte le impostazioni e le memorie delle tue app in un unico posto.
+  tr: Tüm uygulama ayarlarınız ve anılarınız tek bir yerde.
+  vi: Tất cả cài đặt ứng dụng và ký ức của bạn ở một nơi.
+  id: Semua pengaturan dan memori aplikasi Anda di satu tempat.
+  pl: Wszystkie ustawienia i wspomnienia aplikacji w jednym miejscu.
+  nl: Al je app-instellingen en herinneringen op één plek.
   ar: جميع إعدادات التطبيقات وذكرياتك في مكان واحد.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: आपकी सभी ऐप सेटिंग्स और यादें एक ही जगह।
+  th: การตั้งค่าแอปและความทรงจำทั้งหมดของคุณในที่เดียว
+  cs: Všechna nastavení a vzpomínky aplikací na jednom místě.
+  sv: Alla dina app-inställningar och minnen på ett ställe.
   he: כל הגדרות האפליקציות והזיכרונות שלך במקום אחד.
   verified_by_human: []
 
@@ -919,21 +919,21 @@ developers:
   zh: 开发者
   es: Desarrolladores
   fr: Développeurs
-  pt: ""
-  ru: ""
+  pt: Desenvolvedores
+  ru: Разработчики
   ja: 開発者
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 개발자
+  it: Sviluppatori
+  tr: Geliştiriciler
+  vi: Nhà phát triển
+  id: Pengembang
+  pl: Deweloperzy
+  nl: Ontwikkelaars
   ar: المطورون
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: डेवलपर्स
+  th: นักพัฒนา
+  cs: Vývojáři
+  sv: Utvecklare
   he: מפתחים
   verified_by_human: []
 
@@ -945,7 +945,21 @@ developers_title:
   zh: 开发者设置
   es: Configuración de Desarrollador
   fr: Paramètres Développeur
+  pt: Configurações de desenvolvedor
+  ru: Настройки разработчика
+  ja: 開発者設定
+  ko: 개발자 설정
+  it: Impostazioni sviluppatore
+  tr: Geliştirici Ayarları
+  vi: Cài đặt nhà phát triển
+  id: Pengaturan pengembang
+  pl: Ustawienia deweloperskie
+  nl: Ontwikkelaarsinstellingen
   ar: إعدادات المطور
+  hi: डेवलपर सेटिंग्स
+  th: การตั้งค่านักพัฒนา
+  cs: Nastavení vývojáře
+  sv: Utvecklarinställningar
   he: הגדרות מפתח
   verified_by_human: []
 
@@ -956,7 +970,21 @@ developers_description:
   zh: 管理您的 API 密钥和开发者工具以与 OpenMates 集成。
   es: Administre sus claves API y herramientas de desarrollador para integrar con OpenMates.
   fr: Gérez vos clés API et outils de développeur pour intégrer avec OpenMates.
+  pt: Gerencie suas chaves de API e ferramentas de desenvolvedor para integrar com o OpenMates.
+  ru: Управляйте своими API-ключами и инструментами разработчика для интеграции с OpenMates.
+  ja: OpenMatesと連携するためのAPIキーと開発者ツールを管理します。
+  ko: OpenMates와 통합하기 위한 API 키와 개발자 도구를 관리합니다.
+  it: Gestisci le tue chiavi API e gli strumenti per sviluppatori per integrarti con OpenMates.
+  tr: OpenMates ile entegre olmak için API anahtarlarınızı ve geliştirici araçlarınızı yönetin.
+  vi: Quản lý khóa API và công cụ nhà phát triển để tích hợp với OpenMates.
+  id: Kelola kunci API dan alat pengembang Anda untuk berintegrasi dengan OpenMates.
+  pl: Zarządzaj kluczami API i narzędziami deweloperskimi do integracji z OpenMates.
+  nl: Beheer uw API-sleutels en ontwikkelaarstools voor integratie met OpenMates.
   ar: إدارة مفاتيح API وأدوات المطور الخاصة بك للتكامل مع OpenMates.
+  hi: OpenMates के साथ एकीकृत करने के लिए अपनी API कुंजियाँ और डेवलपर टूल प्रबंधित करें।
+  th: จัดการคีย์ API และเครื่องมือนักพัฒนาของคุณเพื่อผสานรวมกับ OpenMates
+  cs: Spravujte své API klíče a vývojářské nástroje pro integraci s OpenMates.
+  sv: Hantera dina API-nycklar och utvecklarverktyg för att integrera med OpenMates.
   he: נהל את מפתחות ה-API וכלי המפתחים שלך לשילוב עם OpenMates.
   verified_by_human: []
 
@@ -992,7 +1020,21 @@ developers_api_keys_description:
   zh: 为外部应用程序和集成创建和管理 API 密钥。
   es: Cree y administre claves API para aplicaciones externas e integraciones.
   fr: Créez et gérez les clés API pour les applications externes et les intégrations.
+  pt: Crie e gerencie chaves de API para aplicações externas e integrações.
+  ru: Создавайте и управляйте API-ключами для внешних приложений и интеграций.
+  ja: 外部アプリケーションやインテグレーション用のAPIキーを作成・管理します。
+  ko: 외부 애플리케이션 및 통합을 위한 API 키를 생성하고 관리합니다.
+  it: Crea e gestisci le chiavi API per applicazioni esterne e integrazioni.
+  tr: Harici uygulamalar ve entegrasyonlar için API anahtarları oluşturun ve yönetin.
+  vi: Tạo và quản lý khóa API cho các ứng dụng và tích hợp bên ngoài.
+  id: Buat dan kelola kunci API untuk aplikasi dan integrasi eksternal.
+  pl: Twórz i zarządzaj kluczami API dla zewnętrznych aplikacji i integracji.
+  nl: Maak en beheer API-sleutels voor externe toepassingen en integraties.
   ar: إنشاء وإدارة مفاتيح API للتطبيقات وعمليات التكامل الخارجية.
+  hi: बाहरी अनुप्रयोगों और एकीकरण के लिए API कुंजियाँ बनाएं और प्रबंधित करें।
+  th: สร้างและจัดการคีย์ API สำหรับแอปพลิเคชันและการผสานรวมภายนอก
+  cs: Vytvářejte a spravujte API klíče pro externí aplikace a integrace.
+  sv: Skapa och hantera API-nycklar för externa applikationer och integrationer.
   he: צור ונהל מפתחות API עבור אפליקציות ואינטגרציות חיצוניות.
   verified_by_human: []
 
@@ -1504,9 +1546,9 @@ developers_devices_rename_empty_error:
   es: El nombre del dispositivo no puede estar vacío
   fr: Le nom de l'appareil ne peut pas être vide
   pt: O nome do dispositivo não pode estar vazio
-  ru: Имя устройства не может быть пустым
+  ru: Название устройства не может быть пустым
   ja: デバイス名は空にできません
-  ko: 장치 이름은 비워둘 수 없습니다
+  ko: 기기 이름은 비워둘 수 없습니다
   it: Il nome del dispositivo non può essere vuoto
   tr: Cihaz adı boş olamaz
   vi: Tên thiết bị không được để trống
@@ -1514,11 +1556,361 @@ developers_devices_rename_empty_error:
   pl: Nazwa urządzenia nie może być pusta
   nl: Apparaatnaam mag niet leeg zijn
   ar: لا يمكن أن يكون اسم الجهاز فارغًا
-  hi: डिवाइस नाम खाली नहीं हो सकता
-  th: ชื่ออุปกรณ์ไม่สามารถว่างได้
-  cs: Název zařízení nemůže být prázdný
-  sv: Enhetsnamnet kan inte vara tomt
-  he: שם המכשיר לא יכול להיות ריק
+  hi: डिवाइस का नाम खाली नहीं हो सकता
+  th: ชื่ออุปกรณ์ไม่สามารถเว้นว่างได้
+  cs: Název zařízení nesmí být prázdný
+  sv: Enhetsnamn kan inte vara tomt
+  he: שם המכשיר אינו יכול להיות ריק
+  verified_by_human: []
+
+developers_webhooks:
+  context: Webhooks menu item in developer settings
+  en: Webhooks
+  de: Webhooks
+  zh: Webhooks
+  es: Webhooks
+  fr: Webhooks
+  pt: Webhooks
+  ru: Webhooks
+  ja: Webhooks
+  ko: Webhooks
+  it: Webhook
+  tr: Webhooks
+  vi: Webhooks
+  id: Webhooks
+  pl: Webhooks
+  nl: Webhooks
+  ar: Webhooks
+  hi: Webhooks
+  th: Webhooks
+  cs: Webhooks
+  sv: Webhooks
+  he: Webhooks
+  verified_by_human: []
+
+developers_webhooks_description:
+  context: Description for webhooks in developer settings
+  en: Allow external services to create chats by sending HTTP requests
+  de: Externen Diensten ermöglichen, Chats per HTTP-Anfragen zu erstellen
+  zh: 允许外部服务通过 HTTP 请求创建聊天
+  es: Permite que servicios externos creen chats mediante solicitudes HTTP
+  fr: Permettre aux services externes de créer des chats via des requêtes HTTP
+  pt: Permitir que serviços externos criem chats enviando solicitações HTTP
+  ru: Разрешить внешним сервисам создавать чаты путём отправки HTTP-запросов
+  ja: 外部サービスがHTTPリクエストを送信してチャットを作成できるようにする
+  ko: 외부 서비스가 HTTP 요청을 보내 채팅을 만들 수 있도록 허용합니다
+  it: Consenti ai servizi esterni di creare chat tramite richieste HTTP
+  tr: Harici hizmetlerin HTTP istekleri göndererek sohbet oluşturmasına izin ver
+  vi: Cho phép các dịch vụ bên ngoài tạo cuộc trò chuyện bằng cách gửi yêu cầu HTTP
+  id: Izinkan layanan eksternal membuat obrolan dengan mengirim permintaan HTTP
+  pl: Zezwól zewnętrznym usługom na tworzenie czatów poprzez wysyłanie żądań HTTP
+  nl: Sta externe services toe chats aan te maken door HTTP-verzoeken te sturen
+  ar: السماح للخدمات الخارجية بإنشاء محادثات عبر طلبات HTTP
+  hi: बाहरी सेवाओं को HTTP अनुरोध भेजकर चैट बनाने की अनुमति दें
+  th: อนุญาตให้บริการภายนอกสร้างแชทโดยการส่งคำขอ HTTP
+  cs: Umožnit externím službám vytvářet chaty odesíláním HTTP požadavků
+  sv: Tillåt externa tjänster att skapa chattar genom att skicka HTTP-förfrågningar
+  he: אפשר לשירותים חיצוניים ליצור שיחות באמצעות בקשות HTTP
+  verified_by_human: []
+
+developers_webhooks_create:
+  context: Button to create a new webhook key
+  en: Create Webhook
+  de: Webhook erstellen
+  zh: 创建 Webhook
+  es: Crear Webhook
+  fr: Créer un Webhook
+  pt: Criar Webhook
+  ru: Создать Webhook
+  ja: Webhookを作成
+  ko: Webhook 만들기
+  it: Crea Webhook
+  tr: Webhook Oluştur
+  vi: Tạo Webhook
+  id: Buat Webhook
+  pl: Utwórz Webhook
+  nl: Webhook aanmaken
+  ar: إنشاء Webhook
+  hi: Webhook बनाएं
+  th: สร้าง Webhook
+  cs: Vytvořit Webhook
+  sv: Skapa Webhook
+  he: צור Webhook
+  verified_by_human: []
+
+developers_webhooks_empty:
+  context: Empty state message when no webhooks exist
+  en: No webhooks yet. Create one to let external services trigger new chats.
+  de: Noch keine Webhooks. Erstellen Sie einen, damit externe Dienste neue Chats auslösen können.
+  zh: 还没有 Webhook。创建一个让外部服务触发新聊天。
+  es: Aún no hay webhooks. Cree uno para que servicios externos puedan activar nuevos chats.
+  fr: Aucun webhook pour l'instant. Créez-en un pour permettre à des services externes de déclencher de nouveaux chats.
+  pt: Ainda não há webhooks. Crie um para permitir que serviços externos iniciem novos chats.
+  ru: Вебхуков пока нет. Создайте один, чтобы внешние сервисы могли запускать новые чаты.
+  ja: まだWebhookがありません。外部サービスが新しいチャットを起動できるように1つ作成してください。
+  ko: 아직 웹훅이 없습니다. 외부 서비스가 새 채팅을 시작할 수 있도록 하나 만드세요.
+  it: Nessun webhook ancora. Creane uno per consentire ai servizi esterni di avviare nuove chat.
+  tr: Henüz webhook yok. Harici hizmetlerin yeni sohbetler başlatmasına izin vermek için bir tane oluşturun.
+  vi: Chưa có webhooks. Tạo một cái để cho phép các dịch vụ bên ngoài kích hoạt các cuộc trò chuyện mới.
+  id: Belum ada webhook. Buat satu untuk memungkinkan layanan eksternal memulai obrolan baru.
+  pl: Brak webhooków. Utwórz jeden, aby usługi zewnętrzne mogły inicjować nowe czaty.
+  nl: Nog geen webhooks. Maak er een om externe services nieuwe chats te laten starten.
+  ar: لا توجد webhooks بعد. أنشئ واحدًا للسماح للخدمات الخارجية بإنشاء محادثات جديدة.
+  hi: अभी तक कोई webhook नहीं। बाहरी सेवाओं को नए चैट शुरू करने देने के लिए एक बनाएं।
+  th: ยังไม่มี webhooks สร้างหนึ่งอันเพื่อให้บริการภายนอกเริ่มแชทใหม่ได้
+  cs: Zatím žádné webhooky. Vytvořte jeden, aby externí služby mohly spouštět nové chaty.
+  sv: Inga webhooks ännu. Skapa en för att låta externa tjänster starta nya chattar.
+  he: אין עדיין webhooks. צור אחד כדי לאפשר לשירותים חיצוניים להפעיל שיחות חדשות.
+  verified_by_human: []
+
+developers_webhooks_created_title:
+  context: Title of the modal shown after a webhook is created
+  en: Webhook Created
+  de: Webhook erstellt
+  zh: Webhook 已创建
+  es: Webhook creado
+  fr: Webhook créé
+  pt: Webhook criado
+  ru: Webhook создан
+  ja: Webhookが作成されました
+  ko: Webhook이 생성되었습니다
+  it: Webhook creato
+  tr: Webhook Oluşturuldu
+  vi: Webhook đã được tạo
+  id: Webhook dibuat
+  pl: Webhook utworzony
+  nl: Webhook aangemaakt
+  ar: تم إنشاء Webhook
+  hi: Webhook बनाया गया
+  th: สร้าง Webhook แล้ว
+  cs: Webhook vytvořen
+  sv: Webhook skapad
+  he: Webhook נוצר
+  verified_by_human: []
+
+developers_webhooks_created_warning:
+  context: Warning text in the webhook created modal telling users to copy the key now
+  en: Copy this webhook key now — you won't be able to see it again.
+  de: Kopieren Sie diesen Webhook-Schlüssel jetzt — Sie können ihn nicht mehr sehen.
+  zh: 现在复制此 Webhook 密钥 — 您将无法再次查看它。
+  es: Copie esta clave de webhook ahora — no podrá verla de nuevo.
+  fr: Copiez cette clé webhook maintenant — vous ne pourrez plus la voir.
+  pt: Copie esta chave webhook agora — você não poderá vê-la novamente.
+  ru: Скопируйте этот ключ webhook сейчас — вы не сможете увидеть его снова.
+  ja: このWebhookキーを今すぐコピーしてください — 再度表示することはできません。
+  ko: 이 webhook 키를 지금 복사하세요 — 다시 볼 수 없습니다.
+  it: Copia questa chiave webhook ora — non potrai vederla di nuovo.
+  tr: Bu webhook anahtarını şimdi kopyalayın — bir daha göremezsiniz.
+  vi: Sao chép khóa webhook này ngay bây giờ — bạn sẽ không thể xem lại.
+  id: Salin kunci webhook ini sekarang — Anda tidak akan dapat melihatnya lagi.
+  pl: Skopiuj ten klucz webhook teraz — nie będziesz mógł go zobaczyć ponownie.
+  nl: Kopieer deze webhooksleutel nu — u kunt hem niet meer zien.
+  ar: انسخ مفتاح webhook هذا الآن — لن تتمكن من رؤيته مرة أخرى.
+  hi: इस webhook कुंजी को अभी कॉपी करें — आप इसे दोबारा नहीं देख पाएंगे।
+  th: คัดลอกคีย์ webhook นี้ตอนนี้เลย — คุณจะไม่สามารถดูได้อีก
+  cs: Zkopírujte tento klíč webhooku nyní — již jej neuvidíte.
+  sv: Kopiera denna webhook-nyckel nu — du kommer inte kunna se den igen.
+  he: העתק את מפתח ה-webhook הזה עכשיו — לא תוכל לראותו שוב.
+  verified_by_human: []
+
+developers_webhooks_name_placeholder:
+  context: Placeholder text for the webhook name input
+  en: "e.g., CI Test Results, Monitoring Alerts"
+  de: "z. B. CI-Testergebnisse, Überwachungswarnungen"
+  zh: 例如CI测试结果、监控警报
+  es: "por ej., Resultados CI, Alertas de monitoreo"
+  fr: "ex. - Résultats CI, Alertes de surveillance"
+  pt: "ex.: Resultados CI, Alertas de monitoramento"
+  ru: "напр., Результаты CI, Оповещения мониторинга"
+  ja: "例：CIテスト結果、監視アラート"
+  ko: "예: CI 테스트 결과, 모니터링 알림"
+  it: "es. Risultati CI, Avvisi di monitoraggio"
+  tr: "örn., CI Test Sonuçları, İzleme Uyarıları"
+  vi: "ví dụ: Kết quả CI, Cảnh báo giám sát"
+  id: "mis., Hasil CI, Peringatan Pemantauan"
+  pl: "np. Wyniki CI, Alerty monitorowania"
+  nl: "bijv. CI-testresultaten, Bewakingswaarschuwingen"
+  ar: "مثال - نتائج CI، تنبيهات المراقبة"
+  hi: "उदा., CI टेस्ट परिणाम, मॉनिटरिंग अलर्ट"
+  th: "เช่น ผลการทดสอบ CI, การแจ้งเตือนการตรวจสอบ"
+  cs: "např. Výsledky CI, Výstrahy monitorování"
+  sv: "t.ex. CI-testresultat, Övervakningsaviseringar"
+  he: "לדוגמה - תוצאות CI, התראות ניטור"
+  verified_by_human: []
+
+developers_webhooks_require_confirmation:
+  context: Toggle label for requiring user confirmation before processing incoming webhooks
+  en: Require my approval for each message
+  de: Meine Genehmigung für jede Nachricht erforderlich
+  zh: 每条消息都需要我的批准
+  es: Requerir mi aprobación para cada mensaje
+  fr: Nécessiter mon approbation pour chaque message
+  pt: Exigir minha aprovação para cada mensagem
+  ru: Требовать моего подтверждения для каждого сообщения
+  ja: 各メッセージに自分の承認を要求する
+  ko: 각 메시지에 내 승인 요구
+  it: Richiedere la mia approvazione per ogni messaggio
+  tr: Her mesaj için onayımı gerektir
+  vi: Yêu cầu phê duyệt của tôi cho mỗi tin nhắn
+  id: Wajib persetujuan saya untuk setiap pesan
+  pl: Wymagaj mojej zgody dla każdej wiadomości
+  nl: Mijn goedkeuring vereisen voor elk bericht
+  ar: طلب موافقتي على كل رسالة
+  hi: प्रत्येक संदेश के लिए मेरी स्वीकृति आवश्यक है
+  th: ต้องได้รับการอนุมัติจากฉันสำหรับแต่ละข้อความ
+  cs: Vyžadovat mé schválení pro každou zprávu
+  sv: Kräv mitt godkännande för varje meddelande
+  he: דרוש אישורי לכל הודעה
+  verified_by_human: []
+
+developers_webhooks_require_confirmation_desc:
+  context: Description for the require confirmation toggle
+  en: When enabled, incoming webhook messages appear as drafts until you approve them
+  de: Wenn aktiviert, erscheinen eingehende Webhook-Nachrichten als Entwürfe bis Sie sie genehmigen
+  zh: 启用后，传入的 Webhook 消息将显示为草稿，直到您批准
+  es: Cuando está activado, los mensajes webhook entrantes aparecen como borradores hasta que los apruebe
+  fr: Lorsqu'activé, les messages webhook entrants apparaissent comme des brouillons jusqu'à votre approbation
+  pt: Quando ativado, as mensagens webhook recebidas aparecem como rascunhos até você aprová-las
+  ru: При включении входящие сообщения webhook отображаются как черновики до вашего подтверждения
+  ja: 有効にすると、受信したWebhookメッセージは承認するまで下書きとして表示されます
+  ko: 활성화하면 수신된 webhook 메시지가 승인할 때까지 초안으로 표시됩니다
+  it: Quando abilitato, i messaggi webhook in arrivo appaiono come bozze finché non li approvi
+  tr: Etkinleştirildiğinde, gelen webhook mesajları onaylayana kadar taslak olarak görünür
+  vi: Khi bật, các tin nhắn webhook đến xuất hiện dưới dạng bản nháp cho đến khi bạn phê duyệt
+  id: Saat diaktifkan, pesan webhook masuk muncul sebagai draf sampai Anda menyetujuinya
+  pl: Po włączeniu przychodzące wiadomości webhook pojawiają się jako szkice do momentu ich zatwierdzenia
+  nl: Wanneer ingeschakeld, verschijnen binnenkomende webhookberichten als concepten totdat u ze goedkeurt
+  ar: عند التفعيل، تظهر رسائل webhook الواردة كمسودات حتى تقوم بالموافقة عليها
+  hi: सक्षम होने पर, आने वाले webhook संदेश तब तक ड्राफ़्ट के रूप में दिखाई देते हैं जब तक आप उन्हें अनुमोदित नहीं करते
+  th: เมื่อเปิดใช้งาน ข้อความ webhook ที่เข้ามาจะปรากฏเป็นแบบร่างจนกว่าคุณจะอนุมัติ
+  cs: Když je povoleno, příchozí zprávy webhooku se zobrazují jako koncepty, dokud je neschválíte
+  sv: När aktiverat visas inkommande webhook-meddelanden som utkast tills du godkänner dem
+  he: כאשר מופעל, הודעות ה-webhook הנכנסות מופיעות כטיוטות עד שתאשר אותן
+  verified_by_human: []
+
+developers_webhooks_delete_confirm:
+  context: Confirmation message when deleting a webhook
+  en: Delete this webhook key? External services using it will stop working.
+  de: Diesen Webhook-Schlüssel löschen? Externe Dienste, die ihn verwenden, werden nicht mehr funktionieren.
+  zh: 删除此 Webhook 密钥？使用它的外部服务将停止工作。
+  es: ¿Eliminar esta clave webhook? Los servicios externos que la usen dejarán de funcionar.
+  fr: Supprimer cette clé webhook ? Les services externes qui l'utilisent cesseront de fonctionner.
+  pt: Excluir esta chave webhook? Os serviços externos que a usam pararão de funcionar.
+  ru: Удалить этот ключ webhook? Внешние сервисы, использующие его, перестанут работать.
+  ja: このWebhookキーを削除しますか？使用している外部サービスが停止します。
+  ko: 이 webhook 키를 삭제할까요? 이를 사용하는 외부 서비스가 작동을 멈춥니다.
+  it: Eliminare questa chiave webhook? I servizi esterni che la usano smetteranno di funzionare.
+  tr: Bu webhook anahtarını silinsin mi? Kullanan harici hizmetler çalışmayı durduracak.
+  vi: Xóa khóa webhook này? Các dịch vụ bên ngoài sử dụng nó sẽ ngừng hoạt động.
+  id: Hapus kunci webhook ini? Layanan eksternal yang menggunakannya akan berhenti bekerja.
+  pl: Usunąć ten klucz webhook? Zewnętrzne usługi go używające przestaną działać.
+  nl: Deze webhooksleutel verwijderen? Externe services die het gebruiken zullen stoppen.
+  ar: حذف مفتاح webhook هذا؟ ستتوقف الخدمات الخارجية التي تستخدمه عن العمل.
+  hi: इस webhook कुंजी को हटाएं? इसका उपयोग करने वाली बाहरी सेवाएं काम करना बंद कर देंगी।
+  th: ลบคีย์ webhook นี้? บริการภายนอกที่ใช้งานจะหยุดทำงาน
+  cs: Smazat tento klíč webhooku? Externí služby, které jej používají, přestanou fungovat.
+  sv: Ta bort denna webhook-nyckel? Externa tjänster som använder den slutar fungera.
+  he: למחוק את מפתח ה-webhook הזה? שירותים חיצוניים המשתמשים בו יפסיקו לפעול.
+  verified_by_human: []
+
+developers_webhooks_endpoint:
+  context: Label for the webhook API endpoint URL
+  en: Endpoint
+  de: Endpunkt
+  zh: 端点
+  es: Endpoint
+  fr: Point de terminaison
+  pt: Endpoint
+  ru: Конечная точка
+  ja: エンドポイント
+  ko: 엔드포인트
+  it: Endpoint
+  tr: Endpoint
+  vi: Điểm cuối
+  id: Endpoint
+  pl: Endpoint
+  nl: Eindpunt
+  ar: نقطة النهاية
+  hi: एंडपॉइंट
+  th: Endpoint
+  cs: Endpoint
+  sv: Ändpunkt
+  he: נקודת קצה
+  verified_by_human: []
+
+developers_webhooks_how_to_use:
+  context: Section header for how to use a webhook
+  en: How to use
+  de: Verwendung
+  zh: 使用方法
+  es: Cómo usar
+  fr: Comment utiliser
+  pt: Como usar
+  ru: Как использовать
+  ja: 使い方
+  ko: 사용 방법
+  it: Come usare
+  tr: Nasıl kullanılır
+  vi: Cách sử dụng
+  id: Cara penggunaan
+  pl: Jak używać
+  nl: Hoe te gebruiken
+  ar: كيفية الاستخدام
+  hi: कैसे उपयोग करें
+  th: วิธีใช้งาน
+  cs: Jak používat
+  sv: Hur man använder
+  he: כיצד להשתמש
+  verified_by_human: []
+
+developers_webhooks_inactive_badge:
+  context: Badge shown on an inactive/disabled webhook key
+  en: Inactive
+  de: Inaktiv
+  zh: 未激活
+  es: Inactivo
+  fr: Inactif
+  pt: Inativo
+  ru: Неактивен
+  ja: 非アクティブ
+  ko: 비활성
+  it: Inattivo
+  tr: Etkin değil
+  vi: Không hoạt động
+  id: Tidak aktif
+  pl: Nieaktywny
+  nl: Inactief
+  ar: غير نشط
+  hi: निष्क्रिय
+  th: ไม่ใช้งาน
+  cs: Neaktivní
+  sv: Inaktiv
+  he: לא פעיל
+  verified_by_human: []
+
+developers_webhooks_limit:
+  context: Warning shown when user has reached the max number of webhooks
+  en: Maximum number of webhooks reached (10). Delete one to create a new one.
+  de: Maximale Anzahl von Webhooks erreicht (10). Löschen Sie einen, um einen neuen zu erstellen.
+  zh: 已达到最大 Webhook 数量 (10)。删除一个以创建新的。
+  es: Se alcanzó el máximo de webhooks (10). Elimine uno para crear uno nuevo.
+  fr: Nombre maximum de webhooks atteint (10). Supprimez-en un pour en créer un nouveau.
+  pt: Número máximo de webhooks atingido (10). Exclua um para criar um novo.
+  ru: Достигнуто максимальное количество вебхуков (10). Удалите один, чтобы создать новый.
+  ja: Webhookの最大数に達しました（10）。新しいものを作成するには1つ削除してください。
+  ko: 최대 webhook 수에 도달했습니다 (10). 새로 만들려면 하나를 삭제하세요.
+  it: Numero massimo di webhook raggiunto (10). Eliminane uno per crearne uno nuovo.
+  tr: Maksimum webhook sayısına ulaşıldı (10). Yeni bir tane oluşturmak için birini silin.
+  vi: Đã đạt số lượng webhook tối đa (10). Xóa một cái để tạo cái mới.
+  id: Jumlah webhook maksimum tercapai (10). Hapus satu untuk membuat yang baru.
+  pl: Osiągnięto maksymalną liczbę webhooków (10). Usuń jeden, aby utworzyć nowy.
+  nl: Maximaal aantal webhooks bereikt (10). Verwijder er een om een nieuwe te maken.
+  ar: تم الوصول إلى الحد الأقصى من webhooks (10). احذف أحدها لإنشاء webhook جديد.
+  hi: अधिकतम webhook संख्या पहुंच गई (10)। नया बनाने के लिए एक हटाएं।
+  th: ถึงจำนวน webhook สูงสุดแล้ว (10) ลบหนึ่งอันเพื่อสร้างใหม่
+  cs: Byl dosažen maximální počet webhooků (10). Odstraňte jeden a vytvořte nový.
+  sv: Maximalt antal webhooks nått (10). Ta bort en för att skapa en ny.
+  he: הגעת לכמות המקסימלית של webhooks (10). מחק אחד ליצירת חדש.
   verified_by_human: []
 
 dark_mode:
@@ -1528,21 +1920,21 @@ dark_mode:
   zh: 深色模式
   es: Modo oscuro
   fr: Mode sombre
-  pt: ""
-  ru: ""
+  pt: Modo escuro
+  ru: Тёмный режим
   ja: ダークモード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 다크 모드
+  it: Modalità scura
+  tr: Karanlık mod
+  vi: Chế độ tối
+  id: Mode gelap
+  pl: Tryb ciemny
+  nl: Donkere modus
   ar: الوضع الداكن
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: डार्क मोड
+  th: โหมดมืด
+  cs: Tmavý režim
+  sv: Mörkt läge
   he: מצב כהה
   verified_by_human: []
 tooltips:
@@ -1552,21 +1944,21 @@ tooltips:
   zh: 工具提示
   es: Información sobre herramientas
   fr: Infobulles
-  pt: ""
-  ru: ""
+  pt: Dicas de ferramentas
+  ru: Подсказки
   ja: ツールチップ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 툴팁
+  it: Suggerimenti
+  tr: İpuçları
+  vi: Chú giải công cụ
+  id: Tooltip
+  pl: Podpowiedzi
+  nl: Tooltips
   ar: تلميحات الأدوات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: टूलटिप्स
+  th: คำแนะนำเครื่องมือ
+  cs: Popisky
+  sv: Verktygstips
   he: הסברים צפים
   verified_by_human: []
 keyboard_shortcuts:
@@ -1576,21 +1968,21 @@ keyboard_shortcuts:
   zh: 键盘快捷键
   es: Atajos de teclado
   fr: Raccourcis clavier
-  pt: ""
-  ru: ""
+  pt: Atalhos de teclado
+  ru: Сочетания клавиш
   ja: キーボードショートカット
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 키보드 단축키
+  it: Scorciatoie da tastiera
+  tr: Klavye kısayolları
+  vi: Phím tắt bàn phím
+  id: Pintasan keyboard
+  pl: Skróty klawiaturowe
+  nl: Sneltoetsen
   ar: اختصارات لوحة المفاتيح
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: कीबोर्ड शॉर्टकट
+  th: แป้นพิมพ์ลัด
+  cs: Klávesové zkratky
+  sv: Tangentbordsgenvägar
   he: קיצורי מקלדת
   verified_by_human: []
 logout:
@@ -1600,21 +1992,21 @@ logout:
   zh: 退出登录
   es: Cerrar sesión
   fr: Se déconnecter
-  pt: ""
-  ru: ""
+  pt: Sair
+  ru: Выйти
   ja: ログアウト
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 로그아웃
+  it: Esci
+  tr: Çıkış yap
+  vi: Đăng xuất
+  id: Keluar
+  pl: Wyloguj się
+  nl: Uitloggen
   ar: تسجيل الخروج
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: लॉग आउट
+  th: ออกจากระบบ
+  cs: Odhlásit se
+  sv: Logga ut
   he: התנתקות
   verified_by_human: []
 docs:
@@ -1624,21 +2016,21 @@ docs:
   zh: 文档
   es: Documentación
   fr: Docs
-  pt: ""
-  ru: ""
+  pt: Documentação
+  ru: Документация
   ja: ドキュメント
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 문서
+  it: Documentazione
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumentasi
+  pl: Dokumentacja
+  nl: Documentatie
   ar: المستندات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumentace
+  sv: Dokumentation
   he: תיעוד
   verified_by_human: []
 user_guide:
@@ -1648,21 +2040,21 @@ user_guide:
   zh: 用户指南
   es: Guía del usuario
   fr: Guide de l'utilisateur
-  pt: ""
-  ru: ""
+  pt: Guia do usuário
+  ru: Руководство пользователя
   ja: ユーザーガイド
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 사용자 가이드
+  it: Guida utente
+  tr: Kullanıcı kılavuzu
+  vi: Hướng dẫn sử dụng
+  id: Panduan pengguna
+  pl: Przewodnik użytkownika
+  nl: Gebruikershandleiding
   ar: دليل المستخدم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: उपयोगकर्ता गाइड
+  th: คู่มือผู้ใช้
+  cs: Uživatelská příručka
+  sv: Användarguide
   he: מדריך למשתמש
   verified_by_human: []
 api_docs:
@@ -1672,21 +2064,21 @@ api_docs:
   zh: API 文档
   es: Documentación de la API
   fr: Documentation de l'API
-  pt: ""
-  ru: ""
+  pt: Documentação da API
+  ru: Документация API
   ja: APIドキュメント
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: API 문서
+  it: Documentazione API
+  tr: API belgeleri
+  vi: Tài liệu API
+  id: Dokumentasi API
+  pl: Dokumentacja API
+  nl: API-documentatie
   ar: مستندات API
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: API दस्तावेज़
+  th: เอกสาร API
+  cs: Dokumentace API
+  sv: API-dokumentation
   he: תיעוד API
   verified_by_human: []
 contact:
@@ -1696,21 +2088,21 @@ contact:
   zh: 联系方式
   es: Contacto
   fr: Contact
-  pt: ""
-  ru: ""
+  pt: Contato
+  ru: Контакт
   ja: お問い合わせ
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 문의
+  it: Contatto
+  tr: İletişim
+  vi: Liên hệ
+  id: Kontak
+  pl: Kontakt
+  nl: Contact
   ar: المستندات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: संपर्क
+  th: ติดต่อ
+  cs: Kontakt
+  sv: Kontakt
   he: צור קשר
   verified_by_human: []
 discord:
@@ -1720,189 +2112,189 @@ discord:
   zh: Discord
   es: Discord
   fr: Discord
-  pt: ""
-  ru: ""
+  pt: Discord
+  ru: Discord
   ja: Discord
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: Discord
+  it: Discord
+  tr: Discord
+  vi: Discord
+  id: Discord
+  pl: Discord
+  nl: Discord
   ar: دليل المستخدم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Discord
+  th: Discord
+  cs: Discord
+  sv: Discord
   he: Discord
   verified_by_human: []
 signal:
   context: Signal contact link
   en: Signal
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Signal
+  zh: Signal
+  es: Signal
+  fr: Signal
+  pt: Signal
+  ru: Signal
+  ja: Signal
+  ko: Signal
+  it: Signal
+  tr: Signal
+  vi: Signal
+  id: Signal
+  pl: Signal
+  nl: Signal
   ar: وثائق الـ API
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Signal
+  th: Signal
+  cs: Signal
+  sv: Signal
   he: Signal
   verified_by_human: []
 github:
   context: GitHub contact link
   en: GitHub
-  de: ""
-  zh: ""
+  de: GitHub
+  zh: GitHub
   es: GitHub
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  fr: GitHub
+  pt: GitHub
+  ru: GitHub
+  ja: GitHub
+  ko: GitHub
+  it: GitHub
+  tr: GitHub
+  vi: GitHub
+  id: GitHub
+  pl: GitHub
+  nl: GitHub
   ar: تواصل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: GitHub
+  th: GitHub
+  cs: GitHub
+  sv: GitHub
   he: GitHub
   verified_by_human: []
 instagram:
   context: Instagram contact link
   en: Instagram
-  de: ""
-  zh: ""
+  de: Instagram
+  zh: Instagram
   es: Instagram
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  fr: Instagram
+  pt: Instagram
+  ru: Instagram
+  ja: Instagram
+  ko: Instagram
+  it: Instagram
+  tr: Instagram
+  vi: Instagram
+  id: Instagram
+  pl: Instagram
+  nl: Instagram
   ar: ديسكورد
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Instagram
+  th: Instagram
+  cs: Instagram
+  sv: Instagram
   he: Instagram
   verified_by_human: []
 mastodon:
   context: Mastodon contact link
   en: Mastodon
-  de: ""
-  zh: ""
+  de: Mastodon
+  zh: Mastodon
   es: Mastodon
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  fr: Mastodon
+  pt: Mastodon
+  ru: Mastodon
+  ja: Mastodon
+  ko: Mastodon
+  it: Mastodon
+  tr: Mastodon
+  vi: Mastodon
+  id: Mastodon
+  pl: Mastodon
+  nl: Mastodon
   ar: إشارة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Mastodon
+  th: Mastodon
+  cs: Mastodon
+  sv: Mastodon
   he: Mastodon
   verified_by_human: []
 pixelfed:
   context: Pixelfed contact link
   en: Pixelfed
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Pixelfed
+  zh: Pixelfed
+  es: Pixelfed
+  fr: Pixelfed
+  pt: Pixelfed
+  ru: Pixelfed
+  ja: Pixelfed
+  ko: Pixelfed
+  it: Pixelfed
+  tr: Pixelfed
+  vi: Pixelfed
+  id: Pixelfed
+  pl: Pixelfed
+  nl: Pixelfed
   ar: GitHub
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Pixelfed
+  th: Pixelfed
+  cs: Pixelfed
+  sv: Pixelfed
   he: Pixelfed
   verified_by_human: []
 element:
   context: Element contact link
   en: Element X
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Element X
+  zh: Element X
+  es: Element X
+  fr: Element X
+  pt: Element X
+  ru: Element X
+  ja: Element X
+  ko: Element X
+  it: Element X
+  tr: Element X
+  vi: Element X
+  id: Element X
+  pl: Element X
+  nl: Element X
   ar: إنستغرام
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Element X
+  th: Element X
+  cs: Element X
+  sv: Element X
   he: Element X
   verified_by_human: []
 meetup:
   context: Meetup contact link
   en: Meetup
-  de: ""
-  zh: ""
+  de: Meetup
+  zh: Meetup
   es: Meetup
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  fr: Meetup
+  pt: Meetup
+  ru: Meetup
+  ja: Meetup
+  ko: Meetup
+  it: Meetup
+  tr: Meetup
+  vi: Meetup
+  id: Meetup
+  pl: Meetup
+  nl: Meetup
   ar: ماستودون
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Meetup
+  th: Meetup
+  cs: Meetup
+  sv: Meetup
   he: Meetup
   verified_by_human: []
 email:
@@ -1912,21 +2304,21 @@ email:
   zh: 电子邮件
   es: Correo electrónico
   fr: E-mail
-  pt: ""
-  ru: ""
+  pt: E-mail
+  ru: Электронная почта
   ja: メール
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 이메일
+  it: E-mail
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
   ar: بيكسلفيد
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
   he: אימייל
   verified_by_human: []
 legal:
@@ -1936,21 +2328,21 @@ legal:
   zh: 法律声明
   es: Legal
   fr: Juridique
-  pt: ""
-  ru: ""
+  pt: Jurídico
+  ru: Правовая информация
   ja: 法的情報
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 법률
+  it: Legale
+  tr: Yasal
+  vi: Pháp lý
+  id: Hukum
+  pl: Prawne
+  nl: Juridisch
   ar: العنصر X
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: कानूनी
+  th: กฎหมาย
+  cs: Právní informace
+  sv: Juridiskt
   he: משפטי
   verified_by_human: []
 imprint:
@@ -1960,21 +2352,21 @@ imprint:
   zh: 版本说明
   es: Aviso legal
   fr: Mentions légales
-  pt: ""
-  ru: ""
+  pt: Impressum
+  ru: Выходные данные
   ja: 発行者情報
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 임프린트
+  it: Informazioni legali
+  tr: Künye
+  vi: Thông tin pháp lý
+  id: Imprint
+  pl: Stopka redakcyjna
+  nl: Colofon
   ar: لقاء
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: इंप्रिंट
+  th: ข้อมูลผู้เผยแพร่
+  cs: Imprint
+  sv: Imprint
   he: פרטי העסק
   verified_by_human: []
 privacy:
@@ -1984,21 +2376,21 @@ privacy:
   zh: 隐私政策
   es: Privacidad
   fr: Confidentialité
-  pt: ""
-  ru: ""
+  pt: Privacidade
+  ru: Конфиденциальность
   ja: プライバシー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 개인정보
+  it: Privacy
+  tr: Gizlilik
+  vi: Quyền riêng tư
+  id: Privasi
+  pl: Prywatność
+  nl: Privacy
   ar: بريد إلكتروني
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: गोपनीयता
+  th: ความเป็นส่วนตัว
+  cs: Soukromí
+  sv: Integritet
   he: פרטיות
   verified_by_human: []
 terms_and_conditions:
@@ -2008,45 +2400,45 @@ terms_and_conditions:
   zh: 条款和条件
   es: Términos y condiciones
   fr: Conditions générales d'utilisation
-  pt: ""
-  ru: ""
+  pt: Termos e condições
+  ru: Условия использования
   ja: 利用規約
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 이용약관
+  it: Termini e condizioni
+  tr: Şartlar ve koşullar
+  vi: Điều khoản và điều kiện
+  id: Syarat dan ketentuan
+  pl: Regulamin
+  nl: Algemene voorwaarden
   ar: قانوني
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: नियम और शर्तें
+  th: ข้อกำหนดและเงื่อนไข
+  cs: Obchodní podmínky
+  sv: Villkor
   he: תנאי שימוש
   verified_by_human: []
 credits_amount:
   context: User credits amount
   en: "{credits_amount} credits"
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: "{credits_amount} Credits"
+  zh: "{credits_amount} 点数"
+  es: "{credits_amount} créditos"
+  fr: "{credits_amount} crédits"
+  pt: "{credits_amount} créditos"
+  ru: "{credits_amount} кредитов"
+  ja: "{credits_amount} クレジット"
+  ko: "{credits_amount} 크레딧"
+  it: "{credits_amount} crediti"
+  tr: "{credits_amount} kredi"
+  vi: "{credits_amount} tín dụng"
+  id: "{credits_amount} kredit"
+  pl: "{credits_amount} kredytów"
+  nl: "{credits_amount} credits"
   ar: إشعار قانوني
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "{credits_amount} क्रेडिट"
+  th: "{credits_amount} เครดิต"
+  cs: "{credits_amount} kreditů"
+  sv: "{credits_amount} krediter"
   he: "{credits_amount} קרדיטים"
   verified_by_human: []
 modify:
@@ -2056,21 +2448,21 @@ modify:
   zh: 修改
   es: Modificar
   fr: Modifier
-  pt: ""
-  ru: ""
+  pt: Modificar
+  ru: Изменить
   ja: 変更
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 수정
+  it: Modifica
+  tr: Değiştir
+  vi: Sửa đổi
+  id: Ubah
+  pl: Modyfikuj
+  nl: Wijzigen
   ar: الخصوصية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: संशोधित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Ändra
   he: שינוי
   verified_by_human: []
 save:
@@ -2080,45 +2472,45 @@ save:
   zh: 保存
   es: Guardar
   fr: Enregistrer
-  pt: ""
-  ru: ""
+  pt: Salvar
+  ru: Сохранить
   ja: 保存
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
   ar: الشروط والأحكام
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
   he: שמירה
   verified_by_human: []
 back:
   context: Button text for going back
   en: Back
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  de: Zurück
+  zh: 返回
+  es: Atrás
+  fr: Retour
+  pt: Voltar
+  ru: Назад
+  ja: 戻る
+  ko: 뒤로
+  it: Indietro
+  tr: Geri
+  vi: Quay lại
+  id: Kembali
+  pl: Wstecz
+  nl: Terug
   ar: "{credits_amount} رصيد"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: वापस
+  th: ย้อนกลับ
+  cs: Zpět
+  sv: Tillbaka
   he: חזרה
   verified_by_human: []
 server.description:
@@ -2128,21 +2520,21 @@ server.description:
   zh: 管理服务器配置和管理
   es: Gestiona la configuración y administración del servidor
   fr: Gérez la configuration et l'administration du serveur
-  pt: ""
-  ru: ""
+  pt: Gerencie a configuração e administração do servidor
+  ru: Управляйте конфигурацией и администрированием сервера
   ja: サーバー設定と管理を管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 서버 구성 및 관리 관리
+  it: Gestisci la configurazione e l'amministrazione del server
+  tr: Sunucu yapılandırmasını ve yönetimini yönet
+  vi: Quản lý cấu hình và quản trị máy chủ
+  id: Kelola konfigurasi dan administrasi server
+  pl: Zarządzaj konfiguracją i administracją serwera
+  nl: Beheer de serverconfiguratie en -beheer
   ar: تعديل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सर्वर कॉन्फ़िगरेशन और प्रशासन प्रबंधित करें
+  th: จัดการการกำหนดค่าและการดูแลระบบเซิร์ฟเวอร์
+  cs: Spravujte konfiguraci a správu serveru
+  sv: Hantera serverkonfiguration och administration
   he: ניהול הגדרות השרת וניהול מערכת
   verified_by_human: []
 server:
@@ -2152,29 +2544,47 @@ server:
   zh: 服务器
   es: Servidor
   fr: Serveur
-  pt: ""
-  ru: ""
+  pt: Servidor
+  ru: Сервер
   ja: サーバー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
   ar: حفظ
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
   he: שרת
   verified_by_human: []
 server.community_suggestions:
   context: Community suggestions menu item
   en: Community Suggestions
   de: Community-Vorschläge
+  zh: 社区建议
+  es: Sugerencias de la comunidad
+  fr: Suggestions de la communauté
+  pt: Sugestões da comunidade
+  ru: Предложения сообщества
+  ja: コミュニティの提案
+  ko: 커뮤니티 제안
+  it: Suggerimenti della comunità
+  tr: Topluluk önerileri
+  vi: Đề xuất cộng đồng
+  id: Saran komunitas
+  pl: Sugestie społeczności
+  nl: Communitysuggesties
   ar: اقتراحات المجتمع
+  hi: समुदाय सुझाव
+  th: ข้อเสนอแนะจากชุมชน
+  cs: Návrhy komunity
+  sv: Communityförslag
   he: הצעות מהקהילה
+  verified_by_human: []
 server.stats:
   context: Server stats settings menu item
   en: Stats
@@ -2613,21 +3023,21 @@ server.gift_cards.show_qr:
   zh: 显示二维码
   es: Mostrar código QR
   fr: Afficher le QR code
-  pt: ""
-  ru: ""
+  pt: Mostrar código QR
+  ru: Показать QR-код
   ja: QRコードを表示
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: QR 코드 표시
+  it: Mostra codice QR
+  tr: QR Kodunu Göster
+  vi: Hiển thị mã QR
+  id: Tampilkan kode QR
+  pl: Pokaż kod QR
+  nl: QR-code tonen
   ar: عرض رمز QR
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: QR कोड दिखाएं
+  th: แสดงรหัส QR
+  cs: Zobrazit QR kód
+  sv: Visa QR-kod
   he: הצג קוד QR
   verified_by_human: []
 server.gift_cards.qr_code_for:
@@ -2637,21 +3047,21 @@ server.gift_cards.qr_code_for:
   zh: 礼品卡二维码
   es: Código QR de Tarjeta de Regalo
   fr: QR Code de la Carte Cadeau
-  pt: ""
-  ru: ""
+  pt: Código QR do Cartão Presente
+  ru: QR-код подарочной карты
   ja: ギフトカードQRコード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 기프트 카드 QR 코드
+  it: Codice QR Buono Regalo
+  tr: Hediye Kartı QR Kodu
+  vi: Mã QR Thẻ Quà Tặng
+  id: Kode QR Kartu Hadiah
+  pl: Kod QR Karty Podarunkowej
+  nl: QR-code Cadeaukaart
   ar: رمز QR لبطاقة الهدية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: उपहार कार्ड QR कोड
+  th: รหัส QR บัตรของขวัญ
+  cs: QR kód dárkové karty
+  sv: QR-kod för presentkort
   he: קוד QR לכרטיס מתנה
   verified_by_human: []
 server.gift_cards.qr_code_hint:
@@ -2661,21 +3071,21 @@ server.gift_cards.qr_code_hint:
   zh: 扫描以打开预填礼品卡的注册页面
   es: Escanear para abrir el registro con esta tarjeta de regalo precargada
   fr: Scanner pour ouvrir l'inscription avec cette carte cadeau pré-remplie
-  pt: ""
-  ru: ""
+  pt: Escaneie para abrir o cadastro com este cartão presente pré-preenchido
+  ru: Отсканируйте для открытия регистрации с предзаполненной подарочной картой
   ja: スキャンしてギフトカードが事前入力されたサインアップを開く
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 스캔하여 이 기프트 카드가 미리 채워진 가입 페이지 열기
+  it: Scansiona per aprire la registrazione con questo buono regalo pre-compilato
+  tr: Bu hediye kartı önceden doldurulmuş kaydı açmak için tarayın
+  vi: Quét để mở đăng ký với thẻ quà tặng này được điền sẵn
+  id: Pindai untuk membuka pendaftaran dengan kartu hadiah ini sudah terisi
+  pl: Zeskanuj, aby otworzyć rejestrację z wypełnioną kartą podarunkową
+  nl: Scan om aanmelding te openen met deze cadeaukaart ingevuld
   ar: امسح لفتح التسجيل مع تعبئة بطاقة الهدية مسبقاً
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: इस उपहार कार्ड के साथ पहले से भरे साइनअप को खोलने के लिए स्कैन करें
+  th: สแกนเพื่อเปิดการสมัครโดยมีบัตรของขวัญนี้กรอกล่วงหน้า
+  cs: Naskenujte pro otevření registrace s touto dárkovou kartou předvyplněnou
+  sv: Skanna för att öppna registrering med detta presentkort förifyllt
   he: סרוק כדי לפתוח את ההרשמה עם כרטיס המתנה מולא מראש
   verified_by_human: []
 server.gift_cards.copy_link:
@@ -2685,21 +3095,21 @@ server.gift_cards.copy_link:
   zh: 复制注册链接
   es: Copiar enlace de registro
   fr: Copier le lien d'inscription
-  pt: ""
-  ru: ""
+  pt: Copiar link de cadastro
+  ru: Скопировать ссылку для регистрации
   ja: サインアップリンクをコピー
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 가입 링크 복사
+  it: Copia link di registrazione
+  tr: Kayıt bağlantısını kopyala
+  vi: Sao chép liên kết đăng ký
+  id: Salin tautan pendaftaran
+  pl: Kopiuj link rejestracji
+  nl: Aanmeldlink kopiëren
   ar: نسخ رابط التسجيل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: साइनअप लिंक कॉपी करें
+  th: คัดลอกลิงก์สมัคร
+  cs: Zkopírovat registrační odkaz
+  sv: Kopiera registreringslänk
   he: העתק קישור הרשמה
   verified_by_human: []
 server.gift_cards.active_cards:
@@ -2709,21 +3119,21 @@ server.gift_cards.active_cards:
   zh: 有效礼品卡
   es: Tarjetas de Regalo Activas
   fr: Cartes Cadeaux Actives
-  pt: ""
-  ru: ""
+  pt: Cartões Presente Ativos
+  ru: Активные подарочные карты
   ja: アクティブなギフトカード
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 활성 기프트 카드
+  it: Buoni Regalo Attivi
+  tr: Aktif Hediye Kartları
+  vi: Thẻ Quà Tặng Đang Hoạt Động
+  id: Kartu Hadiah Aktif
+  pl: Aktywne Karty Podarunkowe
+  nl: Actieve Cadeaukaarten
   ar: بطاقات الهدايا النشطة
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सक्रिय उपहार कार्ड
+  th: บัตรของขวัญที่ใช้งานอยู่
+  cs: Aktivní dárkové karty
+  sv: Aktiva presentkort
   he: כרטיסי מתנה פעילים
   verified_by_human: []
 server.gift_cards.active_cards_empty:
@@ -2733,21 +3143,21 @@ server.gift_cards.active_cards_empty:
   zh: 此服务器上没有有效礼品卡
   es: No hay tarjetas de regalo activas en este servidor
   fr: Aucune carte cadeau active sur ce serveur
-  pt: ""
-  ru: ""
+  pt: Nenhum cartão presente ativo neste servidor
+  ru: Нет активных подарочных карт на этом сервере
   ja: このサーバーにはアクティブなギフトカードがありません
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 이 서버에 활성 기프트 카드가 없습니다
+  it: Nessun buono regalo attivo su questo server
+  tr: Bu sunucuda aktif hediye kartı yok
+  vi: Không có thẻ quà tặng đang hoạt động trên máy chủ này
+  id: Tidak ada kartu hadiah aktif di server ini
+  pl: Brak aktywnych kart podarunkowych na tym serwerze
+  nl: Geen actieve cadeaukaarten op deze server
   ar: لا توجد بطاقات هدايا نشطة على هذا الخادم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: इस सर्वर पर कोई सक्रिय उपहार कार्ड नहीं हैं
+  th: ไม่มีบัตรของขวัญที่ใช้งานอยู่บนเซิร์ฟเวอร์นี้
+  cs: Na tomto serveru nejsou žádné aktivní dárkové karty
+  sv: Inga aktiva presentkort på den här servern
   he: אין כרטיסי מתנה פעילים בשרת זה
   verified_by_human: []
 server.gift_cards.active_cards_refresh:
@@ -2757,21 +3167,21 @@ server.gift_cards.active_cards_refresh:
   zh: 刷新
   es: Actualizar
   fr: Actualiser
-  pt: ""
-  ru: ""
+  pt: Atualizar
+  ru: Обновить
   ja: 更新
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 새로고침
+  it: Aggiorna
+  tr: Yenile
+  vi: Làm mới
+  id: Segarkan
+  pl: Odśwież
+  nl: Vernieuwen
   ar: تحديث
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: ताज़ा करें
+  th: รีเฟรช
+  cs: Obnovit
+  sv: Uppdatera
   he: רענן
   verified_by_human: []
 server.gift_cards.created_at:
@@ -2781,21 +3191,21 @@ server.gift_cards.created_at:
   zh: 创建时间
   es: Creado
   fr: Créé
-  pt: ""
-  ru: ""
+  pt: Criado
+  ru: Создано
   ja: 作成日
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 생성됨
+  it: Creato
+  tr: Oluşturuldu
+  vi: Đã tạo
+  id: Dibuat
+  pl: Utworzono
+  nl: Aangemaakt
   ar: تم الإنشاء
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: बनाया गया
+  th: สร้างเมื่อ
+  cs: Vytvořeno
+  sv: Skapad
   he: נוצר
   verified_by_human: []
 server.gift_cards.close:
@@ -2805,21 +3215,21 @@ server.gift_cards.close:
   zh: 关闭
   es: Cerrar
   fr: Fermer
-  pt: ""
-  ru: ""
+  pt: Fechar
+  ru: Закрыть
   ja: 閉じる
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 닫기
+  it: Chiudi
+  tr: Kapat
+  vi: Đóng
+  id: Tutup
+  pl: Zamknij
+  nl: Sluiten
   ar: إغلاق
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: बंद करें
+  th: ปิด
+  cs: Zavřít
+  sv: Stäng
   he: סגור
   verified_by_human: []
 server.gift_cards.loading_cards:
@@ -2829,21 +3239,21 @@ server.gift_cards.loading_cards:
   zh: 正在加载礼品卡...
   es: Cargando tarjetas de regalo...
   fr: Chargement des cartes cadeaux...
-  pt: ""
-  ru: ""
+  pt: Carregando cartões presente...
+  ru: Загрузка подарочных карт...
   ja: ギフトカードを読み込み中...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 기프트 카드 로딩 중...
+  it: Caricamento buoni regalo...
+  tr: Hediye kartları yükleniyor...
+  vi: Đang tải thẻ quà tặng...
+  id: Memuat kartu hadiah...
+  pl: Ładowanie kart podarunkowych...
+  nl: Cadeaukaarten laden...
   ar: جاري تحميل بطاقات الهدايا...
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: उपहार कार्ड लोड हो रहे हैं...
+  th: กำลังโหลดบัตรของขวัญ...
+  cs: Načítání dárkových karet...
+  sv: Laddar presentkort...
   he: טוען כרטיסי מתנה...
   verified_by_human: []
 server.gift_cards.load_error:
@@ -2853,21 +3263,21 @@ server.gift_cards.load_error:
   zh: 加载礼品卡失败
   es: No se pudieron cargar las tarjetas de regalo
   fr: Impossible de charger les cartes cadeaux
-  pt: ""
-  ru: ""
+  pt: Falha ao carregar cartões presente
+  ru: Не удалось загрузить подарочные карты
   ja: ギフトカードの読み込みに失敗しました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 기프트 카드를 불러오지 못했습니다
+  it: Impossibile caricare i buoni regalo
+  tr: Hediye kartları yüklenemedi
+  vi: Không thể tải thẻ quà tặng
+  id: Gagal memuat kartu hadiah
+  pl: Nie udało się załadować kart podarunkowych
+  nl: Kan cadeaukaarten niet laden
   ar: فشل تحميل بطاقات الهدايا
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: उपहार कार्ड लोड करने में विफल
+  th: โหลดบัตรของขวัญล้มเหลว
+  cs: Nepodařilo se načíst dárkové karty
+  sv: Det gick inte att ladda presentkort
   he: טעינת כרטיסי המתנה נכשלה
   verified_by_human: []
 server.gift_cards.invalid_prefix:
@@ -3954,21 +4364,21 @@ software_updates:
   zh: 软件更新
   es: Actualizaciones de software
   fr: Mises à jour logicielles
-  pt: ""
-  ru: ""
+  pt: Atualizações de software
+  ru: Обновления программного обеспечения
   ja: ソフトウェアアップデート
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 소프트웨어 업데이트
+  it: Aggiornamenti software
+  tr: Yazılım güncellemeleri
+  vi: Cập nhật phần mềm
+  id: Pembaruan perangkat lunak
+  pl: Aktualizacje oprogramowania
+  nl: Software-updates
   ar: تحديثات البرامج
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सॉफ़्टवेयर अपडेट
+  th: การอัปเดตซอฟต์แวร์
+  cs: Aktualizace softwaru
+  sv: Programvaruuppdateringar
   he: עדכוני תוכנה
   verified_by_human: []
 checking_for_updates:
@@ -3978,21 +4388,21 @@ checking_for_updates:
   zh: 正在检查更新...
   es: Buscando actualizaciones...
   fr: Recherche de mises à jour...
-  pt: ""
-  ru: ""
+  pt: Verificando atualizações...
+  ru: Проверка обновлений...
   ja: アップデートを確認中...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트 확인 중...
+  it: Ricerca aggiornamenti...
+  tr: Güncellemeler kontrol ediliyor...
+  vi: Đang kiểm tra cập nhật...
+  id: Memeriksa pembaruan...
+  pl: Sprawdzanie aktualizacji...
+  nl: Controleren op updates...
   ar: جاري التحقق من وجود تحديثات...
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट की जांच हो रही है...
+  th: กำลังตรวจสอบการอัปเดต...
+  cs: Kontrola aktualizací...
+  sv: Söker efter uppdateringar...
   he: בודק אם יש עדכונים...
   verified_by_human: []
 new_update_available:
@@ -4002,21 +4412,21 @@ new_update_available:
   zh: 有新的更新可用
   es: Nueva actualización disponible
   fr: Nouvelle mise à jour disponible
-  pt: ""
-  ru: ""
+  pt: Nova atualização disponível
+  ru: Доступно новое обновление
   ja: 新しいアップデートが利用可能
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 새 업데이트 사용 가능
+  it: Nuovo aggiornamento disponibile
+  tr: Yeni güncelleme mevcut
+  vi: Có bản cập nhật mới
+  id: Pembaruan baru tersedia
+  pl: Nowa aktualizacja dostępna
+  nl: Nieuwe update beschikbaar
   ar: تحديث جديد متاح
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: नया अपडेट उपलब्ध है
+  th: มีการอัปเดตใหม่
+  cs: Dostupná nová aktualizace
+  sv: Ny uppdatering tillgänglig
   he: עדכון חדש זמין
   verified_by_human: []
 install:
@@ -4026,21 +4436,21 @@ install:
   zh: 安装
   es: Instalar
   fr: Installer
-  pt: ""
-  ru: ""
+  pt: Instalar
+  ru: Установить
   ja: インストール
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설치
+  it: Installa
+  tr: Yükle
+  vi: Cài đặt
+  id: Pasang
+  pl: Zainstaluj
+  nl: Installeren
   ar: تثبيت
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: इंस्टॉल करें
+  th: ติดตั้ง
+  cs: Nainstalovat
+  sv: Installera
   he: התקנה
   verified_by_human: []
 server_will_be_restarted:
@@ -4080,8 +4490,20 @@ server_will_be_restarted:
     la mise à jour installée.
 
     "
-  pt: ""
-  ru: ""
+  pt: "O servidor será reiniciado e
+
+    portanto ficará brevemente offline assim que
+
+    a atualização for instalada.
+
+    "
+  ru: "Сервер будет перезапущен и
+
+    поэтому ненадолго уйдёт в офлайн после
+
+    установки обновления.
+
+    "
   ja: "アップデートがインストールされると、
 
     サーバーが再起動され、
@@ -4089,18 +4511,84 @@ server_will_be_restarted:
     一時的にオフラインになります。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "업데이트가 설치되면
+
+    서버가 재시작되어
+
+    잠시 오프라인 상태가 됩니다.
+
+    "
+  it: "Il server verrà riavviato e
+
+    quindi sarà brevemente offline dopo
+
+    l'installazione dell'aggiornamento.
+
+    "
+  tr: "Sunucu yeniden başlatılacak ve
+
+    bu nedenle güncelleme yüklendiğinde
+
+    kısa süreliğine çevrimdışı olacaktır.
+
+    "
+  vi: "Máy chủ sẽ được khởi động lại và
+
+    do đó sẽ ngoại tuyến trong thời gian ngắn
+
+    sau khi cài đặt xong bản cập nhật.
+
+    "
+  id: "Server akan di-restart dan
+
+    oleh karena itu akan offline sebentar setelah
+
+    pembaruan dipasang.
+
+    "
+  pl: "Serwer zostanie zrestartowany i
+
+    dlatego będzie krótko niedostępny po
+
+    zainstalowaniu aktualizacji.
+
+    "
+  nl: "De server wordt opnieuw gestart en
+
+    is daarna kort offline nadat
+
+    de update is geïnstalleerd.
+
+    "
   ar: سيتم إعادة تشغيل الخادم وبالتالي سيكون غير متصل لفترة وجيزة بمجرد تثبيت التحديث.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "अपडेट इंस्टॉल होने के बाद
+
+    सर्वर पुनः प्रारंभ होगा और
+
+    कुछ समय के लिए ऑफलाइन रहेगा।
+
+    "
+  th: "เซิร์ฟเวอร์จะถูกรีสตาร์ทและ
+
+    จะออฟไลน์ชั่วคราว
+
+    หลังจากติดตั้งการอัปเดตเสร็จแล้ว
+
+    "
+  cs: "Server bude restartován a
+
+    proto bude krátce offline poté, co
+
+    bude aktualizace nainstalována.
+
+    "
+  sv: "Servern startas om och
+
+    kommer därför att vara kort offline när
+
+    uppdateringen är installerad.
+
+    "
   he: |
     השרת יופעל מחדש ולכן
     יהיה לא זמין לזמן קצר לאחר
@@ -4113,21 +4601,21 @@ installing_update:
   zh: 正在安装更新...
   es: Instalando actualización...
   fr: Installation de la mise à jour...
-  pt: ""
-  ru: ""
+  pt: Instalando atualização...
+  ru: Установка обновления...
   ja: アップデートをインストール中...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트 설치 중...
+  it: Installazione aggiornamento...
+  tr: Güncelleme yükleniyor...
+  vi: Đang cài đặt bản cập nhật...
+  id: Memasang pembaruan...
+  pl: Instalowanie aktualizacji...
+  nl: Update installeren...
   ar: جاري تثبيت التحديث...
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट इंस्टॉल हो रहा है...
+  th: กำลังติดตั้งการอัปเดต...
+  cs: Instalace aktualizace...
+  sv: Installerar uppdatering...
   he: מתקין עדכון...
   verified_by_human: []
 restarting_server:
@@ -4137,21 +4625,21 @@ restarting_server:
   zh: 正在重启服务器...
   es: Reiniciando servidor...
   fr: Redémarrage du serveur...
-  pt: ""
-  ru: ""
+  pt: Reiniciando servidor...
+  ru: Перезапуск сервера...
   ja: サーバーを再起動中...
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 서버 재시작 중...
+  it: Riavvio del server...
+  tr: Sunucu yeniden başlatılıyor...
+  vi: Đang khởi động lại máy chủ...
+  id: Memulai ulang server...
+  pl: Ponowne uruchamianie serwera...
+  nl: Server herstarten...
   ar: جاري إعادة تشغيل الخادم...
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सर्वर पुनः प्रारंभ हो रहा है...
+  th: กำลังรีสตาร์ทเซิร์ฟเวอร์...
+  cs: Restartování serveru...
+  sv: Startar om servern...
   he: מפעיל מחדש את השרת...
   verified_by_human: []
 update_failed:
@@ -4181,25 +4669,77 @@ update_failed:
     Vérifiez les journaux du serveur.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Atualização falhou.
+
+    Verifique os logs do servidor.
+
+    "
+  ru: "Обновление не удалось.
+
+    Проверьте журналы сервера.
+
+    "
   ja: "アップデートに失敗しました。
 
     サーバーログを確認してください。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "업데이트 실패.
+
+    서버 로그를 확인하세요.
+
+    "
+  it: "Aggiornamento non riuscito.
+
+    Controlla i log del server.
+
+    "
+  tr: "Güncelleme başarısız.
+
+    Sunucu günlüklerini kontrol edin.
+
+    "
+  vi: "Cập nhật thất bại.
+
+    Kiểm tra nhật ký máy chủ.
+
+    "
+  id: "Pembaruan gagal.
+
+    Periksa log server.
+
+    "
+  pl: "Aktualizacja nie powiodła się.
+
+    Sprawdź logi serwera.
+
+    "
+  nl: "Update mislukt.
+
+    Controleer de serverlogs.
+
+    "
   ar: فشل التحديث. تحقق من سجلات الخادم.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "अपडेट विफल।
+
+    सर्वर लॉग जांचें।
+
+    "
+  th: "อัปเดตล้มเหลว
+
+    กรุณาตรวจสอบบันทึกเซิร์ฟเวอร์
+
+    "
+  cs: "Aktualizace se nezdařila.
+
+    Zkontrolujte protokoly serveru.
+
+    "
+  sv: "Uppdatering misslyckades.
+
+    Kontrollera serverloggarna.
+
+    "
   he: |
     העדכון נכשל.
     בדוק את יומני השרת (logs).
@@ -4211,21 +4751,21 @@ update_successful:
   zh: 更新成功
   es: Actualización exitosa
   fr: Mise à jour réussie
-  pt: ""
-  ru: ""
+  pt: Atualização bem-sucedida
+  ru: Обновление выполнено успешно
   ja: アップデート成功
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트 성공
+  it: Aggiornamento riuscito
+  tr: Güncelleme başarılı
+  vi: Cập nhật thành công
+  id: Pembaruan berhasil
+  pl: Aktualizacja zakończona sukcesem
+  nl: Update geslaagd
   ar: تم التحديث بنجاح
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट सफल
+  th: อัปเดตสำเร็จ
+  cs: Aktualizace proběhla úspěšně
+  sv: Uppdatering lyckades
   he: העדכון הצליח
   verified_by_human: []
 installed:
@@ -4235,21 +4775,21 @@ installed:
   zh: 已安装
   es: Instalado
   fr: Installé
-  pt: ""
-  ru: ""
+  pt: Instalado
+  ru: Установлено
   ja: インストール済み
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 설치됨
+  it: Installato
+  tr: Yüklendi
+  vi: Đã cài đặt
+  id: Terpasang
+  pl: Zainstalowano
+  nl: Geïnstalleerd
   ar: مثبت
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: इंस्टॉल किया गया
+  th: ติดตั้งแล้ว
+  cs: Nainstalováno
+  sv: Installerat
   he: מותקן
   verified_by_human: []
 current_version:
@@ -4259,21 +4799,21 @@ current_version:
   zh: 当前版本
   es: Versión actual
   fr: Version actuelle
-  pt: ""
-  ru: ""
+  pt: Versão atual
+  ru: Текущая версия
   ja: 現在のバージョン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 현재 버전
+  it: Versione attuale
+  tr: Mevcut sürüm
+  vi: Phiên bản hiện tại
+  id: Versi saat ini
+  pl: Aktualna wersja
+  nl: Huidige versie
   ar: الإصدار الحالي
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: वर्तमान संस्करण
+  th: เวอร์ชันปัจจุบัน
+  cs: Aktuální verze
+  sv: Nuvarande version
   he: גרסה נוכחית
   verified_by_human: []
 up_to_date:
@@ -4283,21 +4823,21 @@ up_to_date:
   zh: 您的软件已是最新版本
   es: Su software está actualizado
   fr: Votre logiciel est à jour
-  pt: ""
-  ru: ""
+  pt: Seu software está atualizado
+  ru: Ваше программное обеспечение обновлено
   ja: ソフトウェアは最新です
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 소프트웨어가 최신 상태입니다
+  it: Il software è aggiornato
+  tr: Yazılımınız güncel
+  vi: Phần mềm của bạn đã được cập nhật
+  id: Perangkat lunak Anda sudah terbaru
+  pl: Twoje oprogramowanie jest aktualne
+  nl: Uw software is up-to-date
   ar: برنامجك محدث
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: आपका सॉफ़्टवेयर अप-टू-डेट है
+  th: ซอฟต์แวร์ของคุณทันสมัยแล้ว
+  cs: Váš software je aktuální
+  sv: Din programvara är uppdaterad
   he: התוכנה שלך מעודכנת
   verified_by_human: []
 commits_behind:
@@ -4307,21 +4847,21 @@ commits_behind:
   zh: "落后 {count} 个提交"
   es: "{count} commit(s) atrás"
   fr: "{count} commit(s) en retard"
-  pt: ""
-  ru: ""
+  pt: "{count} commit(s) atrás"
+  ru: "Отстаёт на {count} коммит(ов)"
   ja: "{count} コミット遅れ"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "{count} 커밋 뒤처짐"
+  it: "{count} commit in ritardo"
+  tr: "{count} commit geride"
+  vi: "Trễ {count} commit"
+  id: "{count} commit di belakang"
+  pl: "{count} commit(ów) za"
+  nl: "{count} commit(s) achter"
   ar: "متأخر بـ {count} تحديث(ات)"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "{count} कमिट पीछे"
+  th: "ล้าหลัง {count} คอมมิต"
+  cs: "{count} commit(ů) pozadu"
+  sv: "{count} commit(s) efter"
   he: "{count} קומיט(ים) מאחור"
   verified_by_human: []
 view_on_github:
@@ -4331,21 +4871,21 @@ view_on_github:
   zh: 在 GitHub 上查看
   es: Ver en GitHub
   fr: Voir sur GitHub
-  pt: ""
-  ru: ""
+  pt: Ver no GitHub
+  ru: Посмотреть на GitHub
   ja: GitHubで表示
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: GitHub에서 보기
+  it: Visualizza su GitHub
+  tr: GitHub'da görüntüle
+  vi: Xem trên GitHub
+  id: Lihat di GitHub
+  pl: Zobacz na GitHub
+  nl: Bekijken op GitHub
   ar: عرض على GitHub
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: GitHub पर देखें
+  th: ดูบน GitHub
+  cs: Zobrazit na GitHubu
+  sv: Visa på GitHub
   he: צפה ב-GitHub
   verified_by_human: []
 auto_check_for_updates:
@@ -4355,21 +4895,21 @@ auto_check_for_updates:
   zh: 自动检查更新
   es: Buscar actualizaciones automáticamente
   fr: Vérifier automatiquement les mises à jour
-  pt: ""
-  ru: ""
+  pt: Verificação automática de atualizações
+  ru: Автоматическая проверка обновлений
   ja: 自動アップデート確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 자동 업데이트 확인
+  it: Verifica automatica degli aggiornamenti
+  tr: Güncellemeleri otomatik kontrol et
+  vi: Tự động kiểm tra cập nhật
+  id: Periksa pembaruan otomatis
+  pl: Automatyczne sprawdzanie aktualizacji
+  nl: Automatisch controleren op updates
   ar: التحقق التلقائي من التحديثات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट की स्वचालित जांच
+  th: ตรวจสอบการอัปเดตอัตโนมัติ
+  cs: Automatická kontrola aktualizací
+  sv: Automatisk sökning efter uppdateringar
   he: בדיקה אוטומטית לעדכונים
   verified_by_human: []
 auto_install_updates:
@@ -4379,21 +4919,21 @@ auto_install_updates:
   zh: 自动安装更新
   es: Instalar actualizaciones automáticamente
   fr: Installer automatiquement les mises à jour
-  pt: ""
-  ru: ""
+  pt: Instalar atualizações automaticamente
+  ru: Автоматически устанавливать обновления
   ja: 自動アップデートインストール
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트 자동 설치
+  it: Installazione automatica degli aggiornamenti
+  tr: Güncellemeleri otomatik yükle
+  vi: Tự động cài đặt cập nhật
+  id: Pasang pembaruan otomatis
+  pl: Automatyczna instalacja aktualizacji
+  nl: Updates automatisch installeren
   ar: تثبيت التحديثات تلقائياً
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट स्वचालित रूप से इंस्टॉल करें
+  th: ติดตั้งการอัปเดตอัตโนมัติ
+  cs: Automatická instalace aktualizací
+  sv: Installera uppdateringar automatiskt
   he: התקנה אוטומטית של עדכונים
   verified_by_human: []
 clear_cache_on_update:
@@ -4403,21 +4943,21 @@ clear_cache_on_update:
   zh: 更新时清除缓存
   es: Limpiar caché al actualizar
   fr: Vider le cache lors de la mise à jour
-  pt: ""
-  ru: ""
+  pt: Limpar cache ao atualizar
+  ru: Очищать кэш при обновлении
   ja: アップデート時にキャッシュをクリア
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트 시 캐시 지우기
+  it: Cancella cache all'aggiornamento
+  tr: Güncelleme sırasında önbelleği temizle
+  vi: Xóa bộ nhớ đệm khi cập nhật
+  id: Hapus cache saat pembaruan
+  pl: Wyczyść pamięć podręczną przy aktualizacji
+  nl: Cache wissen bij update
   ar: مسح ذاكرة التخزين المؤقت عند التحديث
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट पर कैश साफ़ करें
+  th: ล้างแคชเมื่ออัปเดต
+  cs: Vymazat mezipaměť při aktualizaci
+  sv: Rensa cache vid uppdatering
   he: ניקוי מטמון בעדכון
   verified_by_human: []
 check_interval:
@@ -4427,21 +4967,21 @@ check_interval:
   zh: 检查间隔
   es: Intervalo de verificación
   fr: Intervalle de vérification
-  pt: ""
-  ru: ""
+  pt: Intervalo de verificação
+  ru: Интервал проверки
   ja: 確認間隔
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 확인 간격
+  it: Intervallo di verifica
+  tr: Kontrol aralığı
+  vi: Khoảng thời gian kiểm tra
+  id: Interval pemeriksaan
+  pl: Interwał sprawdzania
+  nl: Controle-interval
   ar: فترة التحقق
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: जांच अंतराल
+  th: ช่วงเวลาตรวจสอบ
+  cs: Interval kontroly
+  sv: Kontrollintervall
   he: מרווח בדיקה
   verified_by_human: []
 every_n_hours:
@@ -4451,21 +4991,21 @@ every_n_hours:
   zh: "每 {count} 小时"
   es: "Cada {count} horas"
   fr: "Toutes les {count} heures"
-  pt: ""
-  ru: ""
+  pt: "A cada {count} horas"
+  ru: "Каждые {count} часов"
   ja: "{count} 時間ごと"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "{count}시간마다"
+  it: "Ogni {count} ore"
+  tr: "Her {count} saatte"
+  vi: "Mỗi {count} giờ"
+  id: "Setiap {count} jam"
+  pl: "Co {count} godzin"
+  nl: "Elke {count} uur"
   ar: "كل {count} ساعة"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "हर {count} घंटे"
+  th: "ทุก {count} ชั่วโมง"
+  cs: "Každých {count} hodin"
+  sv: "Var {count}:e timme"
   he: "כל {count} שעות"
   verified_by_human: []
 update_settings:
@@ -4475,21 +5015,21 @@ update_settings:
   zh: 更新设置
   es: Configuración de actualización
   fr: Paramètres de mise à jour
-  pt: ""
-  ru: ""
+  pt: Configurações de atualização
+  ru: Настройки обновления
   ja: アップデート設定
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트 설정
+  it: Impostazioni aggiornamento
+  tr: Güncelleme ayarları
+  vi: Cài đặt cập nhật
+  id: Pengaturan pembaruan
+  pl: Ustawienia aktualizacji
+  nl: Update-instellingen
   ar: إعدادات التحديث
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट सेटिंग्स
+  th: การตั้งค่าการอัปเดต
+  cs: Nastavení aktualizací
+  sv: Uppdateringsinställningar
   he: הגדרות עדכון
   verified_by_human: []
 server_versions:
@@ -4499,21 +5039,21 @@ server_versions:
   zh: 服务器版本
   es: Versiones del servidor
   fr: Versions du serveur
-  pt: ""
-  ru: ""
+  pt: Versões do servidor
+  ru: Версии сервера
   ja: サーバーバージョン
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 서버 버전
+  it: Versioni del server
+  tr: Sunucu sürümleri
+  vi: Phiên bản máy chủ
+  id: Versi server
+  pl: Wersje serwera
+  nl: Serverversies
   ar: إصدارات الخادم
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: सर्वर संस्करण
+  th: เวอร์ชันเซิร์ฟเวอร์
+  cs: Verze serveru
+  sv: Serverversioner
   he: גרסאות שרת
   verified_by_human: []
 no_update_check_error:
@@ -4523,21 +5063,21 @@ no_update_check_error:
   zh: 无法检查更新。请稍后再试。
   es: No se pudo buscar actualizaciones. Inténtelo más tarde.
   fr: Impossible de vérifier les mises à jour. Réessayez plus tard.
-  pt: ""
-  ru: ""
+  pt: Não foi possível verificar atualizações. Tente novamente mais tarde.
+  ru: Не удалось проверить обновления. Попробуйте позже.
   ja: アップデートを確認できませんでした。後でもう一度お試しください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 업데이트를 확인할 수 없습니다. 나중에 다시 시도해 주세요.
+  it: Impossibile verificare gli aggiornamenti. Riprova più tardi.
+  tr: Güncellemeler kontrol edilemedi. Daha sonra tekrar deneyin.
+  vi: Không thể kiểm tra cập nhật. Thử lại sau.
+  id: Tidak dapat memeriksa pembaruan. Coba lagi nanti.
+  pl: Nie można sprawdzić aktualizacji. Spróbuj ponownie później.
+  nl: Kan niet controleren op updates. Probeer het later opnieuw.
   ar: لم يتمكن من التحقق من وجود تحديثات. حاول مرة أخرى لاحقاً.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपडेट की जांच नहीं हो सकी। बाद में पुनः प्रयास करें।
+  th: ไม่สามารถตรวจสอบการอัปเดตได้ โปรดลองอีกครั้งในภายหลัง
+  cs: Nepodařilo se zkontrolovat aktualizace. Zkuste to znovu později.
+  sv: Kunde inte söka efter uppdateringar. Försök igen senare.
   he: לא ניתן לבדוק עדכונים. נסה שוב מאוחר יותר.
   verified_by_human: []
 check_now:
@@ -4547,21 +5087,21 @@ check_now:
   zh: 立即检查
   es: Comprobar ahora
   fr: Vérifier maintenant
-  pt: ""
-  ru: ""
+  pt: Verificar agora
+  ru: Проверить сейчас
   ja: 今すぐ確認
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 지금 확인
+  it: Controlla ora
+  tr: Şimdi kontrol et
+  vi: Kiểm tra ngay
+  id: Periksa sekarang
+  pl: Sprawdź teraz
+  nl: Nu controleren
   ar: تحقق الآن
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अभी जांचें
+  th: ตรวจสอบตอนนี้
+  cs: Zkontrolovat nyní
+  sv: Kontrollera nu
   he: בדוק עכשיו
   verified_by_human: []
 unreachable:
@@ -4571,21 +5111,21 @@ unreachable:
   zh: 无法访问
   es: Inalcanzable
   fr: Injoignable
-  pt: ""
-  ru: ""
+  pt: Inacessível
+  ru: Недоступно
   ja: 到達不能
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 접근 불가
+  it: Non raggiungibile
+  tr: Erişilemiyor
+  vi: Không thể truy cập
+  id: Tidak dapat dijangkau
+  pl: Nieosiągalny
+  nl: Onbereikbaar
   ar: غير قابل للوصول
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: पहुंच योग्य नहीं
+  th: ไม่สามารถเข้าถึงได้
+  cs: Nedostupné
+  sv: Inte nåbar
   he: לא ניתן להגיע
   verified_by_human: []
 profile_image_not_allowed:
@@ -4615,21 +5155,73 @@ profile_image_not_allowed:
     dans les images de profil.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Sem nudez, violência ou gore
+
+    em fotos de perfil.
+
+    "
+  ru: "Никакой наготы, насилия или жестокости
+
+    на фотографиях профиля.
+
+    "
   ja: プロフィール画像にはヌード、暴力、またはグロテスクなものを含めないでください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "프로필 이미지에는 노출, 폭력 또는
+
+    잔인한 콘텐츠를 사용할 수 없습니다.
+
+    "
+  it: "Vietate nudità, violenza o contenuti
+
+    cruenti nelle immagini del profilo.
+
+    "
+  tr: "Profil resimlerinde çıplaklık, şiddet
+
+    veya kan içeriklerine izin verilmez.
+
+    "
+  vi: "Không có khỏa thân, bạo lực hoặc nội dung rùng rợn
+
+    trong ảnh hồ sơ.
+
+    "
+  id: "Tidak ada ketelanjangan, kekerasan, atau konten mengerikan
+
+    di foto profil.
+
+    "
+  pl: "Brak nagości, przemocy lub makabrycznych treści
+
+    w zdjęciach profilowych.
+
+    "
+  nl: "Geen naaktheid, geweld of gore
+
+    in profielfoto's.
+
+    "
   ar: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "प्रोफ़ाइल छवियों में
+
+    नग्नता, हिंसा या रक्तरंजित सामग्री नहीं।
+
+    "
+  th: "ห้ามมีภาพเปลือย ความรุนแรง
+
+    หรือเนื้อหาสยดสยองในรูปโปรไฟล์
+
+    "
+  cs: "Žádná nahota, násilí ani krvavé scény
+
+    na profilových obrázcích.
+
+    "
+  sv: "Ingen nakenhet, våld eller blodbad
+
+    i profilbilder.
+
+    "
   he: |
     אין להשתמש בעירום, אלימות או תכנים קשים
     בתמונות פרופיל.
@@ -4670,8 +5262,20 @@ last_warning_image_not_allowed:
     Une violation supplémentaire et votre compte sera supprimé.
 
     "
-  pt: ""
-  ru: ""
+  pt: "Último aviso:
+
+    Sem nudez, violência ou gore em fotos de perfil.
+
+    Mais uma violação e sua conta será excluída.
+
+    "
+  ru: "Последнее предупреждение:
+
+    Никакой наготы, насилия или жестокости в фотографиях профиля.
+
+    Ещё одно нарушение — и ваш аккаунт будет удалён.
+
+    "
   ja: "最後の警告：
 
     プロフィール画像にヌード、暴力、またはグロテスクなものを含めないでください。
@@ -4679,17 +5283,83 @@ last_warning_image_not_allowed:
     もう1回違反するとアカウントが削除されます。
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "최후 경고:
+
+    프로필 이미지에 노출, 폭력 또는 잔인한 콘텐츠를 사용할 수 없습니다.
+
+    한 번 더 위반하면 계정이 삭제됩니다.
+
+    "
+  it: "Ultimo avviso:
+
+    Vietate nudità, violenza o contenuti cruenti nelle immagini del profilo.
+
+    Un'altra violazione e il tuo account verrà eliminato.
+
+    "
+  tr: "Son uyarı:
+
+    Profil resimlerinde çıplaklık, şiddet veya kan içeriklerine izin verilmez.
+
+    Bir ihlal daha ve hesabınız silinecek.
+
+    "
+  vi: "Cảnh báo cuối cùng:
+
+    Không có khỏa thân, bạo lực hoặc nội dung rùng rợn trong ảnh hồ sơ.
+
+    Thêm một vi phạm nữa và tài khoản của bạn sẽ bị xóa.
+
+    "
+  id: "Peringatan terakhir:
+
+    Tidak ada ketelanjangan, kekerasan, atau konten mengerikan di foto profil.
+
+    Satu pelanggaran lagi dan akun Anda akan dihapus.
+
+    "
+  pl: "Ostatnie ostrzeżenie:
+
+    Brak nagości, przemocy lub makabrycznych treści w zdjęciach profilowych.
+
+    Jeszcze jedno naruszenie i Twoje konto zostanie usunięte.
+
+    "
+  nl: "Laatste waarschuwing:
+
+    Geen naaktheid, geweld of gore in profielfoto's.
+
+    Nog één overtreding en uw account wordt verwijderd.
+
+    "
+  hi: "अंतिम चेतावनी:
+
+    प्रोफ़ाइल छवियों में नग्नता, हिंसा या रक्तरंजित सामग्री नहीं।
+
+    एक और उल्लंघन और आपका खाता हटा दिया जाएगा।
+
+    "
+  th: "คำเตือนครั้งสุดท้าย:
+
+    ห้ามมีภาพเปลือย ความรุนแรง หรือเนื้อหาสยดสยองในรูปโปรไฟล์
+
+    อีกหนึ่งการละเมิดและบัญชีของคุณจะถูกลบ
+
+    "
+  cs: "Poslední varování:
+
+    Žádná nahota, násilí ani krvavé scény na profilových obrázcích.
+
+    Ještě jedno porušení a váš účet bude smazán.
+
+    "
+  sv: "Sista varningen:
+
+    Ingen nakenhet, våld eller blodbad i profilbilder.
+
+    Ytterligare en överträdelse och ditt konto raderas.
+
+    "
   he: |
     אזהרה אחרונה:
     אין להשתמש בעירום, אלימות או תכנים קשים בתמונות פרופיל.
@@ -4702,21 +5372,21 @@ your_account_got_deleted:
   zh: 您的帐户已被删除。
   es: Tu cuenta fue eliminada.
   fr: Votre compte a été supprimé.
-  pt: ""
-  ru: ""
+  pt: Sua conta foi excluída.
+  ru: Ваш аккаунт был удалён.
   ja: アカウントが削除されました。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 귀하의 계정이 삭제되었습니다.
+  it: Il tuo account è stato eliminato.
+  tr: Hesabınız silindi.
+  vi: Tài khoản của bạn đã bị xóa.
+  id: Akun Anda telah dihapus.
+  pl: Twoje konto zostało usunięte.
+  nl: Uw account is verwijderd.
   ar: تم حذف حسابك.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: आपका खाता हटा दिया गया।
+  th: บัญชีของคุณถูกลบแล้ว
+  cs: Váš účet byl smazán.
+  sv: Ditt konto har raderats.
   he: חשבונך נמחק.
   verified_by_human: []
 app_embeds.no_embeds:
@@ -5232,21 +5902,21 @@ newsletter.description:
   zh: 订阅以获取最新的 OpenMates 新闻
   es: Suscríbete para estar al día con las últimas noticias de OpenMates
   fr: Abonnez-vous pour rester informé des dernières nouvelles d'OpenMates
-  pt: ""
-  ru: ""
+  pt: Assine para ficar atualizado com as últimas notícias do OpenMates
+  ru: Подпишитесь, чтобы быть в курсе последних новостей OpenMates
   ja: 最新の OpenMates ニュースを受け取るために購読する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: OpenMates 최신 소식을 받아보려면 구독하세요
+  it: Iscriviti per restare aggiornato con le ultime notizie di OpenMates
+  tr: En son OpenMates haberlerinden haberdar olmak için abone olun
+  vi: Đăng ký để cập nhật tin tức mới nhất của OpenMates
+  id: Berlangganan untuk mendapatkan berita terbaru OpenMates
+  pl: Subskrybuj, aby być na bieżąco z najnowszymi wiadomościami OpenMates
+  nl: Abonneer om op de hoogte te blijven van het laatste OpenMates-nieuws
   ar: اشترك لتبقى على اطلاع بآخر أخبار OpenMates
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: OpenMates की नवीनतम खबरों से अपडेट रहने के लिए सब्सक्राइब करें
+  th: สมัครสมาชิกเพื่อรับข่าวสารล่าสุดของ OpenMates
+  cs: Přihlaste se k odběru, abyste zůstali v obraze s nejnovějšími zprávami OpenMates
+  sv: Prenumerera för att hålla dig uppdaterad med de senaste nyheterna från OpenMates
   he: הירשם כדי להישאר מעודכן בחדשות האחרונות של OpenMates
   verified_by_human: []
 newsletter:
@@ -5688,21 +6358,21 @@ support.description:
   zh: 获取帮助并联系OpenMates团队
   es: Obtén ayuda y contacta con el equipo de OpenMates
   fr: Obtenez de l'aide et contactez l'équipe OpenMates
-  pt: ""
-  ru: ""
+  pt: Obtenha ajuda e entre em contato com a equipe OpenMates
+  ru: Получите помощь и свяжитесь с командой OpenMates
   ja: ヘルプを得てOpenMatesチームに連絡する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 도움을 받고 OpenMates 팀에 문의하세요
+  it: Ottieni aiuto e contatta il team OpenMates
+  tr: Yardım alın ve OpenMates ekibiyle iletişime geçin
+  vi: Nhận trợ giúp và liên hệ với nhóm OpenMates
+  id: Dapatkan bantuan dan hubungi tim OpenMates
+  pl: Uzyskaj pomoc i skontaktuj się z zespołem OpenMates
+  nl: Hulp krijgen en contact opnemen met het OpenMates-team
   ar: احصل على المساعدة وتواصل مع فريق OpenMates
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: मदद प्राप्त करें और OpenMates टीम से संपर्क करें
+  th: รับความช่วยเหลือและติดต่อทีม OpenMates
+  cs: Získejte pomoc a kontaktujte tým OpenMates
+  sv: Få hjälp och kontakta OpenMates-teamet
   he: קבל עזרה וצור קשר עם צוות OpenMates
   verified_by_human: []
 support:
@@ -6377,6 +7047,54 @@ report_issue:
   sv: Rapportera problem
   he: דיווח על תקלה
   verified_by_human: []
+report_issue.share_debug_logs_title:
+  context: Label for the report issue sub-setting that opens debug log sharing controls
+  en: Share Debug Logs
+  de: Debug-Protokolle teilen
+  zh: 分享调试日志
+  es: Compartir registros de depuración
+  fr: Partager les journaux de débogage
+  pt: Compartilhar logs de depuração
+  ru: Поделиться журналами отладки
+  ja: デバッグログを共有
+  ko: 디버그 로그 공유
+  it: Condividi i log di debug
+  tr: Hata ayıklama günlüklerini paylaş
+  vi: Chia sẻ nhật ký gỡ lỗi
+  id: Bagikan log debug
+  pl: Udostępnij logi debugowania
+  nl: Debuglogboeken delen
+  ar: مشاركة سجلات التصحيح
+  hi: डिबग लॉग साझा करें
+  th: แชร์บันทึกดีบัก
+  cs: Sdílet ladicí protokoly
+  sv: Dela felsökningsloggar
+  he: שיתוף יומני דיבאג
+  verified_by_human: []
+report_issue.share_debug_logs_admin_notice:
+  context: Helper text shown to admins under the Share Debug Logs sub-setting in report issue settings
+  en: You are an admin. Therefore your debug logs are automatically shared already. Regular users can turn on/off debug logs sharing here.
+  de: Sie sind Administrator. Daher werden Ihre Debug-Protokolle bereits automatisch geteilt. Normale Nutzer können die Freigabe von Debug-Protokollen hier ein- und ausschalten.
+  zh: 您是管理员，因此您的调试日志已自动共享。普通用户可以在此开启或关闭调试日志共享。
+  es: Eres administrador. Por ello, tus registros de depuración ya se comparten automáticamente. Los usuarios normales pueden activar o desactivar aquí el uso compartido de registros de depuración.
+  fr: Vous êtes administrateur. Vos journaux de débogage sont donc déjà partagés automatiquement. Les utilisateurs réguliers peuvent activer ou désactiver ici le partage des journaux de débogage.
+  pt: Você é administrador. Portanto, seus logs de depuração já são compartilhados automaticamente. Usuários regulares podem ativar ou desativar aqui o compartilhamento de logs de depuração.
+  ru: Вы администратор. Поэтому ваши журналы отладки уже автоматически передаются. Обычные пользователи могут включать или выключать передачу журналов отладки здесь.
+  ja: あなたは管理者です。そのため、あなたのデバッグログはすでに自動的に共有されています。通常ユーザーはここでデバッグログ共有のオン/オフを切り替えられます。
+  ko: 귀하는 관리자입니다. 따라서 디버그 로그는 이미 자동으로 공유됩니다. 일반 사용자는 여기에서 디버그 로그 공유를 켜거나 끌 수 있습니다.
+  it: Sei un amministratore. Pertanto i tuoi log di debug sono già condivisi automaticamente. Gli utenti normali possono attivare o disattivare qui la condivisione dei log di debug.
+  tr: Siz bir yöneticisiniz. Bu nedenle hata ayıklama günlükleriniz zaten otomatik olarak paylaşılır. Normal kullanıcılar hata ayıklama günlüğü paylaşımını burada açıp kapatabilir.
+  vi: Bạn là quản trị viên. Vì vậy nhật ký gỡ lỗi của bạn đã được tự động chia sẻ. Người dùng thông thường có thể bật hoặc tắt chia sẻ nhật ký gỡ lỗi tại đây.
+  id: Anda adalah admin. Karena itu, log debug Anda sudah otomatis dibagikan. Pengguna biasa dapat menyalakan atau mematikan berbagi log debug di sini.
+  pl: Jesteś administratorem. Dlatego Twoje logi debugowania są już automatycznie udostępniane. Zwykli użytkownicy mogą tutaj włączać lub wyłączać udostępnianie logów debugowania.
+  nl: Je bent een beheerder. Daarom worden je debuglogboeken al automatisch gedeeld. Gewone gebruikers kunnen hier het delen van debuglogboeken in- of uitschakelen.
+  ar: أنت مسؤول، لذلك تتم مشاركة سجلات التصحيح الخاصة بك تلقائيًا بالفعل. يمكن للمستخدمين العاديين تشغيل أو إيقاف مشاركة سجلات التصحيح هنا.
+  hi: आप एक एडमिन हैं। इसलिए आपके डिबग लॉग पहले से ही स्वचालित रूप से साझा किए जाते हैं। सामान्य उपयोगकर्ता यहां डिबग लॉग साझा करना चालू/बंद कर सकते हैं।
+  th: คุณเป็นผู้ดูแลระบบ ดังนั้นบันทึกดีบักของคุณจึงถูกแชร์โดยอัตโนมัติอยู่แล้ว ผู้ใช้ทั่วไปสามารถเปิดหรือปิดการแชร์บันทึกดีบักได้ที่นี่
+  cs: Jste administrátor. Proto jsou vaše ladicí protokoly již automaticky sdíleny. Běžní uživatelé zde mohou sdílení ladicích protokolů zapnout nebo vypnout.
+  sv: Du är administratör. Därför delas dina felsökningsloggar redan automatiskt. Vanliga användare kan slå på eller av delning av felsökningsloggar här.
+  he: אתה מנהל מערכת, ולכן יומני הדיבאג שלך כבר משותפים אוטומטית. משתמשים רגילים יכולים להפעיל או לכבות כאן את שיתוף יומני הדיבאג.
+  verified_by_human: []
 report_issue.description:
   context: Description text for the report issue form — encourages users to add details and a screenshot for faster resolution
   en: "Found a bug or have a suggestion? Let us know! The more details you include — and ideally a screenshot — the quicker we can identify and fix the issue."
@@ -6402,100 +7120,100 @@ report_issue.description:
   he: "מצאת באג או שיש לך הצעה? נשמח לשמוע! ככל שיהיו יותר פרטים — ובאופן אידיאלי גם צילום מסך — כך נוכל לזהות ולתקן את הבעיה מהר יותר."
   verified_by_human: []
 report_issue.title_label:
-  context: Label for issue title input field
-  en: Issue Title
-  de: Titel des Problems
-  zh: 问题标题
-  es: Título del problema
-  fr: Titre du problème
-  pt: Título do problema
-  ru: Заголовок проблемы
-  ja: 問題のタイトル
-  ko: 문제 제목
-  it: Titolo del problema
-  tr: Sorun başlığı
-  vi: Tiêu đề sự cố
-  id: Judul masalah
-  pl: Tytuł problemu
-  nl: Probleemtitel
-  ar: عنوان المشكلة
-  hi: समस्या का शीर्षक
-  th: หัวข้อปัญหา
-  cs: Název problému
-  sv: Problemrubrik
-  he: כותרת התקלה
+  context: Label for issue short description textarea field (required, replaces old single-line title)
+  en: Short description
+  de: Kurzbeschreibung
+  zh: 简短描述
+  es: Descripción breve
+  fr: Description courte
+  pt: Descrição breve
+  ru: Краткое описание
+  ja: 簡単な説明
+  ko: 간단한 설명
+  it: Descrizione breve
+  tr: Kısa açıklama
+  vi: Mô tả ngắn
+  id: Deskripsi singkat
+  pl: Krótki opis
+  nl: Korte beschrijving
+  ar: وصف موجز
+  hi: संक्षिप्त विवरण
+  th: คำอธิบายสั้นๆ
+  cs: Krátký popis
+  sv: Kort beskrivning
+  he: תיאור קצר
   verified_by_human: []
 report_issue.title_placeholder:
-  context: Placeholder text for issue title input field
-  en: Enter a brief title for your issue
-  de: Gib einen kurzen Titel für dein Problem ein
-  zh: 输入问题的简短标题
-  es: Ingresa un título breve para tu problema
-  fr: Entrez un titre bref pour votre problème
-  pt: Digite um título breve para seu problema
-  ru: Введите краткий заголовок для вашей проблемы
-  ja: 問題の簡単なタイトルを入力してください
-  ko: 문제에 대한 간단한 제목을 입력하세요
-  it: Inserisci un titolo breve per il tuo problema
-  tr: Sorununuz için kısa bir başlık girin
-  vi: Nhập tiêu đề ngắn gọn cho sự cố của bạn
-  id: Masukkan judul singkat untuk masalah Anda
-  pl: Wprowadź krótki tytuł dla swojego problemu
-  nl: Voer een korte titel in voor uw probleem
-  ar: أدخل عنوانًا موجزًا لمشكلتك
-  hi: अपनी समस्या के लिए एक संक्षिप्त शीर्षक दर्ज करें
-  th: ป้อนหัวข้อสั้นๆ สำหรับปัญหาของคุณ
-  cs: Zadejte stručný název pro váš problém
-  sv: Ange en kort rubrik för ditt problem
-  he: הזן כותרת קצרה לתקלה שלך
+  context: Placeholder text for issue short description textarea field
+  en: Briefly describe the issue — what happened and where?
+  de: Beschreibe kurz das Problem — was ist passiert und wo?
+  zh: 简要描述问题 — 发生了什么，在哪里？
+  es: Describe brevemente el problema — ¿qué pasó y dónde?
+  fr: Décrivez brièvement le problème — que s'est-il passé et où ?
+  pt: Descreva brevemente o problema — o que aconteceu e onde?
+  ru: Кратко опишите проблему — что произошло и где?
+  ja: 問題を簡潔に説明してください — 何が起こりましたか？どこで？
+  ko: 문제를 간략히 설명하세요 — 무슨 일이 어디서 발생했나요?
+  it: Descrivi brevemente il problema — cosa è successo e dove?
+  tr: Sorunu kısaca açıklayın — ne oldu ve nerede?
+  vi: Mô tả ngắn gọn sự cố — chuyện gì đã xảy ra và ở đâu?
+  id: Jelaskan masalah secara singkat — apa yang terjadi dan di mana?
+  pl: Krótko opisz problem — co się stało i gdzie?
+  nl: Beschrijf het probleem kort — wat is er gebeurd en waar?
+  ar: صِف المشكلة بإيجاز — ماذا حدث وأين؟
+  hi: समस्या का संक्षेप में वर्णन करें — क्या हुआ और कहाँ?
+  th: อธิบายปัญหาสั้นๆ — เกิดอะไรขึ้นและที่ไหน?
+  cs: Stručně popište problém — co se stalo a kde?
+  sv: Beskriv problemet kortfattat — vad hände och var?
+  he: תאר בקצרה את הבעיה — מה קרה ואיפה?
   verified_by_human: []
 report_issue.title_required:
-  context: Error message when issue title is empty
-  en: Issue title is required
-  de: Titel des Problems ist erforderlich
-  zh: 问题标题是必需的
-  es: El título del problema es obligatorio
-  fr: Le titre du problème est requis
-  pt: O título do problema é obrigatório
-  ru: Заголовок проблемы обязателен
-  ja: 問題のタイトルは必須です
-  ko: 문제 제목은 필수입니다
-  it: Il titolo del problema è obbligatorio
-  tr: Sorun başlığı gereklidir
-  vi: Tiêu đề sự cố là bắt buộc
-  id: Judul masalah wajib diisi
-  pl: Tytuł problemu jest wymagany
-  nl: Probleemtitel is verplicht
-  ar: عنوان المشكلة مطلوب
-  hi: समस्या का शीर्षक आवश्यक है
-  th: หัวข้อปัญหาจำเป็นต้องระบุ
-  cs: Název problému je povinný
-  sv: Problemrubrik krävs
-  he: נדרשת כותרת לדיווח
+  context: Error message when short description is empty
+  en: A short description is required
+  de: Eine Kurzbeschreibung ist erforderlich
+  zh: 需要简短描述
+  es: Se requiere una descripción breve
+  fr: Une description courte est requise
+  pt: Uma descrição breve é obrigatória
+  ru: Краткое описание обязательно
+  ja: 簡単な説明は必須です
+  ko: 간단한 설명은 필수입니다
+  it: Una descrizione breve è obbligatoria
+  tr: Kısa açıklama gereklidir
+  vi: Cần có mô tả ngắn
+  id: Deskripsi singkat wajib diisi
+  pl: Krótki opis jest wymagany
+  nl: Een korte beschrijving is verplicht
+  ar: الوصف الموجز مطلوب
+  hi: संक्षिप्त विवरण आवश्यक है
+  th: จำเป็นต้องมีคำอธิบายสั้นๆ
+  cs: Krátký popis je povinný
+  sv: En kort beskrivning krävs
+  he: נדרש תיאור קצר
   verified_by_human: []
 report_issue.title_too_short:
-  context: Error message when issue title is too short
-  en: Issue title must be at least 3 characters long
-  de: Der Titel des Problems muss mindestens 3 Zeichen lang sein
-  zh: 问题标题必须至少包含 3 个字符
-  es: El título del problema debe tener al menos 3 caracteres
-  fr: Le titre du problème doit contenir au moins 3 caractères
-  pt: O título do problema deve ter pelo menos 3 caracteres
-  ru: Заголовок проблемы должен содержать не менее 3 символов
-  ja: 問題のタイトルは少なくとも3文字である必要があります
-  ko: 문제 제목은 최소 3자 이상이어야 합니다
-  it: Il titolo del problema deve essere lungo almeno 3 caratteri
-  tr: Sorun başlığı en az 3 karakter uzunluğunda olmalıdır
-  vi: Tiêu đề sự cố phải có ít nhất 3 ký tự
-  id: Judul masalah harus minimal 3 karakter
-  pl: Tytuł problemu musi mieć co najmniej 3 znaki
-  nl: Probleemtitel moet minimaal 3 tekens lang zijn
-  ar: يجب أن يكون عنوان المشكلة 3 أحرف على الأقل
-  hi: समस्या का शीर्षक कम से कम 3 वर्ण लंबा होना चाहिए
-  th: หัวข้อปัญหาต้องมีความยาวอย่างน้อย 3 ตัวอักษร
-  cs: Název problému musí mít alespoň 3 znaky
-  sv: Problemrubriken måste vara minst 3 tecken lång
-  he: כותרת הדיווח חייבת להכיל לפחות 3 תווים
+  context: Error message when short description is too short
+  en: Description must be at least 3 characters long
+  de: Beschreibung muss mindestens 3 Zeichen lang sein
+  zh: 描述必须至少包含 3 个字符
+  es: La descripción debe tener al menos 3 caracteres
+  fr: La description doit contenir au moins 3 caractères
+  pt: A descrição deve ter pelo menos 3 caracteres
+  ru: Описание должно содержать не менее 3 символов
+  ja: 説明は少なくとも3文字である必要があります
+  ko: 설명은 최소 3자 이상이어야 합니다
+  it: La descrizione deve essere lunga almeno 3 caratteri
+  tr: Açıklama en az 3 karakter uzunluğunda olmalıdır
+  vi: Mô tả phải có ít nhất 3 ký tự
+  id: Deskripsi harus minimal 3 karakter
+  pl: Opis musi mieć co najmniej 3 znaki
+  nl: Beschrijving moet minimaal 3 tekens lang zijn
+  ar: يجب أن يكون الوصف 3 أحرف على الأقل
+  hi: विवरण कम से कम 3 वर्ण लंबा होना चाहिए
+  th: คำอธิบายต้องมีความยาวอย่างน้อย 3 ตัวอักษร
+  cs: Popis musí mít alespoň 3 znaky
+  sv: Beskrivningen måste vara minst 3 tecken lång
+  he: התיאור חייב להכיל לפחות 3 תווים
   verified_by_human: []
 report_issue.description_label:
   context: Label for issue description textarea field
@@ -6594,28 +7312,28 @@ report_issue.description_too_short:
   he: תיאור הבעיה חייב להכיל לפחות 10 תווים
   verified_by_human: []
 report_issue.user_flow_label:
-  context: Label for the "What did you do?" textarea in the report issue form
-  en: What did you do?
-  de: Was hast du getan?
-  zh: 你做了什么？
-  es: ¿Qué hiciste?
-  fr: Qu'avez-vous fait ?
-  pt: O que você fez?
-  ru: Что вы сделали?
-  ja: 何をしましたか？
-  ko: 어떻게 했나요?
-  it: Cosa hai fatto?
-  tr: Ne yaptınız?
-  vi: Bạn đã làm gì?
-  id: Apa yang Anda lakukan?
-  pl: Co zrobiłeś?
-  nl: Wat deed je?
-  ar: ماذا فعلت؟
-  hi: आपने क्या किया?
-  th: คุณทำอะไร?
-  cs: Co jste udělal?
-  sv: Vad gjorde du?
-  he: "מה עשית?"
+  context: Label for the "What did you do?" textarea in the report issue form (optional field)
+  en: What did you do? (optional)
+  de: Was hast du getan? (optional)
+  zh: 你做了什么？（可选）
+  es: ¿Qué hiciste? (opcional)
+  fr: Qu'avez-vous fait ? (facultatif)
+  pt: O que você fez? (opcional)
+  ru: Что вы сделали? (необязательно)
+  ja: 何をしましたか？（任意）
+  ko: 어떻게 했나요? (선택 사항)
+  it: Cosa hai fatto? (facoltativo)
+  tr: Ne yaptınız? (isteğe bağlı)
+  vi: Bạn đã làm gì? (tùy chọn)
+  id: Apa yang Anda lakukan? (opsional)
+  pl: Co zrobiłeś? (opcjonalne)
+  nl: Wat deed je? (optioneel)
+  ar: ماذا فعلت؟ (اختياري)
+  hi: आपने क्या किया? (वैकल्पिक)
+  th: คุณทำอะไร? (ไม่บังคับ)
+  cs: Co jste udělal? (volitelné)
+  sv: Vad gjorde du? (valfritt)
+  he: "מה עשית? (אופציונלי)"
   verified_by_human: []
 report_issue.user_flow_placeholder:
   context: Placeholder text inside the "What did you do?" textarea — tells users what kind of steps to write
@@ -6666,28 +7384,28 @@ report_issue.user_flow_hint:
   he: אופציונלי — תאר את השלבים שהובילו לבעיה
   verified_by_human: []
 report_issue.expected_behaviour_label:
-  context: Label for the "What did you expect to happen?" textarea in the report issue form
-  en: What did you expect to happen?
-  de: Was hast du erwartet?
-  zh: 你期望发生什么？
-  es: ¿Qué esperabas que pasara?
-  fr: Qu'est-ce que vous attendiez ?
-  pt: O que você esperava que acontecesse?
-  ru: Что вы ожидали?
-  ja: 何が起こると思っていましたか？
-  ko: 어떤 결과를 예상했나요?
-  it: Cosa ti aspettavi che accadesse?
-  tr: Ne olmasını bekliyordunuz?
-  vi: Bạn mong đợi điều gì xảy ra?
-  id: Apa yang Anda harapkan terjadi?
-  pl: Czego się spodziewałeś?
-  nl: Wat verwachtte je dat er zou gebeuren?
-  ar: ماذا توقعت أن يحدث؟
-  hi: आप क्या होने की उम्मीद कर रहे थे?
-  th: คุณคาดหวังว่าจะเกิดอะไรขึ้น?
-  cs: Co jste očekával, že se stane?
-  sv: Vad förväntade du dig skulle hända?
-  he: "מה ציפית שיקרה?"
+  context: Label for the "What did you expect to happen?" textarea in the report issue form (optional field)
+  en: What did you expect to happen? (optional)
+  de: Was hast du erwartet? (optional)
+  zh: 你期望发生什么？（可选）
+  es: ¿Qué esperabas que pasara? (opcional)
+  fr: Qu'est-ce que vous attendiez ? (facultatif)
+  pt: O que você esperava que acontecesse? (opcional)
+  ru: Что вы ожидали? (необязательно)
+  ja: 何が起こると思っていましたか？（任意）
+  ko: 어떤 결과를 예상했나요? (선택 사항)
+  it: Cosa ti aspettavi che accadesse? (facoltativo)
+  tr: Ne olmasını bekliyordunuz? (isteğe bağlı)
+  vi: Bạn mong đợi điều gì xảy ra? (tùy chọn)
+  id: Apa yang Anda harapkan terjadi? (opsional)
+  pl: Czego się spodziewałeś? (opcjonalne)
+  nl: Wat verwachtte je dat er zou gebeuren? (optioneel)
+  ar: ماذا توقعت أن يحدث؟ (اختياري)
+  hi: आप क्या होने की उम्मीद कर रहे थे? (वैकल्पिक)
+  th: คุณคาดหวังว่าจะเกิดอะไรขึ้น? (ไม่บังคับ)
+  cs: Co jste očekával, že se stane? (volitelné)
+  sv: Vad förväntade du dig skulle hända? (valfritt)
+  he: "מה ציפית שיקרה? (אופציונלי)"
   verified_by_human: []
 report_issue.expected_behaviour_placeholder:
   context: Placeholder text inside the "Expected behaviour" textarea — gives an example of a good answer
@@ -6738,28 +7456,28 @@ report_issue.expected_behaviour_hint:
   he: "אופציונלי — מה היה אמור לקרות במקום?"
   verified_by_human: []
 report_issue.actual_behaviour_label:
-  context: Label for the "What actually happened?" textarea in the report issue form
-  en: What actually happened?
-  de: Was ist tatsächlich passiert?
-  zh: 实际发生了什么？
-  es: ¿Qué pasó realmente?
-  fr: Qu'est-ce qui s'est passé en réalité ?
-  pt: O que realmente aconteceu?
-  ru: Что произошло на самом деле?
-  ja: 実際に何が起こりましたか？
-  ko: 실제로 어떤 일이 있었나요?
-  it: Cosa è successo in realtà?
-  tr: Gerçekte ne oldu?
-  vi: Điều gì thực sự đã xảy ra?
-  id: Apa yang sebenarnya terjadi?
-  pl: Co faktycznie się stało?
-  nl: Wat gebeurde er eigenlijk?
-  ar: ماذا حدث فعلاً؟
-  hi: वास्तव में क्या हुआ?
-  th: สิ่งที่เกิดขึ้นจริงคืออะไร?
-  cs: Co se skutečně stalo?
-  sv: Vad hände faktiskt?
-  he: "מה קרה בפועל?"
+  context: Label for the "What actually happened?" textarea in the report issue form (optional field)
+  en: What actually happened? (optional)
+  de: Was ist tatsächlich passiert? (optional)
+  zh: 实际发生了什么？（可选）
+  es: ¿Qué pasó realmente? (opcional)
+  fr: Qu'est-ce qui s'est passé en réalité ? (facultatif)
+  pt: O que realmente aconteceu? (opcional)
+  ru: Что произошло на самом деле? (необязательно)
+  ja: 実際に何が起こりましたか？（任意）
+  ko: 실제로 어떤 일이 있었나요? (선택 사항)
+  it: Cosa è successo in realtà? (facoltativo)
+  tr: Gerçekte ne oldu? (isteğe bağlı)
+  vi: Điều gì thực sự đã xảy ra? (tùy chọn)
+  id: Apa yang sebenarnya terjadi? (opsional)
+  pl: Co faktycznie się stało? (opcjonalne)
+  nl: Wat gebeurde er eigenlijk? (optioneel)
+  ar: ماذا حدث فعلاً؟ (اختياري)
+  hi: वास्तव में क्या हुआ? (वैकल्पिक)
+  th: สิ่งที่เกิดขึ้นจริงคืออะไร? (ไม่บังคับ)
+  cs: Co se skutečně stalo? (volitelné)
+  sv: Vad hände faktiskt? (valfritt)
+  he: "מה קרה בפועל? (אופציונלי)"
   verified_by_human: []
 report_issue.actual_behaviour_placeholder:
   context: Placeholder text inside the "Actual behaviour" textarea — gives an example of a good answer
@@ -8393,6 +9111,78 @@ report_issue.screenshot_upload_failed:
   sv: Det gick inte att läsa den uppladdade bilden.
   he: קריאת התמונה שהועלתה נכשלה.
   verified_by_human: []
+report_issue.submit_to_agent_label:
+  context: Admin-only toggle label to submit a reported issue to the Claude Code agent for investigation
+  en: Submit to agent
+  de: An Agent senden
+  zh: 提交给代理
+  es: Enviar al agente
+  fr: Soumettre à l'agent
+  pt: Enviar para o agente
+  ru: Отправить агенту
+  ja: エージェントに送信
+  ko: 에이전트에 제출
+  it: Invia all'agente
+  tr: Ajana gönder
+  vi: Gửi cho agent
+  id: Kirim ke agen
+  pl: Prześlij do agenta
+  nl: Naar agent sturen
+  ar: إرسال إلى الوكيل
+  hi: एजेंट को सबमिट करें
+  th: ส่งให้เอเจนต์
+  cs: Odeslat agentovi
+  sv: Skicka till agent
+  he: שלח לסוכן
+  verified_by_human: []
+report_issue.submit_to_agent_hint_on:
+  context: Admin-only toggle hint shown when the submit-to-agent toggle is ON
+  en: A Claude Code agent will automatically investigate this issue and suggest fixes.
+  de: Ein Claude Code-Agent wird dieses Problem automatisch untersuchen und Lösungen vorschlagen.
+  zh: Claude Code 代理将自动调查此问题并建议修复方案。
+  es: Un agente Claude Code investigará automáticamente este problema y sugerirá soluciones.
+  fr: Un agent Claude Code enquêtera automatiquement sur ce problème et suggérera des correctifs.
+  pt: Um agente Claude Code investigará automaticamente este problema e sugerirá correções.
+  ru: Агент Claude Code автоматически исследует эту проблему и предложит исправления.
+  ja: Claude Codeエージェントがこの問題を自動的に調査し、修正を提案します。
+  ko: Claude Code 에이전트가 이 문제를 자동으로 조사하고 수정 방법을 제안합니다.
+  it: Un agente Claude Code indagherà automaticamente su questo problema e suggerirà soluzioni.
+  tr: Bir Claude Code ajanı bu sorunu otomatik olarak araştıracak ve düzeltmeler önerecektir.
+  vi: Một agent Claude Code sẽ tự động điều tra vấn đề này và đề xuất giải pháp.
+  id: Agen Claude Code akan secara otomatis menyelidiki masalah ini dan menyarankan perbaikan.
+  pl: Agent Claude Code automatycznie zbada ten problem i zaproponuje poprawki.
+  nl: Een Claude Code-agent onderzoekt dit probleem automatisch en stelt oplossingen voor.
+  ar: سيقوم وكيل Claude Code تلقائيًا بالتحقيق في هذه المشكلة واقتراح الإصلاحات.
+  hi: एक Claude Code एजेंट इस समस्या की स्वचालित रूप से जांच करेगा और सुधार का सुझाव देगा।
+  th: เอเจนต์ Claude Code จะตรวจสอบปัญหานี้โดยอัตโนมัติและเสนอการแก้ไข
+  cs: Agent Claude Code automaticky prošetří tento problém a navrhne opravy.
+  sv: En Claude Code-agent kommer automatiskt att undersöka detta problem och föreslå lösningar.
+  he: סוכן Claude Code יחקור אוטומטית את הבעיה הזו ויציע תיקונים.
+  verified_by_human: []
+report_issue.submit_to_agent_hint_off:
+  context: Admin-only toggle hint shown when the submit-to-agent toggle is OFF
+  en: No agent investigation will be triggered for this report.
+  de: Für diesen Bericht wird keine Agentenuntersuchung ausgelöst.
+  zh: 此报告不会触发代理调查。
+  es: No se activará ninguna investigación de agente para este informe.
+  fr: Aucune investigation d'agent ne sera déclenchée pour ce signalement.
+  pt: Nenhuma investigação de agente será acionada para este relatório.
+  ru: Для этого отчёта расследование агентом не будет запущено.
+  ja: このレポートに対してエージェント調査はトリガーされません。
+  ko: 이 신고에 대해 에이전트 조사가 시작되지 않습니다.
+  it: Nessuna indagine dell'agente verrà attivata per questa segnalazione.
+  tr: Bu rapor için ajan araştırması tetiklenmeyecektir.
+  vi: Không có cuộc điều tra nào của agent được kích hoạt cho báo cáo này.
+  id: Tidak ada penyelidikan agen yang akan dipicu untuk laporan ini.
+  pl: Żadne dochodzenie agenta nie zostanie uruchomione dla tego zgłoszenia.
+  nl: Er wordt geen agentonderzoek geactiveerd voor dit rapport.
+  ar: لن يتم تشغيل أي تحقيق للوكيل لهذا التقرير.
+  hi: इस रिपोर्ट के लिए कोई एजेंट जांच शुरू नहीं की जाएगी।
+  th: ไม่มีการตรวจสอบโดยเอเจนต์สำหรับรายงานนี้
+  cs: Pro tento report nebude spuštěno žádné agentní šetření.
+  sv: Ingen agentundersökning kommer att triggas för denna rapport.
+  he: לא תתבצע חקירה על ידי סוכן עבור דיווח זה.
+  verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions
   en: Log out everywhere
@@ -8809,383 +9599,383 @@ server.tests.subtitle:
   context: Subtitle for test settings menu item
   en: View test results and trigger manual test runs
   de: Testergebnisse anzeigen und manuelle Testläufe starten
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 查看测试结果并触发手动测试运行
+  es: Ver resultados de pruebas y activar ejecuciones manuales
+  fr: Voir les résultats des tests et déclencher des exécutions manuelles
+  pt: Ver resultados de testes e iniciar execuções manuais
+  ru: Просмотр результатов тестов и запуск ручных тестов
+  ja: テスト結果を表示し、手動テスト実行をトリガーする
+  ko: 테스트 결과를 보고 수동 테스트 실행을 트리거합니다
+  it: Visualizza i risultati dei test e avvia esecuzioni manuali
+  tr: Test sonuçlarını görüntüle ve manuel test çalışmalarını tetikle
+  vi: Xem kết quả kiểm thử và kích hoạt chạy thủ công
+  id: Lihat hasil tes dan picu jalannya tes manual
+  pl: Przeglądaj wyniki testów i uruchamiaj ręczne przebiegi testowe
+  nl: Bekijk testresultaten en start handmatige testruns
+  ar: عرض نتائج الاختبارات وتشغيل اختبارات يدوية
+  hi: परीक्षण परिणाम देखें और मैन्युअल परीक्षण रन ट्रिगर करें
+  th: ดูผลการทดสอบและเรียกใช้การทดสอบด้วยตนเอง
+  cs: Zobrazit výsledky testů a spustit ruční testovací běhy
+  sv: Visa testresultat och starta manuella testkörningar
+  he: הצגת תוצאות בדיקות והפעלת ריצות בדיקה ידניות
   verified_by_human: []
 server.tests.description:
   context: Description shown at top of test settings page
   en: Automated test run results and scheduling
   de: Automatische Testlauf-Ergebnisse und Planung
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 自动测试运行结果和调度
+  es: Resultados de ejecuciones de pruebas automáticas y programación
+  fr: Résultats des exécutions de tests automatisées et planification
+  pt: Resultados de execuções de testes automatizadas e agendamento
+  ru: Результаты автоматических тестовых запусков и расписание
+  ja: 自動テスト実行の結果とスケジュール
+  ko: 자동화된 테스트 실행 결과 및 일정
+  it: Risultati delle esecuzioni automatizzate dei test e pianificazione
+  tr: Otomatik test çalışması sonuçları ve zamanlama
+  vi: Kết quả chạy thử nghiệm tự động và lên lịch
+  id: Hasil jalannya tes otomatis dan penjadwalan
+  pl: Wyniki automatycznych przebiegów testowych i planowanie
+  nl: Resultaten van geautomatiseerde testuitvoeringen en planning
+  ar: نتائج تشغيل الاختبارات الآلية والجدولة
+  hi: स्वचालित परीक्षण रन परिणाम और शेड्यूलिंग
+  th: ผลการทดสอบอัตโนมัติและการกำหนดเวลา
+  cs: Výsledky automatizovaných testovacích běhů a plánování
+  sv: Resultat från automatiserade testkörningar och schemaläggning
+  he: תוצאות ריצות בדיקה אוטומטיות ותזמון
   verified_by_human: []
 server.tests.last_run:
   context: Label for when the last test run occurred
   en: Last run
   de: Letzter Lauf
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 上次运行
+  es: Última ejecución
+  fr: Dernière exécution
+  pt: Última execução
+  ru: Последний запуск
+  ja: 最終実行
+  ko: 마지막 실행
+  it: Ultima esecuzione
+  tr: Son çalıştırma
+  vi: Lần chạy cuối
+  id: Terakhir dijalankan
+  pl: Ostatnie uruchomienie
+  nl: Laatste uitvoering
+  ar: آخر تشغيل
+  hi: अंतिम रन
+  th: รันครั้งล่าสุด
+  cs: Poslední běh
+  sv: Senaste körning
+  he: ריצה אחרונה
   verified_by_human: []
 server.tests.next_run:
   context: Label for when the next scheduled test run is
   en: Next run
   de: Nächster Lauf
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 下次运行
+  es: Próxima ejecución
+  fr: Prochaine exécution
+  pt: Próxima execução
+  ru: Следующий запуск
+  ja: 次回実行
+  ko: 다음 실행
+  it: Prossima esecuzione
+  tr: Sonraki çalıştırma
+  vi: Lần chạy tiếp theo
+  id: Jalankan berikutnya
+  pl: Następne uruchomienie
+  nl: Volgende uitvoering
+  ar: التشغيل التالي
+  hi: अगला रन
+  th: รันครั้งถัดไป
+  cs: Příští běh
+  sv: Nästa körning
+  he: ריצה הבאה
   verified_by_human: []
 server.tests.duration:
   context: Label for test run duration
   en: Duration
   de: Dauer
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 持续时间
+  es: Duración
+  fr: Durée
+  pt: Duração
+  ru: Продолжительность
+  ja: 所要時間
+  ko: 소요 시간
+  it: Durata
+  tr: Süre
+  vi: Thời lượng
+  id: Durasi
+  pl: Czas trwania
+  nl: Duur
+  ar: المدة
+  hi: अवधि
+  th: ระยะเวลา
+  cs: Trvání
+  sv: Varaktighet
+  he: משך זמן
   verified_by_human: []
 server.tests.never:
   context: Shown when no test run has ever occurred
   en: Never
   de: Nie
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 从未
+  es: Nunca
+  fr: Jamais
+  pt: Nunca
+  ru: Никогда
+  ja: なし
+  ko: 없음
+  it: Mai
+  tr: Hiçbir zaman
+  vi: Chưa bao giờ
+  id: Tidak pernah
+  pl: Nigdy
+  nl: Nooit
+  ar: أبدًا
+  hi: कभी नहीं
+  th: ไม่เคย
+  cs: Nikdy
+  sv: Aldrig
+  he: מעולם לא
   verified_by_human: []
 server.tests.start_tests:
   context: Button text to start a manual test run
   en: Start tests
   de: Tests starten
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 开始测试
+  es: Iniciar pruebas
+  fr: Lancer les tests
+  pt: Iniciar testes
+  ru: Запустить тесты
+  ja: テストを開始
+  ko: 테스트 시작
+  it: Avvia i test
+  tr: Testleri başlat
+  vi: Bắt đầu kiểm thử
+  id: Mulai tes
+  pl: Uruchom testy
+  nl: Tests starten
+  ar: بدء الاختبارات
+  hi: परीक्षण शुरू करें
+  th: เริ่มการทดสอบ
+  cs: Spustit testy
+  sv: Starta tester
+  he: התחל בדיקות
   verified_by_human: []
 server.tests.starting:
   context: Button text while test run is being triggered
   en: Starting...
   de: Wird gestartet...
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 正在启动...
+  es: Iniciando...
+  fr: Démarrage...
+  pt: Iniciando...
+  ru: Запуск...
+  ja: 開始中...
+  ko: 시작 중...
+  it: Avvio in corso...
+  tr: Başlatılıyor...
+  vi: Đang khởi động...
+  id: Memulai...
+  pl: Uruchamianie...
+  nl: Starten...
+  ar: جارٍ البدء...
+  hi: शुरू हो रहा है...
+  th: กำลังเริ่ม...
+  cs: Spouštění...
+  sv: Startar...
+  he: מתחיל...
   verified_by_human: []
 server.tests.running:
   context: Button text while tests are running
   en: Tests running...
   de: Tests laufen...
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 测试运行中...
+  es: Pruebas en ejecución...
+  fr: Tests en cours...
+  pt: Testes em execução...
+  ru: Тесты выполняются...
+  ja: テスト実行中...
+  ko: 테스트 실행 중...
+  it: Test in esecuzione...
+  tr: Testler çalışıyor...
+  vi: Đang chạy kiểm thử...
+  id: Tes sedang berjalan...
+  pl: Testy w toku...
+  nl: Tests actief...
+  ar: الاختبارات جارية...
+  hi: परीक्षण चल रहे हैं...
+  th: กำลังทดสอบ...
+  cs: Testy probíhají...
+  sv: Tester pågår...
+  he: בדיקות רצות...
   verified_by_human: []
 server.tests.total:
   context: Label for total number of tests
   en: Total
   de: Gesamt
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 总计
+  es: Total
+  fr: Total
+  pt: Total
+  ru: Всего
+  ja: 合計
+  ko: 총계
+  it: Totale
+  tr: Toplam
+  vi: Tổng cộng
+  id: Total
+  pl: Łącznie
+  nl: Totaal
+  ar: المجموع
+  hi: कुल
+  th: ทั้งหมด
+  cs: Celkem
+  sv: Totalt
+  he: סה"כ
   verified_by_human: []
 server.tests.passed:
   context: Label for number of tests passed
   en: Passed
   de: Bestanden
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 通过
+  es: Aprobados
+  fr: Réussis
+  pt: Aprovados
+  ru: Пройдено
+  ja: 合格
+  ko: 통과
+  it: Superati
+  tr: Geçti
+  vi: Đạt
+  id: Lulus
+  pl: Zaliczone
+  nl: Geslaagd
+  ar: ناجح
+  hi: पास
+  th: ผ่าน
+  cs: Prošlo
+  sv: Godkänt
+  he: עברו
   verified_by_human: []
 server.tests.failed:
   context: Label for number of tests failed
   en: Failed
   de: Fehlgeschlagen
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 失败
+  es: Fallidos
+  fr: Échoués
+  pt: Falhos
+  ru: Не пройдено
+  ja: 失敗
+  ko: 실패
+  it: Falliti
+  tr: Başarısız
+  vi: Thất bại
+  id: Gagal
+  pl: Niepowodzenia
+  nl: Mislukt
+  ar: فاشل
+  hi: विफल
+  th: ล้มเหลว
+  cs: Selhalo
+  sv: Misslyckades
+  he: נכשלו
   verified_by_human: []
 server.tests.skipped:
   context: Label for number of tests skipped
   en: Skipped
   de: Übersprungen
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 已跳过
+  es: Omitidos
+  fr: Ignorés
+  pt: Ignorados
+  ru: Пропущено
+  ja: スキップ
+  ko: 건너뜀
+  it: Saltati
+  tr: Atlandı
+  vi: Đã bỏ qua
+  id: Dilewati
+  pl: Pominięte
+  nl: Overgeslagen
+  ar: تم التخطي
+  hi: छोड़े गए
+  th: ข้ามไป
+  cs: Přeskočeno
+  sv: Hoppade över
+  he: דולגו
   verified_by_human: []
 server.tests.not_started:
   context: Label for number of tests not started (aborted)
   en: Not started
   de: Nicht gestartet
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 未开始
+  es: No iniciados
+  fr: Non démarrés
+  pt: Não iniciados
+  ru: Не запущено
+  ja: 未開始
+  ko: 시작 안됨
+  it: Non avviati
+  tr: Başlatılmadı
+  vi: Chưa bắt đầu
+  id: Belum dimulai
+  pl: Nie rozpoczęte
+  nl: Niet gestart
+  ar: لم يبدأ
+  hi: शुरू नहीं हुए
+  th: ยังไม่เริ่ม
+  cs: Nespuštěno
+  sv: Inte startade
+  he: לא התחילו
   verified_by_human: []
 server.tests.suite_breakdown:
   context: Section title for per-suite test breakdown
   en: Suite breakdown
   de: Suite-Aufschlüsselung
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 套件细分
+  es: Desglose por suite
+  fr: Détail par suite
+  pt: Detalhamento por suíte
+  ru: Разбивка по наборам
+  ja: スイート別内訳
+  ko: 스위트별 분석
+  it: Dettaglio per suite
+  tr: Paket dökümü
+  vi: Phân tích theo bộ kiểm thử
+  id: Rincian suite
+  pl: Zestawienie pakietów
+  nl: Suite-overzicht
+  ar: تفصيل مجموعة الاختبارات
+  hi: सूट विभाजन
+  th: รายละเอียดชุดทดสอบ
+  cs: Přehled sad testů
+  sv: Suite-uppdelning
+  he: פירוט לפי ערכת בדיקות
   verified_by_human: []
 server.tests.no_results:
   context: Message shown when no test results are available
   en: No test results available yet. Run the tests to see results here.
   de: Noch keine Testergebnisse verfügbar. Führen Sie die Tests aus, um hier Ergebnisse zu sehen.
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  zh: 暂无测试结果。运行测试以在此查看结果。
+  es: Aún no hay resultados de prueba disponibles. Ejecuta las pruebas para ver los resultados aquí.
+  fr: Aucun résultat de test disponible pour l'instant. Exécutez les tests pour voir les résultats ici.
+  pt: Nenhum resultado de teste disponível ainda. Execute os testes para ver os resultados aqui.
+  ru: Результаты тестов пока недоступны. Запустите тесты, чтобы увидеть результаты здесь.
+  ja: テスト結果はまだありません。テストを実行してここで結果を確認してください。
+  ko: 아직 사용 가능한 테스트 결과가 없습니다. 테스트를 실행하여 여기에서 결과를 확인하세요.
+  it: Nessun risultato di test disponibile ancora. Esegui i test per vedere i risultati qui.
+  tr: Henüz test sonucu yok. Sonuçları burada görmek için testleri çalıştırın.
+  vi: Chưa có kết quả kiểm thử. Chạy thử nghiệm để xem kết quả ở đây.
+  id: Belum ada hasil tes. Jalankan tes untuk melihat hasilnya di sini.
+  pl: Brak wyników testów. Uruchom testy, aby zobaczyć wyniki tutaj.
+  nl: Nog geen testresultaten beschikbaar. Voer de tests uit om hier resultaten te zien.
+  ar: لا توجد نتائج اختبار متاحة بعد. قم بتشغيل الاختبارات لرؤية النتائج هنا.
+  hi: अभी कोई परीक्षण परिणाम उपलब्ध नहीं है। यहां परिणाम देखने के लिए परीक्षण चलाएं।
+  th: ยังไม่มีผลการทดสอบ เรียกใช้การทดสอบเพื่อดูผลที่นี่
+  cs: Zatím nejsou k dispozici žádné výsledky testů. Spusťte testy, abyste zde viděli výsledky.
+  sv: Inga testresultat tillgängliga ännu. Kör testerna för att se resultaten här.
+  he: עדיין אין תוצאות בדיקה זמינות. הפעל את הבדיקות כדי לראות תוצאות כאן.
   verified_by_human: []

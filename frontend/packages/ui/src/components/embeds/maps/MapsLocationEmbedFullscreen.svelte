@@ -108,7 +108,7 @@
   {onClose}
   currentEmbedId={embedId}
   skillIconName="pin"
-  embedHeaderTitle={$text('embeds.maps_location')}
+  embedHeaderTitle={$text('common.location')}
   {showShare}
   onCopy={osmUrl ? handleCopyOsmUrl : undefined}
   {hasPreviousEmbed}
@@ -123,7 +123,7 @@
   {mapMarkers}
   staticMapImageUrl={mapImageUrl}
 >
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
     {#if name}
       <h2 class="location-title">{name}</h2>
     {/if}

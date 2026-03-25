@@ -5,21 +5,21 @@ powered_by_leading:
   zh: 采用领先的
   es: impulsado por los líderes en
   fr: propulsé par les meilleurs
-  pt: ''
-  ru: ''
+  pt: alimentado pelos melhores
+  ru: работает на ведущих
   ja: 主要な
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 최고의
+  it: alimentato dai migliori
+  tr: önde gelen
+  vi: được hỗ trợ bởi những
+  id: didukung oleh
+  pl: zasilany przez wiodące
+  nl: aangedreven door de toonaangevende
+  ar: مدعوم بأفضل
+  hi: अग्रणी द्वारा संचालित
+  th: ขับเคลื่อนด้วย
+  cs: poháněno předními
+  sv: drivs av de ledande
   he: מופעל על ידי ה-
   verified_by_human: []
 cloud_and_on_device_ai_models:
@@ -29,20 +29,20 @@ cloud_and_on_device_ai_models:
   zh: 云端和本地设备人工智能模型
   es: modelos de IA en la nube y en el dispositivo
   fr: modèles d'IA en ligne et locaux
-  pt: ''
-  ru: ''
+  pt: modelos de IA na nuvem e no dispositivo
+  ru: облачных и локальных моделях ИИ
   ja: クラウドとオンデバイスAIモデルを搭載
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 클라우드 및 온디바이스 AI 모델
+  it: modelli AI cloud e su dispositivo
+  tr: bulut ve cihaz üzerindeki yapay zeka modelleri
+  vi: mô hình AI đám mây và trên thiết bị
+  id: model AI cloud & di perangkat
+  pl: modele AI w chmurze i na urządzeniu
+  nl: cloud- en on-device AI-modellen
+  ar: نماذج الذكاء الاصطناعي السحابية والمحلية
+  hi: क्लाउड और ऑन-डिवाइस AI मॉडल
+  th: โมเดล AI บนคลาวด์และบนอุปกรณ์
+  cs: cloudové a lokální modely AI
+  sv: moln- och enhetsbaserade AI-modeller
   he: מודלי AI המובילים בענן ובמכשיר
   verified_by_human: []

@@ -10,6 +10,7 @@
 // - Message status priority handling
 
 import type { Message } from "../../types/chat";
+import { chatKeyManager } from "../encryption/ChatKeyManager";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module
@@ -269,6 +270,35 @@ export async function getMessage(
 }
 
 /**
+ * Get the count of messages for a specific chat without decrypting them.
+ * Uses IDB index.count() which is O(1) — no record access or decryption needed.
+ * Use this instead of getMessagesForChat() when only the count is needed.
+ */
+export async function getMessageCountForChat(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+  transaction?: IDBTransaction,
+): Promise<number> {
+  await dbInstance.init();
+  const currentTransaction =
+    transaction ||
+    (await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly"));
+  return new Promise((resolve, reject) => {
+    const store = currentTransaction.objectStore(MESSAGES_STORE_NAME);
+    const index = store.index("chat_id");
+    const request = index.count(IDBKeyRange.only(chat_id));
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => {
+      console.error(
+        `[ChatDatabase] Error counting messages for chat ${chat_id}:`,
+        request.error,
+      );
+      reject(request.error);
+    };
+  });
+}
+
+/**
  * Get all messages for a specific chat
  */
 export async function getMessagesForChat(
@@ -448,10 +478,18 @@ export async function saveMessage(
 
   // CRITICAL FIX: Do all async work BEFORE checking transaction state
   // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
-  const encryptedMessage = await dbInstance.encryptMessageFields(
-    message,
-    message.chat_id,
-  );
+  // Acquire critical op lock to prevent clearAll() from wiping keys between
+  // getKey() and encrypt() inside encryptMessageFields().
+  chatKeyManager.acquireCriticalOp();
+  let encryptedMessage: Message;
+  try {
+    encryptedMessage = await dbInstance.encryptMessageFields(
+      message,
+      message.chat_id,
+    );
+  } finally {
+    chatKeyManager.releaseCriticalOp();
+  }
 
   // CRITICAL FIX: Check existing messages WITHOUT using the transaction (to avoid expiration)
   // We'll check for duplicates using a separate read-only transaction

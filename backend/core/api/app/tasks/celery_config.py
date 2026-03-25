@@ -124,7 +124,6 @@ TASK_CONFIG = [
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
     {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
-    {'name': 'e2e_tests',   'module': 'backend.core.api.app.tasks.e2e_test_tasks'},  # E2E test automation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
@@ -494,7 +493,7 @@ async def prewarm_ai_services():
             logger.warning(f"[PERF] Failed to pre-warm OpenAI client: {e}")
             providers_failed.append("openai")
         
-        # Anthropic client (includes AWS Bedrock setup)
+        # Anthropic direct API client
         try:
             from backend.apps.ai.llm_providers.anthropic_client import initialize_anthropic_client
             await initialize_anthropic_client(secrets_manager)
@@ -502,7 +501,16 @@ async def prewarm_ai_services():
         except Exception as e:
             logger.warning(f"[PERF] Failed to pre-warm Anthropic client: {e}")
             providers_failed.append("anthropic")
-        
+
+        # AWS Bedrock client (unified across all Bedrock providers)
+        try:
+            from backend.apps.ai.llm_providers.bedrock_client import _ensure_bedrock_client
+            await _ensure_bedrock_client(secrets_manager)
+            providers_initialized.append("aws_bedrock")
+        except Exception as e:
+            logger.warning(f"[PERF] Failed to pre-warm AWS Bedrock client: {e}")
+            providers_failed.append("aws_bedrock")
+
         # Google client (Vertex AI)
         try:
             from backend.apps.ai.llm_providers.google_client import initialize_google_client
@@ -938,6 +946,8 @@ _EXPLICIT_TASK_ROUTES = {
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
     "app.tasks.auto_delete_tasks.auto_delete_old_issues": "persistence",
+    "app.tasks.auto_delete_tasks.auto_delete_old_usage": "persistence",
+    "app.tasks.auto_delete_tasks.auto_expire_stale_devices": "persistence",
 
     # PDF processing tasks
     "apps.pdf.tasks.process_pdf": "app_pdf",
@@ -1062,27 +1072,8 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
-    'health-check-all-providers': {
-        'task': 'health_check.check_all_providers',
-        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
-    'health-check-all-apps': {
-        'task': 'health_check.check_all_apps',
-        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
-    'health-check-external-services': {
-        'task': 'health_check.check_external_services',
-        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
-    'health-events-cleanup': {
-        'task': 'health_check.cleanup_old_events',
-        'schedule': crontab(hour=4, minute=0),  # Daily at 4 AM UTC
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-        'kwargs': {'retention_days': 90},  # Keep 90 days of history
-    },
+    # Health check tasks removed — now handled by the independent status service
+    # (backend/status/) which runs its own async scheduler. See commit 07fb748.
     'archive-old-usage-entries': {
         'task': 'usage.archive_old_entries',
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
@@ -1099,22 +1090,10 @@ app.conf.beat_schedule = {
         'options': {'queue': 'leaderboard'},  # Route to leaderboard queue
         # Fetches all categories (overall, coding, math, creative) for Best-of aliases
     },
-    # Full automated daily test run — shells out to scripts/run-tests-daily.sh
-    # Only active when E2E_DAILY_RUN_ENABLED=true in the environment.
-    # This env var is intentionally NOT set on production, so the Beat scheduler
-    # on production is completely silent — no test tasks ever fire there.
-    # Set E2E_DAILY_RUN_ENABLED=true only on the dev server.
-    #
-    # Skips automatically if no git commits were made in the last 24 hours.
-    # Sends a single summary email: "All tests successful" or "Warning: X of Y tests failed!"
-    # 03:00 UTC = 04:00 CET (avoids the 02:xx UTC maintenance window for other jobs)
-    **({
-        'e2e-tests-daily-full': {
-            'task': 'e2e_tests.run_daily_all_tests',
-            'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC (04:00 CET / Berlin time)
-            'options': {'queue': 'e2e_tests'},
-        },
-    } if os.environ.get('E2E_DAILY_RUN_ENABLED', '').lower() == 'true' else {}),
+    # Daily test run — replaced by a system crontab entry (see crontab -l).
+    # The crontab runs scripts/run-tests-daily.sh directly on the host at 03:00 UTC,
+    # eliminating the Celery Beat → Celery task → admin sidecar → docker+chroot
+    # indirection that silently failed whenever any layer was down at trigger time.
     # 'cleanup-uncompleted-signups': {
     #     'task': 'app.tasks.persistence_tasks.cleanup_uncompleted_signups',
     #     'schedule': crontab(hour=3, minute=0),  # Every day at 3 AM UTC
@@ -1146,6 +1125,19 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour='*/6', minute=15),  # Every 6 hours at :15
         'options': {'queue': 'reminder'},  # Route to reminder queue
     },
+    # Reminder promotion: load near-term reminders from PostgreSQL into hot cache.
+    # Runs twice daily to ensure reminders entering the 48h window are cached.
+    # The 12h gap between runs is safe because the window is 48h (full overlap).
+    'promote-reminders-to-hot-cache-morning': {
+        'task': 'reminder.promote_to_hot_cache',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 03:00 UTC
+        'options': {'queue': 'reminder'},
+    },
+    'promote-reminders-to-hot-cache-afternoon': {
+        'task': 'reminder.promote_to_hot_cache',
+        'schedule': crontab(hour=15, minute=0),  # Daily at 15:00 UTC
+        'options': {'queue': 'reminder'},
+    },
     # Pending embed encryption safety net - re-delivers pending embeds to connected clients
     # and refreshes cache TTLs to prevent data loss
     'process-pending-embeds': {
@@ -1173,6 +1165,22 @@ app.conf.beat_schedule = {
     'auto-delete-old-issues-daily': {
         'task': 'app.tasks.auto_delete_tasks.auto_delete_old_issues',
         'schedule': crontab(hour=3, minute=0),  # Daily 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily usage auto-delete — permanently purges usage records (Directus + S3 archives)
+    # older than the user-configured retention period (default: 3 years).
+    # Runs at 03:30 UTC, staggered from other auto-delete tasks.
+    'auto-delete-old-usage-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_usage',
+        'schedule': crontab(hour=3, minute=30),  # Daily 03:30 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily device expiry — removes stale device fingerprints not seen in 90 days.
+    # GDPR data minimization (Article 5(1)(c)): device hashes should not be stored indefinitely.
+    # Runs at 04:00 UTC, staggered from other auto-delete tasks.
+    'auto-expire-stale-devices-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_expire_stale_devices',
+        'schedule': crontab(hour=4, minute=0),  # Daily 04:00 UTC
         'options': {'queue': 'persistence'},
     },
     # Daily Inspiration generation - generates personalized inspirations for active users.

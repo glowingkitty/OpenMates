@@ -248,7 +248,7 @@
 
     // Less than 1 minute ago
     if (diffMinutes < 1) {
-      return $text('chat.header.just_now');
+      return $text('common.just_now');
     }
 
     // 1–10 minutes ago: relative
@@ -366,8 +366,9 @@
       {/if}
 
       <!-- Title (20px, white, bold) -->
-      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-      <span class="loaded-title">{@html title}</span>
+      <!-- SECURITY: Use plain text interpolation — chat titles are AI-generated from user input
+           and must never be rendered as HTML to prevent stored XSS via prompt injection. -->
+      <span class="loaded-title">{title}</span>
 
       <!-- Summary: fades in with max-height expand when available -->
       {#if showSummary}
@@ -406,6 +407,7 @@
       <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
     </button>
   {/if}
+
 </div>
 
 <style>
@@ -748,6 +750,7 @@
     right: 0;
     border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
   }
+
 
   /* ─── Living gradient orbs ──────────────────────────────────────────────────
      Creative Code Berlin aesthetic: soft radial-gradient light blooms that

@@ -1103,7 +1103,7 @@
                 <!-- Loading state while create-order is in flight -->
                 <div class="polar-loading-state">
                     <div class="polar-loading-spinner"></div>
-                    <span>{$text('login.loading')}</span>
+                    <span>{$text('common.loading')}</span>
                 </div>
             {:else}
                 <!-- Error / retry state — shown if auto-trigger failed -->

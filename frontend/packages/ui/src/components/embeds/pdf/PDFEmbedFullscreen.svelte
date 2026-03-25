@@ -100,8 +100,9 @@
       .sort((a, b) => a - b),
   );
 
-  /** Whether we have screenshots to display */
-  let hasScreenshots = $derived(pageNumbers.length > 0 && !!aesKey && !!aesNonce);
+  /** Whether we have screenshots to display.
+   * aesNonce may be "" for new PDFs (nonce embedded per-artefact) so check !== undefined. */
+  let hasScreenshots = $derived(pageNumbers.length > 0 && !!aesKey && aesNonce !== undefined);
 
   // ---------------------------------------------------------------------------
   // Per-page image state: decrypted blob URL + loading/error state
@@ -184,7 +185,8 @@
 
   async function loadPageImage(pageNum: number): Promise<void> {
     const s3Key = screenshotS3Keys[String(pageNum)];
-    if (!s3Key || !aesKey || !aesNonce) return;
+    // aesNonce may be "" for new PDFs (nonce embedded per-artefact); check !== undefined
+    if (!s3Key || !aesKey || aesNonce === undefined) return;
 
     const state = pageImages[pageNum];
     if (!state || state.url || state.loading) return;
@@ -241,9 +243,10 @@
       const keys = decoded.screenshot_s3_keys as Record<string, string> | undefined;
       if (keys && typeof keys === 'object') screenshotS3Keys = keys;
       const k = decoded.aes_key as string | undefined;
+      // aes_nonce is "" for new PDFs (nonce embedded per-artefact); treat undefined vs "" distinctly
       const n = decoded.aes_nonce as string | undefined;
       if (k) aesKey = k;
-      if (n) aesNonce = n;
+      if (n !== undefined) aesNonce = n;
       // Prefer decoded page_count over the prop (more accurate)
       const decodedPageCount = decoded.page_count as number | undefined;
       if (decodedPageCount && !pageCount) pageCount = decodedPageCount;
@@ -290,7 +293,7 @@
     if (pageCount && pageCount > 0) {
       return pageCount === 1 ? '1 page' : `${pageCount} pages`;
     }
-    return $text('app_skills.pdf.view');
+    return $text('common.pdf');
   });
 </script>
 

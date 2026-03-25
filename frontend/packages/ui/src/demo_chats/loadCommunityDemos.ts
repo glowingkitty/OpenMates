@@ -11,6 +11,7 @@
 // 2. Uses IndexedDB for offline support (cached demos available offline)
 // 3. Reloads when language changes (via forceLanguageReload)
 // 4. Hash-based change detection - only fetches updated demos
+/* eslint-disable no-console */
 
 import { get } from "svelte/store";
 import { locale as svelteLocaleStore, waitLocale } from "svelte-i18n";
@@ -24,6 +25,13 @@ import {
 import type { Chat, Message } from "../types/chat";
 
 const LOG_PREFIX = "[loadCommunityDemos]";
+
+function parseIsoToUnixSeconds(value?: string): number | null {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms)) return null;
+  return Math.floor(ms / 1000);
+}
 
 /** Abort controller for in-flight reload when forceLanguageReload is used (language change). */
 let demoReloadAbortController: AbortController | null = null;
@@ -231,12 +239,15 @@ export async function loadCommunityDemos(
           `${LOG_PREFIX} Community demo ${demoId} has ${parsedMessages.length} messages`,
         );
 
-        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        // Use the loop index from demosToFetch for ordering, not a parsed numeric suffix.
-        // Slugs like 'demo-planning-a-trip' don't have a numeric suffix, so parseInt would
-        // return NaN. The loop index gives stable, monotonically increasing offsets.
-        const demoIndex = demosToFetch.indexOf(demoChatMeta);
-        const displayTimestamp = sevenDaysAgo - demoIndex * 1000 - 10000;
+        const fallbackTimestamp = Math.floor(Date.now() / 1000);
+        const createdAtSeconds =
+          parseIsoToUnixSeconds(chatData.created_at) ||
+          parseIsoToUnixSeconds(demoChatMeta.created_at);
+        const updatedAtSeconds =
+          parseIsoToUnixSeconds(chatData.updated_at) ||
+          parseIsoToUnixSeconds(demoChatMeta.updated_at);
+        const displayTimestamp =
+          updatedAtSeconds || createdAtSeconds || fallbackTimestamp;
 
         const chat: Chat = {
           chat_id: chatId,
@@ -255,8 +266,8 @@ export async function loadCommunityDemos(
           draft_v: 0,
           last_edited_overall_timestamp: displayTimestamp,
           unread_count: 0,
-          created_at: displayTimestamp,
-          updated_at: displayTimestamp,
+          created_at: createdAtSeconds || displayTimestamp,
+          updated_at: updatedAtSeconds || displayTimestamp,
           processing_metadata: false,
           waiting_for_metadata: false,
           group_key: "examples",

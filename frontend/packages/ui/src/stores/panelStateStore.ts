@@ -1,14 +1,31 @@
+/* eslint-disable no-console */
 import { writable, derived, get } from "svelte/store";
 import { authStore } from "./authStore";
 import { isInSignupProcess, isLoggingOut } from "./signupState";
 import { isMobileView, loginInterfaceOpen } from "./uiStateStore";
 
-type ActivityHistoryUserIntent = "auto" | "closed";
+type ActivityHistoryUserIntent = "auto" | "closed" | "open";
+
+// --- Media mode sidebar override (?media=1&sidebar=open|closed) ---
+// Read once at module init. When set, overrides all other sidebar logic.
+const _mediaForceSidebar: "open" | "closed" | null = (() => {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("media") !== "1") return null;
+  const val = params.get("sidebar");
+  if (val === "open" || val === "closed") return val;
+  return null;
+})();
 
 // --- Internal Writable Stores ---
-const _isActivityHistoryOpen = writable<boolean>(false);
+const _isActivityHistoryOpen = writable<boolean>(
+  _mediaForceSidebar === "open" ? true : false,
+);
 const _isSettingsOpen = writable<boolean>(false);
-const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>("auto");
+const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>(
+  _mediaForceSidebar === "open" ? "open" : _mediaForceSidebar === "closed" ? "closed" : "auto",
+);
+let _suppressNextAutoOpenFromLoginClose = false;
 
 // --- Actions ---
 
@@ -64,14 +81,56 @@ function toggleChats(): void {
     // Note: Derived store will still run and confirm false on mobile.
     // On desktop, derived store handles closing based on intent.
   } else {
+    // Login-close flows call toggleChats() programmatically right after setting
+    // loginInterfaceOpen=false. Suppress only that immediate call so login does
+    // not auto-open the sidebar; explicit user clicks still work afterward.
+    if (_suppressNextAutoOpenFromLoginClose && !mobileView) {
+      console.debug(
+        "[PanelState] Suppressing auto-open from login-close transition",
+      );
+      _suppressNextAutoOpenFromLoginClose = false;
+      return;
+    }
+
     // User is manually opening it (overrides 'auto' logic temporarily)
     // Keep original logic for opening, as the header button seems to work.
     console.debug("[PanelState] Opening chats panel");
-    _activityHistoryUserIntent.set("auto"); // Allow auto logic to take over again if conditions change
+    _activityHistoryUserIntent.set("open"); // Persist explicit user-open action
     _isActivityHistoryOpen.set(true); // Force open immediately
   }
   // Note: The derived store will recalculate and might override the forced open/close
   // if conditions (like mobile view or signup process) dictate it.
+}
+
+/**
+ * Explicitly opens the Activity History (Chats) panel.
+ * Unlike toggleChats(), this works on mobile — used by Cmd+F search shortcut
+ * so the sidebar opens even on narrow viewports to reveal the search bar.
+ * Guards (signup process, login interface open) are still respected.
+ */
+function openChats(): void {
+  const inSignupProcess = get(isInSignupProcess);
+  const loginOpen = get(loginInterfaceOpen);
+
+  if (inSignupProcess || loginOpen) {
+    console.debug(
+      "[PanelState] openChats blocked — signup or login interface active",
+    );
+    return;
+  }
+
+  // "open" intent bypasses the mobile guard in the derived store so the
+  // panel mounts even on narrow viewports (e.g. Cmd+F from mobile).
+  _activityHistoryUserIntent.set("open");
+  _isActivityHistoryOpen.set(true);
+}
+
+/**
+ * Explicitly closes the Activity History (Chats) panel.
+ */
+function closeChats(): void {
+  _activityHistoryUserIntent.set("closed");
+  _isActivityHistoryOpen.set(false);
 }
 
 /**
@@ -116,6 +175,10 @@ const intendedActivityHistoryOpen = derived(
     $loginInterfaceOpen,
     $activityHistoryUserIntent,
   ]) => {
+    // Media mode override — ignore all other conditions
+    if (_mediaForceSidebar !== null) {
+      return _mediaForceSidebar === "open";
+    }
     // CHANGED: Allow non-authenticated users to see the sidebar (with demo chats)
     // Only close during signup process (NOT during logout - keep panel open to show demo chats)
     if ($isInSignupProcess) {
@@ -127,17 +190,21 @@ const intendedActivityHistoryOpen = derived(
       console.debug("[PanelState] Intended AH Closed: Login Interface Open");
       return false; // Must be closed when login interface is open
     }
-    if ($isMobileView) {
+    if ($isMobileView && $activityHistoryUserIntent !== "open") {
       console.debug("[PanelState] Intended AH Closed: Mobile View");
-      return false; // Must be closed on mobile
+      return false; // Must be closed on mobile unless explicitly force-opened (e.g. Cmd+F)
     }
     if ($activityHistoryUserIntent === "closed") {
       console.debug("[PanelState] Intended AH Closed: User Manually Closed");
       return false; // Must be closed if user manually closed it
     }
-    // If none of the above, it should be open on desktop (both authenticated and non-authenticated)
-    console.debug("[PanelState] Intended AH Open: Default Desktop State");
-    return true;
+    if ($activityHistoryUserIntent === "open") {
+      console.debug("[PanelState] Intended AH Open: User Manually Opened");
+      return true;
+    }
+    // Default behavior: keep chats closed unless explicitly opened.
+    console.debug("[PanelState] Intended AH Closed: Default behavior");
+    return false;
   },
 );
 
@@ -198,16 +265,23 @@ queueMicrotask(() => {
     // Actual opening happens via openSettings() action.
   });
 
-  // Reset user intent when auth state changes significantly (login/logout)
-  // Subscribe specifically to isAuthenticated and isLoggingOut
+  // Reset intent only on logout transitions.
+  // On login, keep the current intent so the sidebar doesn't auto-open again
+  // after the login interface closes.
+  let previousAuthState = get(authStore).isAuthenticated;
   derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({
     isAuthenticated: $authStore.isAuthenticated,
     isLoggingOut: $isLoggingOut,
-  })).subscribe(() => {
-    console.debug(
-      "[PanelState] Auth state changed, resetting Activity History user intent to auto.",
-    );
-    resetActivityHistoryIntent();
+  })).subscribe(({ isAuthenticated, isLoggingOut }) => {
+    const didLogout = previousAuthState && !isAuthenticated;
+    previousAuthState = isAuthenticated;
+
+    if (didLogout || isLoggingOut) {
+      console.debug(
+        "[PanelState] Logout detected, resetting Activity History user intent to auto.",
+      );
+      resetActivityHistoryIntent();
+    }
   });
 
   // CRITICAL: Immediately close panel when signup process starts
@@ -225,7 +299,15 @@ queueMicrotask(() => {
   // CRITICAL: Immediately close panel when login interface opens
   // This ensures the panel is closed even if it was opened before login interface detection
   // This prevents the panel from opening on resize from mobile to desktop when login interface is open
+  let previousLoginOpen = get(loginInterfaceOpen);
   loginInterfaceOpen.subscribe((loginOpen) => {
+    if (previousLoginOpen && !loginOpen) {
+      _suppressNextAutoOpenFromLoginClose = true;
+      queueMicrotask(() => {
+        _suppressNextAutoOpenFromLoginClose = false;
+      });
+    }
+
     if (loginOpen) {
       console.debug(
         "[PanelState] Login interface opened - immediately closing Activity History panel",
@@ -233,6 +315,8 @@ queueMicrotask(() => {
       _isActivityHistoryOpen.set(false);
       _activityHistoryUserIntent.set("closed");
     }
+
+    previousLoginOpen = loginOpen;
   });
 });
 
@@ -246,6 +330,8 @@ export const panelState = {
     }),
   ).subscribe,
   toggleChats,
+  openChats,
+  closeChats,
   openSettings,
   closeSettings,
   // Expose reset for potential use elsewhere if needed, e.g., deep linking

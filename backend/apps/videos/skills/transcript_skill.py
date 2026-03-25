@@ -14,7 +14,7 @@ import random
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, Field, field_validator
 from celery import Celery  # For Celery type hinting
 from requests import Session
 
@@ -64,6 +64,12 @@ class TranscriptRequestItem(BaseModel):
     
     NOTE: YouTube Shorts URLs are NOT supported and will be rejected at validation time.
     """
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
     url: str = Field(..., description="YouTube video URL (supports watch and youtu.be formats only - Shorts URLs are not supported)")
     languages: Optional[List[str]] = Field(
         default=None,
@@ -704,7 +710,7 @@ class TranscriptSkill(BaseSkill):
             # Format transcript with timestamps if fetch was successful
             if result.get("success") and "transcript_items" in result:
                 transcript_items = result.pop("transcript_items")
-                plain_text = result.pop("plain_text", "")
+                result.pop("plain_text", "")
                 
                 # Format transcript as multiline string with timestamps
                 # Format: [HH:MM:SS.mmm] text (one line per timestamp segment)

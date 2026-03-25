@@ -37,9 +37,11 @@ const {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	createMailosaurClient,
+	checkMailosaurQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -107,6 +109,10 @@ test('completes full account recovery flow with same password', async ({
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
+	if (MAILOSAUR_API_KEY) {
+		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
+		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
+	}
 	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
 	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
 
@@ -136,7 +142,7 @@ test('completes full account recovery flow with same password', async ({
 	// ========================================================================
 	// Step 1: Navigate to the app and open the login dialog
 	// ========================================================================
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginSignupButton = page.getByRole('button', {
@@ -162,7 +168,7 @@ test('completes full account recovery flow with same password', async ({
 	logRecoveryCheckpoint('Submitted email for lookup.');
 
 	// Wait for password step to appear
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'password-step');
 	logRecoveryCheckpoint('Reached password step.');
@@ -370,7 +376,7 @@ test('completes full account recovery flow with same password', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 
 	// Wait for password input
-	const loginPasswordInput = page.locator('input[type="password"]');
+	const loginPasswordInput = page.locator('#login-password-input');
 	await expect(loginPasswordInput.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'login-password-step');
 
@@ -389,7 +395,7 @@ test('completes full account recovery flow with same password', async ({
 	await takeStepScreenshot(page, 'after-login-click');
 
 	// Check if 2FA input appeared
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInput = page.locator('#login-otp-input');
 	const tfaVisible = await tfaInput
 		.first()
 		.isVisible()

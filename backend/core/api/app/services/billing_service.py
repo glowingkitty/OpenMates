@@ -25,6 +25,11 @@ class BillingService:
         self.encryption_service = encryption_service
         self.server_stats_service = server_stats_service
         self.websocket_manager = websocket_manager
+        # Strong references to in-flight auto top-up tasks.
+        # asyncio discards unreferenced tasks before completion — keeping a set
+        # prevents GC mid-payment and ensures exception callbacks fire.
+        # Tasks remove themselves via add_done_callback.
+        self._pending_topup_tasks: set[asyncio.Task] = set()
 
     async def charge_user_credits(
         self,
@@ -93,6 +98,36 @@ class BillingService:
                 user = user_profile
                 logger.info(f"Successfully fetched and cached user {user_id} from Directus")
 
+            # Resolve vault_key_id: the cached profile may be stale (e.g., after an account
+            # recovery reset which re-generates the Vault key). If the key is absent, re-fetch
+            # the full profile from Directus before continuing. This is intentionally a fallback
+            # rather than the primary path — normal logins always populate vault_key_id.
+            if not user.get("vault_key_id"):
+                logger.warning(
+                    f"vault_key_id missing from cached profile for user_id={user_id}. "
+                    "Re-fetching full profile from Directus (possible stale cache after account recovery)."
+                )
+                profile_success, user_profile, profile_message = await self.directus_service.get_user_profile(user_id)
+                if profile_success and user_profile and user_profile.get("vault_key_id"):
+                    if "user_id" not in user_profile:
+                        user_profile["user_id"] = user_id
+                    if "id" not in user_profile:
+                        user_profile["id"] = user_id
+                    await self.cache_service.set_user(user_profile, user_id=user_id)
+                    user = user_profile
+                    logger.info(
+                        f"Re-fetched profile for user_id={user_id} — vault_key_id now available."
+                    )
+                else:
+                    # vault_key_id is still unavailable. We can still charge credits in cache
+                    # and skip the Directus encrypted balance update (it will self-heal on next
+                    # login). Usage entry creation (which also needs vault_key_id) will be
+                    # attempted later and guarded there too.
+                    logger.error(
+                        f"vault_key_id unavailable for user_id={user_id} even after re-fetch: {profile_message}. "
+                        "Credits will be deducted in cache; Directus balance update and usage entry will be skipped."
+                    )
+
             # Ensure credits are treated as integers, matching preprocessor logic
             current_credits = user.get("credits", 0)
             if not isinstance(current_credits, int):
@@ -103,17 +138,41 @@ class BillingService:
             # Skip balance check if payment is disabled (self-hosted mode)
             from backend.core.api.app.utils.server_mode import is_payment_enabled
             payment_enabled = is_payment_enabled()
+
+            # Maximum allowed overdraft (negative credit balance). Skills are always charged to
+            # ensure users are billed even when a multi-step request (web searches, image
+            # generations) consumes slightly more than the remaining balance. When the user
+            # purchases credits again, the overdraft is subtracted from the purchased amount.
+            # See docs/architecture/billing.md for the full overdraft policy.
+            OVERDRAFT_LIMIT = -500
             
             if payment_enabled:
-                # Payment enabled - enforce credit balance checks
-                if current_credits < credits_to_deduct:
-                    # TODO this should be replaced later by checking during processing of a stream response if the user has enough credits for the tokens.
-                    # and once that is not the case anymore, the stream should be stopped and the user informed to recharge their credits.
-                    logger.warning(f"User {user_id} has insufficient credits: {current_credits} < {credits_to_deduct}. Setting credits to 0 and continuing.")
-                    new_credits = 0
-                    credits_to_deduct = current_credits  # Only charge what they have
-                else:
-                    new_credits = current_credits - credits_to_deduct
+                # Payment enabled — allow up to OVERDRAFT_LIMIT before refusing the charge.
+                # This prevents multi-skill requests (which start concurrently) from failing
+                # mid-flight just because the user is a few credits short.
+                if current_credits <= OVERDRAFT_LIMIT:
+                    # Hard stop: user is already at or beyond the overdraft limit.
+                    logger.warning(
+                        f"User {user_id} has exceeded overdraft limit "
+                        f"(credits={current_credits}, limit={OVERDRAFT_LIMIT}). "
+                        "Refusing credit charge."
+                    )
+                    raise HTTPException(
+                        status_code=402,
+                        detail="Insufficient credits. Please purchase more credits to continue.",
+                    )
+                # Allow the charge even if it takes the balance below 0 (overdraft).
+                new_credits = current_credits - credits_to_deduct
+                if new_credits < OVERDRAFT_LIMIT:
+                    # Clamp: don't go deeper than the limit in a single charge.
+                    new_credits = OVERDRAFT_LIMIT
+                    credits_to_deduct = current_credits - OVERDRAFT_LIMIT
+                if new_credits < 0:
+                    logger.warning(
+                        f"User {user_id} balance going into overdraft: "
+                        f"{current_credits} - {credits_to_deduct} = {new_credits}. "
+                        "Skill charge allowed (overdraft policy)."
+                    )
             else:
                 # Payment disabled (self-hosted mode) - skip balance check but still track usage
                 # Set new_credits to current_credits (no deduction) but still create usage entry
@@ -137,40 +196,52 @@ class BillingService:
             # 4. Update Directus with the encrypted string representation of the integer (only if payment enabled)
             # In self-hosted mode, we still track usage but don't update credit balance in Directus
             if payment_enabled:
-                encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
-                    plaintext=str(new_credits),
-                    key_id=user['vault_key_id']
-                )
-                encrypted_new_credits = encrypted_new_credits_tuple[0] # Extract the encrypted string from the tuple
-                # 4. Update Directus with retry logic
-                max_retries = 3
-                retry_delay = 5  # seconds
-                for attempt in range(max_retries):
-                    update_successful = await self.directus_service.update_user(
-                        user_id, {"encrypted_credit_balance": encrypted_new_credits}
+                vault_key_id = user.get("vault_key_id")
+                if not vault_key_id:
+                    # vault_key_id is still unavailable after the re-fetch above.
+                    # Cache is already updated with the new balance; the DB will self-heal on the
+                    # next login when the profile is rebuilt from Directus. Log as error but do
+                    # NOT raise — the charge must succeed even without DB persistence.
+                    logger.error(
+                        f"Skipping Directus credit balance update for user_id={user_id} "
+                        "because vault_key_id is unavailable. Cache balance is correct and "
+                        "will sync to Directus on next login."
                     )
-                    if update_successful:
-                        logger.info(f"Successfully updated user {user_id} credits in Directus on attempt {attempt + 1}.")
-                        break
-                    else:
-                        logger.warning(
-                            f"Attempt {attempt + 1} to update user {user_id} credits in Directus failed. "
-                            f"Retrying in {retry_delay} seconds..."
-                        )
-                        if attempt < max_retries - 1:
-                            await asyncio.sleep(retry_delay)
                 else:
-                    # This block executes if the loop completes without a `break`
-                    logger.critical(
-                        f"CRITICAL: Failed to update user {user_id} credits in Directus after {max_retries} attempts. "
-                        f"The user has been charged in cache, but the database update failed. Manual intervention required."
+                    encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
+                        plaintext=str(new_credits),
+                        key_id=vault_key_id
                     )
-                    # We do NOT revert the cache. The charge is valid.
-                    # We raise an exception to inform the client of the persistent failure.
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Your transaction was completed, but there was a delay in saving the final balance. Please refresh shortly."
-                    )
+                    encrypted_new_credits = encrypted_new_credits_tuple[0]  # Extract encrypted string
+                    # Persist to Directus with retry logic
+                    max_retries = 3
+                    retry_delay = 5  # seconds
+                    for attempt in range(max_retries):
+                        update_successful = await self.directus_service.update_user(
+                            user_id, {"encrypted_credit_balance": encrypted_new_credits}
+                        )
+                        if update_successful:
+                            logger.info(f"Successfully updated user {user_id} credits in Directus on attempt {attempt + 1}.")
+                            break
+                        else:
+                            logger.warning(
+                                f"Attempt {attempt + 1} to update user {user_id} credits in Directus failed. "
+                                f"Retrying in {retry_delay} seconds..."
+                            )
+                            if attempt < max_retries - 1:
+                                await asyncio.sleep(retry_delay)
+                    else:
+                        # This block executes if the loop completes without a `break`
+                        logger.critical(
+                            f"CRITICAL: Failed to update user {user_id} credits in Directus after {max_retries} attempts. "
+                            f"The user has been charged in cache, but the database update failed. Manual intervention required."
+                        )
+                        # We do NOT revert the cache. The charge is valid.
+                        # We raise an exception to inform the client of the persistent failure.
+                        raise HTTPException(
+                            status_code=500,
+                            detail="Your transaction was completed, but there was a delay in saving the final balance. Please refresh shortly."
+                        )
             else:
                 logger.debug(f"Payment disabled (self-hosted mode). Skipping Directus credit balance update for user {user_id}.")
             
@@ -274,31 +345,40 @@ class BillingService:
                 if isinstance(_raw_tii, int):
                     _tool_inference_iterations = _raw_tii
 
-            await self.directus_service.usage.create_usage_entry(
-                user_id_hash=user_id_hash,
-                app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
-                skill_id=skill_id.strip(),  # Ensure no leading/trailing whitespace
-                usage_type="skill_execution",
-                timestamp=timestamp,
-                credits_charged=credits_to_deduct,
-                user_vault_key_id=user['vault_key_id'],
-                model_used=usage_details.get("model_used") if usage_details else None,
-                chat_id=chat_id,  # Cleartext - for client-side matching with IndexedDB
-                message_id=message_id,  # Cleartext - for client-side matching with IndexedDB
-                source=source,  # "chat" or "api_key"
-                cost_system_prompt_credits=usage_details.get("system_prompt_credits") if usage_details else None,
-                cost_history_credits=usage_details.get("history_credits") if usage_details else None,
-                cost_response_credits=usage_details.get("response_credits") if usage_details else None,
-                actual_input_tokens=usage_details.get("input_tokens") if usage_details else None,
-                actual_output_tokens=usage_details.get("output_tokens") if usage_details else None,
-                user_input_tokens=usage_details.get("user_input_tokens") if usage_details else None,
-                system_prompt_tokens=usage_details.get("system_prompt_tokens") if usage_details else None,
-                api_key_hash=api_key_hash,  # API key hash for tracking which API key created this usage
-                device_hash=device_hash,  # Device hash for tracking which device created this usage
-                server_provider=usage_details.get("server_provider") if usage_details else None,
-                server_region=usage_details.get("server_region") if usage_details else None,
-                tool_inference_iterations=_tool_inference_iterations,
-            )
+            _vault_key_id_for_usage = user.get("vault_key_id")
+            if not _vault_key_id_for_usage:
+                # Usage entry encryption is not possible without vault_key_id.
+                # Log as error but do not fail the charge — billing always succeeds.
+                logger.error(
+                    f"Skipping usage entry creation for user_id={user_id} "
+                    f"({app_id}/{skill_id}) because vault_key_id is unavailable."
+                )
+            else:
+                await self.directus_service.usage.create_usage_entry(
+                    user_id_hash=user_id_hash,
+                    app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
+                    skill_id=skill_id.strip(),  # Ensure no leading/trailing whitespace
+                    usage_type="skill_execution",
+                    timestamp=timestamp,
+                    credits_charged=credits_to_deduct,
+                    user_vault_key_id=_vault_key_id_for_usage,
+                    model_used=usage_details.get("model_used") if usage_details else None,
+                    chat_id=chat_id,  # Cleartext - for client-side matching with IndexedDB
+                    message_id=message_id,  # Cleartext - for client-side matching with IndexedDB
+                    source=source,  # "chat" or "api_key"
+                    cost_system_prompt_credits=usage_details.get("system_prompt_credits") if usage_details else None,
+                    cost_history_credits=usage_details.get("history_credits") if usage_details else None,
+                    cost_response_credits=usage_details.get("response_credits") if usage_details else None,
+                    actual_input_tokens=usage_details.get("input_tokens") if usage_details else None,
+                    actual_output_tokens=usage_details.get("output_tokens") if usage_details else None,
+                    user_input_tokens=usage_details.get("user_input_tokens") if usage_details else None,
+                    system_prompt_tokens=usage_details.get("system_prompt_tokens") if usage_details else None,
+                    api_key_hash=api_key_hash,  # API key hash for tracking which API key created this usage
+                    device_hash=device_hash,  # Device hash for tracking which device created this usage
+                    server_provider=usage_details.get("server_provider") if usage_details else None,
+                    server_region=usage_details.get("server_region") if usage_details else None,
+                    tool_inference_iterations=_tool_inference_iterations,
+                )
 
         except HTTPException as e:
             # Re-raise HTTPExceptions to be handled by FastAPI
@@ -387,37 +467,44 @@ class BillingService:
             await self.cache_service.set_user(user, user_id=user_id)
 
             # 4. Persist to Directus with retry
-            encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
-                plaintext=str(new_credits),
-                key_id=user["vault_key_id"],
-            )
-            encrypted_new_credits = encrypted_new_credits_tuple[0]
-
-            max_retries = 3
-            retry_delay = 5
-            for attempt in range(max_retries):
-                update_successful = await self.directus_service.update_user(
-                    user_id, {"encrypted_credit_balance": encrypted_new_credits}
+            _refund_vault_key_id = user.get("vault_key_id")
+            if not _refund_vault_key_id:
+                logger.error(
+                    f"[Refund] vault_key_id unavailable for user_id={user_id}. "
+                    "Cache balance updated but Directus update skipped (will self-heal on login)."
                 )
-                if update_successful:
-                    logger.info(
-                        f"[Refund] Updated credits in Directus on attempt {attempt + 1}."
-                    )
-                    break
-                logger.warning(
-                    f"[Refund] Attempt {attempt + 1} to update Directus failed. "
-                    f"Retrying in {retry_delay}s…"
-                )
-                if attempt < max_retries - 1:
-                    import asyncio
-                    await asyncio.sleep(retry_delay)
+                # Skip Directus update — fall through to broadcast/stats below
             else:
-                logger.critical(
-                    f"[Refund] CRITICAL: Failed to persist refund for user {user_id} "
-                    f"after {max_retries} attempts. Cache updated but DB is stale."
+                encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
+                    plaintext=str(new_credits),
+                    key_id=_refund_vault_key_id,
                 )
-                # Do not raise — the user's in-memory balance is correct; the DB
-                # will self-heal on next login when the cache is rebuilt from Directus.
+                encrypted_new_credits = encrypted_new_credits_tuple[0]
+
+                max_retries = 3
+                retry_delay = 5
+                for attempt in range(max_retries):
+                    update_successful = await self.directus_service.update_user(
+                        user_id, {"encrypted_credit_balance": encrypted_new_credits}
+                    )
+                    if update_successful:
+                        logger.info(
+                            f"[Refund] Updated credits in Directus on attempt {attempt + 1}."
+                        )
+                        break
+                    logger.warning(
+                        f"[Refund] Attempt {attempt + 1} to update Directus failed. "
+                        f"Retrying in {retry_delay}s…"
+                    )
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+                else:
+                    logger.critical(
+                        f"[Refund] CRITICAL: Failed to persist refund for user {user_id} "
+                        f"after {max_retries} attempts. Cache updated but DB is stale."
+                    )
+                    # Do not raise — the user's in-memory balance is correct; the DB
+                    # will self-heal on next login when the cache is rebuilt from Directus.
 
             # 5. Update global stats cache
             await self.cache_service.increment_stat("credits_used", -credits_to_refund)
@@ -481,9 +568,22 @@ class BillingService:
 
             logger.info(f"Low balance detected for user {user_id}: {new_credits} <= {threshold}. Triggering auto top-up.")
 
-            # Trigger async top-up (fire and forget - don't block current request)
-            asyncio.create_task(
-                self._trigger_low_balance_topup(user_id, user)
+            # Trigger async top-up without blocking the current request.
+            # We store a strong reference to prevent GC before completion and
+            # attach a done callback so unhandled exceptions are logged rather
+            # than silently dropped.  Tasks remove themselves when they finish.
+            task = asyncio.create_task(
+                self._trigger_low_balance_topup(user_id, user),
+                name=f"auto_topup_{user_id[:8]}",
+            )
+            self._pending_topup_tasks.add(task)
+            task.add_done_callback(self._pending_topup_tasks.discard)
+            task.add_done_callback(
+                lambda t: logger.error(
+                    f"[BillingService] Auto top-up task for user {user_id[:8]} "
+                    f"raised an unhandled exception: {t.exception()!r}",
+                    exc_info=t.exception(),
+                ) if not t.cancelled() and t.exception() else None
             )
 
         except Exception as e:

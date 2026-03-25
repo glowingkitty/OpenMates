@@ -37,6 +37,7 @@ from celery import Celery  # For type hinting only
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -91,6 +92,54 @@ _AUTO_PROVIDER_MULTIPLIER = 2
 # ---------------------------------------------------------------------------
 
 
+class SearchRequestItem(BaseModel):
+    """A single event search request."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    query: str = Field(
+        description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
+        "'startup', 'networking'). Do NOT include platform names like 'meetup' or 'luma'."
+    )
+    location: Optional[str] = Field(
+        default=None,
+        description="City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York'). "
+        "Used if lat/lon are not provided.",
+    )
+    lat: Optional[float] = Field(
+        default=None,
+        description="Latitude of search center (decimal degrees). Overrides location string if provided.",
+    )
+    lon: Optional[float] = Field(
+        default=None,
+        description="Longitude of search center (decimal degrees). Overrides location string if provided.",
+    )
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Start of date range in ISO 8601 format. Defaults to now if omitted.",
+    )
+    end_date: Optional[str] = Field(
+        default=None,
+        description="End of date range in ISO 8601 format. No upper bound if omitted.",
+    )
+    event_type: Optional[str] = Field(
+        default=None,
+        description="Filter by event type: 'PHYSICAL' (default for city searches) or 'ONLINE' (virtual events).",
+    )
+    radius_miles: float = Field(
+        default=25,
+        description="Search radius in miles from the center coordinates (default: 25, ~40 km). Only for PHYSICAL events.",
+    )
+    count: int = Field(
+        default=10,
+        description="Maximum number of events to return (default: 10, max: 50).",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for event search skill.
@@ -99,12 +148,11 @@ class SearchRequest(BaseModel):
     Each request specifies its own parameters; defaults are defined in tool_schema.
     """
 
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[SearchRequestItem] = Field(
         ...,
         description=(
-            "Array of search request objects. Each object must contain 'query' "
-            "and 'location' (or 'lat'/'lon'). Optional parameters: provider "
-            "(auto|meetup|luma, default auto), start_date, end_date, event_type, "
+            "Array of event search request objects. Each object must contain 'query' "
+            "and 'location' (or 'lat'/'lon'). Optional: start_date, end_date, event_type, "
             "radius_miles, count."
         ),
     )
@@ -426,7 +474,8 @@ class SearchSkill(BaseSkill):
         lon: Optional[float] = req.get("lon")
         city: str = ""
         country: str = ""
-        location_str: str = req.get("location", "").strip()
+        # Use "or" to handle None from Pydantic model_dump() — prevents AttributeError on .strip()
+        location_str: str = (req.get("location") or "").strip()
 
         if lat is not None and lon is not None:
             try:
@@ -554,10 +603,28 @@ class SearchSkill(BaseSkill):
         results: List[Dict[str, Any]] = []
         for event in all_events:
             result = {"type": "event_result", **event}
+            if not result.get("image_url"):
+                result["image_url"] = result.get("cover_url")
             result["hash"] = self._generate_result_hash(
                 event.get("url") or event.get("id") or ""
             )
             results.append(result)
+
+        try:
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"events_search_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=None,
+            )
+        except Exception as sanitize_error:
+            logger.error(
+                "Events content sanitization failed for request %s: %s",
+                request_id,
+                sanitize_error,
+                exc_info=True,
+            )
+            return (request_id, [], "Content sanitization failed", 0)
 
         logger.info(
             "Events search (id=%s) done: %d results (total=%d) provider=%r query=%r",
@@ -601,7 +668,12 @@ class SearchSkill(BaseSkill):
         if error_response:
             return error_response
 
-        requests_list = request.requests
+        # Serialize Pydantic items to plain dicts so _validate_requests_array helpers
+        # can call req.get("id") without AttributeError on Pydantic model objects.
+        requests_list = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in request.requests
+        ]
         validated_requests, error = self._validate_requests_array(
             requests=requests_list,
             required_field="query",

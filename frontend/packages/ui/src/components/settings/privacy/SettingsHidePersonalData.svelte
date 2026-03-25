@@ -4,20 +4,27 @@ Hide Personal Data Settings - Sub-page for managing PII detection and custom per
 Users can:
 - Toggle the master PII detection on/off
 - Manage contacts (names, addresses, birthdays) in a unified section
+  - Clicking a contact entry verifies identity (passkey / 2FA), then opens it in edit mode
+  - Identity verification is remembered for 2 minutes so consecutive edits don't re-prompt
 - Toggle individual auto-detection categories (email, phone, credit card, etc.)
 - Add custom entries for any text they want to hide
+  - Clicking a custom entry verifies identity then opens it in edit mode
 
 All user-defined entries (names, addresses, birthdays, custom values) are
 client-side encrypted — the server never sees the actual data.
 
+Architecture context: docs/architecture/pii-protection.md, docs/architecture/security.md
 Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 -->
 
 <script lang="ts">
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
+    import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import SettingsItem from '../../SettingsItem.svelte';
+    import SecurityAuth from '../security/SecurityAuth.svelte';
     import { personalDataStore, type PersonalDataEntry } from '../../../stores/personalDataStore';
+    import { isSensitiveAuthValid, recordSensitiveAuthSuccess } from '../../../stores/sensitiveAuthStore';
 
     const dispatch = createEventDispatcher();
 
@@ -25,7 +32,61 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 
     onMount(() => {
         personalDataStore.loadFromStorage();
+        fetchAuthMethods();
     });
+
+    // ─── Auth Methods (for SecurityAuth component) ───────────────────────────
+
+    let hasPasskey = $state(false);
+    let hasPassword = $state(false);
+    let has2FA = $state(false);
+
+    async function fetchAuthMethods() {
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                hasPasskey = data.has_passkey || false;
+                hasPassword = data.has_password || false;
+                has2FA = data.has_2fa || false;
+            }
+        } catch (error) {
+            console.error('[SettingsHidePersonalData] Failed to fetch auth methods:', error);
+        }
+    }
+
+    // ─── Auth Modal State ────────────────────────────────────────────────────
+
+    /** Whether the SecurityAuth modal is visible */
+    let showAuthModal = $state(false);
+
+    /** Entry pending navigation after successful auth */
+    let pendingEditEntry = $state<PersonalDataEntry | null>(null);
+
+    function handleAuthSuccess() {
+        recordSensitiveAuthSuccess();
+        showAuthModal = false;
+
+        if (pendingEditEntry) {
+            navigateToEditEntry(pendingEditEntry);
+            pendingEditEntry = null;
+        }
+    }
+
+    function handleAuthFailed(message: string) {
+        console.error('[SettingsHidePersonalData] Auth failed:', message);
+        showAuthModal = false;
+        pendingEditEntry = null;
+    }
+
+    function handleAuthCancel() {
+        showAuthModal = false;
+        pendingEditEntry = null;
+    }
 
     // ─── Store Subscriptions ─────────────────────────────────────────────────
 
@@ -58,12 +119,6 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
         personalDataStore.toggleCategory(category);
     }
 
-    // ─── Entry Toggles ───────────────────────────────────────────────────────
-
-    function handleEntryToggle(id: string) {
-        personalDataStore.toggleEntry(id);
-    }
-
     // ─── Icon Helpers ─────────────────────────────────────────────────────────
 
     /** Get the appropriate icon for a contact entry based on its type */
@@ -74,6 +129,44 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
             case 'birthday': return 'gift';
             default: return 'contact';
         }
+    }
+
+    function getEditSegmentForEntry(entry: PersonalDataEntry): string {
+        switch (entry.type) {
+            case 'name': return 'edit-name';
+            case 'address': return 'edit-address';
+            case 'birthday': return 'edit-birthday';
+            case 'custom': return 'edit-custom';
+            default: return 'edit-name';
+        }
+    }
+
+    // ─── Entry Click → Auth Gate → Edit ─────────────────────────────────────
+
+    /**
+     * Clicking a contact or custom entry opens it in edit mode.
+     * If the user verified their identity within the last 2 minutes, skip auth.
+     * Otherwise, show SecurityAuth — on success, navigate to the edit page.
+     */
+    function handleEntryClick(entry: PersonalDataEntry) {
+        if (isSensitiveAuthValid()) {
+            // Grace period still valid — navigate directly without re-auth
+            navigateToEditEntry(entry);
+        } else {
+            // Need fresh verification
+            pendingEditEntry = entry;
+            showAuthModal = true;
+        }
+    }
+
+    function navigateToEditEntry(entry: PersonalDataEntry) {
+        const editSegment = getEditSegmentForEntry(entry);
+        dispatch('openSettings', {
+            settingsPath: `privacy/hide-personal-data/${editSegment}/${entry.id}`,
+            direction: 'forward',
+            icon: getContactEntryIcon(entry),
+            title: entry.title
+        });
     }
 
     // ─── Navigation ──────────────────────────────────────────────────────────
@@ -115,6 +208,21 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     }
 </script>
 
+<!-- SecurityAuth modal — shown when user clicks a contact/custom entry without recent verification -->
+{#if showAuthModal}
+    <SecurityAuth
+        {hasPasskey}
+        {hasPassword}
+        {has2FA}
+        autoStart={hasPasskey}
+        onSuccess={handleAuthSuccess}
+        onFailed={handleAuthFailed}
+        onCancel={handleAuthCancel}
+        title={$text('settings.privacy.auth.title')}
+        description={$text('settings.privacy.auth.description')}
+    />
+{/if}
+
 <!-- Master Toggle: Hide personal data on/off -->
 <div class="master-toggle-row">
     <SettingsItem
@@ -148,7 +256,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
         title={entry.title}
         hasToggle={true}
         checked={entry.enabled}
-        onClick={() => handleEntryToggle(entry.id)}
+        onClick={() => handleEntryClick(entry)}
     />
 {/each}
 
@@ -344,7 +452,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="heading"
     icon="create"
-    title={$text('settings.privacy.custom')}
+    title={$text('common.custom')}
 />
 
 {#each customEntries as entry (entry.id)}
@@ -354,7 +462,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
         title={entry.title}
         hasToggle={true}
         checked={entry.enabled}
-        onClick={() => handleEntryToggle(entry.id)}
+        onClick={() => handleEntryClick(entry)}
     />
 {/each}
 

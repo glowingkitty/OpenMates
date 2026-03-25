@@ -1,9 +1,12 @@
 <!--
-    Settings Tests Component — Admin-only
+    Settings Tests Component — Admin-only (Read-only)
 
-    Displays the latest automated test run results, scheduling info, and
-    provides a button to trigger out-of-schedule test runs. Reads data from
-    GET /v1/admin/test-results which serves the on-disk JSON results.
+    Displays the latest automated test run results and scheduling info.
+    Reads data from GET /v1/admin/test-results which serves the on-disk
+    JSON results written by scripts/run-tests-daily.sh.
+
+    Daily tests are triggered by a system crontab at 03:00 UTC.
+    Manual runs: ./scripts/run-tests-daily.sh --force
 
     Architecture: No database model — reads existing JSON files via the API.
     See scripts/run-tests.sh for the test result format.
@@ -62,8 +65,6 @@
         last_run_timestamp: string | null;
         next_scheduled_run_utc: string;
         hours_until_next_run: number;
-        is_running: boolean;
-        run_started_at: string | null;
     }
 
     // ============================================================================
@@ -73,22 +74,12 @@
     let isLoading = $state(true);
     let error = $state<string | null>(null);
     let data = $state<TestResultsResponse | null>(null);
-    let isTriggering = $state(false);
-    let triggerMessage = $state<string | null>(null);
     let expandedSuites = $state<Record<string, boolean>>({});
     let expandedErrors = $state<Record<string, boolean>>({});
 
-    // Optimistic "running" state — set immediately on trigger to prevent
-    // double-clicks, cleared when the next poll confirms actual state.
-    let optimisticRunning = $state(false);
-    let optimisticRunStartedAt = $state<string | null>(null);
-
-    // Auto-refresh interval ID
+    // Auto-refresh every 5 minutes
     let refreshIntervalId: ReturnType<typeof setInterval> | undefined;
-
-    // Auto-refresh interval in ms (30 seconds while running, 5 minutes otherwise)
-    const REFRESH_INTERVAL_RUNNING_MS = 30_000;
-    const REFRESH_INTERVAL_IDLE_MS = 300_000;
+    const REFRESH_INTERVAL_MS = 300_000;
 
     // ============================================================================
     // COMPUTED
@@ -96,7 +87,6 @@
 
     let lastRun = $derived(data?.last_run ?? null);
     let summary = $derived(lastRun?.summary ?? null);
-    let isRunning = $derived(optimisticRunning || (data?.is_running ?? false));
 
     let lastRunTimeAgo = $derived.by(() => {
         if (!data?.last_run_timestamp) return null;
@@ -210,71 +200,7 @@
             console.error('[SettingsTests] Failed to fetch test results:', e);
         } finally {
             isLoading = false;
-
-            // Clear optimistic running state once the server confirms
-            // the run has finished (or was never started).
-            if (optimisticRunning && data && !data.is_running) {
-                optimisticRunning = false;
-                optimisticRunStartedAt = null;
-            }
         }
-    }
-
-    async function triggerTestRun() {
-        if (isTriggering || isRunning) return;
-
-        isTriggering = true;
-        triggerMessage = null;
-
-        try {
-            const response = await fetch(getApiEndpoint('/v1/admin/tests/run'), {
-                method: 'POST',
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            const result = await response.json();
-            triggerMessage = result.message;
-
-            if (result.success) {
-                // Set optimistic running state immediately — prevents double-clicks
-                // and shows "Running" feedback before the next poll confirms it.
-                optimisticRunning = true;
-                optimisticRunStartedAt = new Date().toISOString();
-
-                // Refresh to get authoritative state from server
-                await fetchTestResults();
-                // Switch to faster polling while running
-                setupAutoRefresh();
-            }
-        } catch (e) {
-            const errMsg = e instanceof Error ? e.message : String(e);
-            triggerMessage = `Failed to start tests: ${errMsg}`;
-            console.error('[SettingsTests] Failed to trigger test run:', e);
-            // Clear optimistic state on error so the button re-enables
-            optimisticRunning = false;
-            optimisticRunStartedAt = null;
-        } finally {
-            isTriggering = false;
-        }
-    }
-
-    // ============================================================================
-    // AUTO-REFRESH
-    // ============================================================================
-
-    function setupAutoRefresh() {
-        if (refreshIntervalId) clearInterval(refreshIntervalId);
-        const interval = isRunning ? REFRESH_INTERVAL_RUNNING_MS : REFRESH_INTERVAL_IDLE_MS;
-        refreshIntervalId = setInterval(async () => {
-            await fetchTestResults();
-            // Adjust refresh rate if running state changed
-            const newInterval = isRunning ? REFRESH_INTERVAL_RUNNING_MS : REFRESH_INTERVAL_IDLE_MS;
-            if (newInterval !== interval) {
-                setupAutoRefresh();
-            }
-        }, interval);
     }
 
     // ============================================================================
@@ -294,7 +220,8 @@
     // ============================================================================
 
     onMount(() => {
-        fetchTestResults().then(() => setupAutoRefresh());
+        fetchTestResults();
+        refreshIntervalId = setInterval(fetchTestResults, REFRESH_INTERVAL_MS);
         return () => {
             if (refreshIntervalId) clearInterval(refreshIntervalId);
         };
@@ -322,19 +249,6 @@
             </button>
         </div>
     {:else if data}
-        <!-- Running indicator -->
-        {#if isRunning}
-            <div class="running-banner" in:fade={{ duration: 200 }}>
-                <div class="running-indicator">
-                    <div class="spinner small"></div>
-                    <span>Test run in progress...</span>
-                </div>
-                {#if data.run_started_at || optimisticRunStartedAt}
-                    <span class="running-since">Started {formatTimeAgo(data.run_started_at ?? optimisticRunStartedAt ?? '')}</span>
-                {/if}
-            </div>
-        {/if}
-
         <!-- Schedule Info -->
         <div class="schedule-row">
             <div class="schedule-item">
@@ -349,30 +263,9 @@
             </div>
             {#if lastRun}
                 <div class="schedule-item">
-                    <span class="schedule-label">{$text('settings.server.tests.duration')}</span>
+                    <span class="schedule-label">{$text('common.duration')}</span>
                     <span class="schedule-value">{durationDisplay}</span>
                 </div>
-            {/if}
-        </div>
-
-        <!-- Start Tests Button -->
-        <div class="action-row">
-            <button
-                class="start-tests-btn"
-                onclick={triggerTestRun}
-                disabled={isTriggering || isRunning}
-            >
-                {#if isTriggering}
-                    <div class="spinner small"></div>
-                    <span>{$text('settings.server.tests.starting')}</span>
-                {:else if isRunning}
-                    <span>{$text('settings.server.tests.running')}</span>
-                {:else}
-                    <span>{$text('settings.server.tests.start_tests')}</span>
-                {/if}
-            </button>
-            {#if triggerMessage}
-                <p class="trigger-message" in:fade={{ duration: 200 }}>{triggerMessage}</p>
             {/if}
         </div>
 
@@ -501,12 +394,6 @@
         animation: spin 0.8s linear infinite;
     }
 
-    .spinner.small {
-        width: 16px;
-        height: 16px;
-        border-width: 2px;
-    }
-
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
@@ -540,34 +427,6 @@
         opacity: 0.9;
     }
 
-    /* Running Banner */
-    .running-banner {
-        margin: 0.75rem 1rem;
-        padding: 0.75rem 1rem;
-        background: var(--color-blue-10, #eff6ff);
-        border: 1px solid var(--color-blue-30, #93c5fd);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .running-indicator {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--color-blue-60, #2563eb);
-        font-weight: 500;
-        font-size: 0.875rem;
-    }
-
-    .running-since {
-        color: var(--color-blue-50, #3b82f6);
-        font-size: 0.8rem;
-    }
-
     /* Schedule Row */
     .schedule-row {
         display: flex;
@@ -599,45 +458,6 @@
         font-size: 0.9rem;
         font-weight: 600;
         color: var(--color-grey-80, #1f2937);
-    }
-
-    /* Action Row */
-    .action-row {
-        padding: 0.75rem 1rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .start-tests-btn {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.6rem 1.25rem;
-        background: var(--color-primary, #6366f1);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: opacity 0.2s, background 0.2s;
-    }
-
-    .start-tests-btn:hover:not(:disabled) {
-        opacity: 0.9;
-    }
-
-    .start-tests-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .trigger-message {
-        font-size: 0.8rem;
-        color: var(--color-grey-60);
-        margin: 0;
     }
 
     /* Summary Cards */
@@ -925,14 +745,5 @@
     :global(.dark) .git-badge {
         background: var(--color-grey-25, #374151);
         color: var(--color-grey-80, #d1d5db);
-    }
-
-    :global(.dark) .running-banner {
-        background: var(--color-blue-90, #1e3a5f);
-        border-color: var(--color-blue-60, #2563eb);
-    }
-
-    :global(.dark) .running-indicator {
-        color: var(--color-blue-30, #93c5fd);
     }
 </style>

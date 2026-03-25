@@ -45,7 +45,7 @@ Buy Credits - Credit tier selection
             settingsPath: `billing/buy-credits/payment`,
             direction: 'forward',
             icon: 'coins',
-            title: `${formatCredits(tier.credits)} ${$text('settings.billing.credits')}`
+            title: `${formatCredits(tier.credits)} ${$text('common.credits')}`
         });
     }
 </script>
@@ -58,7 +58,7 @@ Buy Credits - Credit tier selection
     <SettingsItem
         type="submenu"
         icon="subsetting_icon coins"
-        title="{formatCredits(tier.credits)} {$text('settings.billing.credits')}"
+        title="{formatCredits(tier.credits)} {$text('common.credits')}"
         subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectCreditTier(tier)}
     />

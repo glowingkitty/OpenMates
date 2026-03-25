@@ -566,7 +566,7 @@ class FetchService:
 
         return {
             "User-Agent": user_agent,
-            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             "Accept-Language": random.choice(accept_languages),
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",

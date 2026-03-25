@@ -15,22 +15,32 @@ Issue Architecture:
 - encrypted_chat_or_embed_url: Vault-encrypted with issue_report_emails key
 - encrypted_estimated_location: Vault-encrypted with issue_report_emails key
 - encrypted_device_info: Vault-encrypted with issue_report_emails key
-- encrypted_issue_report_yaml_s3_key: Vault-encrypted S3 key pointing to full YAML report
+- encrypted_issue_report_yaml_s3_key: Vault-encrypted S3 key pointing to S3 YAML (no longer
+  contains logs — those are queried live from OpenObserve via --timeline)
 
 Usage:
     docker exec api python /app/backend/scripts/debug.py issue <issue_id>
     docker exec api python /app/backend/scripts/debug.py issue abc12345-6789-0123-4567-890123456789
 
+    # Unified timeline: browser console + backend logs merged chronologically
+    docker exec api python /app/backend/scripts/debug.py issue <issue_id> --timeline
+    docker exec api python /app/backend/scripts/debug.py issue <issue_id> --timeline --before 15 --after 5
+
     # Fetch issue from production server (required for production-only issues)
     docker exec api python /app/backend/scripts/debug.py issue <issue_id> --production
     docker exec api python /app/backend/scripts/debug.py issue --list --production
+    docker exec api python /app/backend/scripts/debug.py issue <issue_id> --timeline --production
 
 Options:
     --no-logs           Skip fetching the full YAML report from S3
-    --full-logs         Show all data untruncated: all log lines AND full text fields (description,
+    --full-logs         Show all data untruncated: full text fields (description,
                         device info, IndexedDB, etc.). Output can be very long — pipe to a file or
-                        use grep to filter. By default only warnings/errors are shown in logs and
-                        long fields are truncated to a readable summary.
+                        use grep to filter. Use --timeline for log inspection.
+    --timeline          Show a unified chronological timeline of browser console + backend logs
+                        from OpenObserve, anchored to the issue's created_at timestamp.
+                        Replaces --full-logs for log investigation.
+    --before N          Minutes before issue timestamp to include in timeline (default: 10)
+    --after N           Minutes after issue timestamp to include in timeline (default: 5)
     --json              Output as JSON instead of formatted text
     --list              List recent issues (most recent first)
     --list-limit N      Number of issues to list (default: 20)
@@ -38,6 +48,8 @@ Options:
     --include-processed Include processed issues in --list results
     --delete            Delete the issue (Directus + S3). Use after confirming the issue is fixed.
     --yes               Skip confirmation when using --delete (required for non-interactive use)
+    --related-commits   Search git history for commits related to this issue by keywords from title/description.
+                        Shows matching commits and which files they touched.
     --production        Fetch data from the production Admin Debug API instead of local Directus
     --dev               Fetch data from the dev Admin Debug API (implies --production)
 """
@@ -47,8 +59,9 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+import time
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional, Tuple
 
 # Add the backend directory to the Python path — must happen before backend imports
 sys.path.insert(0, '/app/backend')
@@ -701,6 +714,371 @@ def filter_logs_to_errors(
     return filtered, total, len(match_indices)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# TIMELINE — unified browser + backend log view anchored to issue created_at
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ANSI colours (mirrors debug_logs.py palette — kept minimal here)
+_C_RESET  = "\033[0m"
+_C_DIM    = "\033[2m"
+_C_BOLD   = "\033[1m"
+_C_RED    = "\033[31m"
+_C_YELLOW = "\033[33m"
+_C_CYAN   = "\033[36m"
+_C_GREEN  = "\033[32m"
+_C_MAGENTA= "\033[35m"
+
+
+def _sql_esc(s: str) -> str:
+    return s.replace("'", "''")
+
+
+async def _query_openobserve_sql(
+    sql: str,
+    start_us: int,
+    end_us: int,
+    max_rows: int = 2000,
+) -> List[Dict[str, Any]]:
+    """Execute a raw SQL query against the local OpenObserve instance."""
+    import aiohttp
+
+    email    = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+
+    sql_text = sql.strip().rstrip(";")
+    if " limit " not in sql_text.lower():
+        sql_text = f"{sql_text} LIMIT {max_rows}"
+
+    body = {"query": {"sql": sql_text, "start_time": start_us, "end_time": end_us}}
+    urls = (
+        "http://openobserve:5080/api/default/_search",
+        "http://openobserve:5080/api/default/default/_search",
+    )
+    timeout = aiohttp.ClientTimeout(total=30)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for url in urls:
+                async with session.post(
+                    url, json=body, auth=aiohttp.BasicAuth(email, password)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data.get("hits", [])
+                    if resp.status == 404:
+                        continue
+                    script_logger.warning(
+                        f"OpenObserve query failed ({resp.status}): {(await resp.text())[:200]}"
+                    )
+                    return []
+    except Exception as exc:
+        script_logger.warning(f"Cannot connect to OpenObserve: {exc}")
+        return []
+    return []
+
+
+def _parse_ts_us(hit: Dict[str, Any]) -> int:
+    """Return the hit's _timestamp in microseconds (int)."""
+    return int(hit.get("_timestamp", 0))
+
+
+def _hit_to_event(hit: Dict[str, Any], source_override: Optional[str] = None) -> Dict[str, Any]:
+    """Convert a raw OpenObserve hit to a normalised event dict."""
+    ts_us  = _parse_ts_us(hit)
+    level  = (hit.get("level") or "info").lower()
+    source = source_override or hit.get("container") or hit.get("service") or "unknown"
+    job    = hit.get("job", "")
+    if job == "client-console":
+        source = "browser"
+    msg = (hit.get("message") or "").strip()
+    return {"ts_us": ts_us, "level": level, "source": source, "message": msg}
+
+
+async def fetch_issue_timeline_local(
+    issue: Dict[str, Any],
+    before_minutes: int = 10,
+    after_minutes: int = 5,
+    max_rows: int = 2000,
+) -> Tuple[List[Dict[str, Any]], int, int]:
+    """
+    Query OpenObserve for the unified issue timeline (local mode).
+
+    Runs three parallel queries anchored to the issue's created_at timestamp:
+      1. Browser console logs: job=client-console, matching user_id in message
+      2. Raw container stdout logs: job empty/NULL, matching user_id/issue_id
+      3. Structured API logs: job=api-logs, matching user_id/issue_id
+
+    Returns (events, start_us, end_us) where events are sorted by timestamp.
+    """
+    issue_id = issue.get("id", "")
+    user_id  = issue.get("reported_by_user_id") or ""
+
+    # Determine the incident anchor timestamp
+    created_at_str = issue.get("created_at") or issue.get("timestamp") or ""
+    try:
+        anchor_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+        anchor_us = int(anchor_dt.timestamp() * 1_000_000)
+    except Exception:
+        # Fall back to now
+        anchor_us = int(time.time() * 1_000_000)
+
+    start_us = anchor_us - before_minutes * 60 * 1_000_000
+    end_us   = anchor_us + after_minutes  * 60 * 1_000_000
+
+    # Clamp end_us to now so we don't query the future
+    now_us = int(time.time() * 1_000_000)
+    if end_us > now_us:
+        end_us = now_us
+
+    issue_id_esc = _sql_esc(issue_id)
+
+    # Build queries
+    queries: List[Tuple[str, Optional[str]]] = []
+
+    # ── OpenObserve "default" stream field reference ──
+    # Available fields: _timestamp, compose_project, container, debugging_id,
+    #   device_type, environment, event_type, filename, git_branch, job, level,
+    #   logstream, message, name, server_env, service, source, status, stream,
+    #   suite, tab_id, transaction_type, user_agent, user_email, user_id,
+    #   worker_slot.
+    # NOT valid: 'log', 'issue_id'.
+    # Job values: 'client-console' (browser), 'api-logs' (structured API),
+    #   'audit-compliance-logs', or empty/NULL (raw container stdout).
+
+    # 1. Browser console logs (job=client-console).
+    # The user_id / issue_id are NOT structured fields on client-console entries,
+    # so we match on the user_id in the message body when available.
+    if user_id:
+        user_id_esc = _sql_esc(user_id)
+        browser_where = (
+            f"job = 'client-console' AND "
+            f"(message LIKE '%{user_id_esc}%' OR message LIKE '%{issue_id_esc}%')"
+        )
+    else:
+        browser_where = (
+            f"job = 'client-console' AND message LIKE '%{issue_id_esc}%'"
+        )
+    queries.append((
+        f"SELECT _timestamp, message, level "
+        f'FROM "default" '
+        f"WHERE {browser_where} "
+        f"ORDER BY _timestamp ASC",
+        "browser",
+    ))
+
+    # 2+3. Backend logs mentioning issue_id or user_id in message body.
+    search_terms: List[str] = [_sql_esc(issue_id)]
+    if user_id:
+        search_terms.append(_sql_esc(user_id))
+
+    like_clauses = " OR ".join(
+        f"message LIKE '%{t}%'" for t in search_terms
+    )
+
+    # 2. Raw container stdout logs (no job label, but container/service populated).
+    queries.append((
+        f"SELECT _timestamp, container, service, message, level "
+        f'FROM "default" '
+        f"WHERE (job = '' OR job IS NULL) AND ({like_clauses}) "
+        f"ORDER BY _timestamp ASC",
+        None,
+    ))
+
+    # 3. Structured API logs (job=api-logs; container/service often empty).
+    queries.append((
+        f"SELECT _timestamp, message, level "
+        f'FROM "default" '
+        f"WHERE job = 'api-logs' AND ({like_clauses}) "
+        f"ORDER BY _timestamp ASC",
+        "api",
+    ))
+
+    # Execute all queries in parallel
+    results = await asyncio.gather(
+        *[_query_openobserve_sql(sql, start_us, end_us, max_rows) for sql, _ in queries],
+        return_exceptions=True,
+    )
+
+    all_events: List[Dict[str, Any]] = []
+    for (_, source_override), result in zip(queries, results):
+        if isinstance(result, BaseException):
+            script_logger.warning(f"Timeline query failed: {result}")
+            continue
+        for hit in result:
+            all_events.append(_hit_to_event(hit, source_override))
+
+    # Deduplicate (same µs + first 100 chars of message)
+    seen: set = set()
+    unique: List[Dict[str, Any]] = []
+    for evt in sorted(all_events, key=lambda e: e["ts_us"]):
+        key = (evt["ts_us"], evt["message"][:100])
+        if key not in seen:
+            seen.add(key)
+            unique.append(evt)
+
+    return unique, start_us, end_us
+
+
+async def fetch_issue_timeline_remote(
+    issue_id: str,
+    before_minutes: int,
+    after_minutes: int,
+    use_dev: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """
+    Fetch the issue timeline via the production Admin Debug API.
+
+    Calls GET /v1/admin/debug/issues/{issue_id}/timeline with before/after params.
+    Returns the raw API response dict, or None on failure.
+    """
+    api_key  = await get_api_key_from_vault()
+    base_url = DEV_API_URL if use_dev else PROD_API_URL
+
+    return await make_prod_api_request(
+        f"issues/{issue_id}/timeline",
+        api_key,
+        base_url,
+        params={"before_minutes": before_minutes, "after_minutes": after_minutes},
+        entity_label=f"Issue timeline {issue_id}",
+    )
+
+
+def format_issue_timeline(
+    events: List[Dict[str, Any]],
+    issue: Dict[str, Any],
+    start_us: int,
+    end_us: int,
+    before_minutes: int,
+    after_minutes: int,
+) -> str:
+    """
+    Render the merged browser+backend event timeline for an issue.
+
+    Each line: HH:MM:SS.mmm  LEVEL  [source]  message
+    A visual marker is inserted at the issue's created_at timestamp.
+    """
+    lines: List[str] = []
+
+    issue_id    = issue.get("id", "?")[:8]
+    title       = issue.get("title", "?")
+    created_str = issue.get("created_at") or issue.get("timestamp") or ""
+    try:
+        anchor_dt = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+        anchor_us = int(anchor_dt.timestamp() * 1_000_000)
+        anchor_label = anchor_dt.strftime("%H:%M:%S UTC")
+    except Exception:
+        anchor_us    = 0
+        anchor_label = "unknown"
+
+    start_dt = datetime.fromtimestamp(start_us / 1_000_000, tz=timezone.utc)
+    end_dt   = datetime.fromtimestamp(end_us   / 1_000_000, tz=timezone.utc)
+
+    # Header
+    lines.append("")
+    lines.append("=" * 100)
+    lines.append(f"ISSUE TIMELINE  #{issue_id}  —  {title}")
+    lines.append("=" * 100)
+    lines.append(
+        f"  Window: {start_dt.strftime('%Y-%m-%d %H:%M:%S')} → "
+        f"{end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC  "
+        f"(−{before_minutes}min / +{after_minutes}min around report)"
+    )
+    lines.append(f"  Report: {created_str}   |   Events: {len(events)}")
+    lines.append("=" * 100)
+
+    if not events:
+        lines.append("")
+        lines.append("  No events found in OpenObserve for this time window.")
+        lines.append(
+            "  The issue may pre-date the current OpenObserve retention window, "
+            "or no logs were tagged with the issue_id / user_id."
+        )
+        lines.append("")
+        lines.append("=" * 100)
+        lines.append("")
+        return "\n".join(lines)
+
+    marker_inserted = False
+    prev_ts_us: Optional[int] = None
+
+    for evt in events:
+        ts_us   = evt["ts_us"]
+        level   = evt["level"]
+        source  = evt["source"]
+        message = evt["message"]
+
+        # Insert the "ISSUE REPORTED" marker at the right chronological position
+        if not marker_inserted and anchor_us > 0 and ts_us >= anchor_us:
+            marker_inserted = True
+            lines.append("")
+            lines.append(
+                f"{'─' * 20}  ISSUE REPORTED  {anchor_label}  {'─' * 20}"
+            )
+            lines.append("")
+
+        # Time gap separator (> 60 s between consecutive events)
+        if prev_ts_us is not None and (ts_us - prev_ts_us) > 60 * 1_000_000:
+            gap_s = (ts_us - prev_ts_us) / 1_000_000
+            lines.append(f"  {_C_DIM}... {gap_s:.0f}s gap ...{_C_RESET}")
+
+        prev_ts_us = ts_us
+
+        # Format timestamp
+        dt     = datetime.fromtimestamp(ts_us / 1_000_000, tz=timezone.utc)
+        ts_str = dt.strftime("%H:%M:%S.") + f"{dt.microsecond // 1000:03d}"
+
+        # Level badge + colour
+        lvl_upper = level.upper()[:5]
+        if level in ("error", "critical"):
+            lvl_col = _C_RED
+            suffix  = " !!"
+        elif level in ("warn", "warning"):
+            lvl_col = _C_YELLOW
+            suffix  = " ! "
+        else:
+            lvl_col = _C_DIM
+            suffix  = "   "
+
+        # Source colour
+        if source == "browser":
+            src_col = _C_MAGENTA
+        elif source in ("api", "api-logs"):
+            src_col = _C_CYAN
+        else:
+            src_col = _C_GREEN
+
+        # Truncate message to 160 chars for readable output
+        msg_display = message[:160] + ("…" if len(message) > 160 else "")
+
+        lines.append(
+            f"  {_C_DIM}{ts_str}{_C_RESET}  "
+            f"{lvl_col}{lvl_upper:<5}{_C_RESET}{suffix}  "
+            f"{src_col}[{source[:20]}]{_C_RESET}  "
+            f"{msg_display}"
+        )
+
+    # If anchor is after all events, insert marker at the end
+    if not marker_inserted and anchor_us > 0:
+        lines.append("")
+        lines.append(
+            f"{'─' * 20}  ISSUE REPORTED  {anchor_label}  {'─' * 20}"
+        )
+
+    # Footer summary
+    error_count   = sum(1 for e in events if e["level"] in ("error", "critical"))
+    warning_count = sum(1 for e in events if e["level"] in ("warn", "warning"))
+    sources       = sorted({e["source"] for e in events})
+    lines.append("")
+    lines.append("-" * 100)
+    lines.append(
+        f"  Summary: {len(events)} events | {error_count} errors | {warning_count} warnings | "
+        f"sources: {', '.join(sources)}"
+    )
+    lines.append("=" * 100)
+    lines.append("")
+
+    return "\n".join(lines)
+
+
 def format_list_output(
     issues: List[Dict[str, Any]],
     decrypted_issues: List[Dict[str, Optional[str]]]
@@ -768,6 +1146,65 @@ def format_list_output(
     return "\n".join(lines)
 
 
+def _relative_time(timestamp_str: Optional[str]) -> str:
+    """Convert an ISO timestamp to a relative time string like '2h ago' or '3d ago'."""
+    if not timestamp_str:
+        return "?"
+    try:
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        now = datetime.now(dt.tzinfo) if dt.tzinfo else datetime.now()
+        delta = now - dt
+        minutes = int(delta.total_seconds() / 60)
+        if minutes < 1:
+            return "just now"
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        days = hours // 24
+        return f"{days}d ago"
+    except Exception:
+        return "?"
+
+
+def format_compact_output(
+    issues: List[Dict[str, Any]],
+) -> str:
+    """Format issues as a compact one-line-per-issue summary for session context.
+
+    Shows truncated issue_id, relative time, title, truncated user_id (no email),
+    and affected URL. Designed to be concise enough to embed in sessions.py start
+    output without overwhelming Claude with irrelevant detail.
+
+    Args:
+        issues: Raw issue dictionaries from Directus (or mapped from API).
+
+    Returns:
+        Compact multi-line string, or empty message if no issues.
+    """
+    if not issues:
+        return "  No recent issues."
+
+    lines = []
+    for issue in issues:
+        issue_id = issue.get("id", "N/A")
+        title = truncate_string(issue.get("title", "N/A"), 60)
+        user_id = issue.get("reported_by_user_id")
+        user_str = f"user:{user_id[:8]}" if user_id else "user:anon"
+        timestamp = issue.get("created_at") or issue.get("timestamp")
+        rel_time = _relative_time(timestamp)
+
+        # Try to extract URL from encrypted fields (only available locally, not via compact)
+        url = issue.get("chat_or_embed_url", "")
+        url_str = f", {truncate_string(url, 40)}" if url else ""
+
+        lines.append(f"  #{issue_id} ({rel_time}) \"{title}\" — {user_str}{url_str}")
+
+    lines.append("  → Inspect: docker exec api python /app/backend/scripts/debug.py issue <ID>")
+    return "\n".join(lines)
+
+
 def format_detail_output(
     issue_id: str,
     issue: Optional[Dict[str, Any]],
@@ -819,12 +1256,15 @@ def format_detail_output(
     else:
         lines.append("")
         lines.append(
-            "  ℹ  Summary mode: some fields are truncated and logs are filtered to errors/warnings only."
+            "  ℹ  Summary mode: some fields are truncated."
         )
         lines.append(
-            "     Use --full-logs for complete untruncated output "
-            "(warning: can be very long — consider piping to a file or using grep)."
+            "     Use --full-logs for complete untruncated field output."
         )
+    lines.append(
+        "  ℹ  For logs, use: debug.py issue <id> --timeline  "
+        "(unified browser + backend timeline from OpenObserve)"
+    )
 
     # ===================== ISSUE METADATA =====================
     lines.append("")
@@ -980,71 +1420,42 @@ def format_detail_output(
                 else:
                     lines.append(f"    Device Info:      {truncate_string(device_info_str, 200)}")
 
-        # Console logs section
+        # Logs section — no longer stored in S3 YAML; queried live from OpenObserve via --timeline.
+        # Old YAMLs may still contain console_logs / docker_compose_logs; show a migration note.
         logs = report.get('logs', {})
-        if logs:
+        if logs and (logs.get('console_logs') or logs.get('docker_compose_logs')):
+            lines.append("")
+            lines.append("  LOGS (legacy snapshot — pre-dates OpenObserve timeline):")
+            lines.append("  " + "-" * 60)
+            lines.append(
+                "    This YAML was created before log data was moved to OpenObserve."
+            )
+            lines.append(
+                "    Run with --timeline for a live, unified browser+backend timeline instead."
+            )
+            # Still show a quick error-only filter so old YAMLs aren't totally opaque
             console_logs = logs.get('console_logs')
-            docker_logs = logs.get('docker_compose_logs')
-
+            docker_logs  = logs.get('docker_compose_logs')
+            combined = ""
             if console_logs:
-                lines.append("")
-                console_text = str(console_logs)
-
-                if full_logs:
-                    lines.append("  CONSOLE LOGS (client-side) [FULL]:")
-                    lines.append("  " + "-" * 60)
-                    for log_line in console_text.split('\n'):
-                        lines.append(f"    {log_line}")
-                else:
-                    filtered, total, matches = filter_logs_to_errors(console_text)
-                    lines.append(
-                        f"  CONSOLE LOGS (client-side) "
-                        f"[{matches} warning(s)/error(s) of {total} lines, use --full-logs to show all]:"
-                    )
-                    lines.append("  " + "-" * 60)
-                    if filtered:
-                        lines.extend(filtered)
-                    else:
-                        lines.append("    ✅ No warnings or errors found in console logs.")
-
+                combined += str(console_logs) + "\n"
             if docker_logs:
-                lines.append("")
-
-                if full_logs:
-                    lines.append("  DOCKER COMPOSE LOGS (server-side) [FULL]:")
-                    lines.append("  " + "-" * 60)
-                    if isinstance(docker_logs, dict):
-                        for service_name, service_logs in docker_logs.items():
-                            lines.append(f"    [{service_name}]:")
-                            if service_logs:
-                                for log_line in str(service_logs).split('\n'):
-                                    lines.append(f"      {log_line}")
-                            else:
-                                lines.append("      (no logs)")
-                    else:
-                        for log_line in str(docker_logs).split('\n'):
-                            lines.append(f"    {log_line}")
+                if isinstance(docker_logs, dict):
+                    for svc_logs in docker_logs.values():
+                        if svc_logs:
+                            combined += str(svc_logs) + "\n"
                 else:
-                    # Filter docker logs to errors/warnings with context
-                    # Combine all docker logs into a single text block for filtering
-                    combined_docker_text = ""
-                    if isinstance(docker_logs, dict):
-                        for service_name, service_logs in docker_logs.items():
-                            if service_logs:
-                                combined_docker_text += str(service_logs) + "\n"
-                    else:
-                        combined_docker_text = str(docker_logs)
-
-                    filtered, total, matches = filter_logs_to_errors(combined_docker_text)
-                    lines.append(
-                        f"  DOCKER COMPOSE LOGS (server-side) "
-                        f"[{matches} warning(s)/error(s) of {total} lines, use --full-logs to show all]:"
-                    )
-                    lines.append("  " + "-" * 60)
-                    if filtered:
-                        lines.extend(filtered)
-                    else:
-                        lines.append("    ✅ No warnings or errors found in docker logs.")
+                    combined += str(docker_logs) + "\n"
+            if combined.strip():
+                filtered, total, matches = filter_logs_to_errors(combined)
+                lines.append(
+                    f"    Quick error scan: {matches} warning(s)/error(s) of {total} lines"
+                )
+                if filtered:
+                    for fl in filtered[:40]:  # cap at 40 lines to keep output short
+                        lines.append(f"  {fl}")
+                    if len(filtered) > 40:
+                        lines.append(f"    ... ({len(filtered) - 40} more — use --timeline)")
 
         # IndexedDB inspection section
         indexeddb = report.get('indexeddb_inspection')
@@ -1144,6 +1555,102 @@ def format_detail_output(
     return "\n".join(lines)
 
 
+
+def format_summary_output(
+    issue_id: str,
+    issue: Optional[Dict[str, Any]],
+    decrypted: Dict[str, Optional[str]],
+    s3_report: Optional[Dict[str, Any]],
+) -> str:
+    """Format a condensed issue summary for sessions.py inline context.
+
+    Shows metadata, key findings, runtime state, and last 5 user actions.
+    Skips raw HTML (messages, sidebar) to keep output under ~40 lines.
+    """
+    lines = []
+
+    # ── Compact header
+    title = (issue or {}).get('title', 'Unknown')
+    created = (issue or {}).get('date_created', '') or (issue or {}).get('timestamp', '')
+    from_admin = (issue or {}).get('is_from_admin', False) or False
+    user_id = (issue or {}).get('user_created', '') or '?'
+
+    lines.append(f"Issue: {title}")
+    lines.append(f"  ID: {issue_id}")
+    lines.append(f"  Time: {created}  |  Admin: {'yes' if from_admin else 'no'}  |  User: {user_id[:12]}...")
+
+    # ── Decrypted key info (1-2 lines)
+    url = decrypted.get('chat_or_embed_url', '')
+    device = decrypted.get('device_info', '')
+    location = decrypted.get('estimated_location', '')
+    if url:
+        lines.append(f"  URL: {url[:120]}{'...' if len(url) > 120 else ''}")
+    if location:
+        lines.append(f"  Location: {location}  |  Device: {device[:80] if device else 'N/A'}")
+
+    # ── Description (truncated)
+    desc = (issue or {}).get('description', '')
+    if desc:
+        # Strip HTML entities, take first 200 chars
+        import html as _html
+        clean_desc = _html.unescape(desc).replace('\n', ' ').strip()
+        if len(clean_desc) > 200:
+            clean_desc = clean_desc[:197] + '...'
+        lines.append(f"  Description: {clean_desc}")
+
+    # ── S3 YAML key findings
+    report = s3_report or {}
+    indexeddb = report.get('indexeddb_inspection')
+    if indexeddb and isinstance(indexeddb, dict):
+        # Extract the chat inspection text
+        indexeddb_str = str(indexeddb) if not isinstance(indexeddb, str) else indexeddb
+        lines.append(f"  IndexedDB: {indexeddb_str[:200]}{'...' if len(indexeddb_str) > 200 else ''}")
+    elif indexeddb:
+        indexeddb_str = str(indexeddb)
+        # Look for ISSUES DETECTED
+        if 'ISSUES DETECTED' in indexeddb_str:
+            start = indexeddb_str.find('ISSUES DETECTED')
+            end = indexeddb_str.find('\n\n', start)
+            if end == -1:
+                end = min(start + 200, len(indexeddb_str))
+            lines.append(f"  IndexedDB: {indexeddb_str[start:end].strip()}")
+        else:
+            lines.append(f"  IndexedDB: {indexeddb_str[:150]}{'...' if len(indexeddb_str) > 150 else ''}")
+
+    # ── Log quick scan (from S3 YAML legacy or pre-computed)
+    log_section = report.get('logs_quick_scan') or report.get('console_logs_summary')
+    if log_section:
+        lines.append(f"  Log scan: {str(log_section)[:200]}")
+
+    # ── Runtime debug state (compact)
+    runtime = report.get('runtime_debug_state')
+    if runtime:
+        if isinstance(runtime, dict):
+            ws_status = runtime.get('websocket_status', {})
+            sync_state = runtime.get('phased_sync_state', {})
+            ws_line = f"WS: {ws_status.get('status', '?')}"
+            if ws_status.get('lastMessage'):
+                ws_line += f" ({ws_status['lastMessage'][:60]})"
+            sync_line = f"Sync: initial={sync_state.get('initialSyncCompleted', '?')}, chat={str(sync_state.get('currentActiveChatId', '?'))[:12]}"
+            lines.append(f"  Runtime: {ws_line} | {sync_line}")
+        else:
+            lines.append(f"  Runtime: {str(runtime)[:150]}")
+
+    # ── User action history (last 5 only)
+    actions = report.get('action_history')
+    if actions:
+        action_lines = str(actions).strip().split('\n')
+        if action_lines:
+            lines.append(f"  Actions ({len(action_lines)} total, last 5):")
+            for al in action_lines[-5:]:
+                lines.append(f"    {al.strip()}")
+
+    # ── Footer hint
+    lines.append(f"  Full: debug.py issue {issue_id} | Timeline: debug.py issue {issue_id} --timeline")
+
+    return "\n".join(lines)
+
+
 def format_detail_json(
     issue_id: str,
     issue: Optional[Dict[str, Any]],
@@ -1192,6 +1699,64 @@ def format_detail_json(
     return json.dumps(output, indent=2, default=str)
 
 
+def _find_related_commits_for_issue(title: str, description: str = "", n_commits: int = 50) -> list:
+    """Search git history for commits related to an issue by title/description keywords.
+
+    Extracts significant words from title and description, then runs git log --grep
+    for each keyword. Returns a deduplicated list of (sha, message, files) tuples.
+
+    Design intent: helps avoid re-investigating known patterns and identifies prior fixes.
+    """
+    import re as _re
+    import subprocess
+
+    # Extract keywords: words >= 5 chars, no common stop words
+    _stop_words = {
+        "should", "could", "would", "when", "there", "where", "which",
+        "broken", "bugfix", "issue", "error", "wrong", "fixed", "added",
+        "updated", "button", "click", "modal", "shows", "display", "render",
+    }
+    text = f"{title} {description}".lower()
+    words = _re.findall(r'[a-z][a-z0-9]{4,}', text)
+    keywords = [w for w in set(words) if w not in _stop_words][:6]  # limit to 6
+
+    # Also add issue ID substrings (first 8 chars of UUIDs found in text)
+    uuid_parts = _re.findall(r'[0-9a-f]{8}', text)
+    keywords += uuid_parts[:2]
+
+    if not keywords:
+        return []
+
+    # Determine project root relative to this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.join(script_dir, "..", "..")
+
+    found: dict[str, dict] = {}
+    for keyword in keywords:
+        try:
+            result = subprocess.run(
+                ["git", "log", f"--max-count={n_commits}", "--oneline",
+                 "--grep", keyword, "--ignore-case"],
+                capture_output=True, text=True, timeout=10,
+                cwd=project_root,
+            )
+            for line in result.stdout.strip().splitlines():
+                sha = line.split(" ", 1)[0]
+                if sha not in found:
+                    msg = line
+                    # Get files touched
+                    files_result = subprocess.run(
+                        ["git", "diff-tree", "--no-commit-id", "-r", "--name-only", sha],
+                        capture_output=True, text=True, timeout=5, cwd=project_root,
+                    )
+                    files = files_result.stdout.strip().splitlines()[:5]
+                    found[sha] = {"msg": msg, "files": files, "matched_kw": keyword}
+        except Exception:
+            continue
+
+    return list(found.values())[:8]  # cap at 8 results
+
+
 async def main():
     """Main function that inspects an issue or lists issues."""
     parser = argparse.ArgumentParser(
@@ -1220,6 +1785,13 @@ async def main():
         help='List recent issues instead of inspecting a specific one'
     )
     parser.add_argument(
+        '--compact',
+        action='store_true',
+        help='Output a one-line-per-issue summary for embedding in session context. '
+        'Shows truncated issue_id, relative time, title, truncated user_id, and URL. '
+        'Used with --list. No email addresses are shown.'
+    )
+    parser.add_argument(
         '--list-limit',
         type=int,
         default=20,
@@ -1240,10 +1812,32 @@ async def main():
         '--full-logs',
         action='store_true',
         help=(
-            'Show all data untruncated: full log lines (not just errors/warnings) AND full text '
-            'fields (description, device info, IndexedDB, etc.). '
-            'Output can be very long — consider piping to a file or using grep to filter.'
+            'Show all text fields untruncated (description, device info, IndexedDB, etc.). '
+            'For log inspection use --timeline instead.'
         )
+    )
+    parser.add_argument(
+        '--timeline',
+        action='store_true',
+        help=(
+            'Show a unified chronological timeline of browser console + backend logs from '
+            'OpenObserve, anchored to the issue created_at timestamp. '
+            'Use --before / --after to control the time window around the report.'
+        )
+    )
+    parser.add_argument(
+        '--before',
+        type=int,
+        default=10,
+        metavar='N',
+        help='Minutes before the issue timestamp to include in --timeline (default: 10)'
+    )
+    parser.add_argument(
+        '--after',
+        type=int,
+        default=5,
+        metavar='N',
+        help='Minutes after the issue timestamp to include in --timeline (default: 5)'
     )
     parser.add_argument(
         '--delete',
@@ -1264,6 +1858,20 @@ async def main():
         '--dev',
         action='store_true',
         help='When used with --production, hit the dev API instead of prod'
+    )
+    parser.add_argument(
+        '--summary',
+        action='store_true',
+        help='Output a condensed summary: metadata, key findings, runtime state, '
+        'last 5 user actions. Skips raw HTML (messages, sidebar). '
+        'Used by sessions.py for inline issue context.'
+    )
+    parser.add_argument(
+        '--related-commits',
+        action='store_true',
+        help='Search git history for commits related to this issue by extracting '
+        'keywords from the issue title and description. Shows matching commits '
+        'and files they touched. Useful for finding prior fixes to similar issues.'
     )
 
     args = parser.parse_args()
@@ -1308,7 +1916,9 @@ async def main():
 
                 issues, decrypted_list = map_production_issues_list(api_response)
 
-                if args.json:
+                if args.compact:
+                    print(format_compact_output(issues))
+                elif args.json:
                     censored_decrypted_list = []
                     for d in decrypted_list:
                         censored = dict(d)
@@ -1362,40 +1972,75 @@ async def main():
                     sys.exit(1)
 
             else:
-                # ---- Remote detail mode ----
+                # ---- Remote detail mode (or --timeline via API) ----
                 script_logger.info(f"Inspecting issue: {args.issue_id}")
 
-                api_response = await fetch_issue_from_production_api(
-                    args.issue_id,
-                    include_logs=not args.no_logs,
-                    use_dev=args.dev,
-                )
-
-                if api_response is None:
-                    script_logger.error(
-                        f"Issue not found on {source_label}: {args.issue_id}"
+                if args.timeline:
+                    # --timeline in remote mode: call the dedicated timeline endpoint
+                    print(
+                        f"{_C_DIM}Fetching issue timeline from {source_label} API...{_C_RESET}",
+                        flush=True,
                     )
-                    sys.exit(1)
+                    tl_response = await fetch_issue_timeline_remote(
+                        args.issue_id,
+                        before_minutes=args.before,
+                        after_minutes=args.after,
+                        use_dev=args.dev,
+                    )
+                    if tl_response is None:
+                        script_logger.error(
+                            f"Issue not found or timeline unavailable on {source_label}: "
+                            f"{args.issue_id}"
+                        )
+                        sys.exit(1)
 
-                mapped = map_production_issue_to_local_format(api_response)
-                issue = mapped["issue"]
-                decrypted = mapped["decrypted"]
-                s3_report = mapped["full_report"]
-
-                # Screenshot pre-signed URLs are not available via the API
-                screenshot_presigned_url = None
-
-                if args.json:
-                    print(format_detail_json(
-                        args.issue_id, issue, decrypted, s3_report,
-                        screenshot_presigned_url=screenshot_presigned_url,
+                    # The API returns {issue, events, start_us, end_us}
+                    tl_issue   = tl_response.get("issue", {})
+                    tl_events  = tl_response.get("events", [])
+                    tl_start   = tl_response.get("start_us", 0)
+                    tl_end     = tl_response.get("end_us", 0)
+                    print(format_issue_timeline(
+                        tl_events, tl_issue,
+                        tl_start, tl_end,
+                        args.before, args.after,
                     ))
+
                 else:
-                    print(format_detail_output(
-                        args.issue_id, issue, decrypted, s3_report,
-                        full_logs=args.full_logs,
-                        screenshot_presigned_url=screenshot_presigned_url,
-                    ))
+                    api_response = await fetch_issue_from_production_api(
+                        args.issue_id,
+                        include_logs=not args.no_logs,
+                        use_dev=args.dev,
+                    )
+
+                    if api_response is None:
+                        script_logger.error(
+                            f"Issue not found on {source_label}: {args.issue_id}"
+                        )
+                        sys.exit(1)
+
+                    mapped = map_production_issue_to_local_format(api_response)
+                    issue = mapped["issue"]
+                    decrypted = mapped["decrypted"]
+                    s3_report = mapped["full_report"]
+
+                    # Screenshot pre-signed URLs are not available via the API
+                    screenshot_presigned_url = None
+
+                    if args.json:
+                        print(format_detail_json(
+                            args.issue_id, issue, decrypted, s3_report,
+                            screenshot_presigned_url=screenshot_presigned_url,
+                        ))
+                    elif args.summary:
+                        print(format_summary_output(
+                            args.issue_id, issue, decrypted, s3_report,
+                        ))
+                    else:
+                        print(format_detail_output(
+                            args.issue_id, issue, decrypted, s3_report,
+                            full_logs=args.full_logs,
+                            screenshot_presigned_url=screenshot_presigned_url,
+                        ))
 
         except Exception as e:
             script_logger.error(f"Error during inspection: {e}", exc_info=True)
@@ -1429,6 +2074,11 @@ async def main():
                     search=args.search,
                     include_processed=args.include_processed
                 )
+
+                if args.compact:
+                    # Compact mode: skip expensive email decryption — only show user_id
+                    print(format_compact_output(issues))
+                    return
 
                 # Decrypt email for each issue (for display in list)
                 decrypted_list = []
@@ -1512,51 +2162,95 @@ async def main():
                 # Inspect flow
                 script_logger.info(f"Inspecting issue: {args.issue_id}")
 
-                # 2. Decrypt fields
-                decrypted: Dict[str, Optional[str]] = {}
-                if issue:
-                    decrypted = await decrypt_issue_fields(encryption_service, issue)
-
-                # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
-                s3_report = None
-                screenshot_presigned_url: Optional[str] = None
-                needs_s3 = (
-                    (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
-                    or (issue and issue.get('encrypted_screenshot_s3_key'))
-                )
-                if needs_s3:
-                    script_logger.info("Initializing S3 service for report/screenshot...")
-                    try:
-                        await secrets_manager.initialize()
-                        s3_service = S3UploadService(secrets_manager=secrets_manager)
-                        await s3_service.initialize()
-
-                        # Fetch YAML report (unless --no-logs)
-                        if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
-                            script_logger.info("Fetching S3 YAML report...")
-                            s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
-
-                        # Generate fresh 7-day pre-signed URL for the screenshot PNG
-                        if issue and issue.get('encrypted_screenshot_s3_key'):
-                            script_logger.info("Generating screenshot pre-signed URL...")
-                            screenshot_presigned_url = await get_screenshot_presigned_url(
-                                encryption_service, s3_service, issue
-                            )
-                    except Exception as e:
-                        script_logger.warning(f"Failed to initialize S3 service: {e}")
-
-                # 4. Format and output results
-                if args.json:
-                    print(format_detail_json(
-                        args.issue_id, issue, decrypted, s3_report,
-                        screenshot_presigned_url=screenshot_presigned_url
+                if args.timeline:
+                    # --timeline: query OpenObserve directly, no S3 needed
+                    if not issue:
+                        script_logger.error(f"Issue not found: {args.issue_id}")
+                        sys.exit(1)
+                    print(
+                        f"{_C_DIM}Querying OpenObserve timeline "
+                        f"(−{args.before}min / +{args.after}min)...{_C_RESET}",
+                        flush=True,
+                    )
+                    tl_events, tl_start, tl_end = await fetch_issue_timeline_local(
+                        issue,
+                        before_minutes=args.before,
+                        after_minutes=args.after,
+                    )
+                    print(format_issue_timeline(
+                        tl_events, issue,
+                        tl_start, tl_end,
+                        args.before, args.after,
                     ))
+
                 else:
-                    print(format_detail_output(
-                        args.issue_id, issue, decrypted, s3_report,
-                        full_logs=args.full_logs,
-                        screenshot_presigned_url=screenshot_presigned_url
-                    ))
+                    # 2. Decrypt fields
+                    decrypted: Dict[str, Optional[str]] = {}
+                    if issue:
+                        decrypted = await decrypt_issue_fields(encryption_service, issue)
+
+                    # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
+                    s3_report = None
+                    screenshot_presigned_url: Optional[str] = None
+                    needs_s3 = (
+                        (not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'))
+                        or (issue and issue.get('encrypted_screenshot_s3_key'))
+                    )
+                    if needs_s3:
+                        script_logger.info("Initializing S3 service for report/screenshot...")
+                        try:
+                            await secrets_manager.initialize()
+                            s3_service = S3UploadService(secrets_manager=secrets_manager)
+                            await s3_service.initialize()
+
+                            # Fetch YAML report (unless --no-logs)
+                            if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+                                script_logger.info("Fetching S3 YAML report...")
+                                s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+
+                            # Generate fresh 7-day pre-signed URL for the screenshot PNG
+                            if issue and issue.get('encrypted_screenshot_s3_key'):
+                                script_logger.info("Generating screenshot pre-signed URL...")
+                                screenshot_presigned_url = await get_screenshot_presigned_url(
+                                    encryption_service, s3_service, issue
+                                )
+                        except Exception as e:
+                            script_logger.warning(f"Failed to initialize S3 service: {e}")
+
+                    # 4. Format and output results
+                    if args.json:
+                        print(format_detail_json(
+                            args.issue_id, issue, decrypted, s3_report,
+                            screenshot_presigned_url=screenshot_presigned_url
+                        ))
+                    elif args.summary:
+                        print(format_summary_output(
+                            args.issue_id, issue, decrypted, s3_report,
+                        ))
+                    else:
+                        print(format_detail_output(
+                            args.issue_id, issue, decrypted, s3_report,
+                            full_logs=args.full_logs,
+                            screenshot_presigned_url=screenshot_presigned_url
+                        ))
+
+                    # --related-commits: search git history for prior related fixes
+                    if getattr(args, 'related_commits', False) and issue:
+                        title = decrypted.get('title', '') or issue.get('title', '') or ''
+                        description = decrypted.get('description', '') or ''
+                        related = _find_related_commits_for_issue(title, description)
+                        print()
+                        print("═" * 60)
+                        if related:
+                            print(f"Related commits ({len(related)} found):")
+                            for r in related:
+                                print(f"  {r['msg']}")
+                                for f in r['files']:
+                                    print(f"    {f}")
+                                print(f"    (matched keyword: {r['matched_kw']})")
+                        else:
+                            print("Related commits: none found in last 50 commits.")
+                        print("═" * 60)
 
         except Exception as e:
             script_logger.error(f"Error during inspection: {e}", exc_info=True)

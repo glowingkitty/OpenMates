@@ -19,13 +19,13 @@ export const serverChatOrder = writable<string[]>([]);
  * Sets the server chat order.
  * @param {string[]} order - An array of chat_id strings.
  */
-export function setServerChatOrder(order: string[]): void {
+function setServerChatOrder(order: string[]): void {
   serverChatOrder.set(order);
 }
 
 /**
  * Clears the server chat order, typically on logout or full reset.
  */
-export function clearServerChatOrder(): void {
+function clearServerChatOrder(): void {
   serverChatOrder.set([]);
 }

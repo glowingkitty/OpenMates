@@ -1,0 +1,69 @@
+# backend/core/directus/schemas/webhooks.yml
+#
+# Directus collection schema for webhook keys (incoming webhooks).
+#
+# Webhooks allow external services to trigger actions in OpenMates (e.g.,
+# creating a new chat with a system message). Each key is tied to a user
+# via hashed_user_id (privacy-preserving, same pattern as api_keys).
+#
+# Architecture: docs/architecture/webhooks.md
+# Related: api_keys.yml (same privacy + auth patterns)
+#
+# Designed for extensibility: the `direction` field (default "incoming")
+# allows future outgoing webhook support without schema migration.
+webhooks:
+  type: collection
+  fields:
+    hashed_user_id:
+      type: string
+      length: 255
+      note: "[Hashed] SHA256 hash of user_id for privacy-preserving lookups (matches api_keys pattern)"
+      required: true
+    user_id:
+      type: uuid
+      note: "Direct reference to user_id for efficient lookups when user is already known. Stored alongside hashed_user_id for query efficiency (same rationale as api_keys)."
+      required: true
+    key_hash:
+      type: string
+      length: 64
+      note: "SHA-256 hash of the full webhook key (used for authentication). The raw key is never stored."
+      required: true
+      unique: true
+    encrypted_name:
+      type: string
+      length: 512
+      note: "[Encrypted] Client-side encrypted webhook name (e.g., 'CI Test Results'), encrypted with user's master key"
+      required: true
+    encrypted_key_prefix:
+      type: string
+      length: 512
+      note: "[Encrypted] Client-side encrypted key prefix (e.g., 'wh-abc123...') for display, encrypted with user's master key"
+      required: true
+    direction:
+      type: string
+      length: 20
+      note: "Webhook direction: 'incoming' (external -> OpenMates) or 'outgoing' (OpenMates -> external, future). Default: 'incoming'"
+      required: true
+    permissions:
+      type: json
+      note: "Array of allowed actions, e.g. ['trigger_chat']. Validated server-side against a fixed allowlist."
+    require_confirmation:
+      type: boolean
+      note: "When true, incoming webhook chats are created as pending and require user approval before AI processing begins. Default: false."
+    is_active:
+      type: boolean
+      note: "Whether this webhook key is currently active. Inactive keys are rejected on authentication."
+    last_used_at:
+      type: timestamp
+      note: "Timestamp of the most recent successful authentication with this key"
+    created_at:
+      type: timestamp
+      note: "Timestamp when the webhook key was created"
+      required: true
+    updated_at:
+      type: timestamp
+      note: "Timestamp when the record was last updated"
+      required: true
+    expires_at:
+      type: timestamp
+      note: "Optional expiration timestamp. Null means the key never expires."

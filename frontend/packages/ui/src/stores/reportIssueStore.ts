@@ -44,6 +44,8 @@ export interface ReportIssueFormDraft {
   chatOrEmbedUrl: string;
   contactEmail: string;
   includeEmailToggle: boolean;
+  /** Admin-only: whether to trigger Claude Code investigation on submit. */
+  submitToAgent?: boolean;
   pickedElementHtml: string | null;
   screenshotDataUrl: string | null;
 }

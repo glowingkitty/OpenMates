@@ -258,7 +258,7 @@ export function rehydratePairSession(): void {
 /**
  * Clear pair session state (called on logout).
  */
-export function clearPairSession(): void {
+function clearPairSession(): void {
   _pairSessionData.set(null);
 }
 
@@ -274,9 +274,16 @@ export function clearPairSession(): void {
 export const pendingPairToken = writable<string | null>(null);
 
 /**
+ * Set to true by SettingsSessionsConfirmPair when pairing completes successfully.
+ * Read once by SettingsSessions to show a "New" badge on the newest session.
+ * Cleared after the sessions list reads it.
+ */
+export const newlyPairedSession = writable<boolean>(false);
+
+/**
  * Format remaining seconds as MM:SS string.
  */
-export function formatRemainingTime(seconds: number): string {
+function formatRemainingTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;

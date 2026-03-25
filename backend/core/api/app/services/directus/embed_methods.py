@@ -1,6 +1,13 @@
 """
 Directus methods for embed operations.
 Handles CRUD operations for embeds collection in Directus.
+
+Architecture: docs/architecture/embeds.md
+Scalability notes:
+  - Phase 1 (2026-03): Added PostgreSQL indexes on all query columns via
+    backend/scripts/migrate_embed_indexes.py. All reads now use index scans.
+  - Phase 2 (2026-03): Fixed N+1 on shared embed deletion, added Directus UUID
+    caching to eliminate double-fetch on update, added pagination to bulk fetches.
 """
 import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
@@ -10,6 +17,15 @@ if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
 
 logger = logging.getLogger(__name__)
+
+# Redis TTL for caching the Directus internal UUID (id) of an embed.
+# The internal UUID is stable for the lifetime of the record — only invalidated on deletion.
+# 7 days is conservative; most active embeds are accessed within 72h.
+_EMBED_DIRECTUS_ID_CACHE_TTL: int = 7 * 86400  # 7 days in seconds
+
+# Maximum number of embeds returned per page in bulk-fetch methods.
+# Prevents unbounded memory usage when fetching embeds for many chats.
+_BULK_FETCH_PAGE_SIZE: int = 500
 
 # Fields for embed operations
 EMBED_ALL_FIELDS = (
@@ -150,33 +166,53 @@ class EmbedMethods:
     async def get_embeds_by_hashed_chat_ids(self, hashed_chat_ids: List[str]) -> List[Dict[str, Any]]:
         """
         Fetch all embeds for multiple chats by hashed_chat_ids.
-        
+
+        Phase 2 optimisation: replaced unbounded ``limit=-1`` with paginated fetches
+        capped at _BULK_FETCH_PAGE_SIZE (500) per page.  This prevents unbounded memory
+        allocation when the caller passes a large list of chat IDs.  Pagination is
+        transparent to the caller — the full merged result is returned.
+
         Args:
             hashed_chat_ids: List of SHA256 hashes of chat_ids
-            
+
         Returns:
-            List of embeds for the chats
+            List of embeds for the chats (all pages merged)
         """
         if not hashed_chat_ids:
             return []
-            
-        logger.debug(f"Fetching embeds for {len(hashed_chat_ids)} hashed_chat_ids...")
-        params = {
-            'filter[hashed_chat_id][_in]': hashed_chat_ids,
-            'fields': EMBED_ALL_FIELDS,
-            'sort': '-created_at',
-            'limit': -1
-        }
-        try:
-            response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
-            if response and isinstance(response, list):
-                logger.debug(f"Found {len(response)} embed(s) for {len(hashed_chat_ids)} chats")
-                return response
-            else:
-                return []
-        except Exception as e:
-            logger.error(f"Error fetching embeds by hashed_chat_ids: {e}", exc_info=True)
-            return []
+
+        logger.debug(f"Fetching embeds for {len(hashed_chat_ids)} hashed_chat_ids (paginated)...")
+        all_embeds: List[Dict[str, Any]] = []
+        offset = 0
+
+        while True:
+            params = {
+                'filter[hashed_chat_id][_in]': hashed_chat_ids,
+                'fields': EMBED_ALL_FIELDS,
+                'sort': '-created_at',
+                'limit': _BULK_FETCH_PAGE_SIZE,
+                'offset': offset,
+            }
+            try:
+                page = await self.directus_service.get_items('embeds', params=params, no_cache=True)
+            except Exception as e:
+                logger.error(f"Error fetching embeds by hashed_chat_ids (offset={offset}): {e}", exc_info=True)
+                break
+
+            if not page or not isinstance(page, list):
+                break
+
+            all_embeds.extend(page)
+            logger.debug(f"Fetched {len(page)} embeds at offset={offset} (total so far: {len(all_embeds)})")
+
+            if len(page) < _BULK_FETCH_PAGE_SIZE:
+                # Last page — fewer results than page size means we've reached the end
+                break
+
+            offset += _BULK_FETCH_PAGE_SIZE
+
+        logger.debug(f"Found {len(all_embeds)} embed(s) total for {len(hashed_chat_ids)} chats")
+        return all_embeds
     
     async def create_embed(self, embed_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -219,35 +255,63 @@ class EmbedMethods:
     async def update_embed(self, embed_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Update an existing embed in Directus.
-        
+
+        Phase 2 optimisation: the Directus internal UUID (id) is cached in Redis under
+        ``embed:directus_id:{embed_id}`` with a 7-day TTL so repeated updates do not
+        require a prior full-record GET to discover the UUID.  On cache miss we fall back
+        to the original fetch path and populate the cache for subsequent calls.
+
         Args:
             embed_id: The embed_id of the embed to update
             update_data: Dictionary containing fields to update
-            
+
         Returns:
             Updated embed dictionary if successful, None otherwise
         """
         logger.debug(f"Updating embed with embed_id: {embed_id}")
         try:
-            # First, get the Directus ID
-            embed = await self.get_embed_by_id(embed_id)
-            if not embed:
-                logger.error(f"Embed not found for update: {embed_id}")
-                return None
-            
-            directus_id = embed.get('id')
+            # ── Step 1: Resolve the Directus internal UUID ────────────────────
+            # Try the Redis cache first to avoid a full record GET.
+            directus_id: Optional[str] = None
+            cache_key = f"embed:directus_id:{embed_id}"
+
+            try:
+                cached = await self.directus_service.cache.get(cache_key)
+                if cached:
+                    directus_id = cached
+                    logger.debug(f"Cache hit for Directus UUID of embed {embed_id}: {directus_id}")
+            except Exception as cache_err:
+                logger.warning(f"Cache read failed for embed UUID {embed_id}: {cache_err}")
+
             if not directus_id:
-                logger.error(f"No Directus ID found for embed: {embed_id}")
-                return None
-            
-            # Update the embed - ensure fresh auth token
+                # Cache miss — fetch the full record (original path)
+                embed = await self.get_embed_by_id(embed_id)
+                if not embed:
+                    logger.error(f"Embed not found for update: {embed_id}")
+                    return None
+
+                directus_id = embed.get('id')
+                if not directus_id:
+                    logger.error(f"No Directus ID found for embed: {embed_id}")
+                    return None
+
+                # Populate cache so the next update is fast
+                try:
+                    await self.directus_service.cache.set(
+                        cache_key, directus_id, ttl=_EMBED_DIRECTUS_ID_CACHE_TTL
+                    )
+                    logger.debug(f"Cached Directus UUID for embed {embed_id}")
+                except Exception as cache_write_err:
+                    logger.warning(f"Cache write failed for embed UUID {embed_id}: {cache_write_err}")
+
+            # ── Step 2: PATCH the embed record ────────────────────────────────
             url = f"{self.directus_service.base_url}/items/embeds/{directus_id}"
             token = await self.directus_service.ensure_auth_token()
             if not token:
                 logger.error(f"Failed to get auth token for embed update: {embed_id}")
                 return None
             headers = {"Authorization": f"Bearer {token}"}
-            
+
             response = await self.directus_service._client.patch(url, json=update_data, headers=headers)
             response.raise_for_status()
             updated_embed = response.json().get('data')
@@ -663,45 +727,84 @@ class EmbedMethods:
             # ------------------------------------------------------------------
             # Step 2: Decide which shared embeds to delete.
             # A shared embed is deletable when it is NOT referenced by any other
-            # chat of the same user (i.e. its hashed_chat_id only points here).
+            # chat of the same user (i.e. its embed_id only appears under this
+            # hashed_chat_id for this user).
+            #
+            # Phase 2 optimisation: replaced the previous N individual existence
+            # queries (one per shared embed) with a single aggregate query that
+            # counts, per embed_id, how many distinct hashed_chat_ids reference it
+            # for the same user.  Embeds referenced by exactly 1 chat (this one)
+            # are safe to delete.  This reduces N Directus round-trips to 1.
             # ------------------------------------------------------------------
             shared_embeds_to_delete: list[dict] = []
             shared_embeds_to_keep: list[dict] = []
 
             if shared_embeds and user_id:
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-                for embed in shared_embeds:
-                    embed_id = embed.get('embed_id')
-                    if not embed_id:
-                        # No embed_id — treat as deletable
-                        shared_embeds_to_delete.append(embed)
-                        continue
 
-                    # Check whether any OTHER chat of this user references the same embed_id.
-                    # We look for embeds with the same embed_id but a different hashed_chat_id
-                    # that still belong to the same user (via hashed_user_id).
-                    other_ref_params = {
-                        'filter[embed_id][_eq]': embed_id,
+                # Collect all embed_ids that need a cross-chat reference check.
+                embed_ids_to_check = [
+                    e.get('embed_id') for e in shared_embeds if e.get('embed_id')
+                ]
+                embed_ids_without_id = [
+                    e for e in shared_embeds if not e.get('embed_id')
+                ]
+                # Embeds with no embed_id field have no cross-chat identity — delete them.
+                shared_embeds_to_delete.extend(embed_ids_without_id)
+
+                if embed_ids_to_check:
+                    # Single batch query: for each embed_id in the set, count how many
+                    # distinct hashed_chat_ids reference it (across all of this user's embeds).
+                    # Any embed_id that appears in only 1 chat (this one) is safe to delete.
+                    multi_ref_params = {
+                        'filter[embed_id][_in]': ','.join(embed_ids_to_check),
                         'filter[hashed_user_id][_eq]': hashed_user_id,
-                        'filter[hashed_chat_id][_neq]': hashed_chat_id,
-                        'fields': 'id',
-                        'limit': 1,
+                        'fields': 'embed_id,hashed_chat_id',
+                        'limit': -1,
                     }
-                    other_refs = await self.directus_service.get_items(
-                        'embeds', params=other_ref_params, no_cache=True
-                    )
-                    if other_refs and len(other_refs) > 0:
-                        # Still referenced by another chat — keep it
-                        shared_embeds_to_keep.append(embed)
-                        logger.debug(
-                            f"Keeping shared embed {embed_id[:8]}... — still used in another chat"
+                    try:
+                        all_refs = await self.directus_service.get_items(
+                            'embeds', params=multi_ref_params, no_cache=True
                         )
+                    except Exception as ref_err:
+                        logger.error(
+                            f"Failed to batch-check shared embed references: {ref_err}. "
+                            f"Falling back to keeping all shared embeds for safety.",
+                            exc_info=True,
+                        )
+                        all_refs = None
+
+                    if all_refs is None:
+                        # Safe fallback: keep all shared embeds rather than risking data loss.
+                        shared_embeds_to_keep.extend(shared_embeds)
                     else:
-                        # No other reference — delete it
-                        shared_embeds_to_delete.append(embed)
-                        logger.debug(
-                            f"Marking shared embed {embed_id[:8]}... for deletion — no other chat references it"
-                        )
+                        # Build a set of embed_ids that appear in MORE than 1 distinct chat.
+                        from collections import defaultdict
+                        chat_sets: dict[str, set[str]] = defaultdict(set)
+                        for ref in all_refs:
+                            eid = ref.get('embed_id')
+                            cid = ref.get('hashed_chat_id')
+                            if eid and cid:
+                                chat_sets[eid].add(cid)
+
+                        multi_chat_embed_ids: set[str] = {
+                            eid for eid, chats in chat_sets.items() if len(chats) > 1
+                        }
+
+                        for embed in shared_embeds:
+                            embed_id = embed.get('embed_id')
+                            if not embed_id:
+                                continue  # already handled above
+                            if embed_id in multi_chat_embed_ids:
+                                shared_embeds_to_keep.append(embed)
+                                logger.debug(
+                                    f"Keeping shared embed {embed_id[:8]}... — still used in another chat"
+                                )
+                            else:
+                                shared_embeds_to_delete.append(embed)
+                                logger.debug(
+                                    f"Marking shared embed {embed_id[:8]}... for deletion — no other chat references it"
+                                )
             else:
                 # No user_id provided: fall back to the old behaviour (keep all shared embeds)
                 shared_embeds_to_keep = shared_embeds
@@ -1013,39 +1116,64 @@ class EmbedMethods:
     async def _delete_embed_keys_for_embed(self, embed_id: str) -> bool:
         """
         Deletes all embed_keys entries for a specific embed from Directus.
-        
+        Also invalidates the Directus UUID cache entry for this embed so a
+        subsequent update_embed call does not try to PATCH a deleted record.
+
         Args:
             embed_id: The embed_id (UUID) to delete keys for
-            
+
         Returns:
             True if successful, False otherwise
         """
         try:
             import hashlib
             hashed_embed_id = hashlib.sha256(embed_id.encode()).hexdigest()
-            
+
             params = {
                 'filter[hashed_embed_id][_eq]': hashed_embed_id,
                 'fields': 'id',
                 'limit': -1
             }
-            
+
             response = await self.directus_service.get_items('embed_keys', params=params, no_cache=True)
-            
+
             if not response or not isinstance(response, list) or len(response) == 0:
+                # Still invalidate the UUID cache even if no keys exist
+                await self._invalidate_embed_directus_id_cache(embed_id)
                 return True
-            
+
             key_ids = [key.get('id') for key in response if key.get('id')]
             if not key_ids:
+                await self._invalidate_embed_directus_id_cache(embed_id)
                 return True
-            
+
             success = await self.directus_service.bulk_delete_items(collection='embed_keys', item_ids=key_ids)
             if success:
                 logger.debug(f"Deleted {len(key_ids)} embed_keys for embed {embed_id}")
+
+            # Invalidate Directus UUID cache so update_embed won't target a deleted record
+            await self._invalidate_embed_directus_id_cache(embed_id)
             return success
         except Exception as e:
             logger.error(f"Error deleting embed_keys for embed {embed_id}: {e}", exc_info=True)
             return False
+
+    async def _invalidate_embed_directus_id_cache(self, embed_id: str) -> None:
+        """
+        Evict the cached Directus internal UUID for an embed.
+        Called whenever an embed is deleted so update_embed does not try to
+        PATCH a stale (deleted) record UUID.
+
+        Args:
+            embed_id: The embed_id (UUID) whose cache entry should be evicted.
+        """
+        cache_key = f"embed:directus_id:{embed_id}"
+        try:
+            await self.directus_service.cache.delete(cache_key)
+            logger.debug(f"Invalidated Directus UUID cache for embed {embed_id}")
+        except Exception as e:
+            # Non-fatal: the TTL will eventually expire the stale entry
+            logger.warning(f"Failed to invalidate Directus UUID cache for embed {embed_id}: {e}")
 
     async def delete_all_upload_files_for_user(
         self,

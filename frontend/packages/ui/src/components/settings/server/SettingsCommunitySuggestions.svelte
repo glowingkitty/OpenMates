@@ -2,14 +2,13 @@
     Settings Community Suggestions Component
 
     Shows pending community chat suggestions for admin approval.
-    Allows admins to approve chats to become demo chats with a limit of 5.
+    Allows admins to approve chats to become demo chats.
 -->
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { getApiEndpoint } from '@repo/ui';
     import Chat from '../../chats/Chat.svelte';
     import type { Chat as ChatType } from '../../../types/chat';
-    import { decryptShareKeyBlob } from '../../../services/shareEncryption';
     import { webSocketService } from '../../../services/websocketService';
 
     const dispatch = createEventDispatcher();
@@ -69,12 +68,10 @@
     let currentDemoChats = $state<DemoChat[]>([]);
     let isSubmitting = $state(false);
     let pendingSuggestion = $state<Suggestion | null>(null);
-    let selectedReplacementChatId = $state<string>('');
     let selectedDemoChatCategory = $state<string>('for_everyone');  // Category to assign when approving
 
-    // Category limits for demo chats
-    const CATEGORY_LIMITS: Record<string, number> = { for_everyone: 6, for_developers: 4 };
-    const TOTAL_LIMIT = 10;
+    // UI visibility limits (published demos can exceed these; older demos remain link-accessible)
+    const UI_CATEGORY_LIMITS: Record<string, number> = { for_everyone: 10, for_developers: 4 };
 
     // Translation progress tracking
     let translationProgress = $state<Map<string, TranslationProgress>>(new Map());
@@ -182,55 +179,37 @@
         }
     }
 
-    /**
-     * Helper to get the actual chat encryption key from a suggestion
-     * Handles both raw base64 keys and encrypted share blobs
-     */
-    async function getDecryptedChatKey(suggestion: Suggestion): Promise<string | null> {
-        let keyOrBlob = suggestion.encryption_key;
-        
-        // Try to get key from local storage if not in suggestion
-        if (!keyOrBlob) {
-            const { getSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
-            const storedKey = await getSharedChatKey(suggestion.chat_id);
-            if (storedKey) {
-                // Convert Uint8Array to base64
-                keyOrBlob = window.btoa(String.fromCharCode(...storedKey));
-            }
-        }
-
-        if (!keyOrBlob && suggestion.share_link) {
-            // Extract key from share link if not provided directly
-            const shareLink = suggestion.share_link;
-            if (shareLink && shareLink.includes('#key=')) {
-                keyOrBlob = shareLink.split('#key=')[1];
-            }
-        }
-
-        if (!keyOrBlob) return null;
-
-        // If the key is short, it's likely already a raw base64 key
-        if (keyOrBlob.length < 100) {
-            return keyOrBlob;
-        }
-
-        // Otherwise, it's an encrypted share blob - decrypt it
-        try {
-            const serverTime = Math.floor(Date.now() / 1000);
-            const result = await decryptShareKeyBlob(suggestion.chat_id, keyOrBlob, serverTime);
-            
-            if (result.success && result.chatEncryptionKey) {
-                console.debug('[SettingsCommunitySuggestions] Decrypted share key blob successfully');
-                return result.chatEncryptionKey;
-            } else {
-                console.warn('[SettingsCommunitySuggestions] Failed to decrypt share key blob:', result.error);
-                return null;
-            }
-        } catch (e) {
-            console.error('[SettingsCommunitySuggestions] Error decrypting share key blob:', e);
-            return null;
-        }
+    // Preview modal state
+    interface PreviewMessage {
+        message_id: string;
+        role: string;
+        content: string;
+        category?: string;
+        model_name?: string;
+        created_at?: string;
     }
+
+    interface PreviewEmbed {
+        embed_id: string;
+        type: string;
+        content: string;
+        embed_ids?: string[];
+        parent_embed_id?: string;
+        created_at?: string;
+    }
+
+    interface PreviewData {
+        title: string;
+        summary?: string;
+        messages: PreviewMessage[];
+        embeds: PreviewEmbed[];
+    }
+
+    let previewOpen = $state(false);
+    let previewLoading = $state(false);
+    let previewError = $state<string | null>(null);
+    let previewData = $state<PreviewData | null>(null);
+    let previewSuggestion = $state<Suggestion | null>(null);
 
     /**
      * Approve a chat as demo chat
@@ -250,7 +229,6 @@
                 body: JSON.stringify({
                     demo_chat_id: suggestion.demo_chat_id,  // UUID of the pending entry
                     chat_id: suggestion.chat_id,
-                    replace_demo_chat_id: selectedReplacementChatId || null,  // ID of demo chat to replace (null for auto-replacement)
                     demo_chat_category: selectedDemoChatCategory  // Target audience: for_everyone or for_developers
                 })
             });
@@ -284,9 +262,6 @@
 
             // Remove from suggestions list
             suggestions = suggestions.filter(s => s.demo_chat_id !== suggestion.demo_chat_id);
-
-            // Clear replacement selection
-            selectedReplacementChatId = '';
 
             // Show success message
             dispatch('showToast', {
@@ -561,75 +536,94 @@
     }
 
     /**
-     * Preview a shared chat in the main app view
-     * 
-     * The encryption key is provided by the server (decrypted from shared_encrypted_chat_key).
-     * Stores the key in IndexedDB, closes settings panel, and navigates to the chat in the current tab.
+     * Open a preview modal showing the full chat content from the admin preview endpoint.
+     *
+     * The demo_chat entry stores decrypted content (submitted by the user at share time),
+     * so the admin can review messages and embeds without needing the encryption key.
      */
-    async function openSharedChat(suggestion: Suggestion) {
-        // Get the actual chat encryption key (decrypting if necessary)
-        const encryptionKey = await getDecryptedChatKey(suggestion);
-
-        // If no key is available, show error
-        if (!encryptionKey) {
+    async function openChatPreview(suggestion: Suggestion) {
+        if (!suggestion.demo_chat_id) {
             dispatch('showToast', {
                 type: 'error',
-                message: 'Encryption key not available. This chat may have been shared before this feature was added.'
+                message: 'Cannot preview: demo chat ID not found'
             });
             return;
         }
 
-        // Store the key in sharedChatKeyStorage so it's available for decryption
-        try {
-            const { saveSharedChatKey } = await import('../../../services/sharedChatKeyStorage');
-            // Convert base64 to Uint8Array
-            const keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
-            await saveSharedChatKey(suggestion.chat_id, keyBytes);
-        } catch (e) {
-            console.warn('Failed to save shared chat key to IndexedDB:', e);
-        }
+        previewSuggestion = suggestion;
+        previewOpen = true;
+        previewLoading = true;
+        previewError = null;
+        previewData = null;
 
-        // Close settings and navigate to the chat in the current tab
-        // Use the hash format that the app expects for deep links
-        window.location.hash = `chat_id=${suggestion.chat_id}`;
-        
-        // Dispatch event to ensure chat loads immediately
-        const event = new CustomEvent('globalChatSelected', {
-            detail: { 
-                chat: { chat_id: suggestion.chat_id },
-                is_shared: true
-            },
-            bubbles: true,
-            composed: true
-        });
-        window.dispatchEvent(event);
-        
-        // Close the settings panel
-        dispatch('close');
+        try {
+            const response = await fetch(
+                getApiEndpoint(`/v1/admin/demo-chat/${suggestion.demo_chat_id}/preview`),
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `Server returned ${response.status}`);
+            }
+
+            const data = await response.json();
+            previewData = {
+                title: data.title || suggestion.title || 'Untitled Chat',
+                summary: data.summary || suggestion.summary,
+                messages: data.messages || [],
+                embeds: data.embeds || []
+            };
+        } catch (err) {
+            console.error('[SettingsCommunitySuggestions] Error loading preview:', err);
+            previewError = err instanceof Error ? err.message : 'Failed to load chat preview';
+        } finally {
+            previewLoading = false;
+        }
     }
 
     /**
-     * Open the chat in the main view when coming from email link
+     * Close the preview modal
      */
-    function openChatFromEmail() {
-        if (pendingSuggestion) {
-            openSharedChat(pendingSuggestion);
-        }
+    function closePreview() {
+        previewOpen = false;
+        previewData = null;
+        previewSuggestion = null;
+        previewError = null;
+    }
+
+    /**
+     * Try to parse JSON content for display.
+     * Embeds store their content as a JSON string.
+     */
+    function tryParseJson(content: string): unknown {
+        try { return JSON.parse(content); } catch { return content; }
+    }
+
+    /**
+     * Get a human-readable label for an embed type string
+     */
+    function embedTypeLabel(type: string): string {
+        // Common patterns: "app_skill_use", "web-search", "images-search", etc.
+        return type.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
     // Load data on mount
     onMount(() => {
         extractUrlParams();
-        Promise.all([loadSuggestions(), loadCurrentDemoChats()]);
-        
-        // If we have a pending suggestion from email, open the chat automatically
-        // This allows admin to see the chat while reviewing it
-        if (pendingSuggestion) {
-            // Small delay to ensure settings are fully loaded
-            setTimeout(() => {
-                openChatFromEmail();
-            }, 500);
-        }
+        Promise.all([loadSuggestions(), loadCurrentDemoChats()]).then(() => {
+            // If we have a pending suggestion from email, open the preview automatically
+            if (pendingSuggestion) {
+                // Merge demo_chat_id from loaded suggestions if available
+                const matchingSuggestion = suggestions.find(s => s.chat_id === pendingSuggestion!.chat_id);
+                if (matchingSuggestion?.demo_chat_id) {
+                    pendingSuggestion = { ...pendingSuggestion!, demo_chat_id: matchingSuggestion.demo_chat_id };
+                }
+                if (pendingSuggestion!.demo_chat_id) {
+                    openChatPreview(pendingSuggestion!);
+                }
+            }
+        });
 
         // Register WebSocket handlers
         webSocketService.on('demo_chat_updated', handleDemoChatUpdate);
@@ -647,7 +641,7 @@
      * Updates the status and metadata when translation completes
      */
     function handleDemoChatUpdate(payload: DemoChatUpdatePayload) {
-        console.log('[SettingsCommunitySuggestions] Received demo_chat_updated event:', payload);
+        console.warn('[SettingsCommunitySuggestions] Received demo_chat_updated event:', payload);
         
         const { demo_chat_id, status } = payload;
         
@@ -662,7 +656,7 @@
             
             // If translation completed, reload to get full metadata
             if (status === 'published') {
-                console.log('[SettingsCommunitySuggestions] Demo chat published, reloading data...');
+                console.warn('[SettingsCommunitySuggestions] Demo chat published, reloading data...');
                 loadCurrentDemoChats();
                 
                 dispatch('showToast', {
@@ -690,7 +684,7 @@
      * - message: human-readable status message
      */
     function handleDemoChatProgress(payload: DemoChatProgressPayload) {
-        console.log('[SettingsCommunitySuggestions] Received demo_chat_progress event:', payload);
+        console.warn('[SettingsCommunitySuggestions] Received demo_chat_progress event:', payload);
 
         const { 
             demo_chat_id, 
@@ -737,17 +731,6 @@
         return translationProgress.get(demoChatId);
     }
 
-    /**
-     * Count demo chats by demo_chat_category
-     */
-    function getCategoryCount(cat: string): number {
-        return currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === cat).length;
-    }
-
-    /**
-     * Check if the selected category is at its limit
-     */
-    let isCategoryAtLimit = $derived(getCategoryCount(selectedDemoChatCategory) >= (CATEGORY_LIMITS[selectedDemoChatCategory] || 6));
 </script>
 
 <div class="community-suggestions">
@@ -760,8 +743,8 @@
     <!-- Current Demo Chats Section -->
     <div class="section">
         <div class="section-header">
-            <h3>Active Demo Chats ({currentDemoChats.length}/{TOTAL_LIMIT})</h3>
-            <span class="limit-info">For everyone: {getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone} | For developers: {getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers}</span>
+            <h3>Active Demo Chats ({currentDemoChats.length})</h3>
+            <span class="limit-info">UI visible: latest {UI_CATEGORY_LIMITS.for_everyone} for everyone, latest {UI_CATEGORY_LIMITS.for_developers} for developers</span>
         </div>
 
         {#if currentDemoChats.length === 0}
@@ -867,12 +850,13 @@
             </div>
 
             <div class="email-suggestion-card">
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div 
-                    class="suggestion-chat-preview clickable" 
-                    onclick={() => openSharedChat(pendingSuggestion!)}
-                    title="Click to open chat in new window"
+                <div
+                    class="suggestion-chat-preview clickable"
+                    role="button"
+                    tabindex="0"
+                    onclick={() => openChatPreview(pendingSuggestion!)}
+                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChatPreview(pendingSuggestion!); } }}
+                    title="Click to preview chat content"
                 >
                     <Chat 
                         chat={createVirtualChat(pendingSuggestion)}
@@ -893,25 +877,10 @@
                             bind:value={selectedDemoChatCategory}
                             class="replacement-select"
                         >
-                            <option value="for_everyone">For everyone ({getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone})</option>
-                            <option value="for_developers">For developers ({getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers})</option>
+                            <option value="for_everyone">For everyone</option>
+                            <option value="for_developers">For developers</option>
                         </select>
                     </div>
-                    {#if isCategoryAtLimit}
-                        <div class="replacement-selection">
-                            <label for="replacement-select-email" class="replacement-label">Replace existing demo chat:</label>
-                            <select
-                                id="replacement-select-email"
-                                bind:value={selectedReplacementChatId}
-                                class="replacement-select"
-                            >
-                                <option value="">Select chat to replace...</option>
-                                {#each currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === selectedDemoChatCategory) as demo}
-                                    <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
-                                {/each}
-                            </select>
-                        </div>
-                    {/if}
                     <button
                         onclick={() => rejectPendingSuggestion(pendingSuggestion!)}
                         class="btn btn-danger btn-small"
@@ -922,17 +891,9 @@
                     <button
                         onclick={() => approvePendingSuggestion(pendingSuggestion!)}
                         class="btn btn-primary btn-small"
-                        disabled={isSubmitting || (isCategoryAtLimit && !selectedReplacementChatId)}
+                        disabled={isSubmitting}
                     >
-                        {#if isCategoryAtLimit}
-                            {#if selectedReplacementChatId}
-                                Approve & Replace
-                            {:else}
-                                Select Chat to Replace
-                            {/if}
-                        {:else}
-                            Approve as Demo
-                        {/if}
+                        Approve as Demo
                     </button>
                 </div>
             </div>
@@ -969,12 +930,13 @@
             <div class="suggestions-grid">
                 {#each suggestions as suggestion}
                     <div class="suggestion-card">
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div 
+                        <div
                             class="suggestion-chat-preview clickable"
-                            onclick={() => openSharedChat(suggestion)}
-                            title="Click to open chat in new window"
+                            role="button"
+                            tabindex="0"
+                            onclick={() => openChatPreview(suggestion)}
+                            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChatPreview(suggestion); } }}
+                            title="Click to preview chat content"
                         >
                             <Chat 
                                 chat={createVirtualChat(suggestion)}
@@ -995,25 +957,10 @@
                                     bind:value={selectedDemoChatCategory}
                                     class="replacement-select"
                                 >
-                                    <option value="for_everyone">For everyone ({getCategoryCount('for_everyone')}/{CATEGORY_LIMITS.for_everyone})</option>
-                                    <option value="for_developers">For developers ({getCategoryCount('for_developers')}/{CATEGORY_LIMITS.for_developers})</option>
+                                    <option value="for_everyone">For everyone</option>
+                                    <option value="for_developers">For developers</option>
                                 </select>
                             </div>
-                            {#if isCategoryAtLimit}
-                                <div class="replacement-selection">
-                                    <label for="replacement-select-{suggestion.chat_id}" class="replacement-label">Replace existing demo chat:</label>
-                                    <select
-                                        id="replacement-select-{suggestion.chat_id}"
-                                        bind:value={selectedReplacementChatId}
-                                        class="replacement-select"
-                                    >
-                                        <option value="">Select chat to replace...</option>
-                                        {#each currentDemoChats.filter(d => (d.demo_chat_category || 'for_everyone') === selectedDemoChatCategory) as demo}
-                                            <option value={demo.id}>{demo.title || 'Demo Chat'}</option>
-                                        {/each}
-                                    </select>
-                                </div>
-                            {/if}
                             <button
                                 onclick={() => rejectSuggestion(suggestion.demo_chat_id, suggestion.chat_id)}
                                 class="btn btn-danger btn-small"
@@ -1024,17 +971,9 @@
                             <button
                                 onclick={() => approveDemoChat(suggestion)}
                                 class="btn btn-primary btn-small"
-                                disabled={isSubmitting || (isCategoryAtLimit && !selectedReplacementChatId)}
+                                disabled={isSubmitting}
                             >
-                                {#if isCategoryAtLimit}
-                                    {#if selectedReplacementChatId}
-                                        Approve & Replace
-                                    {:else}
-                                        Select Chat to Replace
-                                    {/if}
-                                {:else}
-                                    Approve as Demo
-                                {/if}
+                                Approve as Demo
                             </button>
                         </div>
                     </div>
@@ -1050,16 +989,115 @@
             <ul>
                 <li>Demo chats are shown to non-authenticated users</li>
                 <li>They showcase OpenMates capabilities to potential users</li>
-                <li>Maximum of 10 demo chats: 6 "For everyone" + 4 "For developers"</li>
+                <li>No hard publish cap: older demo chats remain available until manually removed</li>
                 <li>"For everyone" chats are shown in the main intro chat</li>
                 <li>"For developers" chats are shown in the developers intro chat</li>
-                <li>All demo chats appear in the "Example Chats" sidebar group</li>
-                <li>Oldest demos in the same category are replaced when at limit</li>
-                <li>Click a chat preview to view the conversation in a new window</li>
+                <li>Only the latest 10 "For everyone" and latest 4 "For developers" are shown in UI lists</li>
+                <li>Older demo chats remain accessible via direct /demo/chat/{'{slug}'} links</li>
+                <li>Click a chat preview to view the full conversation with embeds</li>
             </ul>
         </div>
     </div>
 </div>
+
+<!-- Chat Preview Modal -->
+{#if previewOpen}
+    <div
+        class="preview-overlay"
+        role="button"
+        tabindex="0"
+        onclick={closePreview}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closePreview(); } }}
+    >
+        <div
+            class="preview-modal"
+            role="presentation"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+        >
+            <div class="preview-header">
+                <h3>{previewData?.title || previewSuggestion?.title || 'Chat Preview'}</h3>
+                <button class="preview-close-btn" onclick={closePreview} aria-label="Close preview">
+                    &times;
+                </button>
+            </div>
+
+            {#if previewLoading}
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading chat content...</p>
+                </div>
+            {:else if previewError}
+                <div class="error">
+                    <div class="error-icon">&#x26A0;&#xFE0F;</div>
+                    <p>{previewError}</p>
+                </div>
+            {:else if previewData}
+                {#if previewData.summary}
+                    <div class="preview-summary">
+                        <strong>Summary:</strong> {previewData.summary}
+                    </div>
+                {/if}
+
+                <div class="preview-stats">
+                    <span>{previewData.messages.length} messages</span>
+                    {#if previewData.embeds.length > 0}
+                        <span>&middot; {previewData.embeds.length} embeds</span>
+                    {/if}
+                </div>
+
+                <div class="preview-messages">
+                    {#each previewData.messages as msg}
+                        <div class="preview-message preview-message-{msg.role}">
+                            <div class="preview-message-header">
+                                <span class="preview-role">{msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : 'System'}</span>
+                                {#if msg.model_name}
+                                    <span class="preview-model">{msg.model_name}</span>
+                                {/if}
+                            </div>
+                            <div class="preview-message-content">
+                                {#if msg.role === 'system'}
+                                    {#if typeof tryParseJson(msg.content) === 'object'}
+                                        <pre class="preview-json">{JSON.stringify(tryParseJson(msg.content), null, 2)}</pre>
+                                    {:else}
+                                        <p>{msg.content}</p>
+                                    {/if}
+                                {:else}
+                                    <p>{msg.content}</p>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+
+                {#if previewData.embeds.length > 0}
+                    <div class="preview-embeds-section">
+                        <h4>Embeds ({previewData.embeds.length})</h4>
+                        {#each previewData.embeds as embed}
+                            <div class="preview-embed" class:is-child={!!embed.parent_embed_id}>
+                                <div class="preview-embed-header">
+                                    <span class="preview-embed-type">{embedTypeLabel(embed.type)}</span>
+                                    <span class="preview-embed-id" title={embed.embed_id}>{embed.embed_id.slice(0, 8)}...</span>
+                                    {#if embed.parent_embed_id}
+                                        <span class="preview-embed-child-badge">child of {embed.parent_embed_id.slice(0, 8)}...</span>
+                                    {/if}
+                                    {#if embed.embed_ids && embed.embed_ids.length > 0}
+                                        <span class="preview-embed-parent-badge">{embed.embed_ids.length} children</span>
+                                    {/if}
+                                </div>
+                                {#if typeof tryParseJson(embed.content) === 'object'}
+                                    <pre class="preview-json">{JSON.stringify(tryParseJson(embed.content), null, 2)}</pre>
+                                {:else}
+                                    <p class="preview-embed-content">{embed.content}</p>
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            {/if}
+        </div>
+    </div>
+{/if}
 
 <style>
     .community-suggestions {
@@ -1425,7 +1463,6 @@
     }
 
     .replacement-select:focus {
-        outline: none;
         border-color: var(--color-primary);
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
     }
@@ -1537,6 +1574,230 @@
         margin-bottom: 0.5rem;
     }
 
+    /* Preview Modal Styles */
+    .preview-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .preview-modal {
+        background: var(--color-background-primary);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 700px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-border);
+        flex-shrink: 0;
+    }
+
+    .preview-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--color-text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        margin-right: 1rem;
+    }
+
+    .preview-close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--color-text-secondary);
+        padding: 0 0.25rem;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    .preview-close-btn:hover {
+        color: var(--color-text-primary);
+    }
+
+    .preview-summary {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+        color: var(--color-text-secondary);
+        border-bottom: 1px solid var(--color-border);
+        flex-shrink: 0;
+    }
+
+    .preview-stats {
+        padding: 0.5rem 1.25rem;
+        font-size: 0.8rem;
+        color: var(--color-text-tertiary);
+        border-bottom: 1px solid var(--color-border);
+        flex-shrink: 0;
+    }
+
+    .preview-stats span + span {
+        margin-left: 0.25rem;
+    }
+
+    .preview-messages {
+        overflow-y: auto;
+        padding: 1rem 1.25rem;
+        flex: 1;
+        min-height: 0;
+    }
+
+    .preview-message {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--color-border);
+    }
+
+    .preview-message-user {
+        background: var(--color-background-tertiary);
+    }
+
+    .preview-message-assistant {
+        background: var(--color-background-secondary);
+    }
+
+    .preview-message-system {
+        background: var(--color-background-tertiary);
+        opacity: 0.7;
+        font-size: 0.85rem;
+    }
+
+    .preview-message-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .preview-role {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--color-text-primary);
+        text-transform: capitalize;
+    }
+
+    .preview-model {
+        font-size: 0.75rem;
+        color: var(--color-text-tertiary);
+        background: var(--color-background-tertiary);
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+    }
+
+    .preview-message-content p {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.5;
+        color: var(--color-text-primary);
+        font-size: 0.9rem;
+    }
+
+    .preview-json {
+        margin: 0;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        background: var(--color-background-tertiary);
+        border-radius: 4px;
+        padding: 0.5rem;
+        overflow-x: auto;
+        max-height: 200px;
+        color: var(--color-text-secondary);
+    }
+
+    .preview-embeds-section {
+        border-top: 1px solid var(--color-border);
+        padding: 1rem 1.25rem;
+        overflow-y: auto;
+        max-height: 300px;
+        flex-shrink: 0;
+    }
+
+    .preview-embeds-section h4 {
+        margin: 0 0 0.75rem 0;
+        font-size: 0.95rem;
+        color: var(--color-text-primary);
+    }
+
+    .preview-embed {
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--color-background-secondary);
+    }
+
+    .preview-embed.is-child {
+        margin-left: 1.5rem;
+        border-left: 3px solid var(--color-primary-light);
+    }
+
+    .preview-embed-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .preview-embed-type {
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: var(--color-primary);
+    }
+
+    .preview-embed-id {
+        font-size: 0.7rem;
+        color: var(--color-text-tertiary);
+        font-family: monospace;
+    }
+
+    .preview-embed-child-badge,
+    .preview-embed-parent-badge {
+        font-size: 0.7rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .preview-embed-child-badge {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .preview-embed-parent-badge {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .preview-embed-content {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--color-text-secondary);
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
     @media (max-width: 768px) {
         .community-suggestions {
             padding: 1rem;
@@ -1579,6 +1840,14 @@
         .demo-header {
             flex-direction: column;
             gap: 0.5rem;
+        }
+
+        .preview-modal {
+            max-height: 90vh;
+        }
+
+        .preview-embed.is-child {
+            margin-left: 0.75rem;
         }
     }
 </style>

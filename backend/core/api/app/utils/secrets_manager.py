@@ -342,7 +342,7 @@ class SecretsManager:
             logger.error(f"[SecretsManager] Failed to store secrets at '{secret_path}': {e}", exc_info=True)
             return False
 
-    async def get_secret(self, secret_path: str, secret_key: str) -> Optional[str]:
+    async def get_secret(self, secret_path: str, secret_key: str, log_missing: bool = True) -> Optional[str]:
         """
         Get a specific secret key from a given path in Vault.
 
@@ -351,6 +351,9 @@ class SecretsManager:
                          This path should be the full path for the KV v2 engine,
                          typically starting with "kv/data/".
             secret_key: The key of the secret within that path (e.g., "api_key").
+            log_missing: If False, suppress the WARNING log when the key is not found.
+                         Use this for optional secrets that have a well-defined fallback
+                         handled by the caller (so the log noise is not confusing).
 
         Returns:
             The secret value or None if not found or on error.
@@ -389,9 +392,13 @@ class SecretsManager:
                     }
                     return secret_value
                 else:
-                    logger.warning(f"Secret key '{secret_key}' not found at path '{secret_path}' in Vault.")
+                    if log_missing:
+                        logger.warning(f"Secret key '{secret_key}' not found at path '{secret_path}' in Vault.")
+                    else:
+                        logger.debug(f"Secret key '{secret_key}' not found at path '{secret_path}' in Vault (optional key, fallback used by caller).")
             else:
-                logger.warning(f"No data found at path '{secret_path}' in Vault, or data format is unexpected. Response: {response_data}")
+                if log_missing:
+                    logger.warning(f"No data found at path '{secret_path}' in Vault, or data format is unexpected. Response: {response_data}")
             
             return None
 

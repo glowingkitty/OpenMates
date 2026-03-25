@@ -15,10 +15,22 @@
     // Props using Svelte 5 runes
     let { 
         context = 'website',
-        isLoggedIn = false
+        isLoggedIn = false,
+        /**
+         * When true (docs mode): hamburger is always visible, toggles the docs sidebar,
+         * and the right section shows a "Back to chats" link instead of Login/Signup.
+         */
+        docsMode = false,
+        /** Override toggle action for the hamburger button (used in docs mode). */
+        onToggleSidebar = undefined as (() => void) | undefined,
+        /** Whether the controlled sidebar is currently open (used in docs mode for aria state). */
+        isSidebarOpen = false,
     }: {
         context?: 'website' | 'webapp';
         isLoggedIn?: boolean;
+        docsMode?: boolean;
+        onToggleSidebar?: () => void;
+        isSidebarOpen?: boolean;
     } = $props();
     
     // Server edition state - will be fetched on mount
@@ -37,7 +49,7 @@
     let websiteNavItems = $derived([
         { href: routes.home, text: $text('navigation.for_all') },
         { href: routes.developers, text: $text('navigation.for_developers') },
-        { href: routes.docs.main, text: $text('navigation.docs') }
+        { href: routes.docs.main, text: $text('common.docs') }
     ].filter(item => item.href && isPageVisible(item.href)));
 
     interface _NavItem {
@@ -238,15 +250,18 @@
                 <div class="left-section">
                     <!-- Menu button container - always rendered to maintain header height -->
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    <!-- Hide menu button visually when login interface is open, during signup, or when chats panel is open -->
+                    <!-- In docs mode: always visible, controls docs sidebar via onToggleSidebar -->
+                    <!-- In webapp mode: hide when login interface is open, during signup, or when chats panel is open -->
                     <div 
                         class="menu-button-container"
-                        class:hidden={context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen}
+                        class:hidden={(docsMode && isSidebarOpen) || (!docsMode && (context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen))}
                     >
                         <button
                             class="clickable-icon icon_menu"
-                            onclick={panelState.toggleChats}
+                            data-testid="sidebar-toggle"
+                            onclick={docsMode && onToggleSidebar ? onToggleSidebar : panelState.toggleChats}
                             aria-label={$text('header.toggle_menu')}
+                            aria-expanded={docsMode ? isSidebarOpen : $panelState.isActivityHistoryOpen}
                         ></button>
                     </div>
                     <div class="logo-container">
@@ -328,25 +343,33 @@
                     </div>
                 {/if}
                 
-                <!-- Login button for non-authenticated users in webapp context -->
-                <!-- Opens login interface which also provides signup option -->
-                <!-- Always render to maintain header height, but hide visually when not needed -->
-                <div
-                    class="right-section"
-                    class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
-                >
-                    <button
-                        class="login-signup-button"
-                        onclick={(e) => {
-                            e.preventDefault();
-                            // Dispatch event to open login interface (which includes Login/Sign up tabs)
-                            window.dispatchEvent(new CustomEvent('openLoginInterface'));
-                        }}
-                        aria-label={loginButtonText}
+                <!-- Center section: docs mode shows Docs/Chat tab toggle -->
+                {#if docsMode}
+                    <div class="docs-tabs">
+                        <a href="/docs" class="docs-tab active">{$text('common.docs')}</a>
+                        <a href="/" class="docs-tab">{$text('common.chat')}</a>
+                    </div>
+                {/if}
+
+                <!-- Right section: webapp shows Login/Signup when not authenticated -->
+                {#if !docsMode}
+                    <div
+                        class="right-section"
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
                     >
-                        {loginButtonText}
-                    </button>
-                </div>
+                        <button
+                            class="login-signup-button"
+                            onclick={(e) => {
+                                e.preventDefault();
+                                // Dispatch event to open login interface (which includes Login/Sign up tabs)
+                                window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                            }}
+                            aria-label={loginButtonText}
+                        >
+                            {loginButtonText}
+                        </button>
+                    </div>
+                {/if}
             </nav>
         </div>
     {/await}
@@ -719,5 +742,49 @@
         background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
         box-shadow: none;
+    }
+
+    /* Docs/Chat tab toggle — centered in header when in docs mode */
+    .docs-tabs {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background-color: var(--color-grey-20);
+        border-radius: 10px;
+        padding: 3px;
+        /* Center in header using absolute positioning so left/right sections aren't affected */
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .docs-tab {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--color-font-secondary);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .docs-tab:hover {
+        color: var(--color-font-primary);
+    }
+
+    .docs-tab.active {
+        background-color: var(--color-grey-0);
+        color: var(--color-font-primary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 600px) {
+        .docs-tabs {
+            position: static;
+            transform: none;
+        }
     }
 </style>

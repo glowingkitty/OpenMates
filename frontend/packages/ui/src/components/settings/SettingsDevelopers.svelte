@@ -41,7 +41,19 @@ Developers Settings - API keys management and developer tools
             settingsPath: 'developers/devices',
             direction: 'forward',
             icon: 'devices',
-            title: $text('settings.developers_devices_text')
+            title: $text('common.devices')
+        });
+    }
+
+    /**
+     * Navigate to Webhooks submenu for incoming webhook key management.
+     */
+    function navigateToWebhooks() {
+        dispatch('openSettings', {
+            settingsPath: 'developers/webhooks',
+            direction: 'forward',
+            icon: 'link',
+            title: $text('settings.developers_webhooks')
         });
     }
 
@@ -65,9 +77,17 @@ Developers Settings - API keys management and developer tools
     <SettingsItem
         type="submenu"
         icon="subsetting_icon devices"
-        title={$text('settings.developers_devices_text')}
+        title={$text('common.devices')}
         subtitleTop={$text('settings.developers_devices_description')}
         onClick={navigateToDevices}
+    />
+
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon link"
+        title={$text('settings.developers_webhooks')}
+        subtitleTop={$text('settings.developers_webhooks_description')}
+        onClick={navigateToWebhooks}
     />
 
     <SettingsItem

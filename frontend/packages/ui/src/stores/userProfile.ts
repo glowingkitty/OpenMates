@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { userDB } from "../services/userDB";
 import { pushNotificationStore } from "./pushNotificationStore";
 
@@ -56,6 +56,9 @@ export interface UserProfile {
   // Chat auto-deletion period (null = never delete, positive int = delete after N days)
   // Managed via Privacy → Auto Deletion → Chats. Persisted to server via POST /v1/settings/auto-delete-chats.
   auto_delete_chats_after_days?: number | null;
+  // Usage data auto-deletion period (null = platform default of 3 years / 1095 days)
+  // Managed via Privacy → Auto Deletion → Usage Data. Persisted via POST /v1/settings/auto-delete-usage.
+  auto_delete_usage_after_days?: number | null;
   // Email notification settings (synced with server)
   // Only sends email when user is offline (no active WebSocket connections after 3 retry attempts)
   email_notifications_enabled?: boolean;
@@ -63,6 +66,7 @@ export interface UserProfile {
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
     backupReminder: boolean; // Periodic backup reminder emails (Settings → Notifications → Backup Reminders)
+    webhookChats?: boolean; // Notify when an incoming webhook creates a new chat (default: true)
   };
   // Backup reminder fields — synced with server via the email notification settings WebSocket flow.
   // last_export_at: set server-side when the user fetches the export manifest.
@@ -177,8 +181,13 @@ export function updateProfile(profile: Partial<UserProfile>): void {
     ...profile,
   }));
 
-  // Persist to IndexedDB
-  userDB.updateUserData(profile);
+  // Only persist to IndexedDB if we have meaningful user data.
+  // This prevents writing default/empty records before login,
+  // which would trigger false orphan detection on a fresh DB.
+  const merged = get(userProfile);
+  if (merged.user_id || merged.username) {
+    userDB.updateUserData(profile);
+  }
 }
 
 // Add getter for components that need user data

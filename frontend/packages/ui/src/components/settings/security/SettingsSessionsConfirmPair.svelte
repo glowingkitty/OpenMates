@@ -14,14 +14,19 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
 -->
 
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
     import { uint8ArrayToBase64, getKeyFromStorage } from '../../../services/cryptoService';
     import { get } from 'svelte/store';
-    import { pendingPairToken } from '../../../stores/pairSessionStore';
+    import { pendingPairToken, newlyPairedSession } from '../../../stores/pairSessionStore';
+    import { notificationStore } from '../../../stores/notificationStore';
 
-    const dispatch = createEventDispatcher<{ denied: void; done: void }>();
+    const dispatch = createEventDispatcher<{
+        denied: void;
+        done: void;
+        openSettings: { settingsPath: string; direction: string; icon: string; title: string };
+    }>();
 
     // ========================================================================
     // STATE
@@ -61,6 +66,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     let generatedPin = $state<string | null>(null);
     let autoLogoutMinutes = $state<number | null>(null);
     const PAIR_PIN_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY3468';
+    let completionPollInterval: ReturnType<typeof setInterval> | null = null;
 
     // ========================================================================
     // LIFECYCLE
@@ -173,6 +179,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
             }
 
             pageStatus = 'pin_display';
+            startCompletionPolling();
         } catch (err: unknown) {
             console.error('[ConfirmPair] Authorization failed:', err);
             errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error');
@@ -184,6 +191,48 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         pageStatus = 'denied';
         dispatch('denied');
     }
+
+    /**
+     * After displaying the PIN, poll /pair/poll/{token} every 3 seconds to detect
+     * when the initiating device completes pairing (token gets deleted → status 'expired').
+     * On completion, auto-redirect to the sessions list with a success notification.
+     */
+    function startCompletionPolling() {
+        if (completionPollInterval) return;
+        completionPollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(getApiEndpoint(`/v1/auth/pair/poll/${token}`), {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json().catch(() => ({}));
+                if (data.status === 'expired') {
+                    stopCompletionPolling();
+                    newlyPairedSession.set(true);
+                    notificationStore.success(get(text)('settings.sessions.pair_complete_success'));
+                    dispatch('openSettings', {
+                        settingsPath: 'account/security/sessions',
+                        direction: 'backward',
+                        icon: 'devices',
+                        title: get(text)('settings.sessions.title'),
+                    });
+                }
+            } catch {
+                // Network error — keep polling
+            }
+        }, 3000);
+    }
+
+    function stopCompletionPolling() {
+        if (completionPollInterval) {
+            clearInterval(completionPollInterval);
+            completionPollInterval = null;
+        }
+    }
+
+    onDestroy(() => {
+        stopCompletionPolling();
+    });
 
     // ========================================================================
     // CRYPTO HELPERS
@@ -339,6 +388,19 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     let displayPin = $derived(
         generatedPin ? `${generatedPin.slice(0, 3)} ${generatedPin.slice(3)}` : ''
     );
+
+    let pinCopied = $state(false);
+
+    async function copyPin() {
+        if (!generatedPin) return;
+        try {
+            await navigator.clipboard.writeText(generatedPin);
+            pinCopied = true;
+            setTimeout(() => { pinCopied = false; }, 2000);
+        } catch {
+            // Clipboard API unavailable — user can still select + copy manually
+        }
+    }
 </script>
 
 <div class="confirm-pair-container">
@@ -403,15 +465,42 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         <p class="status-text">{$text('settings.sessions.pair_confirm_allowing')}</p>
 
     {:else if pageStatus === 'pin_display' && generatedPin}
-        <h2 class="page-title">{$text('settings.sessions.pair_confirm_show_pin')}</h2>
         <p class="page-description">{$text('settings.sessions.pair_confirm_pin_hint')}</p>
 
-        <div class="pin-display">
-            {displayPin}
+        <div class="pin-display-row">
+            <span class="pin-display">{displayPin}</span>
+            <button
+                class="btn-copy"
+                onclick={copyPin}
+                title="Copy PIN"
+                aria-label="Copy PIN"
+            >
+                {#if pinCopied}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                {:else}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                {/if}
+            </button>
         </div>
 
-        <button class="btn btn-secondary" onclick={() => dispatch('done')}>
-            Done
+        <button class="btn btn-secondary" onclick={() => {
+            stopCompletionPolling();
+            // Invalidate the token on the backend (fire-and-forget)
+            if (token) {
+                fetch(getApiEndpoint(`/v1/auth/pair/${token}`), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                }).catch(() => {});
+            }
+            dispatch('done');
+        }}>
+            {$text('common.cancel')}
         </button>
 
     {:else if pageStatus === 'denied'}
@@ -513,7 +602,18 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         gap: 0.75rem;
     }
 
+    .pin-display-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-25);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+    }
+
     .pin-display {
+        flex: 1;
         font-size: 2.5rem;
         font-weight: 700;
         letter-spacing: 0.25em;
@@ -521,10 +621,34 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         font-variant-numeric: tabular-nums;
         font-family: monospace;
         text-align: center;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-25);
-        border-radius: 12px;
-        padding: 1.25rem;
+        user-select: text;
+        -webkit-user-select: text;
+        cursor: text;
+    }
+
+    .btn-copy {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-30);
+        background: var(--color-grey-0);
+        color: var(--color-font-secondary);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .btn-copy:hover {
+        background: var(--color-grey-20);
+        color: var(--color-font-primary);
+        border-color: var(--color-grey-35, var(--color-grey-30));
+    }
+
+    .btn-copy:active {
+        background: var(--color-grey-25);
     }
 
     .error-box {

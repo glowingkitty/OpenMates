@@ -325,6 +325,44 @@
 				return;
 			}
 
+			// ── Owner shortcut ──────────────────────────────────────────────
+			// If the authenticated user already owns this chat locally (it's in
+			// IndexedDB with a valid master-key-wrapped key), skip the share-page
+			// flow entirely and redirect to the normal chat view. This prevents
+			// the share-link key from overwriting the correct master-key-derived
+			// key and avoids corrupting the chat record with share-page defaults
+			// (is_shared_by_others, missing user_id, wrong version counters).
+			const { authStore } = await import('@repo/ui');
+			const isAuth = get(authStore).isAuthenticated;
+			if (isAuth) {
+				try {
+					await chatDB.init({ skipOrphanDetection: true });
+					const existingChat = await chatDB.getChat(chatId);
+					if (existingChat && existingChat.encrypted_chat_key) {
+						// The owner already has this chat with a wrapped key — the
+						// normal chat view can decrypt it via the master key.
+						console.info(
+							'[ShareChat] Owner shortcut: chat already exists locally with ' +
+								'encrypted_chat_key — redirecting to normal view instead of ' +
+								'overwriting with share-link key.'
+						);
+						const { key: _k, messageId } = extractKeyAndMessageFromFragment();
+						const targetUrl = messageId
+							? `/#chat-id=${chatId}&messageid=${messageId}`
+							: `/#chat-id=${chatId}`;
+						sessionStorage.setItem('openmates_shared_chat_redirect', chatId);
+						await goto(targetUrl);
+						isLoading = false;
+						return;
+					}
+				} catch (ownerCheckError) {
+					console.warn(
+						'[ShareChat] Owner check failed, falling through to share flow:',
+						ownerCheckError
+					);
+				}
+			}
+
 			// Fetch chat data from server
 			// The server returns encrypted chat data for existing chats
 			// or dummy encrypted data for non-existent chats (to prevent enumeration)
@@ -347,8 +385,10 @@
 			const keyBytes = Uint8Array.from(atob(result.chatEncryptionKey), (c) => c.charCodeAt(0));
 
 			// Set the chat encryption key in the database cache BEFORE storing chat
-			// This allows the chat to be decrypted when stored
-			chatDB.setChatKey(chatId, keyBytes);
+			// This allows the chat to be decrypted when stored.
+			// Source = 'share_link' so the immutability guard can block this if a
+			// master-key-derived key already exists (owner opening their own share link).
+			chatDB.setChatKey(chatId, keyBytes, 'share_link');
 
 			// CRITICAL: Persist the shared chat key to IndexedDB so it survives page reloads
 			// This is essential for unauthenticated users who can't derive keys from a master key.
@@ -450,10 +490,12 @@
 				// content can't be decrypted and embed_ref never gets registered — causing
 				// "Loading preview..." stuck state in EmbedReferencePreview / EmbedPreviewLarge.
 				const parentEmbeds = fetchedEmbeds.filter(
-					(e: ShareChatEmbedLike) => Array.isArray(e.embed_ids) && (e.embed_ids as unknown[]).length > 0
+					(e: ShareChatEmbedLike) =>
+						Array.isArray(e.embed_ids) && (e.embed_ids as unknown[]).length > 0
 				);
 				const childEmbeds = fetchedEmbeds.filter(
-					(e: ShareChatEmbedLike) => !Array.isArray(e.embed_ids) || (e.embed_ids as unknown[]).length === 0
+					(e: ShareChatEmbedLike) =>
+						!Array.isArray(e.embed_ids) || (e.embed_ids as unknown[]).length === 0
 				);
 				const sortedEmbeds = [...parentEmbeds, ...childEmbeds];
 
@@ -480,7 +522,9 @@
 						console.warn(`[ShareChat] Error storing embed ${embed.embed_id}:`, embedError);
 					}
 				}
-				console.debug(`[ShareChat] Stored ${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`);
+				console.debug(
+					`[ShareChat] Stored ${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`
+				);
 			}
 
 			// NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage

@@ -84,6 +84,7 @@
       <div class="button-wrapper">
         <button
           class="clickable-icon icon_share top-button"
+          data-testid="embed-share-button"
           onclick={onShare}
           aria-label={$text('chat.share')}
           title={$text('chat.share')}

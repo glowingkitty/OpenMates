@@ -5,6 +5,7 @@
 	import { panelState, isActivityHistoryOpen } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
+	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
@@ -384,7 +385,7 @@ let _chatUpdatedFlushPending = false;
 			for (const chat of processedRealChats) {
 				if (!existingChatIds.has(chat.chat_id)) {
 					// Check if we have a key for this chat (indicating it's a shared chat we can decrypt)
-					const hasKey = chatDB.getChatKey(chat.chat_id) !== null;
+					const hasKey = chatKeyManager.getKeySync(chat.chat_id) !== null;
 					if (hasKey) {
 						sharedChats.push(chat);
 						console.debug('[Chats] Added shared chat to list (has key in cache):', chat.chat_id);
@@ -876,7 +877,7 @@ let _chatUpdatedFlushPending = false;
 				try {
 					const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
 					// First decrypt the chat key if we have it encrypted
-					let chatKey = chatDB.getChatKey(targetChatId);
+					let chatKey = await chatKeyManager.getKey(targetChatId);
 					if (!chatKey && chat.encrypted_chat_key) {
 						chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
 						if (chatKey) {
@@ -963,10 +964,10 @@ let _chatUpdatedFlushPending = false;
 		*/
 	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
 		console.debug(`[Chats] Phase 2 complete - Last 20 chats ready: ${event.detail.chat_count} chats.`);
-		
-		// Update the chat list to show the recent chats
-		chatListCache.markDirty();
-		await updateChatListFromDB(true);
+
+		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
+		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
+		await updateChatListFromDB(false);
 		
 		// Phase 2 ensures at least 20 chats are available — tier 'initial' already shows 20
 		// No state change needed here; loadTier 'initial' already shows first 20
@@ -986,10 +987,11 @@ let _chatUpdatedFlushPending = false;
 		*/
 	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
 		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
-		
-		// Update the chat list to show all chats
-		chatListCache.markDirty();
-		await updateChatListFromDB(true);
+
+		// PERF: Phase 3 sync handler (chatSyncServiceHandlersPhasedSync.ts) now
+		// incrementally upserts each chat into chatListCache during storage.
+		// We only need a non-forced read to pick up the cache (no full IDB re-scan).
+		await updateChatListFromDB(false);
 		
 		// Phase 3 complete — stay on current tier (user clicks "Show more" to expand).
 		// Only track server-side pagination metadata.
@@ -1028,8 +1030,8 @@ let _chatUpdatedFlushPending = false;
 		
 		// CRITICAL: Update chat list FIRST, before marking sync complete
 		// This ensures the syncing indicator stays visible until chats are actually displayed
-		chatListCache.markDirty();
-		await updateChatListFromDB(true);
+		// PERF: Use non-forced read since Phase 2/3 handlers already upserted into cache
+		await updateChatListFromDB(false);
 		
 		// Sync complete — stay on current tier. User clicks "Show more" to expand.
 		console.info(`[Chats] Phased sync complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
@@ -2773,7 +2775,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                 }
                 
                 // Get the chat key (decrypt from encrypted_chat_key if needed)
-                let chatKey = chatDB.getChatKey(chatIdToHideAfterInlineUnlock);
+                let chatKey = await chatKeyManager.getKey(chatIdToHideAfterInlineUnlock);
                 if (!chatKey && chatToHide.encrypted_chat_key) {
                     const { decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
                     try {
@@ -3325,7 +3327,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								console.debug('[Chats] Selected all chats:', selectedChatIds.size);
 							}}
 						>
-							{$text('chats.select_all')}
+							{$text('common.select_all')}
 						</button>
 						<button
 							class="select-mode-button"
@@ -3346,7 +3348,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								console.debug('[Chats] Exited select mode and cleared selection');
 							}}
 						>
-							{$text('chats.cancel')}
+							{$text('common.cancel')}
 						</button>
 					{:else}
 						<!-- Search button + close button -->
@@ -3358,7 +3360,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						></button>
 						<button
 							class="clickable-icon icon_close top-button right"
-							aria-label={$text('activity.close')}
+							aria-label={$text('common.close')}
 							onclick={handleClose}
 							use:tooltip
 						></button>
@@ -3418,8 +3420,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			</button>
 		{/if}
 
-		<div 
+		<div
 			class="activity-history"
+			role="list"
 			bind:this={activityHistoryElement}
 			onscroll={handleScroll}
 			onwheel={handleWheel}
@@ -3541,7 +3544,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								inlineUnlockError = '';
 								chatIdToHideAfterInlineUnlock = null;
 							}}
-							aria-label={$text('activity.close')}
+							aria-label={$text('common.close')}
 						></button>
 					</div>
 				</div>
@@ -3718,7 +3721,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									handleKeyDown(e, chat);
 								}}
 								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-								aria-label={chat.encrypted_title || 'Unnamed chat'}
+								aria-label={chat.title || $text('common.untitled_chat')}
 							>
 								<ChatComponent 
 									chat={chat} 
@@ -4195,7 +4198,6 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .overscroll-unlock-input:focus {
         border-color: var(--color-primary);
-        outline: none;
     }
 
     .overscroll-unlock-input.error {

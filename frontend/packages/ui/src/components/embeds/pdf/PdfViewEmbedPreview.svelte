@@ -77,11 +77,14 @@
   // ---------------------------------------------------------------------------
 
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localOriginalEmbedId = $state<string>('');
 
   $effect(() => {
-    localStatus = statusProp;
-    localOriginalEmbedId = originalEmbedId || '';
+    if (!storeResolved) {
+      localStatus = statusProp;
+      localOriginalEmbedId = originalEmbedId || '';
+    }
   });
 
   // ---------------------------------------------------------------------------
@@ -151,14 +154,15 @@
       const key = keys?.['1'];
       if (key) screenshotS3Key = key;
       const k = uploadContent.aes_key as string | undefined;
+      // aes_nonce is "" for new PDFs (nonce embedded per-artefact); treat undefined vs "" distinctly
       const n = uploadContent.aes_nonce as string | undefined;
       if (k) aesKey = k;
-      if (n) aesNonce = n;
+      if (n !== undefined) aesNonce = n;
 
       console.debug('[PdfViewEmbedPreview] Resolved screenshot credentials for:', embedId, {
         hasS3Key: !!key,
         hasAesKey: !!k,
-        hasAesNonce: !!n,
+        hasAesNonce: n !== undefined,
       });
     } catch (err) {
       console.error('[PdfViewEmbedPreview] Error resolving original PDF embed:', err);
@@ -172,14 +176,15 @@
     }
   });
 
-  // Trigger screenshot load once all credentials + in-view
+  // Trigger screenshot load once all credentials + in-view.
+  // aesNonce may be "" for new PDFs (nonce embedded per-artefact); check !== undefined.
   $effect(() => {
     if (
       isInView &&
       localStatus === 'finished' &&
       screenshotS3Key &&
       aesKey &&
-      aesNonce &&
+      aesNonce !== undefined &&
       !imageUrl &&
       !isLoadingImage &&
       !imageError
@@ -189,7 +194,7 @@
   });
 
   async function loadScreenshot(): Promise<void> {
-    if (!screenshotS3Key || !aesKey || !aesNonce) return;
+    if (!screenshotS3Key || !aesKey || aesNonce === undefined) return;
     if (imageUrl) return;
     if (loadRetryCount >= MAX_LOAD_RETRIES) {
       console.warn('[PdfViewEmbedPreview] Giving up after max retries:', screenshotS3Key);
@@ -238,6 +243,9 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status as 'processing' | 'finished' | 'error';
     }
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
     // If the original embed ID is embedded in the skill result content
     const c = data.decodedContent;
     const eid = c?.embed_id as string | undefined;
@@ -256,7 +264,7 @@
   // Derived display state
   // ---------------------------------------------------------------------------
 
-  let skillName = $derived($text('app_skills.pdf.view.skill_name'));
+  let skillName = $derived($text('common.view'));
 
   let statusText = $derived.by(() => {
     if (localStatus === 'processing') return $text('app_skills.pdf.view.viewing') || 'Viewing\u2026';
@@ -272,7 +280,7 @@
           : `Pages ${sorted[0]}\u2013${sorted[sorted.length - 1]}`;
         return pcStr ? `${pagesStr} \u00B7 ${pcStr}` : pagesStr;
       }
-      return pcStr || $text('app_skills.pdf.view');
+      return pcStr || $text('common.pdf');
     }
     return '';
   });
@@ -308,18 +316,29 @@
           Page-1 screenshot: full-bleed image, same as PDFEmbedPreview finished state.
           Clicking opens the original PDF fullscreen viewer.
         -->
-        <div
-          class="image-content"
-          class:clickable={localStatus === 'finished' && isFullscreenEnabled}
-        >
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
-          <img
-            src={imageUrl}
-            alt={filename || 'PDF page 1'}
-            class="preview-image"
-            onclick={localStatus === 'finished' ? onFullscreen : undefined}
-          />
-        </div>
+        {#if localStatus === 'finished' && isFullscreenEnabled}
+          <div
+            class="image-content clickable"
+            onclick={onFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={imageUrl}
+              alt={filename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={imageUrl}
+              alt={filename || 'PDF page 1'}
+              class="preview-image"
+            />
+          </div>
+        {/if}
       {:else}
         <!--
           No screenshot: centered view (eye) icon while loading or on error.

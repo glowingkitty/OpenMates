@@ -12,107 +12,35 @@
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-		<meta name="theme-color" content="#171717" />
+		<!-- theme-color: two variants so iOS Safari colors the status bar + bottom indicator
+		     to match the app background (--color-grey-0) in both light and dark mode.
+		     Without media queries, a single hardcoded value causes a mismatch when the OS
+		     theme differs from the value — e.g. dark #171717 tag in light mode shows dark
+		     chrome around a white app, and vice-versa. -->
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
 
-		<!--
-			Static SEO meta tags: These are always present in the HTML for search engine crawlers.
-			Since this is a client-side SPA (ssr=false, adapter-static), crawlers cannot execute
-			JavaScript to render Svelte components. These hardcoded tags ensure proper indexing.
-			When Svelte mounts, <svelte:head> tags in components will override these dynamically.
-		-->
-		<title>OpenMates</title>
-		<meta
-			name="description"
-			content="Your personalized digital team mates answer complex questions and fulfil tasks using apps. Built with a focus on privacy and safety."
-		/>
-		<meta
-			name="keywords"
-			content="AI, artificial intelligence, team mates, digital, virtual assistant, automation, productivity, privacy, safety"
-		/>
-		<meta name="author" content="OpenMates Team" />
-		<!--
-			Default robots tag: noindex for the SPA shell.
-			- The SPA root (/) is a JS app — crawlers can't execute it, so indexing it is useless.
-			- SEO pages (e.g. /demo/chat/[slug]) override this via <svelte:head> with index,follow
-			  on production, or noindex,nofollow on dev/staging.
-			- robots.txt already disallows all crawlers on dev/staging subdomains.
-		-->
-		<meta name="robots" content="noindex, nofollow" />
-		<link rel="canonical" href="https://openmates.org" />
-
-		<!-- Open Graph / Facebook -->
-		<meta property="og:type" content="website" />
-		<meta property="og:url" content="https://openmates.org" />
-		<meta property="og:title" content="OpenMates" />
-		<meta
-			property="og:description"
-			content="Your personalized digital team mates answer complex questions and fulfil tasks using apps. Built with a focus on privacy and safety."
-		/>
-		<meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
-		<meta property="og:image:width" content="1200" />
-		<meta property="og:image:height" content="630" />
-		<meta property="og:site_name" content="OpenMates" />
-		<meta property="og:locale" content="en_US" />
-
-		<!-- Twitter -->
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:url" content="https://openmates.org" />
-		<meta name="twitter:title" content="OpenMates" />
-		<meta
-			name="twitter:description"
-			content="Your personalized digital team mates answer complex questions and fulfil tasks using apps. Built with a focus on privacy and safety."
-		/>
-		<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
-
-		<!-- hreflang tags for multi-language SEO -->
-		<link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />
-		<link rel="alternate" hreflang="de" href="https://openmates.org/?lang=de" />
-		<link rel="alternate" hreflang="zh" href="https://openmates.org/?lang=zh" />
-		<link rel="alternate" hreflang="es" href="https://openmates.org/?lang=es" />
-		<link rel="alternate" hreflang="fr" href="https://openmates.org/?lang=fr" />
-		<link rel="alternate" hreflang="pt" href="https://openmates.org/?lang=pt" />
-		<link rel="alternate" hreflang="ru" href="https://openmates.org/?lang=ru" />
-		<link rel="alternate" hreflang="ja" href="https://openmates.org/?lang=ja" />
-		<link rel="alternate" hreflang="ko" href="https://openmates.org/?lang=ko" />
-		<link rel="alternate" hreflang="it" href="https://openmates.org/?lang=it" />
-		<link rel="alternate" hreflang="tr" href="https://openmates.org/?lang=tr" />
-		<link rel="alternate" hreflang="vi" href="https://openmates.org/?lang=vi" />
-		<link rel="alternate" hreflang="id" href="https://openmates.org/?lang=id" />
-		<link rel="alternate" hreflang="pl" href="https://openmates.org/?lang=pl" />
-		<link rel="alternate" hreflang="nl" href="https://openmates.org/?lang=nl" />
-		<link rel="alternate" hreflang="ar" href="https://openmates.org/?lang=ar" />
-		<link rel="alternate" hreflang="hi" href="https://openmates.org/?lang=hi" />
-		<link rel="alternate" hreflang="th" href="https://openmates.org/?lang=th" />
-		<link rel="alternate" hreflang="cs" href="https://openmates.org/?lang=cs" />
-		<link rel="alternate" hreflang="sv" href="https://openmates.org/?lang=sv" />
-		<link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
-
-		<!-- JSON-LD structured data for rich snippets -->
-		<script type="application/ld+json">
-			{
-				"@context": "https://schema.org",
-				"@type": "WebApplication",
-				"name": "OpenMates",
-				"description": "Your personalized digital team mates answer complex questions and fulfil tasks using apps. Built with a focus on privacy and safety.",
-				"url": "https://openmates.org",
-				"applicationCategory": "Productivity",
-				"operatingSystem": "Web",
-				"author": {
-					"@type": "Organization",
-					"name": "OpenMates Team",
-					"url": "https://openmates.org"
-				},
-				"publisher": {
-					"@type": "Organization",
-					"name": "OpenMates",
-					"url": "https://openmates.org"
-				},
-				"offers": {
-					"@type": "Offer",
-					"price": "0",
-					"priceCurrency": "USD"
+		<!-- Anti-flicker: apply data-theme before first paint so --color-grey-0 resolves
+		     to the correct value immediately. Without this, dark-mode users see a white
+		     flash on cold load while JS initialises the theme store and sets data-theme. -->
+		<script>
+			(function () {
+				try {
+					var mode = localStorage.getItem('theme_mode');
+					var theme = 'light';
+					if (mode === 'dark') {
+						theme = 'dark';
+					} else if (mode !== 'light') {
+						// 'auto' or unset — follow OS preference
+						if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+							theme = 'dark';
+						}
+					}
+					document.documentElement.setAttribute('data-theme', theme);
+				} catch (e) {
+					// localStorage may be blocked (private browsing / security policy); safe to ignore
 				}
-			}
+			})();
 		</script>
 
 		<!-- Safari-specific cache control meta tags to prevent aggressive HTML caching -->

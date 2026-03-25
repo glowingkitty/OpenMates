@@ -10,7 +10,7 @@
 import logging
 import httpx
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Body
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
@@ -92,6 +92,10 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     elif isinstance(data, list):
         return [_sanitize_dict_recursively(item, log_prefix) for item in data]
     elif isinstance(data, str):
+        # Only sanitize for ASCII smuggling — do NOT strip URL query params here.
+        # Skill input_data often contains URLs where query params are functional
+        # (e.g. ?v=VIDEO_ID for YouTube). The URL query/fragment stripping is
+        # appropriate for LLM chat context but not for structured skill inputs.
         return sanitize_text_simple(data, log_prefix=log_prefix)
     else:
         # Primitives (int, float, bool, None) pass through unchanged

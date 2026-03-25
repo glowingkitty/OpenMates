@@ -146,7 +146,7 @@ See docs/architecture/sync.md for the encryption model.
             <div class="select-header">
                 <h3>{$text('settings.account.export_includes_title')}</h3>
                 <div class="select-all-controls">
-                    <button class="btn-link" onclick={selectAll} type="button">{$text('settings.account.export_select_all')}</button>
+                    <button class="btn-link" onclick={selectAll} type="button">{$text('common.select_all')}</button>
                     <span class="separator">·</span>
                     <button class="btn-link" onclick={deselectAll} type="button">{$text('settings.account.export_deselect_all')}</button>
                 </div>

@@ -26,6 +26,7 @@
 export {};
 
 const { test, expect, chromium } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
 	createSignupLogger,
@@ -33,6 +34,7 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -82,7 +84,7 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
  * Perform the full login flow (email → password+OTP → redirect to /chat).
  */
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	const headerLoginButton = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
@@ -90,20 +92,20 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logFn('Email submitted.');
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible();
 	await passwordInput.fill(TEST_PASSWORD);
 
 	// OTP is time-sensitive — generate immediately before entering
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	logFn(`OTP entered: ${otpCode}`);
 
@@ -300,9 +302,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 	// 4 chats × ~60s AI response + login + sync time = budget 10 minutes
 	test.setTimeout(600000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const logA = createSignupLogger('MULTI_SESSION_A');
 	const logB = createSignupLogger('MULTI_SESSION_B');

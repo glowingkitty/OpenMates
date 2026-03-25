@@ -64,7 +64,7 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 /**
  * Converts Uint8Array to URL-safe Base64 string (no padding)
  */
-export function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
+function uint8ArrayToUrlSafeBase64(bytes: Uint8Array): string {
   const base64 = uint8ArrayToBase64(bytes);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -118,7 +118,7 @@ export function generateSalt(length = 16): Uint8Array {
  * This key is used for all user data encryption and is stored in IndexedDB
  * @returns Promise<CryptoKey> - Non-extractable AES-GCM key
  */
-export async function generateUserMasterKey(): Promise<CryptoKey> {
+async function generateUserMasterKey(): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
     { name: "AES-GCM", length: AES_KEY_LENGTH },
     false, // non-extractable - cannot be exported as raw bytes
@@ -336,7 +336,7 @@ export async function clearKeyFromStorage(): Promise<void> {
 /**
  * Deletes the entire crypto database (used during logout)
  */
-export async function deleteCryptoStorage(): Promise<void> {
+async function deleteCryptoStorage(): Promise<void> {
   await deleteCryptoDatabase();
 }
 
@@ -680,7 +680,7 @@ export async function encryptEmail(
  * @param key - The decryption key (32 bytes for XSalsa20)
  * @returns Promise<string | null> - Decrypted email or null if decryption fails
  */
-export async function decryptEmail(
+async function decryptEmail(
   encryptedEmailWithNonce: string,
   key: Uint8Array,
 ): Promise<string | null> {
@@ -943,18 +943,135 @@ export function clearEmailSalt(): void {
 // ============================================================================
 
 /**
- * Generates a chat-specific AES key (32 bytes for AES-256)
- * @returns Uint8Array - The generated chat key
+ * Cache for imported CryptoKey objects, keyed by key fingerprint.
+ * Avoids redundant crypto.subtle.importKey() calls when encrypting/decrypting
+ * multiple fields with the same chat key (e.g., 7 fields per message).
+ *
+ * Two separate caches for encrypt vs decrypt usage flags since importKey
+ * requires specifying the allowed operations upfront.
  */
-export function generateChatKey(): Uint8Array {
+const cryptoKeyCache = {
+  encrypt: new Map<string, CryptoKey>(),
+  decrypt: new Map<string, CryptoKey>(),
+};
+
+// Simple FNV-1a fingerprint for cache keying (matches ChatKeyManager's approach)
+function chatKeyFingerprint(key: Uint8Array): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key[i];
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * Get or import a CryptoKey for the given raw key bytes, using cache.
+ */
+async function getOrImportCryptoKey(
+  rawKey: Uint8Array,
+  usage: "encrypt" | "decrypt",
+): Promise<CryptoKey> {
+  const fp = chatKeyFingerprint(rawKey);
+  const cache = cryptoKeyCache[usage];
+  const cached = cache.get(fp);
+  if (cached) return cached;
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new Uint8Array(rawKey),
+    { name: "AES-GCM" },
+    false,
+    [usage],
+  );
+  cache.set(fp, cryptoKey);
+  return cryptoKey;
+}
+
+/**
+ * Clear cached CryptoKeys for a specific key fingerprint or all keys.
+ * Call when a chat key is removed to prevent stale cache entries.
+ */
+export function clearCryptoKeyCache(fingerprint?: string): void {
+  if (fingerprint) {
+    cryptoKeyCache.encrypt.delete(fingerprint);
+    cryptoKeyCache.decrypt.delete(fingerprint);
+  } else {
+    cryptoKeyCache.encrypt.clear();
+    cryptoKeyCache.decrypt.clear();
+  }
+}
+
+/**
+ * Generates a chat-specific AES key (32 bytes for AES-256).
+ *
+ * INTERNAL — only ChatKeyManager.createKeyForNewChat() should call this.
+ * All other code must go through ChatKeyManager to ensure key provenance
+ * tracking and the immutability guard.
+ *
+ * @returns Uint8Array - The generated chat key
+ * @internal
+ */
+export function _generateChatKeyInternal(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));
 }
 
 /**
- * Encrypts data using a chat-specific key (AES-GCM)
+ * @deprecated Use chatKeyManager.createKeyForNewChat() instead.
+ * This export is kept temporarily for compile-time migration safety.
+ * It logs a deprecation warning and delegates to the internal function.
+ */
+export function generateChatKey(): Uint8Array {
+  console.warn(
+    "[CryptoService] generateChatKey() called directly — this bypasses ChatKeyManager provenance tracking. " +
+      "Use chatKeyManager.createKeyForNewChat() instead.",
+  );
+  return _generateChatKeyInternal();
+}
+
+// ─── Key Fingerprint Constants ──────────────────────────────────────────────
+// New ciphertext format embeds a 4-byte key fingerprint so decryption can
+// instantly detect "wrong key" without attempting AES-GCM (which is slow and
+// gives an opaque OperationError).
+//
+// Format:  [0x4F 0x4D] [4-byte fingerprint] [12-byte IV] [ciphertext]
+// Legacy:  [12-byte IV] [ciphertext]                (no magic header)
+//
+// The magic bytes "OM" (0x4F, 0x4D) distinguish the two formats.
+const CIPHERTEXT_MAGIC = new Uint8Array([0x4f, 0x4d]); // "OM"
+const FINGERPRINT_LENGTH = 4;
+const CIPHERTEXT_HEADER_LENGTH =
+  CIPHERTEXT_MAGIC.length + FINGERPRINT_LENGTH; // 6 bytes
+
+/**
+ * Compute a 4-byte FNV-1a fingerprint of a chat key.
+ * This is embedded in the ciphertext header so that decryption can detect
+ * "wrong key" before even attempting AES-GCM.
+ *
+ * Exported so ChatKeyManager and diagnostics can use the same algorithm.
+ */
+export function computeKeyFingerprint4Bytes(key: Uint8Array): Uint8Array {
+  let h = 0x811c9dc5; // FNV-1a offset basis
+  for (let i = 0; i < key.length; i++) {
+    h ^= key[i];
+    h = Math.imul(h, 0x01000193);
+  }
+  const fp = new Uint8Array(4);
+  fp[0] = (h >>> 24) & 0xff;
+  fp[1] = (h >>> 16) & 0xff;
+  fp[2] = (h >>> 8) & 0xff;
+  fp[3] = h & 0xff;
+  return fp;
+}
+
+/**
+ * Encrypts data using a chat-specific key (AES-GCM).
+ * New format: [OM magic][4-byte key fingerprint][IV][ciphertext] → base64.
+ * The fingerprint enables fast "wrong key" detection on decryption.
+ *
  * @param data - The data to encrypt
  * @param chatKey - The chat-specific encryption key
- * @returns Promise<string> - Base64 encoded encrypted data with IV
+ * @returns Promise<string> - Base64 encoded encrypted data with fingerprint + IV
  */
 export async function encryptWithChatKey(
   data: string,
@@ -963,16 +1080,8 @@ export async function encryptWithChatKey(
   const encoder = new TextEncoder();
   const dataBytes = encoder.encode(data);
 
-  // Import chat key for AES-GCM
-  // Ensure chatKey is a proper BufferSource
-  const chatKeyBuffer = new Uint8Array(chatKey);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    chatKeyBuffer,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"],
-  );
+  // Use cached CryptoKey to avoid redundant importKey calls
+  const cryptoKey = await getOrImportCryptoKey(chatKey, "encrypt");
 
   const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
   const encrypted = await crypto.subtle.encrypt(
@@ -981,16 +1090,30 @@ export async function encryptWithChatKey(
     dataBytes,
   );
 
-  // Combine IV + ciphertext
-  const combined = new Uint8Array(iv.length + encrypted.byteLength);
-  combined.set(iv);
-  combined.set(new Uint8Array(encrypted), iv.length);
+  // New format: [magic 2B][fingerprint 4B][IV 12B][ciphertext]
+  const fingerprint = computeKeyFingerprint4Bytes(chatKey);
+  const combined = new Uint8Array(
+    CIPHERTEXT_HEADER_LENGTH + iv.length + encrypted.byteLength,
+  );
+  combined.set(CIPHERTEXT_MAGIC, 0);
+  combined.set(fingerprint, CIPHERTEXT_MAGIC.length);
+  combined.set(iv, CIPHERTEXT_HEADER_LENGTH);
+  combined.set(new Uint8Array(encrypted), CIPHERTEXT_HEADER_LENGTH + iv.length);
 
   return uint8ArrayToBase64(combined);
 }
 
 /**
- * Decrypts data using a chat-specific key (AES-GCM)
+ * Decrypts data using a chat-specific key (AES-GCM).
+ * Handles both new format (with OM magic + fingerprint) and legacy format.
+ *
+ * New format: [0x4F 0x4D][4-byte fingerprint][12-byte IV][ciphertext]
+ * Legacy:     [12-byte IV][ciphertext]
+ *
+ * If the new format is detected, the fingerprint is validated FIRST — a mismatch
+ * returns null immediately without attempting AES-GCM, which is faster and gives
+ * a clear diagnostic ("wrong key") instead of an opaque OperationError.
+ *
  * @param encryptedDataWithIV - Base64 encoded encrypted data with IV
  * @param chatKey - The chat-specific decryption key
  * @param context - Optional debug context (chatId, fieldName) included in error logs
@@ -1003,38 +1126,93 @@ export async function decryptWithChatKey(
 ): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
-    const iv = combined.slice(0, AES_IV_LENGTH);
-    const ciphertext = combined.slice(AES_IV_LENGTH);
 
-    // Import chat key for AES-GCM
-    // Ensure chatKey is a proper BufferSource
-    const chatKeyBuffer = new Uint8Array(chatKey);
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      chatKeyBuffer,
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"],
-    );
+    let iv: Uint8Array;
+    let ciphertext: Uint8Array;
+
+    // Check for new format: magic bytes "OM" (0x4F, 0x4D)
+    if (
+      combined.length > CIPHERTEXT_HEADER_LENGTH + AES_IV_LENGTH &&
+      combined[0] === 0x4f &&
+      combined[1] === 0x4d
+    ) {
+      // New format — validate key fingerprint before attempting decryption
+      const storedFp = combined.slice(
+        CIPHERTEXT_MAGIC.length,
+        CIPHERTEXT_HEADER_LENGTH,
+      );
+      const actualFp = computeKeyFingerprint4Bytes(chatKey);
+
+      if (
+        storedFp[0] !== actualFp[0] ||
+        storedFp[1] !== actualFp[1] ||
+        storedFp[2] !== actualFp[2] ||
+        storedFp[3] !== actualFp[3]
+      ) {
+        // Key fingerprint mismatch — fast fail with clear diagnostic
+        const chatId = context?.chatId ?? "unknown";
+        const fieldName = context?.fieldName ?? "unknown";
+        const storedHex = Array.from(storedFp)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        const actualHex = Array.from(actualFp)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        console.error(
+          `[CryptoService] Key fingerprint mismatch: data encrypted with key fp=${storedHex}, ` +
+            `but attempting decryption with key fp=${actualHex}. ` +
+            `chat_id=${chatId} field=${fieldName}. ` +
+            `This means the data was encrypted with a DIFFERENT key than the one currently loaded.`,
+        );
+        return null;
+      }
+
+      iv = combined.slice(
+        CIPHERTEXT_HEADER_LENGTH,
+        CIPHERTEXT_HEADER_LENGTH + AES_IV_LENGTH,
+      );
+      ciphertext = combined.slice(CIPHERTEXT_HEADER_LENGTH + AES_IV_LENGTH);
+    } else {
+      // Legacy format — no fingerprint header
+      iv = combined.slice(0, AES_IV_LENGTH);
+      ciphertext = combined.slice(AES_IV_LENGTH);
+    }
+
+    // Use cached CryptoKey to avoid redundant importKey calls
+    const cryptoKey = await getOrImportCryptoKey(chatKey, "decrypt");
 
     const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv: new Uint8Array(iv) },
       cryptoKey,
-      ciphertext,
+      new Uint8Array(ciphertext),
     );
 
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
   } catch (error) {
-    // Enhanced logging to help diagnose decryption failures
+    // Enhanced logging with key provenance to help diagnose decryption failures.
+    // Import ChatKeyManager lazily to get provenance info without circular deps.
     const chatId = context?.chatId ?? "unknown";
     const fieldName = context?.fieldName ?? "unknown";
+    let provenanceInfo = "";
+    try {
+      const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+      const prov =
+        chatId !== "unknown" ? chatKeyManager.getProvenance(chatId) : null;
+      if (prov) {
+        provenanceInfo =
+          ` Key provenance: source=${prov.source}, fingerprint=${prov.keyFingerprint}, ` +
+          `loaded_at=${new Date(prov.timestamp).toISOString()}.`;
+      }
+    } catch {
+      // Provenance lookup is best-effort
+    }
     console.error(
       `[CryptoService] Chat decryption failed: ${error instanceof Error ? error.message : String(error)}. ` +
         `chat_id=${chatId} field=${fieldName}. ` +
         `Error type: ${error instanceof Error ? error.constructor.name : typeof error}. ` +
         `Encrypted data length: ${encryptedDataWithIV.length} chars. ` +
-        `Chat key length: ${chatKey.length} bytes. ` +
+        `Chat key length: ${chatKey.length} bytes.${provenanceInfo} ` +
         `This usually indicates: wrong chat key, malformed encrypted content, or content encrypted with different key.`,
     );
     return null;
@@ -1083,8 +1261,9 @@ export async function encryptChatKeyWithMasterKey(
  */
 export async function decryptChatKeyWithMasterKey(
   encryptedChatKeyWithIV: string,
+  prefetchedMasterKey?: CryptoKey,
 ): Promise<Uint8Array | null> {
-  const masterKey = await getKeyFromStorage();
+  const masterKey = prefetchedMasterKey ?? await getKeyFromStorage();
   if (!masterKey) {
     return null;
   }
@@ -1158,6 +1337,48 @@ export async function decryptArrayWithChatKey(
  */
 export function generateEmbedKey(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));
+}
+
+/**
+ * Derives an embed-specific AES key deterministically from the chat key and embed ID.
+ * Uses HKDF-SHA256 so that every tab/device with the same chat key produces the
+ * identical embed key for a given embed — eliminating the multi-tab race condition
+ * where two tabs would generate different random keys for the same embed.
+ *
+ * Security note: embed keys were already derivable from the chat key via the
+ * key_type='chat' wrapped entries in embed_keys, so this does not weaken the
+ * security boundary. The chat key remains the root of trust.
+ *
+ * @param chatKey - The chat's encryption key (32 bytes)
+ * @param embedId - The embed ID (used as HKDF info parameter)
+ * @returns Promise<Uint8Array> - Deterministic 32-byte embed key
+ */
+export async function deriveEmbedKeyFromChatKey(
+  chatKey: Uint8Array,
+  embedId: string,
+): Promise<Uint8Array> {
+  // Import chatKey as HKDF key material.
+  // Wrap in a new Uint8Array to guarantee a plain ArrayBuffer backing store
+  // (avoids TS strict-mode BufferSource incompatibility with SharedArrayBuffer).
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    new Uint8Array(chatKey) as unknown as ArrayBuffer,
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
+
+  // Fixed salt scoped to this derivation context (prevents cross-protocol collisions)
+  const salt = new TextEncoder().encode("openmates-embed-key-v1");
+  const info = new TextEncoder().encode(embedId);
+
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt, info },
+    hkdfKey,
+    256, // 32 bytes for AES-256
+  );
+
+  return new Uint8Array(derivedBits);
 }
 
 /**
@@ -1646,7 +1867,7 @@ export async function hashKeyFromPRF(
  *
  * @returns boolean - True if WebAuthn and PRF extension might be supported
  */
-export function checkPRFSupport(): boolean {
+function checkPRFSupport(): boolean {
   if (typeof window === "undefined" || !navigator.credentials) {
     return false;
   }

@@ -29,6 +29,7 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService
+from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
 from typing import List
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,13 @@ class ValidateTokenResponse(BaseModel):
     user_id: str
     vault_key_id: str
     username: str
+
+
+class UserNormalizedEmailResponse(BaseModel):
+    """Response model for internal normalized-email lookup."""
+
+    user_id: str
+    email: str
 
 
 @router.get("/validate-token", response_model=ValidateTokenResponse)
@@ -243,6 +251,39 @@ async def get_provider_model_pricing_route(
     except Exception as e:
         logger.error(f"Error fetching pricing for {provider_id}/{model_id_suffix}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error fetching pricing: {str(e)}")
+
+
+@router.get("/users/{user_id}/normalized-email", response_model=UserNormalizedEmailResponse)
+async def get_user_normalized_email_route(
+    user_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> UserNormalizedEmailResponse:
+    """Return a user's decrypted email in normalized lowercase form for internal service checks."""
+    profile_success, user_data, profile_message = await directus_service.get_user_profile(user_id)
+    if not profile_success or not user_data:
+        raise HTTPException(status_code=404, detail=f"User profile not found: {profile_message}")
+
+    encrypted_email = user_data.get("encrypted_email_address")
+    vault_key_id = user_data.get("vault_key_id")
+    if not encrypted_email or not vault_key_id:
+        raise HTTPException(status_code=404, detail="User email is not available")
+
+    try:
+        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+    except Exception as exc:
+        logger.error(
+            "Internal API: failed decrypting email for user '%s': %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Failed to decrypt user email") from exc
+
+    if not decrypted_email:
+        raise HTTPException(status_code=404, detail="User email is empty")
+
+    return UserNormalizedEmailResponse(user_id=user_id, email=decrypted_email.strip().lower())
 
 @router.get("/config/provider_pricing/{provider_id}")
 async def get_provider_pricing_route(
@@ -1396,6 +1437,25 @@ class TestRunSummaryEmailPayload(BaseModel):
     not_started: int
     suites: List[Dict[str, Any]]
     failed_tests: List[Dict[str, Any]]
+    all_tests: Optional[List[Dict[str, Any]]] = None  # All tests with name, suite, status, duration
+    opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
+
+
+class TestRunOpenObservePayload(BaseModel):
+    """Payload for forwarding a normalized daily test run summary to OpenObserve."""
+
+    environment: str = "development"
+    run_id: str
+    git_sha: str
+    git_branch: str
+    duration_seconds: int
+    total: int
+    passed: int
+    failed: int
+    skipped: int
+    not_started: int
+    suites: List[Dict[str, Any]]
+    failed_tests: List[Dict[str, Any]]
 
 
 @router.post("/dispatch-test-summary-email")
@@ -1438,6 +1498,10 @@ async def dispatch_test_summary_email(
                 payload.failed_tests,
                 payload.environment,
             ],
+            kwargs={
+                "all_tests": payload.all_tests,
+                "opencode_chat_url": payload.opencode_chat_url,
+            },
             queue="email",
         )
 
@@ -1448,12 +1512,87 @@ async def dispatch_test_summary_email(
         raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
 
 
+@router.post("/openobserve/push-test-run")
+async def push_test_run_to_openobserve(
+    payload: TestRunOpenObservePayload,
+) -> Dict[str, Any]:
+    """
+    Forward the normalized daily test-run summary to OpenObserve test-runs stream.
+
+    Called by scripts/_daily_runner_helper.py after run-tests-daily.sh completes.
+    """
+    status = "failed" if payload.failed > 0 else "passed"
+    logger.info(
+        "[InternalAPI] Pushing test run summary to OpenObserve "
+        f"(run_id={payload.run_id}, status={status}, failed={payload.failed}, total={payload.total})"
+    )
+
+    push_payload = payload.dict()
+    push_payload["status"] = status
+    push_payload["suite"] = "daily"
+
+    pushed = await openobserve_push_service.push_test_run_summary(push_payload)
+    if not pushed:
+        raise HTTPException(status_code=502, detail="Failed to push test run summary to OpenObserve")
+
+    return {
+        "status": "pushed",
+        "run_id": payload.run_id,
+        "failed": payload.failed,
+        "total": payload.total,
+    }
+
+
+# --- Per-Spec Test Event Push to OpenObserve ---
+# Called by the Playwright api-reporter.ts during E2E test execution.
+# Each event represents a spec lifecycle milestone (suite_start, test_end, suite_end).
+
+class TestEventOpenObservePayload(BaseModel):
+    """Payload for a single Playwright spec lifecycle event pushed to OpenObserve."""
+    event_type: str  # "suite_start", "test_end", "suite_end"
+    environment: str = "development"
+    worker_slot: str = "0"
+    git_branch: str = ""
+    run_id: str = ""
+    # test_end fields
+    test_file: str = ""
+    test_name: str = ""
+    status: str = ""  # "passed", "failed", "timedOut", "skipped"
+    duration_ms: int = 0
+    error_message: str = ""
+    # suite_end summary fields
+    total: Optional[int] = None
+    passed: Optional[int] = None
+    failed: Optional[int] = None
+    skipped: Optional[int] = None
+    # Console log aggregation fields (from console-monitor.ts)
+    total_console_messages: Optional[int] = None
+    console_errors: Optional[List[Dict[str, Any]]] = None
+    console_warnings: Optional[List[Dict[str, Any]]] = None
+    console_logs_top: Optional[List[Dict[str, Any]]] = None
+
+
+@router.post("/openobserve/push-test-event")
+async def push_test_event_to_openobserve(
+    payload: TestEventOpenObservePayload,
+) -> Dict[str, Any]:
+    """
+    Forward a single Playwright spec lifecycle event to the OpenObserve test-events stream.
+
+    Called by api-reporter.ts inside the Playwright Docker container during E2E runs.
+    Provides real-time per-spec visibility: which specs are starting, passing, or failing.
+    """
+    pushed = await openobserve_push_service.push_test_event(payload.dict())
+    if not pushed:
+        raise HTTPException(status_code=502, detail="Failed to push test event to OpenObserve")
+
+    return {"status": "pushed", "event_type": payload.event_type, "test_file": payload.test_file}
+
+
 # --- Test Run Started Email Dispatch ---
-# Called by:
-#   1. scripts/_daily_runner_helper.py (host-side sidecar path, no Celery available)
-#   2. e2e_test_tasks.run_daily_all_tests (Celery Beat, directly via celery_app.send_task)
-#   3. POST /v1/admin/tests/run (admin API, directly via celery_app.send_task)
-# All three trigger paths ultimately share the same Celery task.
+# Called by scripts/_daily_runner_helper.py (run from crontab on the host).
+# The helper has no Celery dependency, so it POSTs here and we dispatch
+# the email task via Celery.
 
 class TestRunStartedEmailPayload(BaseModel):
     """Payload for dispatching a test run started notification email via Celery."""
@@ -2439,3 +2578,68 @@ async def alertmanager_webhook(
         "errors": errors,
         "recipient": admin_email,
     }
+
+
+# ---------------------------------------------------------------------------
+# Cron Job Session Notification
+# ---------------------------------------------------------------------------
+
+class CronSessionNotificationPayload(BaseModel):
+    """Payload for cron job session email notification."""
+    job_type: str = Field(..., description="Job category: audit, security, redteam, dependabot, dead-code, deploy-fix, test-analysis, issues, workflow-review")
+    job_name: str = Field(..., description="Human-readable session title")
+    status: str = Field(..., description="Session outcome: completed, failed, or timeout")
+    session_id: Optional[str] = Field(None, description="Claude Code session UUID")
+    duration_seconds: Optional[int] = Field(None, description="Session duration in seconds")
+    context_summary: Optional[str] = Field(None, description="Brief description of what happened")
+    exit_code: Optional[int] = Field(None, description="Process exit code")
+
+
+@router.post("/dispatch-cron-session-email")
+async def dispatch_cron_session_email(
+    payload: CronSessionNotificationPayload,
+    request: Request,
+) -> Dict[str, Any]:
+    """
+    Dispatch a cron job session notification email to the admin.
+
+    Called by scripts/_claude_utils.py after each automated Claude Code session
+    completes (or fails/times out). Non-fatal — cron jobs should not fail if
+    this endpoint is unreachable.
+
+    Protected by internal service token (X-Internal-Service-Token header).
+    Architecture: See docs/architecture/infrastructure/cronjobs.md
+    """
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    admin_email = os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
+    if not admin_email:
+        logger.warning(
+            "SERVER_OWNER_EMAIL/ADMIN_NOTIFY_EMAIL not configured — "
+            "cron session notification skipped."
+        )
+        return {"status": "no_recipient", "reason": "no admin email configured"}
+
+    try:
+        celery_app.send_task(
+            name="app.tasks.email_tasks.cron_session_email_task.send_cron_session_notification",
+            args=[
+                admin_email,
+                payload.job_type,
+                payload.job_name,
+                payload.status,
+                payload.session_id,
+                payload.duration_seconds,
+                payload.context_summary,
+                payload.exit_code,
+            ],
+            queue="email",
+        )
+        logger.info(
+            f"Dispatched cron session notification: job_type={payload.job_type}, "
+            f"status={payload.status}, recipient={admin_email}"
+        )
+        return {"status": "dispatched", "recipient": admin_email}
+    except Exception as e:
+        logger.error(f"Failed to dispatch cron session notification: {e}", exc_info=True)
+        return {"status": "error", "error": str(e)}

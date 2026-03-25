@@ -3,6 +3,7 @@
 export {};
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -32,6 +33,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -94,9 +97,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	});
 
 	// Pre-test skip checks
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting embed JSON leak regression test.', { email: TEST_EMAIL });
@@ -104,7 +105,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	// ======================================================================
 	// STEP 1: Login
 	// ======================================================================
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginButton = page.getByRole('button', {
@@ -114,18 +115,18 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, 'password-entered');
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
+	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
@@ -227,7 +228,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	const editor = page.locator('.editor-content.prose');
 	await expect(editor).toBeVisible();
 	await editor.click();
-	await page.keyboard.type(testMessage);
+	await page.keyboard.type(withMockMarker(testMessage, 'embed_json_leak'));
 	logCheckpoint(`Typed message: "${testMessage}"`);
 	await takeStepScreenshot(page, 'message-typed');
 

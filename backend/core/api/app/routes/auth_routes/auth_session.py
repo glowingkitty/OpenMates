@@ -18,6 +18,7 @@ from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.ws_token import create_ws_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,13 +107,11 @@ async def get_session(
             stay_logged_in_for_cookie = user_data.get("stay_logged_in", False)
             cookie_max_age_fallback = 2592000 if stay_logged_in_for_cookie else cache_service.SESSION_TTL
             cookie_domain = get_cookie_domain(request)
-            is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-            use_secure_cookies = not is_dev
             cookie_params = {
                 "key": "auth_refresh_token",
                 "value": refresh_token,
                 "httponly": True,
-                "secure": use_secure_cookies,
+                "secure": True,
                 "samesite": "lax",
                 "max_age": cookie_max_age_fallback,
                 "path": "/"
@@ -337,33 +336,22 @@ async def get_session(
                 if cookie_domain:
                     logger.info(f"Refreshing cookies with domain={cookie_domain} for cross-subdomain authentication")
                 
-                # Determine if we should use secure cookies based on environment
-                # Safari iOS strictly enforces that Secure=True cookies can ONLY be set over HTTPS
-                # In development (localhost), we must set Secure=False to allow HTTP cookies
-                is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-                use_secure_cookies = not is_dev  # Only use Secure=True in production (HTTPS)
-                
-                if is_dev:
-                    logger.info("Development environment detected - using non-secure cookies for Safari iOS compatibility")
-                
                 new_refresh_token = None
                 for name, value in auth_data["cookies"].items():
                     if name == "directus_refresh_token":
                         new_refresh_token = value
                     cookie_name = name.replace("directus_", "auth_") if name.startswith("directus_") else name
-                    
+
                     # Build cookie parameters
-                    # Safari/iOS cookie requirements:
+                    # - Secure=True requires HTTPS (both dev and prod use HTTPS)
                     # - SameSite=Lax works for same-site subdomains (app.domain.com <-> api.domain.com)
-                    # - Secure=True ONLY on HTTPS (Safari strictly enforces this)
-                    # - Secure=False on HTTP/localhost (development mode)
-                    # - Path=/ ensures cookie is available to all endpoints
+                    # - IMPORTANT: secure must match auth_logout.py delete_cookie calls
                     cookie_params = {
                         "key": cookie_name,
                         "value": value,
                         "httponly": True,
-                        "secure": use_secure_cookies,  # False in dev (HTTP), True in prod (HTTPS)
-                        "samesite": "lax",  # Lax works for same-site subdomains (Safari compatible)
+                        "secure": True,
+                        "samesite": "lax",
                         "max_age": cookie_max_age,
                         "path": "/"
                     }
@@ -475,7 +463,9 @@ async def get_session(
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,
-            ws_token=refresh_token,  # Return token for WebSocket auth (Safari iOS compatibility)
+            # SECURITY: Short-lived HMAC ws_token instead of the raw refresh_token.
+            # Prevents XSS from stealing the full session token via the response body.
+            ws_token=create_ws_token(refresh_token) if refresh_token else None,
             session_device_info=session_device_info_data,
             session_meta_registered=session_meta_already_registered,
         )

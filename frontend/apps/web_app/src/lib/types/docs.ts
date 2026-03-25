@@ -18,12 +18,16 @@ export interface DocFile {
     slug: string;
     /** Processed HTML content for rendering */
     content: string;
+    /** Markdown with links fixed (relative .md → /docs/ routes, code files → GitHub) for TipTap rendering */
+    processedMarkdown: string;
     /** Original markdown content for copy functionality */
     originalMarkdown: string;
     /** Plain text content for search indexing */
     plainText: string;
     /** Word count of the document */
     wordCount: number;
+    /** Short description extracted from first paragraph (max 160 chars) for SEO */
+    description: string;
 }
 
 /**

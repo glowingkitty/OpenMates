@@ -1036,10 +1036,55 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting encryption keys for user {user_id}: {e}", exc_info=True)
         
-        # 7. Vault keys - Note: Vault deletion may require additional service methods
-        # This is marked as TODO in the architecture - implementation depends on Vault service
-        
-        # 8. Sessions & Tokens - already handled in endpoint (logout_all_sessions called)
+        # 7. Delete Vault transit key for this user (irreversible — all encrypted data unrecoverable)
+        # Must run AFTER all Vault-encrypted content is deleted (steps 1-6 above handle auth data,
+        # and Phase 3 handles content). However, we delete the key here in Phase 1 to prevent
+        # any re-encryption attempts with the old key. Content deletion in Phase 3 does not
+        # need the Vault key — it deletes Directus records and S3 objects directly.
+        try:
+            user_data_for_vault = await directus_service.get_user(user_id, fields="vault_key_id")
+            vault_key_id = user_data_for_vault.get("vault_key_id") if user_data_for_vault else None
+            if vault_key_id:
+                success = await encryption_service.delete_user_key(vault_key_id)
+                if success:
+                    logger.info(f"[DELETE_ACCOUNT] Deleted Vault transit key '{vault_key_id}' for user {user_id}")
+                    # Clear the vault_key_id field on the user record
+                    await directus_service.update_user(user_id, {"vault_key_id": None})
+                else:
+                    logger.error(f"[DELETE_ACCOUNT] Failed to delete Vault transit key '{vault_key_id}' for user {user_id}")
+            else:
+                logger.info(f"[DELETE_ACCOUNT] No vault_key_id found for user {user_id}, skipping Vault key deletion")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting Vault key for user {user_id}: {e}", exc_info=True)
+
+        # 8. Unshare all shared chats — invalidate public share links before content deletion
+        try:
+            shared_chats = await directus_service.get_items(
+                "chats",
+                params={
+                    "filter": {
+                        "user_created": {"_eq": user_id},
+                        "is_shared": {"_eq": True},
+                    },
+                    "fields": "id",
+                }
+            )
+            if shared_chats:
+                shared_chat_ids = [c.get("id") for c in shared_chats if c.get("id")]
+                for chat_id in shared_chat_ids:
+                    try:
+                        await directus_service.update_item(
+                            "chats", chat_id, {"is_shared": False}
+                        )
+                    except Exception as e:
+                        logger.error(f"[DELETE_ACCOUNT] Error unsharing chat {chat_id}: {e}")
+                logger.info(f"[DELETE_ACCOUNT] Unshared {len(shared_chat_ids)} chat(s) for user {user_id}")
+            else:
+                logger.info(f"[DELETE_ACCOUNT] No shared chats found for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error unsharing chats for user {user_id}: {e}", exc_info=True)
+
+        # 9. Sessions & Tokens - already handled in endpoint (logout_all_sessions called)
         logger.info(f"[DELETE_ACCOUNT] Phase 1 complete for user {user_id}")
         
         # ===== PHASE 2: Payment & Subscription Data =====

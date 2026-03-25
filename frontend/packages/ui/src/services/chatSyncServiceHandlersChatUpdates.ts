@@ -517,7 +517,7 @@ export async function handleNewChatMessageImpl(
 
       // If encrypted_chat_key is provided and we haven't already decrypted it above
       // (the title/category block already decrypts + caches the key), decrypt it now.
-      if (payload.encrypted_chat_key && !chatDB.getChatKey(payload.chat_id)) {
+      if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
         try {
           const { decryptChatKeyWithMasterKey } =
             await import("./cryptoService");
@@ -556,7 +556,7 @@ export async function handleNewChatMessageImpl(
       );
     } else if (
       payload.encrypted_chat_key &&
-      !chatDB.getChatKey(payload.chat_id)
+      !chatKeyManager.getKeySync(payload.chat_id)
     ) {
       // Existing chat without cached key - try to decrypt and cache for immediate encryption
       try {
@@ -627,7 +627,7 @@ export async function handleNewChatMessageImpl(
     //
     // Instead, push the message into the pending queue and flush it in
     // flushPendingMessagesForChat() once the correct key is available.
-    if (chatDB.getChatKey(payload.chat_id)) {
+    if (chatKeyManager.getKeySync(payload.chat_id)) {
       await chatDB.saveMessage(newMessage);
       console.debug(
         `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
@@ -917,7 +917,7 @@ export async function handleChatMessageReceivedImpl(
       // can't be decrypted → "[Content decryption failed]".
       // If the key is missing, queue the message and wait for the key to arrive
       // (same pattern as new_chat_message handler).
-      const existingKey = chatDB.getChatKeyOrNull(payload.chat_id);
+      const existingKey = chatKeyManager.getKeySync(payload.chat_id);
       if (!existingKey) {
         console.warn(
           `[ChatSyncService:ChatUpdates] chat_message_added for chat ${payload.chat_id}: ` +
@@ -1513,7 +1513,7 @@ export async function handleEncryptedChatMetadataImpl(
       payload.encrypted_chat_key !== undefined &&
       payload.encrypted_chat_key !== chat.encrypted_chat_key
     ) {
-      const cachedKey = chatDB.getChatKeyOrNull(payload.chat_id);
+      const cachedKey = chatKeyManager.getKeySync(payload.chat_id);
       let rawKeysMatch = false;
 
       if (cachedKey) {
@@ -1587,27 +1587,61 @@ export async function handleEncryptedChatMetadataImpl(
       changed = true;
     }
 
-    // Update other metadata fields from broadcast
-    if (
-      payload.encrypted_title !== undefined &&
-      payload.encrypted_title !== chat.encrypted_title
-    ) {
-      chat.encrypted_title = payload.encrypted_title;
-      changed = true;
-    }
-    if (
-      payload.encrypted_icon !== undefined &&
-      payload.encrypted_icon !== chat.encrypted_icon
-    ) {
-      chat.encrypted_icon = payload.encrypted_icon;
-      changed = true;
-    }
-    if (
-      payload.encrypted_category !== undefined &&
-      payload.encrypted_category !== chat.encrypted_category
-    ) {
-      chat.encrypted_category = payload.encrypted_category;
-      changed = true;
+    // Update other metadata fields from broadcast.
+    // CRITICAL: Validate incoming encrypted fields before accepting them.
+    // A stale client (e.g. iPadOS Safari with cached old JS) may send metadata
+    // encrypted with a WRONG key. If the incoming field fails to decrypt but
+    // our local copy succeeds, reject the incoming value to preserve the
+    // correctly-encrypted local version.
+    const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+    let needsHeal = false;
+
+    for (const field of [
+      "encrypted_title",
+      "encrypted_icon",
+      "encrypted_category",
+    ] as const) {
+      const incoming = payload[field];
+      if (incoming !== undefined && incoming !== chat[field]) {
+        if (chatKey && chat[field]) {
+          // We have both a key and a local value — validate the incoming field
+          const { decryptWithChatKey } = await import("./cryptoService");
+          try {
+            const incomingDecrypted = await decryptWithChatKey(
+              incoming,
+              chatKey,
+            );
+            if (incomingDecrypted === null) {
+              // Incoming field failed to decrypt — check if local decrypts
+              try {
+                const localDecrypted = await decryptWithChatKey(
+                  chat[field]!,
+                  chatKey,
+                );
+                if (localDecrypted !== null) {
+                  // Local decrypts but incoming doesn't → reject incoming, keep local
+                  console.warn(
+                    `[ChatSyncService:ChatUpdates] ⚠️ Rejected corrupted ${field} for chat ${payload.chat_id} from broadcast — ` +
+                      `incoming fails to decrypt but local is valid. Keeping local and queueing re-send.`,
+                  );
+                  needsHeal = true;
+                  continue; // Skip this field — don't overwrite local
+                }
+              } catch {
+                // Local also fails — accept incoming (both are broken)
+              }
+            }
+          } catch {
+            // decryptWithChatKey threw — accept incoming as fallback
+          }
+        }
+        // Accept the incoming value (either validated OK or no local to compare)
+        if (field === "encrypted_title") chat.encrypted_title = incoming;
+        else if (field === "encrypted_icon") chat.encrypted_icon = incoming;
+        else if (field === "encrypted_category")
+          chat.encrypted_category = incoming;
+        changed = true;
+      }
     }
 
     // Update version info if provided
@@ -1671,6 +1705,46 @@ export async function handleEncryptedChatMetadataImpl(
       console.debug(
         `[ChatSyncService:ChatUpdates] No changes needed for chat ${payload.chat_id} from broadcast`,
       );
+    }
+
+    // SELF-HEAL: If we rejected corrupted fields from the broadcast, re-send our
+    // correct local metadata to the server so it overwrites the corrupted version.
+    // This fixes the server-side data for all other devices.
+    if (needsHeal && chatKey) {
+      try {
+        const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
+        const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+        if (encryptedChatKey) {
+          const healPayload: Record<string, unknown> = {
+            chat_id: payload.chat_id,
+            versions: {
+              messages_v: chat.messages_v || 0,
+              title_v: (chat.title_v || 0) + 1, // Increment to ensure server accepts
+            },
+            encrypted_chat_key: encryptedChatKey,
+          };
+          if (chat.encrypted_title)
+            healPayload.encrypted_title = chat.encrypted_title;
+          if (chat.encrypted_icon)
+            healPayload.encrypted_icon = chat.encrypted_icon;
+          if (chat.encrypted_category)
+            healPayload.encrypted_chat_category = chat.encrypted_category;
+
+          const { webSocketService } = await import("./websocketService");
+          await webSocketService.sendMessage(
+            "encrypted_chat_metadata",
+            healPayload,
+          );
+          console.info(
+            `[ChatSyncService:ChatUpdates] ✅ Self-heal: Re-sent correct local metadata for chat ${payload.chat_id} to server`,
+          );
+        }
+      } catch (healError) {
+        console.error(
+          `[ChatSyncService:ChatUpdates] Self-heal failed for chat ${payload.chat_id}:`,
+          healError,
+        );
+      }
     }
   } catch (error) {
     console.error(

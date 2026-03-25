@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { SvelteComponent } from 'svelte';
+    import DOMPurify from 'dompurify';
     
     // Define types for message content parts
     type AppCardData = {
@@ -104,7 +105,8 @@
           {#if messageParts && messageParts.length > 0}
             {#each messageParts as part}
               {#if part.type === 'text'}
-                <div class="text-content">{@html part.content}</div>
+                <!-- SECURITY: Sanitize with DOMPurify before rendering as HTML to prevent XSS -->
+                <div class="text-content">{@html DOMPurify.sanitize(part.content)}</div>
               {:else if part.type === 'app-cards'}
                 <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
                   {#each part.content as card}

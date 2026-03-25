@@ -2,15 +2,15 @@
 # Periodic health check tasks for LLM providers and app services.
 # These tasks run via Celery Beat to monitor provider and app availability.
 
+import base64
 import logging
 import asyncio
 import json
 import time
 import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import httpx
 
-from celery import shared_task
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -122,6 +122,40 @@ HEALTH_CHECK_CACHE_TTL = 600
 # Health check intervals (in seconds)
 HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health endpoint
 HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
+
+# Sightengine is throttled independently: one live API call per 2 hours max.
+# The external-services Celery task fires every 5 min; without this guard we
+# would send ~576 image-POST requests/day (2 servers × 288 checks).
+SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
+
+# Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
+#
+# We send raw bytes via multipart POST (matching the real upload pipeline) instead of a
+# URL-based GET probe. This avoids any external URL dependency — a URL-based probe was
+# previously using a Wikimedia GIF that returned 404, causing Sightengine to log 404
+# errors against our account (~576 errors/day across both servers). Raw bytes are always
+# available, never go stale, and mirror the actual check_all() call path in
+# sightengine_service.py.
+#
+# 8×8 is the minimum dimension accepted by the Sightengine API (tested live — 1×1
+# returns HTTP 400 "Media too small, should be at least 8 pixels in height or width").
+#
+# Generated with: PIL.Image.new("RGB", (8,8), (255,255,255)).save(buf, "JPEG", quality=50)
+SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES: bytes = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0o"
+    "OjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8a"
+    "Gi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2Nj"
+    "Y2NjY2P/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQF"
+    "BgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEI"
+    "I0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNk"
+    "ZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLD"
+    "xMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEB"
+    "AQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJB"
+    "UQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZH"
+    "SElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaan"
+    "qKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oA"
+    "DAMBAAIRAxEAPwD0CiiigD//2Q=="
+)
 
 
 def _is_credential_error(error_message: Optional[str]) -> bool:
@@ -290,7 +324,7 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
             # Since Groq is used by OpenAI provider, we'll use "openai/llama-3.1-8b-instant"
             # But actually, for Groq API, we can use the model ID directly without provider prefix
             # The health check will resolve it correctly via the server
-            logger.debug(f"Using 'llama-3.1-8b-instant' for Groq health check (testing model)")
+            logger.debug("Using 'llama-3.1-8b-instant' for Groq health check (testing model)")
             # Find a provider that uses groq server to construct the model ID
             groq_provider = None
             for provider_id, _, _, _ in candidate_models:
@@ -302,7 +336,7 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                 return f"{groq_provider}/llama-3.1-8b-instant"
             else:
                 # Fallback: use openai provider since Groq is typically used with OpenAI models
-                logger.debug(f"Using 'openai/llama-3.1-8b-instant' for Groq health check (fallback)")
+                logger.debug("Using 'openai/llama-3.1-8b-instant' for Groq health check (fallback)")
                 return "openai/llama-3.1-8b-instant"
         
         # For other servers, find the cheapest model by comparing input costs
@@ -435,7 +469,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
         # Special case: For Groq health checks, use llama-3.1-8b-instant directly
         # This model is not in provider configs, so we bypass the normal resolution
         if provider_id == "groq" and "llama-3.1-8b-instant" in model_id:
-            logger.debug(f"Using direct Groq API call for health check with model 'llama-3.1-8b-instant'")
+            logger.debug("Using direct Groq API call for health check with model 'llama-3.1-8b-instant'")
             # Get Groq client directly
             provider_client = _get_provider_client("groq")
             if not provider_client:
@@ -578,6 +612,28 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
     Returns:
         Dict with status, last_check, last_error
     """
+    # --- Pre-check: skip providers that require external credentials not configured on this host ---
+    # google_maas requires Google Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS
+    # env var or a service account key file). If neither is present, the health check will always
+    # fail with "default credentials not found". Rather than spamming error logs every 5 minutes,
+    # we detect the missing credential upfront and mark the provider as "not_configured" instead.
+    # The provider is silently skipped — no error/warning logged — until credentials are added.
+    if provider_id == "google_maas":
+        google_adc_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
+        if not google_adc_path or not os.path.isfile(google_adc_path):
+            logger.debug(
+                "Health check: Skipping provider 'google_maas' — "
+                "GOOGLE_APPLICATION_CREDENTIALS not set or file not found. "
+                "Set this env var in the task-worker container to enable google_maas health checks."
+            )
+            # Return a stable "not_configured" status so the UI doesn't flash red
+            return {
+                "status": "not_configured",
+                "last_check": int(time.time()),
+                "last_error": "Google Application Default Credentials not configured on this host",
+                "response_times_ms": {},
+            }
+
     logger.info(f"Health check: Checking provider '{provider_id}'...")
     
     # Initialize services outside try block so they're available in finally
@@ -797,6 +853,69 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
     return health_data
 
 
+async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
+    """Check Proton Mail Bridge provider health using configured bridge credentials."""
+    logger.info("Health check: Checking provider 'protonmail' (Proton Mail Bridge)...")
+
+    cache_service = CacheService()
+
+    from backend.shared.providers.protonmail.protonmail_bridge import check_protonmail_bridge_health
+
+    start_time = time.time()
+    success, error = await check_protonmail_bridge_health(secrets_manager)
+    response_time_ms = (time.time() - start_time) * 1000
+
+    if success:
+        status = "healthy"
+        last_error = None
+    else:
+        status = "unhealthy"
+        last_error = _sanitize_error_message(error)
+
+    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}protonmail"
+    existing_health_data = {}
+    try:
+        client = await cache_service.client
+        if client:
+            existing_data_json = await client.get(cache_key)
+            if existing_data_json:
+                if isinstance(existing_data_json, bytes):
+                    existing_data_json = existing_data_json.decode("utf-8")
+                existing_health_data = json.loads(existing_data_json)
+    except Exception:
+        pass
+
+    response_times_ms_dict = existing_health_data.get("response_times_ms", {})
+    current_timestamp = int(time.time())
+    response_times_ms_dict[str(current_timestamp)] = round(response_time_ms, 2)
+    sorted_times = sorted(response_times_ms_dict.items(), key=lambda x: int(x[0]), reverse=True)
+    response_times_ms_dict = dict(sorted_times[:5])
+
+    await _record_health_event_if_changed(
+        service_type="provider",
+        service_id="protonmail",
+        new_status=status,
+        error_message=last_error,
+        response_time_ms=response_time_ms,
+    )
+
+    health_data = {
+        "status": status,
+        "last_check": current_timestamp,
+        "last_error": last_error,
+        "response_times_ms": response_times_ms_dict,
+    }
+
+    try:
+        client = await cache_service.client
+        if client:
+            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+    except Exception as exc:
+        logger.error("Health check: Failed to store health status for 'protonmail': %s", exc, exc_info=True)
+
+    return health_data
+
+
 async def _check_app_api_health(app_id: str, port: int = 8000) -> tuple[bool, Optional[str]]:
     """
     Check app API health by making a request to the app's /health endpoint.
@@ -1006,6 +1125,52 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
         response_time_ms=None  # Apps don't have response time tracking
     )
     
+    # Build per-skill availability from cached provider health
+    skills_health = []
+    try:
+        client = await cache_service.client
+        if client and api_healthy:
+            # Fetch app health response which now includes skill→provider mapping
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as http_client:
+                    app_url = f"http://app-{app_id}:{port}/health"
+                    resp = await http_client.get(app_url)
+                    if resp.status_code == 200:
+                        app_health_data = resp.json()
+                        for skill_info in app_health_data.get("skills", []):
+                            skill_id = skill_info.get("id", "")
+                            providers = skill_info.get("providers", [])
+                            # Check each provider's cached health status
+                            skill_available = True
+                            provider_statuses = []
+                            for prov in providers:
+                                prov_name = prov.get("name", "")
+                                if prov.get("no_api_key"):
+                                    provider_statuses.append({"name": prov_name, "status": "healthy"})
+                                    continue
+                                # Check provider health cache
+                                prov_cache_key = f"health_check:provider:{prov_name}"
+                                prov_raw = await client.get(prov_cache_key)
+                                if prov_raw:
+                                    if isinstance(prov_raw, bytes):
+                                        prov_raw = prov_raw.decode("utf-8")
+                                    prov_data = json.loads(prov_raw)
+                                    prov_status = prov_data.get("status", "unknown")
+                                    provider_statuses.append({"name": prov_name, "status": prov_status})
+                                    if prov_status == "unhealthy":
+                                        skill_available = False
+                                else:
+                                    provider_statuses.append({"name": prov_name, "status": "unknown"})
+                            skills_health.append({
+                                "id": skill_id,
+                                "status": "available" if skill_available else "unavailable",
+                                "providers": provider_statuses,
+                            })
+            except Exception as e:
+                logger.debug(f"Health check: Could not fetch skill info for app '{app_id}': {e}")
+    except Exception as e:
+        logger.debug(f"Health check: Could not build skill health for app '{app_id}': {e}")
+
     # Store result in cache
     health_data = {
         "status": overall_status,
@@ -1017,7 +1182,8 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             "status": worker_status,  # "healthy", "unhealthy", or "not_applicable"
             "last_error": worker_error
         },
-        "last_check": current_timestamp
+        "last_check": current_timestamp,
+        "skills": skills_health,
     }
     
     try:
@@ -1109,9 +1275,24 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
 
 
 async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
-    """Check Sightengine API health via test request."""
+    """Check Sightengine API health by sending a tiny image via multipart POST.
+
+    Uses raw bytes (SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES) instead of a URL-based probe.
+    A URL probe previously used a Wikimedia GIF that returned 404, generating ~576
+    spurious "image not available" errors per day in the Sightengine account logs.
+    Raw bytes mirror the real upload pipeline (sightengine_service.py check_all) and
+    have no external URL dependency that can silently go stale.
+
+    Throttled to one live API call every SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS
+    (2 hours). The external-services Celery task fires every 5 minutes; on the other
+    23 invocations per 2-hour window we return the cached result without any HTTP call.
+    """
     logger.info("Health check: Checking Sightengine API...")
     cache_service = CacheService()
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
+    status: str = "unhealthy"
+    last_error: Optional[str] = None
+    response_time_ms: Optional[float] = None
 
     try:
         # Get Sightengine credentials from Vault
@@ -1128,44 +1309,67 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
             # No credentials = skip this check (not configured)
             logger.info("Health check: Skipping Sightengine health check (not configured)")
             return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
-        else:
-            start_time = time.time()
 
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    # Test with a simple check endpoint (minimal image check)
-                    # We use the check-url endpoint with a tiny placeholder image
-                    response = await client.get(
-                        "https://api.sightengine.com/1.0/check.json",
-                        params={
-                            "api_user": api_user,
-                            "api_secret": api_secret,
-                            "models": "nudity-2.0",
-                            "url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Transparent.gif"
-                        }
-                    )
-                    response_time_ms = (time.time() - start_time) * 1000
+        # Throttle: return cached result if last live check was less than 2 hours ago.
+        # The external-services task runs every 5 min; without this guard we would send
+        # ~576 API calls/day (2 servers × 288 checks) for a service that barely changes.
+        try:
+            cache_client = await cache_service.client
+            if cache_client:
+                cached_raw = await cache_client.get(cache_key)
+                if cached_raw:
+                    cached_data = json.loads(cached_raw)
+                    last_check = cached_data.get("last_check", 0)
+                    elapsed = int(time.time()) - last_check
+                    if elapsed < SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS:
+                        logger.debug(
+                            f"Health check: Sightengine throttled — "
+                            f"last check {elapsed}s ago, "
+                            f"next in {SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS - elapsed}s"
+                        )
+                        return cached_data
+        except Exception as throttle_err:
+            # Cache read failure is non-fatal — fall through to live check
+            logger.warning(f"Health check: Failed to read Sightengine cache for throttle: {throttle_err}")
 
-                    # 200 = success, or we check for valid response structure
-                    if response.status_code == 200:
-                        status = "healthy"
-                        last_error = None
-                        logger.info(f"Health check: Sightengine API is healthy ({response_time_ms:.1f}ms)")
-                    else:
-                        status = "unhealthy"
-                        last_error = _sanitize_error_message(f"HTTP {response.status_code}")
-                        logger.error(f"Health check: Sightengine API returned {response.status_code}")
+        start_time = time.time()
 
-            except httpx.TimeoutException:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Send a 1×1 white JPEG as multipart bytes — no external URL dependency.
+                # This mirrors the exact call shape used in sightengine_service.check_all().
+                response = await client.post(
+                    "https://api.sightengine.com/1.0/check.json",
+                    data={
+                        "api_user": api_user,
+                        "api_secret": api_secret,
+                        "models": "nudity-2.0",
+                    },
+                    files={
+                        "media": ("health.jpg", SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES, "image/jpeg"),
+                    },
+                )
                 response_time_ms = (time.time() - start_time) * 1000
-                status = "unhealthy"
-                last_error = "timeout"
-                logger.error("Health check: Sightengine API timeout")
-            except Exception as e:
-                response_time_ms = (time.time() - start_time) * 1000
-                status = "unhealthy"
-                last_error = _sanitize_error_message(str(e))
-                logger.error(f"Health check: Sightengine API error: {e}")
+
+                if response.status_code == 200:
+                    status = "healthy"
+                    last_error = None
+                    logger.info(f"Health check: Sightengine API is healthy ({response_time_ms:.1f}ms)")
+                else:
+                    status = "unhealthy"
+                    last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                    logger.error(f"Health check: Sightengine API returned {response.status_code}")
+
+        except httpx.TimeoutException:
+            response_time_ms = (time.time() - start_time) * 1000
+            status = "unhealthy"
+            last_error = "timeout"
+            logger.error("Health check: Sightengine API timeout")
+        except Exception as e:
+            response_time_ms = (time.time() - start_time) * 1000
+            status = "unhealthy"
+            last_error = _sanitize_error_message(str(e))
+            logger.error(f"Health check: Sightengine API error: {e}")
 
     except Exception as e:
         status = "unhealthy"
@@ -1173,7 +1377,6 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         response_time_ms = None
         logger.error(f"Health check: Error checking Sightengine: {e}", exc_info=True)
 
-    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}sightengine"
     current_timestamp = int(time.time())
 
     # Record health event if status changed (for historical tracking)
@@ -1185,7 +1388,8 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         response_time_ms=response_time_ms
     )
 
-    # Store result in cache
+    # Store result in cache (TTL matches the throttle interval so the entry is
+    # always present for the next 5-minute check to read back)
     health_data = {
         "status": status,
         "last_check": current_timestamp,
@@ -1194,9 +1398,9 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
     }
 
     try:
-        client = await cache_service.client
-        if client:
-            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+        cache_client = await cache_service.client
+        if cache_client:
+            await cache_client.set(cache_key, json.dumps(health_data), ex=SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS)
     except Exception as e:
         logger.error(f"Health check: Failed to store Sightengine health status in cache: {e}")
 
@@ -1508,15 +1712,85 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
     return health_data
 
 
+async def _check_api_server_health() -> Dict[str, Any]:
+    """
+    Check API server reachability via external HTTP ping.
+
+    Pings api.dev.openmates.org (dev) or api.openmates.org (prod) from outside
+    to verify the API server is accessible to users.
+    """
+    api_domain = os.getenv("API_SERVER_DOMAIN", "")
+    logger.info(f"Health check: Checking API server '{api_domain}'...")
+    cache_service = CacheService()
+    response_time_ms = 0.0
+
+    if not api_domain:
+        logger.info("Health check: Skipping API server health check (API_SERVER_DOMAIN not configured)")
+        return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
+
+    try:
+        start_time = time.time()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"https://{api_domain}/health", follow_redirects=True)
+            response_time_ms = (time.time() - start_time) * 1000
+
+            if response.status_code < 400:
+                status = "healthy"
+                last_error = None
+                logger.info(f"Health check: API server '{api_domain}' is healthy ({response_time_ms:.1f}ms)")
+            else:
+                status = "unhealthy"
+                last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                logger.error(f"Health check: API server '{api_domain}' returned {response.status_code}")
+
+    except httpx.TimeoutException:
+        response_time_ms = (time.time() - start_time) * 1000
+        status = "unhealthy"
+        last_error = "timeout"
+        logger.error(f"Health check: API server '{api_domain}' timeout")
+    except Exception as e:
+        response_time_ms = (time.time() - start_time) * 1000
+        status = "unhealthy"
+        last_error = _sanitize_error_message(str(e))
+        logger.error(f"Health check: API server '{api_domain}' error: {e}")
+
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}api_server"
+    current_timestamp = int(time.time())
+
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id="api_server",
+        new_status=status,
+        error_message=last_error,
+        response_time_ms=response_time_ms
+    )
+
+    health_data = {
+        "status": status,
+        "last_check": current_timestamp,
+        "last_error": last_error,
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
+    }
+
+    try:
+        client = await cache_service.client
+        if client:
+            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+    except Exception as e:
+        logger.error(f"Health check: Failed to store API server health status in cache: {e}")
+
+    return health_data
+
+
 @app.task(name="health_check.check_all_apps", bind=True)
 def check_all_apps_health(self):
     """
     Periodic task to check health of all app services (API and workers).
     This task is scheduled by Celery Beat.
-    
+
     Checks app APIs and workers every 5 minutes.
     Only checks apps that are discovered and enabled (same logic as /v1/apps/metadata).
-    
+
     Uses a distributed lock to prevent multiple concurrent executions.
     """
     # Use distributed lock to prevent concurrent health checks
@@ -1771,10 +2045,12 @@ def check_all_providers_health(self):
                         task = _check_provider_health(provider_id, health_endpoint=None)
                         tasks.append(task)
                     
-                    # Also check Brave Search (not an LLM provider, so not in registry)
+                    # Also check Brave Search + Proton Mail Bridge (not LLM providers)
                     await secrets_manager.initialize()
                     brave_task = _check_brave_search_health(secrets_manager)
                     tasks.append(brave_task)
+                    protonmail_task = _check_protonmail_bridge_health(secrets_manager)
+                    tasks.append(protonmail_task)
                     
                     # Run all checks concurrently
                     logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
@@ -1794,7 +2070,7 @@ def check_all_providers_health(self):
                     
                     # Log details for unhealthy providers
                     if unhealthy_count > 0:
-                        all_provider_ids = list(providers) + ["brave"]
+                        all_provider_ids = list(providers) + ["brave", "protonmail"]
                         for i, result in enumerate(results):
                             if isinstance(result, dict) and result.get("status") == "unhealthy":
                                 provider_id = all_provider_ids[i] if i < len(all_provider_ids) else f"unknown_{i}"
@@ -1878,6 +2154,9 @@ def check_external_services_health(self):
             vercel_domain = os.getenv("VERCEL_DOMAIN", "")
             tasks.append(_check_vercel_domain_health(vercel_domain))
 
+            # Check API server external reachability (skipped if not configured)
+            tasks.append(_check_api_server_health())
+
             # Run all checks concurrently
             logger.info(f"Health check: Executing {len(tasks)} external service health check(s) concurrently...")
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -1897,7 +2176,7 @@ def check_external_services_health(self):
 
             # Log details for unhealthy services
             if unhealthy_count > 0:
-                service_names = ["stripe", "sightengine", "brevo", "bedrock", "vercel"]
+                service_names = ["stripe", "sightengine", "brevo", "bedrock", "vercel", "api_server"]
                 for i, result in enumerate(results):
                     if isinstance(result, dict) and result.get("status") == "unhealthy":
                         service_name = service_names[i] if i < len(service_names) else f"unknown_{i}"
@@ -1959,4 +2238,54 @@ def cleanup_old_health_events(self, retention_days: int = 90):
         asyncio.run(run_cleanup())
     except Exception as e:
         logger.error(f"Health check: Error running health event cleanup: {e}", exc_info=True)
+        raise
+
+
+@app.task(name="health_check.precompute_status_summary", bind=True)
+def precompute_status_summary(self):
+    """
+    Periodic task to precompute the public /v1/status summary payload.
+
+    Builds the full status page payload (services, apps, functionalities,
+    timelines, incidents) and stores it in Redis. The GET /v1/status endpoint
+    serves this cached payload instead of computing it on every request.
+
+    Scheduled by Celery Beat every 60 seconds. TTL is 90 seconds to ensure
+    overlap during Beat scheduling jitter.
+    """
+    logger.info("[STATUS] Precompute: Building status summary payload...")
+
+    async def run_precompute():
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.services.status_aggregator import (
+            PRECOMPUTED_STATUS_KEY,
+            PRECOMPUTED_STATUS_TTL,
+            build_precomputed_status_payload,
+        )
+
+        payload = await build_precomputed_status_payload()
+
+        # Store in Redis with TTL
+        cache_service = CacheService()
+        client = await cache_service.client
+        if client:
+            await client.set(
+                PRECOMPUTED_STATUS_KEY,
+                json.dumps(payload),
+                ex=PRECOMPUTED_STATUS_TTL,
+            )
+            svc_count = len(payload.get("services", []))
+            app_count = len(payload.get("apps", []))
+            func_count = len(payload.get("functionalities", []))
+            logger.info(
+                f"[STATUS] Precompute: Cached summary ({svc_count} services, "
+                f"{app_count} apps, {func_count} functionalities)"
+            )
+        else:
+            logger.warning("[STATUS] Precompute: Redis client unavailable, skipping cache write")
+
+    try:
+        asyncio.run(run_precompute())
+    except Exception as e:
+        logger.error(f"[STATUS] Precompute: Error building status summary: {e}", exc_info=True)
         raise

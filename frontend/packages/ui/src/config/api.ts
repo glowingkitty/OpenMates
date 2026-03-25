@@ -167,6 +167,7 @@ export const apiEndpoints = {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)
     },
     autoDeleteChats: "/v1/settings/auto-delete-chats", // Persist chat auto-deletion period
+    autoDeleteUsage: "/v1/settings/auto-delete-usage", // Persist usage data auto-deletion period
     chatStats: "/v1/settings/chats", // GET: total chat count for Settings > Account > Chats
     previewOldChats: "/v1/settings/chats/preview", // GET: count of chats older than N days (preview before delete)
     deleteOldChats: "/v1/settings/chats/delete-old", // POST: permanently delete chats older than N days
@@ -187,6 +188,8 @@ export const apiEndpoints = {
     updatePassword: "/v1/settings/update-password", // Add or change user password
     issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
     importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
+    debugSession: "/v1/settings/debug-session", // Create/get/delete user debug log sharing session
+    debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider
@@ -221,6 +224,9 @@ export const apiEndpoints = {
     generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
     listGiftCards: "/v1/admin/gift-cards", // Admin-only: list all active (unredeemed) gift cards
     clientLogs: "/v1/admin/client-logs", // Admin-only: live-stream browser console logs to OpenObserve (active for admin users)
+  },
+  e2e: {
+    clientLogs: "/e2e/client-logs", // E2E test-only: forward browser console logs during Playwright runs (scoped HMAC auth, no session required)
   },
   server: {
     info: "/v1/server", // Get server information (domain and self_hosted flag based on request validation)

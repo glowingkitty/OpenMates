@@ -191,7 +191,8 @@ skills:
       per_unit:
         credits: 25
     providers:
-      - Google
+      - name: SerpAPI
+        display_name: Google
     exclude_fields_for_llm:
       - type
       - hash
@@ -316,7 +317,8 @@ skills:
       per_unit:
         credits: 25
     providers:
-      - Google
+      - name: SerpAPI
+        display_name: Google
     tool_schema:
       type: object
       properties:
@@ -402,7 +404,8 @@ skills:
       per_unit:
         credits: 7
     providers:
-      - Flightradar24
+      - name: Flightradar24
+        no_api_key: true
     tool_schema:
       type: object
       properties:

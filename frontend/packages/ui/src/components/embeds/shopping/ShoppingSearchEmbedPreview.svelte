@@ -98,6 +98,7 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('REWE');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<ProductResult[]>([]);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
@@ -105,13 +106,15 @@
 
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'REWE';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
-    localErrorMessage = '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'REWE';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+      localErrorMessage = '';
+    }
   });
 
   // Derived display state
@@ -131,6 +134,9 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
 
     const content = data.decodedContent;
     if (content) {
@@ -145,7 +151,7 @@
   }
 
   // Skill display info
-  let skillName = $derived($text('app_skills.shopping.search_products'));
+  let skillName = $derived($text('common.search'));
   const skillIconName = 'search';
   let providerLabel = $derived.by(() => {
     const normalized = provider.trim().toUpperCase();
@@ -241,7 +247,7 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="shopping-search-details" class:mobile={isMobileLayout}>
       <!-- Search query (e.g., "bio joghurt") -->
-      <div class="search-query">{query || $text('app_skills.shopping.search_products')}</div>
+      <div class="search-query">{query || $text('common.search')}</div>
 
       <!-- Provider subtitle (e.g., "via REWE") -->
       <div class="search-provider">{viaProvider}</div>

@@ -73,18 +73,21 @@
   let localPlaceType = $state<string>('');
   let localMapImageUrl = $state<string | undefined>(undefined);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localTaskId = $state<string | undefined>(undefined);
   let imageError = $state(false);
 
   // Sync local state from props on initial mount / prop changes
   $effect(() => {
-    localName = nameProp ?? '';
-    localAddress = addressProp ?? '';
-    localLocationType = locationTypeProp ?? 'area';
-    localPlaceType = placeTypeProp ?? '';
-    localMapImageUrl = mapImageUrlProp;
-    localStatus = statusProp ?? 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localName = nameProp ?? '';
+      localAddress = addressProp ?? '';
+      localLocationType = locationTypeProp ?? 'area';
+      localPlaceType = placeTypeProp ?? '';
+      localMapImageUrl = mapImageUrlProp;
+      localStatus = statusProp ?? 'processing';
+      localTaskId = taskIdProp;
+    }
   });
 
   // Expose as derived read-only aliases for clarity
@@ -105,6 +108,7 @@
 
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
 
     const content = data.decodedContent;
@@ -121,7 +125,7 @@
   }
 
   // Skill name from translations
-  let skillName = $derived($text('embeds.maps_location'));
+  let skillName = $derived($text('common.location'));
 
   // Icon shown inline in the content area next to the place name.
   // Transit/transport types use the travel icon; everything else uses the maps/pin icon.
@@ -164,7 +168,7 @@
       <div class="map-image-wrapper">
         <img
           src={mapImageUrl}
-          alt={name || $text('embeds.maps_location')}
+          alt={name || $text('common.location')}
           class="map-preview-image"
           class:mobile={isMobileLayout}
           loading="lazy"

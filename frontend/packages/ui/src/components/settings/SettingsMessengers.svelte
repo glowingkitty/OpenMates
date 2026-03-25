@@ -1,1 +1,0 @@
-Coming soon - the messengers settings will be available here.

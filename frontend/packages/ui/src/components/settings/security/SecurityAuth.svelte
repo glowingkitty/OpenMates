@@ -11,7 +11,9 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import * as cryptoService from '../../../services/cryptoService';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import { getSessionId } from '../../../utils/sessionId';
+    import { focusTrap } from '../../../actions/focusTrap';
 
     // ========================================================================
     // PROPS
@@ -426,10 +428,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     /**
      * Handle 2FA input changes.
      */
-    function handle2FAInput(event: Event) {
-        const input = event.target as HTMLInputElement;
-        tfaCode = input.value.replace(/\D/g, '').slice(0, 6);
-        input.value = tfaCode;
+    function handle2FAInput(rawValue: string) {
+        tfaCode = rawValue.replace(/\D/g, '').slice(0, 6);
         errorMessage = null;
 
         // Auto-submit when 6 digits are entered
@@ -496,11 +496,9 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
      * Handle email OTP code input with auto-submit when 6 digits entered.
      * Calls POST /v1/settings/verify-action-code to verify the code.
      */
-    function handleEmailOtpInput(event: Event) {
-        const input = event.target as HTMLInputElement;
-        const cleaned = input.value.replace(/\D/g, '').slice(0, 6);
+    function handleEmailOtpInput(rawValue: string) {
+        const cleaned = rawValue.replace(/\D/g, '').slice(0, 6);
         emailOtpCode = cleaned;
-        input.value = cleaned;
 
         if (cleaned.length === 6) {
             verifyEmailOtp(cleaned);
@@ -537,20 +535,18 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     }
 </script>
 
-<div 
-    class="auth-modal-overlay" 
-    role="presentation" 
-    onclick={handleCancel}
-    onkeydown={(e) => e.key === 'Escape' && handleCancel()}
+<div
+    class="auth-modal-overlay"
+    role="presentation"
+    onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
 >
-    <div 
-        class="auth-modal" 
-        role="dialog" 
-        aria-modal="true" 
+    <div
+        class="auth-modal"
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="auth-title"
         tabindex={-1}
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
+        use:focusTrap={{ onEscape: handleCancel }}
     >
         <div class="auth-header">
             <h3 id="auth-title">{displayTitle}</h3>
@@ -572,13 +568,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 <!-- Password Input -->
                 <div class="auth-password">
                     <p>{$text('settings.security.enter_password')}</p>
-                    <input
+                    <SettingsInput
                         type="password"
                         bind:value={password}
-                        placeholder={$text('settings.security.password_placeholder')}
+                        placeholder={$text('common.password')}
                         disabled={isPasswordLoading}
-                        onkeydown={handlePasswordKeydown}
-                        class="password-input"
+                        onKeydown={handlePasswordKeydown}
                     />
                     {#if errorMessage}
                         <p class="error-message">{errorMessage}</p>
@@ -604,16 +599,15 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 <!-- 2FA Input -->
                 <div class="auth-2fa">
                     <p>{$text('settings.security.enter_2fa_code')}</p>
-                    <input
+                    <SettingsInput
                         type="text"
                         inputmode="numeric"
                         pattern="[0-9]*"
-                        maxlength="6"
-                        value={tfaCode}
-                        oninput={handle2FAInput}
+                        maxlength={6}
+                        bind:value={tfaCode}
                         placeholder="000000"
                         disabled={isAuthenticating}
-                        class="tfa-input"
+                        onInput={handle2FAInput}
                     />
                     {#if errorMessage}
                         <p class="error-message">{errorMessage}</p>
@@ -657,16 +651,15 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         </button>
                     {:else}
                         <p>{$text('settings.security.email_otp_enter_code')}</p>
-                        <input
+                        <SettingsInput
                             type="text"
                             inputmode="numeric"
                             pattern="[0-9]*"
-                            maxlength="6"
-                            value={emailOtpCode}
-                            oninput={handleEmailOtpInput}
+                            maxlength={6}
+                            bind:value={emailOtpCode}
                             placeholder="000000"
                             disabled={isEmailOtpVerifying}
-                            class="tfa-input"
+                            onInput={handleEmailOtpInput}
                         />
                         <button
                             class="switch-method-btn"
@@ -774,45 +767,6 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     .auth-email-otp p {
         margin-bottom: 16px;
         color: var(--color-grey-70);
-    }
-
-    .password-input {
-        width: 100%;
-        padding: 12px;
-        font-size: 16px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        background: var(--color-grey-5);
-        color: var(--color-grey-100);
-        margin-bottom: 16px;
-    }
-
-    .password-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-
-    .password-input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-
-    .tfa-input {
-        width: 100%;
-        padding: 12px;
-        font-size: 24px;
-        text-align: center;
-        letter-spacing: 8px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        background: var(--color-grey-5);
-        color: var(--color-grey-100);
-        font-family: monospace;
-    }
-
-    .tfa-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
     }
 
     .error-message {

@@ -322,13 +322,11 @@
   .pip-corner-button:hover,
   .pip-corner-button:focus-visible {
     background: rgba(0, 0, 0, 0.7);
-    outline: none;
   }
 
   .pip-restore-button:hover,
   .pip-restore-button:focus-visible {
     background: rgba(0, 0, 0, 0.18);
-    outline: none;
   }
   
   /* Responsive adjustments for small screens */

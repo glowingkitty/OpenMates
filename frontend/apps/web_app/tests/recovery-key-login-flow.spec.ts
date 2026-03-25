@@ -7,6 +7,7 @@ export {};
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -37,6 +38,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -94,9 +96,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// Validate required environment variables
-	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, OPENMATES_TEST_ACCOUNT_EMAIL, OPENMATES_TEST_ACCOUNT_PASSWORD, OPENMATES_TEST_ACCOUNT_OTP_KEY);
 
 	// Grant clipboard permissions for reading the recovery key after "Copy" action
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -109,7 +109,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// PHASE 1: Login with password + OTP to access settings
 	// ========================================================================
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
@@ -130,14 +130,14 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 
 	// Enter password — password+TFA is a single combined form.
 	// Since tfa_enabled=true from lookup, the TFA input is already visible.
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
 	await passwordInput.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
 	// Handle 2FA - enter OTP code (TFA input is already visible alongside password)
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput.first()).toBeVisible({ timeout: 15000 });
 	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
 	await tfaInput.first().fill(otpCode);
@@ -315,13 +315,13 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// Enter password — the password+TFA form is a single combined step.
 	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
 	// visible alongside the password field. We do NOT need to click login first.
-	const passwordInputRelogin = page.locator('input[type="password"]');
+	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
 	// The TFA input should already be visible (tfa_enabled=true from lookup)
-	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
+	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 	logCheckpoint('TFA input visible alongside password (combined form).');

@@ -8,9 +8,7 @@
 
 import logging
 import os
-import json
 import yaml
-import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -31,16 +29,40 @@ from backend.core.api.app.services.cache import CacheService
 logger = logging.getLogger(__name__)
 
 
+class VideoSearchRequestItem(BaseModel):
+    """A single video search request."""
+
+    query: str = Field(description="Search query string (e.g. 'Python tutorial', 'funny cats').")
+    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    country: Optional[str] = Field(
+        default=None,
+        description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
+    )
+    search_lang: Optional[str] = Field(
+        default=None,
+        description="Language code for search (e.g. 'en', 'de', 'fr'). Defaults to 'en'.",
+    )
+    safesearch: Optional[str] = Field(
+        default=None,
+        description="Safe search setting: 'off', 'moderate', or 'strict'.",
+    )
+    freshness: Optional[str] = Field(
+        default=None,
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month), "
+        "'py' (past year), or a custom date range 'YYYY-MM-DDtoYYYY-MM-DD' "
+        "(e.g. '2026-01-01to2026-01-31' for January 2026).",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for videos search skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[VideoSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch) with defaults from schema."
+        description="Array of video search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch)."
     )
 
 
@@ -246,12 +268,12 @@ class SearchSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If search skill not found
-            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -290,17 +312,34 @@ class SearchSkill(BaseSkill):
         # Extract query and parameters from request
         search_query = req.get("query") or req.get("q")
         if not search_query:
-            return (request_id, [], f"Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter")
         
-        # Extract request-specific parameters (with defaults from schema)
-        req_count = req.get("count", 10)  # Default from schema
+        # Extract request-specific parameters (with defaults from schema).
+        # NOTE: Pydantic model_dump() serialises Optional[str] = None as None (not the
+        # string "None"). req.get(key, default) returns None (not default) when the key
+        # is present with value None. We therefore use "or <default>" to treat both None
+        # and empty-string the same as "not provided", preventing httpx from sending
+        # None/empty values to the Brave API (which rejects them with 422).
+        req_count = req.get("count") or 10
         # Enforce maximum of 20 results to limit sanitization costs
         if req_count and req_count > 20:
             logger.warning(f"Requested count {req_count} exceeds maximum of 20 for video search '{search_query}' (id: {request_id}). Capping to 20.")
             req_count = 20
-        req_country_raw = req.get("country", "us")  # Default from schema
-        req_lang = req.get("search_lang", "en")  # Default from schema
-        req_safesearch = req.get("safesearch", "moderate")  # Default from schema
+        req_country_raw = req.get("country") or "us"
+        req_lang = req.get("search_lang") or "en"
+        req_freshness = req.get("freshness") or None
+        _raw_safesearch = req.get("safesearch") or None
+        # Validate safesearch — Brave Videos API rejects anything except 'off', 'moderate', 'strict'.
+        VALID_SAFESEARCH_VALUES = {"off", "moderate", "strict"}
+        if _raw_safesearch and _raw_safesearch in VALID_SAFESEARCH_VALUES:
+            req_safesearch = _raw_safesearch
+        else:
+            if _raw_safesearch:
+                logger.warning(
+                    f"Invalid safesearch value '{_raw_safesearch}' for video search '{search_query}' "
+                    f"(id: {request_id}). Valid values: {sorted(VALID_SAFESEARCH_VALUES)}. Falling back to 'moderate'."
+                )
+            req_safesearch = "moderate"
         
         # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
         VALID_BRAVE_COUNTRY_CODES = {
@@ -364,7 +403,7 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise
@@ -379,6 +418,7 @@ class SearchSkill(BaseSkill):
                 country=req_country,
                 search_lang=req_lang,
                 safesearch=req_safesearch,
+                freshness=req_freshness,
                 sanitize_output=True
             )
             
@@ -512,7 +552,9 @@ class SearchSkill(BaseSkill):
                         'age': brave_result.get('age', ''),
                         'meta_url': meta_url if meta_url else None,
                         'thumbnail': {
-                            'original': snippet.get('thumbnails', {}).get('high', {}).get('url') or 
+                            'original': snippet.get('thumbnails', {}).get('maxres', {}).get('url') or
+                                       snippet.get('thumbnails', {}).get('standard', {}).get('url') or
+                                       snippet.get('thumbnails', {}).get('high', {}).get('url') or
                                        snippet.get('thumbnails', {}).get('medium', {}).get('url') or
                                        brave_result.get('thumbnail', {}).get('original', '')
                         } if snippet.get('thumbnails') else brave_result.get('thumbnail'),

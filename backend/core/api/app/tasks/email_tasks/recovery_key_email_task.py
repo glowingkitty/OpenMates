@@ -8,7 +8,6 @@ login methods are unavailable.
 
 import logging
 import asyncio
-from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
 # Import the Celery app

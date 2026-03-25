@@ -6,12 +6,21 @@
   import { writable } from 'svelte/store';
 
   const carouselStateMap = new Map<string, ReturnType<typeof writable<number>>>();
+  const shellHeightMap = new Map<string, ReturnType<typeof writable<number>>>();
 
   function getCarouselStore(key: string) {
     if (!carouselStateMap.has(key)) {
       carouselStateMap.set(key, writable(0));
     }
     return carouselStateMap.get(key)!;
+  }
+
+  /** Shared shell height per carousel run — first card writes, others read. */
+  function getShellHeightStore(key: string) {
+    if (!shellHeightMap.has(key)) {
+      shellHeightMap.set(key, writable(215));
+    }
+    return shellHeightMap.get(key)!;
   }
 </script>
 
@@ -72,11 +81,21 @@
     runRef && runRef.length > 0 ? runRef : embedRef,
   );
   let carouselStore = $derived(getCarouselStore(runKey));
+  let shellHeightStore = $derived(getShellHeightStore(runKey));
 
   let currentIndex = $state(0);
   $effect(() => {
     const unsub = carouselStore.subscribe((value) => {
       currentIndex = value;
+    });
+    return unsub;
+  });
+
+  /** Shell height written by the first card, read by overlay cards for negative margin. */
+  let sharedShellHeight = $state(215);
+  $effect(() => {
+    const unsub = shellHeightStore.subscribe((value) => {
+      sharedShellHeight = value;
     });
     return unsub;
   });
@@ -113,9 +132,14 @@
 
   onMount(() => {
     if (!wrapperEl) return;
+    console.debug('[EmbedPreviewLarge] Mounted', { embedRef, carouselIndex, width: wrapperEl.offsetWidth });
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        isExpanded = entry.contentRect.width > 400;
+        const newExpanded = entry.contentRect.width > 400;
+        if (newExpanded !== isExpanded) {
+          console.debug('[EmbedPreviewLarge] ResizeObserver', { embedRef, width: entry.contentRect.width, isExpanded: newExpanded });
+        }
+        isExpanded = newExpanded;
       }
     });
     ro.observe(wrapperEl);
@@ -123,6 +147,13 @@
   });
 
   let shellMinHeight = $derived(isExpanded ? 365 : 215);
+
+  // First card publishes its shell height so overlay cards can match the negative margin.
+  $effect(() => {
+    if (isFirstCard) {
+      shellHeightStore.set(shellMinHeight);
+    }
+  });
 </script>
 
 {#if isFirstCard}
@@ -143,7 +174,7 @@
 
     {#if hasMultiple}
       <button
-        class="carousel-arrow carousel-arrow-left"
+        class="nav-arrow nav-arrow-left"
         type="button"
         onclick={handlePrevious}
         aria-label="Previous"
@@ -152,7 +183,7 @@
       </button>
 
       <button
-        class="carousel-arrow carousel-arrow-right"
+        class="nav-arrow nav-arrow-right"
         type="button"
         onclick={handleNext}
         aria-label="Next"
@@ -166,7 +197,7 @@
   <div
     class="embed-preview-large-wrapper embed-preview-large-overlay"
     class:embed-preview-large-overlay--hidden={!isVisible}
-    style="margin-top: -{shellMinHeight}px;"
+    style="margin-top: -{sharedShellHeight}px;"
   >
     <div class="embed-preview-large-container">
       <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
@@ -211,18 +242,17 @@
     display: none;
   }
 
-  /* ── Carousel arrows ─────────────────────────────────────────────────────── */
-  .carousel-arrow {
+  /* ── Navigation arrows (matches ChatHeader .nav-arrow style) ────────────── */
+  .nav-arrow {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    bottom: 0;
     padding: 0 !important;
     min-width: unset !important;
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 50% !important;
-    background-color: var(--color-grey-50) !important;
-    opacity: 0.5;
+    width: 40px !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
     filter: none !important;
     margin: 0 !important;
     border: none;
@@ -230,27 +260,30 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: background-color 0.15s ease;
     z-index: 20;
     pointer-events: auto;
+    flex-shrink: 0;
   }
 
-  .carousel-arrow:hover {
-    opacity: 0.75;
+  .nav-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
     scale: none !important;
   }
 
-  .carousel-arrow:active {
-    opacity: 0.9;
+  .nav-arrow:active {
+    background-color: rgba(255, 255, 255, 0.18) !important;
     scale: none !important;
     filter: none !important;
   }
 
-  .carousel-arrow-left {
-    left: 8px;
+  .nav-arrow-left {
+    left: 0;
+    border-radius: 0 10px 10px 0 !important;
   }
 
-  .carousel-arrow-right {
-    right: 8px;
+  .nav-arrow-right {
+    right: 0;
+    border-radius: 10px 0 0 10px !important;
   }
 </style>

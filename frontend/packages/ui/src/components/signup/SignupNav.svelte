@@ -184,9 +184,9 @@
         }
         // if (step === STEP_PROFILE_PICTURE) return $text('settings.logout'); // Removed
         if (step === STEP_SETTINGS) return $text('signup.upload_profile_picture');
-        if (step === STEP_MATE_SETTINGS) return $text('signup.settings');
+        if (step === STEP_MATE_SETTINGS) return $text('common.settings');
         // Credits step: show previous step text (recovery_key for both passkey and password flows)
-        if (step === STEP_CREDITS) return $text('signup.recovery_key');
+        if (step === STEP_CREDITS) return $text('common.recovery_key');
         if (step === STEP_PAYMENT) return $text('signup.select_credits');
         if (step === STEP_AUTO_TOP_UP) return $text('settings.logout');
         return $text('signup.sign_up');

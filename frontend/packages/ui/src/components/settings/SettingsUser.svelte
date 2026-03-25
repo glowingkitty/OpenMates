@@ -1,1 +1,0 @@
-Coming soon - the user settings will be available here.

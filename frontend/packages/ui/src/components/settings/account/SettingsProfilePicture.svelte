@@ -68,9 +68,16 @@ Response handling:
             resolvedAvatarUrl = null;
             return;
         }
+        // Stale-closure guard: if the effect re-runs before the previous fetch
+        // resolves (e.g. due to an unrelated store update), cancel the old
+        // .then() so it cannot overwrite the state set by a newer invocation.
+        let cancelled = false;
         getProfileImageBlobUrl(rawUrl, getApiUrl(), userId).then((url) => {
-            resolvedAvatarUrl = url;
+            if (!cancelled) {
+                resolvedAvatarUrl = url;
+            }
         });
+        return () => { cancelled = true; };
     });
 
     // =========================================================================

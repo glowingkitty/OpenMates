@@ -54,7 +54,7 @@ const DATA_DISPLAY_TEXT = "data-display-text";
  * Check if a text string contains any embed link references.
  * Works for both markdown `[text](embed:ref)` and raw embed refs.
  */
-export function containsEmbedLinks(text: string): boolean {
+function containsEmbedLinks(text: string): boolean {
   if (!text) return false;
   // Reset regex lastIndex since we use the global flag
   EMBED_LINK_MARKDOWN_RE.lastIndex = 0;
@@ -64,7 +64,7 @@ export function containsEmbedLinks(text: string): boolean {
 /**
  * Check if HTML content contains any `<a href="embed:...">` links.
  */
-export function containsEmbedLinksHtml(html: string): boolean {
+function containsEmbedLinksHtml(html: string): boolean {
   if (!html) return false;
   EMBED_LINK_HTML_RE.lastIndex = 0;
   return EMBED_LINK_HTML_RE.test(html);

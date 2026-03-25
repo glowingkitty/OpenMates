@@ -6,7 +6,7 @@ Fetches build logs for the latest (or a specified) Vercel deployment of the
 web app via the Vercel REST API. Works for ERROR deployments where the CLI
 `vercel logs` command returns nothing.
 
-Architecture context: See docs/claude/debugging.md
+Architecture context: See docs/contributing/guides/debugging.md
 Tests: None (inspection script, not production code)
 
 USAGE (via debug.py):
@@ -14,6 +14,7 @@ USAGE (via debug.py):
   debug.py vercel --all            # latest deployment — full build log
   debug.py vercel --url <url|id>   # specific deployment
   debug.py vercel --n 3            # check last N deployments
+  debug.py vercel --max-events 8000  # increase pagination limit (default: 5000)
 
 USAGE (standalone, outside Docker):
   python3 backend/scripts/debug_vercel.py [options]
@@ -143,26 +144,61 @@ def _list_deployments(token: str, team_id: str, project_id: str, limit: int = 10
     return data.get("deployments", [])
 
 
-def _fetch_build_logs(token: str, id_or_url: str, team_id: str) -> list[dict]:
+def _fetch_build_logs(
+    token: str,
+    id_or_url: str,
+    team_id: str,
+    max_events: int = 5000,
+) -> list[dict]:
     """
     Fetch all build log events for a deployment via the v3 events API.
+
+    The Vercel events API caps responses at ~500 events per request.
+    This function automatically paginates using the ``since`` parameter
+    (timestamp of the last event) until no new events are returned or
+    ``max_events`` is reached.
 
     Returns a list of event objects — each has at minimum:
       text (str), type (stdout|stderr|delimiter), created (int ms epoch)
     """
-    data = _api_get(
-        f"/v3/deployments/{id_or_url}/events",
-        token,
-        params={
+    all_events: list[dict] = []
+    since_ts: Optional[int] = None
+    page_cap = 450  # Conservative threshold — Vercel typically caps at ~467
+
+    for _ in range(20):  # Safety cap: max 20 pagination rounds
+        params: dict = {
             "builds": 1,
             "limit": -1,
             "teamId": team_id,
-        },
-    )
-    # API returns a JSON array directly
-    if isinstance(data, list):
-        return data
-    return []
+        }
+        if since_ts is not None:
+            params["since"] = since_ts
+
+        data = _api_get(
+            f"/v3/deployments/{id_or_url}/events",
+            token,
+            params=params,
+        )
+
+        if not isinstance(data, list) or not data:
+            break
+
+        all_events.extend(data)
+
+        # If we got fewer events than the per-page cap, we have everything
+        if len(data) < page_cap:
+            break
+
+        # Paginate: use the last event's timestamp as the ``since`` cursor
+        last_created = data[-1].get("created")
+        if last_created is None or last_created == since_ts:
+            break  # No progress — avoid infinite loop
+        since_ts = last_created
+
+        if len(all_events) >= max_events:
+            break
+
+    return all_events[:max_events]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -272,6 +308,66 @@ def _print_logs(events: list[dict], show_all: bool) -> None:
 #  Core logic
 # ═════════════════════════════════════════════════════════════════════════════
 
+def _print_logs_smart(events: list[dict], show_all: bool) -> None:
+    """Print build log with smart truncation for large outputs.
+
+    When full output exceeds 50KB and --all is set, auto-extracts error lines
+    and the final 30 lines instead of dumping everything.
+    """
+    # Collect all non-empty lines
+    all_lines: list[tuple[str, str]] = []  # (text, kind)
+    for ev in events:
+        text = ev.get("text", "").rstrip()
+        if text:
+            all_lines.append((text, _classify_line(text)))
+
+    total_chars = sum(len(t) for t, _ in all_lines)
+
+    # If small enough or not --all mode, use standard printing
+    if total_chars <= 50_000 or not show_all:
+        _print_logs(events, show_all)
+        return
+
+    # Smart truncation: show errors + last 30 lines
+    error_lines = [(t, k) for t, k in all_lines if k == "error"]
+    warn_lines = [(t, k) for t, k in all_lines if k == "warn"]
+    tail_lines = all_lines[-30:]
+
+    print(f"  {DIM}[Full log: {len(all_lines)} lines, {total_chars:,} chars — auto-truncated]{RESET}")
+    print()
+
+    if error_lines:
+        print(_c(RED, f"  === ERRORS ({len(error_lines)} lines) ==="))
+        for text, _ in error_lines:
+            print(_c(RED, text))
+        print()
+
+    if warn_lines[:10]:
+        print(_c(YELLOW, f"  === WARNINGS ({len(warn_lines)} total, showing first 10) ==="))
+        for text, _ in warn_lines[:10]:
+            print(_c(YELLOW, text))
+        if len(warn_lines) > 10:
+            print(_c(DIM, f"  ... and {len(warn_lines) - 10} more warnings"))
+        print()
+
+    omitted = len(all_lines) - len(error_lines) - min(len(warn_lines), 10) - 30
+    if omitted > 0:
+        print(_c(DIM, f"  [...{omitted} info lines omitted...]"))
+        print()
+
+    print(f"  {BOLD}=== LAST 30 LINES ==={RESET}")
+    for text, kind in tail_lines:
+        if kind == "error":
+            print(_c(RED, text))
+        elif kind == "warn":
+            print(_c(YELLOW, text))
+        else:
+            print(text)
+
+    print()
+    print(f"  {DIM}Use --all --no-truncate for the complete unfiltered output.{RESET}")
+
+
 def inspect_deployment(
     token: str,
     team_id: str,
@@ -279,27 +375,60 @@ def inspect_deployment(
     id_or_url: Optional[str],
     show_all: bool,
     num_deployments: int,
+    max_events: int = 5000,
+    failed_only: bool = False,
+    include_building: bool = False,
+    no_truncate: bool = False,
 ) -> None:
     """
     Fetch and print build logs for one or more deployments.
 
     If id_or_url is given, inspect that specific deployment.
     Otherwise list recent deployments and inspect the latest `num_deployments`.
+    Automatically paginates past the Vercel events API per-page cap (~467).
+
+    Options:
+      failed_only: Only show ERROR/CANCELED deployments.
+      include_building: Include BUILDING/QUEUED in default mode (normally skipped).
+      no_truncate: Disable smart truncation for large logs.
     """
     if id_or_url:
         # Specific deployment requested
-        events = _fetch_build_logs(token, id_or_url, team_id)
+        events = _fetch_build_logs(token, id_or_url, team_id, max_events=max_events)
         print(_hdr("BUILD LOG"))
-        _print_logs(events, show_all)
+        if no_truncate:
+            _print_logs(events, show_all)
+        else:
+            _print_logs_smart(events, show_all)
         return
 
-    # Fetch the list and iterate
-    deployments = _list_deployments(token, team_id, project_id, limit=max(num_deployments, 5))
+    # Fetch a larger list to allow filtering
+    fetch_limit = max(num_deployments * 3, 10)
+    deployments = _list_deployments(token, team_id, project_id, limit=fetch_limit)
     if not deployments:
         print(_warn("No deployments found."))
         return
 
+    # Filter deployments based on flags
+    if failed_only:
+        deployments = [
+            d for d in deployments
+            if d.get("state", d.get("readyState", "")).upper() in ("ERROR", "CANCELED")
+        ]
+        if not deployments:
+            print(_ok("No failed deployments found in recent history."))
+            return
+    elif not include_building:
+        # Skip BUILDING/QUEUED by default — show completed deployments
+        deployments = [
+            d for d in deployments
+            if d.get("state", d.get("readyState", "")).upper() not in ("BUILDING", "QUEUED", "INITIALIZING")
+        ]
+
     targets = deployments[:num_deployments]
+    if not targets:
+        print(_warn("No matching deployments found after filtering."))
+        return
 
     for dep in targets:
         _print_deployment_header(dep)
@@ -308,12 +437,15 @@ def inspect_deployment(
             print(_warn("  Could not determine deployment ID, skipping logs."))
             continue
 
-        events = _fetch_build_logs(token, uid, team_id)
+        events = _fetch_build_logs(token, uid, team_id, max_events=max_events)
         if not events:
             print(_warn("  No build log events returned by API."))
         else:
             print(_hdr("BUILD LOG"))
-            _print_logs(events, show_all)
+            if no_truncate:
+                _print_logs(events, show_all)
+            else:
+                _print_logs_smart(events, show_all)
 
         print()
 
@@ -346,6 +478,39 @@ def main() -> None:
         metavar="N",
         help="Check the last N deployments (default: 1).",
     )
+    parser.add_argument(
+        "--max-events",
+        dest="max_events",
+        type=int,
+        default=5000,
+        metavar="N",
+        help="Maximum build log events to fetch across pagination (default: 5000). "
+        "Increase if build logs appear truncated.",
+    )
+    parser.add_argument(
+        "--status-only",
+        dest="status_only",
+        action="store_true",
+        help="Print a single-line status summary (e.g. '✓ Ready (a5449792)' or "
+        "'✗ ERROR (dpl_xyz...)') for embedding in session headers. No build log.",
+    )
+    parser.add_argument(
+        "--failed",
+        action="store_true",
+        help="Show only the most recent ERROR/CANCELED deployment and its full error log.",
+    )
+    parser.add_argument(
+        "--include-building",
+        dest="include_building",
+        action="store_true",
+        help="Include BUILDING/QUEUED deployments in default mode (normally skipped).",
+    )
+    parser.add_argument(
+        "--no-truncate",
+        dest="no_truncate",
+        action="store_true",
+        help="Disable smart truncation for large --all output (show everything raw).",
+    )
     args = parser.parse_args()
 
     token = _get_token()
@@ -368,6 +533,28 @@ def main() -> None:
         print(f"  Mode    : errors + warnings only  {DIM}(--all for full){RESET}")
     print()
 
+    if getattr(args, 'status_only', False):
+        # One-liner status for embedding in session headers
+        try:
+            deployments = _list_deployments(token, team_id, project_id, limit=1)
+            if deployments:
+                dep = deployments[0]
+                status = dep.get("state", dep.get("readyState", "?"))
+                sha = str(dep.get("meta", {}).get("githubCommitSha", ""))[:9] or dep.get("uid", "?")[:12]
+                if status in ("READY", "ready"):
+                    print(f"✓ Ready ({sha})")
+                elif status in ("ERROR", "error"):
+                    print(f"✗ ERROR ({sha})")
+                elif status in ("BUILDING", "building", "INITIALIZING"):
+                    print(f"⟳ Building ({sha})")
+                else:
+                    print(f"? {status} ({sha})")
+            else:
+                print("? No deployments found")
+        except Exception:
+            pass  # Silently fail — one-liner is best-effort
+        return
+
     try:
         inspect_deployment(
             token=token,
@@ -376,6 +563,10 @@ def main() -> None:
             id_or_url=args.url,
             show_all=args.show_all,
             num_deployments=args.num_deployments,
+            max_events=args.max_events,
+            failed_only=getattr(args, "failed", False),
+            include_building=getattr(args, "include_building", False),
+            no_truncate=getattr(args, "no_truncate", False),
         )
     except httpx.HTTPStatusError as exc:
         print(_err(f"Vercel API error {exc.response.status_code}: {exc.response.text}"))

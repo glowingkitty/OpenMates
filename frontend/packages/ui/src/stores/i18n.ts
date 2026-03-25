@@ -10,6 +10,6 @@ export async function waitForTranslations() {
 }
 
 // Helper function to reset loading state
-export function resetI18nLoading() {
+function resetI18nLoading() {
     i18nLoaded.set(false);
 } 

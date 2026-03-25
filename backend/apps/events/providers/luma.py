@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from backend.shared.testing.caching_http_transport import create_http_client
 from backend.shared.python_utils.geo_utils import geocode_address
 
 logger = logging.getLogger(__name__)
@@ -479,7 +480,7 @@ async def _get_with_proxy_fallback(
     direct_error: Optional[Exception] = None
     direct_resp: Optional[httpx.Response] = None
     try:
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
+        async with create_http_client("luma", timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
             direct_resp = await client.get(url, params=params, headers=headers)
     except httpx.RequestError as exc:
         direct_error = exc
@@ -509,7 +510,8 @@ async def _get_with_proxy_fallback(
 
     # --- Attempt 2: via Webshare rotating residential proxy ---
     try:
-        async with httpx.AsyncClient(
+        async with create_http_client(
+            "luma",
             proxy=proxy_url,
             timeout=_HTTP_TIMEOUT,
             follow_redirects=True,

@@ -6,7 +6,7 @@
  *
  * PII Protection Architecture:
  * - Before TOON-encoding, PII is detected in the code content using piiDetectionService
- * - The code stored in the TOON payload uses placeholders (e.g. [EMAIL_1], [AWS_KEY_1])
+ * - The code stored in the TOON payload uses placeholders (e.g. [EMAIL_com], [AWS_KEY_3xQ])
  * - PII mappings ({placeholder, original, type}[]) are stored separately in EmbedStore
  *   under key `embed_pii:{embed_id}`, encrypted with the master key
  * - This separation ensures that:

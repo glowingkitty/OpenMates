@@ -176,7 +176,7 @@
                 <!-- Location row -->
                 {#if provider.country}
                     <div class="info-row">
-                        <span class="info-label">{$text('settings.app_store.provider_detail.location')}</span>
+                        <span class="info-label">{$text('common.location')}</span>
                         <span class="info-value">
                             <span class="country-flag">{getCountryFlag(provider.country)}</span>
                             {getCountryName(provider.country)}

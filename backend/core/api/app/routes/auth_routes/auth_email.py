@@ -97,23 +97,25 @@ async def request_confirm_email_code(
         if hasattr(request.app.state, 'domain_security_service'):
             domain_security_service = request.app.state.domain_security_service
         
-        # Only validate against domain security service if it's available and loaded
-        # If service is not available, skip validation (allow all domains except those blocked by SIGNUP_DOMAIN_RESTRICTION)
-        if domain_security_service and domain_security_service.config_loaded:
-            # Validate email domain against encrypted restricted domains list
-            # This only checks the restricted domains list, not platform name variations
-            is_allowed, error_message = domain_security_service.validate_email_domain(email_request.email)
-            if not is_allowed:
-                logger.warning(f"Email domain restricted: {email_request.email} - {error_message}")
-                return RequestEmailCodeResponse(
-                    success=False,
-                    message=error_message or "Domain not supported",
-                    error_code="DOMAIN_NOT_SUPPORTED"
-                )
-        else:
-            # Domain security service not available or not loaded - log but don't block
-            # This allows signups when domain security config is not available
-            logger.debug("Domain security service not available or not loaded - skipping domain security validation")
+        # Validate against domain security service — fail-closed if service unavailable.
+        # audit-2026-03-19: Previously fail-open (skipped check when service down), allowing blocked domains through.
+        if not domain_security_service or not domain_security_service.config_loaded:
+            logger.error("Domain security service unavailable or config not loaded — rejecting email request (fail-closed)")
+            return RequestEmailCodeResponse(
+                success=False,
+                message="Service temporarily unavailable. Please try again.",
+                error_code="SERVICE_UNAVAILABLE"
+            )
+        # Validate email domain against encrypted restricted domains list
+        # This only checks the restricted domains list, not platform name variations
+        is_allowed, error_message = domain_security_service.validate_email_domain(email_request.email)
+        if not is_allowed:
+            logger.warning(f"Email domain restricted: {email_request.email} - {error_message}")
+            return RequestEmailCodeResponse(
+                success=False,
+                message=error_message or "Domain not supported",
+                error_code="DOMAIN_NOT_SUPPORTED"
+            )
         
         # Check if email is in ignored list (before checking if registered)
         hashed_email = hash_email(email_request.email)

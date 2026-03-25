@@ -8,6 +8,7 @@ from backend.core.api.app.services.directus import DirectusService
 # Import the main fingerprint generator and the model
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.ws_token import verify_ws_token
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +51,37 @@ async def get_current_user_ws(
     auth_refresh_token = websocket.cookies.get("auth_refresh_token")
 
     if not auth_refresh_token:
-        # Fallback to query parameter for browsers that don't send cookies in WebSocket upgrade requests
-        # This is primarily for Safari on iOS which has issues sending httponly cookies in WebSocket connections
-        auth_refresh_token = websocket.query_params.get("token")
-        if auth_refresh_token:
-            logger.debug("WebSocket auth: Using token from query parameter (likely Safari iOS or similar browser)")
-            # Check token length - very long tokens in query params can cause issues on Safari
-            if len(auth_refresh_token) > 500:
-                logger.warning(f"WebSocket auth: Token in query param is very long ({len(auth_refresh_token)} chars). This may cause issues on Safari iPad OS due to URL length limits.")
+        # Fallback to query parameter for browsers that don't send cookies in WebSocket upgrade requests.
+        # This is primarily for Safari on iOS which has issues sending httponly cookies in WebSocket connections.
+        # SECURITY: The query param now contains a short-lived HMAC ws_token (format: token_hash:expiry:sig),
+        # NOT the raw refresh token. We verify the HMAC and extract the token_hash to look up the session.
+        ws_token_param = websocket.query_params.get("token")
+        if ws_token_param:
+            logger.debug("WebSocket auth: Token in query params — verifying as HMAC ws_token")
+            verified_token_hash = verify_ws_token(ws_token_param)
+            if verified_token_hash:
+                logger.debug(f"WebSocket auth: HMAC ws_token verified, session hash {verified_token_hash[:8]}...")
+                # Look up session data directly using the token_hash from the verified ws_token
+                session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{verified_token_hash}"
+                session_data = await cache_service.get(session_cache_key)
+                if session_data:
+                    # We have verified session data — skip the normal auth_refresh_token flow.
+                    # Set a synthetic auth_refresh_token to None and use session_data directly below.
+                    # We inject __ws_token_session_data so the code after get_user_by_token can use it.
+                    auth_refresh_token = f"__ws_verified__{verified_token_hash}"
+                else:
+                    logger.warning("WebSocket auth: Session not found in cache after ws_token verification")
+            else:
+                # HMAC verification failed — try treating the token as a raw refresh token.
+                # This supports the CLI which may send the raw auth_refresh_token when the
+                # HMAC ws_token is expired or unavailable (e.g. INTERNAL_API_SHARED_TOKEN unset).
+                logger.debug("WebSocket auth: HMAC ws_token verification failed, trying raw token lookup")
+                raw_user_data = await cache_service.get_user_by_token(ws_token_param)
+                if raw_user_data:
+                    logger.debug("WebSocket auth: Raw refresh token found in cache — using as fallback")
+                    auth_refresh_token = ws_token_param
+                else:
+                    logger.warning("WebSocket auth: HMAC ws_token verification failed and raw token not in cache")
 
     if not auth_refresh_token:
         logger.warning("WebSocket connection denied: Missing 'auth_refresh_token' in both cookie and query parameters.")
@@ -75,20 +99,24 @@ async def get_current_user_ws(
 
     try:
         # 1. Get user data from cache using the extracted token
-        token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
-        logger.debug(f"WebSocket auth: Checking cache for user with token ending ...{token_suffix}")
-        
-        # Add detailed logging for debugging
-        token_hash = hashlib.sha256(auth_refresh_token.encode()).hexdigest()
-        session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{token_hash}"
-        logger.debug(f"WebSocket auth: Looking for session key '{session_cache_key}'")
-        
-        user_data = await cache_service.get_user_by_token(auth_refresh_token)
-        logger.debug(f"WebSocket auth: Cache check result for token ...{token_suffix}: {'Found' if user_data else 'Not Found'}")
+        # If auth_refresh_token starts with "__ws_verified__", it means we already verified
+        # the HMAC ws_token and extracted the token_hash — look up session data directly.
+        if auth_refresh_token.startswith("__ws_verified__"):
+            verified_hash = auth_refresh_token.replace("__ws_verified__", "")
+            logger.debug(f"WebSocket auth: Using pre-verified ws_token session hash {verified_hash[:8]}...")
+            session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{verified_hash}"
+            user_data = await cache_service.get(session_cache_key)
+        else:
+            token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
+            logger.debug(f"WebSocket auth: Checking cache for user with token ending ...{token_suffix}")
+            token_hash = hashlib.sha256(auth_refresh_token.encode()).hexdigest()
+            session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{token_hash}"
+            logger.debug(f"WebSocket auth: Looking for session key '{session_cache_key}'")
+            user_data = await cache_service.get_user_by_token(auth_refresh_token)
+        logger.debug(f"WebSocket auth: Cache lookup result: {'Found' if user_data else 'Not Found'}")
         
         if not user_data:
-            logger.warning(f"WebSocket connection denied: Invalid or expired token (not found in cache for token ending ...{auth_refresh_token[-6:]}).")
-            logger.debug(f"WebSocket auth: Token hash {token_hash[:8]}... not found in cache")
+            logger.warning("WebSocket connection denied: Invalid or expired token (not found in cache).")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
             # Return None to signal authentication failure - connection already closed, no need to raise
             return None

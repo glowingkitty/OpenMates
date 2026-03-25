@@ -40,7 +40,8 @@ async def invoke_direct_api(
         
         if not anthropic_messages:
             err_msg = "Message history is empty after processing."
-            if stream: raise ValueError(err_msg)
+            if stream:
+                raise ValueError(err_msg)
             return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
         anthropic_tools = _map_tools_to_anthropic_format(tools)
@@ -50,7 +51,7 @@ async def invoke_direct_api(
             "model": model_id,
             "messages": anthropic_messages,
             "temperature": temperature,
-            "max_tokens": max_tokens or 4096
+            "max_tokens": max_tokens or 16384
         }
         
         if system_prompt:
@@ -74,7 +75,8 @@ async def invoke_direct_api(
     except Exception as e:
         err_msg = f"Error during direct API request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
-        if stream: raise ValueError(err_msg)
+        if stream:
+            raise ValueError(err_msg)
         return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
 
@@ -218,6 +220,15 @@ async def _iterate_direct_api_stream(
                 current_tool_calls.clear()
             
             elif event.type == "message_delta":
+                # Check stop_reason for truncation/blocking detection.
+                # Anthropic sends stop_reason in message_delta: "end_turn", "max_tokens",
+                # "stop_sequence", or "tool_use". If max_tokens, the response was truncated.
+                stop_reason = getattr(event.delta, 'stop_reason', None)
+                if stop_reason and stop_reason not in ("end_turn", "tool_use"):
+                    logger.warning(f"{log_prefix} Response ended with stop_reason='{stop_reason}'")
+                    if stop_reason == "max_tokens":
+                        yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+
                 if hasattr(event.delta, 'usage'):
                     usage_data = event.delta.usage
                     usage = AnthropicUsageMetadata(

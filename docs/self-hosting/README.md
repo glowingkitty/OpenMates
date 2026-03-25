@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Self-Hosting
 
 Run your own OpenMates instance with full control over your data and infrastructure.
@@ -5,6 +10,7 @@ Run your own OpenMates instance with full control over your data and infrastruct
 ## Guide
 
 - [Setup & Installation](setup.md) - Complete step-by-step guide to set up OpenMates on your own server
+- [Proton Mail Bridge](proton-bridge.md) - Connect a Proton Mail account for the mail search skill
 
 The setup guide covers:
 
@@ -21,5 +27,5 @@ The setup guide covers:
 
 - A Linux server (Ubuntu/Debian recommended)
 - Docker and Docker Compose
-- At least one AI provider API key (Mistral, OpenAI, Anthropic, or Google)
+- At least one AI provider API key (e.g. OpenAI, Anthropic, Google, or Mistral)
 - A domain name (for production deployment)

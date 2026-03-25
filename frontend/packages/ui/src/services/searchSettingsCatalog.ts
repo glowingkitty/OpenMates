@@ -358,6 +358,20 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
       "fehler melden",
     ],
   },
+  {
+    path: "report_issue/share-debug-logs",
+    translationKey: "settings.report_issue.share_debug_logs_title",
+    icon: "icon_flag",
+    access: "authenticated",
+    keywords: [
+      "debug logs",
+      "share debug logs",
+      "debugging",
+      "console logs",
+      "log sharing",
+      "diagnostics",
+    ],
+  },
   // Server — admin only (server management is restricted to admins)
   {
     path: "server",

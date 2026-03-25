@@ -28,14 +28,17 @@ The api container has access to Vault via the token at /vault-data/api.token.
 import os
 import json
 import subprocess
-import httpx
 import pytest
 import time
 from typing import Optional, Tuple
-from dotenv import load_dotenv
 
-# Load environment variables from the root .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
+try:
+    import httpx
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
+except ImportError as _exc:
+    pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
+    httpx = None  # type: ignore[assignment]
 
 
 class ProxyAuthError(Exception):

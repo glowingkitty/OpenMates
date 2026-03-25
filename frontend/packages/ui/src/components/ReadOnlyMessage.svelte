@@ -209,8 +209,9 @@
     function _handleEmbedClick(event: CustomEvent) {
         event.stopPropagation();
         const target = event.target as HTMLElement;
-        // Look for any embed container with either data attribute
-        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
+        // Look for any embed container with either data attribute.
+        // Include [data-type="embed-preview-large"] for embedPreviewLarge NodeViews.
+        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container, [data-type="embed-preview-large"]');
         if (embedContainer) {
             console.debug('[ReadOnlyMessage] Embed container clicked');
             
@@ -243,8 +244,10 @@
      */
     function handleEmbedContextMenu(event: MouseEvent) {
         const target = event.target as HTMLElement;
-        // Look for any embed container with either data attribute
-        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
+        // Look for any embed container with either data attribute.
+        // Include [data-type="embed-preview-large"] for embedPreviewLarge NodeViews
+        // (their inner content may not have data-embed-id during loading).
+        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container, [data-type="embed-preview-large"]');
         if (embedContainer) {
             // Prevent default browser context menu
             event.preventDefault();
@@ -1022,14 +1025,28 @@
                 }
             }
             
-            // Try incremental update first
-            const result = applyIncrementalUpdate(editor, processedContent);
-            
-            if (!result.applied) {
-                // Incremental update failed — fall back to setContent()
-                // This should be rare but handles edge cases gracefully
-                logger.debug('Incremental update failed, falling back to setContent()');
+            // Check if new content introduces embedPreviewLarge nodes
+            const hasLargePreview = JSON.stringify(processedContent).includes('"embedPreviewLarge"');
+            const editorHasLargePreview = JSON.stringify(editor.getJSON()).includes('"embedPreviewLarge"');
+
+            // If a new embedPreviewLarge node is being introduced, skip incremental update
+            // and use full setContent(). The ReplaceStep can fail when transitioning from
+            // inline paragraph content to a block-level atom node, and even when it succeeds
+            // the freshly mounted NodeView may get 0-width before layout reflows, causing
+            // CSS container queries to use the compact layout.
+            if (hasLargePreview && !editorHasLargePreview) {
+                logger.debug('New embedPreviewLarge detected during streaming — using setContent() for clean NodeView mount');
                 editor.commands.setContent(processedContent, { emitUpdate: false });
+            } else {
+                // Try incremental update first
+                const result = applyIncrementalUpdate(editor, processedContent);
+
+                if (!result.applied) {
+                    // Incremental update failed — fall back to setContent()
+                    // This should be rare but handles edge cases gracefully
+                    logger.debug('Incremental update failed, falling back to setContent()');
+                    editor.commands.setContent(processedContent, { emitUpdate: false });
+                }
             }
         } else {
             // NON-STREAMING PATH: Use setContent() for locale changes, embed updates,
@@ -1085,18 +1102,40 @@
             // Streaming chunks arrive every ~30-50ms but parsing + DOM updates are expensive.
             // We buffer the latest content and apply at most once per STREAMING_DEBOUNCE_MS.
             if (isStreaming && !localeChanged && !hasEmbedUpdate) {
+                // Check if the new content contains an embed ref link that would produce
+                // an embedPreviewLarge node. If so, bypass debounce and process immediately
+                // to ensure the large preview renders at full size right away.
+                const contentStr = typeof content === 'string' ? content : '';
+                const hasEmbedRefLink = contentStr.includes('](embed:');
+                const editorHasLargePreview = JSON.stringify(editor.getJSON()).includes('"embedPreviewLarge"');
+                if (hasEmbedRefLink && !editorHasLargePreview) {
+                    // Bypass debounce — process immediately so the large preview mounts
+                    // with the editor at full width (avoids 0-width container query issue)
+                    if (streamingDebounceTimer) {
+                        clearTimeout(streamingDebounceTimer);
+                        streamingDebounceTimer = null;
+                    }
+                    pendingStreamContent = null;
+                    const processed = processContent(content);
+                    const currentJson = editor.getJSON();
+                    if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
+                        applyContentUpdate(processed, true, true); // forceFullReplace for clean mount
+                    }
+                    return;
+                }
+
                 // Store raw content for debounced processing
                 pendingStreamContent = content;
-                
+
                 // If no timer is running, start one
                 if (!streamingDebounceTimer) {
                     streamingDebounceTimer = setTimeout(() => {
                         streamingDebounceTimer = null;
                         if (!editor || editor.isDestroyed || !pendingStreamContent) return;
-                        
+
                         const processed = processContent(pendingStreamContent);
                         pendingStreamContent = null;
-                        
+
                         // Check if content actually changed
                         const currentJson = editor.getJSON();
                         if (JSON.stringify(currentJson) !== JSON.stringify(processed)) {
@@ -1258,7 +1297,6 @@
 
     /* Style overrides for read-only mode */
     :global(.read-only-message .ProseMirror) {
-        outline: none;
         cursor: default;
         padding: 0;
         /* Enable text selection by default */
@@ -1357,6 +1395,18 @@
         outline: 2px solid var(--color-primary) !important;
         outline-offset: 2px !important;
         color: transparent !important;
+    }
+
+    /* Brighter link gradient for dark mode readability */
+    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-link),
+    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-paragraph a),
+    :global([data-theme="dark"] .read-only-message .ProseMirror a),
+    :global([data-theme="dark"] .read-only-message .markdown-link),
+    :global([data-theme="dark"] .read-only-message .markdown-paragraph a),
+    :global([data-theme="dark"] .read-only-message a) {
+        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%) !important;
+        -webkit-background-clip: text !important;
+        background-clip: text !important;
     }
 
     /* Alternative approach for browsers that don't support :has() */

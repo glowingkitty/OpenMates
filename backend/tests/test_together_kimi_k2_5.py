@@ -12,6 +12,7 @@ Run inside the api container:
     docker exec -it api python /app/backend/tests/test_together_kimi_k2_5.py
 """
 
+import pytest
 import asyncio
 import logging
 import json
@@ -21,6 +22,9 @@ import time
 # Configure logging to see what's happening
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+# Exclude from daily CI — these are expensive inference benchmarks, not regression tests.
+pytestmark = pytest.mark.benchmark
 
 # Silence noisy loggers
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -87,17 +91,17 @@ async def test_provider_config_resolution():
         print(f"  ✗ FAIL: Expected transformed_model_id='together/moonshotai/Kimi-K2.5', got '{transformed_model_id}'")
         return False
 
-    print(f"  ✓ Transformed model ID correct")
+    print("  ✓ Transformed model ID correct")
 
     # Test fallback resolution
     fallbacks = resolve_fallback_servers_from_provider_config("moonshot/kimi-k2.5")
     print(f"  ✓ Fallback servers: {fallbacks}")
 
     if not fallbacks or "openrouter/moonshotai/kimi-k2.5" not in fallbacks:
-        print(f"  ✗ FAIL: Expected OpenRouter fallback 'openrouter/moonshotai/kimi-k2.5' not found")
+        print("  ✗ FAIL: Expected OpenRouter fallback 'openrouter/moonshotai/kimi-k2.5' not found")
         return False
 
-    print(f"  ✓ OpenRouter fallback correctly configured")
+    print("  ✓ OpenRouter fallback correctly configured")
     print("  RESULT: PASS")
     return True
 
@@ -288,7 +292,7 @@ async def test_tool_calling(api_key: str):
         if first_tool.function_name == "get_weather":
             city = first_tool.function_arguments_parsed.get("city", "").lower()
             if "paris" in city:
-                print(f"  ✓ Correct tool call with city='Paris'")
+                print("  ✓ Correct tool call with city='Paris'")
             else:
                 print(f"  ⚠ WARNING: Expected city='Paris', got '{city}'")
         else:

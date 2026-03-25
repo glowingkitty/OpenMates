@@ -3,6 +3,7 @@
 export {};
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -32,6 +33,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -77,9 +80,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 	// Pre-test skip checks
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -88,25 +89,25 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	// 1. Login flow (reused from chat-flow.spec.ts)
 	// ───────────────────────────────────────────────────
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible();
+	const passwordInput = page.locator('#login-password-input');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
@@ -138,7 +139,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('What is the capital of France? Please explain in detail.');
+	await page.keyboard.type(withMockMarker('What is the capital of France? Please explain in detail.', 'chat_scroll_streaming', 'medium'));
 	await takeStepScreenshot(page, 'message-typed');
 
 	const sendButton = page.locator('.send-button');
@@ -353,7 +354,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	logCheckpoint('Cleaning up: deleting test chat...');
 
 	// Ensure sidebar is open
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible()) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);

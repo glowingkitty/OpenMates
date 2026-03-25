@@ -103,14 +103,17 @@ def sanitize_suggestions(
     valid_memory_ids: set,
     allow_memory_prefixes: bool,
     task_id: str,
+    valid_app_ids: Optional[set] = None,
 ) -> List[str]:
     """
-    Post-LLM sanitizer: validate and clean suggestions that may carry [app_id-X] prefixes.
+    Post-LLM sanitizer: validate and clean suggestions that may carry [app_id-X] or [app_id] prefixes.
 
     Rules:
     - If a suggestion starts with [prefix], check that prefix is in the valid set.
-    - Invalid prefixes are stripped (the body text is kept so the suggestion isn't lost).
+    - App-only prefixes like [ai], [code] are valid if they match a known app ID.
+    - Invalid prefixes are stripped (the body text is kept, prefixed with [ai] fallback).
     - Memory prefixes are only allowed in follow-up suggestions (allow_memory_prefixes=True).
+    - Suggestions without any prefix get [ai] prepended as fallback.
     - Suggestions that are empty after stripping are dropped.
 
     Args:
@@ -120,18 +123,27 @@ def sanitize_suggestions(
         valid_memory_ids: Set of valid "app_id-memory_id" strings (dot-notation converted)
         allow_memory_prefixes: Whether memory prefixes are allowed in this suggestion list
         task_id: Task ID for logging
+        valid_app_ids: Set of valid app IDs for app-only prefixes (e.g. {"ai", "web", "code"})
 
     Returns:
         Cleaned list of suggestion strings (same count or fewer if some were blank after strip)
     """
     import re
 
-    # All valid prefixes for this call
-    all_valid = valid_skill_ids | valid_focus_ids
+    # All valid compound prefixes (app_id-skill_id / app_id-focus_id)
+    all_valid_compound = valid_skill_ids | valid_focus_ids
     if allow_memory_prefixes:
-        all_valid = all_valid | valid_memory_ids
+        all_valid_compound = all_valid_compound | valid_memory_ids
+
+    # Valid app-only prefixes (e.g. "ai", "code", "web")
+    app_only_valid = valid_app_ids or set()
 
     PREFIX_RE = re.compile(r"^\[([^\]]+)\]\s*")
+
+    # Minimum word count for suggestion body text (after stripping the prefix).
+    # Suggestions with fewer words are too vague (e.g. "Quantum computing") and
+    # should be dropped in favor of action-oriented phrases ("Explain quantum computing basics").
+    MIN_BODY_WORDS = 4
 
     cleaned = []
     for raw in suggestions:
@@ -143,20 +155,37 @@ def sanitize_suggestions(
             prefix = m.group(1).strip()
             body = raw[m.end():].strip()
 
-            if prefix in all_valid:
+            # Drop suggestions whose body text is too short (fewer than MIN_BODY_WORDS words)
+            if len(body.split()) < MIN_BODY_WORDS:
+                logger.debug(
+                    f"[Task ID: {task_id}] [PostProcessor] Dropped suggestion with "
+                    f"<{MIN_BODY_WORDS} words in body: '[{prefix}] {body}'"
+                )
+                continue
+
+            if prefix in all_valid_compound or prefix in app_only_valid:
                 # Valid prefix — keep as-is
                 cleaned.append(raw.strip())
             else:
-                # Invalid/hallucinated prefix — strip the bracket tag, keep body text
+                # Invalid/hallucinated prefix — replace with [ai] fallback, keep body text
                 logger.warning(
-                    f"[Task ID: {task_id}] [PostProcessor] Stripped unknown prefix "
-                    f"'[{prefix}]' from suggestion (not in valid set). Body kept: '{body[:60]}'"
+                    f"[Task ID: {task_id}] [PostProcessor] Replaced unknown prefix "
+                    f"'[{prefix}]' with [ai] fallback. Body: '{body[:60]}'"
                 )
-                if body:
-                    cleaned.append(body)
+                cleaned.append(f"[ai] {body}")
         else:
-            # No prefix — plain suggestion, always keep
-            cleaned.append(raw.strip())
+            # No prefix — prepend [ai] as fallback (every suggestion must have a prefix)
+            body = raw.strip()
+            if body and len(body.split()) >= MIN_BODY_WORDS:
+                logger.debug(
+                    f"[Task ID: {task_id}] [PostProcessor] Added [ai] prefix to unprefixed suggestion: '{body[:60]}'"
+                )
+                cleaned.append(f"[ai] {body}")
+            elif body:
+                logger.debug(
+                    f"[Task ID: {task_id}] [PostProcessor] Dropped unprefixed suggestion with "
+                    f"<{MIN_BODY_WORDS} words: '{body}'"
+                )
 
     return cleaned
 
@@ -172,8 +201,8 @@ def sanitize_suggestions(
 
 class PostProcessingResult(BaseModel):
     """Result from post-processing stage"""
-    follow_up_request_suggestions: List[str] = Field(default_factory=list, description="6 follow-up suggestions (max 5 words each)")
-    new_chat_request_suggestions: List[str] = Field(default_factory=list, description="6 new chat suggestions (max 5 words each)")
+    follow_up_request_suggestions: List[str] = Field(default_factory=list, description="6 follow-up suggestions (action-verb focused, min 4 words each)")
+    new_chat_request_suggestions: List[str] = Field(default_factory=list, description="6 new chat suggestions (action-verb focused, min 4 words each)")
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
@@ -277,10 +306,9 @@ async def handle_postprocessing(
             for s in available_skills
         )
         skills_context = (
-            f"\n\nAvailable skill IDs for suggestion prefixes (format: app_id-skill_id):\n"
+            f"\n\nAvailable skill IDs for suggestion prefixes (format: [app_id-skill_id]):\n"
             f"{skills_lines}\n"
-            "Use these IDs as [prefix] in suggestions when the skill is clearly relevant. "
-            "Only use IDs from this list. Aim for at least 2-3 skill/focus prefixed suggestions."
+            "Use these IDs as [app_id-skill_id] prefix in suggestions when the skill is clearly relevant."
         )
     else:
         skills_context = ""
@@ -291,13 +319,23 @@ async def handle_postprocessing(
             for f in available_focus_modes
         )
         focus_context = (
-            f"\n\nAvailable focus mode IDs for suggestion prefixes (format: app_id-focus_id):\n"
+            f"\n\nAvailable focus mode IDs for suggestion prefixes (format: [app_id-focus_id]):\n"
             f"{focus_lines}\n"
-            "Use these IDs as [prefix] in suggestions when activating a focus mode is relevant. "
-            "Only use IDs from this list."
+            "Use these IDs as [app_id-focus_id] prefix in suggestions when activating a focus mode is relevant."
         )
     else:
         focus_context = ""
+
+    # App-only prefix context: when no specific skill/focus fits, use [app_id] as prefix.
+    # Fallback to [ai] for general knowledge questions that don't map to any specific app.
+    app_prefix_context = (
+        "\n\nIMPORTANT — Every suggestion MUST have a prefix:\n"
+        "- Use [app_id-skill_id] when a specific skill is relevant\n"
+        "- Use [app_id-focus_id] when a focus mode is relevant\n"
+        "- Use [app_id] (app only) when the app is relevant but no specific skill/focus fits\n"
+        "- Use [ai] as fallback for general knowledge questions\n"
+        "Do NOT generate suggestions without a prefix."
+    )
 
     # Memory prefixes are no longer used in suggestions — settings/memories suggestions
     # are now generated inline by the main AI processor as deep links in the response text.
@@ -320,9 +358,15 @@ async def handle_postprocessing(
         "The full conversation history is provided below. "
         "Generate contextual follow-up suggestions that encourage deeper engagement and exploration. "
         "Generate new chat suggestions that are related but explore new angles.\n\n"
+        "CRITICAL — Action-verb style: Every suggestion body (the text after the [prefix]) MUST start with "
+        "a strong action verb (Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, "
+        "Analyze, Summarize, Plan, Design, Build, Describe, Calculate, etc.). "
+        "NEVER produce noun-only or adjective-only suggestions (e.g. 'Quantum physics' or 'Latest AI news'). "
+        "Every suggestion body must be at least 4 words long.\n\n"
         f"Conversation tags: {chat_tags_str}"
         f"{available_apps_context}"
         f"{skills_context}{focus_context}{memory_prefix_context}"
+        f"{app_prefix_context}"
         f"{language_instruction}"
     )
     messages.append({"role": "system", "content": system_message})
@@ -366,7 +410,7 @@ async def handle_postprocessing(
     messages.append({"role": "user", "content": combined_context})
 
     # Use same model as preprocessing (Mistral Small) for consistency
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
 
     # Resolve fallback providers from the model's provider config (e.g. openrouter)
     # so that post-processing is resilient to Mistral API timeouts/outages,
@@ -427,7 +471,7 @@ async def handle_postprocessing(
     valid_focus_ids: set = {f["id"] for f in (available_focus_modes or [])}
     # Note: valid_memory_ids no longer needed — memory prefixes removed from suggestions.
 
-    # Sanitize follow-up suggestions: allow skill + focus prefixes only (no memory —
+    # Sanitize follow-up suggestions: allow skill + focus + app-only prefixes (no memory —
     # memory suggestions are handled by the automated Phase 2 memory generation step)
     raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
     sanitized_follow_up = sanitize_suggestions(
@@ -437,9 +481,10 @@ async def handle_postprocessing(
         valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
         allow_memory_prefixes=False,
         task_id=task_id,
+        valid_app_ids=available_app_set,
     )
 
-    # Sanitize new chat suggestions: allow skill + focus prefixes only (NO memory)
+    # Sanitize new chat suggestions: allow skill + focus + app-only prefixes (NO memory)
     raw_new_chat = llm_result.arguments.get("new_chat_request_suggestions", [])
     sanitized_new_chat = sanitize_suggestions(
         suggestions=raw_new_chat,
@@ -448,6 +493,7 @@ async def handle_postprocessing(
         valid_memory_ids=set(),  # Memory not allowed here
         allow_memory_prefixes=False,
         task_id=task_id,
+        valid_app_ids=available_app_set,
     )
 
 
@@ -643,7 +689,7 @@ async def translate_chat_summary(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
     translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
 
     try:
@@ -714,7 +760,7 @@ async def translate_new_chat_suggestions(
     - No conversation history (avoids language bleed)
     - Tight system prompt focused purely on translation
     - Function calling with a simple schema: { translated_suggestions: string[] }
-    - Same cheap model as the rest of post-processing (mistral-small-latest)
+    - Same cheap model as the rest of post-processing (mistral-small-2506)
     - Token cost: ~130 input + ~50 output tokens per message — negligible
 
     Args:
@@ -780,8 +826,11 @@ async def translate_new_chat_suggestions(
         f"You are a professional translation engine. "
         f"Translate each suggestion into {language_name} ({target_language}). "
         f"Rules:\n"
+        f"- Each suggestion may start with a routing prefix in square brackets, e.g. [web-search], [ai], [reminder].\n"
+        f"  CRITICAL: Preserve the [prefix] EXACTLY as-is at the start of the translated suggestion.\n"
+        f"  Only translate the text that comes AFTER the [prefix]. Never translate or modify the prefix itself.\n"
         f"- Preserve the exact meaning and intent of each suggestion\n"
-        f"- Keep each suggestion short (max 5 words)\n"
+        f"- Keep each suggestion short (max 8 words after the prefix)\n"
         f"- Return EXACTLY {len(suggestions)} translated suggestions — one per input item\n"
         f"- Use natural, conversational phrasing in {language_name}\n"
         f"- Do NOT add explanations, commentary, or extra items"
@@ -789,6 +838,8 @@ async def translate_new_chat_suggestions(
 
     suggestions_list = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(suggestions))
     user_message = (
+        f"Important: Preserve the [prefix] at the start of each suggestion unchanged. "
+        f"Only translate the text after it.\n\n"
         f"Translate these {len(suggestions)} suggestions to {language_name}:\n\n"
         f"{suggestions_list}"
     )
@@ -798,7 +849,7 @@ async def translate_new_chat_suggestions(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-latest"
+    model_id = "mistral/mistral-small-2506"
     translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
 
     try:

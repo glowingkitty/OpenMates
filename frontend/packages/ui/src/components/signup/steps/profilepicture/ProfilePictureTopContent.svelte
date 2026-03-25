@@ -14,6 +14,19 @@
         isUploading?: boolean
     } = $props();
     
+    /**
+     * Escape HTML special characters to prevent XSS when inserting into {@html} blocks.
+     * SECURITY: Username is user-controlled input and must be escaped before HTML rendering.
+     */
+    function escapeHtml(str: string): string {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    
     // Use username from signupStore, fallback to userProfile store if available using Svelte 5 runes
     // Access the store value using get() function for Svelte 5 compatibility
     let displayUsername = $derived(get(signupStore)?.username || $userProfile?.username || '');
@@ -26,7 +39,8 @@
 </script>
 
 <div class="content">
-    <h2>{@html $text('chat.welcome.hey_user').replace('{username}', displayUsername)}</h2>
+    <!-- SECURITY: Escape username before injecting into HTML to prevent XSS -->
+    <h2>{@html $text('chat.welcome.hey_user').replace('{username}', escapeHtml(displayUsername))}</h2>
     <div class="image-container">
         <div class="image-circle">
             {#if showImage}

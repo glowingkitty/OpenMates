@@ -9,6 +9,7 @@ import type {
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
   LoadMoreChatsResponsePayload,
+  MetadataChatsResponsePayload,
   SyncEmbed,
   Chat,
   Message,
@@ -17,9 +18,83 @@ import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
+import { chatListCache } from "./chatListCache";
 import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
+
+/**
+ * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
+ * Cleared after Phase 3 completes.
+ */
+let phase2ProcessedChatIds: Set<string> | null = null;
+
+/**
+ * Validate encrypted metadata fields (title/icon/category) in a merged chat.
+ * If the merged field fails to decrypt but the local version succeeds, swap to
+ * the local version and flag for re-send to the server (self-heal).
+ *
+ * Root cause: stale cached JS on secondary devices (e.g. iPadOS Safari) can
+ * encrypt metadata with a wrong key. The server-side key immutability guard
+ * preserves the correct encrypted_chat_key, but the title/icon/category may
+ * have been overwritten with wrongly-encrypted values.
+ *
+ * @returns true if any field was healed (local version preserved over server)
+ */
+async function validateAndHealEncryptedMetadata(
+  merged: Chat,
+  localChat: Chat | null,
+  chatId: string,
+): Promise<boolean> {
+  const chatKey = chatKeyManager.getKeySync(chatId);
+  if (!chatKey) return false;
+  if (!localChat) return false;
+
+  const { decryptWithChatKey } = await import("./cryptoService");
+  let healed = false;
+
+  const fields = [
+    "encrypted_title",
+    "encrypted_icon",
+    "encrypted_category",
+  ] as const;
+
+  for (const field of fields) {
+    const mergedValue = merged[field];
+    const localValue = localChat[field];
+
+    // Skip if merged has no value, or merged and local are the same
+    if (!mergedValue || mergedValue === localValue) continue;
+
+    // Try to decrypt the merged (server-preferred) value
+    try {
+      const result = await decryptWithChatKey(mergedValue, chatKey);
+      if (result !== null) continue; // Merged value decrypts fine
+    } catch {
+      // Decryption threw — merged value is corrupted
+    }
+
+    // Merged value failed to decrypt — check local
+    if (localValue) {
+      try {
+        const localResult = await decryptWithChatKey(localValue, chatKey);
+        if (localResult !== null) {
+          // Local decrypts, merged doesn't → keep local
+          (merged as unknown as Record<string, unknown>)[field] = localValue;
+          healed = true;
+          console.warn(
+            `[PhasedSync] Self-heal: ${field} for chat ${chatId} — server version corrupted, preserved local`,
+          );
+        }
+      } catch {
+        // Local also fails — nothing we can do
+      }
+    }
+  }
+
+  return healed;
+}
 
 /**
  * Yield control back to the browser's main thread.
@@ -82,8 +157,8 @@ export async function handlePhase2RecentChatsImpl(
       return;
     }
 
-    // Store recent chats data
-    await storeRecentChats(serviceInstance, chats);
+    // Store recent chats data and track processed IDs for Phase 3 dedup
+    phase2ProcessedChatIds = await storeRecentChats(serviceInstance, chats);
 
     // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
     if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
@@ -165,8 +240,9 @@ export async function handlePhase3FullSyncImpl(
       return;
     }
 
-    // Store all chats data
-    await storeAllChats(serviceInstance, chats);
+    // Store all chats data, skipping those already processed in Phase 2
+    await storeAllChats(serviceInstance, chats, phase2ProcessedChatIds ?? undefined);
+    phase2ProcessedChatIds = null; // Clear after Phase 3 completes
 
     // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
     if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
@@ -337,7 +413,8 @@ async function storeRecentChats(
     messages?: Message[];
     server_message_count?: number;
   }>,
-): Promise<void> {
+): Promise<Set<string>> {
+  const processedChatIds = new Set<string>();
   try {
     // Get current user's ID for ownership tracking
     // All synced chats belong to the current user (server filters by hashed_user_id)
@@ -383,11 +460,27 @@ async function storeRecentChats(
       const existingChat = await chatDB.getChat(chatId);
 
       // Merge server data with local data, preserving higher versions
-      let mergedChat = mergeServerChatWithLocal(
+      let mergedChat = await mergeServerChatWithLocal(
         chat_details,
         existingChat,
         currentUserId,
       );
+
+      // Self-heal: validate encrypted metadata fields after merge.
+      // If server's title/icon/category is corrupted (encrypted with wrong key)
+      // but local version is valid, preserve local and queue re-send to server.
+      if (existingChat) {
+        const wasHealed = await validateAndHealEncryptedMetadata(
+          mergedChat,
+          existingChat,
+          chatId,
+        );
+        if (wasHealed) {
+          console.info(
+            `[ChatSyncService] Phase 2 - Self-healed corrupted metadata for chat ${chatId}`,
+          );
+        }
+      }
 
       // Populate in-memory unread badge store from server-authoritative count
       // so badges render correctly without waiting for a per-chat read status event.
@@ -412,8 +505,7 @@ async function storeRecentChats(
         server_message_count !== null &&
         server_message_count > 0
       ) {
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
 
         console.debug(
           `[ChatSyncService] Phase 2 - Message count validation for chat ${chatId}: ` +
@@ -434,6 +526,7 @@ async function storeRecentChats(
             messages_v: 0, // Reset to force re-sync on next load
           };
           await chatDB.addChat(mergedChat);
+          chatListCache.upsertChat(mergedChat);
 
           // Dispatch event to notify about the inconsistency
           serviceInstance.dispatchEvent(
@@ -456,9 +549,8 @@ async function storeRecentChats(
         serverMessagesV === localMessagesV &&
         shouldSyncMessages
       ) {
-        // Check if we have messages in the database
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        // Check if we have messages in the database (count-only, no decryption needed)
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
         const serverMessageCount = messages?.length || 0;
 
         console.debug(
@@ -485,6 +577,8 @@ async function storeRecentChats(
 
       if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
+        processedChatIds.add(chatId);
         continue;
       }
 
@@ -497,6 +591,8 @@ async function storeRecentChats(
           `[ChatSyncService] Phase 2 - Saving new chat ${chatId} without messages`,
         );
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
+        processedChatIds.add(chatId);
         continue;
       }
 
@@ -510,6 +606,7 @@ async function storeRecentChats(
       // Save chat and messages
       try {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         console.debug(
           `[ChatSyncService] Phase 2 - Saved chat ${chatId} to IndexedDB`,
         );
@@ -524,6 +621,7 @@ async function storeRecentChats(
             `[CLIENT_SYNC] ✅ Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`,
           );
         }
+        processedChatIds.add(chatId);
       } catch (saveError) {
         console.error(
           `[ChatSyncService] Phase 2 - Error saving chat/messages for chat ${chatId}:`,
@@ -541,6 +639,7 @@ async function storeRecentChats(
       error,
     );
   }
+  return processedChatIds;
 }
 
 /**
@@ -557,6 +656,7 @@ async function storeAllChats(
     messages?: Message[];
     server_message_count?: number;
   }>,
+  phase2ChatIds?: Set<string>,
 ): Promise<void> {
   try {
     console.debug(
@@ -602,6 +702,14 @@ async function storeAllChats(
         continue;
       }
 
+      // Skip chats already fully processed in Phase 2 (same server data, same merge result)
+      if (phase2ChatIds?.has(chatId)) {
+        console.debug(
+          `[ChatSyncService] Phase 3 - Skipping chat ${chatId} (already processed in Phase 2)`,
+        );
+        continue;
+      }
+
       console.debug(
         `[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`,
       );
@@ -610,11 +718,25 @@ async function storeAllChats(
       const existingChat = await chatDB.getChat(chatId);
 
       // Merge server data with local data, preserving higher versions
-      let mergedChat = mergeServerChatWithLocal(
+      let mergedChat = await mergeServerChatWithLocal(
         chat_details,
         existingChat,
         currentUserId,
       );
+
+      // Self-heal: validate encrypted metadata fields after merge
+      if (existingChat) {
+        const wasHealed = await validateAndHealEncryptedMetadata(
+          mergedChat,
+          existingChat,
+          chatId,
+        );
+        if (wasHealed) {
+          console.info(
+            `[ChatSyncService] Phase 3 - Self-healed corrupted metadata for chat ${chatId}`,
+          );
+        }
+      }
 
       // Populate in-memory unread badge store from server-authoritative count
       const syncedUnread3 = mergedChat.unread_count ?? 0;
@@ -637,8 +759,7 @@ async function storeAllChats(
         server_message_count !== null &&
         server_message_count > 0
       ) {
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
 
         console.debug(
           `[ChatSyncService] Phase 3 - Message count validation for chat ${chatId}: ` +
@@ -659,6 +780,7 @@ async function storeAllChats(
             messages_v: 0, // Reset to force re-sync on next load
           };
           await chatDB.addChat(mergedChat);
+          chatListCache.upsertChat(mergedChat);
 
           // Dispatch event to notify about the inconsistency
           serviceInstance.dispatchEvent(
@@ -681,8 +803,7 @@ async function storeAllChats(
         serverMessagesV === localMessagesV &&
         shouldSyncMessages
       ) {
-        const localMessages = await chatDB.getMessagesForChat(chatId);
-        const localMessageCount = localMessages?.length || 0;
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
         const serverMessageCount = messages?.length || 0;
 
         console.debug(
@@ -711,12 +832,14 @@ async function storeAllChats(
 
       if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         continue;
       }
 
       // Save chat and messages
       try {
         await chatDB.addChat(mergedChat);
+        chatListCache.upsertChat(mergedChat);
         console.debug(
           `[ChatSyncService] Phase 3 - Saved chat ${chatId} to IndexedDB`,
         );
@@ -838,79 +961,94 @@ async function storeEmbedsBatch(
 ): Promise<void> {
   try {
     const { embedStore } = await import("./embedStore");
-    let storedCount = 0;
 
-    for (const embed of embeds) {
+    // Filter out invalid/cancelled embeds before batch write
+    const validEmbeds = embeds.filter((embed) => {
       if (!embed.embed_id) {
         console.warn(
           `[ChatSyncService] ${phaseName} - Skipping embed without embed_id`,
         );
-        continue;
+        return false;
       }
-
       // Skip error/cancelled embeds — they are not displayed and should not
       // be stored locally. The backend filters these out but this is a safety net.
       if (embed.status === "error" || embed.status === "cancelled") {
-        console.debug(
-          `[ChatSyncService] ${phaseName} - Skipping ${embed.status} embed ${embed.embed_id}`,
-        );
-        continue;
+        return false;
       }
+      return true;
+    });
 
+    if (validEmbeds.length === 0) {
+      console.debug(`[ChatSyncService] ${phaseName} - No valid embeds to store`);
+      return;
+    }
+
+    // PERFORMANCE FIX: Use batch write (single IDB transaction) instead of individual
+    // putEncrypted() calls. On iPhone Safari, writing 1300 embeds individually takes
+    // ~15s due to per-transaction overhead. A single transaction takes ~1s.
+    await embedStore.putEncryptedBatch(
+      validEmbeds.map((embed) => ({
+        contentRef: `embed:${embed.embed_id}`,
+        data: {
+          encrypted_content: embed.encrypted_content,
+          encrypted_type: embed.encrypted_type,
+          embed_id: embed.embed_id,
+          status: embed.status || "finished",
+          hashed_chat_id: embed.hashed_chat_id,
+          hashed_user_id: embed.hashed_user_id,
+          embed_ids: embed.embed_ids,
+          parent_embed_id: embed.parent_embed_id,
+          version_number: embed.version_number,
+          encrypted_diff: embed.encrypted_diff,
+          file_path: embed.file_path,
+          content_hash: embed.content_hash,
+          text_length_chars: embed.text_length_chars,
+          is_private: embed.is_private ?? false,
+          is_shared: embed.is_shared ?? false,
+          createdAt: embed.createdAt || embed.created_at,
+          updatedAt: embed.updatedAt || embed.updated_at,
+        },
+        type: (embed.encrypted_type
+          ? "app-skill-use"
+          : embed.embed_type || "app-skill-use") as EmbedType,
+      })),
+    );
+
+    console.info(
+      `[ChatSyncService] ${phaseName} - Batch stored ${validEmbeds.length} embeds (single transaction)`,
+    );
+
+    // Eagerly decrypt + register embed refs so EmbedReferencePreview components
+    // can resolve refs (e.g. "livescience.com-kd0") to embed UUIDs.
+    // Without this, the in-memory ref→ID index stays empty after cross-device sync
+    // and embeds show "Loading preview..." forever (requires manual tab reload).
+    // putEncryptedBatch() stored encrypted entries in embedCache; calling get()
+    // decrypts from memory, registers refs via registerEmbedRef(), and bumps
+    // embedRefIndexVersion — triggering Svelte reactive re-renders.
+    const embedIdsToWarm = validEmbeds.map((e) => `embed:${e.embed_id}`);
+    setTimeout(async () => {
+      const BATCH_SIZE = 20;
       try {
-        // Create contentRef in the format used by embeds: embed:{embed_id}
-        const contentRef = `embed:${embed.embed_id}`;
-
-        // Store the embed with its already-encrypted content (no re-encryption)
-        // Skip metadata extraction during bulk sync - embed keys are typically
-        // not available yet, and attempting decryption for each embed causes
-        // unnecessary IndexedDB lookups and log noise. Metadata will be
-        // extracted later when embeds are accessed individually.
-        await embedStore.putEncrypted(
-          contentRef,
-          {
-            encrypted_content: embed.encrypted_content,
-            encrypted_type: embed.encrypted_type,
-            embed_id: embed.embed_id,
-            status: embed.status || "finished",
-            hashed_chat_id: embed.hashed_chat_id,
-            hashed_user_id: embed.hashed_user_id,
-            embed_ids: embed.embed_ids,
-            parent_embed_id: embed.parent_embed_id,
-            version_number: embed.version_number,
-            encrypted_diff: embed.encrypted_diff,
-            file_path: embed.file_path,
-            content_hash: embed.content_hash,
-            text_length_chars: embed.text_length_chars,
-            is_private: embed.is_private ?? false,
-            is_shared: embed.is_shared ?? false,
-            createdAt: embed.createdAt || embed.created_at,
-            updatedAt: embed.updatedAt || embed.updated_at,
-          },
-          (embed.encrypted_type
-            ? "app-skill-use"
-            : embed.embed_type || "app-skill-use") as EmbedType,
-          undefined, // plaintextContent
-          undefined, // preExtractedMetadata
-          { skipMetadataExtraction: true },
+        for (let i = 0; i < embedIdsToWarm.length; i += BATCH_SIZE) {
+          const batch = embedIdsToWarm.slice(i, i + BATCH_SIZE);
+          await Promise.allSettled(batch.map((id) => embedStore.get(id)));
+          // Yield to main thread between batches to avoid blocking UI
+          if (i + BATCH_SIZE < embedIdsToWarm.length) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+        console.debug(
+          `[ChatSyncService] ${phaseName} - Eagerly registered refs for ${embedIdsToWarm.length} embeds`,
         );
-
-        storedCount++;
-      } catch (embedError) {
+      } catch (err) {
+        // Non-critical: embeds will still resolve on individual component render
+        // via resolveEmbed's request_embed fallback or retry mechanism.
         console.warn(
-          `[ChatSyncService] ${phaseName} - Error storing embed ${embed.embed_id}:`,
-          embedError,
+          `[ChatSyncService] ${phaseName} - Non-critical: eager embed ref registration failed:`,
+          err,
         );
       }
-    }
-
-    if (storedCount > 0) {
-      console.info(
-        `[ChatSyncService] ${phaseName} - Stored ${storedCount} embeds (as-is, no re-encryption)`,
-      );
-    } else {
-      console.debug(`[ChatSyncService] ${phaseName} - No embeds stored`);
-    }
+    }, 0);
   } catch (error) {
     console.error(
       `[ChatSyncService] ${phaseName} - Error storing embeds batch:`,
@@ -967,11 +1105,11 @@ async function storeEmbedKeysBatch(
  * @param currentUserId - Current user's ID (all synced chats belong to them - server filters by hashed_user_id)
  * @returns Merged chat data with required fields for Chat type
  */
-function mergeServerChatWithLocal(
+async function mergeServerChatWithLocal(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
   currentUserId?: string,
-): Chat {
+): Promise<Chat> {
   const nowTimestamp = Math.floor(Date.now() / 1000);
 
   // If no local chat exists, use server data with defaults
@@ -1107,8 +1245,8 @@ function mergeServerChatWithLocal(
   }
 
   // Use server's encrypted_chat_key if available, otherwise keep local.
-  // This ensures we can decrypt messages synced from the server even if our local key was
-  // incorrectly generated (e.g. during a race condition or stale session).
+  // Server is the durable source of truth — when keys differ, we accept
+  // the server key and update ChatKeyManager so future encryptions use it.
   if (serverChat.encrypted_chat_key) {
     if (
       localChat.encrypted_chat_key &&
@@ -1116,8 +1254,23 @@ function mergeServerChatWithLocal(
     ) {
       console.warn(
         `[ChatSyncService] ⚠️ Chat key mismatch for chat ${merged.chat_id}! ` +
-          `Local key differs from server key. Overwriting local key with server's source of truth.`,
+          `Local key differs from server key. Server wins as source of truth.`,
       );
+      // Proactively load the server key into ChatKeyManager so subsequent
+      // operations (decryptMessageFields, validateAndHealEncryptedMetadata)
+      // use the correct key. receiveKeyFromServer will detect the conflict
+      // and replace the local key.
+      try {
+        await chatKeyManager.receiveKeyFromServer(
+          merged.chat_id,
+          serverChat.encrypted_chat_key,
+        );
+      } catch (error) {
+        console.error(
+          `[ChatSyncService] Failed to load server key for ${merged.chat_id}:`,
+          error,
+        );
+      }
     }
     merged.encrypted_chat_key = serverChat.encrypted_chat_key;
   } else if (localChat.encrypted_chat_key) {
@@ -1215,6 +1368,106 @@ export async function handleLoadMoreChatsResponseImpl(
   } catch (error) {
     console.error(
       "[ChatSyncService] Error handling load more chats response:",
+      error,
+    );
+  }
+}
+
+/**
+ * Handle "sync_metadata_chats_response" from the server.
+ * These are metadata-only chats (positions 101–1000) synced for expanded search.
+ * They are stored in IndexedDB (cheap — metadata only, no messages) and
+ * searchable by title, summary, and tags.
+ */
+export async function handleSyncMetadataChatsResponseImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: MetadataChatsResponsePayload,
+): Promise<void> {
+  console.info(
+    `[ChatSyncService] Metadata chats sync response: ${payload.chats?.length || 0} chats, total=${payload.total_count}`,
+  );
+
+  try {
+    if (payload.error) {
+      console.error(
+        `[ChatSyncService] Server error syncing metadata chats: ${payload.error}`,
+      );
+      return;
+    }
+
+    // Convert server chat format to the Chat type with is_metadata_only flag
+    const chats: Chat[] = (payload.chats || [])
+      .map((chatWrapper) => {
+        const details = chatWrapper.chat_details;
+        if (!details?.id) return null;
+
+        return {
+          chat_id: details.id,
+          encrypted_title: details.encrypted_title || null,
+          title: null,
+          messages_v: details.messages_v || 0,
+          title_v: details.title_v || 0,
+          draft_v: 0,
+          encrypted_draft_md: null,
+          encrypted_draft_preview: null,
+          last_edited_overall_timestamp:
+            details.last_edited_overall_timestamp ||
+            details.updated_at ||
+            Math.floor(Date.now() / 1000),
+          unread_count: details.unread_count || 0,
+          created_at: details.created_at || Math.floor(Date.now() / 1000),
+          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
+          processing_metadata: false,
+          waiting_for_metadata: false,
+          encrypted_category: details.encrypted_category || null,
+          encrypted_icon: details.encrypted_icon || null,
+          encrypted_chat_key: details.encrypted_chat_key || null,
+          encrypted_chat_summary: details.encrypted_chat_summary || null,
+          encrypted_chat_tags: details.encrypted_chat_tags || null,
+          encrypted_follow_up_request_suggestions:
+            details.encrypted_follow_up_request_suggestions || null,
+          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
+          pinned: details.pinned || false,
+          is_shared: details.is_shared || false,
+          is_private: details.is_private || false,
+          is_metadata_only: true,
+        } as Chat;
+      })
+      .filter((c): c is Chat => c !== null);
+
+    if (chats.length === 0) {
+      console.info("[ChatSyncService] No metadata chats to save.");
+      serviceInstance.dispatchEvent(
+        new CustomEvent("metadata_chats_ready", {
+          detail: { chat_count: 0, total_count: payload.total_count },
+        }),
+      );
+      return;
+    }
+
+    // Batch-save to IndexedDB (skips chats already stored as full chats)
+    const savedCount = await chatDB.batchSaveMetadataChats(chats);
+    console.info(
+      `[ChatSyncService] Saved ${savedCount} metadata-only chats to IndexedDB`,
+    );
+
+    // Update total chat count
+    if (payload.total_count && payload.total_count > 0) {
+      updateTotalChatCount(payload.total_count);
+    }
+
+    // Dispatch event to Chats.svelte for UI update and search index warm-up
+    serviceInstance.dispatchEvent(
+      new CustomEvent("metadata_chats_ready", {
+        detail: {
+          chat_count: chats.length,
+          total_count: payload.total_count,
+        },
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[ChatSyncService] Error handling metadata chats response:",
       error,
     );
   }

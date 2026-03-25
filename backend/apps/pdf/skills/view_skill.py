@@ -319,15 +319,14 @@ class ViewSkill(BaseSkill):
 
             vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
             screenshot_s3_keys: Dict[str, str] = embed_content.get("screenshot_s3_keys") or {}
-            aes_nonce = embed_content.get("aes_nonce")
             filename = embed_content.get("filename") or file_path
 
             if not vault_wrapped_aes_key:
                 raise RuntimeError("PDF embed cache missing vault_wrapped_aes_key")
             if not screenshot_s3_keys:
                 raise RuntimeError("PDF embed cache missing screenshot_s3_keys")
-            if not aes_nonce:
-                raise RuntimeError("PDF embed cache missing aes_nonce")
+            # Note: aes_nonce is no longer validated here — each screenshot S3 object
+            # has its nonce prepended as the first 12 bytes of its ciphertext.
 
             # Determine total page count for labels (from screenshot_s3_keys keys)
             total_pages = len(screenshot_s3_keys)
@@ -335,10 +334,12 @@ class ViewSkill(BaseSkill):
             # --- Step 3: Unwrap AES key once ---
             logger.info(f"{log_prefix} Unwrapping AES key")
             aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, resolved_vault_key_id)
-            nonce_bytes = base64.b64decode(aes_nonce)
             aesgcm = AESGCM(aes_key_bytes)
 
             # --- Step 4: Build multimodal content blocks ---
+            # Each screenshot has its own nonce prepended as the first 12 bytes of the
+            # ciphertext (set during PDF processing in process_task.py step 6).
+            # aes_nonce in the embed content is "" for new artefacts; extract per-blob.
             content_blocks: List[Dict[str, Any]] = []
             pages_viewed: List[int] = []
 
@@ -349,7 +350,9 @@ class ViewSkill(BaseSkill):
                     continue
 
                 logger.info(f"{log_prefix} Downloading screenshot for page {page_num}")
-                encrypted = await self._download_from_s3(s3_key)
+                encrypted_with_nonce = await self._download_from_s3(s3_key)
+                nonce_bytes = encrypted_with_nonce[:12]
+                encrypted = encrypted_with_nonce[12:]
                 plaintext = aesgcm.decrypt(nonce_bytes, encrypted, None)
 
                 page_b64 = base64.b64encode(plaintext).decode("utf-8")

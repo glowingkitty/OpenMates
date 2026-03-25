@@ -6,141 +6,673 @@ title:
   context: Title for the active sessions settings page
   en: Active Sessions
   de: Aktive Sitzungen
+  zh: 活跃会话
+  es: Sesiones activas
+  fr: Sessions actives
+  pt: Sessões ativas
+  ru: Активные сессии
+  ja: アクティブセッション
+  ko: 활성 세션
+  it: Sessioni attive
+  tr: Aktif Oturumlar
+  vi: Phiên hoạt động
+  id: Sesi Aktif
+  pl: Aktywne sesje
+  nl: Actieve sessies
+  ar: الجلسات النشطة
+  hi: सक्रिय सत्र
+  th: เซสชันที่ใช้งานอยู่
+  cs: Aktivní relace
+  sv: Aktiva sessioner
+  he: סשנים פעילים
 
 description:
   context: Description shown at the top of the active sessions page
   en: Manage your active sessions across all devices. You can remove individual sessions or log out from all devices at once.
   de: Verwalte deine aktiven Sitzungen auf allen Geräten. Du kannst einzelne Sitzungen entfernen oder dich von allen Geräten gleichzeitig abmelden.
+  zh: 管理您在所有设备上的活跃会话。您可以删除单个会话或一次性从所有设备注销。
+  es: Gestiona tus sesiones activas en todos los dispositivos. Puedes eliminar sesiones individuales o cerrar sesión en todos los dispositivos a la vez.
+  fr: Gérez vos sessions actives sur tous les appareils. Vous pouvez supprimer des sessions individuelles ou vous déconnecter de tous les appareils en même temps.
+  pt: Gerencie suas sessões ativas em todos os dispositivos. Você pode remover sessões individuais ou sair de todos os dispositivos de uma vez.
+  ru: Управляйте активными сессиями на всех устройствах. Вы можете удалить отдельные сессии или выйти со всех устройств одновременно.
+  ja: すべてのデバイスでのアクティブセッションを管理します。個々のセッションを削除したり、すべてのデバイスから一度にログアウトできます。
+  ko: 모든 기기에서 활성 세션을 관리하세요. 개별 세션을 제거하거나 모든 기기에서 한 번에 로그아웃할 수 있습니다.
+  it: Gestisci le tue sessioni attive su tutti i dispositivi. Puoi rimuovere singole sessioni o disconnetterti da tutti i dispositivi contemporaneamente.
+  tr: Tüm cihazlarınızdaki aktif oturumları yönetin. Bireysel oturumları kaldırabilir veya tüm cihazlardan aynı anda çıkış yapabilirsiniz.
+  vi: Quản lý các phiên hoạt động trên tất cả các thiết bị. Bạn có thể xóa từng phiên hoặc đăng xuất khỏi tất cả thiết bị cùng một lúc.
+  id: Kelola sesi aktif Anda di semua perangkat. Anda dapat menghapus sesi individual atau keluar dari semua perangkat sekaligus.
+  pl: Zarządzaj aktywnymi sesjami na wszystkich urządzeniach. Możesz usunąć poszczególne sesje lub wylogować się ze wszystkich urządzeń naraz.
+  nl: Beheer uw actieve sessies op alle apparaten. U kunt individuele sessies verwijderen of u tegelijk afmelden bij alle apparaten.
+  ar: أدر جلساتك النشطة على جميع أجهزتك. يمكنك إزالة جلسات فردية أو تسجيل الخروج من جميع الأجهزة دفعة واحدة.
+  hi: सभी डिवाइस पर अपने सक्रिय सत्र प्रबंधित करें। आप अलग-अलग सत्र हटा सकते हैं या एक साथ सभी डिवाइस से लॉग आउट कर सकते हैं।
+  th: จัดการเซสชันที่ใช้งานอยู่ในทุกอุปกรณ์ คุณสามารถลบเซสชันรายบุคคลหรือออกจากระบบจากทุกอุปกรณ์พร้อมกัน
+  cs: Spravujte aktivní relace na všech zařízeních. Můžete odebrat jednotlivé relace nebo se odhlásit ze všech zařízení najednou.
+  sv: Hantera dina aktiva sessioner på alla enheter. Du kan ta bort enskilda sessioner eller logga ut från alla enheter på en gång.
+  he: נהל את הסשנים הפעילים שלך בכל המכשירים. תוכל להסיר סשנים בודדים או להתנתק מכל המכשירים בבת אחת.
 
 description_short:
   context: Short subtitle shown in the security menu for the sessions entry
   en: Manage your connected devices
   de: Verbundene Geräte verwalten
+  zh: 管理您的已连接设备
+  es: Gestiona tus dispositivos conectados
+  fr: Gérez vos appareils connectés
+  pt: Gerencie seus dispositivos conectados
+  ru: Управление подключёнными устройствами
+  ja: 接続済みデバイスを管理
+  ko: 연결된 기기 관리
+  it: Gestisci i tuoi dispositivi connessi
+  tr: Bağlı cihazlarınızı yönetin
+  vi: Quản lý các thiết bị được kết nối
+  id: Kelola perangkat yang terhubung
+  pl: Zarządzaj podłączonymi urządzeniami
+  nl: Beheer uw verbonden apparaten
+  ar: إدارة أجهزتك المتصلة
+  hi: अपने कनेक्टेड डिवाइस प्रबंधित करें
+  th: จัดการอุปกรณ์ที่เชื่อมต่อของคุณ
+  cs: Spravujte svá připojená zařízení
+  sv: Hantera dina anslutna enheter
+  he: נהל את המכשירים המחוברים שלך
 
 loading:
   context: Loading state message while sessions are being fetched
   en: Loading sessions...
   de: Sitzungen werden geladen...
+  zh: 正在加载会话...
+  es: Cargando sesiones...
+  fr: Chargement des sessions...
+  pt: Carregando sessões...
+  ru: Загрузка сессий...
+  ja: セッションを読み込み中...
+  ko: 세션 로딩 중...
+  it: Caricamento sessioni...
+  tr: Oturumlar yükleniyor...
+  vi: Đang tải phiên...
+  id: Memuat sesi...
+  pl: Ładowanie sesji...
+  nl: Sessies laden...
+  ar: جارٍ تحميل الجلسات...
+  hi: सत्र लोड हो रहे हैं...
+  th: กำลังโหลดเซสชัน...
+  cs: Načítání relací...
+  sv: Laddar sessioner...
+  he: טוען סשנים...
 
 no_sessions:
   context: Empty state message when no sessions are found
   en: No active sessions found.
   de: Keine aktiven Sitzungen gefunden.
+  zh: 未找到活跃会话。
+  es: No se encontraron sesiones activas.
+  fr: Aucune session active trouvée.
+  pt: Nenhuma sessão ativa encontrada.
+  ru: Активные сессии не найдены.
+  ja: アクティブなセッションが見つかりません。
+  ko: 활성 세션이 없습니다.
+  it: Nessuna sessione attiva trovata.
+  tr: Aktif oturum bulunamadı.
+  vi: Không tìm thấy phiên hoạt động nào.
+  id: Tidak ada sesi aktif yang ditemukan.
+  pl: Nie znaleziono aktywnych sesji.
+  nl: Geen actieve sessies gevonden.
+  ar: لم يتم العثور على جلسات نشطة.
+  hi: कोई सक्रिय सत्र नहीं मिला।
+  th: ไม่พบเซสชันที่ใช้งานอยู่
+  cs: Nebyly nalezeny žádné aktivní relace.
+  sv: Inga aktiva sessioner hittades.
+  he: לא נמצאו סשנים פעילים.
 
 this_device:
   context: Badge label indicating the current device session
   en: This device
   de: Dieses Gerät
+  zh: 此设备
+  es: Este dispositivo
+  fr: Cet appareil
+  pt: Este dispositivo
+  ru: Это устройство
+  ja: このデバイス
+  ko: 이 기기
+  it: Questo dispositivo
+  tr: Bu cihaz
+  vi: Thiết bị này
+  id: Perangkat ini
+  pl: To urządzenie
+  nl: Dit apparaat
+  ar: هذا الجهاز
+  hi: यह डिवाइस
+  th: อุปกรณ์นี้
+  cs: Toto zařízení
+  sv: Den här enheten
+  he: המכשיר הזה
 
 unknown_device:
   context: Fallback device name when device cannot be identified
   en: Unknown device
   de: Unbekanntes Gerät
+  zh: 未知设备
+  es: Dispositivo desconocido
+  fr: Appareil inconnu
+  pt: Dispositivo desconhecido
+  ru: Неизвестное устройство
+  ja: 不明なデバイス
+  ko: 알 수 없는 기기
+  it: Dispositivo sconosciuto
+  tr: Bilinmeyen cihaz
+  vi: Thiết bị không xác định
+  id: Perangkat tidak diketahui
+  pl: Nieznane urządzenie
+  nl: Onbekend apparaat
+  ar: جهاز غير معروف
+  hi: अज्ञात डिवाइस
+  th: อุปกรณ์ที่ไม่รู้จัก
+  cs: Neznámé zařízení
+  sv: Okänd enhet
+  he: מכשיר לא מזוהה
 
 unknown_location:
   context: Fallback location text when location is not available
   en: Unknown location
   de: Unbekannter Standort
+  zh: 未知位置
+  es: Ubicación desconocida
+  fr: Emplacement inconnu
+  pt: Localização desconhecida
+  ru: Неизвестное местоположение
+  ja: 不明な場所
+  ko: 알 수 없는 위치
+  it: Posizione sconosciuta
+  tr: Bilinmeyen konum
+  vi: Vị trí không xác định
+  id: Lokasi tidak diketahui
+  pl: Nieznana lokalizacja
+  nl: Onbekende locatie
+  ar: موقع غير معروف
+  hi: अज्ञात स्थान
+  th: ตำแหน่งที่ไม่รู้จัก
+  cs: Neznámá poloha
+  sv: Okänd plats
+  he: מיקום לא ידוע
 
 logged_in:
   context: Label for the login time detail row
   en: Logged in
   de: Angemeldet
+  zh: 已登录
+  es: Iniciado sesión
+  fr: Connecté
+  pt: Conectado
+  ru: Вошёл в систему
+  ja: ログイン済み
+  ko: 로그인됨
+  it: Connesso
+  tr: Giriş yapıldı
+  vi: Đã đăng nhập
+  id: Masuk
+  pl: Zalogowany
+  nl: Ingelogd
+  ar: مسجّل الدخول
+  hi: लॉग इन किया
+  th: เข้าสู่ระบบแล้ว
+  cs: Přihlášen
+  sv: Inloggad
+  he: מחובר
 
 session_type:
   context: Label for the session type detail row (stay logged in vs session-only)
   en: Session type
   de: Sitzungstyp
+  zh: 会话类型
+  es: Tipo de sesión
+  fr: Type de session
+  pt: Tipo de sessão
+  ru: Тип сессии
+  ja: セッションタイプ
+  ko: 세션 유형
+  it: Tipo di sessione
+  tr: Oturum türü
+  vi: Loại phiên
+  id: Jenis sesi
+  pl: Typ sesji
+  nl: Sessietype
+  ar: نوع الجلسة
+  hi: सत्र प्रकार
+  th: ประเภทเซสชัน
+  cs: Typ relace
+  sv: Sessionstyp
+  he: סוג הסשן
 
 staying_logged_in:
   context: Value when user chose to stay logged in (persistent session)
   en: Stay logged in
   de: Angemeldet bleiben
+  zh: 保持登录
+  es: Mantener sesión iniciada
+  fr: Rester connecté
+  pt: Manter conectado
+  ru: Оставаться в системе
+  ja: ログインを維持
+  ko: 로그인 유지
+  it: Rimani connesso
+  tr: Giriş yapılı kal
+  vi: Duy trì đăng nhập
+  id: Tetap masuk
+  pl: Pozostań zalogowany
+  nl: Ingelogd blijven
+  ar: البقاء مسجّل الدخول
+  hi: लॉग इन रहें
+  th: คงสถานะเข้าสู่ระบบ
+  cs: Zůstat přihlášen
+  sv: Förbli inloggad
+  he: הישאר מחובר
 
 session_only:
   context: Value when session expires on browser close
   en: Session only
   de: Nur Sitzung
+  zh: 仅会话
+  es: Solo sesión
+  fr: Session uniquement
+  pt: Somente sessão
+  ru: Только сессия
+  ja: セッションのみ
+  ko: 세션만
+  it: Solo sessione
+  tr: Yalnızca oturum
+  vi: Chỉ phiên
+  id: Hanya sesi
+  pl: Tylko sesja
+  nl: Alleen sessie
+  ar: جلسة فقط
+  hi: केवल सत्र
+  th: เฉพาะเซสชัน
+  cs: Pouze relace
+  sv: Endast session
+  he: סשן בלבד
 
 remove:
   context: Button text to remove/revoke a single session
   en: Remove
   de: Entfernen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Remover
+  ru: Удалить
+  ja: 削除
+  ko: 제거
+  it: Rimuovi
+  tr: Kaldır
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: إزالة
+  hi: हटाएं
+  th: ลบ
+  cs: Odebrat
+  sv: Ta bort
+  he: הסר
 
 removing:
   context: Button text while a session removal is in progress
   en: Removing...
   de: Wird entfernt...
+  zh: 正在删除...
+  es: Eliminando...
+  fr: Suppression...
+  pt: Removendo...
+  ru: Удаление...
+  ja: 削除中...
+  ko: 제거 중...
+  it: Rimozione in corso...
+  tr: Kaldırılıyor...
+  vi: Đang xóa...
+  id: Menghapus...
+  pl: Usuwanie...
+  nl: Verwijderen...
+  ar: جارٍ الإزالة...
+  hi: हटाया जा रहा है...
+  th: กำลังลบ...
+  cs: Odebírání...
+  sv: Tar bort...
+  he: מסיר...
 
 confirm_remove:
   context: Confirmation dialog text before removing a session
   en: Remove this session? The device will be logged out immediately.
   de: Diese Sitzung entfernen? Das Gerät wird sofort abgemeldet.
+  zh: 删除此会话？该设备将立即注销。
+  es: ¿Eliminar esta sesión? El dispositivo cerrará sesión inmediatamente.
+  fr: Supprimer cette session ? L'appareil sera déconnecté immédiatement.
+  pt: Remover esta sessão? O dispositivo será desconectado imediatamente.
+  ru: Удалить эту сессию? Устройство будет немедленно выведено из системы.
+  ja: このセッションを削除しますか？デバイスは即座にログアウトされます。
+  ko: 이 세션을 제거하시겠습니까? 기기가 즉시 로그아웃됩니다.
+  it: Rimuovere questa sessione? Il dispositivo verrà disconnesso immediatamente.
+  tr: Bu oturum kaldırılsın mı? Cihaz hemen oturumu kapatacak.
+  vi: Xóa phiên này? Thiết bị sẽ bị đăng xuất ngay lập tức.
+  id: Hapus sesi ini? Perangkat akan langsung keluar.
+  pl: Usunąć tę sesję? Urządzenie zostanie natychmiast wylogowane.
+  nl: Deze sessie verwijderen? Het apparaat wordt onmiddellijk afgemeld.
+  ar: هل تريد إزالة هذه الجلسة؟ سيتم تسجيل خروج الجهاز فوراً.
+  hi: इस सत्र को हटाएं? डिवाइस तुरंत लॉग आउट हो जाएगा।
+  th: ลบเซสชันนี้? อุปกรณ์จะถูกออกจากระบบทันที
+  cs: Odebrat tuto relaci? Zařízení bude okamžitě odhlášeno.
+  sv: Ta bort den här sessionen? Enheten loggas ut omedelbart.
+  he: להסיר את הסשן הזה? המכשיר יתנתק מיד.
 
 logout_all_others:
   context: Button text to log out all other devices except current
   en: Log out all other devices
   de: Alle anderen Geräte abmelden
+  zh: 注销所有其他设备
+  es: Cerrar sesión en todos los otros dispositivos
+  fr: Déconnecter tous les autres appareils
+  pt: Sair de todos os outros dispositivos
+  ru: Выйти на всех других устройствах
+  ja: 他のすべてのデバイスからログアウト
+  ko: 다른 모든 기기에서 로그아웃
+  it: Disconnetti tutti gli altri dispositivi
+  tr: Diğer tüm cihazlardan çıkış yap
+  vi: Đăng xuất khỏi tất cả thiết bị khác
+  id: Keluar dari semua perangkat lain
+  pl: Wyloguj się ze wszystkich innych urządzeń
+  nl: Afmelden bij alle andere apparaten
+  ar: تسجيل الخروج من جميع الأجهزة الأخرى
+  hi: अन्य सभी डिवाइस से लॉग आउट करें
+  th: ออกจากระบบในอุปกรณ์อื่นทั้งหมด
+  cs: Odhlásit se ze všech ostatních zařízení
+  sv: Logga ut från alla andra enheter
+  he: התנתק מכל המכשירים האחרים
 
 confirm_logout_others:
   context: Confirmation dialog text before logging out all other devices
   en: Log out all other devices? They will need to log in again.
   de: Alle anderen Geräte abmelden? Sie müssen sich erneut anmelden.
+  zh: 注销所有其他设备？它们需要重新登录。
+  es: ¿Cerrar sesión en todos los otros dispositivos? Tendrán que iniciar sesión de nuevo.
+  fr: Déconnecter tous les autres appareils ? Ils devront se reconnecter.
+  pt: Sair de todos os outros dispositivos? Eles precisarão fazer login novamente.
+  ru: Выйти со всех других устройств? Им потребуется повторный вход.
+  ja: 他のすべてのデバイスからログアウトしますか？再ログインが必要になります。
+  ko: 다른 모든 기기에서 로그아웃하시겠습니까? 다시 로그인해야 합니다.
+  it: Disconnettere tutti gli altri dispositivi? Dovranno accedere di nuovo.
+  tr: Diğer tüm cihazlardan çıkış yapılsın mı? Yeniden giriş yapmaları gerekecek.
+  vi: Đăng xuất khỏi tất cả thiết bị khác? Họ sẽ cần đăng nhập lại.
+  id: Keluar dari semua perangkat lain? Mereka perlu masuk kembali.
+  pl: Wylogować wszystkie inne urządzenia? Będą musiały zalogować się ponownie.
+  nl: Afmelden bij alle andere apparaten? Ze moeten opnieuw inloggen.
+  ar: هل تريد تسجيل الخروج من جميع الأجهزة الأخرى؟ ستحتاج إلى تسجيل الدخول مرة أخرى.
+  hi: अन्य सभी डिवाइस से लॉग आउट करें? उन्हें फिर से लॉग इन करना होगा।
+  th: ออกจากระบบในอุปกรณ์อื่นทั้งหมด? อุปกรณ์เหล่านั้นจะต้องเข้าสู่ระบบใหม่
+  cs: Odhlásit všechna ostatní zařízení? Budou se muset znovu přihlásit.
+  sv: Logga ut från alla andra enheter? De måste logga in igen.
+  he: להתנתק מכל המכשירים האחרים? הם יצטרכו להתחבר מחדש.
 
 logout_all_devices:
   context: Button text to log out from all devices including current (nuclear option)
   en: Log out on all devices
   de: Von allen Geräten abmelden
+  zh: 从所有设备注销
+  es: Cerrar sesión en todos los dispositivos
+  fr: Déconnecter tous les appareils
+  pt: Sair de todos os dispositivos
+  ru: Выйти на всех устройствах
+  ja: すべてのデバイスからログアウト
+  ko: 모든 기기에서 로그아웃
+  it: Disconnetti da tutti i dispositivi
+  tr: Tüm cihazlardan çıkış yap
+  vi: Đăng xuất khỏi tất cả thiết bị
+  id: Keluar dari semua perangkat
+  pl: Wyloguj się ze wszystkich urządzeń
+  nl: Afmelden bij alle apparaten
+  ar: تسجيل الخروج من جميع الأجهزة
+  hi: सभी डिवाइस से लॉग आउट करें
+  th: ออกจากระบบในทุกอุปกรณ์
+  cs: Odhlásit se ze všech zařízení
+  sv: Logga ut från alla enheter
+  he: התנתק מכל המכשירים
 
 confirm_logout_all:
   context: Confirmation dialog text before logging out all devices
   en: Log out on all devices? This will also log you out of this device and clear all trusted devices. Every future login will require re-authentication.
   de: Von allen Geräten abmelden? Dies meldet dich auch von diesem Gerät ab und löscht alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert eine erneute Authentifizierung.
+  zh: 从所有设备注销？这也将注销此设备并清除所有受信任的设备。每次未来登录都需要重新验证。
+  es: ¿Cerrar sesión en todos los dispositivos? Esto también cerrará sesión en este dispositivo y eliminará todos los dispositivos de confianza. Cada inicio de sesión futuro requerirá reautenticación.
+  fr: Déconnecter tous les appareils ? Cela vous déconnectera également de cet appareil et effacera tous les appareils de confiance. Chaque future connexion nécessitera une réauthentification.
+  pt: Sair de todos os dispositivos? Isso também fará logout deste dispositivo e limpará todos os dispositivos confiáveis. Cada login futuro exigirá reautenticação.
+  ru: Выйти со всех устройств? Это также выведет вас из этого устройства и удалит все доверенные устройства. Каждый будущий вход потребует повторной аутентификации.
+  ja: すべてのデバイスからログアウトしますか？このデバイスからもログアウトし、すべての信頼済みデバイスがクリアされます。今後のすべてのログインに再認証が必要になります。
+  ko: 모든 기기에서 로그아웃하시겠습니까? 이 기기에서도 로그아웃되고 신뢰할 수 있는 모든 기기가 삭제됩니다. 향후 모든 로그인에 재인증이 필요합니다.
+  it: Disconnettersi da tutti i dispositivi? Verrai disconnesso anche da questo dispositivo e tutti i dispositivi attendibili verranno rimossi. Ogni futuro accesso richiederà una nuova autenticazione.
+  tr: Tüm cihazlardan çıkış yapılsın mı? Bu, bu cihazdan da çıkış yapacak ve tüm güvenilen cihazları temizleyecek. Gelecekteki her oturum açma işlemi yeniden kimlik doğrulama gerektirecek.
+  vi: Đăng xuất khỏi tất cả thiết bị? Điều này cũng sẽ đăng xuất bạn khỏi thiết bị này và xóa tất cả thiết bị đáng tin cậy. Mỗi lần đăng nhập trong tương lai sẽ yêu cầu xác thực lại.
+  id: Keluar dari semua perangkat? Ini juga akan mengeluarkan Anda dari perangkat ini dan menghapus semua perangkat tepercaya. Setiap login di masa depan memerlukan autentikasi ulang.
+  pl: Wylogować ze wszystkich urządzeń? Spowoduje to również wylogowanie z tego urządzenia i usunięcie wszystkich zaufanych urządzeń. Każde przyszłe logowanie będzie wymagać ponownego uwierzytelnienia.
+  nl: Afmelden bij alle apparaten? Dit meldt u ook af bij dit apparaat en wist alle vertrouwde apparaten. Elke toekomstige aanmelding vereist hernieuwde verificatie.
+  ar: هل تريد تسجيل الخروج من جميع الأجهزة؟ سيؤدي هذا أيضاً إلى تسجيل خروجك من هذا الجهاز ومسح جميع الأجهزة الموثوقة. كل تسجيل دخول مستقبلي سيتطلب إعادة المصادقة.
+  hi: सभी डिवाइस से लॉग आउट करें? यह इस डिवाइस से भी लॉग आउट करेगा और सभी विश्वसनीय डिवाइस साफ़ करेगा। भविष्य में हर लॉगिन के लिए पुनः प्रमाणीकरण आवश्यक होगा।
+  th: ออกจากระบบในทุกอุปกรณ์? การดำเนินการนี้จะออกจากระบบในอุปกรณ์นี้ด้วยและล้างอุปกรณ์ที่เชื่อถือไว้ทั้งหมด การเข้าสู่ระบบในอนาคตทุกครั้งจะต้องมีการยืนยันตัวตนใหม่
+  cs: Odhlásit se ze všech zařízení? Tím se také odhlásíte z tohoto zařízení a vymažete všechna důvěryhodná zařízení. Každé budoucí přihlášení bude vyžadovat opětovné ověření.
+  sv: Logga ut från alla enheter? Detta loggar dig även ut från den här enheten och tar bort alla betrodda enheter. Varje framtida inloggning kräver omautentisering.
+  he: להתנתק מכל המכשירים? פעולה זו גם תנתק אותך ממכשיר זה ותמחק את כל המכשירים המהימנים. כל כניסה עתידית תדרוש אימות מחדש.
 
 logout_all_hint:
   context: Warning hint text below the logout-all button
   en: This will also clear all trusted devices. Every future login will require full re-authentication.
   de: Dies löscht auch alle vertrauenswürdigen Geräte. Jede zukünftige Anmeldung erfordert vollständige Neu-Authentifizierung.
+  zh: 这还将清除所有受信任的设备。每次未来登录都需要完整的重新验证。
+  es: Esto también eliminará todos los dispositivos de confianza. Cada inicio de sesión futuro requerirá autenticación completa.
+  fr: Cela effacera également tous les appareils de confiance. Chaque future connexion nécessitera une authentification complète.
+  pt: Isso também limpará todos os dispositivos confiáveis. Cada login futuro exigirá reautenticação completa.
+  ru: Это также удалит все доверенные устройства. Каждый будущий вход потребует полной повторной аутентификации.
+  ja: これにより、すべての信頼済みデバイスもクリアされます。今後のすべてのログインに完全な再認証が必要になります。
+  ko: 이렇게 하면 신뢰할 수 있는 모든 기기도 삭제됩니다. 향후 모든 로그인에 전체 재인증이 필요합니다.
+  it: Questo rimuoverà anche tutti i dispositivi attendibili. Ogni futuro accesso richiederà una riautenticazione completa.
+  tr: Bu aynı zamanda tüm güvenilen cihazları temizleyecek. Gelecekteki her oturum açma işlemi tam yeniden kimlik doğrulama gerektirecek.
+  vi: Điều này cũng sẽ xóa tất cả thiết bị đáng tin cậy. Mỗi lần đăng nhập trong tương lai sẽ yêu cầu xác thực lại hoàn toàn.
+  id: Ini juga akan menghapus semua perangkat tepercaya. Setiap login di masa depan memerlukan autentikasi ulang penuh.
+  pl: Spowoduje to również usunięcie wszystkich zaufanych urządzeń. Każde przyszłe logowanie będzie wymagać pełnego ponownego uwierzytelnienia.
+  nl: Dit wist ook alle vertrouwde apparaten. Elke toekomstige aanmelding vereist volledige hernieuwde verificatie.
+  ar: سيؤدي هذا أيضاً إلى مسح جميع الأجهزة الموثوقة. كل تسجيل دخول مستقبلي سيتطلب إعادة مصادقة كاملة.
+  hi: यह सभी विश्वसनीय डिवाइस भी साफ़ कर देगा। भविष्य में हर लॉगिन के लिए पूर्ण पुनः प्रमाणीकरण आवश्यक होगा।
+  th: การดำเนินการนี้จะล้างอุปกรณ์ที่เชื่อถือไว้ทั้งหมดด้วย การเข้าสู่ระบบในอนาคตทุกครั้งจะต้องมีการยืนยันตัวตนใหม่อย่างสมบูรณ์
+  cs: Tím se také vymažou všechna důvěryhodná zařízení. Každé budoucí přihlášení bude vyžadovat úplné opětovné ověření.
+  sv: Detta rensar också alla betrodda enheter. Varje framtida inloggning kräver fullständig omautentisering.
+  he: פעולה זו תמחק גם את כל המכשירים המהימנים. כל כניסה עתידית תדרוש אימות מחדש מלא.
 
 processing:
   context: Button text while a bulk logout operation is in progress
   en: Processing...
   de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione in corso...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جارٍ المعالجة...
+  hi: प्रसंस्करण हो रहा है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
 
 just_now:
   context: Relative time label for events that happened less than a minute ago
   en: Just now
   de: Gerade eben
+  zh: 刚刚
+  es: Justo ahora
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Przed chwilą
+  nl: Zojuist
+  ar: للتو
+  hi: अभी-अभी
+  th: เมื่อกี้
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
 
 minute_ago:
   context: Relative time label for exactly 1 minute ago
   en: 1 minute ago
   de: Vor 1 Minute
+  zh: 1 分钟前
+  es: Hace 1 minuto
+  fr: Il y a 1 minute
+  pt: Há 1 minuto
+  ru: 1 минуту назад
+  ja: 1分前
+  ko: 1분 전
+  it: 1 minuto fa
+  tr: 1 dakika önce
+  vi: 1 phút trước
+  id: 1 menit yang lalu
+  pl: 1 minutę temu
+  nl: 1 minuut geleden
+  ar: منذ دقيقة واحدة
+  hi: 1 मिनट पहले
+  th: 1 นาทีที่แล้ว
+  cs: Před 1 minutou
+  sv: För 1 minut sedan
+  he: לפני דקה
 
 minutes_ago:
   context: Relative time label for N minutes ago (placeholder {n} is replaced with the number)
   en: "{n} minutes ago"
   de: "Vor {n} Minuten"
+  zh: "{n} 分钟前"
+  es: "Hace {n} minutos"
+  fr: "Il y a {n} minutes"
+  pt: "Há {n} minutos"
+  ru: "{n} минут назад"
+  ja: "{n}分前"
+  ko: "{n}분 전"
+  it: "{n} minuti fa"
+  tr: "{n} dakika önce"
+  vi: "{n} phút trước"
+  id: "{n} menit yang lalu"
+  pl: "{n} minut temu"
+  nl: "{n} minuten geleden"
+  ar: "منذ {n} دقائق"
+  hi: "{n} मिनट पहले"
+  th: "{n} นาทีที่แล้ว"
+  cs: "Před {n} minutami"
+  sv: "För {n} minuter sedan"
+  he: "לפני {n} דקות"
 
 hour_ago:
   context: Relative time label for exactly 1 hour ago
   en: 1 hour ago
   de: Vor 1 Stunde
+  zh: 1 小时前
+  es: Hace 1 hora
+  fr: Il y a 1 heure
+  pt: Há 1 hora
+  ru: 1 час назад
+  ja: 1時間前
+  ko: 1시간 전
+  it: 1 ora fa
+  tr: 1 saat önce
+  vi: 1 giờ trước
+  id: 1 jam yang lalu
+  pl: 1 godzinę temu
+  nl: 1 uur geleden
+  ar: منذ ساعة واحدة
+  hi: 1 घंटे पहले
+  th: 1 ชั่วโมงที่แล้ว
+  cs: Před 1 hodinou
+  sv: För 1 timme sedan
+  he: לפני שעה
 
 hours_ago:
   context: Relative time label for N hours ago (placeholder {n} is replaced with the number)
   en: "{n} hours ago"
   de: "Vor {n} Stunden"
+  zh: "{n} 小时前"
+  es: "Hace {n} horas"
+  fr: "Il y a {n} heures"
+  pt: "Há {n} horas"
+  ru: "{n} часов назад"
+  ja: "{n}時間前"
+  ko: "{n}시간 전"
+  it: "{n} ore fa"
+  tr: "{n} saat önce"
+  vi: "{n} giờ trước"
+  id: "{n} jam yang lalu"
+  pl: "{n} godzin temu"
+  nl: "{n} uur geleden"
+  ar: "منذ {n} ساعات"
+  hi: "{n} घंटे पहले"
+  th: "{n} ชั่วโมงที่แล้ว"
+  cs: "Před {n} hodinami"
+  sv: "För {n} timmar sedan"
+  he: "לפני {n} שעות"
 
 day_ago:
   context: Relative time label for exactly 1 day ago
   en: 1 day ago
   de: Vor 1 Tag
+  zh: 1 天前
+  es: Hace 1 día
+  fr: Il y a 1 jour
+  pt: Há 1 dia
+  ru: 1 день назад
+  ja: 1日前
+  ko: 1일 전
+  it: 1 giorno fa
+  tr: 1 gün önce
+  vi: 1 ngày trước
+  id: 1 hari yang lalu
+  pl: 1 dzień temu
+  nl: 1 dag geleden
+  ar: منذ يوم واحد
+  hi: 1 दिन पहले
+  th: 1 วันที่แล้ว
+  cs: Před 1 dnem
+  sv: För 1 dag sedan
+  he: לפני יום
 
 days_ago:
   context: Relative time label for N days ago (placeholder {n} is replaced with the number)
   en: "{n} days ago"
   de: "Vor {n} Tagen"
+  zh: "{n} 天前"
+  es: "Hace {n} días"
+  fr: "Il y a {n} jours"
+  pt: "Há {n} dias"
+  ru: "{n} дней назад"
+  ja: "{n}日前"
+  ko: "{n}일 전"
+  it: "{n} giorni fa"
+  tr: "{n} gün önce"
+  vi: "{n} ngày trước"
+  id: "{n} hari yang lalu"
+  pl: "{n} dni temu"
+  nl: "{n} dagen geleden"
+  ar: "منذ {n} أيام"
+  hi: "{n} दिन पहले"
+  th: "{n} วันที่แล้ว"
+  cs: "Před {n} dny"
+  sv: "För {n} dagar sedan"
+  he: "לפני {n} ימים"
 
 # ---------------------------------------------------------------------------
 # Magic Pair Login — Initiating device (SettingsSessionsPairInitiate)
@@ -150,86 +682,409 @@ pair_initiate_title:
   context: Title for the "log in from another device" initiation page
   en: Log In from Another Device
   de: Von einem anderen Gerät anmelden
+  zh: 从另一台设备登录
+  es: Iniciar sesión desde otro dispositivo
+  fr: Se connecter depuis un autre appareil
+  pt: Fazer login de outro dispositivo
+  ru: Войти с другого устройства
+  ja: 別のデバイスからログイン
+  ko: 다른 기기에서 로그인
+  it: Accedi da un altro dispositivo
+  tr: Başka bir cihazdan giriş yap
+  vi: Đăng nhập từ thiết bị khác
+  id: Masuk dari perangkat lain
+  pl: Zaloguj się z innego urządzenia
+  nl: Inloggen vanaf een ander apparaat
+  ar: تسجيل الدخول من جهاز آخر
+  hi: किसी अन्य डिवाइस से लॉग इन करें
+  th: เข้าสู่ระบบจากอุปกรณ์อื่น
+  cs: Přihlásit se z jiného zařízení
+  sv: Logga in från en annan enhet
+  he: התחבר ממכשיר אחר
 
 pair_initiate_description:
   context: Description shown on the pair initiation page
   en: Scan the QR code or enter the code below on your new device to log in.
   de: Scanne den QR-Code oder gib den Code unten auf deinem neuen Gerät ein, um dich anzumelden.
+  zh: 扫描二维码或在您的新设备上输入以下代码以登录。
+  es: Escanea el código QR o ingresa el código a continuación en tu nuevo dispositivo para iniciar sesión.
+  fr: Scannez le code QR ou entrez le code ci-dessous sur votre nouvel appareil pour vous connecter.
+  pt: Escaneie o código QR ou insira o código abaixo no seu novo dispositivo para fazer login.
+  ru: Отсканируйте QR-код или введите код ниже на своём новом устройстве для входа.
+  ja: QRコードをスキャンするか、新しいデバイスに以下のコードを入力してログインしてください。
+  ko: QR 코드를 스캔하거나 새 기기에서 아래 코드를 입력하여 로그인하세요.
+  it: Scansiona il codice QR o inserisci il codice qui sotto sul tuo nuovo dispositivo per accedere.
+  tr: Giriş yapmak için yeni cihazınızda QR kodunu tarayın veya aşağıdaki kodu girin.
+  vi: Quét mã QR hoặc nhập mã bên dưới trên thiết bị mới của bạn để đăng nhập.
+  id: Pindai kode QR atau masukkan kode di bawah ini pada perangkat baru Anda untuk masuk.
+  pl: Zeskanuj kod QR lub wprowadź poniższy kod na swoim nowym urządzeniu, aby się zalogować.
+  nl: Scan de QR-code of voer de onderstaande code in op uw nieuwe apparaat om in te loggen.
+  ar: امسح رمز QR أو أدخل الرمز أدناه على جهازك الجديد لتسجيل الدخول.
+  hi: लॉग इन करने के लिए अपने नए डिवाइस पर QR कोड स्कैन करें या नीचे दिया गया कोड दर्ज करें।
+  th: สแกนรหัส QR หรือป้อนรหัสด้านล่างบนอุปกรณ์ใหม่ของคุณเพื่อเข้าสู่ระบบ
+  cs: Naskenujte QR kód nebo zadejte níže uvedený kód na svém novém zařízení pro přihlášení.
+  sv: Skanna QR-koden eller ange koden nedan på din nya enhet för att logga in.
+  he: סרוק את קוד ה-QR או הזן את הקוד למטה במכשיר החדש שלך כדי להתחבר.
 
 pair_code_label:
   context: Label above the 6-character pair code
   en: Pair code
   de: Kopplungscode
+  zh: 配对码
+  es: Código de emparejamiento
+  fr: Code de couplage
+  pt: Código de emparelhamento
+  ru: Код сопряжения
+  ja: ペアリングコード
+  ko: 페어링 코드
+  it: Codice di accoppiamento
+  tr: Eşleştirme kodu
+  vi: Mã ghép nối
+  id: Kode pasangan
+  pl: Kod parowania
+  nl: Koppelingscode
+  ar: رمز الإقران
+  hi: पेयर कोड
+  th: รหัสจับคู่
+  cs: Párovací kód
+  sv: Parkopplningskod
+  he: קוד ההתאמה
 
 pair_url_label:
   context: Label for the URL section showing the full pair URL
   en: Or open this link
   de: Oder diesen Link öffnen
+  zh: 或打开此链接
+  es: O abre este enlace
+  fr: Ou ouvrez ce lien
+  pt: Ou abra este link
+  ru: Или откройте эту ссылку
+  ja: またはこのリンクを開く
+  ko: 또는 이 링크 열기
+  it: O apri questo link
+  tr: Ya da bu bağlantıyı aç
+  vi: Hoặc mở liên kết này
+  id: Atau buka tautan ini
+  pl: Lub otwórz ten link
+  nl: Of open deze link
+  ar: أو افتح هذا الرابط
+  hi: या यह लिंक खोलें
+  th: หรือเปิดลิงก์นี้
+  cs: Nebo otevřete tento odkaz
+  sv: Eller öppna den här länken
+  he: או פתח את הקישור הזה
 
 pair_auto_logout_label:
   context: Label for the auto-logout timer selector on the pair initiation page
   en: Auto-logout after
   de: Automatisch abmelden nach
+  zh: 自动注销时间
+  es: Cierre de sesión automático después de
+  fr: Déconnexion automatique après
+  pt: Logout automático após
+  ru: Автовыход через
+  ja: 自動ログアウトまでの時間
+  ko: 자동 로그아웃 시간
+  it: Disconnessione automatica dopo
+  tr: Otomatik çıkış süresi
+  vi: Tự động đăng xuất sau
+  id: Keluar otomatis setelah
+  pl: Automatyczne wylogowanie po
+  nl: Automatisch afmelden na
+  ar: تسجيل خروج تلقائي بعد
+  hi: स्वचालित लॉगआउट बाद में
+  th: ออกจากระบบอัตโนมัติหลังจาก
+  cs: Automatické odhlášení po
+  sv: Automatisk utloggning efter
+  he: התנתקות אוטומטית לאחר
 
 pair_auto_logout_none:
   context: Option for no auto-logout in the selector
   en: Never (manual logout only)
   de: Nie (nur manuell abmelden)
+  zh: 从不（仅手动注销）
+  es: Nunca (solo cierre manual)
+  fr: Jamais (déconnexion manuelle uniquement)
+  pt: Nunca (apenas logout manual)
+  ru: Никогда (только ручной выход)
+  ja: なし（手動ログアウトのみ）
+  ko: 안 함 (수동 로그아웃만)
+  it: Mai (solo disconnessione manuale)
+  tr: Asla (yalnızca manuel çıkış)
+  vi: Không bao giờ (chỉ đăng xuất thủ công)
+  id: Tidak pernah (hanya keluar manual)
+  pl: Nigdy (tylko ręczne wylogowanie)
+  nl: Nooit (alleen handmatig afmelden)
+  ar: أبداً (تسجيل خروج يدوي فقط)
+  hi: कभी नहीं (केवल मैन्युअल लॉगआउट)
+  th: ไม่เลย (ออกจากระบบด้วยตนเองเท่านั้น)
+  cs: Nikdy (pouze ruční odhlášení)
+  sv: Aldrig (endast manuell utloggning)
+  he: אף פעם (התנתקות ידנית בלבד)
 
 pair_auto_logout_30m:
   context: Option for 30-minute auto-logout
   en: 30 minutes
   de: 30 Minuten
+  zh: 30 分钟
+  es: 30 minutos
+  fr: 30 minutes
+  pt: 30 minutos
+  ru: 30 минут
+  ja: 30分
+  ko: 30분
+  it: 30 minuti
+  tr: 30 dakika
+  vi: 30 phút
+  id: 30 menit
+  pl: 30 minut
+  nl: 30 minuten
+  ar: 30 دقيقة
+  hi: 30 मिनट
+  th: 30 นาที
+  cs: 30 minut
+  sv: 30 minuter
+  he: 30 דקות
 
 pair_auto_logout_1h:
   context: Option for 1-hour auto-logout
   en: 1 hour
   de: 1 Stunde
+  zh: 1 小时
+  es: 1 hora
+  fr: 1 heure
+  pt: 1 hora
+  ru: 1 час
+  ja: 1時間
+  ko: 1시간
+  it: 1 ora
+  tr: 1 saat
+  vi: 1 giờ
+  id: 1 jam
+  pl: 1 godzina
+  nl: 1 uur
+  ar: ساعة واحدة
+  hi: 1 घंटा
+  th: 1 ชั่วโมง
+  cs: 1 hodina
+  sv: 1 timme
+  he: שעה אחת
 
 pair_auto_logout_4h:
   context: Option for 4-hour auto-logout
   en: 4 hours
   de: 4 Stunden
+  zh: 4 小时
+  es: 4 horas
+  fr: 4 heures
+  pt: 4 horas
+  ru: 4 часа
+  ja: 4時間
+  ko: 4시간
+  it: 4 ore
+  tr: 4 saat
+  vi: 4 giờ
+  id: 4 jam
+  pl: 4 godziny
+  nl: 4 uur
+  ar: 4 ساعات
+  hi: 4 घंटे
+  th: 4 ชั่วโมง
+  cs: 4 hodiny
+  sv: 4 timmar
+  he: 4 שעות
 
 pair_auto_logout_8h:
   context: Option for 8-hour auto-logout
   en: 8 hours
   de: 8 Stunden
+  zh: 8 小时
+  es: 8 horas
+  fr: 8 heures
+  pt: 8 horas
+  ru: 8 часов
+  ja: 8時間
+  ko: 8시간
+  it: 8 ore
+  tr: 8 saat
+  vi: 8 giờ
+  id: 8 jam
+  pl: 8 godzin
+  nl: 8 uur
+  ar: 8 ساعات
+  hi: 8 घंटे
+  th: 8 ชั่วโมง
+  cs: 8 hodin
+  sv: 8 timmar
+  he: 8 שעות
 
 pair_auto_logout_24h:
   context: Option for 24-hour auto-logout
   en: 24 hours
   de: 24 Stunden
+  zh: 24 小时
+  es: 24 horas
+  fr: 24 heures
+  pt: 24 horas
+  ru: 24 часа
+  ja: 24時間
+  ko: 24시간
+  it: 24 ore
+  tr: 24 saat
+  vi: 24 giờ
+  id: 24 jam
+  pl: 24 godziny
+  nl: 24 uur
+  ar: 24 ساعة
+  hi: 24 घंटे
+  th: 24 ชั่วโมง
+  cs: 24 hodin
+  sv: 24 timmar
+  he: 24 שעות
 
 pair_waiting:
   context: Status shown while waiting for the other device to scan the code
   en: Waiting for the other device…
   de: Warte auf das andere Gerät…
+  zh: 等待另一台设备…
+  es: Esperando el otro dispositivo…
+  fr: En attente de l'autre appareil…
+  pt: Aguardando o outro dispositivo…
+  ru: Ожидание другого устройства…
+  ja: 別のデバイスを待っています…
+  ko: 다른 기기를 기다리는 중…
+  it: In attesa dell'altro dispositivo…
+  tr: Diğer cihaz bekleniyor…
+  vi: Đang chờ thiết bị kia…
+  id: Menunggu perangkat lain…
+  pl: Czekam na inne urządzenie…
+  nl: Wachten op het andere apparaat…
+  ar: في انتظار الجهاز الآخر…
+  hi: दूसरे डिवाइस का इंतजार है…
+  th: กำลังรออุปกรณ์อื่น…
+  cs: Čekání na druhé zařízení…
+  sv: Väntar på den andra enheten…
+  he: ממתין למכשיר האחר…
 
 pair_generating:
   context: Status shown while generating the pair code
   en: Generating code…
   de: Code wird generiert…
+  zh: 正在生成代码…
+  es: Generando código…
+  fr: Génération du code…
+  pt: Gerando código…
+  ru: Генерация кода…
+  ja: コードを生成中…
+  ko: 코드 생성 중…
+  it: Generazione del codice…
+  tr: Kod oluşturuluyor…
+  vi: Đang tạo mã…
+  id: Membuat kode…
+  pl: Generowanie kodu…
+  nl: Code genereren…
+  ar: جارٍ إنشاء الرمز…
+  hi: कोड जनरेट हो रहा है…
+  th: กำลังสร้างรหัส…
+  cs: Generování kódu…
+  sv: Genererar kod…
+  he: מייצר קוד…
 
 pair_expired:
   context: Status shown when the pair code has expired
   en: Code expired
   de: Code abgelaufen
+  zh: 代码已过期
+  es: Código expirado
+  fr: Code expiré
+  pt: Código expirado
+  ru: Срок действия кода истёк
+  ja: コードの有効期限が切れました
+  ko: 코드 만료됨
+  it: Codice scaduto
+  tr: Kod süresi doldu
+  vi: Mã đã hết hạn
+  id: Kode kedaluwarsa
+  pl: Kod wygasł
+  nl: Code verlopen
+  ar: انتهت صلاحية الرمز
+  hi: कोड समाप्त हो गया
+  th: รหัสหมดอายุแล้ว
+  cs: Platnost kódu vypršela
+  sv: Koden har gått ut
+  he: הקוד פג תוקף
 
 pair_refresh:
   context: Button to generate a new pair code after expiry
   en: Generate a new code
   de: Neuen Code generieren
+  zh: 生成新代码
+  es: Generar un nuevo código
+  fr: Générer un nouveau code
+  pt: Gerar um novo código
+  ru: Сгенерировать новый код
+  ja: 新しいコードを生成
+  ko: 새 코드 생성
+  it: Genera un nuovo codice
+  tr: Yeni bir kod oluştur
+  vi: Tạo mã mới
+  id: Buat kode baru
+  pl: Wygeneruj nowy kod
+  nl: Nieuwe code genereren
+  ar: إنشاء رمز جديد
+  hi: नया कोड जनरेट करें
+  th: สร้างรหัสใหม่
+  cs: Vygenerovat nový kód
+  sv: Generera en ny kod
+  he: צור קוד חדש
 
 pair_copy_link:
   context: Button to copy the pair URL to clipboard
   en: Copy link
   de: Link kopieren
+  zh: 复制链接
+  es: Copiar enlace
+  fr: Copier le lien
+  pt: Copiar link
+  ru: Копировать ссылку
+  ja: リンクをコピー
+  ko: 링크 복사
+  it: Copia link
+  tr: Bağlantıyı kopyala
+  vi: Sao chép liên kết
+  id: Salin tautan
+  pl: Kopiuj link
+  nl: Link kopiëren
+  ar: نسخ الرابط
+  hi: लिंक कॉपी करें
+  th: คัดลอกลิงก์
+  cs: Kopírovat odkaz
+  sv: Kopiera länk
+  he: העתק קישור
 
 pair_copied:
   context: Brief confirmation after the link was copied
   en: Copied!
   de: Kopiert!
+  zh: 已复制！
+  es: ¡Copiado!
+  fr: Copié !
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी किया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
+  he: הועתק!
 
 # ---------------------------------------------------------------------------
 # Magic Pair Login — Authorizing device (SettingsSessionsConfirmPair)
@@ -239,61 +1094,361 @@ pair_confirm_title:
   context: Title shown on the authorizing device when confirming a pairing request
   en: Confirm Device Login
   de: Geräteanmeldung bestätigen
+  zh: 确认设备登录
+  es: Confirmar inicio de sesión del dispositivo
+  fr: Confirmer la connexion de l'appareil
+  pt: Confirmar login do dispositivo
+  ru: Подтвердить вход на устройстве
+  ja: デバイスのログインを確認
+  ko: 기기 로그인 확인
+  it: Conferma accesso dispositivo
+  tr: Cihaz girişini onayla
+  vi: Xác nhận đăng nhập thiết bị
+  id: Konfirmasi login perangkat
+  pl: Potwierdź logowanie urządzenia
+  nl: Apparaataanmelding bevestigen
+  ar: تأكيد تسجيل دخول الجهاز
+  hi: डिवाइस लॉगिन की पुष्टि करें
+  th: ยืนยันการเข้าสู่ระบบของอุปกรณ์
+  cs: Potvrdit přihlášení zařízení
+  sv: Bekräfta enhetsinloggning
+  he: אשר כניסת מכשיר
 
 pair_confirm_description:
   context: Description shown on the authorizing device, prompting review of the requesting device info
   en: A new device is requesting access. Review the details below before allowing.
   de: Ein neues Gerät bittet um Zugang. Überprüfe die Details, bevor du zulässt.
+  zh: 一台新设备正在请求访问。允许之前请查看以下详情。
+  es: Un nuevo dispositivo está solicitando acceso. Revisa los detalles a continuación antes de permitirlo.
+  fr: Un nouvel appareil demande l'accès. Examinez les détails ci-dessous avant d'autoriser.
+  pt: Um novo dispositivo está solicitando acesso. Revise os detalhes abaixo antes de permitir.
+  ru: Новое устройство запрашивает доступ. Проверьте детали ниже перед разрешением.
+  ja: 新しいデバイスがアクセスを要求しています。許可する前に以下の詳細を確認してください。
+  ko: 새 기기가 접근을 요청하고 있습니다. 허용하기 전에 아래 세부 사항을 검토하세요.
+  it: Un nuovo dispositivo sta richiedendo l'accesso. Esamina i dettagli qui sotto prima di consentire.
+  tr: Yeni bir cihaz erişim istiyor. İzin vermeden önce aşağıdaki ayrıntıları inceleyin.
+  vi: Một thiết bị mới đang yêu cầu quyền truy cập. Xem xét các chi tiết bên dưới trước khi cho phép.
+  id: Perangkat baru meminta akses. Tinjau detail di bawah sebelum mengizinkan.
+  pl: Nowe urządzenie prosi o dostęp. Przejrzyj poniższe szczegóły przed zezwoleniem.
+  nl: Een nieuw apparaat vraagt toegang. Bekijk de onderstaande details voordat u toestaat.
+  ar: جهاز جديد يطلب الوصول. راجع التفاصيل أدناه قبل السماح.
+  hi: एक नया डिवाइस पहुंच का अनुरोध कर रहा है। अनुमति देने से पहले नीचे दिए गए विवरण की समीक्षा करें।
+  th: อุปกรณ์ใหม่กำลังขอสิทธิ์เข้าถึง ตรวจสอบรายละเอียดด้านล่างก่อนอนุมัติ
+  cs: Nové zařízení žádá o přístup. Před povolením zkontrolujte níže uvedené podrobnosti.
+  sv: En ny enhet begär åtkomst. Granska uppgifterna nedan innan du tillåter.
+  he: מכשיר חדש מבקש גישה. בדוק את הפרטים למטה לפני האישור.
 
 pair_confirm_requesting_device:
   context: Section label showing the requesting device details
   en: Requesting device
   de: Anfragendes Gerät
+  zh: 请求设备
+  es: Dispositivo solicitante
+  fr: Appareil demandeur
+  pt: Dispositivo solicitante
+  ru: Запрашивающее устройство
+  ja: リクエスト元のデバイス
+  ko: 요청 기기
+  it: Dispositivo richiedente
+  tr: İstek yapan cihaz
+  vi: Thiết bị yêu cầu
+  id: Perangkat yang meminta
+  pl: Żądające urządzenie
+  nl: Verzoekend apparaat
+  ar: الجهاز الطالب
+  hi: अनुरोध करने वाला डिवाइस
+  th: อุปกรณ์ที่ส่งคำขอ
+  cs: Žádající zařízení
+  sv: Begärande enhet
+  he: המכשיר המבקש
 
 pair_confirm_allow:
   context: Button to allow/authorize the pairing request
   en: Allow
   de: Erlauben
+  zh: 允许
+  es: Permitir
+  fr: Autoriser
+  pt: Permitir
+  ru: Разрешить
+  ja: 許可
+  ko: 허용
+  it: Consenti
+  tr: İzin ver
+  vi: Cho phép
+  id: Izinkan
+  pl: Zezwól
+  nl: Toestaan
+  ar: السماح
+  hi: अनुमति दें
+  th: อนุญาต
+  cs: Povolit
+  sv: Tillåt
+  he: אשר
 
 pair_confirm_deny:
   context: Button to deny the pairing request
   en: Deny
   de: Ablehnen
+  zh: 拒绝
+  es: Denegar
+  fr: Refuser
+  pt: Negar
+  ru: Отклонить
+  ja: 拒否
+  ko: 거부
+  it: Nega
+  tr: Reddet
+  vi: Từ chối
+  id: Tolak
+  pl: Odmów
+  nl: Weigeren
+  ar: رفض
+  hi: अस्वीकार करें
+  th: ปฏิเสธ
+  cs: Zamítnout
+  sv: Neka
+  he: דחה
 
 pair_confirm_allowing:
   context: Button state while authorization is in progress
   en: Authorizing…
   de: Wird autorisiert…
+  zh: 正在授权…
+  es: Autorizando…
+  fr: Autorisation en cours…
+  pt: Autorizando…
+  ru: Авторизация…
+  ja: 認証中…
+  ko: 인증 중…
+  it: Autorizzazione in corso…
+  tr: Yetkilendiriliyor…
+  vi: Đang ủy quyền…
+  id: Mengotorisasi…
+  pl: Autoryzowanie…
+  nl: Autoriseren…
+  ar: جارٍ التخويل…
+  hi: अधिकृत हो रहा है…
+  th: กำลังอนุญาต…
+  cs: Autorizace…
+  sv: Auktoriserar…
+  he: מאשר…
 
 pair_confirm_show_pin:
   context: Label for the PIN section shown to the authorizing user after allowing
   en: Share this PIN with the other device
   de: Diesen PIN dem anderen Gerät mitteilen
+  zh: 与另一台设备共享此 PIN
+  es: Comparte este PIN con el otro dispositivo
+  fr: Partagez ce code PIN avec l'autre appareil
+  pt: Compartilhe este PIN com o outro dispositivo
+  ru: Поделитесь этим PIN с другим устройством
+  ja: このPINを別のデバイスと共有してください
+  ko: 이 PIN을 다른 기기와 공유하세요
+  it: Condividi questo PIN con l'altro dispositivo
+  tr: Bu PIN'i diğer cihazla paylaş
+  vi: Chia sẻ mã PIN này với thiết bị kia
+  id: Bagikan PIN ini ke perangkat lain
+  pl: Udostępnij ten PIN innemu urządzeniu
+  nl: Deel deze PIN met het andere apparaat
+  ar: شارك رمز PIN هذا مع الجهاز الآخر
+  hi: इस PIN को दूसरे डिवाइस के साथ साझा करें
+  th: แชร์ PIN นี้กับอุปกรณ์อื่น
+  cs: Sdílejte tento PIN s druhým zařízením
+  sv: Dela denna PIN med den andra enheten
+  he: שתף את ה-PIN הזה עם המכשיר האחר
 
 pair_confirm_pin_hint:
   context: Hint shown below the PIN explaining it must be entered on the new device
   en: Enter this PIN on the new device to complete login.
   de: Gib diesen PIN auf dem neuen Gerät ein, um die Anmeldung abzuschließen.
+  zh: 在新设备上输入此 PIN 以完成登录。
+  es: Ingresa este PIN en el nuevo dispositivo para completar el inicio de sesión.
+  fr: Entrez ce code PIN sur le nouvel appareil pour terminer la connexion.
+  pt: Insira este PIN no novo dispositivo para concluir o login.
+  ru: Введите этот PIN на новом устройстве для завершения входа.
+  ja: ログインを完了するには、新しいデバイスにこのPINを入力してください。
+  ko: 로그인을 완료하려면 새 기기에서 이 PIN을 입력하세요.
+  it: Inserisci questo PIN sul nuovo dispositivo per completare l'accesso.
+  tr: Girişi tamamlamak için yeni cihaza bu PIN'i girin.
+  vi: Nhập mã PIN này trên thiết bị mới để hoàn tất đăng nhập.
+  id: Masukkan PIN ini pada perangkat baru untuk menyelesaikan login.
+  pl: Wprowadź ten PIN na nowym urządzeniu, aby ukończyć logowanie.
+  nl: Voer deze PIN in op het nieuwe apparaat om het inloggen te voltooien.
+  ar: أدخل رمز PIN هذا على الجهاز الجديد لإتمام تسجيل الدخول.
+  hi: लॉगिन पूर्ण करने के लिए नए डिवाइस पर यह PIN दर्ज करें।
+  th: ป้อน PIN นี้บนอุปกรณ์ใหม่เพื่อเสร็จสิ้นการเข้าสู่ระบบ
+  cs: Zadejte tento PIN na novém zařízení pro dokončení přihlášení.
+  sv: Ange denna PIN på den nya enheten för att slutföra inloggningen.
+  he: הזן PIN זה במכשיר החדש כדי להשלים את הכניסה.
 
 pair_confirm_auto_logout_label:
   context: Label for the auto-logout option shown to the authorizing device before approving
   en: Auto-logout on the new device after
   de: Automatische Abmeldung auf dem neuen Gerät nach
+  zh: 新设备自动注销时间
+  es: Cierre de sesión automático en el nuevo dispositivo después de
+  fr: Déconnexion automatique sur le nouvel appareil après
+  pt: Logout automático no novo dispositivo após
+  ru: Автовыход на новом устройстве через
+  ja: 新しいデバイスで自動ログアウトまでの時間
+  ko: 새 기기의 자동 로그아웃 시간
+  it: Disconnessione automatica sul nuovo dispositivo dopo
+  tr: Yeni cihazda otomatik çıkış süresi
+  vi: Tự động đăng xuất trên thiết bị mới sau
+  id: Keluar otomatis pada perangkat baru setelah
+  pl: Automatyczne wylogowanie na nowym urządzeniu po
+  nl: Automatisch afmelden op het nieuwe apparaat na
+  ar: تسجيل خروج تلقائي على الجهاز الجديد بعد
+  hi: नए डिवाइस पर स्वचालित लॉगआउट बाद में
+  th: ออกจากระบบอัตโนมัติบนอุปกรณ์ใหม่หลังจาก
+  cs: Automatické odhlášení na novém zařízení po
+  sv: Automatisk utloggning på den nya enheten efter
+  he: התנתקות אוטומטית במכשיר החדש לאחר
 
 pair_confirm_denied:
   context: Message shown after the request was denied
   en: Request denied.
   de: Anfrage abgelehnt.
+  zh: 请求已拒绝。
+  es: Solicitud denegada.
+  fr: Demande refusée.
+  pt: Solicitação negada.
+  ru: Запрос отклонён.
+  ja: リクエストが拒否されました。
+  ko: 요청이 거부되었습니다.
+  it: Richiesta negata.
+  tr: İstek reddedildi.
+  vi: Yêu cầu bị từ chối.
+  id: Permintaan ditolak.
+  pl: Żądanie odrzucone.
+  nl: Verzoek geweigerd.
+  ar: تم رفض الطلب.
+  hi: अनुरोध अस्वीकार कर दिया गया।
+  th: คำขอถูกปฏิเสธ
+  cs: Žádost zamítnuta.
+  sv: Begäran nekad.
+  he: הבקשה נדחתה.
 
 pair_confirm_error:
   context: Generic error shown when authorization fails
   en: Authorization failed. Please try again.
   de: Autorisierung fehlgeschlagen. Bitte versuche es erneut.
+  zh: 授权失败。请重试。
+  es: La autorización falló. Por favor, inténtalo de nuevo.
+  fr: L'autorisation a échoué. Veuillez réessayer.
+  pt: A autorização falhou. Por favor, tente novamente.
+  ru: Авторизация не удалась. Пожалуйста, попробуйте снова.
+  ja: 認証に失敗しました。もう一度お試しください。
+  ko: 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autorizzazione non riuscita. Riprova.
+  tr: Yetkilendirme başarısız oldu. Lütfen tekrar deneyin.
+  vi: Ủy quyền thất bại. Vui lòng thử lại.
+  id: Otorisasi gagal. Silakan coba lagi.
+  pl: Autoryzacja nie powiodła się. Spróbuj ponownie.
+  nl: Autorisatie mislukt. Probeer het opnieuw.
+  ar: فشل التخويل. يرجى المحاولة مرة أخرى.
+  hi: प्राधिकरण विफल हुआ। कृपया फिर प्रयास करें।
+  th: การอนุญาตล้มเหลว กรุณาลองใหม่อีกครั้ง
+  cs: Autorizace se nezdařila. Zkuste to prosím znovu.
+  sv: Auktoriseringen misslyckades. Försök igen.
+  he: האישור נכשל. אנא נסה שוב.
+
+pair_confirm_cancel:
+  context: Cancel button shown on PIN display page to go back without waiting for completion
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+
+pair_complete_success:
+  context: Success notification shown after device pairing completes
+  en: Device paired successfully
+  de: Gerät erfolgreich gekoppelt
+  zh: 设备配对成功
+  es: Dispositivo emparejado con éxito
+  fr: Appareil couplé avec succès
+  pt: Dispositivo emparelhado com sucesso
+  ru: Устройство успешно сопряжено
+  ja: デバイスのペアリングが完了しました
+  ko: 기기가 성공적으로 페어링되었습니다
+  it: Dispositivo accoppiato con successo
+  tr: Cihaz başarıyla eşleştirildi
+  vi: Ghép nối thiết bị thành công
+  id: Perangkat berhasil dipasangkan
+  pl: Urządzenie sparowane pomyślnie
+  nl: Apparaat succesvol gekoppeld
+  ar: تم إقران الجهاز بنجاح
+  hi: डिवाइस सफलतापूर्वक पेयर हो गया
+  th: จับคู่อุปกรณ์สำเร็จแล้ว
+  cs: Zařízení bylo úspěšně spárováno
+  sv: Enheten parkopplades framgångsrikt
+  he: המכשיר הותאם בהצלחה
+
+new_badge:
+  context: Badge shown on a newly paired device in the sessions list
+  en: New
+  de: Neu
+  zh: 新
+  es: Nuevo
+  fr: Nouveau
+  pt: Novo
+  ru: Новый
+  ja: 新規
+  ko: 새로운
+  it: Nuovo
+  tr: Yeni
+  vi: Mới
+  id: Baru
+  pl: Nowy
+  nl: Nieuw
+  ar: جديد
+  hi: नया
+  th: ใหม่
+  cs: Nový
+  sv: Ny
+  he: חדש
 
 pair_invalid_token:
   context: Error when the pair token is invalid or not found
   en: This pair code is invalid or has expired. Ask the other device to generate a new code.
   de: Dieser Kopplungscode ist ungültig oder abgelaufen. Bitte das andere Gerät, einen neuen Code zu generieren.
+  zh: 此配对码无效或已过期。请让另一台设备生成新代码。
+  es: Este código de emparejamiento no es válido o ha expirado. Pide al otro dispositivo que genere un nuevo código.
+  fr: Ce code de couplage est invalide ou a expiré. Demandez à l'autre appareil de générer un nouveau code.
+  pt: Este código de emparelhamento é inválido ou expirou. Peça ao outro dispositivo para gerar um novo código.
+  ru: Этот код сопряжения недействителен или истёк. Попросите другое устройство сгенерировать новый код.
+  ja: このペアリングコードは無効または期限切れです。別のデバイスに新しいコードを生成するよう依頼してください。
+  ko: 이 페어링 코드가 유효하지 않거나 만료되었습니다. 다른 기기에서 새 코드를 생성해 달라고 요청하세요.
+  it: Questo codice di accoppiamento non è valido o è scaduto. Chiedi all'altro dispositivo di generare un nuovo codice.
+  tr: Bu eşleştirme kodu geçersiz veya süresi dolmuş. Diğer cihazdan yeni bir kod oluşturmasını isteyin.
+  vi: Mã ghép nối này không hợp lệ hoặc đã hết hạn. Yêu cầu thiết bị kia tạo mã mới.
+  id: Kode pasangan ini tidak valid atau sudah kedaluwarsa. Minta perangkat lain untuk membuat kode baru.
+  pl: Ten kod parowania jest nieprawidłowy lub wygasł. Poproś inne urządzenie o wygenerowanie nowego kodu.
+  nl: Deze koppelingscode is ongeldig of verlopen. Vraag het andere apparaat een nieuwe code te genereren.
+  ar: رمز الإقران هذا غير صالح أو انتهت صلاحيته. اطلب من الجهاز الآخر إنشاء رمز جديد.
+  hi: यह पेयर कोड अमान्य है या समाप्त हो गया है। दूसरे डिवाइस से नया कोड जनरेट करने के लिए कहें।
+  th: รหัสจับคู่นี้ไม่ถูกต้องหรือหมดอายุแล้ว ขอให้อุปกรณ์อื่นสร้างรหัสใหม่
+  cs: Tento párovací kód je neplatný nebo vypršel. Požádejte druhé zařízení o vygenerování nového kódu.
+  sv: Den här parkopplningskoden är ogiltig eller har gått ut. Be den andra enheten att generera en ny kod.
+  he: קוד ההתאמה הזה לא תקף או פג תוקפו. בקש מהמכשיר האחר לייצר קוד חדש.
 
 # ---------------------------------------------------------------------------
 # Magic Pair Login — Completing device (PIN entry on new device)
@@ -303,36 +1458,169 @@ pair_enter_pin_title:
   context: Title for the PIN entry step on the initiating device
   en: Enter PIN
   de: PIN eingeben
+  zh: 输入 PIN
+  es: Introducir PIN
+  fr: Entrer le code PIN
+  pt: Inserir PIN
+  ru: Введите PIN
+  ja: PINを入力
+  ko: PIN 입력
+  it: Inserisci il PIN
+  tr: PIN girin
+  vi: Nhập mã PIN
+  id: Masukkan PIN
+  pl: Wprowadź PIN
+  nl: PIN invoeren
+  ar: أدخل رمز PIN
+  hi: PIN दर्ज करें
+  th: ป้อน PIN
+  cs: Zadejte PIN
+  sv: Ange PIN
+  he: הזן PIN
 
 pair_enter_pin_description:
   context: Description for the PIN entry step
   en: Enter the 6-digit PIN shown on your other device.
   de: Gib den 6-stelligen PIN ein, der auf deinem anderen Gerät angezeigt wird.
+  zh: 输入另一台设备上显示的 6 位 PIN。
+  es: Introduce el PIN de 6 dígitos que se muestra en tu otro dispositivo.
+  fr: Entrez le code PIN à 6 chiffres affiché sur votre autre appareil.
+  pt: Insira o PIN de 6 dígitos exibido no seu outro dispositivo.
+  ru: Введите 6-значный PIN, отображаемый на другом устройстве.
+  ja: 他のデバイスに表示されている6桁のPINを入力してください。
+  ko: 다른 기기에 표시된 6자리 PIN을 입력하세요.
+  it: Inserisci il PIN a 6 cifre mostrato sull'altro dispositivo.
+  tr: Diğer cihazınızda gösterilen 6 haneli PIN'i girin.
+  vi: Nhập mã PIN 6 chữ số được hiển thị trên thiết bị kia của bạn.
+  id: Masukkan PIN 6 digit yang ditampilkan di perangkat lain Anda.
+  pl: Wprowadź 6-cyfrowy PIN wyświetlany na innym urządzeniu.
+  nl: Voer de 6-cijferige PIN in die op uw andere apparaat wordt weergegeven.
+  ar: أدخل رمز PIN المكون من 6 أرقام المعروض على جهازك الآخر.
+  hi: अपने दूसरे डिवाइस पर दिखाई देने वाला 6 अंकों का PIN दर्ज करें।
+  th: ป้อน PIN 6 หลักที่แสดงบนอุปกรณ์อื่นของคุณ
+  cs: Zadejte 6místný PIN zobrazený na vašem druhém zařízení.
+  sv: Ange den 6-siffriga PIN som visas på din andra enhet.
+  he: הזן את ה-PIN בן 6 הספרות המוצג במכשיר האחר שלך.
 
 pair_pin_placeholder:
   context: Placeholder for the PIN input field
   en: "000000"
   de: "000000"
+  zh: "000000"
+  es: "000000"
+  fr: "000000"
+  pt: "000000"
+  ru: "000000"
+  ja: "000000"
+  ko: "000000"
+  it: "000000"
+  tr: "000000"
+  vi: "000000"
+  id: "000000"
+  pl: "000000"
+  nl: "000000"
+  ar: "000000"
+  hi: "000000"
+  th: "000000"
+  cs: "000000"
+  sv: "000000"
+  he: "000000"
 
 pair_login:
   context: Button to complete login after entering PIN
   en: Log in
   de: Anmelden
+  zh: 登录
+  es: Iniciar sesión
+  fr: Se connecter
+  pt: Entrar
+  ru: Войти
+  ja: ログイン
+  ko: 로그인
+  it: Accedi
+  tr: Giriş yap
+  vi: Đăng nhập
+  id: Masuk
+  pl: Zaloguj się
+  nl: Inloggen
+  ar: تسجيل الدخول
+  hi: लॉग इन करें
+  th: เข้าสู่ระบบ
+  cs: Přihlásit se
+  sv: Logga in
+  he: התחבר
 
 pair_logging_in:
   context: Button state while login is in progress
   en: Logging in…
   de: Anmeldung läuft…
+  zh: 登录中…
+  es: Iniciando sesión…
+  fr: Connexion en cours…
+  pt: Entrando…
+  ru: Вход…
+  ja: ログイン中…
+  ko: 로그인 중…
+  it: Accesso in corso…
+  tr: Giriş yapılıyor…
+  vi: Đang đăng nhập…
+  id: Sedang masuk…
+  pl: Logowanie…
+  nl: Inloggen…
+  ar: جارٍ تسجيل الدخول…
+  hi: लॉग इन हो रहा है…
+  th: กำลังเข้าสู่ระบบ…
+  cs: Přihlašování…
+  sv: Loggar in…
+  he: מתחבר…
 
 pair_pin_error:
   context: Error when the PIN is incorrect
   en: Incorrect PIN. {n} attempt(s) remaining.
   de: Falscher PIN. Noch {n} Versuch(e).
+  zh: PIN 不正确。剩余 {n} 次尝试。
+  es: PIN incorrecto. Quedan {n} intento(s).
+  fr: PIN incorrect. {n} tentative(s) restante(s).
+  pt: PIN incorreto. {n} tentativa(s) restante(s).
+  ru: "Неверный PIN. Осталось попыток: {n}."
+  ja: PINが違います。残り{n}回試行できます。
+  ko: PIN이 올바르지 않습니다. {n}번 시도 남았습니다.
+  it: PIN errato. {n} tentativo/i rimanente/i.
+  tr: Yanlış PIN. {n} deneme hakkı kaldı.
+  vi: PIN không đúng. Còn {n} lần thử.
+  id: PIN salah. {n} percobaan tersisa.
+  pl: "Nieprawidłowy PIN. Pozostało prób: {n}."
+  nl: Onjuiste PIN. {n} poging(en) resterend.
+  ar: رمز PIN غير صحيح. {n} محاولة/محاولات متبقية.
+  hi: गलत PIN। {n} प्रयास शेष।
+  th: PIN ไม่ถูกต้อง เหลืออีก {n} ครั้ง
+  cs: Nesprávný PIN. Zbývá {n} pokus(ů).
+  sv: Felaktig PIN. {n} försök kvar.
+  he: PIN שגוי. נותרו {n} ניסיון/ות.
 
 pair_pin_locked:
   context: Error when too many wrong PIN attempts have been made
   en: Too many incorrect attempts. This pair code is now invalid.
   de: Zu viele falsche Versuche. Dieser Kopplungscode ist jetzt ungültig.
+  zh: 错误尝试次数过多。此配对码现已失效。
+  es: Demasiados intentos incorrectos. Este código de emparejamiento ya no es válido.
+  fr: Trop de tentatives incorrectes. Ce code de couplage est maintenant invalide.
+  pt: Muitas tentativas incorretas. Este código de emparelhamento agora é inválido.
+  ru: Слишком много неверных попыток. Этот код сопряжения теперь недействителен.
+  ja: 不正な試行が多すぎます。このペアリングコードは無効になりました。
+  ko: 잘못된 시도가 너무 많습니다. 이 페어링 코드는 이제 유효하지 않습니다.
+  it: Troppi tentativi errati. Questo codice di accoppiamento non è più valido.
+  tr: Çok fazla yanlış deneme. Bu eşleştirme kodu artık geçersiz.
+  vi: Quá nhiều lần thử không đúng. Mã ghép nối này hiện không hợp lệ.
+  id: Terlalu banyak percobaan yang salah. Kode pasangan ini sekarang tidak valid.
+  pl: Zbyt wiele nieprawidłowych prób. Ten kod parowania jest teraz nieważny.
+  nl: Te veel onjuiste pogingen. Deze koppelingscode is nu ongeldig.
+  ar: محاولات خاطئة كثيرة جداً. رمز الإقران هذا أصبح غير صالح الآن.
+  hi: बहुत अधिक गलत प्रयास। यह पेयर कोड अब अमान्य है।
+  th: มีการพยายามผิดพลาดมากเกินไป รหัสจับคู่นี้ใช้ไม่ได้แล้ว
+  cs: Příliš mnoho nesprávných pokusů. Tento párovací kód je nyní neplatný.
+  sv: För många felaktiga försök. Denna parkopplningskod är nu ogiltig.
+  he: יותר מדי ניסיונות שגויים. קוד ההתאמה הזה כבר לא תקף.
 
 # ---------------------------------------------------------------------------
 # Magic Pair Login — Restricted session banner
@@ -342,16 +1630,73 @@ pair_restricted_banner:
   context: Banner shown at the top of the screen during a restricted pair session
   en: Restricted session — logged in from {device}
   de: Eingeschränkte Sitzung — angemeldet von {device}
+  zh: 受限会话 — 从 {device} 登录
+  es: Sesión restringida — conectado desde {device}
+  fr: Session restreinte — connecté depuis {device}
+  pt: Sessão restrita — conectado de {device}
+  ru: Ограниченная сессия — вход с {device}
+  ja: 制限付きセッション — {device} からログイン
+  ko: 제한된 세션 — {device}에서 로그인됨
+  it: Sessione limitata — accesso da {device}
+  tr: Kısıtlı oturum — {device} üzerinden giriş yapıldı
+  vi: Phiên bị giới hạn — đã đăng nhập từ {device}
+  id: Sesi terbatas — masuk dari {device}
+  pl: Ograniczona sesja — zalogowano z {device}
+  nl: Beperkte sessie — ingelogd via {device}
+  ar: جلسة مقيدة — تم تسجيل الدخول من {device}
+  hi: प्रतिबंधित सत्र — {device} से लॉग इन किया
+  th: เซสชันที่จำกัด — เข้าสู่ระบบจาก {device}
+  cs: Omezená relace — přihlášen z {device}
+  sv: Begränsad session — inloggad från {device}
+  he: סשן מוגבל — מחובר מ-{device}
 
 pair_restricted_banner_no_device:
   context: Banner shown when the authorizer device name is not available
   en: Restricted session
   de: Eingeschränkte Sitzung
+  zh: 受限会话
+  es: Sesión restringida
+  fr: Session restreinte
+  pt: Sessão restrita
+  ru: Ограниченная сессия
+  ja: 制限付きセッション
+  ko: 제한된 세션
+  it: Sessione limitata
+  tr: Kısıtlı oturum
+  vi: Phiên bị giới hạn
+  id: Sesi terbatas
+  pl: Ograniczona sesja
+  nl: Beperkte sessie
+  ar: جلسة مقيدة
+  hi: प्रतिबंधित सत्र
+  th: เซสชันที่จำกัด
+  cs: Omezená relace
+  sv: Begränsad session
+  he: סשן מוגבל
 
 pair_restricted_auto_logout:
   context: Timer shown in the restricted session banner (auto-logout countdown)
   en: Auto-logout in {time}
   de: Automatische Abmeldung in {time}
+  zh: "{time} 后自动注销"
+  es: Cierre de sesión automático en {time}
+  fr: Déconnexion automatique dans {time}
+  pt: Logout automático em {time}
+  ru: Автовыход через {time}
+  ja: "{time}後に自動ログアウト"
+  ko: "{time} 후 자동 로그아웃"
+  it: Disconnessione automatica tra {time}
+  tr: "{time} içinde otomatik çıkış"
+  vi: Tự động đăng xuất sau {time}
+  id: Keluar otomatis dalam {time}
+  pl: Automatyczne wylogowanie za {time}
+  nl: Automatisch afmelden over {time}
+  ar: تسجيل خروج تلقائي خلال {time}
+  hi: "{time} में स्वचालित लॉगआउट"
+  th: ออกจากระบบอัตโนมัติใน {time}
+  cs: Automatické odhlášení za {time}
+  sv: Automatisk utloggning om {time}
+  he: התנתקות אוטומטית בעוד {time}
 
 # ---------------------------------------------------------------------------
 # Magic Pair Login — "Log in from another device" entry point
@@ -361,13 +1706,70 @@ pair_login_from_device_title:
   context: Title for the entry point on the Sessions page and Login page
   en: Log In from Another Device
   de: Von einem anderen Gerät anmelden
+  zh: 从另一台设备登录
+  es: Iniciar sesión desde otro dispositivo
+  fr: Se connecter depuis un autre appareil
+  pt: Fazer login de outro dispositivo
+  ru: Войти с другого устройства
+  ja: 別のデバイスからログイン
+  ko: 다른 기기에서 로그인
+  it: Accedi da un altro dispositivo
+  tr: Başka bir cihazdan giriş yap
+  vi: Đăng nhập từ thiết bị khác
+  id: Masuk dari perangkat lain
+  pl: Zaloguj się z innego urządzenia
+  nl: Inloggen vanaf een ander apparaat
+  ar: تسجيل الدخول من جهاز آخر
+  hi: किसी अन्य डिवाइस से लॉग इन करें
+  th: เข้าสู่ระบบจากอุปกรณ์อื่น
+  cs: Přihlásit se z jiného zařízení
+  sv: Logga in från en annan enhet
+  he: התחבר ממכשיר אחר
 
 pair_login_from_device_description:
   context: Short description for the entry point
   en: Use a QR code or short code to log in without a password.
   de: Nutze einen QR-Code oder Kurzcode, um dich ohne Passwort anzumelden.
+  zh: 使用二维码或短代码无需密码即可登录。
+  es: Usa un código QR o un código corto para iniciar sesión sin contraseña.
+  fr: Utilisez un code QR ou un code court pour vous connecter sans mot de passe.
+  pt: Use um código QR ou código curto para fazer login sem senha.
+  ru: Используйте QR-код или короткий код для входа без пароля.
+  ja: QRコードまたはショートコードを使用して、パスワードなしでログインします。
+  ko: QR 코드 또는 단축 코드를 사용하여 비밀번호 없이 로그인하세요.
+  it: Usa un codice QR o un codice breve per accedere senza password.
+  tr: Şifre olmadan giriş yapmak için QR kodu veya kısa kod kullanın.
+  vi: Sử dụng mã QR hoặc mã ngắn để đăng nhập mà không cần mật khẩu.
+  id: Gunakan kode QR atau kode pendek untuk masuk tanpa kata sandi.
+  pl: Użyj kodu QR lub krótkiego kodu, aby zalogować się bez hasła.
+  nl: Gebruik een QR-code of korte code om in te loggen zonder wachtwoord.
+  ar: استخدم رمز QR أو رمزاً قصيراً لتسجيل الدخول بدون كلمة مرور.
+  hi: बिना पासवर्ड के लॉग इन करने के लिए QR कोड या शॉर्ट कोड का उपयोग करें।
+  th: ใช้รหัส QR หรือรหัสสั้นเพื่อเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน
+  cs: Použijte QR kód nebo krátký kód pro přihlášení bez hesla.
+  sv: Använd en QR-kod eller kort kod för att logga in utan lösenord.
+  he: השתמש בקוד QR או בקוד קצר כדי להתחבר ללא סיסמה.
 
 pair_login_from_device_button:
   context: Button label to start the pair login flow
   en: Set up code
   de: Code einrichten
+  zh: 设置代码
+  es: Configurar código
+  fr: Configurer le code
+  pt: Configurar código
+  ru: Настроить код
+  ja: コードを設定
+  ko: 코드 설정
+  it: Configura codice
+  tr: Kodu ayarla
+  vi: Thiết lập mã
+  id: Buat kode
+  pl: Skonfiguruj kod
+  nl: Code instellen
+  ar: إعداد الرمز
+  hi: कोड सेट करें
+  th: ตั้งค่ารหัส
+  cs: Nastavit kód
+  sv: Konfigurera kod
+  he: הגדר קוד

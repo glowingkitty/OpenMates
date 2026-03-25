@@ -16,14 +16,14 @@ export const newsletterActionStore = writable<NewsletterAction>(null);
 /**
  * Set a newsletter action to be processed by SettingsNewsletter component.
  */
-export function setNewsletterAction(action: NewsletterAction): void {
+function setNewsletterAction(action: NewsletterAction): void {
     newsletterActionStore.set(action);
 }
 
 /**
  * Clear the newsletter action after it has been processed.
  */
-export function clearNewsletterAction(): void {
+function clearNewsletterAction(): void {
     newsletterActionStore.set(null);
 }
 

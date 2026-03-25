@@ -31,6 +31,10 @@ on:
         description: "Use mock LLM responses (requires recorded fixtures)"
         type: boolean
         default: true
+      create_account_slot:
+        description: "Account slot for create-test-account.spec.ts (1-20). Leave empty for normal tests."
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -72,6 +76,7 @@ jobs:
           MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
           E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
+          CREATE_ACCOUNT_SLOT: ${{ github.event.inputs.create_account_slot }}
       - name: Show results
         if: always()
         run: |
@@ -96,8 +101,12 @@ jobs:
         if: always()
         with:
           name: playwright-${{ github.event.inputs.spec }}
-          path: test-results/playwright.json
+          path: |
+            test-results/playwright.json
+            frontend/apps/web_app/test-results/
+            frontend/apps/web_app/artifacts/
           if-no-files-found: ignore
+          retention-days: 7
       - name: Fail if tests failed
         if: steps.pw_run.outcome == 'failure'
         run: exit 1

@@ -116,28 +116,32 @@
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let isLoadingChildren = $state(false);
+  let storeResolved = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localQuery = previewData.query || '';
-      localProvider = previewData.provider || 'Brave Search';
-      localStatus = previewData.status || 'processing';
-      localResults = previewData.results || [];
-      localTaskId = previewData.task_id;
-      // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = (previewData as WebSearchSkillPreviewData & { skill_task_id?: string }).skill_task_id;
-      // previewData does not formally include error, but some backend paths may attach it
-      localErrorMessage = (previewData as WebSearchSkillPreviewData & { error?: string }).error || '';
-    } else {
-      localQuery = queryProp || '';
-      localProvider = providerProp || 'Brave Search';
-      localStatus = statusProp || 'processing';
-      localResults = resultsProp || [];
-      localTaskId = taskIdProp;
-      localSkillTaskId = skillTaskIdProp;
-      localErrorMessage = '';
+    if (!storeResolved) {
+      // Initialize from previewData or direct props
+      if (previewData) {
+        localQuery = previewData.query || '';
+        localProvider = previewData.provider || 'Brave Search';
+        localStatus = previewData.status || 'processing';
+        localResults = previewData.results || [];
+        localTaskId = previewData.task_id;
+        // skill_task_id might be in previewData for skill-level cancellation
+        localSkillTaskId = (previewData as WebSearchSkillPreviewData & { skill_task_id?: string }).skill_task_id;
+        // previewData does not formally include error, but some backend paths may attach it
+        localErrorMessage = (previewData as WebSearchSkillPreviewData & { error?: string }).error || '';
+      } else {
+        localQuery = queryProp || '';
+        localProvider = providerProp || 'Brave Search';
+        localStatus = statusProp || 'processing';
+        localResults = resultsProp || [];
+        localTaskId = taskIdProp;
+        localSkillTaskId = skillTaskIdProp;
+        localErrorMessage = '';
+      }
     }
   });
   
@@ -167,7 +171,10 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     // Update web-search-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {
@@ -197,8 +204,9 @@
             ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[WebSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -266,11 +274,13 @@
     } catch (error) {
       console.warn('[WebSearchEmbedPreview] Error loading child embeds for preview:', error);
       // Continue without results - preview will just show query/provider
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
@@ -475,8 +485,13 @@
         <!-- Finished state: show favicons and remaining count, or "0 results found" -->
         <div class="search-results-info">
           {#if flatResults.length === 0}
-            <!-- Search completed but returned zero results — show clear indication -->
-            <span class="no-results-text">{$text('embeds.search_no_results')}</span>
+            {#if isLoadingChildren}
+              <!-- Child embeds are being fetched — show loading instead of confusing "0 results" -->
+              <span class="no-results-text">{$text('common.loading')}</span>
+            {:else}
+              <!-- Search completed but returned zero results — show clear indication -->
+              <span class="no-results-text">{$text('embeds.search_no_results')}</span>
+            {/if}
           {:else}
             <!-- Favicons row -->
             {#if faviconResults.length > 0}

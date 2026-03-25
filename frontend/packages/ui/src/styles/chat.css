@@ -110,9 +110,16 @@
   margin-inline-start: auto;
   padding-inline-start: 12px;
   box-sizing: border-box;
-  /* Cap width so the user bubble's near-side edge sits ~20px from the assistant bubble's
-     content edge. Assistant content starts ~80px from start (60px avatar + margins/gap). */
+  /* Cap width so the user bubble near-side edge sits ~20px from the assistant bubble content edge.
+     Assistant content starts ~80px from start (60px avatar + margins/gap). */
   max-width: calc(100% - 100px);
+}
+
+/* When container is ≤500px the assistant avatar stacks above the message,
+   so the user bubble no longer needs a large inline-start offset — go nearly edge-to-edge. */
+.message-align-right.mobile-compact {
+  max-width: calc(100% - 20px);
+  padding-inline-start: 0px;
 }
 
 .message-align-left {
@@ -161,12 +168,7 @@
   bottom: auto;
 }
 
-/* When container is ≤500px the assistant avatar stacks above the message,
-   so the user bubble no longer needs a large inline-start offset — go nearly edge-to-edge. */
-.message-align-right.mobile-compact {
-  max-width: calc(100% - 20px);
-  padding-inline-start: 0px;
-}
+
 
 /* Media query for screens smaller than 500px - padding adjustments only */
 @media (max-width: 500px) {

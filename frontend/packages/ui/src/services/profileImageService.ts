@@ -18,12 +18,22 @@
  *
  * Cache behaviour:
  *   - In-memory Map<userId, blobUrl> — persists for the lifetime of the page.
+ *   - In-flight deduplication: a second call for the same userId while a fetch
+ *     is already pending returns the same Promise, preventing duplicate requests.
  *   - Call `invalidateProfileImageCache(userId)` after an upload to revoke
  *     the old blob URL and force a fresh fetch on next render.
  */
 
 /** In-memory cache: userId → blob URL (or direct legacy URL) */
 const _cache = new Map<string, string>();
+
+/**
+ * In-flight promise cache: userId → Promise resolving to the blob URL.
+ * Prevents duplicate network requests when the same userId is requested
+ * concurrently (e.g. the $effect in Settings.svelte fires again before the
+ * first fetch resolves, due to an unrelated store update).
+ */
+const _inflight = new Map<string, Promise<string | null>>();
 
 /**
  * Determine whether a profile_image_url is a legacy public URL or a proxy path.
@@ -40,6 +50,7 @@ function isLegacyUrl(url: string): boolean {
  *
  * - Legacy public URLs: returned immediately without fetching.
  * - Proxy paths: fetched with credentials, blob URL created and cached.
+ * - In-flight deduplication: concurrent calls for the same userId share one request.
  *
  * @param profileImageUrl   The value of userProfile.profile_image_url
  *                          (e.g. '/v1/users/abc123/profile-image' or a full https:// URL)
@@ -61,37 +72,50 @@ export async function getProfileImageBlobUrl(
     return profileImageUrl;
   }
 
-  // Check in-memory cache first.
+  // Check in-memory result cache first.
   const cached = _cache.get(userId);
   if (cached) return cached;
 
-  // Fetch with credentials to authenticate the request.
-  try {
-    const fullUrl = profileImageUrl.startsWith("/")
-      ? `${apiBaseUrl}${profileImageUrl}`
-      : profileImageUrl;
+  // Deduplicate: if a fetch is already in-flight for this userId, reuse it.
+  const existing = _inflight.get(userId);
+  if (existing) return existing;
 
-    const response = await fetch(fullUrl, { credentials: "include" });
+  // Start a new fetch and register it in the in-flight map immediately so
+  // any concurrent caller can share it before the first await yields.
+  const fetchPromise = (async (): Promise<string | null> => {
+    try {
+      const fullUrl = profileImageUrl.startsWith("/")
+        ? `${apiBaseUrl}${profileImageUrl}`
+        : profileImageUrl;
 
-    if (!response.ok) {
+      const response = await fetch(fullUrl, { credentials: "include" });
+
+      if (!response.ok) {
+        console.error(
+          `[profileImageService] Failed to fetch profile image for ${userId}: ` +
+            `HTTP ${response.status}`,
+        );
+        return null;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      _cache.set(userId, blobUrl);
+      return blobUrl;
+    } catch (err) {
       console.error(
-        `[profileImageService] Failed to fetch profile image for ${userId}: ` +
-          `HTTP ${response.status}`,
+        `[profileImageService] Error fetching profile image for ${userId}:`,
+        err,
       );
       return null;
+    } finally {
+      // Always clear the in-flight entry so failed fetches can be retried.
+      _inflight.delete(userId);
     }
+  })();
 
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    _cache.set(userId, blobUrl);
-    return blobUrl;
-  } catch (err) {
-    console.error(
-      `[profileImageService] Error fetching profile image for ${userId}:`,
-      err,
-    );
-    return null;
-  }
+  _inflight.set(userId, fetchPromise);
+  return fetchPromise;
 }
 
 /**
@@ -110,4 +134,6 @@ export function invalidateProfileImageCache(userId: string): void {
     URL.revokeObjectURL(existing);
   }
   _cache.delete(userId);
+  // Also clear any in-flight promise so the next call starts a fresh request.
+  _inflight.delete(userId);
 }

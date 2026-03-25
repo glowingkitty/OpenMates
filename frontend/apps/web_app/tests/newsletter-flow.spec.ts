@@ -40,7 +40,8 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	createMailosaurClient,
-	getMailosaurServerId
+	getMailosaurServerId,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 // ---------------------------------------------------------------------------

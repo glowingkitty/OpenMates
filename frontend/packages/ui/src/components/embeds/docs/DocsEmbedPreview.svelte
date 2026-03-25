@@ -69,15 +69,18 @@
   let localWordCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
-  
+  let storeResolved = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    localHtmlContent = htmlContentProp || '';
-    localTitle = titleProp;
-    localFilename = filenameProp;
-    localWordCount = wordCountProp || 0;
-    localStatus = statusProp || 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localHtmlContent = htmlContentProp || '';
+      localTitle = titleProp;
+      localFilename = filenameProp;
+      localWordCount = wordCountProp || 0;
+      localStatus = statusProp || 'processing';
+      localTaskId = taskIdProp;
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -151,6 +154,13 @@
   
   // Icon for documents
   const skillIconName = 'docs';
+
+  // Dynamic scale for large preview — measure viewport width and compute scale from A4 width
+  const DOC_FULL_WIDTH = 794;
+  let viewportWidth = $state(0);
+  let dynamicScale = $derived(
+    viewportWidth > 0 ? Math.min(viewportWidth / DOC_FULL_WIDTH, 0.85) : 0
+  );
   
   /**
    * Decoded content structure from embed data updates
@@ -196,6 +206,9 @@
     if (data.status) {
       localStatus = data.status as 'processing' | 'finished' | 'error';
     }
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
   }
   
   // Handle stop button click (not applicable for documents, but included for API consistency)
@@ -220,7 +233,7 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
+  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
     <div class="doc-details" class:mobile={isMobileLayout}>
       {#if sanitizedHtml}
         <!--
@@ -229,8 +242,8 @@
           inside a container, then scale it down to fit the preview card.
           This creates an exact miniature of the fullscreen document view.
         -->
-        <div class="doc-page-viewport">
-          <div class="doc-page-scaler">
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
+          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
             <div class="doc-page">
               <div class="doc-page-content">
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
@@ -241,8 +254,8 @@
         </div>
       {:else if status === 'processing'}
         <!-- Processing state - skeleton A4 page -->
-        <div class="doc-page-viewport">
-          <div class="doc-page-scaler">
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
+          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
             <div class="doc-page processing-page">
               <div class="processing-lines">
                 <div class="line-placeholder" style="width: 60%"></div>

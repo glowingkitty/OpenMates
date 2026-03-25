@@ -1,0 +1,98 @@
+# Directus schema for the reminders collection.
+#
+# Source of truth for all user reminders. The Dragonfly cache ZSET is a disposable
+# hot index (48h window) that can be rebuilt from this table at any time.
+#
+# Security: All user-identifiable and content fields are vault-encrypted.
+# Only scheduling metadata (trigger_at, status) is stored in plaintext for queries.
+#
+# Reference: docs/apps/reminder.md
+
+reminders:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Reminder UUID (generated at creation time)"
+
+    hashed_user_id:
+      type: string
+      length: 64
+      note: "[Indexed] SHA256 hash of user_id for privacy-preserving lookups"
+
+    # --- Vault-encrypted identity field (needed at fire time) ---
+    encrypted_user_id:
+      type: string
+      length: 512
+      note: "Vault-encrypted raw user_id (decrypted at fire time for WebSocket delivery and profile lookup)"
+
+    # --- Vault-encrypted content fields ---
+    encrypted_prompt:
+      type: text
+      note: "Vault-encrypted reminder prompt text"
+    encrypted_chat_history:
+      type: text
+      note: "[Optional] Vault-encrypted chat history JSON (for existing_chat targets)"
+    encrypted_new_chat_title:
+      type: text
+      note: "[Optional] Vault-encrypted chat title (for new_chat targets)"
+
+    # --- Vault-encrypted reference fields ---
+    encrypted_target_chat_id:
+      type: string
+      length: 512
+      note: "[Optional] Vault-encrypted target chat UUID (for existing_chat reminders)"
+    encrypted_created_in_chat_id:
+      type: string
+      length: 512
+      note: "Vault-encrypted chat UUID where the reminder was created"
+
+    # --- Vault key reference (needed for decryption at fire time) ---
+    vault_key_id:
+      type: string
+      length: 64
+      note: "User's vault transit key ID for decrypting encrypted fields"
+
+    # --- Scheduling metadata (plaintext — needed for DB queries) ---
+    trigger_at:
+      type: integer
+      note: "[Indexed] Unix timestamp when reminder should fire. Used for range queries."
+    trigger_type:
+      type: string
+      length: 10
+      note: "'specific' or 'random'"
+    timezone:
+      type: string
+      length: 50
+      note: "User's IANA timezone (e.g., 'Europe/Berlin')"
+
+    # --- Target metadata ---
+    target_type:
+      type: string
+      length: 15
+      note: "'new_chat' or 'existing_chat'"
+
+    # --- Repeat and random configuration ---
+    repeat_config:
+      type: json
+      note: "[Optional] JSON: {type, interval, interval_unit, end_date, max_occurrences}"
+    random_config:
+      type: json
+      note: "[Optional] JSON: {start_date, end_date, daily_start, daily_end}"
+
+    # --- State ---
+    status:
+      type: string
+      length: 15
+      note: "[Indexed] 'pending', 'fired', 'cancelled', 'failed'"
+    response_type:
+      type: string
+      length: 10
+      note: "'simple' or 'full'"
+    occurrence_count:
+      type: integer
+      note: "Number of times this reminder has fired (for repeating reminders)"
+    created_at:
+      type: integer
+      note: "Unix timestamp of creation"

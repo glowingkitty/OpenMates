@@ -22,7 +22,7 @@ from backend.core.api.app.services.directus.user.user_lookup import hash_usernam
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, AutoDeleteUsageRequest, period_to_days, usage_period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 
@@ -77,11 +77,20 @@ async def get_active_reminders(
     try:
         user_id = current_user.id
         
-        # Get pending reminders from cache
-        reminders = await cache_service.get_user_reminders(
-            user_id=user_id,
-            status_filter="pending"
-        )
+        # Get pending reminders from PostgreSQL (source of truth)
+        import hashlib as _hashlib
+        hashed_uid = _hashlib.sha256(user_id.encode()).hexdigest()
+        directus_service = request.app.state.directus_service if hasattr(request.app.state, 'directus_service') else None
+        reminders = []
+        if directus_service:
+            try:
+                reminders = await directus_service.reminder.get_user_reminders(
+                    hashed_user_id=hashed_uid,
+                    status_filter="pending",
+                )
+            except Exception as db_err:
+                logger.error(f"Failed to query reminders from DB: {db_err}", exc_info=True)
+                reminders = []
         
         if not reminders:
             return ActiveRemindersResponse(
@@ -153,6 +162,175 @@ async def get_active_reminders(
     except Exception as e:
         logger.error(f"Error fetching active reminders: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch reminders")
+
+
+# --- Endpoint for updating a reminder ---
+class UpdateReminderRequest(BaseModel):
+    """Request body for PATCH /v1/settings/reminders/{reminder_id}."""
+    trigger_datetime: Optional[str] = Field(None, description="New ISO 8601 datetime")
+    timezone: Optional[str] = Field(None, description="New timezone")
+    prompt: Optional[str] = Field(None, description="New prompt text")
+    target_type: Optional[str] = Field(None, description="new_chat or existing_chat")
+    response_type: Optional[str] = Field(None, description="simple or full")
+    repeat: Optional[Dict[str, Any]] = Field(None, description="New repeat config (or null to remove)")
+    new_chat_title: Optional[str] = Field(None, description="New chat title for new_chat target")
+
+
+@router.patch("/reminders/{reminder_id}", include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_reminder_endpoint(
+    reminder_id: str,
+    request: Request,
+    body: UpdateReminderRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Update a pending reminder's schedule, prompt, or configuration.
+    Only the reminder owner can update it. Only pending reminders can be edited.
+    """
+    try:
+        user_id = current_user.id
+        hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+
+        directus_service = getattr(request.app.state, 'directus_service', None)
+        if not directus_service:
+            raise HTTPException(status_code=500, detail="Service unavailable")
+
+        # Fetch the reminder and verify ownership
+        reminder = await directus_service.reminder.get_reminder(reminder_id)
+        if not reminder:
+            raise HTTPException(status_code=404, detail="Reminder not found")
+        if reminder.get("hashed_user_id") != hashed_uid:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        if reminder.get("status") != "pending":
+            raise HTTPException(status_code=400, detail="Only pending reminders can be edited")
+
+        vault_key_id = reminder.get("vault_key_id")
+        if not vault_key_id:
+            raise HTTPException(status_code=500, detail="Missing encryption key")
+
+        update_data: Dict[str, Any] = {}
+
+        # Update trigger_at if datetime provided
+        if body.trigger_datetime is not None:
+            from backend.apps.reminder.utils import parse_specific_datetime, validate_timezone
+            tz = body.timezone or reminder.get("timezone", "UTC")
+            if not validate_timezone(tz):
+                raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
+            try:
+                new_trigger_at = parse_specific_datetime(body.trigger_datetime, tz)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            if new_trigger_at <= int(time.time()):
+                raise HTTPException(status_code=400, detail="Reminder time must be in the future")
+            update_data["trigger_at"] = new_trigger_at
+            if body.timezone:
+                update_data["timezone"] = tz
+
+        # Update prompt if provided
+        if body.prompt is not None:
+            encrypted_prompt, _ = await encryption_service.encrypt_with_user_key(
+                plaintext=body.prompt, key_id=vault_key_id
+            )
+            update_data["encrypted_prompt"] = encrypted_prompt
+
+        # Update new_chat_title if provided
+        if body.new_chat_title is not None:
+            encrypted_title, _ = await encryption_service.encrypt_with_user_key(
+                plaintext=body.new_chat_title, key_id=vault_key_id
+            )
+            update_data["encrypted_new_chat_title"] = encrypted_title
+
+        # Update target_type
+        if body.target_type is not None:
+            if body.target_type not in ("new_chat", "existing_chat"):
+                raise HTTPException(status_code=400, detail="Invalid target_type")
+            update_data["target_type"] = body.target_type
+
+        # Update response_type
+        if body.response_type is not None:
+            if body.response_type not in ("simple", "full"):
+                raise HTTPException(status_code=400, detail="Invalid response_type")
+            update_data["response_type"] = body.response_type
+
+        # Update repeat config
+        if body.repeat is not None:
+            update_data["repeat_config"] = body.repeat if body.repeat else None
+
+        if not update_data:
+            return {"success": True, "message": "Nothing to update"}
+
+        success = await directus_service.reminder.update_reminder(reminder_id, update_data)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update reminder")
+
+        # Update hot cache if trigger_at changed and is within 48h window
+        if "trigger_at" in update_data:
+            hot_window = 48 * 3600
+            new_trigger = update_data["trigger_at"]
+            current_time = int(time.time())
+            # Remove old entry and re-add if in window
+            await cache_service.remove_reminder_from_cache(reminder_id)
+            if new_trigger <= current_time + hot_window:
+                cache_data = dict(reminder)
+                cache_data.update(update_data)
+                cache_data["reminder_id"] = reminder_id
+                cache_data["user_id"] = user_id
+                await cache_service.load_reminder_into_cache(cache_data)
+
+        logger.info(f"Updated reminder {reminder_id} for user {user_id[:8]}... fields: {list(update_data.keys())}")
+        return {"success": True, "message": "Reminder updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating reminder {reminder_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update reminder")
+
+
+# --- Endpoint for deleting/cancelling a reminder ---
+@router.delete("/reminders/{reminder_id}", include_in_schema=False)
+@limiter.limit("30/minute")
+async def delete_reminder_endpoint(
+    reminder_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Cancel and delete a pending reminder. Only the owner can delete it.
+    """
+    try:
+        user_id = current_user.id
+        hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+
+        directus_service = getattr(request.app.state, 'directus_service', None)
+        if not directus_service:
+            raise HTTPException(status_code=500, detail="Service unavailable")
+
+        # Fetch and verify ownership
+        reminder = await directus_service.reminder.get_reminder(reminder_id)
+        if not reminder:
+            raise HTTPException(status_code=404, detail="Reminder not found")
+        if reminder.get("hashed_user_id") != hashed_uid:
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        # Mark as cancelled in DB
+        await directus_service.reminder.update_reminder(reminder_id, {"status": "cancelled"})
+
+        # Remove from hot cache
+        await cache_service.remove_reminder_from_cache(reminder_id)
+
+        logger.info(f"Cancelled reminder {reminder_id} for user {user_id[:8]}...")
+        return {"success": True, "message": "Reminder cancelled"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting reminder {reminder_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete reminder")
 
 
 # --- Endpoint for Privacy & Apps Consent ---
@@ -1432,7 +1610,9 @@ async def get_usage_details(
         
         if cached_entries:
             logger.info(f"Cache HIT for usage archive: {cache_key}")
-            # Filter cached entries by identifier
+            # Filter cached entries by identifier.
+            # CLI entries use a synthetic "cli:<device_hash>" identifier in summary tables,
+            # but raw entries have api_key_hash=None and device_hash=<hash> — match on that.
             filtered_entries = []
             identifier_key = {
                 "chat": "chat_id",
@@ -1440,8 +1620,14 @@ async def get_usage_details(
                 "api_key": "api_key_hash"
             }[type]
             
+            is_cli_identifier = type == "api_key" and identifier.startswith("cli:")
+            cli_device_hash = identifier[4:] if is_cli_identifier else None
+            
             for entry in cached_entries:
-                if entry.get(identifier_key) == identifier:
+                if is_cli_identifier:
+                    if entry.get("device_hash") == cli_device_hash:
+                        filtered_entries.append(entry)
+                elif entry.get(identifier_key) == identifier:
                     filtered_entries.append(entry)
             
             return {
@@ -2166,7 +2352,7 @@ class DeviceInfo(BaseModel):
 
 class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
-    title: str = Field(..., min_length=3, max_length=200, description="Issue title (required, 3-200 characters)")
+    title: str = Field(..., min_length=3, max_length=500, description="Short description of the issue (required, 3-500 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
@@ -2196,6 +2382,14 @@ class IssueReportRequest(BaseModel):
             "rendering, or content issues. Collected client-side via the element picker overlay."
         )
     )
+    submit_to_agent: bool = Field(
+        False,
+        description=(
+            "Admin-only flag. When True, triggers a Claude Code plan-mode investigation session "
+            "for this issue via the admin sidecar. Only honoured when the reporter is an "
+            "authenticated admin user — non-admin requests are silently ignored."
+        )
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2203,6 +2397,100 @@ class IssueReportResponse(BaseModel):
     success: bool
     message: str
     issue_id: Optional[str] = None  # The database ID of the created issue report (for admin lookup via /v1/admin/debug/issues/{issue_id})
+
+
+async def _trigger_agent_issue_investigation(
+    *,
+    request: Request,
+    issue_id: Optional[str],
+    issue_title: str,
+    issue_description: Optional[str],
+    chat_or_embed_url: Optional[str],
+    console_logs: Optional[str],
+    action_history: Optional[str],
+    screenshot_presigned_url: Optional[str],
+) -> None:
+    """
+    Fire-and-forget: ask the admin sidecar to start a Claude Code plan-mode session
+    investigating this issue.
+
+    Called only when:
+    - The reporter is a verified admin user (``is_from_admin`` is True)
+    - ``issue_data.submit_to_agent`` is True
+
+    The sidecar runs on the host where claude is installed; the API runs inside
+    Docker, so we delegate via an authenticated HTTP call to
+    ``CORE_SIDECAR_URL/admin/claude-investigate``.
+
+    Architecture reference: docs/architecture/admin-console-log-forwarding.md
+    """
+    import aiohttp
+
+    core_sidecar_url = os.getenv("CORE_SIDECAR_URL", "").rstrip("/")
+    # The key is injected by Vault under the vault-prefixed name (same as settings_software_update.py)
+    core_sidecar_key = os.getenv("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
+
+    if not core_sidecar_url:
+        logger.warning(
+            "[report_issue/agent] CORE_SIDECAR_URL not set — "
+            "cannot trigger claude investigation"
+        )
+        return
+
+    if not core_sidecar_key:
+        logger.warning(
+            "[report_issue/agent] SECRET__CORE_SERVER__ADMIN_LOG_API_KEY not set — "
+            "cannot authenticate with admin sidecar"
+        )
+        return
+
+    # Build a compact context block for the prompt
+    environment = os.getenv("SERVER_ENVIRONMENT", "development")
+    production_url = os.getenv("PRODUCTION_URL", "")
+    domain = production_url or "unknown domain"
+
+    payload = {
+        "issue_id": issue_id or "unknown",
+        "issue_title": issue_title,
+        "issue_description": issue_description or "",
+        "chat_or_embed_url": chat_or_embed_url or "",
+        "console_logs": (console_logs or "")[:10000],  # Trim to avoid huge prompts
+        "action_history": action_history or "",
+        "screenshot_presigned_url": screenshot_presigned_url or "",
+        "environment": environment,
+        "domain": domain,
+    }
+
+    endpoint = f"{core_sidecar_url}/admin/claude-investigate"
+    logger.info(
+        f"[report_issue/agent] Triggering claude investigation via sidecar: {endpoint} "
+        f"(issue_id={issue_id})"
+    )
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                endpoint,
+                json=payload,
+                headers={"X-Admin-Log-Key": core_sidecar_key},
+            ) as resp:
+                if resp.status == 202:
+                    logger.info(
+                        f"[report_issue/agent] Sidecar accepted investigation request "
+                        f"(issue_id={issue_id})"
+                    )
+                else:
+                    body = await resp.text()
+                    logger.warning(
+                        f"[report_issue/agent] Sidecar returned HTTP {resp.status} "
+                        f"for investigation request (issue_id={issue_id}): {body[:300]}"
+                    )
+    except Exception as exc:
+        logger.error(
+            f"[report_issue/agent] HTTP call to sidecar failed (issue_id={issue_id}): {exc}",
+            exc_info=True
+        )
 
 
 @router.post(
@@ -2638,7 +2926,28 @@ async def report_issue(
             f"email task dispatched to queue 'email' with task_id={task_result.id}, "
             f"recipient={admin_email}"
         )
-        
+
+        # Admin-only: trigger claude plan-mode investigation if requested.
+        # Only honoured when the reporter is a verified admin user.
+        if is_from_admin and issue_data.submit_to_agent:
+            try:
+                await _trigger_agent_issue_investigation(
+                    request=request,
+                    issue_id=issue_id,
+                    issue_title=sanitized_title,
+                    issue_description=sanitized_description,
+                    chat_or_embed_url=sanitized_url,
+                    console_logs=console_logs_str,
+                    action_history=action_history_str,
+                    screenshot_presigned_url=screenshot_presigned_url,
+                )
+            except Exception as _agent_err:
+                # Never block the issue report response if agent trigger fails
+                logger.error(
+                    f"Failed to trigger agent investigation for issue {issue_id}: {_agent_err}",
+                    exc_info=True
+                )
+
         return IssueReportResponse(
             success=True,
             message="Issue report submitted successfully. Thank you for your feedback!",
@@ -4033,6 +4342,71 @@ async def update_auto_delete_chats(
         raise HTTPException(status_code=500, detail="An error occurred while saving auto-delete setting")
 
 
+@router.post("/auto-delete-usage", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_auto_delete_usage(
+    request: Request,
+    request_data: AutoDeleteUsageRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """
+    Persist the user's usage data auto-deletion period.
+
+    Accepts a period string (e.g. "1y", "3y", "never") and converts it to an
+    integer day count stored on the user record as ``auto_delete_usage_after_days``.
+    "never" stores null, which tells the auto-delete task to apply the platform
+    default of 3 years (1095 days).
+
+    The daily Celery Beat task (auto_delete_tasks.auto_delete_old_usage) reads this
+    field each run and permanently deletes usage records older than the configured period.
+    Note: usage records are already archived to S3 after 3 months by the usage archive
+    task; this setting controls permanent deletion from both Directus and S3 archives.
+    """
+    user_id = current_user.id
+    days = usage_period_to_days(request_data.period)  # None for "never" (→ platform default)
+
+    logger.info(
+        f"[AutoDelete] Updating usage auto-delete period for user {user_id}: "
+        f"period={request_data.period!r} → days={days}"
+    )
+
+    update_data = {'auto_delete_usage_after_days': days}
+
+    try:
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(
+                f"[AutoDelete] Failed to update Directus for user {user_id} "
+                f"(usage period={request_data.period!r})."
+            )
+            raise HTTPException(status_code=500, detail="Failed to save usage auto-delete setting")
+
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            logger.warning(
+                f"[AutoDelete] Cache update failed for user {user_id} after "
+                f"usage auto-delete period change (Directus was updated successfully)."
+            )
+        else:
+            logger.info(f"[AutoDelete] Cache updated usage auto-delete for user {user_id}.")
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Usage auto-delete setting saved successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[AutoDelete] Unexpected error updating usage auto-delete for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving usage auto-delete setting")
+
+
 # ─── AI Model Default Preferences ────────────────────────────────────────────
 
 
@@ -5416,4 +5790,239 @@ async def push_issue_logs(
         )
 
     # Always return 200 — log push failures must not break the issue submission UX.
+    return {"success": success}
+
+
+# ---------------------------------------------------------------------------
+# User Debug Log Sharing Sessions
+# ---------------------------------------------------------------------------
+# Allows any authenticated user to activate a temporary debug logging session.
+# While active, the frontend forwards console logs to OpenObserve tagged with
+# a short debugging_id. The user shares this ID with support, who can then
+# query both frontend and backend logs via `debug.py logs --debug-id <ID>`.
+#
+# Architecture context: See docs/architecture/admin-console-log-forwarding.md
+# ---------------------------------------------------------------------------
+
+# Duration options in seconds — keys match the frontend picker values
+DEBUG_SESSION_DURATION_MAP: Dict[str, Optional[int]] = {
+    "5m": 300,
+    "1h": 3600,
+    "3d": 259200,
+    "7d": 604800,
+    "none": None,  # No expiry — must be manually revoked
+}
+
+# Redis key prefix for debug sessions (by debugging_id)
+DEBUG_SESSION_KEY_PREFIX = "debug_session:"
+# Redis key prefix for reverse lookup (user_id → debugging_id)
+DEBUG_SESSION_USER_KEY_PREFIX = "debug_session_user:"
+
+# Maximum TTL for "no expiry" sessions to prevent orphaned keys (30 days)
+DEBUG_SESSION_MAX_TTL = 2592000
+
+
+class DebugSessionCreateRequest(BaseModel):
+    """Request body for creating a user debug log sharing session."""
+    duration: str = Field(
+        ...,
+        description="Session duration: '5m', '1h', '3d', '7d', or 'none' (no expiry, max 30 days).",
+    )
+
+
+class DebugSessionResponse(BaseModel):
+    """Response with debug session details."""
+    active: bool = Field(..., description="Whether a debug session is currently active")
+    debugging_id: Optional[str] = Field(None, description="The short debug session ID (e.g. 'dbg-a3f2c8')")
+    expires_at: Optional[str] = Field(None, description="ISO timestamp when the session expires, null if no expiry")
+    duration: Optional[str] = Field(None, description="Selected duration label (e.g. '1h', '7d', 'none')")
+
+
+class DebugLogsRequest(BaseModel):
+    """Request body for pushing debug-session console logs to OpenObserve."""
+    logs: List[Dict[str, Any]] = Field(..., max_length=50, description="Log entries (same format as admin client-logs)")
+    metadata: Optional[Dict[str, str]] = Field(None, description="Client metadata (userAgent, pageUrl, tabId)")
+    debugging_id: str = Field(..., max_length=20, description="Active debug session ID")
+
+
+def _generate_debugging_id() -> str:
+    """Generate a short, shareable debug session ID like 'dbg-a3f2c8'."""
+    import secrets
+    return f"dbg-{secrets.token_hex(3)}"
+
+
+@router.post("/debug-session")
+@limiter.limit("5/minute")
+async def create_debug_session(
+    request: Request,
+    body: DebugSessionCreateRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> DebugSessionResponse:
+    """Create a new debug log sharing session for the current user.
+
+    Generates a short debugging_id, stores it in Redis with the selected TTL,
+    and returns it to the user. While active, the frontend will forward console
+    logs tagged with this ID to OpenObserve.
+
+    If the user already has an active session, it is replaced.
+    """
+    if body.duration not in DEBUG_SESSION_DURATION_MAP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid duration. Must be one of: {', '.join(DEBUG_SESSION_DURATION_MAP.keys())}",
+        )
+
+    ttl_seconds = DEBUG_SESSION_DURATION_MAP[body.duration]
+    effective_ttl = ttl_seconds if ttl_seconds is not None else DEBUG_SESSION_MAX_TTL
+
+    debugging_id = _generate_debugging_id()
+
+    # Calculate expiry timestamp
+    if ttl_seconds is not None:
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+        expires_at_iso = expires_at.isoformat()
+    else:
+        expires_at_iso = None
+
+    # Store debug session in Redis (keyed by debugging_id)
+    session_data = json.dumps({
+        "user_id": current_user.id,
+        "debugging_id": debugging_id,
+        "duration": body.duration,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at_iso,
+    })
+
+    redis = await cache_service.client
+    # Delete any existing session for this user first
+    old_debug_id = await redis.get(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+    if old_debug_id:
+        old_id = old_debug_id.decode("utf-8") if isinstance(old_debug_id, bytes) else old_debug_id
+        await redis.delete(f"{DEBUG_SESSION_KEY_PREFIX}{old_id}")
+
+    # Set the new session keys with TTL
+    await redis.set(
+        f"{DEBUG_SESSION_KEY_PREFIX}{debugging_id}",
+        session_data,
+        ex=effective_ttl,
+    )
+    await redis.set(
+        f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}",
+        debugging_id,
+        ex=effective_ttl,
+    )
+
+    logger.info(
+        f"Debug session created: {debugging_id} for user {current_user.id}, "
+        f"duration={body.duration}, ttl={effective_ttl}s"
+    )
+
+    return DebugSessionResponse(
+        active=True,
+        debugging_id=debugging_id,
+        expires_at=expires_at_iso,
+        duration=body.duration,
+    )
+
+
+@router.get("/debug-session")
+@limiter.limit("30/minute")
+async def get_debug_session(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> DebugSessionResponse:
+    """Check if the current user has an active debug log sharing session."""
+    redis = await cache_service.client
+    debug_id_raw = await redis.get(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+
+    if not debug_id_raw:
+        return DebugSessionResponse(active=False)
+
+    debugging_id = debug_id_raw.decode("utf-8") if isinstance(debug_id_raw, bytes) else debug_id_raw
+    session_raw = await redis.get(f"{DEBUG_SESSION_KEY_PREFIX}{debugging_id}")
+
+    if not session_raw:
+        # User key exists but session expired — clean up the stale user key
+        await redis.delete(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+        return DebugSessionResponse(active=False)
+
+    session = json.loads(session_raw)
+    return DebugSessionResponse(
+        active=True,
+        debugging_id=debugging_id,
+        expires_at=session.get("expires_at"),
+        duration=session.get("duration"),
+    )
+
+
+@router.delete("/debug-session")
+@limiter.limit("10/minute")
+async def delete_debug_session(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> DebugSessionResponse:
+    """Revoke the current user's active debug log sharing session."""
+    redis = await cache_service.client
+    debug_id_raw = await redis.get(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+
+    if debug_id_raw:
+        debugging_id = debug_id_raw.decode("utf-8") if isinstance(debug_id_raw, bytes) else debug_id_raw
+        await redis.delete(f"{DEBUG_SESSION_KEY_PREFIX}{debugging_id}")
+        await redis.delete(f"{DEBUG_SESSION_USER_KEY_PREFIX}{current_user.id}")
+        logger.info(f"Debug session revoked: {debugging_id} for user {current_user.id}")
+
+    return DebugSessionResponse(active=False)
+
+
+@router.post("/debug-logs", include_in_schema=False)
+@limiter.limit("1200/minute")
+async def push_debug_logs(
+    request: Request,
+    body: DebugLogsRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> dict:
+    """Push console logs from a user with an active debug log sharing session.
+
+    Similar to the admin client-logs endpoint, but available to any authenticated
+    user with a valid debugging_id. Logs are tagged in OpenObserve with the
+    debugging_id for later retrieval via `debug.py logs --debug-id <ID>`.
+
+    Rate-limited to 1200/minute (same as admin client-logs) to avoid log loss.
+    """
+    # Validate that the debugging_id is active and belongs to this user
+    redis = await cache_service.client
+    session_raw = await redis.get(f"{DEBUG_SESSION_KEY_PREFIX}{body.debugging_id}")
+
+    if not session_raw:
+        # Session expired or doesn't exist — silently accept (don't break UX)
+        return {"success": False, "reason": "debug_session_expired"}
+
+    session = json.loads(session_raw)
+    if session.get("user_id") != current_user.id:
+        # Debug session belongs to a different user — reject
+        raise HTTPException(status_code=403, detail="Debug session does not belong to this user")
+
+    # Push logs to OpenObserve with debugging_id label
+    from backend.core.api.app.services.openobserve_push_service import openobserve_push_service
+
+    metadata = body.metadata or {}
+    user_agent = metadata.get("userAgent", "")
+    page_url = metadata.get("pageUrl", "")
+    tab_id = metadata.get("tabId", "")
+
+    success = await openobserve_push_service.push_debug_session_logs(
+        entries=body.logs,
+        debugging_id=body.debugging_id,
+        user_id=current_user.id,
+        metadata={
+            "userAgent": user_agent,
+            "pageUrl": page_url,
+            "tabId": tab_id,
+        },
+    )
+
     return {"success": success}

@@ -30,7 +30,11 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -54,69 +58,6 @@ test.afterEach(async ({}, testInfo: any) => {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-/**
- * Login to the test account with email, password, and 2FA OTP.
- * Includes retry logic for OTP timing edge cases (TOTP 30s window boundaries).
- */
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-		await submitLoginButton.click();
-
-		// Wait up to 8s: if OTP field disappears, login succeeded; if error appears, retry
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, waiting for new window...`);
-				await page.waitForTimeout(31000); // Wait for TOTP window to roll over
-				await otpInput.fill('');
-			} else if (!hasError) {
-				// No error visible — login may have proceeded
-				loginSuccess = true;
-			}
-		}
-	}
-
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Login successful — on chat page.');
-}
-
 // ---------------------------------------------------------------------------
 // Test 1: Open search → find a chat by title → click result → navigate
 // ---------------------------------------------------------------------------
@@ -139,9 +80,7 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CHAT_SEARCH_NAVIGATE');
 	const screenshot = createStepScreenshotter(log);
@@ -248,9 +187,7 @@ test('shows no-results state when search query has no matches', async ({ page }:
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CHAT_SEARCH_EMPTY');
 	const screenshot = createStepScreenshotter(log);
@@ -310,9 +247,7 @@ test('closes search bar and clears query when Escape is pressed', async ({
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CHAT_SEARCH_ESCAPE');
 	const screenshot = createStepScreenshotter(log);

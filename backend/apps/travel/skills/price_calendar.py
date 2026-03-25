@@ -30,11 +30,35 @@ logger = logging.getLogger(__name__)
 # Pydantic request/response models
 # ---------------------------------------------------------------------------
 
+class PriceCalendarRequestItem(BaseModel):
+    """A single price calendar request for a route and month."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    origin: str = Field(
+        description="Origin city or IATA code (e.g. 'Munich' or 'MUC')."
+    )
+    destination: str = Field(
+        description="Destination city or IATA code (e.g. 'London' or 'LON')."
+    )
+    month: str = Field(
+        description="Month to retrieve the price calendar for, in YYYY-MM format (e.g. '2026-03')."
+    )
+    currency: str = Field(
+        default="EUR",
+        description="Price currency code (ISO 4217, default: 'EUR').",
+    )
+
+
 class PriceCalendarRequest(BaseModel):
     """Incoming request payload for the price_calendar skill."""
 
-    requests: List[Dict[str, Any]] = Field(
-        description="Array of price calendar request objects, each with "
+    requests: List[PriceCalendarRequestItem] = Field(
+        description="Array of price calendar requests, each with "
         "'origin', 'destination', 'month', and optionally 'currency'."
     )
 

@@ -68,13 +68,13 @@ async def setup_vault():
             # Vault is already initialized
             # First try to load the saved root token
             root_token = initializer.load_root_token()
-            
+
             if root_token:
                 logger.info("Loaded saved root token for administrative tasks")
                 client.update_token(root_token)
             else:
                 logger.warning("No saved root token found. Will attempt to use VAULT_TOKEN environment variable.")
-            
+
             # If Vault is sealed, try to unseal it
             if health_data.get("sealed", True):
                 logger.info("Vault is sealed, attempting auto-unseal")
@@ -83,14 +83,28 @@ async def setup_vault():
                 elif not await initializer.unseal_vault():
                     logger.error("Auto-unsealing failed")
                     sys.exit(1)
-                
+
                 # After unsealing, check our token situation again if needed
                 if not root_token:
                     root_token = initializer.load_root_token()
                     if root_token:
                         logger.info("Loaded saved root token after unsealing")
                         client.update_token(root_token)
-            
+
+            # If still no root token (deleted after previous successful setup — expected on restart),
+            # fall back to api.token for read-only verification steps. The api-service policy
+            # grants "read" on sys/mounts, so engine checks will succeed. Policy creation,
+            # token creation, and secret migration are skipped when only api.token is available
+            # since those operations require root and were already completed on first run.
+            if not root_token:
+                api_token = initializer.get_api_token_from_file()
+                if api_token:
+                    logger.info("Using existing api.token for verification (root token not available — normal after first setup run).")
+                    client.update_token(api_token)
+                else:
+                    logger.error("No root token and no api.token found — cannot proceed. Restore the root token via 'vault operator generate-root'.")
+                    sys.exit(1)
+
             logger.info("Vault already initialized, proceeding with setup.")
         
         # Check and enable transit engine if needed
@@ -106,54 +120,66 @@ async def setup_vault():
             logger.error("Failed to enable KV engine")
             sys.exit(1)
         
-        # Create API service policy
-        if not await policy_manager.create_api_policy():
-            logger.error("Failed to create/ensure API service policy")
-            sys.exit(1)
-
-        # Create API encryption policy
-        if not await policy_manager.create_api_encryption_policy():
-             logger.error("Failed to create/ensure API encryption policy")
-             sys.exit(1)
-        
-        # Create the API service token - always try to use the root token if available
         if root_token:
-             client.update_token(root_token)  # Ensure we're using root token for this operation
-             
-             # Define the policies for the API service token
-             # 'api-encryption' for all transit-related operations (encryption, decryption, key management, hmac)
-             # 'api-service' for other operations like KV store access and token self-lookup
-             api_token_policies = ["api-encryption", "api-service"]
-             logger.info(f"Attempting to create API service token with policies: {api_token_policies}")
+            # Full setup: create/update policies, token, and migrate secrets.
+            # Only possible with root token (which exists on first run; deleted afterwards for security).
+            if not await policy_manager.create_api_policy():
+                logger.error("Failed to create/ensure API service policy")
+                sys.exit(1)
 
-             api_service_token = await token_manager.create_api_service_token(
-                 root_token=root_token,
-                 initializer=initializer,
-                 policies=api_token_policies  # Assuming TokenManager accepts a 'policies' argument
-             )
-             if not api_service_token:
-                 logger.error("Failed to create API service token.")
-                 sys.exit(1)
-             else:
-                 logger.info("API service token created/saved.")
-                 # Write a sentinel file so wait-for-vault.sh knows this boot's token is ready.
-                 # The sentinel contains the current Unix timestamp so the API can verify it
-                 # is newer than the script's own start time — preventing it from using a
-                 # sentinel (and token) left over from a previous container run.
-                 import time as _time
-                 sentinel_path = os.path.join(os.path.dirname(initializer.api_token_file), "token.ready")
-                 with open(sentinel_path, "w") as _f:
-                     _f.write(str(int(_time.time())))
-                 logger.info(f"Wrote token-ready sentinel to {sentinel_path}")
+            if not await policy_manager.create_api_encryption_policy():
+                logger.error("Failed to create/ensure API encryption policy")
+                sys.exit(1)
+
+            client.update_token(root_token)  # Ensure root token is active for token creation
+            api_token_policies = ["api-encryption", "api-service"]
+            logger.info(f"Attempting to create API service token with policies: {api_token_policies}")
+            api_service_token = await token_manager.create_api_service_token(
+                root_token=root_token,
+                initializer=initializer,
+                policies=api_token_policies
+            )
+            if not api_service_token:
+                logger.error("Failed to create API service token.")
+                sys.exit(1)
+            else:
+                logger.info("API service token created/saved.")
+                # Write a sentinel file so wait-for-vault.sh knows this boot's token is ready.
+                # The sentinel contains the current Unix timestamp so the API can verify it
+                # is newer than the script's own start time — preventing it from using a
+                # sentinel (and token) left over from a previous container run.
+                import time as _time
+                sentinel_path = os.path.join(os.path.dirname(initializer.api_token_file), "token.ready")
+                with open(sentinel_path, "w") as _f:
+                    _f.write(str(int(_time.time())))
+                logger.info(f"Wrote token-ready sentinel to {sentinel_path}")
+
+            # Migrate secrets to Vault and add any new ones
+            await secrets_manager.migrate_secrets_to_vault()
+            await secrets_manager.add_new_secrets_to_vault()
         else:
-             # If we got this far without a root token, we might be using an API token
-             # that doesn't have permissions to create new tokens
-             logger.warning("No root token available; cannot automatically create API service token.")
-             logger.warning("Ensure an API service token exists and is saved in /app/data/api.token (or the configured path) for the API service.")
-        
-        # Migrate secrets to Vault and add any new ones
-        await secrets_manager.migrate_secrets_to_vault()
-        await secrets_manager.add_new_secrets_to_vault()
+            # Root token unavailable (deleted after first successful setup — expected on every restart).
+            # Engine checks above confirmed Vault is operational. Skip root-only operations
+            # (policy creation, token creation) but still sync new secrets from .env.
+            logger.info("Root token not available — skipping policy/token creation (already completed on first run).")
+            logger.info("Existing api.token remains valid.")
+
+            # Sync new secrets from environment: generate a temporary root token using the
+            # unseal key, write any new SECRET__* env vars to Vault, then revoke the token.
+            logger.info("Checking for new secrets to sync from environment...")
+            temp_root = await initializer.generate_temporary_root_token()
+            if temp_root:
+                original_token = client.vault_token
+                client.update_token(temp_root)
+                try:
+                    await secrets_manager.add_new_secrets_to_vault()
+                finally:
+                    # Restore API token and revoke the temporary root token
+                    client.update_token(original_token)
+                    await initializer.revoke_token(temp_root)
+            else:
+                logger.warning("Could not generate temporary root token — skipping secret sync. "
+                               "New SECRET__* env vars will NOT be imported until next first-run setup.")
         
         # Final instructions
         logger.info("="*80)
@@ -162,15 +188,25 @@ async def setup_vault():
         logger.critical("REMINDER: If Vault was initialized for the first time, ensure you have securely backed up the ROOT TOKEN and UNSEAL KEY shown earlier.")
         logger.info(f"API Service will use the token saved in {initializer.api_token_file} for encryption tasks.")
         if secrets_manager.initial_migration_processed_count > 0:
-             logger.warning(f"API secrets ({secrets_manager.initial_migration_processed_count} processed) were imported from environment variables (likely sourced from your .env file) during this setup run.")
-             logger.warning("For security, after verifying they are in Vault, please MANUALLY REMOVE or comment out the original SECRET__* lines from your .env file,")
-             logger.warning("OR set their values to 'IMPORTED_TO_VAULT' to prevent them from being re-processed by this script on subsequent runs.")
-             logger.warning("Consider adding a comment like '# API secrets are managed in Vault' to your .env file.")
+             logger.info(f"API secrets ({secrets_manager.initial_migration_processed_count} processed) were imported from environment variables into Vault during this setup run.")
+             logger.info("The original values in .env have been automatically replaced with 'IMPORTED_TO_VAULT'.")
 
         logger.info("You can manage Vault secrets and configuration via the Vault Web UI or CLI.")
         logger.info(f"Vault Address: {client.vault_addr} (Port may need exposing via Docker Compose for UI access).")
         logger.info("Use the backed-up root token for full access, or create other tokens/roles as needed.")
         logger.info("="*80)
+
+        # SECURITY: Delete the root token file from the shared volume after setup is complete.
+        # The root token was only needed for initial Vault configuration (policies, service tokens,
+        # secret migration). Leaving it on disk means any compromised container mounting the volume
+        # gains full Vault root access. The unseal key file is kept (needed for auto-unseal).
+        if os.path.exists(initializer.token_file):
+            try:
+                os.remove(initializer.token_file)
+                logger.info(f"SECURITY: Deleted root token file {initializer.token_file} — no longer needed after setup.")
+            except Exception as e_del:
+                logger.error(f"SECURITY WARNING: Failed to delete root token file {initializer.token_file}: {e_del}")
+                logger.error("The root token remains on the shared volume. Manual removal recommended.")
 
         logger.info("Vault setup script finished.")
         

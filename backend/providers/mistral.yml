@@ -8,13 +8,60 @@ description: "AI models and services from Mistral AI."
 logo_svg: "logos/mistral.svg" # Path for UI, relative to logos directory
 
 models:
-  - id: "mistral-small-latest" # Official model ID
-    name: "Mistral Small"
+  - id: "mistral-small-2506" # Official model ID — Mistral Small 3.2 (June 2025 pinned version)
+    name: "Mistral Small 3.2"
     description: >-
       Mistral AI's fast and cost-effective model, optimized for low latency.
+      Pinned version of Mistral Small 3.2 (24B params). Used for preprocessing
+      and postprocessing tasks where mistral-small-latest now points to Small 4.
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-03-15" # Model release date (Mistral Small 3.2 release)
+    release_date: "2025-06-01" # Pinned model release date (2506 suffix = June 2025)
+    allow_auto_select: false # Pinned preprocessing model — not for auto-selection
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      openrouter: "mistralai/mistral-small-3.2-24b-instruct"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "mistral" # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "mistral-small-2506" # Direct Mistral API model ID (pinned)
+        region: "EU" # Server region for UI display (Mistral is EU-based)
+      - id: "openrouter"
+        name: "OpenRouter"
+        # OpenRouter model identifier (same underlying model as Small 3.2)
+        model_id: "mistralai/mistral-small-3.2-24b-instruct"
+        region: "US" # Server region for UI display
+    # Full reference for API calls: "mistral/mistral-small-2506"
+    pricing: # Model-specific base pricing
+      tokens:
+        input:
+          per_credit_unit: 3300 # 1 credit per 3,300 input tokens ($0.10/M)
+        output:
+          per_credit_unit: 1100 # 1 credit per 1,100 output tokens ($0.30/M)
+    costs:
+      input_per_million_token:
+        price: 0.10
+        currency: USD
+        max_context: 128000 # Max context window.
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 128000
+
+  - id: "mistral-small-latest" # Official model ID — now points to Mistral Small 4
+    name: "Mistral Small 4"
+    description: >-
+      Mistral AI's latest Small model (Small 4). As of June 2025, mistral-small-latest
+      resolves to Mistral Small 4 (not Small 3.2). Twice the cost of Small 3.2.
+      For preprocessing use mistral-small-2506 (pinned Small 3.2) instead.
+    country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2025-06-01" # Mistral Small 4 release date
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-small-latest"
@@ -41,19 +88,19 @@ models:
         region: "US" # Server region for UI display
     # Full reference for API calls would be "mistral/mistral-small-latest"
     # (or similar based on client)
-    pricing: # Model-specific base pricing (example structure)
+    pricing: # Model-specific base pricing (Mistral Small 4 — 2x cost of Small 3.2)
       tokens:
         input:
-          per_credit_unit: 3300 # 1 credit per 3,300 input tokens
+          per_credit_unit: 1650 # 1 credit per 1,650 input tokens ($0.20/M)
         output:
-          per_credit_unit: 1100 # 1 credit per 1,100 output tokens
+          per_credit_unit: 550 # 1 credit per 550 output tokens ($0.60/M)
     costs:
       input_per_million_token:
-        price: 0.10
+        price: 0.20
         currency: USD
         max_context: 128000 # Max context window.
       output_per_million_token:
-        price: 0.30
+        price: 0.60
         currency: USD
         max_context: 128000
 
@@ -188,17 +235,21 @@ models:
       - text
     output_types:
       - text
-    default_server: "mistral" # Default to direct Mistral API
+    default_server: "aws_bedrock" # Default to AWS Bedrock (EU), with Mistral API as fallback
     servers:
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "mistral.devstral-2-123b" # Bedrock model ID
+        aws_region: "eu-central-1"
+        region: "EU"
       - id: "mistral"
         name: "Mistral"
         model_id: "devstral-2512" # Direct Mistral API model ID
-        region: "EU" # Server region for UI display (Mistral is EU-based)
+        region: "EU"
       - id: "openrouter"
         name: "OpenRouter"
-        # OpenRouter model identifier
         model_id: "mistralai/devstral-2512"
-        region: "US" # Server region for UI display
+        region: "US"
     pricing:
       tokens:
         input:

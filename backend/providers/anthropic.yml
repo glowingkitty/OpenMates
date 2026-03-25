@@ -24,13 +24,13 @@ models:
       - image
     output_types:
       - text
-    default_server: "anthropic" # Default server for this model: anthropic or aws_bedrock
+    default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
     servers:
       - id: "aws_bedrock"
         name: "AWS Bedrock"
-        model_id: "anthropic.claude-haiku-4-5-20251001-v1:0" # Official model ID for AWS Bedrock
-        aws_region: "eu-central-1" # AWS region for this model
-        region: "EU" # Server region for UI display (EU, US, or APAC)
+        model_id: "eu.anthropic.claude-haiku-4-5-20251001-v1:0" # EU inference profile ID for Converse API
+        aws_region: "eu-central-1"
+        region: "EU"
       - id: "anthropic"
         name: "Anthropic API"
         model_id: "claude-haiku-4-5-20251001" # Direct API uses the model ID as-is
@@ -78,7 +78,7 @@ models:
       - image
     output_types:
       - text
-    default_server: "anthropic" # Default server for this model: anthropic or aws_bedrock
+    default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
     servers:
       - id: "anthropic"
         name: "Anthropic API"
@@ -86,9 +86,9 @@ models:
         region: "US" # Server region for UI display
       - id: "aws_bedrock"
         name: "AWS Bedrock"
-        model_id: "anthropic.claude-sonnet-4-6" # AWS Bedrock model ID
-        aws_region: "eu-central-1" # AWS region for this model
-        region: "EU" # Server region for UI display
+        model_id: "eu.anthropic.claude-sonnet-4-6" # EU inference profile ID for Converse API
+        aws_region: "eu-central-1"
+        region: "EU"
       # OpenRouter removed — Anthropic models should only use Anthropic's own infrastructure
       # (Anthropic API + AWS Bedrock). If both fail, model fallback in main_processor handles it.
     pricing: # Model-specific base pricing
@@ -135,7 +135,7 @@ models:
       - image
     output_types:
       - text
-    default_server: "anthropic" # Default server for this model: anthropic or aws_bedrock
+    default_server: "aws_bedrock" # Default server: AWS Bedrock (EU), with Anthropic API as fallback
     servers:
       - id: "anthropic"
         name: "Anthropic API"
@@ -143,9 +143,9 @@ models:
         region: "US" # Server region for UI display
       - id: "aws_bedrock"
         name: "AWS Bedrock"
-        model_id: "anthropic.claude-opus-4-6" # AWS Bedrock model ID
-        aws_region: "eu-central-1" # AWS region for this model
-        region: "EU" # Server region for UI display
+        model_id: "eu.anthropic.claude-opus-4-6-v1" # EU inference profile ID for Converse API
+        aws_region: "eu-central-1"
+        region: "EU"
       # OpenRouter removed — Anthropic models should only use Anthropic's own infrastructure
       # (Anthropic API + AWS Bedrock). If both fail, model fallback in main_processor handles it.
     pricing: # Model-specific base pricing (same as Opus 4.5)

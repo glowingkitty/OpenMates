@@ -1,7 +1,18 @@
 // Components
+export { default as ChatHeader } from "./src/components/ChatHeader.svelte";
+export { default as ReadOnlyMessage } from "./src/components/ReadOnlyMessage.svelte";
+export {
+  getCategoryGradientColors,
+  getValidIconName,
+  getFallbackIconForCategory,
+  getLucideIcon,
+  CATEGORY_GRADIENTS,
+} from "./src/utils/categoryUtils";
+export { parse_message } from "./src/message_parsing/parse_message";
 export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
+export { default as Not404Screen } from "./src/components/Not404Screen.svelte";
 export { default as Notification } from "./src/components/Notification.svelte";
 export { default as ChatMessageNotification } from "./src/components/ChatMessageNotification.svelte";
 export { default as DemoChat } from "./src/components/DemoChat.svelte";
@@ -10,6 +21,7 @@ export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
 export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
+export { default as SearchBar } from "./src/components/chats/search/SearchBar.svelte";
 export { default as MetaTags } from "./src/components/MetaTags.svelte";
 export { default as Icon } from "./src/components/Icon.svelte";
 export { default as AppSettingsMemoriesPermissionDialog } from "./src/components/AppSettingsMemoriesPermissionDialog.svelte";
@@ -74,6 +86,8 @@ export * from "./src/stores/appHealthStore"; // Export app health store for filt
 export * from "./src/stores/pushNotificationStore"; // Export push notification store for managing push notification state
 export * from "./src/stores/networkStatusStore"; // Export network status store for offline/online detection
 export * from "./src/stores/pairSessionStore"; // Export pair session store for magic pair login
+export { openSearch, setSearchQuery } from "./src/stores/searchStore"; // Export openSearch and setSearchQuery for global keyboard shortcuts + 404 screen
+export { notFoundPathStore } from "./src/stores/notFoundPathStore"; // Export 404 not-found path store
 // loginOverlayStore removed - not needed
 
 // Demo Chats
@@ -81,7 +95,7 @@ export * from "./src/demo_chats/store"; // Export demo chat stores
 export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
-export { chatDB } from "./src/services/db"; // Export chat database
+export { chatDB, cryptoReady } from "./src/services/db"; // Export chat database + crypto init promise
 export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
@@ -92,6 +106,7 @@ export {
   checkAndClearMasterKeyOnLoad,
   // Embed key management functions for wrapped key architecture
   generateEmbedKey,
+  deriveEmbedKeyFromChatKey,
   wrapEmbedKeyWithMasterKey,
   wrapEmbedKeyWithChatKey,
   unwrapEmbedKeyWithMasterKey,
@@ -152,6 +167,7 @@ import "./src/styles/mates.css";
 import "./src/styles/theme.css";
 import "./src/styles/fonts.css";
 import "./src/styles/icons.css";
+import "./src/styles/icon-urls.generated.css";
 
 // Actions
 export { tooltip } from "./src/actions/tooltip";

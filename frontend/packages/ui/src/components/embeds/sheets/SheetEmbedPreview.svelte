@@ -67,15 +67,22 @@
   let localColCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
-  
-  // Initialize local state from props
+
+  // Track whether the store has resolved a terminal status for this embed.
+  // Once handleEmbedDataUpdated receives "finished"/"error", the $effect must NOT
+  // revert to statusProp (which may still be "processing" from the HTML attribute).
+  let storeResolved = $state(false);
+
+  // Initialize local state from props — but only when the store hasn't resolved yet.
   $effect(() => {
-    localTableContent = tableContentProp || '';
-    localTitle = titleProp;
-    localRowCount = rowCountProp || 0;
-    localColCount = colCountProp || 0;
-    localStatus = statusProp || 'processing';
-    localTaskId = taskIdProp;
+    if (!storeResolved) {
+      localTableContent = tableContentProp || '';
+      localTitle = titleProp;
+      localRowCount = rowCountProp || 0;
+      localColCount = colCountProp || 0;
+      localStatus = statusProp || 'processing';
+      localTaskId = taskIdProp;
+    }
   });
   
   // Use local state as source of truth
@@ -131,6 +138,51 @@
   let previewRows = $derived(parsedTable.rows.slice(0, maxPreviewRows));
   let hasMoreRows = $derived(parsedTable.rowCount > maxPreviewRows);
   
+  /**
+   * Compute per-column pixel widths from content length.
+   * Scans header + preview rows to find the longest value per column,
+   * then maps char count → pixels (8px/char) clamped to [60, 200].
+   * Replaces the old table-layout:fixed equal-split approach.
+   */
+  let colWidths = $derived.by(() => {
+    return parsedTable.headers.map((header, i) => {
+      const headerLen = header.content.length;
+      const maxDataLen = previewRows.reduce((max, row) => {
+        const len = row[i]?.content?.length ?? 0;
+        return len > max ? len : max;
+      }, 0);
+      const chars = Math.max(headerLen, maxDataLen);
+      return Math.min(Math.max(chars * 8, 60), 200);
+    });
+  });
+
+  /**
+   * Limit visible columns in the preview so no column is squeezed unreadable.
+   * Standard preview card is ~260px wide (300px card - padding/border).
+   * In large preview mode, we measure the actual container width to show more columns.
+   * We greedily include columns whose cumulative width fits, then show "+N cols".
+   */
+  const PREVIEW_CARD_WIDTH_STANDARD = 260;
+  let measuredContainerWidth = $state(0);
+  let columnBudget = $derived(
+    isLargePreview && measuredContainerWidth > 0
+      ? measuredContainerWidth - 20
+      : PREVIEW_CARD_WIDTH_STANDARD
+  );
+  let visibleColCount = $derived.by(() => {
+    let budget = columnBudget;
+    let count = 0;
+    for (const w of colWidths) {
+      if (budget - w < 0 && count > 0) break;
+      budget -= w;
+      count++;
+    }
+    return Math.max(count, 1);
+  });
+  let hiddenColCount = $derived(parsedTable.headers.length - visibleColCount);
+  let visibleColWidths = $derived(colWidths.slice(0, visibleColCount));
+  let visibleHeaders = $derived(parsedTable.headers.slice(0, visibleColCount));
+
   // Build skill name for BasicInfosBar
   let skillName = $derived.by(() => renderTitle || $text('embeds.table'));
   
@@ -148,6 +200,10 @@
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
+      // Mark store-resolved for terminal statuses so $effect won't revert on re-render
+      if (data.status !== 'processing') {
+        storeResolved = true;
+      }
     }
     
     if (data.decodedContent) {
@@ -181,7 +237,7 @@
 >
   {#snippet details({ isMobile: isMobileSnippet, isLarge: isLargeSnippet })}
     {(isLargePreview = isLargeSnippet, undefined)}
-    <div class="sheet-preview" class:mobile={isMobileSnippet}>
+    <div class="sheet-preview" class:mobile={isMobileSnippet} bind:clientWidth={measuredContainerWidth}>
       {#if status === 'processing'}
         <!-- Skeleton loading -->
         <div class="skeleton-table">
@@ -197,24 +253,35 @@
         <!-- Table preview — scrolls horizontally for wide tables -->
         <div class="table-scroll">
           <table class="preview-table" class:large-desktop={isLargeSnippet && !isMobileSnippet}>
+            <colgroup>
+              {#each visibleColWidths as w}
+                <col style="width: {w}px; max-width: {w}px;" />
+              {/each}
+            </colgroup>
             <thead>
               <tr>
-                {#each parsedTable.headers as header}
+                {#each visibleHeaders as header}
                   <th>{header.content}</th>
                 {/each}
+                {#if hiddenColCount > 0}
+                  <th class="more-cols-header">+{hiddenColCount}</th>
+                {/if}
               </tr>
             </thead>
             <tbody>
               {#each previewRows as row}
                 <tr>
-                  {#each row as cell}
+                  {#each row.slice(0, visibleColCount) as cell}
                     <td>{stripEmbedLinks(cell.content)}</td>
                   {/each}
+                  {#if hiddenColCount > 0}
+                    <td class="more-cols-cell"></td>
+                  {/if}
                 </tr>
               {/each}
               {#if hasMoreRows}
                 <tr class="more-rows">
-                  <td colspan={actualColCount}>
+                  <td colspan={visibleColCount + (hiddenColCount > 0 ? 1 : 0)}>
                     <span class="more-indicator">+{parsedTable.rowCount - maxPreviewRows} more rows</span>
                   </td>
                 </tr>
@@ -298,8 +365,12 @@
     font-size: 11px;
     line-height: 1.3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    width: 100%;
-    table-layout: fixed;
+    /* Auto-layout: colgroup widths drive column sizing, not equal-split fixed.
+       min-width:100% fills the container; max-content lets wide tables overflow
+       (the table-scroll wrapper clips them without a visible scrollbar). */
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
     margin-top: 15px;
   }
 
@@ -340,6 +411,32 @@
     border-bottom: none;
   }
   
+  /* ── More columns indicator ─────────────────────────── */
+
+  .more-cols-header,
+  .more-cols-cell {
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    padding: 4px 4px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .more-cols-header {
+    background: var(--color-grey-10);
+    color: var(--color-font-tertiary);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-left: 2px solid var(--color-grey-30);
+  }
+
+  .more-cols-cell {
+    background: var(--color-grey-10);
+    border-left: 2px solid var(--color-grey-30);
+  }
+
   /* ── More rows indicator ────────────────────────────── */
   
   .more-rows td {

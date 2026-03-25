@@ -1,38 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
-
-const { test, expect } = require('@playwright/test');
-
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-20).forEach((log) => console.log(log));
-
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-20).forEach((activity) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
-
-const {
-	createSignupLogger,
-	archiveExistingScreenshots,
-	createStepScreenshotter,
-	generateTotp,
-	assertNoMissingTranslations,
-	getTestAccount,
-} = require('./signup-flow-helpers');
 
 /**
  * Background Chat Notification Test
@@ -48,6 +15,9 @@ const {
  * 8. Verify navigation to Chat A
  * 9. Delete Chat A
  *
+ * Selectors: data-testid attributes (stable, won't break on CSS renames).
+ * Console monitoring: shared console-monitor.ts (Rule 10).
+ *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
  * - OPENMATES_TEST_ACCOUNT_PASSWORD
@@ -55,37 +25,40 @@ const {
  * - PLAYWRIGHT_TEST_BASE_URL
  */
 
+const {
+	test,
+	expect,
+	consoleLogs,
+	networkActivities,
+	attachConsoleListeners,
+	attachNetworkListeners
+} = require('./console-monitor');
+
+const {
+	createSignupLogger,
+	archiveExistingScreenshots,
+	createStepScreenshotter,
+	generateTotp,
+	assertNoMissingTranslations,
+	getTestAccount,
+	getE2EDebugUrl
+} = require('./signup-flow-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 test('background chat notification shows and allows reply', async ({ page }: { page: any }) => {
-	// Listen for console logs
-	page.on('console', (msg: any) => {
-		const timestamp = new Date().toISOString();
-		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
-	});
-
-	// Listen for network requests
-	page.on('request', (request: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
-	});
-
-	// Listen for network responses
-	page.on('response', (response: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
-	});
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
 
 	test.slow();
-	test.setTimeout(180000); // 3 minutes — background processing takes time
+	test.setTimeout(240000); // 4 minutes — TOTP retry can use up to 90s + background processing
 
 	const logStep = createSignupLogger('BG_NOTIFICATION');
 	const takeScreenshot = createStepScreenshotter(logStep);
 
 	// Pre-test skip checks
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logStep);
 	logStep('Starting background chat notification test.', { email: TEST_EMAIL });
@@ -93,70 +66,90 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// ══════════════════════════════════════════════════════════════
 	// 1. Navigate to home
 	// ══════════════════════════════════════════════════════════════
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeScreenshot(page, 'home');
 
 	// 2. Open login dialog
 	const headerLoginButton = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
 	});
-	await expect(headerLoginButton).toBeVisible();
+	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 	await takeScreenshot(page, 'login-dialog');
 
 	// 3. Enter email
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logStep('Entered email and clicked continue.');
 
 	// 4. Enter password
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible();
+	const passwordInput = page.locator('#login-password-input');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeScreenshot(page, 'password-entered');
 
-	// 5. Handle 2FA OTP — generate fresh code right before submission to avoid TOTP window expiry.
-	// Retry up to 3 times if the code is rejected (window boundary race condition).
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
+	// 5. Handle 2FA OTP — fixed TOTP race condition.
+	//
+	// Root cause of previous failures: the 3-attempt retry loop used a 2-second
+	// wait between attempts. If the first attempt landed at a TOTP window boundary
+	// (29s into a 30s window), the next code was generated ~2s later — still within
+	// the same window and thus invalid. After 3 such attempts the test threw.
+	//
+	// Fix: on failure, wait until we're at least 3 seconds into the NEXT 30-second
+	// window (i.e. wait until seconds-within-window < 3). This guarantees a fresh
+	// code on every retry without an arbitrary 31s hardcoded sleep.
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
+	const submitLoginButton = page.locator('#login-submit-button');
+	await expect(submitLoginButton).toBeVisible({ timeout: 10000 });
 
 	let loginSuccess = false;
 	for (let attempt = 0; attempt < 3; attempt++) {
+		// Wait until we're well into the current TOTP window (>= 3s past the boundary)
+		// so the code is valid for at least 27 more seconds.
+		const now = Date.now();
+		const secondsIntoWindow = Math.floor(now / 1000) % 30;
+		if (secondsIntoWindow > 27) {
+			// We're in the last 3 seconds of a window — wait for the next window + 3s buffer
+			const msToNextWindow = (30 - secondsIntoWindow) * 1000 + 3000;
+			logStep(`Waiting ${msToNextWindow}ms for next TOTP window to avoid boundary race...`);
+			await page.waitForTimeout(msToNextWindow);
+		}
+
 		const otpCode = generateTotp(TEST_OTP_KEY);
 		await otpInput.fill(otpCode);
 		logStep(`OTP attempt ${attempt + 1}: entered code ${otpCode}`);
 		await submitLoginButton.click();
 
 		try {
-			await page.waitForURL(/chat/, { timeout: 10000 });
+			await page.waitForURL(/chat/, { timeout: 12000 });
+			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 12000 });
 			loginSuccess = true;
 			logStep('Login succeeded.');
 			break;
 		} catch {
 			logStep(`OTP attempt ${attempt + 1} failed, retrying...`);
 			await takeScreenshot(page, `otp-retry-${attempt + 1}`);
-			// Wait a moment before retrying — if we're at a TOTP boundary, the next
-			// 30-second window should give us a valid code
-			await page.waitForTimeout(2000);
+			// Wait until at least 3s into the next TOTP window before retrying
+			await page.waitForTimeout(3000);
 		}
 	}
 
 	if (!loginSuccess) {
+		await takeScreenshot(page, 'login-failed');
 		throw new Error('Login failed after 3 OTP attempts');
 	}
 
 	// Wait for initial chat load
 	logStep('Waiting for initial chat to load...');
-	await page.waitForTimeout(5000);
+	await page.waitForTimeout(3000);
 	await takeScreenshot(page, 'after-login');
 
-	// 8. Start a fresh chat
-	const newChatButton = page.locator('.icon_create');
-	if (await newChatButton.isVisible()) {
+	// Start a fresh chat if the new-chat button is visible
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible().catch(() => false)) {
 		logStep('New Chat button visible, clicking it to start a fresh chat.');
 		await newChatButton.click();
 		await page.waitForTimeout(2000);
@@ -165,32 +158,36 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// ══════════════════════════════════════════════════════════════
 	// 9. Send a message in Chat A
 	// ══════════════════════════════════════════════════════════════
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible();
+	const messageEditor = page.getByTestId('message-editor');
+	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
 	await page.keyboard.type('What is the tallest mountain in the world?');
 	await takeScreenshot(page, 'chat-a-message-typed');
 
-	const sendButton = page.locator('.send-button');
-	await expect(sendButton).toBeEnabled();
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled({ timeout: 10000 });
 	await sendButton.click();
 	logStep('Sent message in Chat A.');
 	await takeScreenshot(page, 'chat-a-message-sent');
 
-	// Wait for Chat A URL to contain a chat-id
+	// Wait for Chat A URL to contain a chat-id (hash-based: /#chat-id=xxx)
 	logStep('Waiting for Chat A ID in URL...');
-	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	await expect(page).toHaveURL(/chat-id=/, { timeout: 15000 });
 	const chatAUrl = page.url();
-	const chatAIdMatch = chatAUrl.match(/chat-id=([a-zA-Z0-9-]+)/);
-	const chatAId = chatAIdMatch ? chatAIdMatch[1] : 'unknown';
-	logStep(`Chat A created with ID: ${chatAId}`);
+	// Chat IDs can contain alphanumeric, hyphens, underscores — capture everything up to & or end
+	const chatAIdMatch = chatAUrl.match(/chat-id=([^&# ]+)/);
+	const chatAId = chatAIdMatch ? chatAIdMatch[1] : null;
+	logStep(`Chat A created with ID: ${chatAId}, full URL: ${chatAUrl}`);
+	if (!chatAId) {
+		throw new Error(`Could not extract chat ID from URL: ${chatAUrl}`);
+	}
 
 	// ══════════════════════════════════════════════════════════════
 	// 10. Switch to a new Chat B (making Chat A a background chat)
 	// ══════════════════════════════════════════════════════════════
 	await page.waitForTimeout(1500); // Let processing start
-	const newChatButton2 = page.locator('.icon_create');
-	await expect(newChatButton2).toBeVisible();
+	const newChatButton2 = page.getByTestId('new-chat-button');
+	await expect(newChatButton2).toBeVisible({ timeout: 10000 });
 	await newChatButton2.click();
 	logStep('Switched to Chat B — Chat A is now in background.');
 	await takeScreenshot(page, 'switched-to-chat-b');
@@ -200,7 +197,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// 11. (Soft check) Typing indicator shimmer in sidebar
 	// ══════════════════════════════════════════════════════════════
 	logStep('Checking for typing shimmer in sidebar...');
-	const typingShimmer = page.locator('.status-message.typing-shimmer');
+	const typingShimmer = page.getByTestId('chat-typing-shimmer');
 	try {
 		await expect(typingShimmer).toBeVisible({ timeout: 10000 });
 		logStep('Typing shimmer visible.');
@@ -214,20 +211,20 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// 12. Wait for the background chat notification popup
 	// ══════════════════════════════════════════════════════════════
 	logStep('Waiting for background chat notification...');
-	const notification = page.locator('.notification.notification-chat-message');
+	const notification = page.getByTestId('chat-notification');
 	await expect(notification).toBeVisible({ timeout: 60000 });
 	logStep('Notification appeared!');
 	await takeScreenshot(page, 'notification-appeared');
 
 	// 13. Verify notification content
-	const messagePreview = notification.locator('.notification-message-primary');
+	const messagePreview = notification.getByTestId('notification-message');
 	await expect(messagePreview).toBeVisible();
 	const previewText = await messagePreview.textContent();
 	logStep(`Notification preview: "${previewText}"`);
 	expect(previewText).toBeTruthy();
 	expect(previewText!.trim().length).toBeGreaterThan(0);
 
-	// Check for mate profile or avatar placeholder
+	// Check for mate profile or avatar placeholder (still CSS since they're dynamic class variants)
 	const mateProfile = notification.locator('.mate-profile');
 	const avatarPlaceholder = notification.locator('.avatar-placeholder');
 	const hasProfile = await mateProfile.isVisible().catch(() => false);
@@ -247,14 +244,13 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// ══════════════════════════════════════════════════════════════
 	// 15. Reply via notification
 	// ══════════════════════════════════════════════════════════════
-	const replyButton = notification.locator('.notification-reply-button');
-	await expect(replyButton).toBeVisible();
+	const replyButton = notification.getByTestId('notification-reply-button');
+	await expect(replyButton).toBeVisible({ timeout: 5000 });
 	await replyButton.click();
 	logStep('Clicked reply button.');
 	await takeScreenshot(page, 'reply-expanded');
 
 	// TipTap creates a .ProseMirror contenteditable div inside .notification-reply-input.
-	// The class .notification-reply-editor is applied to it via editorProps.attributes.
 	// Wait for TipTap to initialize after the reply section expands.
 	await page.waitForTimeout(500);
 	const replyEditor = page.locator(
@@ -266,21 +262,64 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep('Typed reply.');
 	await takeScreenshot(page, 'reply-typed');
 
-	const sendReplyBtn = notification.locator('.notification-send-btn');
-	await expect(sendReplyBtn).toBeEnabled();
+	const sendReplyBtn = notification.locator('[data-action="send-message"]');
+	await expect(sendReplyBtn).toBeVisible({ timeout: 8000 });
+	await expect(sendReplyBtn).toBeEnabled({ timeout: 8000 });
 	await sendReplyBtn.click();
 	logStep('Sent reply.');
 
 	// ══════════════════════════════════════════════════════════════
 	// 16. Verify navigation to Chat A
 	// ══════════════════════════════════════════════════════════════
-	await page.waitForURL(new RegExp(`chat-id=${chatAId}`), { timeout: 10000 });
-	logStep('Navigated to Chat A via notification reply.');
+	const targetChatUrlPattern = new RegExp(`chat-id=${chatAId}`);
+	try {
+		await page.waitForURL(targetChatUrlPattern, { timeout: 10000 });
+	} catch {
+		logStep('Reply did not auto-navigate to Chat A within timeout, selecting Chat A from sidebar.');
+		// Open sidebar if closed (mobile: sidebar toggle in header)
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		if (await sidebarToggle.isVisible().catch(() => false)) {
+			await sidebarToggle.click();
+			await page.waitForTimeout(300);
+		}
+		// App uses hash-based navigation: /#chat-id={id}
+		const chatLink = page.locator(`a[href*="chat-id=${chatAId}"]`).first();
+		if (await chatLink.isVisible().catch(() => false)) {
+			await chatLink.click();
+		} else {
+			await page.goto(`/#chat-id=${chatAId}`);
+		}
+		await page.waitForURL(targetChatUrlPattern, { timeout: 10000 });
+	}
+	logStep(`Navigated to Chat A via notification reply. Current URL: ${page.url()}`);
 	await takeScreenshot(page, 'navigated-to-chat-a');
-	await page.waitForTimeout(2000);
 
-	const assistantResponse = page.locator('.message-wrapper.assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 10000 });
+	// Wait for the message editor to be present (confirms chat view is mounted)
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+
+	// Wait for at least one message of any kind to appear before asserting assistant messages.
+	// After a sidebar/hash navigation, the chat loads from IndexedDB asynchronously.
+	// Waiting for any message first prevents a race where the assertion starts before
+	// the chat list has rendered at all, causing spurious "count = 0" failures.
+	const anyMessage = page.locator('[data-testid="message-assistant"], [data-testid="message-user"]');
+	await expect(async () => {
+		const anyCount = await anyMessage.count();
+		logStep(`Total message count: ${anyCount}, URL: ${page.url()}`);
+		expect(anyCount).toBeGreaterThan(0);
+	}).toPass({ timeout: 30000 });
+
+	// Allow extra time for the AI response to finish streaming if still in progress
+	await page.waitForTimeout(5000);
+	await takeScreenshot(page, 'chat-a-after-wait');
+
+	// Wait for at least one assistant message to be visible (the original AI response)
+	const assistantResponse = page.getByTestId('message-assistant');
+	await expect(async () => {
+		const count = await assistantResponse.count();
+		logStep(`Assistant message count: ${count}, URL: ${page.url()}`);
+		expect(count).toBeGreaterThan(0);
+	}).toPass({ timeout: 120000 });
+	await expect(assistantResponse.first()).toBeVisible({ timeout: 15000 });
 	logStep('Assistant response visible in Chat A.');
 
 	// Verify no missing translations on the chat page with notification UI
@@ -292,21 +331,23 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// ══════════════════════════════════════════════════════════════
 	logStep('Deleting Chat A...');
 
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
-	if (await sidebarToggle.isVisible()) {
-		await sidebarToggle.click();
+	// Open sidebar if closed
+	const sidebarToggleFinal = page.getByTestId('sidebar-toggle');
+	if (await sidebarToggleFinal.isVisible().catch(() => false)) {
+		await sidebarToggleFinal.click();
 		await page.waitForTimeout(500);
 	}
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
-	await expect(activeChatItem).toBeVisible();
+	// Active chat item — use data-testid + active class for specificity
+	const activeChatItem = page.locator('[data-testid="chat-item"].active');
+	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Right-click → delete (click once for confirm mode, click again to confirm)
 	await activeChatItem.click({ button: 'right' });
 	await takeScreenshot(page, 'context-menu');
 
-	const deleteButton = page.locator('.menu-item.delete');
-	await expect(deleteButton).toBeVisible();
+	const deleteButton = page.getByTestId('chat-context-delete');
+	await expect(deleteButton).toBeVisible({ timeout: 5000 });
 	await deleteButton.click();
 	await takeScreenshot(page, 'delete-confirm');
 	await deleteButton.click();

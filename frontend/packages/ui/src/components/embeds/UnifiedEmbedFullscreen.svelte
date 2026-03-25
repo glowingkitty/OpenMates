@@ -805,7 +805,7 @@
     if (embedIds) {
       loadChildEmbeds();
     }
-    
+
     // Trigger opening animation.
     // Also reset scroll to top: on mobile, browsers can initialise a scrollable
     // container at a non-zero offset (e.g. after keyboard events), which would
@@ -821,7 +821,16 @@
       });
     });
   });
-  
+
+  // Defensive: re-trigger loadChildEmbeds when embedIds changes from undefined to a value.
+  // This guards against Svelte 5 timing issues where a parent component routes embedIds
+  // through $state(undefined) → $effect → $derived, making it undefined at mount time.
+  $effect(() => {
+    if (embedIds && loadedChildren.length === 0 && !isLoadingChildren) {
+      loadChildEmbeds();
+    }
+  });
+
   onDestroy(() => {
     window.removeEventListener('globalChatSelected', handleChatSelected);
     
@@ -1099,6 +1108,12 @@
     /* Slide-up-from-bottom animation — starts off-screen at the bottom */
     transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1);
     overflow: hidden;
+    /* Promote to compositor layer before the slide-in fires so WebKit/iOS
+       doesn't have to rasterize the full subtree (gradient header + blurred
+       orbs + content) on the main thread during the transition.
+       Without this hint, Safari defers layer promotion until the first
+       animation frame, causing the visible stall on iPad. */
+    will-change: transform;
     /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;

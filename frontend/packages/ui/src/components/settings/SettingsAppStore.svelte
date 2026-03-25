@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-    import { appSkillsStore } from '../../stores/appSkillsStore';
+    import { appSkillsStore, initializeUserAvailableSkills, userAvailableSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
@@ -21,25 +21,30 @@
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
-    
+
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
-    
-    // Initialize app health on mount to filter apps based on health status
+
+    // Initialize app health and user-specific skill availability on mount
     onMount(async () => {
-        // Fetch app health status to filter out unhealthy apps
         await initializeAppHealth();
+        // Fetch user-specific skill availability to hide restricted providers (e.g. ProtonMail)
+        // from users who are not authorized to use them.
+        await initializeUserAvailableSkills();
     });
-    
+
     // Subscribe to health store to trigger reactivity when health status changes
     // This ensures apps are filtered when health status is fetched
     let healthState = $appHealthStore;
-    
-    // Use $derived to make apps reactive to both appSkillsStore and healthStore changes
-    // This ensures apps are filtered when health status is updated
+
+    // Subscribe to user skills store to trigger reactivity when user-specific filtering is ready
+    let userSkillsState = $userAvailableSkillsStore;
+
+    // Use $derived to make apps reactive to health and user skill availability changes
     let apps = $derived.by(() => {
-        // Access health state to trigger reactivity
+        // Access both stores to trigger reactivity when either updates
         void healthState;
+        void userSkillsState;
         // Get filtered apps from store (filtering happens in getState())
         return appSkillsStore.getState().apps;
     });

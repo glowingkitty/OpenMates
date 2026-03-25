@@ -8,21 +8,21 @@ security.description:
   zh: 管理您的密码、通行密钥和双因素认证
   es: Gestiona tus contraseñas, llaves de acceso y autenticación de dos factores
   fr: Gérez vos mots de passe, clés d'accès et authentification à deux facteurs
-  pt: ""
-  ru: ""
+  pt: Gerencie suas senhas, chaves de acesso e autenticação de dois fatores
+  ru: Управляйте паролями, ключами доступа и двухфакторной аутентификацией
   ja: パスワード、パスキー、二要素認証を管理する
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 비밀번호, 패스키 및 이중 인증을 관리하세요
+  it: Gestisci le tue password, chiavi di accesso e autenticazione a due fattori
+  tr: Şifrelerinizi, erişim anahtarlarınızı ve iki faktörlü kimlik doğrulamanızı yönetin
+  vi: Quản lý mật khẩu, khóa truy cập và xác thực hai yếu tố của bạn
+  id: Kelola kata sandi, kunci akses, dan autentikasi dua faktor Anda
+  pl: Zarządzaj swoimi hasłami, kluczami dostępu i uwierzytelnianiem dwuskładnikowym
+  nl: Beheer uw wachtwoorden, toegangssleutels en tweefactorauthenticatie
   ar: إدارة كلمات المرور ومفاتيح المرور والمصادقة الثنائية
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: अपने पासवर्ड, पासकी और दो-कारक प्रमाणीकरण प्रबंधित करें
+  th: จัดการรหัสผ่าน คีย์การเข้าถึง และการยืนยันตัวตนสองขั้นตอนของคุณ
+  cs: Spravujte svá hesla, přístupové klíče a dvoufaktorové ověřování
+  sv: Hantera dina lösenord, åtkomstnycklar och tvåfaktorsautentisering
   he: נהל את הסיסמאות, מפתחות הגישה והאימות הדו-שלבי שלך
   verified_by_human: []
 
@@ -30,7 +30,24 @@ security:
   context: Security settings section title
   en: Security
   de: Sicherheit
+  zh: 安全
+  es: Seguridad
+  fr: Sécurité
+  pt: Segurança
+  ru: Безопасность
+  ja: セキュリティ
+  ko: 보안
+  it: Sicurezza
+  tr: Güvenlik
+  vi: Bảo mật
+  id: Keamanan
+  pl: Bezpieczeństwo
+  nl: Beveiliging
   ar: الأمان
+  hi: सुरक्षा
+  th: ความปลอดภัย
+  cs: Zabezpečení
+  sv: Säkerhet
   he: אבטחה
   verified_by_human: []
 
@@ -347,6 +364,7 @@ email_otp_description:
   th: เราจะส่งรหัสยืนยันไปยังที่อยู่อีเมลของคุณ
   cs: Na vaši e-mailovou adresu zašleme ověřovací kód.
   sv: Vi skickar en verifieringskod till din e-postadress.
+  he: נשלח קוד אימות לכתובת האימייל שלך.
   verified_by_human: []
 
 send_verification_code:
@@ -371,6 +389,7 @@ send_verification_code:
   th: ส่งรหัสยืนยัน
   cs: Odeslat ověřovací kód
   sv: Skicka verifieringskod
+  he: שלח קוד אימות
   verified_by_human: []
 
 email_otp_enter_code:
@@ -395,6 +414,7 @@ email_otp_enter_code:
   th: กรอกรหัส 6 หลักที่ส่งไปยังอีเมลของคุณ
   cs: Zadejte 6místný kód zaslaný na váš e-mail.
   sv: Ange den 6-siffriga koden som skickades till din e-post.
+  he: הזן את הקוד בן 6 הספרות שנשלח לאימייל שלך.
   verified_by_human: []
 
 resend_code:
@@ -419,6 +439,7 @@ resend_code:
   th: ส่งรหัสอีกครั้ง
   cs: Znovu odeslat kód
   sv: Skicka koden igen
+  he: שלח את הקוד שוב
   verified_by_human: []
 
 # --- SettingsPassword Component ---
@@ -2762,6 +2783,7 @@ tfa_setup_required:
   context: Title when 2FA setup is required after adding password
   en: Set Up Two-Factor Authentication
   de: Zwei-Faktor-Authentifizierung einrichten
+  zh: 设置双因素认证
   es: Configurar autenticación de dos factores
   fr: Configurer l'authentification à deux facteurs
   pt: Configurar autenticação de dois fatores
@@ -2786,6 +2808,7 @@ tfa_setup_required_description:
   context: Description explaining why 2FA is required after adding password
   en: To complete your password setup, you need to enable two-factor authentication for additional security.
   de: Um Ihre Passwort-Einrichtung abzuschließen, müssen Sie die Zwei-Faktor-Authentifizierung für zusätzliche Sicherheit aktivieren.
+  zh: 要完成密码设置，您需要启用双因素认证以增强安全性。
   es: Para completar la configuración de tu contraseña, necesitas habilitar la autenticación de dos factores para mayor seguridad.
   fr: Pour terminer la configuration de votre mot de passe, vous devez activer l'authentification à deux facteurs pour une sécurité supplémentaire.
   pt: Para concluir a configuração da sua senha, você precisa ativar a autenticação de dois fatores para segurança adicional.
@@ -2810,6 +2833,7 @@ password_needs_tfa:
   context: Info banner explaining that password login requires 2FA
   en: Password login requires two-factor authentication. Complete the setup below to secure your account.
   de: Passwort-Anmeldung erfordert Zwei-Faktor-Authentifizierung. Schließen Sie die Einrichtung unten ab, um Ihr Konto zu sichern.
+  zh: 密码登录需要双因素认证。请完成以下设置以保护您的账户。
   es: El inicio de sesión con contraseña requiere autenticación de dos factores. Complete la configuración a continuación para asegurar su cuenta.
   fr: La connexion par mot de passe nécessite une authentification à deux facteurs. Complétez la configuration ci-dessous pour sécuriser votre compte.
   pt: O login com senha requer autenticação de dois fatores. Complete a configuração abaixo para proteger sua conta.
@@ -2834,6 +2858,7 @@ password_and_tfa_success:
   context: Success message after both password and 2FA setup are complete
   en: Your password and two-factor authentication have been set up successfully. Your account is now fully secured.
   de: Ihr Passwort und die Zwei-Faktor-Authentifizierung wurden erfolgreich eingerichtet. Ihr Konto ist jetzt vollständig gesichert.
+  zh: 您的密码和双因素认证已成功设置。您的账户现已完全受到保护。
   es: Tu contraseña y la autenticación de dos factores se han configurado correctamente. Tu cuenta ahora está completamente protegida.
   fr: Votre mot de passe et l'authentification à deux facteurs ont été configurés avec succès. Votre compte est maintenant entièrement sécurisé.
   pt: Sua senha e autenticação de dois fatores foram configuradas com sucesso. Sua conta agora está totalmente protegida.
@@ -2858,6 +2883,7 @@ tfa_required_for_password:
   context: Error message shown when user cancels 2FA setup during password setup
   en: Two-factor authentication is required to set up a password. Please complete 2FA setup to continue.
   de: Die Zwei-Faktor-Authentifizierung ist erforderlich, um ein Passwort einzurichten. Bitte schließen Sie die 2FA-Einrichtung ab, um fortzufahren.
+  zh: 设置密码需要双因素认证。请完成2FA设置以继续。
   es: Se requiere autenticación de dos factores para configurar una contraseña. Por favor, complete la configuración de 2FA para continuar.
   fr: L'authentification à deux facteurs est requise pour configurer un mot de passe. Veuillez terminer la configuration 2FA pour continuer.
   pt: A autenticação de dois fatores é necessária para configurar uma senha. Por favor, complete a configuração do 2FA para continuar.

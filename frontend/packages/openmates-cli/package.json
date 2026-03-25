@@ -1,0 +1,50 @@
+{
+  "name": "openmates",
+  "version": "0.7.0-alpha.1",
+  "description": "OpenMates CLI and SDK",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "openmates": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/cli.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts src/cli.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test:unit:crypto": "node --test --experimental-strip-types tests/crypto.test.ts",
+    "test:unit:storage": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/storage.test.ts",
+    "test:unit:keychain": "node --test --experimental-strip-types tests/keychain.test.ts",
+    "test:unit:server": "node --test --experimental-strip-types tests/server.test.ts",
+    "test:unit:cli": "node --test tests/cli.test.ts",
+    "test": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/crypto.test.ts tests/storage.test.ts tests/keychain.test.ts tests/mentions.test.ts tests/outputRedactor.test.ts tests/fileEmbed.test.ts tests/embedCreator.test.ts tests/shareEncryption.test.ts tests/server.test.ts && node --test tests/cli.test.ts"
+  },
+  "keywords": [
+    "openmates",
+    "cli",
+    "sdk"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@toon-format/toon": "2.1.0",
+    "ahocorasick": "1.0.2",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.0",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
+}

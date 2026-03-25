@@ -730,7 +730,7 @@ class InspirationCacheMixin:
 
         Called during graceful shutdown so that personalisation data and
         eligibility state survive a server restart.  Mirrors the pattern used by
-        dump_pending_orders_to_disk() and dump_reminders_to_disk().
+        dump_pending_orders_to_disk().
 
         Backed-up data:
         - daily_inspiration_topics:{user_id}   — topic suggestion batches (72 h TTL)
@@ -817,7 +817,7 @@ class InspirationCacheMixin:
 
         Called during startup to recover inspiration personalisation and eligibility
         state after a server restart.  Mirrors restore_orders_from_disk() / 
-        restore_reminders_from_disk().
+        restore_orders_from_disk().
 
         Entries whose effective remaining TTL has already elapsed are skipped
         (they would have expired in Redis anyway — no point restoring stale data).

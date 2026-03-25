@@ -52,7 +52,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 <!-- Action Button -->
 <div class="action-section">
     <button class="done-button" onclick={goBackToSupport}>
-        {$text('settings.support.done')}
+        {$text('common.done')}
     </button>
 </div>
 

@@ -1360,7 +1360,7 @@ export function flushSaveDraft() {
  * Deletes the current chat.
  * This is a more explicit delete action than just clearing a draft.
  */
-export async function deleteCurrentChat() {
+async function deleteCurrentChat() {
   const currentState = get(draftEditorUIState); // Use renamed store
   const chatIdToDelete = currentState.currentChatId;
 

@@ -20,6 +20,7 @@ import httpx
 from typing import Dict, Any, List, Optional
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.testing.caching_http_transport import create_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +328,7 @@ async def search_web(
     logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="web"
@@ -354,12 +355,15 @@ async def search_web(
                 if isinstance(meta_url, dict):
                     favicon = meta_url.get("favicon")
                 
-                # Extract thumbnail
+                # Extract thumbnail — prefer 'src' (Brave-proxied, required per API schema)
+                # over 'original' (raw source URL, optional). Many news results only have 'src'.
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # Extract extra_snippets (array of additional snippets)
                 extra_snippets = result.get("extra_snippets", [])
                 if not isinstance(extra_snippets, list):
@@ -392,12 +396,13 @@ async def search_web(
                         "name": profile_name
                     } if profile_name else None,
                     "thumbnail": {
+                        "src": thumbnail_src,
                         "original": thumbnail_original
-                    } if thumbnail_original else None,
+                    } if (thumbnail_src or thumbnail_original) else None,
                     "extra_snippets": extra_snippets
                 }
                 formatted_results.append(formatted_result)
-            
+
             logger.info(f"Brave web search completed: found {len(formatted_results)} results for query '{query}'")
             
             return {
@@ -519,7 +524,7 @@ async def search_videos(
     logger.debug(f"Performing Brave video search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="video"
@@ -537,15 +542,17 @@ async def search_videos(
                 # Extract meta_url
                 meta_url = result.get("meta_url", {})
                 
-                # Extract thumbnail
+                # Extract thumbnail — prefer 'src' (Brave-proxied) over 'original' (raw, optional)
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # Extract video metadata
                 video_data = result.get("video", {})
-                
+
                 formatted_result = {
                     "title": result.get("title", ""),
                     "url": result.get("url", ""),
@@ -555,8 +562,9 @@ async def search_videos(
                     "language": result.get("language", ""),
                     "family_friendly": result.get("family_friendly", True),
                     "thumbnail": {
+                        "src": thumbnail_src,
                         "original": thumbnail_original
-                    } if thumbnail_original else None,
+                    } if (thumbnail_src or thumbnail_original) else None,
                     "video": video_data if video_data else None,
                     "extra_snippets": []  # Videos API doesn't support extra_snippets
                 }
@@ -691,7 +699,7 @@ async def search_news(
     logger.debug(f"Performing Brave news search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="news"
@@ -709,17 +717,20 @@ async def search_news(
                 # Extract meta_url
                 meta_url = result.get("meta_url", {})
                 
-                # Extract thumbnail
+                # Extract thumbnail — prefer 'src' (Brave-proxied, required per API schema)
+                # over 'original' (raw source URL, optional). Many news results only have 'src'.
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # Extract extra_snippets (array of additional snippets)
                 extra_snippets_list = result.get("extra_snippets", [])
                 if not isinstance(extra_snippets_list, list):
                     extra_snippets_list = []
-                
+
                 formatted_result = {
                     "title": result.get("title", ""),
                     "url": result.get("url", ""),
@@ -729,8 +740,9 @@ async def search_news(
                     "language": result.get("language", ""),
                     "family_friendly": result.get("family_friendly", True),
                     "thumbnail": {
+                        "src": thumbnail_src,
                         "original": thumbnail_original
-                    } if thumbnail_original else None,
+                    } if (thumbnail_src or thumbnail_original) else None,
                     "extra_snippets": extra_snippets_list,
                     "breaking": result.get("breaking", False)  # News-specific field
                 }
@@ -792,6 +804,9 @@ async def search_images(
     country: str = "us",
     search_lang: str = "en",
     safesearch: str = "strict",
+    size: Optional[str] = None,
+    image_type: Optional[str] = None,
+    color: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Performs an image search using the Brave Search Images API.
@@ -835,6 +850,12 @@ async def search_images(
         "safesearch": safesearch,
         "spellcheck": "1",
     }
+    if size:
+        params["size"] = size
+    if image_type:
+        params["type"] = image_type
+    if color:
+        params["color"] = color
 
     url = f"{BRAVE_API_BASE_URL}/images/search"
     headers = {
@@ -850,7 +871,7 @@ async def search_images(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
                 query=query, search_type="images"

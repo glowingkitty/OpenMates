@@ -29,6 +29,11 @@
         // Set to false when a SettingsMainHeader gradient banner is rendered above, so the
         // profile section is not duplicated.
         showProfileHeader = true,
+        // Pre-resolved blob URL (or legacy https:// URL) for the profile avatar.
+        // Passed from the parent (Settings.svelte) which fetches it via profileImageService
+        // so that auth-gated proxy paths work correctly. Falls back to the raw store value
+        // for the legacy case where showProfileHeader=true is used standalone.
+        resolvedProfileImageUrl = null,
     }: {
         activeSettingsView?: string;
         direction?: string;
@@ -44,6 +49,7 @@
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
         showProfileHeader?: boolean;
+        resolvedProfileImageUrl?: string | null;
     } = $props();
     
     // State for docked profile visibility
@@ -280,11 +286,19 @@
                                 <div class="clickable-icon icon_user"></div>
                             </div>
                         {:else}
+                            <!-- Use resolvedProfileImageUrl (fetched via profileImageService with
+                                 credentials) so auth-gated proxy paths work. Falls back to the
+                                 raw profileImageUrl only for legacy public https:// URLs which
+                                 don't need credential forwarding. Never use the raw proxy path
+                                 directly in CSS background-image — browsers don't send cookies. -->
+                            {@const avatarUrl = resolvedProfileImageUrl ?? (profileImageUrl?.startsWith('http') ? profileImageUrl : null)}
                             <div
                                 class="profile-picture"
-                                style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+                                class:profile-picture-img={!!avatarUrl}
                             >
-                                {#if !profileImageUrl}
+                                {#if avatarUrl}
+                                    <img class="profile-picture-avatar" src={avatarUrl} alt="Profile" />
+                                {:else}
                                     <div class="default-user-icon"></div>
                                 {/if}
                             </div>
@@ -375,19 +389,21 @@
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
-                <SettingsItem 
+                <SettingsItem
+                    type="submenu"
                     icon={key === 'logs' ? 'server' : key}
                     title={key === 'logs' ? 'Logs' : $text(`settings.${key}`)}
-                    onClick={() => showSettingsView(key, null)} 
+                    onClick={() => showSettingsView(key, null)}
                 />
             {/each}
 
             <!-- Only show logout button for authenticated users -->
             {#if username}
-                <SettingsItem 
-                    icon="subsetting_icon logout" 
-                    title={$text('settings.logout')} 
-                    onClick={handleLogout} 
+                <SettingsItem
+                    type="quickaction"
+                    icon="subsetting_icon logout"
+                    title={$text('settings.logout')}
+                    onClick={handleLogout}
                 />
             {/if}
         </div>
@@ -431,14 +447,24 @@
         border-radius: 50%;
         width: 100%;
         height: 100%;
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
         background-color: var(--color-grey-20);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    /* When a profile image blob URL is available, clip the <img> to the circle */
+    .profile-container-docked .profile-picture.profile-picture-img {
+        overflow: hidden;
+    }
+
+    .profile-container-docked .profile-picture-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
     }
     
     .profile-container-docked .language-icon-container {

@@ -132,6 +132,29 @@
           {% endfor %}
           {% endif %}
 
+          <!-- All Tests section — full list grouped by suite with pass/fail icons -->
+          {% if has_all_tests %}
+          <mj-text font-size="18px" padding-bottom="10px" padding-top="10px" font-weight="bold">
+            All Tests
+          </mj-text>
+
+          {% for suite_name, tests in all_tests_by_suite.items() %}
+          <mj-text font-size="14px" padding-bottom="12px">
+            <div style="background-color: {% if darkmode %}#1e1e1e{% else %}#fafafa{% endif %}; border-radius: 6px; padding: 12px 14px; text-align: left; margin-bottom: 8px;">
+              <div style="font-family: monospace; font-size: 14px; font-weight: bold; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid {% if darkmode %}#444{% else %}#ddd{% endif %};">
+                {{ suite_name }} ({{ tests | length }})
+              </div>
+              {% for test in tests %}
+              <div style="font-family: monospace; font-size: 12px; padding: 3px 0; color: {% if test.status == 'passed' %}#4CAF50{% elif test.status == 'failed' %}#F44336{% elif test.status == 'skipped' %}#FF9800{% else %}#9E9E9E{% endif %};">
+                {{ test.icon }} {{ test.name }}
+                {% if test.duration_seconds %}<span style="color: {% if darkmode %}#888{% else %}#999{% endif %}; font-size: 11px;"> ({{ test.duration_seconds }}s)</span>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </mj-text>
+          {% endfor %}
+          {% endif %}
+
           <!-- Footer note -->
           <mj-text font-size="13px" padding-bottom="30px" font-style="italic" color="{% if darkmode %}#888{% else %}#999{% endif %}">
             {{ t.email.test_run_summary.footer_note.text }}

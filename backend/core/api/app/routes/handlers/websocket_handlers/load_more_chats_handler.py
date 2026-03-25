@@ -89,16 +89,19 @@ async def handle_load_more_chats(
         if cached_chat_ids:
             logger.info(f"Load more: Using {len(cached_chat_ids)} cached chat IDs for user {user_id[:8]}... (offset={offset})")
             
-            # Fetch metadata for each chat from cache
+            # Fetch metadata for each chat from cache — batch Redis lookups
             chat_ids_needing_directus = []
+            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
+            batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
+
             for chat_id in cached_chat_ids:
-                cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
-                
+                cached_list_item = batch_list_items.get(chat_id)
+                cached_versions = batch_versions.get(chat_id)
+
                 if not cached_list_item:
                     chat_ids_needing_directus.append(chat_id)
                     continue
-                
+
                 # Build chat wrapper in same format as Phase 2/3 (metadata only, no messages)
                 chat_wrapper = _build_chat_wrapper_from_cache(chat_id, cached_list_item, cached_versions)
                 chats_to_send.append(chat_wrapper)

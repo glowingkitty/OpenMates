@@ -81,9 +81,9 @@
         return model.input_types.map(type => {
             switch (type) {
                 case 'text': return $text('settings.ai_ask.ai_ask_model_details.input_type_text');
-                case 'image': return $text('settings.ai_ask.ai_ask_model_details.input_type_image');
+                case 'image': return $text('common.images');
                 case 'video': return $text('settings.ai_ask.ai_ask_model_details.input_type_video');
-                case 'audio': return $text('settings.ai_ask.ai_ask_model_details.input_type_audio');
+                case 'audio': return $text('common.audio');
                 default: return type;
             }
         }).join(', ');
@@ -95,7 +95,7 @@
         return model.output_types.map(type => {
             switch (type) {
                 case 'text': return $text('settings.ai_ask.ai_ask_model_details.output_type_text');
-                case 'image': return $text('settings.ai_ask.ai_ask_model_details.output_type_image');
+                case 'image': return $text('common.images');
                 default: return type;
             }
         }).join(', ');
@@ -191,7 +191,7 @@
             <SettingsItem
                 type="heading"
                 icon="insight"
-                title={$text('settings.app_store.skills.model_detail.model_info')}
+                title={$text('common.details')}
             />
             <div class="info-content">
                 <!-- Origin -->
@@ -249,7 +249,7 @@
                 <SettingsItem
                     type="heading"
                     icon="coins"
-                    title={$text('settings.app_store.skills.model_detail.pricing')}
+                    title={$text('common.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing?.input_tokens_per_credit}
@@ -278,7 +278,7 @@
                 <SettingsItem
                     type="heading"
                     icon="coins"
-                    title={$text('settings.app_store.skills.model_detail.pricing')}
+                    title={$text('common.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing?.per_unit}
@@ -310,7 +310,7 @@
                 <SettingsItem
                     type="heading"
                     icon="coins"
-                    title={$text('settings.app_store.skills.model_detail.pricing')}
+                    title={$text('common.pricing')}
                 />
                 <div class="pricing-content">
                     {#if skill.pricing.per_unit}
@@ -337,7 +337,7 @@
                         <div class="pricing-row">
                             <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
                             <span class="pricing-value">
-                                {skill.pricing.fixed} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.app_store.skills.pricing.credits')}
+                                {skill.pricing.fixed} <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('common.credits')}
                             </span>
                         </div>
                     {/if}
@@ -351,7 +351,7 @@
                 <SettingsItem
                     type="heading"
                     icon="server"
-                    title={$text('settings.app_store.skills.model_detail.provider')}
+                    title={$text('common.provider')}
                 />
                 <div class="provider-list">
                     {#each model.servers as server (server.id)}

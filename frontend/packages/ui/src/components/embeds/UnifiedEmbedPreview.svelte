@@ -118,14 +118,33 @@
   // Local reactive state for status - can be updated when embedUpdated fires
   // This overrides the prop when we receive updates from the server
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
-  
-  // Initialize local status from prop
+
+  // Track whether the store has resolved a definitive status for this embed.
+  // Once the store says "finished", the $effect must NOT revert to statusProp
+  // (which may still be "processing" from the HTML attribute baked during streaming).
+  let storeResolved = $state(false);
+
+  // Initialize local status from prop — but only when the store hasn't resolved yet.
+  // After refetchFromStore() or an embedUpdated event sets a terminal status,
+  // the prop is ignored to prevent re-mount from reverting "finished" → "processing".
   $effect(() => {
-    localStatus = statusProp || 'processing';
+    if (!storeResolved) {
+      localStatus = statusProp || 'processing';
+    }
   });
-  
+
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus);
+
+  // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a
+  // request_embed to the server. Redis pub/sub is fire-and-forget — if the
+  // "finished" event was lost, this one-shot check recovers it.
+  // A second check at STALE_CHECK_FINAL_MS acts as a final fallback for
+  // genuinely slow skills.
+  const STALE_CHECK_MS = 5_000;
+  const STALE_CHECK_FINAL_MS = 15_000;
+  let staleTimer1: ReturnType<typeof setTimeout> | null = null;
+  let staleTimer2: ReturnType<typeof setTimeout> | null = null;
   
   /**
    * Handle embed updates from chatSyncService
@@ -143,6 +162,10 @@
     // Update status immediately from event if provided
     if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error' || newStatus === 'cancelled')) {
       localStatus = newStatus;
+      // Mark store-resolved for terminal statuses so $effect won't revert on re-mount
+      if (newStatus !== 'processing') {
+        storeResolved = true;
+      }
     }
     
     // CRITICAL: Do NOT refetch for error/cancelled embeds.
@@ -186,12 +209,28 @@
       const embedData = await resolveEmbed(id);
       if (embedData) {
         
-        // Update status from fetched data
+        // Update status from fetched data.
+        // CRITICAL: Don't regress from a terminal status back to "processing".
+        // The in-memory embedCache may still hold stale "processing" data from
+        // setInMemoryOnly() (streaming row events) while the finalization path's
+        // putEncrypted() hasn't completed yet. If handleEmbedUpdate already set
+        // a terminal status (storeResolved=true), trust it over stale store data.
         if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error' || embedData.status === 'cancelled')) {
-          localStatus = embedData.status;
+          if (!storeResolved || embedData.status !== 'processing') {
+            localStatus = embedData.status;
+          }
+          if (embedData.status !== 'processing') {
+            storeResolved = true;
+          }
         }
-        
-        // Decode content and notify child component if callback is provided
+
+        // Decode content and notify child component if callback is provided.
+        // Skip propagating stale "processing" data to child components when a
+        // terminal status is already known — prevents overwriting correct state
+        // in SheetEmbedPreview/CodeEmbedPreview etc.
+        if (storeResolved && embedData.status === 'processing') {
+          return;
+        }
         if (onEmbedDataUpdated && embedData.content) {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
@@ -210,21 +249,51 @@
   // Subscribe to embedUpdated events on mount
   let embedUpdateListener: ((event: Event) => void) | null = null;
   
+  /**
+   * Stale-embed recovery: if embed is still "processing" after a delay, re-request
+   * from the server. This recovers from lost Redis pub/sub "finished" events.
+   * One-shot check (not a polling loop) — a second timer acts as final fallback.
+   */
+  async function requestStaleEmbedUpdate() {
+    // Only request if still processing and not a legacy/synthetic ID
+    if (localStatus !== 'processing' || id.startsWith('legacy-')) return;
+
+    try {
+      const { webSocketService } = await import('../../services/websocketService');
+      console.info(
+        `[UnifiedEmbedPreview] Stale recovery: requesting embed ${id} from server (still processing after mount)`
+      );
+      await webSocketService.sendMessage('request_embed', { embed_id: id });
+    } catch (err) {
+      console.debug(`[UnifiedEmbedPreview] Stale recovery request failed for ${id}:`, err);
+    }
+  }
+
   onMount(() => {
-    
+
     // Subscribe to embedUpdated events from chatSyncService
     embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
     chatSyncService.addEventListener('embedUpdated', embedUpdateListener);
-    
+
     // Do an initial fetch to ensure we have the latest data
     // (in case the embed was updated between render and mount)
     refetchFromStore();
+
+    // Stale-embed recovery timers: if the embed is still "processing" after 5s/15s,
+    // re-request from the server. Redis pub/sub is fire-and-forget — if the "finished"
+    // event was lost (transient Redis issue, WebSocket reconnect), this recovers it.
+    staleTimer1 = setTimeout(requestStaleEmbedUpdate, STALE_CHECK_MS);
+    staleTimer2 = setTimeout(requestStaleEmbedUpdate, STALE_CHECK_FINAL_MS);
 
     // Enable scroll-driven pseudo tilt on coarse-pointer devices.
     viewportListenerCleanup = setupScrollTiltListeners();
   });
   
   onDestroy(() => {
+    // Clean up stale-embed recovery timers
+    if (staleTimer1) { clearTimeout(staleTimer1); staleTimer1 = null; }
+    if (staleTimer2) { clearTimeout(staleTimer2); staleTimer2 = null; }
+
     // Clean up event listener
     if (embedUpdateListener) {
       chatSyncService.removeEventListener('embedUpdated', embedUpdateListener);
@@ -235,7 +304,7 @@
       viewportListenerCleanup();
       viewportListenerCleanup = null;
     }
-    
+
     // Clean up context menu reset timer
     if (contextMenuResetTimer) {
       clearTimeout(contextMenuResetTimer);

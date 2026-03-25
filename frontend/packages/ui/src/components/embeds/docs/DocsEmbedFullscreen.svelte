@@ -4,7 +4,7 @@
   Fullscreen view for Document embeds (document_html).
   Uses UnifiedEmbedFullscreen as base and provides document-specific content.
 
-  Architecture: See docs/claude/embed-types.md for the unified embed pattern.
+  Architecture: See docs/contributing/guides/add-embed-type.md for the unified embed pattern.
 
   Designed to look like reading a document in Microsoft Word / Google Docs:
   - Dark grey background canvas (the area around and between pages)
@@ -77,14 +77,14 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
     /**
-     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_1]")
+     * PII mappings from the parent chat — maps placeholder strings (e.g. "[EMAIL_com]")
      * to original values. When provided and piiRevealed is true, placeholder strings
      * in the document content are replaced with the originals for display.
      */
     piiMappings?: PIIMapping[];
     /**
      * Whether PII originals are currently visible.
-     * When false (default), placeholder strings like [EMAIL_1] are shown as-is.
+     * When false (default), placeholder strings like [EMAIL_com] are shown as-is.
      * When true, placeholders are replaced with original values.
      * This is the initial value — the user can toggle locally in fullscreen.
      */
@@ -586,13 +586,14 @@ ${downloadHtmlContent}
           inside this area. touch-action: pan-x pan-y allows us to intercept
           pinch gestures while keeping normal scroll.
         -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}
           ontouchstart={handleTouchStart}
           ontouchmove={handleTouchMove}
           ontouchend={handleTouchEnd}
+          role="region"
+          aria-label="Document viewer"
         >
           <!--
             Scroll-size wrapper: explicit dimensions matching the visual (scaled)

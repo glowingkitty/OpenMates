@@ -38,7 +38,9 @@ if [ -f "$SENTINEL_FILE" ] && [ -f "$TOKEN_FILE" ]; then
     FIRST_CHARS=$(echo "$VAULT_TOKEN" | cut -c 1-4)
     echo "Vault token ready (sentinel=$SENTINEL_TS). Token starts with: $FIRST_CHARS..."
     echo "Starting API server..."
-    exec uvicorn backend.core.api.main:app --host 0.0.0.0 --port ${REST_API_PORT:-8000} --proxy-headers --forwarded-allow-ips='*'
+    # SECURITY: Only trust X-Forwarded-For from Docker bridge network (172.16.0.0/12).
+    # Never use '*' — any client could spoof their IP and bypass rate limits.
+    exec uvicorn backend.core.api.main:app --host 0.0.0.0 --port ${REST_API_PORT:-8000} --proxy-headers --forwarded-allow-ips="172.16.0.0/12"
 fi
 
 # Slow path: first boot or broken state — wait for vault-setup to complete.
@@ -82,4 +84,6 @@ fi
 
 # Start the API server
 echo "Starting API server..."
-exec uvicorn backend.core.api.main:app --host 0.0.0.0 --port ${REST_API_PORT:-8000} --proxy-headers --forwarded-allow-ips='*'
+# SECURITY: Only trust X-Forwarded-For from Docker bridge network (172.16.0.0/12).
+# Never use '*' — any client could spoof their IP and bypass rate limits.
+exec uvicorn backend.core.api.main:app --host 0.0.0.0 --port ${REST_API_PORT:-8000} --proxy-headers --forwarded-allow-ips="172.16.0.0/12"

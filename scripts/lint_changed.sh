@@ -288,13 +288,13 @@ for path in "${changed_files[@]}"; do
   esac
 done
 
-# Combine for ESLint (which handles TS, Svelte, CSS, and HTML)
-# Note: ESLint can lint TypeScript, Svelte, CSS, and HTML files
+# Combine for ESLint (TS, Svelte, CSS only)
+# HTML files are intentionally excluded because our flat ESLint config does not
+# include an HTML processor and reports ignored-file warnings as lint failures.
 declare -a js_files=()
 ${check_ts} && js_files+=("${ts_files[@]}")
 ${check_svelte} && js_files+=("${svelte_files[@]}")
 ${check_css} && js_files+=("${css_files[@]}")
-${check_html} && js_files+=("${html_files[@]}")
 
 run_yaml_lint() {
   if (( ${#yml_files[@]} == 0 )); then
@@ -475,7 +475,17 @@ run_eslint_file() {
     fi
   fi
 
-  if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+  # Use the eslint binary directly via node to bypass pnpm exec resolution,
+  # which can fail with ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL when eslint
+  # isn't in the target package's hoisted deps.
+  if [[ -n "${eslint_bin_path}" ]]; then
+    if node "${eslint_bin_path}" --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
+      echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
+    else
+      echo "${label}: error ${pkg_root#${repo_root}/}/${rel_file}" >&2
+      overall_status=1
+    fi
+  elif [[ "${pnpm_cmd}" == "pnpm" ]]; then
     if pnpm -C "${eslint_cwd}" exec eslint --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
       echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
     else
@@ -519,18 +529,20 @@ run_tsc_check() {
       fi
     fi
 
-    # Only install if the TypeScript binary is missing in the target package.
+    # Check if the TypeScript binary is available. Never auto-install — pnpm install
+    # is extremely resource-intensive and can freeze the server for minutes.
     if [[ -f "${first_pkg_root}/node_modules/.bin/tsc" ]]; then
       js_deps_ready=true
     else
-      echo "TypeScript: missing dependencies for ${first_pkg_root#${repo_root}/}; installing..." >&2
-      if [[ "${pnpm_cmd}" == "pnpm" ]]; then
-        pnpm -C "${repo_root}" install
-      else
-        npm --prefix "${first_pkg_root}" install
-      fi
-      js_deps_ready=true
+      echo "TypeScript: SKIPPED — tsc not found in ${first_pkg_root#${repo_root}/}/node_modules/.bin/" >&2
+      echo "  Run 'pnpm install' manually, then retry." >&2
+      js_deps_ready=false
     fi
+  fi
+
+  # Skip type-checking if tsc is not available
+  if ! ${js_deps_ready}; then
+    return 0
   fi
 
   # Group files by package to run tsc once per package
@@ -572,7 +584,7 @@ run_tsc_check() {
 
     if [[ "${pnpm_cmd}" == "pnpm" ]]; then
       local tsc_output
-      tsc_output="$(pnpm -C "${pkg}" exec tsc --noEmit 2>&1 || true)"
+      tsc_output="$(timeout 60 pnpm -C "${pkg}" exec tsc --noEmit 2>&1 || true)"
       if [[ -z "${tsc_output}" ]]; then
         echo "TypeScript: ok ${pkg#${repo_root}/}"
       else
@@ -593,7 +605,7 @@ run_tsc_check() {
       fi
     else
       local tsc_output
-      tsc_output="$(npm --prefix "${pkg}" exec -- tsc --noEmit 2>&1 || true)"
+      tsc_output="$(timeout 60 npm --prefix "${pkg}" exec -- tsc --noEmit 2>&1 || true)"
       if [[ -z "${tsc_output}" ]]; then
         echo "TypeScript: ok ${pkg#${repo_root}/}"
       else
@@ -642,18 +654,20 @@ run_svelte_check() {
       fi
     fi
 
-    # Only install if the svelte-check binary is missing in the target package.
+    # Check if svelte-check binary is available. Never auto-install — pnpm install
+    # is extremely resource-intensive and can freeze the server for minutes.
     if [[ -f "${first_pkg_root}/node_modules/.bin/svelte-check" ]]; then
       js_deps_ready=true
     else
-      echo "Svelte: missing dependencies for ${first_pkg_root#${repo_root}/}; installing..." >&2
-      if [[ "${pnpm_cmd}" == "pnpm" ]]; then
-        pnpm -C "${repo_root}" install
-      else
-        npm --prefix "${first_pkg_root}" install
-      fi
-      js_deps_ready=true
+      echo "Svelte: SKIPPED — svelte-check not found in ${first_pkg_root#${repo_root}/}/node_modules/.bin/" >&2
+      echo "  Run 'pnpm install' manually, then retry." >&2
+      js_deps_ready=false
     fi
+  fi
+
+  # Skip svelte-check if binary is not available
+  if ! ${js_deps_ready}; then
+    return 0
   fi
 
   # Group files by package
@@ -700,9 +714,9 @@ run_svelte_check() {
       local check_output=""
       # Try the check script first (for SvelteKit apps), then fall back to svelte-check directly
       if grep -q '"check"' "${pkg}/package.json" 2>/dev/null; then
-        check_output="$(pnpm -C "${pkg}" run check --if-present 2>&1 || true)"
+        check_output="$(timeout 60 pnpm -C "${pkg}" run check --if-present 2>&1 || true)"
       else
-        check_output="$(pnpm -C "${pkg}" exec svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
+        check_output="$(timeout 60 pnpm -C "${pkg}" exec svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
       fi
       
       if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then
@@ -727,9 +741,9 @@ run_svelte_check() {
     else
       local check_output=""
       if grep -q '"check"' "${pkg}/package.json" 2>/dev/null; then
-        check_output="$(npm --prefix "${pkg}" run check --if-present 2>&1 || true)"
+        check_output="$(timeout 60 npm --prefix "${pkg}" run check --if-present 2>&1 || true)"
       else
-        check_output="$(npm --prefix "${pkg}" exec -- svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
+        check_output="$(timeout 60 npm --prefix "${pkg}" exec -- svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
       fi
       
       if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then

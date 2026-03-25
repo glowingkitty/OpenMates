@@ -10,7 +10,7 @@
 # 1. Content safety scan ('nudity-2.0,offensive,gore') — BLOCKING
 #    - Checks for nudity, sexual content, violence, gore, offensive imagery
 #    - Rejects the upload if any threshold is exceeded (HTTP 422)
-#    - Mirrors the thresholds used by ImageSafetyService in the core API
+#    - This is the canonical content safety implementation (ImageSafetyService in the core API was dead code and has been removed)
 #    - Applied to ALL image uploads (chat images AND profile images)
 #    - API docs: https://sightengine.com/docs/nudity-detection
 #
@@ -251,21 +251,29 @@ class SightEngineService:
                 )
 
             if resp.status_code != 200:
-                logger.warning(
+                logger.error(
                     f"{log_prefix} Combined check API returned HTTP {resp.status_code}: "
-                    f"{resp.text[:200]} — failing open (upload allowed)"
+                    f"{resp.text[:200]} — failing CLOSED (upload rejected, service down)"
                 )
-                return ContentSafetyResult(is_safe=True, error=f"API error {resp.status_code}"), None
+                return ContentSafetyResult(
+                    is_safe=False,
+                    reason="safety_service_unavailable",
+                    error=f"API error {resp.status_code}",
+                ), None
 
             data = resp.json()
 
             if data.get("status") != "success":
                 error_msg = data.get("error", {}).get("message", "Unknown error")
-                logger.warning(
+                logger.error(
                     f"{log_prefix} Combined check API returned non-success: "
-                    f"{error_msg} — failing open (upload allowed)"
+                    f"{error_msg} — failing CLOSED (upload rejected, service error)"
                 )
-                return ContentSafetyResult(is_safe=True, error=error_msg), None
+                return ContentSafetyResult(
+                    is_safe=False,
+                    reason="safety_service_unavailable",
+                    error=error_msg,
+                ), None
 
             # --- Extract content safety scores ---
             nudity = data.get("nudity", {})
@@ -329,18 +337,26 @@ class SightEngineService:
             return safety_result, ai_result
 
         except httpx.TimeoutException as e:
-            logger.warning(
+            logger.error(
                 f"{log_prefix} Combined check request timed out: {e} — "
-                f"failing open (upload allowed)"
+                f"failing CLOSED (upload rejected, service timeout)"
             )
-            return ContentSafetyResult(is_safe=True, error="timeout"), None
+            return ContentSafetyResult(
+                is_safe=False,
+                reason="safety_service_unavailable",
+                error="timeout",
+            ), None
         except Exception as e:
             logger.error(
                 f"{log_prefix} Combined check failed: {e} — "
-                f"failing open (upload allowed)",
+                f"failing CLOSED (upload rejected, service error)",
                 exc_info=True,
             )
-            return ContentSafetyResult(is_safe=True, error=str(e)), None
+            return ContentSafetyResult(
+                is_safe=False,
+                reason="safety_service_unavailable",
+                error=str(e),
+            ), None
 
     async def check_content_safety(
         self, image_bytes: bytes, filename: str = "upload.jpg"
@@ -349,8 +365,7 @@ class SightEngineService:
         Check an image for nudity, sexual content, violence, and gore.
 
         Uses SightEngine models: nudity-2.0, offensive, gore.
-        Mirrors the thresholds in ImageSafetyService.check_profile_image()
-        from the core API.
+        This is the canonical content safety threshold implementation.
 
         BLOCKING: if is_safe=False on the result, the upload MUST be rejected.
 
@@ -418,7 +433,7 @@ class SightEngineService:
             offensive = data.get("offensive", {})
             gore = data.get("gore", {})
 
-            # Mirror thresholds from ImageSafetyService.check_profile_image():
+            # Content safety thresholds (canonical — previously also defined in the now-removed ImageSafetyService):
             sexual_activity = float(nudity.get("sexual_activity", 0.0))
             sexual_display = float(nudity.get("sexual_display", 0.0))
             erotica = float(nudity.get("erotica", 0.0))

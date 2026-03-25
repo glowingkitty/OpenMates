@@ -8,14 +8,14 @@
   - Auto-collapses when streaming completes (collapsed by default for finished thinking)
   - User can manually toggle expand/collapse at any time (respected during streaming)
   - Auto-scrolls content to the bottom as new chunks arrive
-  - Animated rotating gradient border while streaming (clearly signals "thinking in progress")
+  - Grey border highlight while streaming (clearly signals "thinking in progress")
   - Uses ReadOnlyMessage for markdown rendering
   - All user-facing text is i18n-translated
-  
+
   Visual Design:
   - reasoning.svg icon on the left
   - Translated "Thinking..." text during streaming, "Thought process" when done
-  - Animated conic-gradient border rotates slowly while streaming (border-only, non-distracting)
+  - Subtle grey border while streaming
   - dropdown.svg icon on the right that rotates 180° when expanded
   - Hover color change to indicate clickability
   
@@ -140,19 +140,6 @@
 {/if}
 
 <style>
-    /*
-     * Register --gradient-angle as an animatable CSS custom property.
-     * This is required for @keyframes to interpolate the angle value used in
-     * the conic-gradient on the streaming border pseudo-element.
-     * Without this, browsers cannot tween custom properties in @keyframes.
-     * @property is widely supported (Chrome 85+, Firefox 128+, Safari 16.4+).
-     */
-    @property --gradient-angle {
-        syntax: '<angle>';
-        initial-value: 0deg;
-        inherits: false;
-    }
-
     .thinking-section {
         margin-bottom: 12px;
         border-radius: 8px;
@@ -160,67 +147,17 @@
         border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
         overflow: hidden;
         position: relative;
-        /* isolation: isolate keeps the ::before gradient behind children */
-        isolation: isolate;
-        transition: border-color 0.2s ease, background-color 0.2s ease;
+        transition: background-color 0.2s ease;
     }
 
-    /*
-     * Animated gradient border while streaming.
-     * A conic-gradient rotates slowly inside a ::before pseudo-element that is
-     * positioned to match the container edges. The container clips it so only
-     * the 1px border strip is visible — giving a subtle "living" border effect.
-     * The ::after pseudo-element acts as the interior background fill so the
-     * gradient doesn't bleed into the content area.
-     *
-     * Technique: pseudo-element sits behind all children (z-index: -1) and is
-     * slightly larger than the box so the gradient covers the border zone.
-     * overflow:hidden on the parent clips it to the border-radius shape.
-     */
     .thinking-section.streaming {
-        /* Remove the static accent border — the animated pseudo-element replaces it */
-        border-color: transparent;
-    }
-
-    /* The spinning gradient layer — positioned behind content */
-    .thinking-section.streaming::before {
-        content: '';
-        position: absolute;
-        inset: -2px;
-        border-radius: 10px; /* slightly larger than the 8px container radius */
-        background: conic-gradient(
-            from var(--gradient-angle, 0deg),
-            transparent 0deg,
-            transparent 60deg,
-            var(--color-accent-secondary, #6366f1) 120deg,
-            var(--color-accent-primary, #3b82f6) 180deg,
-            transparent 240deg,
-            transparent 360deg
-        );
-        animation: spin-border 4s linear infinite;
-        z-index: -1;
-        opacity: 0.85;
-    }
-
-    /* Interior fill — sits on top of the gradient but behind the children */
-    .thinking-section.streaming::after {
-        content: '';
-        position: absolute;
-        inset: 1px; /* 1px inset matches border thickness */
-        border-radius: 7px;
-        background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
-        z-index: -1;
+        border-color: var(--color-grey-20);
     }
     
     .thinking-section.expanded {
         background: var(--color-grey-20);
     }
 
-    /* When expanded AND streaming, keep the interior fill consistent with expanded bg */
-    .thinking-section.expanded.streaming::after {
-        background: var(--color-grey-20);
-    }
-    
     .thinking-header {
         display: flex;
         align-items: center;
@@ -251,7 +188,6 @@
     }
     
     .thinking-header:focus {
-        outline: none;
         box-shadow: inset 0 0 0 2px var(--color-accent-primary, #3b82f6);
     }
     
@@ -327,39 +263,17 @@
         opacity: 0.85;
     }
     
-    /* Spinning border gradient — rotates @property angle for smooth conic animation.
-     * Falls back gracefully in browsers without @property support (the gradient just
-     * doesn't animate, showing a static tint instead). */
-    @keyframes spin-border {
-        from {
-            --gradient-angle: 0deg;
-        }
-        to {
-            --gradient-angle: 360deg;
-        }
-    }
-    
     /* Dark mode support */
     :global(.dark) .thinking-section {
         background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
         border-color: var(--color-border-subtle, rgba(255, 255, 255, 0.1));
     }
 
-    /* In dark mode, streaming border stays transparent so the gradient shines through */
     :global(.dark) .thinking-section.streaming {
-        border-color: transparent;
+        border-color: var(--color-grey-20);
     }
 
-    /* Dark interior fill for the streaming state pseudo-element */
-    :global(.dark) .thinking-section.streaming::after {
-        background: var(--color-surface-secondary, rgba(255, 255, 255, 0.03));
-    }
-    
     :global(.dark) .thinking-section.expanded {
-        background: var(--color-surface-primary, #1a1a1a);
-    }
-
-    :global(.dark) .thinking-section.expanded.streaming::after {
         background: var(--color-surface-primary, #1a1a1a);
     }
     

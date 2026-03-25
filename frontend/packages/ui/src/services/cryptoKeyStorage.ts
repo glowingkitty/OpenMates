@@ -78,8 +78,8 @@ export async function saveMasterKey(key: CryptoKey, stayLoggedIn: boolean): Prom
   if (stayLoggedIn) {
     // Persist to IndexedDB for long-term storage
     await saveMasterKeyToIndexedDB(key);
-    // Clear memory storage (no longer needed)
-    memoryMasterKey = null;
+    // Also cache in memory for fast subsequent reads (avoids repeated IDB lookups)
+    memoryMasterKey = key;
     memoryKeyStayLoggedIn = null;
     // Clear the cleanup flag (defense in depth)
     if (typeof window !== 'undefined') {
@@ -181,7 +181,13 @@ export async function getMasterKey(): Promise<CryptoKey | null> {
   }
   
   // Fall back to IndexedDB (for stayLoggedIn=true sessions)
-  return await getMasterKeyFromIndexedDB();
+  // Cache the result in memory for fast subsequent reads — avoids repeated IDB open/read/close
+  // which causes contention when called concurrently (e.g., parallel batch key decryption)
+  const key = await getMasterKeyFromIndexedDB();
+  if (key) {
+    memoryMasterKey = key;
+  }
+  return key;
 }
 
 /**

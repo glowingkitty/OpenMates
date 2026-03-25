@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
+  import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
   import { notificationStore } from '../../stores/notificationStore';
   import { unreadMessagesStore } from '../../stores/unreadMessagesStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
@@ -32,6 +33,10 @@
   import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
   import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
   import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
+  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
+  import { settingsMenuVisible } from '../Settings.svelte'; // For controlling Settings visibility
+  import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+  import { activeChatStore } from '../../stores/activeChatStore'; // For setting active chat before share
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -329,7 +334,7 @@
     
     // For regular chats, decrypt from encrypted fields
     // Get chat key for decryption
-    const chatKey = chatDB.getChatKey(chat.chat_id);
+    const chatKey = await chatKeyManager.getKey(chat.chat_id);
     if (!chatKey) {
       console.warn(`[Chat] No chat key found for chat ${chat.chat_id}, cannot decrypt icon/category`);
       return result;
@@ -544,7 +549,7 @@
     // CRITICAL: For non-authenticated users, check if this is a shared chat (has chat key) or sessionStorage-only chat
     if (!$authStore.isAuthenticated) {
       // Check if this is a shared chat (has chat key in cache) or sessionStorage-only chat
-      const chatKey = chatDB.getChatKey(currentChat.chat_id);
+      const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
       const sessionDraftPreview = getSessionStorageDraftPreview(currentChat.chat_id);
       
       if (sessionDraftPreview) {
@@ -783,7 +788,7 @@
       // only in the ActiveChat centered overlay — the sidebar keeps it simple.
       // CRITICAL: Use extractDisplayTextFromMarkdown to strip ```json embed blocks (images, code, etc.)
       // so the sidebar shows "[Image]" instead of raw JSON like "```json\n{\"type\": \"image\"...".
-      displayLabel = $text('enter_message.processing');
+      displayLabel = $text('common.processing');
       displayText = typeof lastMessage.content === 'string'
         ? extractDisplayTextFromMarkdown(lastMessage.content)
         : extractTextFromTiptap(lastMessage.content);
@@ -1218,6 +1223,9 @@
       case 'markRead':
         handleMarkRead();
         break;
+      case 'share':
+        handleShareChat();
+        break;
       default:
         console.warn('[Chat] Unknown context menu action:', action);
     }
@@ -1424,7 +1432,7 @@
       // Hidden chats are already unlocked - we can use the current combined secret
       // Get the current chat key (decrypted with master key)
       // First try: Check cache (fast path for chats that have been accessed)
-      let chatKey = chatDB.getChatKey(chatIdToHide);
+      let chatKey = await chatKeyManager.getKey(chatIdToHide);
       
       // Second try: If not in cache, decrypt from encrypted_chat_key
       // This is critical for draft-only chats that haven't loaded their key into cache yet
@@ -1747,6 +1755,26 @@
   }
 
   /**
+   * Open the share settings deep link for this chat.
+   * Sets the active chat in the store so SettingsShare knows which chat to share,
+   * then opens the settings panel navigated to the share submenu.
+   */
+  async function handleShareChat() {
+    if (!chat) return;
+
+    activeChatStore.setActiveChat(chat.chat_id);
+    settingsMenuVisible.set(true);
+    panelState.openSettings();
+
+    // Wait for DOM to update before setting the deep link
+    await tick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    settingsDeepLink.set('shared/share');
+    showContextMenu = false;
+  }
+
+  /**
    * Delete chat handler
    * Expected behavior for DEMO CHATS:
    * - Add chat to hidden_demo_chats in user profile
@@ -2066,11 +2094,11 @@
                 <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
-                <span class="chat-title processing-title">{$text('enter_message.processing')}</span>
+                <span class="chat-title processing-title">{$text('common.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html $text('chat.untitled_chat')}</span>
+                <span class="chat-title">{@html $text('common.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
                 <span class="pin-indicator">
@@ -2124,6 +2152,7 @@
     on:markUnread={handleContextMenuAction}
     on:markRead={handleContextMenuAction}
     on:delete={handleContextMenuAction}
+    on:share={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}
     on:selectChat={handleContextMenuAction}

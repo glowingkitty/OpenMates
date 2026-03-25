@@ -395,6 +395,30 @@ async def pair_authorize(
     return PairAuthorizeResponse(success=True)
 
 
+@router.delete("/pair/{token}")
+@limiter.limit("20/hour")
+async def pair_cancel(
+    request: Request,
+    token: str,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> dict:
+    """
+    Cancel an authorized pairing and immediately clean up all Redis keys.
+    Requires authentication — only the user who authorized the pairing can cancel it.
+    Called when the authorizing device clicks Cancel after showing the PIN.
+    """
+    token = token.upper()
+    data = await cache_service.get(f"{_REDIS_REQ_PREFIX}{token}")
+
+    if not data:
+        raise HTTPException(status_code=404, detail="Pair token not found or expired")
+
+    await _cleanup_pair_keys(cache_service, token)
+    logger.info("Pair token cancelled by authenticated user")
+    return {"success": True}
+
+
 @router.post("/pair/complete/{token}", response_model=PairCompleteResponse)
 @limiter.limit("30/minute")
 async def pair_complete(

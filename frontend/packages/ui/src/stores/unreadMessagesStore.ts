@@ -106,10 +106,10 @@ export const unreadMessagesStore = {
 };
 
 // Export convenience functions for direct access
-export function getUnreadCountForChat(chatId: string): number {
+function getUnreadCountForChat(chatId: string): number {
   return unreadMessagesStore.getUnreadCount(chatId);
 }
 
-export function clearUnreadForChat(chatId: string): void {
+function clearUnreadForChat(chatId: string): void {
   unreadMessagesStore.clearUnread(chatId);
 }

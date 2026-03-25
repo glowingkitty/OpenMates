@@ -1,0 +1,48 @@
+# .github/workflows/vitest.yml
+#
+# Runs Vitest unit tests for frontend packages.
+# Covers store logic, utilities, encryption, message parsing, and status page tests.
+#
+# Triggers:
+# - Push to dev branch
+# - Pull requests targeting dev
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: "Vitest: Unit Tests"
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "frontend/**"
+      - "!frontend/apps/web_app/tests/**"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "frontend/**"
+      - "!frontend/apps/web_app/tests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+        working-directory: frontend
+      - name: Run UI package tests
+        run: pnpm vitest run
+        working-directory: frontend/packages/ui
+      - name: Run web app unit tests
+        run: pnpm vitest run
+        working-directory: frontend/apps/web_app

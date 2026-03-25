@@ -18,6 +18,7 @@ import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte"
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
+import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
 import VideosSearchEmbedPreview from "../../../embeds/videos/VideosSearchEmbedPreview.svelte";
 import MapsSearchEmbedPreview from "../../../embeds/maps/MapsSearchEmbedPreview.svelte";
@@ -38,6 +39,7 @@ import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPr
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
+import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
@@ -156,7 +158,7 @@ export class GroupRenderer implements EmbedRenderer {
    *   4. Add an HTML fallback method `render{TypeName}Item()` for group HTML rendering
    *   5. Add a case in renderItemContent() switch for the HTML fallback path
    *
-   * See docs/claude/embed-types.md for the full registration checklist.
+   * See docs/contributing/guides/add-embed-type.md for the full registration checklist.
    */
   private readonly individualMounters: Map<string, IndividualMounter>;
 
@@ -237,12 +239,22 @@ export class GroupRenderer implements EmbedRenderer {
             content,
           ),
       ],
+      [
+        "health-appointment",
+        (item, embedData, decodedContent, content) =>
+          this.renderHealthAppointmentComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
     ]);
 
     // Startup check: warn if EMBED_RENDERER_MAP contains GroupRenderer types
     // that are not registered in this.individualMounters (catches future omissions).
     // Import is deferred to avoid circular deps at module load time.
-    // See docs/claude/embed-types.md for the full registration checklist.
+    // See docs/contributing/guides/add-embed-type.md for the full registration checklist.
     if (typeof window !== "undefined") {
       import("../../../../data/embedRegistry.generated")
         .then(({ EMBED_RENDERER_MAP }) => {
@@ -257,7 +269,7 @@ export class GroupRenderer implements EmbedRenderer {
             if (!this.individualMounters.has(type)) {
               console.warn(
                 `[GroupRenderer] MISSING individual mounter for type "${type}". ` +
-                  `Add it to GroupRenderer.individualMounters. See docs/claude/embed-types.md.`,
+                  `Add it to GroupRenderer.individualMounters. See docs/contributing/guides/add-embed-type.md.`,
               );
             }
           }
@@ -511,6 +523,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderMapsPlaceItem(item, embedData, decodedContent);
       case "images-image-result":
         return this.renderImageResultItem(item, embedData, decodedContent);
+      case "health-appointment":
+        return this.renderHealthAppointmentItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -1070,6 +1084,24 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "Brave Search",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "mail" && skillId === "search") {
+        const component = mount(MailSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "Recent emails",
+            provider: provider || "Proton Mail Bridge",
             status,
             results,
             taskId,
@@ -2457,23 +2489,54 @@ export class GroupRenderer implements EmbedRenderer {
       }) => {
         // Merge preview's fetched metadata with decoded content
         // Convert VideoMetadata camelCase to backend TOON snake_case format
+        // Extract thumbnail URL from various formats:
+        // - metadata?.thumbnailUrl: string from preview server
+        // - decodedContent?.thumbnail: TOON preserves as object {"original": "..."} or string
+        // - decodedContent?.thumbnail_original: TOON-flattened (edge case)
+        const thumbObj = decodedContent?.thumbnail;
+        const thumbnailUrl =
+          metadata?.thumbnailUrl ||
+          (typeof thumbObj === "string" ? thumbObj : undefined) ||
+          decodedContent?.thumbnail_original ||
+          (typeof thumbObj === "object" && thumbObj != null
+            ? (thumbObj as Record<string, unknown>).original
+            : undefined) ||
+          undefined;
+
         const enrichedContent = {
           ...decodedContent,
           // Override with preview's fetched metadata if provided (maps to backend format)
+          // Also map camelCase TOON fields to snake_case that ActiveChat expects
           video_id: metadata?.videoId || decodedContent?.video_id,
           title: metadata?.title || decodedContent?.title,
           description: metadata?.description || decodedContent?.description,
-          channel_name: metadata?.channelName || decodedContent?.channel_name,
-          channel_id: metadata?.channelId || decodedContent?.channel_id,
-          thumbnail: metadata?.thumbnailUrl || decodedContent?.thumbnail,
+          channel_name:
+            metadata?.channelName ||
+            decodedContent?.channel_name ||
+            decodedContent?.channelTitle,
+          channel_id:
+            metadata?.channelId ||
+            decodedContent?.channel_id ||
+            decodedContent?.channelId,
+          thumbnail: thumbnailUrl,
           duration_seconds:
             metadata?.duration?.totalSeconds ||
             decodedContent?.duration_seconds,
           duration_formatted:
-            metadata?.duration?.formatted || decodedContent?.duration_formatted,
-          view_count: metadata?.viewCount || decodedContent?.view_count,
-          like_count: metadata?.likeCount || decodedContent?.like_count,
-          published_at: metadata?.publishedAt || decodedContent?.published_at,
+            metadata?.duration?.formatted ||
+            decodedContent?.duration_formatted,
+          view_count:
+            metadata?.viewCount ||
+            decodedContent?.view_count ||
+            decodedContent?.viewCount,
+          like_count:
+            metadata?.likeCount ||
+            decodedContent?.like_count ||
+            decodedContent?.likeCount,
+          published_at:
+            metadata?.publishedAt ||
+            decodedContent?.published_at ||
+            decodedContent?.publishedAt,
         };
 
         console.debug(
@@ -2498,16 +2561,17 @@ export class GroupRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
-          // Pass all metadata from decodedContent (loaded from IndexedDB embed store)
-          channelName: decodedContent?.channel_name,
-          channelId: decodedContent?.channel_id,
-          channelThumbnail: decodedContent?.channel_thumbnail,
-          thumbnail: decodedContent?.thumbnail,
+          // Pass metadata from decodedContent (loaded from IndexedDB embed store)
+          // Handle both snake_case (enriched by GroupRenderer) and camelCase (raw TOON) field names
+          channelName: decodedContent?.channel_name || decodedContent?.channelTitle,
+          channelId: decodedContent?.channel_id || decodedContent?.channelId,
+          channelThumbnail: decodedContent?.channel_thumbnail || (typeof decodedContent?.meta_url === 'object' && decodedContent?.meta_url != null ? (decodedContent.meta_url as Record<string, unknown>).profile_image as string | undefined : undefined) || decodedContent?.meta_url_profile_image,
+          thumbnail: (typeof decodedContent?.thumbnail === 'string' ? decodedContent.thumbnail : undefined) || decodedContent?.thumbnail_original || (typeof decodedContent?.thumbnail === 'object' && decodedContent?.thumbnail != null ? (decodedContent.thumbnail as Record<string, unknown>).original as string | undefined : undefined),
           durationSeconds: decodedContent?.duration_seconds,
           durationFormatted: decodedContent?.duration_formatted,
-          viewCount: decodedContent?.view_count,
-          likeCount: decodedContent?.like_count,
-          publishedAt: decodedContent?.published_at,
+          viewCount: decodedContent?.view_count ?? decodedContent?.viewCount,
+          likeCount: decodedContent?.like_count ?? decodedContent?.likeCount,
+          publishedAt: decodedContent?.published_at ?? decodedContent?.publishedAt,
           videoId: decodedContent?.video_id,
         },
       });
@@ -4057,6 +4121,120 @@ export class GroupRenderer implements EmbedRenderer {
 
     const displayName = typeDisplayNames[baseType] || baseType;
     return `${count} ${displayName}${count > 1 ? "s" : ""}`;
+  }
+
+  // =========================================================================
+  // Health appointment embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  /**
+   * Render a single health-appointment embed using HealthAppointmentEmbedPreview.
+   * Each child embed represents one appointment slot with doctor metadata.
+   */
+  private async renderHealthAppointmentComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping HealthAppointmentEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    if (status === "processing") {
+      content.innerHTML = await this.renderHealthAppointmentItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      return;
+    }
+
+    try {
+      const component = mount(HealthAppointmentEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          slotDatetime: (decodedContent?.slot_datetime as string) || undefined,
+          name: (decodedContent?.name as string) || undefined,
+          speciality: (decodedContent?.speciality as string) || undefined,
+          address: (decodedContent?.address as string) || undefined,
+          insurance: (decodedContent?.insurance as string) || undefined,
+          telehealth: (decodedContent?.telehealth as boolean) || false,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+          // Legacy backward-compat
+          nextSlot: (decodedContent?.next_slot as string) || undefined,
+          slotsCount: (decodedContent?.slots_count as number) || undefined,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted HealthAppointmentEmbedPreview component:",
+        { embedId, slotDatetime: decodedContent?.slot_datetime, status },
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting HealthAppointmentEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
+      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderHealthAppointmentItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  /**
+   * HTML fallback for health-appointment embeds (used by renderItemContent switch).
+   */
+  private async renderHealthAppointmentItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const slotDatetime =
+      decodedContent?.slot_datetime || decodedContent?.next_slot || "";
+    const name = decodedContent?.name || "Doctor";
+    const speciality = decodedContent?.speciality || "";
+
+    return `
+      <div class="embed-app-icon health">
+        <span class="icon icon_health"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${slotDatetime}</div>
+        ${name ? `<div class="embed-text-subline">${name}${speciality ? ` · ${speciality}` : ""}</div>` : ""}
+      </div>
+    `;
   }
 
   /**

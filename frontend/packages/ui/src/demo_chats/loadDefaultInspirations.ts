@@ -130,10 +130,35 @@ export async function loadDefaultInspirations(
   try {
     const { allowIndexedDB = true } = options;
 
-    const ogExample =
+    const urlParams =
       typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("og_example")
+        ? new URLSearchParams(window.location.search)
         : null;
+
+    // --- Media mode: ?media=1&inspirations=none|fixed ---
+    // none  → skip loading entirely (banner stays hidden)
+    // fixed → load OG fixture inspirations for deterministic capture
+    if (urlParams?.get("media") === "1") {
+      const inspirationsParam = urlParams.get("inspirations");
+      if (inspirationsParam === "none") {
+        console.debug(`${LOG_PREFIX} Media mode: inspirations=none — skipping`);
+        return;
+      }
+      if (inspirationsParam === "fixed") {
+        const fixtureInspirations = getOgExampleInspirations("shared_chat_cuttlefish");
+        if (fixtureInspirations.length > 0) {
+          dailyInspirationStore.setInspirations(fixtureInspirations, {
+            personalized: false,
+          });
+          console.debug(
+            `${LOG_PREFIX} Media mode: loaded ${fixtureInspirations.length} fixed inspiration(s)`,
+          );
+        }
+        return;
+      }
+    }
+
+    const ogExample = urlParams?.get("og_example") ?? null;
 
     if (ogExample) {
       const fixtureInspirations = getOgExampleInspirations(ogExample);
@@ -197,14 +222,22 @@ export async function loadDefaultInspirations(
           return;
         }
       } catch (idbError) {
-        // Non-fatal: fall through to server defaults, but always surface the
-        // actual error so we can diagnose it. Guest users / logged-out sessions
-        // will hit this every page load (expected); authenticated users hitting
-        // this means something is wrong (master key race, DB corruption, etc.).
-        console.error(
-          `${LOG_PREFIX} IndexedDB load failed — falling back to server defaults. Error:`,
-          idbError,
-        );
+        // Non-fatal: fall through to server defaults. During logout/cleanup the DB
+        // is intentionally blocked — downgrade to debug. For authenticated users,
+        // keep it as error since it indicates a real problem (master key race, etc.).
+        if (
+          idbError instanceof Error &&
+          idbError.message?.includes("blocked during logout")
+        ) {
+          console.debug(
+            `${LOG_PREFIX} DB unavailable during cleanup — falling back to server defaults`,
+          );
+        } else {
+          console.error(
+            `${LOG_PREFIX} IndexedDB load failed — falling back to server defaults. Error:`,
+            idbError,
+          );
+        }
       }
     } else {
       console.debug(`${LOG_PREFIX} IndexedDB step skipped by caller`);

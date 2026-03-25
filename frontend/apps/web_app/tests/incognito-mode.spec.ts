@@ -3,6 +3,7 @@
 export {};
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -14,6 +15,8 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -41,15 +44,15 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const SELECTORS = {
 	// Login / auth
-	emailInput: 'input[name="username"][type="email"]',
-	passwordInput: 'input[type="password"]',
-	otpInput: 'input[autocomplete="one-time-code"]',
+	emailInput: '#login-email-input',
+	passwordInput: '#login-password-input',
+	otpInput: '#login-otp-input',
 	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
 
 	// Chat UI
 	messageEditor: '.editor-content.prose',
 	sendButton: '.send-button',
-	menuButton: '.menu-button-container button.icon_menu',
+	menuButton: '[data-testid="sidebar-toggle"]',
 	activityHistoryWrapper: '.activity-history-wrapper',
 
 	// Settings
@@ -61,7 +64,7 @@ const SELECTORS = {
 	incognitoActivateButton: '[data-testid="incognito-activate-button"]',
 
 	// Incognito visual indicators
-	incognitoBanner: '.incognito-banner',
+	incognitoBanner: '.incognito-pill',
 	// The incognito group header is an h2.group-title rendered inside the INCOGNITO chat group.
 	// It replaces the old per-chat .incognito-label badge (removed in favour of a single group header).
 	incognitoGroupHeader: 'h2.group-title',
@@ -88,9 +91,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const logCheckpoint = createSignupLogger('INCOGNITO');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
@@ -102,7 +103,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	// Login (once)
 	// -------------------------------------------------------------------------
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {
 		logCheckpoint('WARNING: networkidle timeout — continuing anyway.');
 	});
@@ -253,7 +254,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	// Type and send a message
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type('Hello from incognito');
+	await page.keyboard.type(withMockMarker('Hello from incognito', 'incognito_mode'));
 	await takeStepScreenshot(page, '07-message-typed');
 
 	const sendButton = page.locator(SELECTORS.sendButton);

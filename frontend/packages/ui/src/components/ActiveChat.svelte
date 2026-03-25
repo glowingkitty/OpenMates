@@ -93,12 +93,17 @@
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { reminderContext } from '../stores/reminderContextStore'; // For passing chat context to reminder settings
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
+    import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
+    import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
+    import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
+    import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
@@ -115,8 +120,11 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
+    import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
+    import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
     import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import type { DailyInspiration } from '../stores/dailyInspirationStore'; // Type for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
@@ -313,7 +321,7 @@
     };
 
     // Minimal result shapes for fullscreen embed components (mirrors local interfaces there).
-    type WebSearchResult = {
+    type ActiveChatWebSearchResult = {
         embed_id: string;
         url: string;
         title?: string;
@@ -323,9 +331,19 @@
         description?: string;
         extra_snippets?: string | string[];
         page_age?: string;
+        isVideo: boolean;
+        video_id?: string;
+        channel_name?: string;
+        channel_id?: string;
+        channel_thumbnail?: string;
+        duration_seconds?: number;
+        duration_formatted?: string;
+        view_count?: number;
+        like_count?: number;
+        published_at?: string;
     };
 
-    type NewsSearchResult = {
+    type ActiveChatNewsSearchResult = {
         embed_id: string;
         url: string;
         title?: string;
@@ -334,7 +352,7 @@
         description?: string;
     };
 
-    type VideoSearchResult = {
+    type ActiveChatVideoSearchResult = {
         embed_id: string;
         url: string;
         title?: string;
@@ -346,7 +364,7 @@
         duration?: string;
     };
 
-    type PlaceSearchResult = {
+    type ActiveChatPlaceSearchResult = {
         embed_id: string;
         displayName?: string;
         formattedAddress?: string;
@@ -357,7 +375,7 @@
         placeId?: string;
     };
 
-    type WebReadResult = {
+    type ActiveChatWebReadResult = {
         type: string;
         url: string;
         title?: string;
@@ -373,11 +391,11 @@
         app_id: 'web';
         skill_id: 'read';
         status: WebSearchSkillPreviewData['status'];
-        results: WebReadResult[];
+        results: ActiveChatWebReadResult[];
         url?: string;
     };
 
-    type TravelConnectionResult = {
+    type ActiveChatTravelConnectionResult = {
         embed_id: string;
         type?: string;
         transport_method?: string;
@@ -757,8 +775,8 @@
             
             if (currentChat && !isPublicChat(currentChat.chat_id)) {
                 // Check if this is a shared chat (has chat key in cache or is in sessionStorage shared_chats)
-                // chatDB.getChatKey is synchronous, so we can check immediately
-                const chatKey = chatDB.getChatKey(currentChat.chat_id);
+                // chatKeyManager.getKeySync is synchronous, so we can check immediately
+                const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
                 const sharedChatIds = typeof sessionStorage !== 'undefined' 
                     ? JSON.parse(sessionStorage.getItem('shared_chats') || '[]')
                     : [];
@@ -1041,36 +1059,36 @@
     }
 
     // Normalize embed result arrays for fullscreen components with strict prop types.
-    function getWebSearchResults(results?: unknown[]): WebSearchResult[] {
-        return Array.isArray(results) ? (results as WebSearchResult[]) : [];
+    function getWebSearchResults(results?: unknown[]): ActiveChatWebSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatWebSearchResult[]) : [];
     }
 
-    function getNewsSearchResults(results?: unknown[]): NewsSearchResult[] {
-        return Array.isArray(results) ? (results as NewsSearchResult[]) : [];
+    function getNewsSearchResults(results?: unknown[]): ActiveChatNewsSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatNewsSearchResult[]) : [];
     }
 
-    function getVideoSearchResults(results?: unknown[]): VideoSearchResult[] {
-        return Array.isArray(results) ? (results as VideoSearchResult[]) : [];
+    function getVideoSearchResults(results?: unknown[]): ActiveChatVideoSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatVideoSearchResult[]) : [];
     }
 
-    function getPlaceSearchResults(results?: unknown[]): PlaceSearchResult[] {
-        return Array.isArray(results) ? (results as PlaceSearchResult[]) : [];
+    function getPlaceSearchResults(results?: unknown[]): ActiveChatPlaceSearchResult[] {
+        return Array.isArray(results) ? (results as ActiveChatPlaceSearchResult[]) : [];
     }
 
     function getVideoTranscriptResults(results?: unknown[]): VideoTranscriptResult[] {
         return Array.isArray(results) ? (results as VideoTranscriptResult[]) : [];
     }
 
-    function getWebReadResults(results?: unknown[]): WebReadResult[] {
-        return Array.isArray(results) ? (results as WebReadResult[]) : [];
+    function getWebReadResults(results?: unknown[]): ActiveChatWebReadResult[] {
+        return Array.isArray(results) ? (results as ActiveChatWebReadResult[]) : [];
     }
 
     function getCodeDocsResults(results?: unknown[]): CodeGetDocsResult[] {
         return Array.isArray(results) ? (results as CodeGetDocsResult[]) : [];
     }
 
-    function getTravelConnectionResults(results?: unknown[]): TravelConnectionResult[] {
-        return Array.isArray(results) ? (results as TravelConnectionResult[]) : [];
+    function getTravelConnectionResults(results?: unknown[]): ActiveChatTravelConnectionResult[] {
+        return Array.isArray(results) ? (results as ActiveChatTravelConnectionResult[]) : [];
     }
 
     // Coerce skill preview status to embed status.
@@ -1202,13 +1220,13 @@
             const now = Math.floor(Date.now() / 1000);
             
             // Encrypt content with chat key (zero-knowledge architecture)
-            const chatKey = chatDB.getChatKey(chatId);
+            const chatKey = await chatKeyManager.getKey(chatId);
             let encryptedContent: string | null = null;
-            
+
             if (chatKey) {
                 encryptedContent = await encryptWithChatKey(messageText, chatKey);
             }
-            
+
             if (!chatKey || !encryptedContent) {
                 // Fallback: create local-only message if encryption fails (e.g., chat key not loaded)
                 console.warn('[ActiveChat] Cannot encrypt focus mode system message, creating local-only');
@@ -2074,6 +2092,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    /**
+     * Navigate to an existing chat when selected from the suggestion area's chat search results.
+     * Fetches the full Chat object from IndexedDB and loads it via loadChat(), matching the
+     * same flow as clicking a chat in the sidebar (Chats.svelte handleChatClick).
+     */
+    async function handleChatNavigate(chatId: string) {
+        console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
+        try {
+            await chatDB.init();
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) {
+                console.warn('[ActiveChat] Chat not found in IndexedDB:', chatId);
+                return;
+            }
+            activeChatStore.setActiveChat(chatId);
+            await loadChat(chat);
+            window.dispatchEvent(new CustomEvent('globalChatSelected', {
+                bubbles: true, composed: true, detail: { chatId }
+            }));
+        } catch (error) {
+            console.error('[ActiveChat] Failed to navigate to chat:', chatId, error);
+        }
+    }
+
     // Handler for the dislike/report-bad-answer retry prompt.
     // When the user clicks the thumbs-down button on an assistant message,
     // ChatMessage dispatches a 'setRetryMessage' event with a translated
@@ -2252,6 +2294,185 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let resumeChatIsCreditsError = $state(false);
     let resumeChatUserMessagePreview = $state<string | null>(null);
 
+    // ─── Resume Card Context Menu ────────────────────────────────────
+    // Right-click / long-press context menu for resume chat cards on welcome screen
+    let resumeCardContextMenuShow = $state(false);
+    let resumeCardContextMenuX = $state(0);
+    let resumeCardContextMenuY = $state(0);
+    let resumeCardContextMenuChat = $state<Chat | null>(null);
+    let resumeCardContextMenuDownloading = $state(false);
+
+    function handleResumeCardContextMenu(event: MouseEvent, chat: Chat) {
+        event.preventDefault();
+        event.stopPropagation();
+        resumeCardContextMenuX = event.clientX;
+        resumeCardContextMenuY = event.clientY;
+        resumeCardContextMenuChat = chat;
+        resumeCardContextMenuShow = true;
+    }
+
+    // Long-press support for touch devices
+    let resumeCardTouchTimer: number | undefined;
+    let resumeCardTouchStartX = 0;
+    let resumeCardTouchStartY = 0;
+
+    function handleResumeCardTouchStart(event: TouchEvent, chat: Chat) {
+        if (event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        resumeCardTouchStartX = touch.clientX;
+        resumeCardTouchStartY = touch.clientY;
+        resumeCardTouchTimer = window.setTimeout(() => {
+            resumeCardContextMenuX = resumeCardTouchStartX;
+            resumeCardContextMenuY = resumeCardTouchStartY;
+            resumeCardContextMenuChat = chat;
+            resumeCardContextMenuShow = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 500);
+    }
+
+    function handleResumeCardTouchMove(event: TouchEvent) {
+        if (!resumeCardTouchTimer) return;
+        const touch = event.touches[0];
+        const dx = Math.abs(touch.clientX - resumeCardTouchStartX);
+        const dy = Math.abs(touch.clientY - resumeCardTouchStartY);
+        if (dx > 10 || dy > 10) {
+            clearTimeout(resumeCardTouchTimer);
+            resumeCardTouchTimer = undefined;
+        }
+    }
+
+    function handleResumeCardTouchEnd(event: TouchEvent) {
+        if (resumeCardContextMenuShow) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        if (resumeCardTouchTimer) {
+            clearTimeout(resumeCardTouchTimer);
+            resumeCardTouchTimer = undefined;
+        }
+    }
+
+    /** Handle context menu actions for resume chat cards */
+    async function handleResumeCardContextMenuAction(event: CustomEvent<string>) {
+        const action = event.detail;
+        const chat = resumeCardContextMenuChat;
+        if (!chat) { resumeCardContextMenuShow = false; return; }
+
+        switch (action) {
+            case 'close':
+                resumeCardContextMenuShow = false;
+                break;
+            case 'download': {
+                resumeCardContextMenuDownloading = true;
+                try {
+                    // Public chats (demo/legal) use static bundle; regular chats use IndexedDB
+                    const messages = isPublicChat(chat.chat_id)
+                        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+                        : await chatDB.getMessagesForChat(chat.chat_id);
+                    await downloadChatAsZip(chat, messages);
+                    notificationStore.success('Chat downloaded successfully');
+                } catch (err) {
+                    console.error('[ActiveChat] Download failed:', err);
+                    notificationStore.error('Download failed');
+                } finally {
+                    resumeCardContextMenuDownloading = false;
+                    resumeCardContextMenuShow = false;
+                }
+                break;
+            }
+            case 'copy': {
+                try {
+                    const messages = isPublicChat(chat.chat_id)
+                        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+                        : await chatDB.getMessagesForChat(chat.chat_id);
+                    await copyChatToClipboard(chat, messages);
+                    notificationStore.success('Chat copied to clipboard');
+                } catch (err) {
+                    console.error('[ActiveChat] Copy failed:', err);
+                    notificationStore.error('Copy failed');
+                }
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'delete': {
+                // Demo/legal chats: hide via userProfile; regular chats: delete from DB
+                if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+                    if (!$authStore.isAuthenticated) {
+                        notificationStore.error('Please sign up to customize your experience');
+                        resumeCardContextMenuShow = false;
+                        return;
+                    }
+                    const currentHidden = $userProfile.hidden_demo_chats || [];
+                    if (!currentHidden.includes(chat.chat_id)) {
+                        const updatedHidden = [...currentHidden, chat.chat_id];
+                        userProfile.update(profile => ({ ...profile, hidden_demo_chats: updatedHidden }));
+                        const { userDB: udb } = await import('../services/userDB');
+                        await udb.updateUserData({ hidden_demo_chats: updatedHidden });
+                        notificationStore.success('Chat hidden successfully');
+                    }
+                } else {
+                    // Delete regular chat — mirrors Chat.svelte handleDeleteChat
+                    try {
+                        const chatIdToDelete = chat.chat_id;
+                        // Delete from IndexedDB first (optimistic)
+                        await chatDB.deleteChat(chatIdToDelete);
+                        // Dispatch chatDeleted for UI update
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+                        // Send server-side delete via WebSocket
+                        chatSyncService.sendDeleteChat(chatIdToDelete);
+                        notificationStore.success('Chat deleted');
+                        // Clear resume card if it was the deleted chat
+                        if (resumeChatData?.chat_id === chatIdToDelete) {
+                            resumeChatData = null;
+                        }
+                        // Remove from recentChats array
+                        recentChats = recentChats.filter(rc => rc.chat.chat_id !== chatIdToDelete);
+                    } catch (err) {
+                        console.error('[ActiveChat] Delete failed:', err);
+                        notificationStore.error('Failed to delete chat');
+                    }
+                }
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'hide': {
+                // Dispatch to the existing hide infrastructure
+                window.dispatchEvent(new CustomEvent('resumeCardHideChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'unhide': {
+                window.dispatchEvent(new CustomEvent('resumeCardUnhideChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'pin': {
+                window.dispatchEvent(new CustomEvent('resumeCardPinChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'unpin': {
+                window.dispatchEvent(new CustomEvent('resumeCardUnpinChat', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'markUnread': {
+                window.dispatchEvent(new CustomEvent('resumeCardMarkUnread', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            case 'markRead': {
+                window.dispatchEvent(new CustomEvent('resumeCardMarkRead', { detail: chat.chat_id }));
+                resumeCardContextMenuShow = false;
+                break;
+            }
+            default:
+                // enterSelectMode, selectChat, unselect — not applicable on welcome screen
+                resumeCardContextMenuShow = false;
+                break;
+        }
+    }
+
     // ─── Recent Chats Horizontal Scroll ────────────────────────────────
     // Additional recent chats shown alongside the primary resume card in
     // a horizontal scrollable row.  The resume card is always first/centered;
@@ -2269,6 +2490,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // that reactive effects don't snap it back to the initial position.
     let recentChatsScrolledByUser = false;
     const RECENT_CHATS_LIMIT = 10;
+    // Incremented by event handlers (chatDeleted, chatUpdated, syncComplete,
+    // visibilitychange) to trigger the $effect that calls loadRecentChats().
+    let carouselInvalidationCounter = $state(0);
+    // Debounce timer for carousel refreshes — prevents redundant IndexedDB reads
+    // during rapid sync events (matching Chats.svelte's 300ms debounce pattern).
+    let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
      * Load up to RECENT_CHATS_LIMIT recent real chats from IndexedDB.
@@ -2279,7 +2506,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!$authStore.isAuthenticated) return;
         try {
             await chatDB.init();
-            let chats: Chat[] = chatListCache.getCache(false) ?? await chatDB.getAllChats();
+            // Always read from IndexedDB — chatListCache is designed for sidebar
+            // (Chats.svelte) remount performance, not the welcome screen. Using
+            // the cache here causes stale sort order when returning from a chat.
+            let chats: Chat[] = await chatDB.getAllChats();
             const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
             const sorted = sortChats(filteredChats, []);
 
@@ -2359,6 +2589,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // State for non-authenticated users' intro + example chats scroll list
     let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
 
+    /**
+     * Debounced wrapper for loadRecentChats — coalesces rapid sync events into
+     * a single IndexedDB read (300ms window, matching Chats.svelte pattern).
+     */
+    function loadRecentChatsDebounced(): void {
+        if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
+        _carouselRefreshTimer = setTimeout(() => {
+            _carouselRefreshTimer = null;
+            loadRecentChats().then(() => {
+                if (!recentChatsScrolledByUser) centerFirstRecentChat();
+            });
+        }, 300);
+    }
+
     // Refresh recent chats when welcome screen appears or auth/sync changes.
     // Reset the user-scroll guard each time fresh data is loaded so the newly
     // centred card is correct for the new data set.
@@ -2370,6 +2614,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $userProfile.total_chat_count;
         // Subscribe to communityDemoStore so this effect re-runs when demos load
         void $communityDemoStore;
+        // Re-run when carousel is invalidated by cross-device events
+        void carouselInvalidationCounter;
         if (!isWelcome) {
             recentChats = [];
             nonAuthRecentChats = [];
@@ -2378,7 +2624,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isAuth) {
             nonAuthRecentChats = [];
             recentChatsScrolledByUser = false;
-            loadRecentChats().then(() => centerFirstRecentChat());
+            loadRecentChatsDebounced();
         } else {
             recentChats = [];
             recentChatsScrolledByUser = false;
@@ -2445,7 +2691,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             let decryptedSummary: string | null = null;
 
             const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
-            let chatKey = chatDB.getChatKey(chat.chat_id);
+            let chatKey = await chatKeyManager.getKey(chat.chat_id);
             if (!chatKey && chat.encrypted_chat_key) {
                 chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
                 if (chatKey) {
@@ -2640,6 +2886,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isWelcome = showWelcome;
         const isAuth = $authStore.isAuthenticated;
         const currentActiveChat = $activeChatStore;
+        const lastOpened = $userProfile.last_opened;
 
         // Sync from phasedSyncState when on the welcome screen, authenticated,
         // no chat is currently active, and phasedSyncState has resume data.
@@ -2647,6 +2894,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isWelcome && isAuth && !currentActiveChat && syncState.resumeChatData) {
             // Skip if the same chat is already displayed (no need to re-assign)
             if (resumeChatData?.chat_id === syncState.resumeChatData.chat_id) {
+                return;
+            }
+            // CRITICAL: Only apply sync bridge data if it matches the current last_opened.
+            // phasedSyncState.resumeChatData is set during Phase 1 sync or cross-device
+            // broadcasts and may be stale when the user opened a different chat locally.
+            // Without this guard, navigating Chat A → "New Chat" would show the old
+            // Phase 1 resume chat instead of Chat A, because the sync bridge fires
+            // immediately (sync) while loadResumeChatFromDB runs async.
+            if (lastOpened && syncState.resumeChatData.chat_id !== lastOpened) {
+                console.debug(`[ActiveChat] Skipping sync bridge — stale resumeChatData (${syncState.resumeChatData.chat_id}) doesn't match last_opened (${lastOpened})`);
                 return;
             }
             resumeChatData = syncState.resumeChatData;
@@ -2887,7 +3144,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function startProcessingStepProgression(isNewChat: boolean) {
         // Set the initial spinner text immediately
         const initialText = isNewChat
-            ? $text('enter_message.status.generating_title')
+            ? $text('common.processing')
             : $text('enter_message.status.analyzing_message');
 
         // Record when the overlay first became visible so we can enforce a minimum
@@ -2921,12 +3178,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayProviderName = resolvedProviderName || '';
             const displayServerRegion = resolvedServerRegion || '';
 
-            // Build region flag for display
+            // Build region flag for display — must match all region values in backend/providers/*.yml
             const getRegionFlag = (region: string): string => {
                 switch (region) {
                     case 'EU': return '\u{1F1EA}\u{1F1FA}';
                     case 'US': return '\u{1F1FA}\u{1F1F8}';
                     case 'APAC': return '\u{1F30F}';
+                    case 'global': return '\u{1F310}';
+                    case 'Local': return '\u{1F3E0}';
                     default: return '';
                 }
             };
@@ -3029,19 +3288,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Emits --orb-color-a / --orb-color-b CSS custom properties consumed by
      * the living gradient orb animation (same system as ChatHeader + DailyInspirationBanner).
      */
-    function getResumeLargeCardStyle(
-        backgroundStyle: string,
+    function getResumeCardGradientStyle(
         orbColors?: { start: string; end: string } | null,
     ): string {
-        const parts = [backgroundStyle];
-        if (orbColors) {
-            parts.push(`--orb-color-a: ${orbColors.start}`);
-            parts.push(`--orb-color-b: ${orbColors.end}`);
-        } else {
-            // Primary blue fallback
-            parts.push('--orb-color-a: #4867cd');
-            parts.push('--orb-color-b: #a0beff');
-        }
+        const start = orbColors?.start ?? '#4867cd';
+        const end = orbColors?.end ?? '#a0beff';
+
+        return [
+            `background: linear-gradient(135deg, ${start}, ${end})`,
+            `--orb-color-a: ${start}`,
+            `--orb-color-b: ${end}`,
+        ].join('; ');
+    }
+
+    function getResumeLargeCardStyle(
+        orbColors?: { start: string; end: string } | null,
+    ): string {
+        const parts = [getResumeCardGradientStyle(orbColors)];
         if (resumeLargeCardTiltTransform) {
             parts.push(`transform: ${resumeLargeCardTiltTransform}`);
         }
@@ -3138,8 +3401,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     let suggestionsWouldOverlapWelcome = $state(false);
 
+    // Sticky focus state: stays true for 150ms after blur so that the
+    // suggestions visibility condition doesn't flicker when the user clicks
+    // outside the message input (overlap recalc needs time to settle).
+    let messageInputRecentlyFocused = $state(false);
+    let blurTimer: number | undefined;
+
+    $effect(() => {
+        if (messageInputFocused) {
+            if (blurTimer) clearTimeout(blurTimer);
+            messageInputRecentlyFocused = true;
+        } else {
+            blurTimer = window.setTimeout(() => {
+                messageInputRecentlyFocused = false;
+            }, 150);
+        }
+    });
+
     // Cache the last measured welcome content height so that when the welcome
-    // block is hidden (hideWelcomeForKeyboard removes it from DOM), we can still
+    // block is hidden (hideWelcomeForKeyboard fades it to invisible), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
     // causes welcomeHeight=0 → no overlap → show welcome → overlap again → hide
     // → infinite flicker loop.
@@ -3172,7 +3452,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Height of the welcome content block (greeting + resume card).
         // When the element is visible, measure it and cache the value.
-        // When hidden (e.g. hideWelcomeForKeyboard removed it from DOM), use the
+        // When hidden (e.g. showWelcome=false removed it from DOM), use the
         // cached height so the overlap calculation remains stable — otherwise the
         // cycle hide→welcomeHeight=0→noOverlap→show→overlap→hide causes flicker.
         const measuredWelcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
@@ -3408,7 +3688,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
-    
+
+    // Derive whether assistant is currently typing in this chat (drives rainbow glow on container)
+    let isAssistantTyping = $derived(
+        currentTypingStatus?.isTyping === true &&
+        currentTypingStatus?.chatId === currentChat?.chat_id
+    );
+
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
@@ -3767,12 +4053,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
             
-            // Get region flag for display (e.g., "EU" -> "🇪🇺", "US" -> "🇺🇸", "APAC" -> "🌏")
+            // Get region flag for display — must match all region values in backend/providers/*.yml
             const getRegionFlag = (region: string): string => {
                 switch (region) {
                     case 'EU': return '🇪🇺';
                     case 'US': return '🇺🇸';
                     case 'APAC': return '🌏';
+                    case 'global': return '🌐';
+                    case 'Local': return '🏠';
                     default: return '';
                 }
             };
@@ -4564,7 +4852,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * }
      */
     async function handleSendMessage(event: CustomEvent) {
-        const { message, newChat } = event.detail as { message: ChatMessageModel, newChat?: Chat };
+        const { message, newChat, isEditSend, editCreatedAt } = event.detail as {
+            message: ChatMessageModel,
+            newChat?: Chat,
+            isEditSend?: boolean,
+            editCreatedAt?: number,
+        };
+
+        // Edit mode: truncate currentMessages to remove messages from the edit point
+        if (isEditSend && editCreatedAt !== undefined && currentChat?.chat_id) {
+            currentMessages = currentMessages.filter(
+                m => (m.original_message?.created_at ?? m.created_at ?? 0) < editCreatedAt
+            );
+            console.debug('[ActiveChat] Edit mode: truncated messages before edit point, remaining:', currentMessages.length);
+        }
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
@@ -4774,11 +5075,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showWelcome = !hasMessages;
     }
 
+    // ── 404 Not-Found Screen handlers ──────────────────────────────────────────
+    /**
+     * Called by Not404Screen when the user picks the Search option.
+     * Clears the 404 state, opens the Chats sidebar and activates the search bar
+     * pre-filled with the derived query string.
+     */
+    function handle404Search(query: string) {
+        notFoundPathStore.set(null);
+        panelState.openChats();
+        openSearch({ closeChatsOnEscape: false });
+        setSearchQuery(query);
+    }
+
+    /**
+     * Called by Not404Screen when the user picks the Ask AI option.
+     * Clears the 404 state, ensures we are on a clean new-chat screen, then
+     * injects the pre-filled message into the message input via setSuggestionText.
+     */
+    async function handle404AskAI(message: string) {
+        notFoundPathStore.set(null);
+        if (currentChat) {
+            await handleNewChatClick();
+        }
+        await tick();
+        messageInputFieldRef?.setSuggestionText(message);
+        messageInputFieldRef?.focus();
+    }
+
     /**
      * Handler for when the create icon is clicked.
      */
     async function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
+        // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
+        // The resume card $effect guards on $activeChatStore — if it's still set
+        // when showWelcome triggers the effect, the guard returns early and the
+        // resume card never loads, leaving stale data from the sync bridge.
+        try {
+            activeChatStore.clearActiveChat();
+        } catch (err) {
+            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
+        }
         // Reset current chat metadata and messages
         currentChat = null;
         currentMessages = [];
@@ -4862,15 +5200,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.dispatchEvent(globalDeselectEvent);
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
 
-        // Also clear the persistent active chat store so side panel highlight resets
-        // even if the Chats panel is not currently mounted to receive the event.
-        // This prevents the previously selected chat from remaining highlighted.
-        try {
-            activeChatStore.clearActiveChat();
-            console.debug('[ActiveChat] Cleared persistent activeChatStore after starting a new chat');
-        } catch (err) {
-            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
-        }
+        // activeChatStore was already cleared at the top of handleNewChatClick()
+        // (before showWelcome = true) to ensure the resume card effect sees it.
     }
 
     // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
@@ -5741,6 +6072,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
+     * Handler for the reminders bell button click.
+     * Opens the settings menu and navigates to the reminders management page.
+     */
+    async function handleOpenReminders() {
+        console.debug("[ActiveChat] Reminders button clicked, opening reminder settings");
+
+        // Set the active chat so SettingsReminders can access the chat context
+        if (currentChat?.chat_id) {
+            activeChatStore.setActiveChat(currentChat.chat_id);
+        }
+
+        settingsMenuVisible.set(true);
+        panelState.openSettings();
+
+        await tick();
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        settingsDeepLink.set('app_store/reminder/create');
+    }
+
+    /**
      * Handler for the report issue button click.
      * Opens the settings menu and navigates to the report issue page.
      * This ensures the settings menu is properly opened on mobile devices.
@@ -5817,11 +6169,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update handler for chat updates to be more selective
     async function handleChatUpdated(event: CustomEvent) {
-        const detail = event.detail as ChatUpdatedDetail; 
+        const detail = event.detail as ChatUpdatedDetail;
         const incomingChatId = detail.chat_id;
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
         console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, detail);
+
+        // ─── Welcome screen carousel/resume card updates ─────────────────────
+        // When on the welcome screen (no active chat), metadata and message
+        // changes from other devices should refresh the carousel and resume card.
+        if (showWelcome && !currentChat) {
+            const carouselRelevantTypes = ['title_updated', 'metadata_updated', 'post_processing_metadata', 'message_added', 'draft', 'draft_deleted'];
+            if (incomingChatId && carouselRelevantTypes.includes(detail.type || '')) {
+                carouselInvalidationCounter++;
+            }
+            // Re-decrypt resume card if its title/category/icon changed
+            if (resumeChatData?.chat_id === incomingChatId &&
+                (detail.type === 'title_updated' || detail.type === 'metadata_updated' || detail.type === 'post_processing_metadata')) {
+                loadResumeChatFromDB(resumeChatData.chat_id);
+            }
+            // Don't return — fall through only if there's a currentChat
+        }
 
         if (!incomingChatId || !currentChat || currentChat.chat_id !== incomingChatId) {
             console.warn('[ActiveChat] handleChatUpdated: Event for non-active chat, no current chat, or chat_id mismatch. Current:', currentChat?.chat_id, 'Event chat_id:', incomingChatId, 'Ignoring.');
@@ -5868,7 +6236,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // 2. If absent but encrypted_chat_key is present, decrypt it with the master key.
                 // 3. Only fall back to getOrGenerateChatKey if there truly is no stored key
                 //    (should not happen here, but avoids a silent null dereference).
-                let chatKey: Uint8Array | null = chatDB.getChatKey(incomingChatId);
+                let chatKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
                 if (!chatKey && chatToDecrypt.encrypted_chat_key) {
                     try {
                         const k = await decryptChatKeyWithMasterKey(chatToDecrypt.encrypted_chat_key);
@@ -5930,7 +6298,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
                 // Safe key retrieval — same pattern as the title_updated handler above.
-                let summaryKey: Uint8Array | null = chatDB.getChatKey(incomingChatId);
+                let summaryKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
                 if (!summaryKey && incomingChatMetadata.encrypted_chat_key) {
                     try {
                         const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
@@ -6395,7 +6763,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           //      master key and populate the cache.
                           //   3. Only generate a new key if there is genuinely no stored key
                           //      (brand-new chat created on this device before server confirmed).
-                          let chatKey: Uint8Array | null = chatDB.getChatKey(chatForHeader.chat_id);
+                          let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatForHeader.chat_id);
                           if (!chatKey && chatForHeader.encrypted_chat_key) {
                               try {
                                   const k = await decryptChatKeyWithMasterKey(chatForHeader.encrypted_chat_key);
@@ -8223,15 +8591,56 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }) as EventListenerCallback;
 
-        // Handle chat deletion - if the currently active chat is deleted, reset to new chat
+        // Handle chat deletion - if the currently active chat is deleted, reset to new chat.
+        // Also handles carousel and resume card updates for cross-device sync.
         const chatDeletedHandler = ((event: CustomEvent) => {
             const { chat_id } = event.detail;
             console.debug('[ActiveChat] Received chatDeleted event for chat:', chat_id, 'Current chat:', currentChat?.chat_id);
-            
+
             if (currentChat && chat_id === currentChat.chat_id) {
                 console.info('[ActiveChat] Currently active chat was deleted. Resetting to new chat state.');
                 // Reset to new chat state using the existing handler
                 handleNewChatClick();
+            }
+
+            // ─── Carousel: remove deleted chat and trigger refresh ───────────
+            const carouselIdx = recentChats.findIndex(rc => rc.chat.chat_id === chat_id);
+            if (carouselIdx !== -1) {
+                recentChats = recentChats.filter(rc => rc.chat.chat_id !== chat_id);
+                carouselInvalidationCounter++;
+                console.debug('[ActiveChat] Removed deleted chat from carousel:', chat_id);
+            }
+
+            // ─── Resume card: clear if it shows the deleted chat ─────────────
+            if (resumeChatData?.chat_id === chat_id) {
+                console.info('[ActiveChat] Resume card chat was deleted. Clearing and finding next best chat.');
+                resumeChatData = null;
+                resumeChatTitle = null;
+                resumeChatCategory = null;
+                resumeChatIcon = null;
+                resumeChatSummary = null;
+                resumeChatIsCreditsError = false;
+                resumeChatUserMessagePreview = null;
+                phasedSyncState.clearResumeChatData();
+                // Find the next best chat from IndexedDB to show as resume card
+                (async () => {
+                    try {
+                        await chatDB.init();
+                        const chats = await chatDB.getAllChats();
+                        const filtered = chats.filter(c => !isPublicChat(c.chat_id) && c.chat_id !== chat_id);
+                        const sorted = sortChats(filtered, []);
+                        if (sorted.length > 0) {
+                            const nextBest = sorted[0];
+                            const found = await loadResumeChatFromDB(nextBest.chat_id);
+                            if (found) {
+                                console.info('[ActiveChat] Promoted next best chat as resume card:', nextBest.chat_id);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('[ActiveChat] Error finding next resume chat after deletion:', err);
+                    }
+                })();
+                carouselInvalidationCounter++;
             }
         }) as EventListenerCallback;
 
@@ -8252,6 +8661,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             }
         }) as EventListenerCallback;
+
+        // ─── Cross-device sync: refresh carousel and resume card after sync completes ──
+        // When the WebSocket reconnects (tab foregrounded, network restored), phased sync
+        // delivers fresh chat data to IndexedDB. syncComplete fires after Phase 3 finishes —
+        // trigger a carousel re-read so new/deleted/updated chats appear immediately.
+        const syncCompleteHandler = (() => {
+            if (showWelcome) {
+                console.debug('[ActiveChat] syncComplete — refreshing carousel and resume card');
+                carouselInvalidationCounter++;
+                const lastOpened = $userProfile.last_opened;
+                if (lastOpened && !isPublicChat(lastOpened)) {
+                    loadResumeChatFromDB(lastOpened);
+                }
+            }
+        }) as EventListenerCallback;
+        chatSyncService.addEventListener('syncComplete', syncCompleteHandler);
+
+        // ─── Tab visibility: refresh stale carousel when tab returns from background ──
+        // When a tab is backgrounded and later foregrounded, the carousel may show stale
+        // data (chats created/deleted/updated on other devices while backgrounded).
+        // Wait 1.5s after visibility change to give WebSocket reconnect + sync time to
+        // update IndexedDB, then trigger a full carousel re-read.
+        let _visibilityTimer: ReturnType<typeof setTimeout> | null = null;
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (!showWelcome) return;
+            if (_visibilityTimer) clearTimeout(_visibilityTimer);
+            _visibilityTimer = setTimeout(() => {
+                _visibilityTimer = null;
+                if (showWelcome) {
+                    console.debug('[ActiveChat] Tab foregrounded — refreshing carousel and resume card');
+                    carouselInvalidationCounter++;
+                    const lastOpened = $userProfile.last_opened;
+                    if (lastOpened && !isPublicChat(lastOpened)) {
+                        loadResumeChatFromDB(lastOpened);
+                    }
+                }
+            }, 1500);
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         // ─── Chat Compression event handlers ─────────────────────────────────────────
         // When the AI worker detects a long chat history, it triggers compression before
@@ -8630,6 +9079,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiThinkingComplete', handleAiThinkingComplete as EventListenerCallback);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
+            chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (_visibilityTimer) clearTimeout(_visibilityTimer);
+            if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
             window.removeEventListener('preprocessingStep', preprocessingStepHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
@@ -8700,10 +9153,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 </script>
 
-<div 
-    class="active-chat-container" 
-    class:dimmed={isDimmed} 
-    class:login-mode={!showChat} 
+<div
+    class="active-chat-container"
+    class:ai-typing={isAssistantTyping}
+    class:dimmed={isDimmed}
+    class:login-mode={!showChat}
     class:scaled={activeScaling}
     class:narrow={isEffectivelyNarrow}
     class:medium={isMedium && !showSideBySideLayout}
@@ -8749,14 +9203,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
             >
+                <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
+                     Replaces both chat-side and message-input-wrapper entirely. -->
+                {#if $notFoundPathStore !== null}
+                    <Not404Screen
+                        onSearch={handle404Search}
+                        onAskAI={handle404AskAI}
+                    />
+                {:else}
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
-                    <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
+                    <!-- Faded out via CSS opacity transition when keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
-                        <div class="daily-inspiration-area">
+                    {#if showWelcome}
+                        <div class="daily-inspiration-area" class:welcome-hiding={hideWelcomeForKeyboard}>
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
@@ -8769,7 +9231,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the welcome screen (showWelcome=true): rendered in normal document flow
                          below the daily inspiration banner (top-buttons-flow class removes position:absolute).
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
-                    <div class="top-buttons" class:top-buttons-flow={showWelcome}>
+                    <div class="top-buttons" class:top-buttons-flow={showWelcome} class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}>
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
@@ -8778,13 +9240,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <button
                                         class="new-chat-cta-button"
                                         data-action="new-chat"
-                                        aria-label={$text('chat.new_chat')}
+                                        aria-label={$text('common.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
                                         use:tooltip
                                     >
                                         <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                        <span class="new-chat-cta-label">{$text('chat.new_chat')}</span>
+                                        <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
                                     </button>
                                 </div>
                             {/if}
@@ -8794,6 +9256,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_share top-button"
+                                        data-testid="chat-share-button"
                                         aria-label={$text('chat.share')}
                                         onclick={handleShareChat}
                                         use:tooltip
@@ -8841,6 +9304,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
+                            {#if !showWelcome}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_reminder top-button"
+                                        data-testid="chat-reminders-button"
+                                        aria-label={$text('chat.reminders')}
+                                        onclick={handleOpenReminders}
+                                        use:tooltip
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             <!-- Minimize chat button - only shows in side-by-side mode -->
                             <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
                             {#if showSideBySideFullscreen}
@@ -8872,10 +9347,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
-                    <!-- Also hide on mobile when keyboard is open to free up vertical space -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
+                    <!-- Faded out via CSS opacity transition when keyboard is open to free up visual space -->
+                    {#if showWelcome}
                         <div
                             class="center-content"
+                            class:welcome-hiding={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
                         >
                             <div class="team-profile">
@@ -8918,13 +9394,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 bind:this={resumeLargeCardElement}
                                                 class="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
-                                                style={getResumeLargeCardStyle(
-                                                    gradientColors
-                                                        ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})`
-                                                        : 'background: var(--color-primary)',
-                                                    gradientColors
-                                                )}
+                                                style={getResumeLargeCardStyle(gradientColors)}
                                                 onclick={handleResumeLastChat}
+                                                oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
+                                                ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={handleResumeLargeCardMouseEnter}
                                                 onmousemove={handleResumeLargeCardMouseMove}
                                                 onmouseleave={handleResumeLargeCardMouseLeave}
@@ -8958,9 +9433,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {:else}
                                             <!-- Compact card: short screens or credits-error state -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            {@const compactCategory = resumeChatCategory || 'general_knowledge'}
+                                            {@const compactGradientColors = getCategoryGradientColors(compactCategory)}
+                                            {@const compactIconName = getValidIconName(resumeChatIcon || '', compactCategory)}
+                                            {@const CompactIconComponent = getLucideIcon(compactIconName)}
                                             <button
                                                 class="resume-chat-card"
+                                                style={getResumeCardGradientStyle(compactGradientColors)}
                                                 onclick={handleResumeLastChat}
+                                                oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
+                                                ontouchstart={(e) => { if (resumeChatData) handleResumeCardTouchStart(e, resumeChatData); }}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
                                                 {#if resumeChatIsCreditsError}
@@ -8971,40 +9455,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         {/if}
                                                     </div>
                                                 {:else}
-                                                    {@const category = resumeChatCategory || 'general_knowledge'}
-                                                    {@const gradientColors = getCategoryGradientColors(category)}
-                                                    {@const iconName = getValidIconName(resumeChatIcon || '', category)}
-                                                    {@const IconComponent = getLucideIcon(iconName)}
-                                                    <div
-                                                        class="resume-chat-category-circle"
-                                                        style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                                    >
-                                                        <div class="resume-chat-category-icon">
-                                                            <IconComponent size={16} color="white" />
-                                                        </div>
+                                                    <div class="resume-chat-compact-icon">
+                                                        <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                     </div>
                                                     <div class="resume-chat-content">
                                                         <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
                                                     </div>
                                                 {/if}
                                                 <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
                                             </button>
                                         {/if}
                                     {/if}
 
                                     <!-- ── Additional recent chats (scrollable after primary card) ── -->
-                                    {#each recentChats as meta, i (meta.chat.chat_id)}
+                                    <!-- Dedup: skip any chat already shown as the resume card to prevent
+                                         duplicates when loadRecentChats and resumeChatData use different sources -->
+                                    {#each recentChats.filter(m => m.chat.chat_id !== resumeChatData?.chat_id) as meta, i (meta.chat.chat_id)}
                                         {@const tilt = recentChatTiltStates[i]}
                                         {@const category = meta.category || 'general_knowledge'}
                                         {@const gradientColors = getCategoryGradientColors(category)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
                                         {#if isTallViewport}
-                                            {@const bgStyle = gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
-                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
                                             {@const cardStyle = tilt?.tiltTransform
                                                 ? `${bgStyle}; transform: ${tilt.tiltTransform}`
                                                 : bgStyle}
@@ -9015,6 +9490,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 type="button"
                                                 style={cardStyle}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={(e) => tilt?.onMouseEnter(e)}
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
@@ -9038,7 +9517,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                     {#if meta.summary}
                                                         <p class="resume-large-summary">{meta.summary}</p>
                                                     {/if}
@@ -9049,22 +9528,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card"
+                                                style={getResumeCardGradientStyle(gradientColors)}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
-                                                <div
-                                                    class="resume-chat-category-circle"
-                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                                >
-                                                    <div class="resume-chat-category-icon">
-                                                        <IconComponent size={16} color="white" />
-                                                    </div>
+                                                <div class="resume-chat-compact-icon">
+                                                    <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
-                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
                                             </button>
                                         {/if}
@@ -9074,6 +9553,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {#if ($userProfile.total_chat_count ?? 0) > ((resumeChatData ? 1 : 0) + recentChats.length)}
                                         <button
                                             class="recent-chat-overflow"
+                                            class:compact={!isTallViewport}
                                             type="button"
                                             onclick={() => panelState.toggleChats()}
                                         >
@@ -9094,9 +9574,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
                                         {#if isTallViewport}
-                                            {@const bgStyle = gradientColors
-                                                ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end}); --orb-color-a: ${gradientColors.start}; --orb-color-b: ${gradientColors.end}`
-                                                : 'background: var(--color-primary); --orb-color-a: #4867cd; --orb-color-b: #a0beff'}
+                                            {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
                                             {@const cardStyle = tilt?.tiltTransform
                                                 ? `${bgStyle}; transform: ${tilt.tiltTransform}`
                                                 : bgStyle}
@@ -9107,6 +9585,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 type="button"
                                                 style={cardStyle}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={(e) => tilt?.onMouseEnter(e)}
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
@@ -9130,7 +9612,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                     {#if meta.summary}
                                                         <p class="resume-large-summary">{meta.summary}</p>
                                                     {/if}
@@ -9141,22 +9623,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card"
+                                                style={getResumeCardGradientStyle(gradientColors)}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
-                                                <div
-                                                    class="resume-chat-category-circle"
-                                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
-                                                >
-                                                    <div class="resume-chat-category-icon">
-                                                        <IconComponent size={16} color="white" />
-                                                    </div>
+                                                <div class="resume-chat-compact-icon">
+                                                    <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
-                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
-                                                    <ChevronRight size={16} color="var(--color-grey-50)" />
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
                                             </button>
                                         {/if}
@@ -9168,7 +9650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                      <ChatHistory
                          bind:this={chatHistoryRef}
-                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                         messageInputHeight={0}
                          containerWidth={effectiveChatWidth}
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
@@ -9243,10 +9725,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               is focused — at which point the welcome content is also hidden
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
-                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputFocused) && (viewportHeight > 670 || messageInputFocused)}
+                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                              <NewChatSuggestions
                                  messageInputContent={liveInputText}
                                  onSuggestionClick={handleSuggestionClick}
+                                 onChatNavigate={handleChatNavigate}
                              />
                          {/if}
 
@@ -9338,6 +9821,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
                     </div>
                 </div>
+                {/if}
             </div>
             {/if}
 
@@ -9449,7 +9933,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results)}
+                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results) as any}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
@@ -9969,21 +10453,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 ''
                             )}
                             {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
-                            <!-- Construct VideoMetadata from decoded content (snake_case -> camelCase) -->
+                            <!-- Construct VideoMetadata from decoded content.
+                                 TOON preserves nested objects and camelCase field names from the backend.
+                                 Video search results use: channelTitle, viewCount, thumbnail.original, etc.
+                                 GroupRenderer enrichedContent uses: channel_name, view_count, thumbnail (string), etc.
+                                 We must handle BOTH formats here. -->
+                            {@const dc = embedFullscreenData.decodedContent}
+                            {@const thumbnailStr =
+                                (typeof dc?.thumbnail === 'string' ? dc.thumbnail : null) ??
+                                dc?.thumbnail_original ??
+                                (typeof dc?.thumbnail === 'object' && dc?.thumbnail != null ? (dc.thumbnail as Record<string, unknown>).original as string | undefined : null) ??
+                                ''}
                             {@const videoMetadata = {
                                 videoId,
                                 title: videoTitle,
-                                description: coerceString(embedFullscreenData.decodedContent?.description, ''),
-                                channelName: coerceString(embedFullscreenData.decodedContent?.channel_name, ''),
-                                channelId: coerceString(embedFullscreenData.decodedContent?.channel_id, ''),
-                                thumbnailUrl: coerceString(embedFullscreenData.decodedContent?.thumbnail, ''),
-                                duration: (embedFullscreenData.decodedContent?.duration_seconds || embedFullscreenData.decodedContent?.duration_formatted) ? {
-                                    totalSeconds: coerceNumber(embedFullscreenData.decodedContent?.duration_seconds, 0),
-                                    formatted: coerceString(embedFullscreenData.decodedContent?.duration_formatted, '')
+                                description: coerceString(dc?.description, ''),
+                                channelName: coerceString(dc?.channel_name ?? dc?.channelTitle, ''),
+                                channelId: coerceString(dc?.channel_id ?? dc?.channelId, ''),
+                                thumbnailUrl: coerceString(thumbnailStr, ''),
+                                duration: (dc?.duration_seconds || dc?.duration_formatted) ? {
+                                    totalSeconds: coerceNumber(dc?.duration_seconds, 0),
+                                    formatted: coerceString(dc?.duration_formatted, '')
                                 } : undefined,
-                                viewCount: coerceNumber(embedFullscreenData.decodedContent?.view_count, 0),
-                                likeCount: coerceNumber(embedFullscreenData.decodedContent?.like_count, 0),
-                                publishedAt: coerceString(embedFullscreenData.decodedContent?.published_at, '')
+                                viewCount: coerceNumber(dc?.view_count ?? dc?.viewCount, 0),
+                                likeCount: coerceNumber(dc?.like_count ?? dc?.likeCount, 0),
+                                publishedAt: coerceString(dc?.published_at ?? dc?.publishedAt, '')
                             }}
                             <VideoEmbedFullscreen
                                 url={videoUrl}
@@ -10299,6 +10793,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }}
 />
 
+<!-- Resume Card Context Menu (right-click / long-press on welcome screen chat cards) -->
+{#if resumeCardContextMenuShow && resumeCardContextMenuChat}
+    <ChatContextMenu
+        x={resumeCardContextMenuX}
+        y={resumeCardContextMenuY}
+        show={resumeCardContextMenuShow}
+        chat={resumeCardContextMenuChat}
+        hideDelete={false}
+        hideCopy={false}
+        hideDownload={false}
+        downloading={resumeCardContextMenuDownloading}
+        on:close={handleResumeCardContextMenuAction}
+        on:download={handleResumeCardContextMenuAction}
+        on:copy={handleResumeCardContextMenuAction}
+        on:hide={handleResumeCardContextMenuAction}
+        on:unhide={handleResumeCardContextMenuAction}
+        on:pin={handleResumeCardContextMenuAction}
+        on:unpin={handleResumeCardContextMenuAction}
+        on:markUnread={handleResumeCardContextMenuAction}
+        on:markRead={handleResumeCardContextMenuAction}
+        on:delete={handleResumeCardContextMenuAction}
+        on:enterSelectMode={handleResumeCardContextMenuAction}
+        on:unselect={handleResumeCardContextMenuAction}
+        on:selectChat={handleResumeCardContextMenuAction}
+    />
+{/if}
+
 <style>
     /* 
      * Responsive design: Uses JavaScript-based width detection for true container-based responsiveness.
@@ -10319,9 +10840,86 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         min-height: 0;
         height: 100%;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        transition: opacity 0.3s ease;
+        transition: opacity 0.3s ease, box-shadow 0.6s ease;
         overflow: hidden;
         box-sizing: border-box;
+    }
+
+    /* ===========================================
+       Rainbow border ring + outer glow while AI is typing
+       Uses @property --chat-gradient-angle to animate the conic-gradient rotation
+       (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
+
+       Overlay approach: the ring is painted ON TOP of content via ::after at
+       z-index: 10 with pointer-events: none.  A CSS mask cuts out the interior
+       so only a 2px ring is visible.  This avoids the old isolation/z-index:-1
+       technique where child elements flush to the edges would cover the ring.
+       =========================================== */
+
+    @property --chat-gradient-angle {
+        syntax: '<angle>';
+        initial-value: 0deg;
+        inherits: false;
+    }
+
+    /* ::after — rotating rainbow ring painted ON TOP of all content.
+     * Always present but invisible (opacity: 0) until .ai-typing is added.
+     * pointer-events: none so it never blocks clicks on content underneath.
+     * CSS mask subtracts the inner area, leaving only a 2px border ring visible. */
+    .active-chat-container::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 17px;
+        background: conic-gradient(
+            from var(--chat-gradient-angle, 0deg),
+            #ff2d55, #ff6b2b, #ffd60a,
+            #30d158, #32ade6, #bf5af2,
+            #ff2d55
+        );
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0;
+        filter: blur(1.5px);
+        animation: chat-rainbow-spin 3s linear infinite;
+        /* Ring mask: the padding creates the ring thickness (2px).
+         * The two gradient layers + exclude composite subtract the content-box
+         * from the border-box, leaving only the padded ring area visible. */
+        padding: 2px;
+        -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+    }
+
+    .active-chat-container.ai-typing::after {
+        opacity: 1;
+    }
+
+    @keyframes chat-rainbow-spin {
+        from { --chat-gradient-angle: 0deg; }
+        to   { --chat-gradient-angle: 360deg; }
+    }
+
+    /* Outer glow — soft static multi-color bloom that fades in with the border.
+     * No color-cycling animation; the spinning border ring provides all the motion. */
+    .active-chat-container.ai-typing {
+        box-shadow:
+            0 0  8px  2px rgba(191,  90, 242, 0.18),
+            0 0 20px  6px rgba( 50, 173, 230, 0.12),
+            0 0 40px 14px rgba(255,  45,  85, 0.08);
+    }
+
+    /* Dark mode: wider bloom, stronger opacity */
+    :global(.dark) .active-chat-container.ai-typing {
+        box-shadow:
+            0 0 12px  4px rgba(191,  90, 242, 0.25),
+            0 0 28px  8px rgba( 50, 173, 230, 0.16),
+            0 0 48px 16px rgba(255,  45,  85, 0.10);
     }
 
     /* Responsive adjustments for narrow and medium containers */
@@ -10627,7 +11225,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          * Center vertically in the space below the daily inspiration banner.
          * Offset of 80px keeps welcome content clear of top-left actions.
          */
-        top: calc(50% + 80px);
+        top: calc(58% + 80px);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -10683,8 +11281,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-align: center;
         font-size: 1rem;
         color: var(--color-grey-60);
-        min-height: 76px;
-        padding: 22px 16px 6px;
+        padding: 0px 16px 6px;
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
@@ -10801,6 +11398,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 56px;
         min-width: 56px;
         height: 200px;
+        margin-top: 16px;
         border-radius: 20px;
         background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
         border: 1.5px dashed var(--color-grey-40);
@@ -10813,6 +11411,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         pointer-events: auto;
     }
 
+    .recent-chat-overflow.compact {
+        width: clamp(54px, 15vw, 66px);
+        min-width: clamp(54px, 15vw, 66px);
+        height: 44px;
+        border-radius: 18px;
+        padding: 0 10px;
+        font-size: 13px;
+        line-height: 1;
+    }
+
     .recent-chat-overflow:hover {
         background: var(--color-grey-30, rgba(0, 0, 0, 0.12));
         color: var(--color-grey-80);
@@ -10821,52 +11429,71 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Resume chat card - shown in center-content below welcome greeting */
     .resume-chat-card {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 12px;
         width: 100%;
         max-width: 400px;
-        padding: 12px 16px;
-        margin-top: 16px;
-        background-color: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: 12px;
+        min-height: 44px;
+        padding: 10px 16px;
+        background-color: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 20px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        overflow: hidden;
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.16),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+        transition:
+            background-position 0.25s ease,
+            transform 0.15s ease-out,
+            box-shadow 0.2s ease-out,
+            border-color 0.2s ease;
+        background-size: 140% 140%;
+        background-position: 0% 50%;
         text-align: left;
         pointer-events: auto; /* Re-enable clicks (parent center-content has pointer-events: none) */
     }
 
     .resume-chat-card:hover {
-        background-color: var(--color-grey-15);
-        border-color: var(--color-grey-40);
+        background-color: transparent;
+        border-color: rgba(255, 255, 255, 0.24);
+        background-position: 100% 50%;
         transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        box-shadow:
+            0 10px 28px rgba(0, 0, 0, 0.18),
+            0 3px 8px rgba(0, 0, 0, 0.12);
     }
 
     .resume-chat-card:active {
-        transform: translateY(0);
-        box-shadow: none;
+        background-color: transparent;
+        transform: scale(0.98);
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.12),
+            0 1px 3px rgba(0, 0, 0, 0.08);
+        filter: none;
     }
 
-    /* Category gradient circle matching Chat.svelte sidebar design */
-    .resume-chat-category-circle {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
+    .resume-chat-card:focus {
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 2px;
+    }
+
+    .resume-chat-compact-icon {
+        width: 18px;
+        min-width: 18px;
+        height: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         flex-shrink: 0;
+        opacity: 0.96;
     }
 
-    .resume-chat-category-icon {
-        width: 16px;
-        height: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .resume-chat-compact-icon :global(svg) {
+        width: 18px;
+        height: 18px;
     }
 
     .resume-chat-content {
@@ -10883,13 +11510,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .resume-chat-credits-label {
         font-size: 14px;
-        color: var(--color-grey-60);
+        color: rgba(255, 255, 255, 0.78);
     }
 
     .resume-chat-credits-preview {
         font-size: 15px;
-        font-weight: 500;
-        color: var(--color-grey-90);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -10899,12 +11526,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .resume-chat-title {
         font-size: 15px;
-        font-weight: 500;
-        color: var(--color-grey-90);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         display: block;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
     }
 
     .resume-chat-arrow {
@@ -10912,7 +11540,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        opacity: 0.5;
+        opacity: 0.82;
     }
 
     /* ===========================================
@@ -10948,7 +11576,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scale: 1;
         /* Re-enable pointer events (parent center-content has pointer-events: none) */
         pointer-events: auto;
-        margin-top: 16px;
         /* Shadow matching ChatEmbedPreview */
         box-shadow:
             0 8px 24px rgba(0, 0, 0, 0.16),
@@ -11199,10 +11826,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        /* Flex child instead of position:absolute — this lets iOS Safari's
+         * virtual keyboard push the input up naturally via dvh + flex layout,
+         * instead of the input being anchored behind the keyboard. */
+        flex-shrink: 0;
+        width: 100%;
     }
     
 
@@ -11220,7 +11848,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
 
-    .message-input-container :global(> *) {
+    .message-input-container :global(> *:not(.suggestions-wrapper)) {
         max-width: 629px;
         width: 100%;
     }
@@ -11318,10 +11946,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-container.narrow .chat-wrapper.fullscreen .message-input-wrapper,
     .active-chat-container.medium .chat-wrapper.fullscreen .message-input-wrapper,
     .active-chat-container.wide .chat-wrapper.fullscreen .message-input-wrapper {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        flex-shrink: 0;
         width: 100%;
         /* padding for message-input-container is already 15px */
     }
@@ -11332,31 +11957,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-direction: column;
         flex: 1;
         min-width: 0;
-        height: 100%;
+        min-height: 0; /* Allow flex to shrink below content height (required for iOS keyboard) */
         overflow: hidden;
         container-type: inline-size;
         container-name: chat-side;
     }
 
-    /* Scroll navigation buttons - round, icon-only, subtle grey.
+    /* Scroll navigation buttons - wide touch-friendly strips at top/bottom edge.
+       The visible icon stays centered; the hit area extends horizontally for easy touch/click.
        Overrides global button styles from buttons.css (padding, min-width, height, shadow, etc.) */
     .scroll-nav-button {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
-        width: 32px;
-        height: 32px;
-        min-width: 32px;
-        border-radius: 50%;
+        width: 120px;
+        height: 36px;
+        min-width: unset;
+        border-radius: 18px;
         border: none;
-        background-color: var(--color-grey-20);
+        background-color: transparent;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0.7;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.2s ease, background-color 0.2s ease;
         padding: 0;
         margin: 0;
         filter: none;
@@ -11375,11 +12001,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .scroll-to-top-button {
-        top: 50px;
+        top: 18px;
     }
 
     .scroll-to-bottom-button {
-        bottom: 80px;
+        bottom: 0px;
     }
 
     /* Dropdown arrow icon using CSS mask (reuses existing dropdown.svg) */
@@ -11404,6 +12030,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         top: 15px;
         left: 15px;
+        right: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: 1;
@@ -11428,6 +12055,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
+            right: 10px;
         }
     }
 
@@ -11438,12 +12066,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      *   visually appear on the right / inline-end side of the row.
      */
     :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
-        left: auto;
+        left: 15px;
         right: 15px;
     }
 
     @media (max-width: 730px) {
         :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
+            left: 10px;
             right: 10px;
         }
     }
@@ -11460,6 +12089,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .daily-inspiration-area {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /* Welcome content fade transition: on short viewports, the daily inspiration
+       and welcome greeting fade out via CSS opacity when the message input is
+       focused, instead of being removed from DOM.  This avoids ResizeObserver
+       churn that caused an infinite recalculation loop with {#if} DOM toggles.
+       visibility:hidden is delayed by 200ms so it kicks in AFTER opacity reaches
+       0, preventing interaction with invisible content.  On fade-in (class
+       removed), visibility:visible applies immediately via the base 0s delay. */
+    .daily-inspiration-area,
+    .center-content,
+    .top-buttons {
+        transition: opacity 200ms ease, visibility 0s 0s;
+    }
+
+    .daily-inspiration-area.welcome-hiding,
+    .center-content.welcome-hiding,
+    .top-buttons.welcome-hiding {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 200ms ease, visibility 0s 200ms;
     }
 
     /* Add styles for left and right button containers */

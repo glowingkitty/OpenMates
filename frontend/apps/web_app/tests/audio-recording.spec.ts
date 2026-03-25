@@ -19,6 +19,9 @@
 
 import { test, expect } from '@playwright/test';
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { getE2EDebugUrl } = require('./signup-flow-helpers');
+
 // Configure the browser to use a fake audio device and grant mic permission
 test.use({
 	launchOptions: {
@@ -54,7 +57,7 @@ test.afterEach(async ({}, testInfo) => {
  * message field editor so action buttons appear. Returns the message field locator.
  */
 async function setupAndFocusMessageField(page: any) {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	// Wait for the page to fully load — demo chats need time to initialize
 	await page.waitForTimeout(3000);
@@ -109,7 +112,7 @@ async function waitForMicButton(page: any) {
 		console.log('[DEBUG] .message-field innerHTML (first 500 chars):', html.substring(0, 500));
 	}
 
-	await expect(micButton).toBeVisible({ timeout: 10000 });
+	await expect(micButton).toBeVisible({ timeout: 20000 });
 	return micButton;
 }
 
@@ -189,8 +192,15 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	// Count existing recording embeds before
 	const embedCountBefore = await page.locator('.recording-preview').count();
 
-	// Press and hold
-	await micButton.dispatchEvent('mousedown', { button: 0 });
+	// Press and hold using page.mouse so that both mousedown AND mouseup are OS-level events
+	// that properly trigger all event listeners (including document-level ones in RecordAudio).
+	const micBox = await micButton.boundingBox();
+	if (!micBox) throw new Error('Mic button bounding box not found');
+	const micCenterX = micBox.x + micBox.width / 2;
+	const micCenterY = micBox.y + micBox.height / 2;
+
+	await page.mouse.move(micCenterX, micCenterY);
+	await page.mouse.down();
 
 	// Wait for overlay to appear and recorder to start
 	const overlay = page.locator('.record-overlay');
@@ -199,11 +209,11 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	// Hold for a bit so some audio data is captured by the fake device
 	await page.waitForTimeout(1500);
 
-	// Release via document-level mouseup (simulating user releasing the button)
-	await page.dispatchEvent('body', 'mouseup');
+	// Release — OS-level mouseup triggers all document mouseup listeners (RecordAudio.stop)
+	await page.mouse.up();
 
-	// Overlay should disappear after release
-	await expect(overlay).not.toBeVisible({ timeout: 5000 });
+	// Overlay should disappear after release (give extra time for async cleanup)
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 
 	// A recording embed should now be inserted in the editor.
 	// Give it a moment for the embed insertion to complete.

@@ -220,7 +220,7 @@ Tests: none yet — new settings sub-page.
     {#if isLoading}
         <div class="loading-state">
             <div class="spinner"></div>
-            <span>{$text('settings.account.chats.loading')}</span>
+            <span>{$text('common.loading')}</span>
         </div>
 
     <!-- ── Error ───────────────────────────────────────────────────────────── -->
@@ -229,7 +229,7 @@ Tests: none yet — new settings sub-page.
             <p class="error-text">{$text('settings.account.chats.error')}</p>
             <p class="error-detail">{errorMessage}</p>
             <button class="btn-retry" onclick={fetchTotalCount}>
-                {$text('settings.account.chats.retry')}
+                {$text('common.retry')}
             </button>
         </div>
 
@@ -239,7 +239,7 @@ Tests: none yet — new settings sub-page.
         <!-- Total count badge -->
         <div class="count-card">
             <div class="count-number">{totalCount.toLocaleString()}</div>
-            <div class="count-label">{$text('settings.account.chats')}</div>
+            <div class="count-label">{$text('common.chats')}</div>
         </div>
 
         <!-- Delete old chats -->

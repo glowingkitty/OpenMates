@@ -66,11 +66,16 @@ models:
       - text
     output_types:
       - text
-    default_server: "openrouter" # Default server for this model
+    default_server: "aws_bedrock" # Default to AWS Bedrock (EU), with OpenRouter as fallback
     servers:
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "openai.gpt-oss-120b-1:0" # Bedrock model ID
+        aws_region: "eu-central-1"
+        region: "EU"
       - id: "openrouter"
         name: "OpenRouter API"
-        region: "US" # Server region for UI display
+        region: "US"
     # Provider overrides to force Cerebras as the provider
     provider_overrides:
       order: ["cerebras"] # try Cerebras first (and only)

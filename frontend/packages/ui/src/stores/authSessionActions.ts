@@ -235,6 +235,18 @@ export async function checkAuth(
             "true" ||
             sessionStorage.getItem("openmates_shared_chat_redirect") !== null);
 
+        // PAIR LOGIN DETECTION: If user arrived via /#pair=TOKEN, they are about to
+        // authenticate fresh. Firing destructive logout (server logout + cookie deletion)
+        // would race with the new login and could invalidate the session established by
+        // the passkey flow. Detect via URL hash or sessionStorage pendingDeepLink.
+        const isPairLoginPending =
+          typeof window !== "undefined" &&
+          (/^#pair=[A-Za-z0-9]{6}$/i.test(window.location.hash) ||
+            (typeof sessionStorage !== "undefined" &&
+              /^#pair=[A-Za-z0-9]{6}$/i.test(
+                sessionStorage.getItem("pendingDeepLink") ?? "",
+              )));
+
         // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen
         // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
         const isOgImageMode =
@@ -245,6 +257,10 @@ export async function checkAuth(
           if (isSharedChatSession) {
             console.debug(
               "[AuthSessionActions] Skipping demo-for-everyone override — shared chat session detected (key in URL fragment, not master key)",
+            );
+          } else if (isPairLoginPending) {
+            console.debug(
+              "[AuthSessionActions] Skipping demo-for-everyone override — pair login deep link pending, user will authenticate fresh",
             );
           } else if (isOgImageMode) {
             console.debug(
@@ -268,8 +284,22 @@ export async function checkAuth(
 
         // Show notification with context-appropriate message — but only if we haven't already
         // shown one (when +page.svelte sets the flag, it shows its own notification via setTimeout).
-        // Also skip for shared chat sessions — users opening a share link shouldn't see logout alerts.
-        if (!alreadyForcedLogout && !isSharedChatSession) {
+        // Also skip for shared chat sessions and pair login — users opening a share link or pair
+        // link shouldn't see logout alerts.
+        // Also skip if the local profile is completely empty (username falsy, user_id null) — this
+        // means the user has no local session record (e.g. DB schema upgrade wiped data, or a stale
+        // server cookie survived an explicit logout). Showing "You have been logged out" is
+        // misleading when the user was never logged in from the browser's perspective.
+        const localProfile = get(userProfile);
+        const hadLocalSession =
+          localProfile?.username || localProfile?.user_id;
+
+        if (
+          !alreadyForcedLogout &&
+          !isSharedChatSession &&
+          !isPairLoginPending &&
+          hadLocalSession
+        ) {
           const $text = get(text);
           const { wasStayLoggedIn } =
             await import("../services/cryptoKeyStorage");
@@ -298,12 +328,15 @@ export async function checkAuth(
           }
         }
 
-        // CRITICAL: For shared chat sessions, skip destructive logout.
+        // CRITICAL: For shared chat sessions and pair login deep links, skip destructive logout.
         // Shared chats are stored in IndexedDB with their own encryption keys (from the URL
         // fragment). The logout() call below deletes the entire database, which would wipe
-        // the shared chat data. The user is effectively unauthenticated — they just have stale
-        // profile data from a previous session. Simply clearing auth state is sufficient.
-        if (!isSharedChatSession) {
+        // the shared chat data.
+        // Pair login deep links will open the login screen — the user authenticates fresh and
+        // derives a new master key. The background logout IIFE would race with the new session
+        // (POST /auth/logout with credentials: 'include' sends the new session's cookies).
+        // Simply clearing auth state is sufficient for both cases.
+        if (!isSharedChatSession && !isPairLoginPending) {
           isLoggingOut.set(true);
           console.debug(
             "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
@@ -354,13 +387,17 @@ export async function checkAuth(
           deleteSessionId(); // Remove session_id on forced logout
         } else {
           console.debug(
-            "[AuthSessionActions] Skipping destructive logout for shared chat session — only clearing auth state",
+            `[AuthSessionActions] Skipping destructive logout — ${isPairLoginPending ? "pair login pending" : "shared chat session"} — only clearing auth state`,
           );
           // Still reset forcedLogoutInProgress since we're not doing a full logout
           resetForcedLogoutInProgress();
         }
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
-        deleteAllCookies(); // Clear all cookies on forced logout
+        // Only delete cookies if not a pair login — the user needs the existing session
+        // cookies intact so checkAuth() can validate after passkey login succeeds.
+        if (!isPairLoginPending) {
+          deleteAllCookies();
+        }
         return false;
       }
 
@@ -585,6 +622,7 @@ export async function checkAuth(
             : userLanguage;
 
         updateProfile({
+          user_id: (data.user as any).id || null,
           username: data.user.username,
           profile_image_url: data.user.profile_image_url,
           tfa_app_name: data.user.tfa_app_name,
@@ -596,6 +634,7 @@ export async function checkAuth(
           consent_mates_default_settings: consent_mates,
           language: effectiveLanguage,
           darkmode: userDarkMode,
+          timezone: data.user.timezone || null,
           // Low balance auto top-up fields
           auto_topup_low_balance_enabled:
             data.user.auto_topup_low_balance_enabled ?? false,
@@ -620,6 +659,24 @@ export async function checkAuth(
       // Start live console log streaming for admin users on session restore.
       if (data.user.is_admin) {
         clientLogForwarder.start();
+      } else {
+        // Non-admin: resume debug log sharing session if one was active
+        try {
+          const debugSession = localStorage.getItem("debug_session");
+          if (debugSession) {
+            const parsed = JSON.parse(debugSession);
+            const expiresAt = parsed.expires_at
+              ? new Date(parsed.expires_at).getTime()
+              : Infinity;
+            if (expiresAt > Date.now() && parsed.debugging_id) {
+              clientLogForwarder.startDebugSession(parsed.debugging_id);
+            } else {
+              localStorage.removeItem("debug_session");
+            }
+          }
+        } catch {
+          // Non-critical
+        }
       }
 
       // Register encrypted session metadata if the server indicates it hasn't been done yet.
@@ -1043,6 +1100,29 @@ export async function checkAuth(
           isInitialized: true,
         }));
 
+        // Restore daily inspirations from IndexedDB when recovering via offline-first mode.
+        //
+        // Context: this code path is reached when the session check times out or the server
+        // is momentarily unreachable (e.g. after a transient WS disconnect triggers checkAuth).
+        // The inspiration store may have been wiped (dailyInspirationStore.reset()) if a
+        // logout was partially triggered, or the Chats component may have remounted with an
+        // empty store. Either way, the master key is confirmed present above (hasLocalData),
+        // so IndexedDB decryption will succeed immediately — giving near-instant restoration
+        // without waiting for Phase 1 to complete.
+        //
+        // loadDefaultInspirations is idempotent: if the store is already populated (because
+        // the disruption was brief and the store survived intact) it exits immediately.
+        void import("../demo_chats/loadDefaultInspirations")
+          .then(({ loadDefaultInspirations }) =>
+            loadDefaultInspirations({ allowIndexedDB: true }),
+          )
+          .catch((error) => {
+            console.error(
+              "[AuthSessionActions] Failed to restore inspirations after offline-first re-auth:",
+              error,
+            );
+          });
+
         // Start clientLogForwarder for admin users in offline-first mode.
         // The normal (online) path starts the forwarder in checkAuth()'s happy path.
         // But if the server is unreachable, we restore auth from local IndexedDB here
@@ -1052,6 +1132,23 @@ export async function checkAuth(
             "[AuthSessionActions] Admin user detected (offline-first) — starting clientLogForwarder",
           );
           clientLogForwarder.start();
+        } else {
+          try {
+            const debugSession = localStorage.getItem("debug_session");
+            if (debugSession) {
+              const parsed = JSON.parse(debugSession);
+              const expiresAt = parsed.expires_at
+                ? new Date(parsed.expires_at).getTime()
+                : Infinity;
+              if (expiresAt > Date.now() && parsed.debugging_id) {
+                clientLogForwarder.startDebugSession(parsed.debugging_id);
+              } else {
+                localStorage.removeItem("debug_session");
+              }
+            }
+          } catch {
+            // Non-critical
+          }
         }
 
         // Check if user is in signup flow (offline-first mode)
@@ -1188,5 +1285,22 @@ export function setAuthenticatedState(): void {
       "[setAuthenticatedState] Admin user detected — starting clientLogForwarder",
     );
     clientLogForwarder.start();
+  } else {
+    try {
+      const debugSession = localStorage.getItem("debug_session");
+      if (debugSession) {
+        const parsed = JSON.parse(debugSession);
+        const expiresAt = parsed.expires_at
+          ? new Date(parsed.expires_at).getTime()
+          : Infinity;
+        if (expiresAt > Date.now() && parsed.debugging_id) {
+          clientLogForwarder.startDebugSession(parsed.debugging_id);
+        } else {
+          localStorage.removeItem("debug_session");
+        }
+      }
+    } catch {
+      // Non-critical
+    }
   }
 }

@@ -3,7 +3,7 @@ Lifecycle policy management for S3 buckets.
 """
 import logging
 from botocore.exceptions import ClientError
-from typing import Dict, List
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 

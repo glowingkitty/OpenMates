@@ -244,7 +244,6 @@
     border-radius: 999px;
     background: var(--color-grey-10);
     color: var(--color-font-primary);
-    outline: none;
   }
 
   .logs-search:focus {

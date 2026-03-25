@@ -1,10 +1,15 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Contributing
 
 Thank you for your interest in contributing to OpenMates! This section covers everything you need to get started as a contributor.
 
 ## Getting Involved
 
-- [How to Contribute](contributing.md) - Ways to contribute, community channels, and getting started
+- [How to Contribute](./contributing.md) - Ways to contribute, community channels, and getting started
 
 ## Community
 
@@ -14,12 +19,10 @@ Thank you for your interest in contributing to OpenMates! This section covers ev
 
 ## Development Resources
 
-For detailed coding standards and development workflows, see the Architecture section:
-
-- [Architecture Overview](../architecture/README.md) - Technical architecture
-- [Servers & Docker](../architecture/servers.md) - Backend infrastructure
-- [Security](../architecture/security.md) - Zero-knowledge architecture
-- [Translations](../architecture/translations.md) - i18n system
+- [Documentation Structure](./docs-structure.md) - Where to place new docs
+- **Guides:** [Debugging](./guides/debugging.md) · [Testing](./guides/testing.md) · [Git & Deployment](./guides/git-and-deployment.md) · [Add API](./guides/add-api.md) · [Add Embed Type](./guides/add-embed-type.md) · [i18n](./guides/i18n.md) · [Image Proxy](./guides/image-proxy.md) · [Logging](./guides/logging.md) · [Planning](./guides/planning.md) · [Translations](./guides/manage-translations.md) · [Figma to Code](./guides/figma-to-code.md) · [Concurrent Sessions](./guides/concurrent-sessions.md)
+- **Standards:** [Frontend](./standards/frontend.md) · [Backend](./standards/backend.md) · [CLI](./standards/cli.md)
+- **Architecture:** [Overview](../architecture/README.md) · [Servers](../architecture/infrastructure/servers.md) · [Security](../architecture/core/security.md) · [Translations](../architecture/data/translations.md)
 
 ## Code of Conduct
 

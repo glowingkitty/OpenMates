@@ -30,7 +30,7 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
     </div>
 
     <button id="signup-skip-2fa-continue" class="buy-button" onclick={handleContinue} disabled={!consented}>
-        {$text('signup.continue')}
+        {$text('common.continue')}
     </button>
 </div>
 

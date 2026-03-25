@@ -1,7 +1,12 @@
 {
+	"installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
 	"rewrites": [
 		{
 			"source": "/dev/:path*",
+			"destination": "/"
+		},
+		{
+			"source": "/((?!_app|static|docs|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
 			"destination": "/"
 		}
 	],

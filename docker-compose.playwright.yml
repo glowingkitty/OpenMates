@@ -9,6 +9,12 @@ services:
       - ./frontend/apps/web_app/tests:/workspace/tests:ro
       # Mount a writable directory for screenshots and other artifacts.
       - ./playwright-artifacts:/workspace/artifacts
+      # Mount the CLI package for cli-pair-login.spec.ts.
+      # The spec spawns `node /workspace/cli/dist/cli.js` as a child process.
+      # Dependencies (ws, qrcode-terminal) are installed at container startup
+      # via the command below — pnpm symlinks don't survive Docker bind mounts.
+      - ./frontend/packages/openmates-cli/dist:/workspace/cli/dist:ro
+      - ./frontend/packages/openmates-cli/package.json:/workspace/cli/package.json:ro
     environment:
       # Target URL — must be set via E2E_DEV_TEST_BASE_URL in .env (passed
       # through by run-tests-worker.sh). No hardcoded default: a missing var
@@ -46,6 +52,22 @@ services:
       # Allow targeting specific tests
       PLAYWRIGHT_TEST_FILE:
       PLAYWRIGHT_TEST_GREP:
+      # Reporter env vars (forwarded by run-tests-worker.sh for OpenObserve integration)
+      E2E_REPORT_API_URL:
+      E2E_REPORT_API_TOKEN:
+      E2E_REPORT_ENVIRONMENT:
+      E2E_REPORT_ENABLED:
+      # E2E debug log forwarding (forwarded by run-tests-worker.sh)
+      # E2E_RUN_ID: the run correlation ID used as debugging_id in OpenObserve
+      # E2E_DEBUG_TOKEN: scoped HMAC token for /e2e/client-logs (NOT INTERNAL_API_SHARED_TOKEN)
+      E2E_RUN_ID:
+      E2E_DEBUG_TOKEN:
+      # E2E mock mode: when set (e.g., E2E_USE_MOCKS=1), tests append <<<TEST_MOCK:fixture_id>>>
+      # markers to chat messages, causing the backend to replay pre-recorded fixture data instead
+      # of calling real LLM providers and external APIs. Zero inference cost per test run.
+      E2E_USE_MOCKS:
+    networks:
+      - openmates
     # NOTE: Use $$ to escape $ so docker-compose passes the variable expansion
     # to the shell inside the container, rather than evaluating it at parse time.
     command: >
@@ -53,9 +75,19 @@ services:
         cd /workspace &&
         # Create an isolated, throwaway Playwright project inside the container.
         npm init -y >/dev/null 2>&1 &&
-        npm install --silent @playwright/test@1.49.0 &&
+        npm install --silent @playwright/test@1.49.0 @axe-core/playwright@4.11.1 &&
+        # Install CLI runtime deps (ws, qrcode-terminal) for cli-pair-login.spec.ts.
+        # pnpm symlinks break across Docker mounts, so we install directly in /workspace/cli.
+        if [ -f /workspace/cli/package.json ]; then
+          cd /workspace/cli && npm install --silent --omit=dev 2>/dev/null; cd /workspace;
+        fi &&
         # Allow targeted runs without overriding the container command.
         # PLAYWRIGHT_TEST_FILE points at a single test file.
         # PLAYWRIGHT_TEST_GREP filters tests by title (regex).
-        npx playwright test --config=playwright.config.ts $${PLAYWRIGHT_TEST_FILE:-} $${PLAYWRIGHT_TEST_GREP:+--grep \"$$PLAYWRIGHT_TEST_GREP\"}
+        npx playwright test --config=playwright.config.ts --reporter=list,./tests/api-reporter.ts $${PLAYWRIGHT_TEST_FILE:-} $${PLAYWRIGHT_TEST_GREP:+--grep \"$$PLAYWRIGHT_TEST_GREP\"}
       "
+
+networks:
+  openmates:
+    external: true
+    name: openmates

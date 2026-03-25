@@ -114,12 +114,17 @@ class ChatDatabase {
   // Version 20: Added daily_inspirations store for client-side persistence of personalised inspirations
   // Version 21: Delete stale old-format community demo chats (demo-1, demo-2, demo-e0090311, …)
   //             that may have been saved to chats_db before the server migrated to word-slug IDs.
-  private readonly VERSION = 21;
+  // Version 22: key_version + key_fingerprint fields on chats store (no migration needed — new nullable fields).
+  //             Enables key rotation, decryption failure diagnosis, and audit trail.
+  private readonly VERSION = 22;
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
   // Flag to prevent new operations during database deletion
   private isDeleting: boolean = false;
+  // Promise that resolves when an in-progress deleteDatabase() finishes.
+  // Used by init() to wait for deletion instead of throwing permanently.
+  private deletionPromise: Promise<void> | null = null;
 
   // Flag to skip orphan detection for shared chat sessions.
   // This is backed by sessionStorage to persist across page navigations within
@@ -129,8 +134,9 @@ class ChatDatabase {
   private static readonly SKIP_ORPHAN_DETECTION_KEY =
     "openmates_skip_orphan_detection";
 
-  // Chat key cache for performance - public for chatKeyManagement module to access
-  public chatKeys: Map<string, Uint8Array> = new Map();
+  // NOTE: chatKeys (the legacy dual-cache Map) has been removed.
+  // ChatKeyManager is now the single source of truth for all chat keys.
+  // See: frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
 
   // ============================================================================
   // DATABASE INITIALIZATION
@@ -209,9 +215,67 @@ class ChatDatabase {
     }
     const shouldSkipOrphanDetection = this.isSkipOrphanDetectionEnabled();
 
-    // Prevent initialization during deletion
+    // If a deletion was in progress, complete it before re-opening the database.
+    // This handles the race where a user re-logs in immediately after forced logout:
+    // deleteDatabase() sets isDeleting=true, but login resets store flags. A pending
+    // indexedDB.deleteDatabase() request blocks all subsequent indexedDB.open() calls
+    // per the IDB spec — the open handlers never fire while a delete is pending.
+    //
+    // Fix: close any lingering connection, then re-issue deleteDatabase() with a
+    // timeout. The fresh delete either completes quickly (DB already deleted or no
+    // open connections) or times out, after which we proceed to open anyway.
     if (this.isDeleting) {
-      throw new Error("Database is being deleted and cannot be initialized");
+      console.warn(
+        "[ChatDatabase] Deletion was in progress — completing before re-init",
+      );
+      this.isDeleting = false;
+      this.initializationPromise = null;
+      this.deletionPromise = null;
+
+      // Close any lingering connection that might block the pending deletion
+      if (this.db) {
+        this.db.close();
+        this.db = null;
+      }
+
+      // Complete the pending deletion (or timeout) before proceeding to open()
+      await new Promise<void>((resolve) => {
+        const DB_DELETE_TIMEOUT_MS = 3000;
+        const timeout = setTimeout(() => {
+          console.warn(
+            `[ChatDatabase] Pending deletion timed out (${DB_DELETE_TIMEOUT_MS}ms) — proceeding with open`,
+          );
+          resolve();
+        }, DB_DELETE_TIMEOUT_MS);
+
+        try {
+          const req = indexedDB.deleteDatabase(this.DB_NAME);
+          req.onsuccess = () => {
+            console.warn(
+              "[ChatDatabase] Pending deletion completed successfully",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onerror = () => {
+            console.warn(
+              "[ChatDatabase] Pending deletion errored — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onblocked = () => {
+            console.warn(
+              "[ChatDatabase] Deletion blocked by another connection — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+        } catch {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
@@ -390,6 +454,21 @@ class ChatDatabase {
           return chat?.encrypted_chat_key || null;
         });
 
+        // Wire ChatKeyManager's key persister for atomic key creation.
+        // This enables createAndPersistKey() to save the encrypted key to IDB
+        // in a single atomic operation — preventing the race where a key is
+        // created in memory but not yet persisted when data gets encrypted.
+        chatKeyManager.setEncryptedChatKeyPersister(
+          async (chatId: string, encryptedChatKey: string) => {
+            const chat = await this.getChat(chatId);
+            if (chat) {
+              chat.encrypted_chat_key = encryptedChatKey;
+              await this.updateChat(chat);
+            }
+            // If chat doesn't exist yet, the key will be set when addChat() runs
+          },
+        );
+
         // Load chat keys from database into cache
         try {
           await this.loadChatKeysFromDatabase();
@@ -463,35 +542,45 @@ class ChatDatabase {
 
           checkRequest.onsuccess = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;
-            const transaction = db.transaction(
-              [this.CHATS_STORE_NAME],
-              "readonly",
-            );
-            const store = transaction.objectStore(this.CHATS_STORE_NAME);
-            const countRequest = store.count();
+            try {
+              const transaction = db.transaction(
+                [this.CHATS_STORE_NAME],
+                "readonly",
+              );
+              const store = transaction.objectStore(this.CHATS_STORE_NAME);
+              const countRequest = store.count();
 
-            countRequest.onsuccess = () => {
-              const chatCount = countRequest.result;
-              if (chatCount > 0) {
-                console.warn(
-                  "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                  chatCount,
-                  "encrypted chats",
-                );
-                console.warn(
-                  "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
-                );
-                if (typeof localStorage !== "undefined") {
-                  localStorage.setItem("openmates_needs_cleanup", "true");
+              countRequest.onsuccess = () => {
+                const chatCount = countRequest.result;
+                if (chatCount > 0) {
+                  console.warn(
+                    "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
+                    chatCount,
+                    "encrypted chats",
+                  );
+                  console.warn(
+                    "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                  );
+                  if (typeof localStorage !== "undefined") {
+                    localStorage.setItem("openmates_needs_cleanup", "true");
+                  }
+                  setForcedLogoutInProgress();
                 }
-                setForcedLogoutInProgress();
-              }
-              db.close();
-            };
+                db.close();
+              };
 
-            countRequest.onerror = () => {
+              countRequest.onerror = () => {
+                db.close();
+              };
+            } catch (e) {
+              // NotFoundError: object store doesn't exist yet (DB needs migration).
+              // Close and let normal init() handle the upgrade — not an orphan scenario.
+              console.warn(
+                "[ChatDatabase] Orphan check skipped: object store not found (DB needs migration)",
+                e,
+              );
               db.close();
-            };
+            }
           };
 
           checkRequest.onerror = () => {
@@ -1075,6 +1164,22 @@ class ChatDatabase {
     );
   }
 
+  /**
+   * Batch-save metadata-only chats (positions 101–1000) for expanded search.
+   * Skips chats already stored as full chats to avoid data loss.
+   */
+  async batchSaveMetadataChats(chats: Chat[]): Promise<number> {
+    return chatCrudOps.batchSaveMetadataChats(this, chats);
+  }
+
+  /**
+   * Get IDs of all metadata-only chats in IndexedDB.
+   * Used during sync to tell the server which chats the client already has.
+   */
+  async getMetadataOnlyChatIds(): Promise<string[]> {
+    return chatCrudOps.getMetadataOnlyChatIds(this);
+  }
+
   // ============================================================================
   // MESSAGE OPERATIONS (delegated to messageOperations.ts)
   // ============================================================================
@@ -1088,6 +1193,13 @@ class ChatDatabase {
 
   async batchSaveMessages(messages: Message[]): Promise<void> {
     return messageOps.batchSaveMessages(this, messages);
+  }
+
+  async getMessageCountForChat(
+    chat_id: string,
+    transaction?: IDBTransaction,
+  ): Promise<number> {
+    return messageOps.getMessageCountForChat(this, chat_id, transaction);
   }
 
   async getMessagesForChat(
@@ -1370,7 +1482,7 @@ class ChatDatabase {
 
     this.isDeleting = true;
 
-    return new Promise((resolve, reject) => {
+    this.deletionPromise = new Promise((resolve, reject) => {
       if (this.db) {
         this.db.close();
         this.db = null;
@@ -1388,6 +1500,7 @@ class ChatDatabase {
             `[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
 
           // Clear localStorage markers used for orphaned database detection
           if (typeof localStorage !== "undefined") {
@@ -1407,6 +1520,7 @@ class ChatDatabase {
             (event.target as IDBOpenDBRequest).error,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
           reject((event.target as IDBOpenDBRequest).error);
         };
 
@@ -1420,9 +1534,15 @@ class ChatDatabase {
           // keep retrying the deletion in the background, but we cannot leave the
           // singleton in a permanently unusable state across a re-login.
           this.isDeleting = false;
+          this.deletionPromise = null;
+          // Resolve instead of leaving the promise hanging — callers (init()) waiting
+          // on this promise need to unblock so the app can recover.
+          resolve();
         };
       }, 100);
     });
+
+    return this.deletionPromise;
   }
 
   // ============================================================================
@@ -1433,8 +1553,12 @@ class ChatDatabase {
     return chatKeyManagementOps.getChatKey(this, chatId);
   }
 
-  public setChatKey(chatId: string, chatKey: Uint8Array): void {
-    chatKeyManagementOps.setChatKey(this, chatId, chatKey);
+  public setChatKey(
+    chatId: string,
+    chatKey: Uint8Array,
+    source?: import("./encryption/ChatKeyManager").KeySource,
+  ): void {
+    chatKeyManagementOps.setChatKey(this, chatId, chatKey, source);
   }
 
   public async loadChatKeysFromDatabase(): Promise<void> {
@@ -1466,19 +1590,24 @@ class ChatDatabase {
       const sharedKeys = await getAllSharedChatKeys();
 
       if (sharedKeys.size > 0) {
-        // Merge shared keys into the chat keys cache
-        // Don't overwrite existing keys (from master key decryption)
+        // Inject shared keys into ChatKeyManager (single source of truth).
+        // injectKey() guards against overwriting a key already loaded from the
+        // master-key path (loadChatKeysFromDatabase runs before this).
         let loadedCount = 0;
-        // Use Array.from() for compatibility with older TypeScript targets
-        const entries = Array.from(sharedKeys.entries());
-        for (const [chatId, keyBytes] of entries) {
-          if (!this.chatKeys.has(chatId)) {
-            this.chatKeys.set(chatId, keyBytes);
+        let skippedCount = 0;
+        for (const [chatId, keyBytes] of Array.from(sharedKeys.entries())) {
+          if (!chatKeyManager.hasKey(chatId)) {
+            chatKeyManager.injectKey(chatId, keyBytes, "shared_storage");
             loadedCount++;
+          } else {
+            skippedCount++;
           }
         }
         console.warn(
-          `[ChatDatabase] Loaded ${loadedCount} shared chat keys from storage`,
+          `[ChatDatabase] Loaded ${loadedCount} shared chat keys into ChatKeyManager` +
+            (skippedCount > 0
+              ? ` (skipped ${skippedCount} — already loaded from master key)`
+              : ""),
         );
       }
     } catch (error) {
@@ -1779,3 +1908,30 @@ class ChatDatabase {
 }
 
 export const chatDB = new ChatDatabase();
+
+// ---------------------------------------------------------------------------
+// cryptoReady — eager-loading guarantee
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves after the database has been opened AND all encrypted_chat_keys have
+ * been decrypted into ChatKeyManager.  Components that display encrypted content
+ * (chat list, message view) MUST await this before rendering so that
+ * chatKeyManager.getKeySync() never returns null for a chat the user owns.
+ *
+ * Usage in a SvelteKit +page.svelte:
+ *
+ *   import { cryptoReady } from '$ui/services/db';
+ *   onMount(async () => { await cryptoReady; });
+ *
+ * The promise is resolved once per page load. Subsequent awaits return instantly.
+ * If init() throws (e.g. blocked during logout), the promise stays pending —
+ * callers should add a timeout guard for that edge case.
+ */
+export const cryptoReady: Promise<void> = chatDB
+  .init()
+  .then(() => chatDB.loadChatKeysFromDatabase())
+  .catch((err) => {
+    // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
+    console.warn("[db] cryptoReady init failed (may be expected during logout):", err);
+  });

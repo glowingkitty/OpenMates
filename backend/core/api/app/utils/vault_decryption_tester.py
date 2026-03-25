@@ -33,7 +33,6 @@ It's acceptable to keep this for now because:
 
 import logging
 import json
-import base64
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 

@@ -100,7 +100,7 @@ const REVOKE_GRACE_MS = 60_000;
  * Increment reference count for a cached audio blob URL.
  * Call on component mount to prevent premature revocation.
  */
-export function retainCachedAudio(s3Key: string): void {
+function retainCachedAudio(s3Key: string): void {
   const entry = audioCache.get(s3Key);
   if (!entry) return;
   entry.refCount++;
@@ -133,7 +133,7 @@ export function releaseCachedAudio(s3Key: string): void {
 /**
  * Get a cached blob URL without fetching.
  */
-export function getCachedAudioUrl(s3Key: string): string | undefined {
+function getCachedAudioUrl(s3Key: string): string | undefined {
   return audioCache.get(s3Key)?.blobUrl;
 }
 

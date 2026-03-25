@@ -10,7 +10,9 @@ Architecture: docs/architecture/device-sessions.md
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
     import { decryptWithMasterKey } from '../../../services/cryptoService';
-    import { pendingPairToken } from '../../../stores/pairSessionStore';
+    import { pendingPairToken, newlyPairedSession } from '../../../stores/pairSessionStore';
+    import { get } from 'svelte/store';
+    import SettingsInput from '../elements/SettingsInput.svelte';
 
     const dispatch = createEventDispatcher();
 
@@ -50,13 +52,27 @@ Architecture: docs/architecture/device-sessions.md
     let processingAll = $state(false);
     let addDeviceInput = $state('');
     let addDeviceError = $state('');
+    /** Session ID of the most recently paired device (for "New" badge) */
+    let newlyPairedSessionId = $state<string | null>(null);
 
     // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
-    onMount(() => {
-        loadSessions();
+    onMount(async () => {
+        // Check if we arrived here after a successful pairing
+        const justPaired = get(newlyPairedSession);
+        await loadSessions();
+        if (justPaired && sessions.length > 0) {
+            // Find the newest non-current session (the one just paired)
+            const newest = sessions
+                .filter(s => !s.is_current)
+                .sort((a, b) => b.created_at - a.created_at)[0];
+            if (newest) {
+                newlyPairedSessionId = newest.session_id;
+            }
+            newlyPairedSession.set(false);
+        }
     });
 
     // ========================================================================
@@ -96,7 +112,7 @@ Architecture: docs/architecture/device-sessions.md
         const now = Date.now() / 1000;
         const diff = now - timestamp;
 
-        if (diff < 60) return $text('settings.sessions.just_now');
+        if (diff < 60) return $text('common.just_now');
         if (diff < 3600) {
             const mins = Math.floor(diff / 60);
             return mins === 1
@@ -333,19 +349,13 @@ Architecture: docs/architecture/device-sessions.md
         <h3 class="add-device-title">Add device</h3>
         <p class="add-device-description">Enter the pair URL or 6-character code from the new device.</p>
         <div class="add-device-row">
-            <input
+            <SettingsInput
                 type="text"
-                class="add-device-input"
                 placeholder="https://.../#pair=ABC123 or ABC123"
-                value={addDeviceInput}
-                oninput={(event) => {
-                    addDeviceInput = (event.currentTarget as HTMLInputElement).value;
-                    addDeviceError = '';
-                }}
-                onkeydown={(event) => {
-                    if (event.key === 'Enter') connectDevice();
-                }}
+                bind:value={addDeviceInput}
                 autocomplete="off"
+                onInput={() => { addDeviceError = ''; }}
+                onKeydown={(event) => { if (event.key === 'Enter') connectDevice(); }}
             />
             <button class="btn btn-connect" onclick={connectDevice}>Connect</button>
         </div>
@@ -365,9 +375,15 @@ Architecture: docs/architecture/device-sessions.md
             <p>{$text('settings.sessions.no_sessions')}</p>
         </div>
     {:else}
-        <div class="sessions-list">
+        <div class="sessions-list" data-testid="sessions-list">
             {#each sessions as session (session.session_id)}
-                <div class="session-card" class:current={session.is_current}>
+                <div
+                    class="session-card"
+                    class:current={session.is_current}
+                    data-testid="session-card"
+                    data-session-id={session.session_id}
+                    data-is-current={session.is_current}
+                >
                     <div class="session-header">
                         <div class="session-info">
                             <h3 class="session-device-name">
@@ -377,6 +393,9 @@ Architecture: docs/architecture/device-sessions.md
                                 {session.device_name}
                                 {#if session.is_current}
                                     <span class="current-badge">{$text('settings.sessions.this_device')}</span>
+                                {/if}
+                                {#if newlyPairedSessionId === session.session_id}
+                                    <span class="new-badge">{$text('settings.sessions.new_badge')}</span>
                                 {/if}
                             </h3>
                             <p class="session-location">
@@ -421,6 +440,7 @@ Architecture: docs/architecture/device-sessions.md
                         <div class="session-actions">
                             <button
                                 class="btn btn-remove"
+                                data-testid="session-revoke-btn"
                                 onclick={() => revokeSession(session.session_id)}
                                 disabled={processingSessionId === session.session_id || processingAll}
                             >
@@ -443,7 +463,7 @@ Architecture: docs/architecture/device-sessions.md
                     disabled={processingAll}
                 >
                     {processingAll
-                        ? $text('settings.sessions.processing')
+                        ? $text('common.processing')
                         : $text('settings.sessions.logout_all_others')}
                 </button>
             </div>
@@ -456,7 +476,7 @@ Architecture: docs/architecture/device-sessions.md
                 disabled={processingAll}
             >
                 {processingAll
-                    ? $text('settings.sessions.processing')
+                    ? $text('common.processing')
                     : $text('settings.sessions.logout_all_devices')}
             </button>
             <p class="destructive-hint">{$text('settings.sessions.logout_all_hint')}</p>
@@ -521,22 +541,6 @@ Architecture: docs/architecture/device-sessions.md
         display: flex;
         gap: 10px;
         align-items: center;
-    }
-
-    .add-device-input {
-        flex: 1;
-        min-width: 0;
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 13px;
-        color: var(--color-grey-100);
-        background: var(--color-grey-0);
-    }
-
-    .add-device-input:focus {
-        outline: none;
-        border-color: var(--color-primary-start);
     }
 
     .btn-connect {
@@ -617,6 +621,17 @@ Architecture: docs/architecture/device-sessions.md
         font-weight: 500;
         background: rgba(59, 130, 246, 0.1);
         color: #3b82f6;
+        white-space: nowrap;
+    }
+
+    .new-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
         white-space: nowrap;
     }
 

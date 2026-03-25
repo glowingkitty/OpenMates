@@ -804,7 +804,6 @@
 		font-size: 12px;
 		line-height: 1.5;
 		resize: none;
-		outline: none;
 		box-sizing: border-box;
 	}
 

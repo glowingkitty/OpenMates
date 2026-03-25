@@ -45,7 +45,7 @@ import type { PIIMapping } from "../types/chat";
 /**
  * The current PII masking state for the active chat.
  * - mappings: Merged PIIMapping array from message-level and embed-level sources.
- *   These map placeholder strings (e.g. "[EMAIL_1]") to original values.
+ *   These map placeholder strings (e.g. "[EMAIL_com]") to original values.
  * - revealed: Whether the original values should be shown (true) or kept as
  *   placeholders (false, the default).
  */
@@ -132,7 +132,7 @@ export function setEmbedPIIState(
  *
  * @param revealed - Whether PII originals should be shown
  */
-export function setEmbedPIIRevealed(revealed: boolean): void {
+function setEmbedPIIRevealed(revealed: boolean): void {
   _internalStore.update((s) => ({ ...s, revealed }));
 }
 

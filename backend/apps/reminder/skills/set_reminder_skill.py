@@ -4,13 +4,15 @@
 # Creates scheduled reminders with support for specific/random times, 
 # new chat/existing chat targets, and repeating schedules.
 #
-# This skill stores reminders vault-encrypted in cache for processing
-# by the scheduled Celery task.
+# This skill stores reminders in PostgreSQL (Directus) as the durable source
+# of truth, with vault encryption for all sensitive fields. Near-term reminders
+# (within 48h) are also loaded into the Dragonfly hot cache for fast polling.
 
 import logging
 import uuid
 import time
 import json
+import hashlib
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 from celery import Celery
@@ -32,20 +34,23 @@ class SetReminderRequest(BaseModel):
     prompt: str = Field(..., description="The reminder message/prompt")
     trigger_type: str = Field(..., description="'specific' or 'random'")
     timezone: str = Field(..., description="User's timezone")
-    
+
     # For specific trigger
     trigger_datetime: Optional[str] = Field(None, description="ISO 8601 datetime for specific trigger")
-    
+
     # For random trigger
     random_start_date: Optional[str] = Field(None, description="Start date (YYYY-MM-DD)")
     random_end_date: Optional[str] = Field(None, description="End date (YYYY-MM-DD)")
     random_time_start: Optional[str] = Field(None, description="Earliest time (HH:MM)")
     random_time_end: Optional[str] = Field(None, description="Latest time (HH:MM)")
-    
+
     # Target configuration
     target_type: str = Field(default="new_chat", description="'new_chat' or 'existing_chat'")
     new_chat_title: Optional[str] = Field(None, description="Title for new chat")
-    
+
+    # Response type: "simple" = notification-only (no AI), "full" = AI executes a task
+    response_type: str = Field(default="simple", description="'simple' for notification-only (no AI), 'full' for AI action trigger")
+
     # Repeat configuration
     repeat: Optional[Dict[str, Any]] = Field(None, description="Repeat configuration")
 
@@ -75,11 +80,13 @@ class SetReminderSkill(BaseSkill):
     - Existing chat target (sends follow-up in current chat)
     - Repeating reminders (daily, weekly, monthly, custom interval)
     
-    ARCHITECTURE:
-    - Reminders are stored vault-encrypted in Dragonfly cache
-    - A Celery beat task polls for due reminders every minute
-    - When a reminder fires, it creates a system message in target chat
-    - For existing_chat targets, chat history is cached with the reminder
+    ARCHITECTURE (Hybrid PostgreSQL + Hot Cache):
+    - Reminders are stored vault-encrypted in PostgreSQL (Directus) as source of truth
+    - Near-term reminders (within 48h) are loaded into a Dragonfly hot cache
+    - A Celery beat task polls the hot cache ZSET for due reminders every minute
+    - A promotion task loads near-term reminders from DB -> cache twice daily
+    - When a reminder fires, it creates a system message in the target chat
+    - For existing_chat targets, chat history is stored with the reminder
     """
 
     def __init__(
@@ -211,20 +218,28 @@ class SetReminderSkill(BaseSkill):
             # Check if a reminder with the same prompt was created by this user in
             # the last 60 seconds - if so, return the existing reminder as success.
             try:
-                existing_reminders = await cache_service.get_user_reminders(user_id, status_filter="pending")
+                dedup_hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+                existing_reminders = []
+                if directus_service:
+                    try:
+                        existing_reminders = await directus_service.reminder.get_user_reminders(
+                            hashed_user_id=dedup_hashed_uid, status_filter="pending", limit=10
+                        )
+                    except Exception:
+                        pass  # Dedup is best-effort
                 if existing_reminders:
                     for existing in existing_reminders:
                         # Check if created within last 60 seconds
                         time_diff = current_time - existing.get("created_at", 0)
                         if 0 <= time_diff <= 60:
-                            # Compare prompts (both are encrypted, so compare the
-                            # source chat_id + trigger_type + timezone as a proxy)
-                            if (existing.get("created_in_chat_id") == chat_id
-                                    and existing.get("trigger_type") == trigger_type
+                            # Compare trigger_type + timezone as a dedup proxy.
+                            # trigger_at is not yet parsed at this point, so we rely on the
+                            # 60-second window + type + timezone to catch duplicates.
+                            if (existing.get("trigger_type") == trigger_type
                                     and existing.get("timezone") == timezone):
                                 logger.warning(
                                     f"DEDUP: Skipping duplicate set-reminder call for user {user_id} "
-                                    f"in chat {chat_id} - reminder {existing.get('reminder_id')} "
+                                    f"in chat {chat_id} - reminder {existing.get('id') or existing.get('reminder_id')} "
                                     f"was created {time_diff}s ago with same parameters"
                                 )
                                 # Return success with existing reminder details
@@ -233,7 +248,7 @@ class SetReminderSkill(BaseSkill):
                                 )
                                 return SetReminderResponse(
                                     success=True,
-                                    reminder_id=existing.get("reminder_id"),
+                                    reminder_id=existing.get("id") or existing.get("reminder_id"),
                                     trigger_at=existing_trigger_formatted,
                                     target_type=existing.get("target_type", target_type),
                                     is_repeating=existing.get("repeat_config") is not None,
@@ -394,36 +409,69 @@ class SetReminderSkill(BaseSkill):
             # Generate reminder ID
             reminder_id = str(uuid.uuid4())
 
-            # Build reminder data
-            reminder_data = {
-                "reminder_id": reminder_id,
-                "user_id": user_id,
+            # Vault-encrypt user_id and chat IDs for DB storage (privacy)
+            encrypted_user_id, _ = await encryption_service.encrypt_with_user_key(
+                plaintext=user_id, key_id=user_vault_key_id
+            )
+            encrypted_target_chat_id = None
+            if target_chat_id:
+                encrypted_target_chat_id, _ = await encryption_service.encrypt_with_user_key(
+                    plaintext=target_chat_id, key_id=user_vault_key_id
+                )
+            encrypted_created_in_chat_id = None
+            if chat_id:
+                encrypted_created_in_chat_id, _ = await encryption_service.encrypt_with_user_key(
+                    plaintext=chat_id, key_id=user_vault_key_id
+                )
+
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            safe_response_type = response_type if response_type in ("simple", "full") else "simple"
+
+            # Build the Directus (DB) record — source of truth
+            db_reminder = {
+                "id": reminder_id,
+                "hashed_user_id": hashed_user_id,
+                "encrypted_user_id": encrypted_user_id,
                 "vault_key_id": user_vault_key_id,
                 "encrypted_prompt": encrypted_prompt,
                 "encrypted_chat_history": encrypted_chat_history,
                 "encrypted_new_chat_title": encrypted_new_chat_title,
+                "encrypted_target_chat_id": encrypted_target_chat_id,
+                "encrypted_created_in_chat_id": encrypted_created_in_chat_id,
                 "trigger_type": trigger_type,
                 "trigger_at": trigger_at,
-                "random_config": random_config,
                 "target_type": target_type,
-                "target_chat_id": target_chat_id,
+                "random_config": random_config,
                 "repeat_config": repeat,
-                "created_at": current_time,
-                "created_in_chat_id": chat_id,
-                "occurrence_count": 0,
                 "status": "pending",
+                "response_type": safe_response_type,
+                "occurrence_count": 0,
+                "created_at": current_time,
                 "timezone": timezone,
-                "response_type": response_type if response_type in ("simple", "full") else "simple",
             }
 
-            # Store reminder in cache
-            success = await cache_service.create_reminder(reminder_data)
-            
-            if not success:
+            # Write to PostgreSQL via Directus (durable source of truth)
+            db_success = False
+            if directus_service:
+                db_success = await directus_service.reminder.create_reminder(db_reminder)
+
+            if not db_success:
+                logger.error(f"Failed to create reminder {reminder_id} in database")
                 return SetReminderResponse(
                     success=False,
-                    error="Failed to create reminder in cache"
+                    error="Failed to create reminder"
                 )
+
+            # Load into hot cache if within the 48-hour window
+            hot_window_seconds = 48 * 3600
+            if trigger_at <= current_time + hot_window_seconds:
+                # Cache version includes user_id in plaintext for WebSocket delivery
+                cache_data = dict(db_reminder)
+                cache_data["reminder_id"] = reminder_id
+                cache_data["user_id"] = user_id  # Plaintext in cache (ephemeral)
+                cache_data["target_chat_id"] = target_chat_id  # Plaintext in cache
+                cache_data["created_in_chat_id"] = chat_id
+                await cache_service.load_reminder_into_cache(cache_data)
 
             # Format trigger time for response
             trigger_at_formatted = format_reminder_time(trigger_at, timezone)

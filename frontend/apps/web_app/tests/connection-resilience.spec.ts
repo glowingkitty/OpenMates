@@ -49,6 +49,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -75,7 +76,7 @@ async function loginAndNavigateToChat(
 	await archiveExistingScreenshots(logCheckpoint);
 
 	logCheckpoint('Navigating to home page.', { email: TEST_EMAIL });
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
@@ -86,21 +87,21 @@ async function loginAndNavigateToChat(
 	await headerLoginButton.click();
 
 	// Enter email
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
 	// Enter password
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible();
+	const passwordInput = page.locator('#login-password-input');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
 	// Handle 2FA OTP
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	logCheckpoint('Generated and entered OTP.');
 

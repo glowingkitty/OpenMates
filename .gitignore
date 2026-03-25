@@ -170,6 +170,10 @@ secrets.json
 .DS_Store
 log/
 logs/
+
+# Agent trigger files (written by Docker sidecar, consumed by host watcher)
+scripts/.agent-triggers/
+scripts/.tmp/
 processed_websites/
 temp_data
 
@@ -217,7 +221,12 @@ backend/preview/Caddyfile
 .claude/sessions.lock
 .claude/sessions.md
 .claude/project-index.json
+.claude/plane-states.json
 .claude/settings.local.json
+.claude/security-audit-state.json
+.claude/security-audit-state.json.tmp
+.claude/security-acknowledged.json
+.claude/security-acknowledged.json.tmp
 .cursor
 .svelte-kit
 
@@ -235,6 +244,9 @@ backend/core/api/logs/*.log.*
 test_results/
 test-results/
 *.test_results.json
+
+# Test coverage reports (auto-generated; use CI artifacts instead)
+frontend/packages/ui/coverage/
 
 # Domain security configuration files
 restricted_domains.txt
@@ -259,6 +271,25 @@ rankings.json
 # Local debug and cache artifacts
 debug_output*.yml
 shared/cache/web_analytics_backup.json
+shared/cache/pending_reminders_backup.json
+
+# Script auto-generated state files
+scripts/.dead-code-removal-state.json
+scripts/.deploy-checker-state.json
+scripts/.workflow-review-state.json
+scripts/dependabot-processed.json.bak
+
+# Test output artifacts
+backend/tests/output/
+
+# Claude Code — worktree runtime state (empty dirs managed by sessions.py)
+.claude/worktrees/
 
 # OpenCode AI editor local state
 .opencode/
+
+# Claude Code — additional ephemeral state (rules, skills, agents, hooks are committed)
+.claude/plans/
+.claude/memory/
+.claude/tasks/
+.claude/backlog.json

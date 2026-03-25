@@ -183,6 +183,34 @@ class ChatMethods:
             logger.error(f"Error fetching chat metadata for {chat_id}: {e}", exc_info=True)
             return None
 
+    async def get_chats_metadata_batch(self, chat_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetches metadata for multiple chats in a single Directus query using filter[id][_in].
+        Returns a dict mapping chat_id -> metadata dict. Missing chats are omitted.
+        """
+        import re
+        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        valid_ids = [cid for cid in chat_ids if uuid_pattern.match(cid)]
+        if not valid_ids:
+            return {}
+
+        logger.info(f"Batch fetching chat metadata for {len(valid_ids)} chats")
+        params = {
+            'filter[id][_in]': ','.join(valid_ids),
+            'fields': CHAT_METADATA_FIELDS,
+            'limit': len(valid_ids)
+        }
+        try:
+            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
+            if response and isinstance(response, list):
+                result = {item['id']: item for item in response if 'id' in item}
+                logger.info(f"Batch fetched metadata for {len(result)}/{len(valid_ids)} chats")
+                return result
+            return {}
+        except Exception as e:
+            logger.error(f"Error batch fetching chat metadata for {len(valid_ids)} chats: {e}", exc_info=True)
+            return {}
+
     async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
         """
         Checks if a user owns a chat by comparing hashed_user_id.

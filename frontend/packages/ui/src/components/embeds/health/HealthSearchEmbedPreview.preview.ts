@@ -5,41 +5,39 @@
  * Access at: /dev/preview/embeds/health/HealthSearchEmbedPreview
  */
 
-/** Default props — finished search with multiple results */
+/** Default props — finished search with mixed Doctolib + Jameda results */
 const defaultProps = {
   id: "preview-health-search-1",
   query: "Ophthalmologist in Munich",
-  provider: "Doctolib",
+  provider: "Doctolib, Jameda",
   status: "finished" as const,
   results: [
     {
       type: "appointment",
+      slot_datetime: "2026-04-03T08:00:00",
+      name: "Dr. Markus Reinholz",
+      speciality: "Hautarzt / Dermatologe",
+      address: "Frauenplatz 11, 80331 München",
+      insurance: "",
+      telehealth: false,
+    },
+    {
+      type: "appointment",
+      slot_datetime: "2026-04-03T10:30:00",
       name: "Dr. Sophie Müller",
       speciality: "Ophthalmologist",
       address: "Maximilianstraße 12, 80539 Munich",
-      slots_count: 3,
-      next_slot: "2026-04-03T10:30:00",
       insurance: "public",
       telehealth: false,
     },
     {
       type: "appointment",
+      slot_datetime: "2026-04-05T14:00:00",
       name: "Prof. Dr. Klaus Weber",
       speciality: "Ophthalmologist",
       address: "Leopoldstraße 45, 80802 Munich",
-      slots_count: 5,
-      next_slot: "2026-04-05T14:00:00",
       insurance: "private",
       telehealth: true,
-    },
-    {
-      type: "appointment",
-      name: "Dr. Anna Schmidt",
-      speciality: "Ophthalmologist",
-      address: "Sendlinger Straße 8, 80331 Munich",
-      slots_count: 0,
-      insurance: "public",
-      telehealth: false,
     },
   ],
   isMobile: false,
@@ -71,5 +69,21 @@ export const variants = {
     ...defaultProps,
     id: "preview-health-search-mobile",
     isMobile: true,
+  },
+
+  /** Single result */
+  singleResult: {
+    ...defaultProps,
+    id: "preview-health-search-single",
+    query: "Neurologist in Hamburg",
+    results: [
+      {
+        type: "appointment",
+        slot_datetime: "2026-04-03T10:00:00",
+        name: "Jan Philipp Buschmann",
+        speciality: "Neurologe",
+        address: "Hoheluftchaussee 2, 20253 Hamburg",
+      },
+    ],
   },
 };

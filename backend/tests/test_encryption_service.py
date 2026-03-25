@@ -10,12 +10,9 @@ Tests the zero-knowledge encryption architecture including:
 """
 
 import pytest
-import asyncio
 import base64
 import os
-import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open
-from cryptography.exceptions import InvalidTag
 
 # Import the encryption service
 import sys
@@ -102,40 +99,58 @@ class TestEncryptionService:
 
         @pytest.mark.asyncio
         async def test_validate_token_success(self, encryption_service):
-            """Test successful token validation"""
-            mock_response = {
-                "data": {
-                    "policies": ["default", "encryption-policy"]
-                }
-            }
+            """Test successful token validation.
             
-            with patch.object(encryption_service, '_vault_request', return_value=mock_response):
+            _validate_token uses httpx.AsyncClient directly (not _vault_request),
+            so we mock the httpx client, not _vault_request.
+            """
+            mock_response_obj = MagicMock()
+            mock_response_obj.status_code = 200
+            mock_response_obj.json.return_value = {
+                "data": {"policies": ["default", "encryption-policy"]}
+            }
+            with patch('httpx.AsyncClient') as mock_client:
+                mock_client.return_value.__aenter__.return_value.get = AsyncMock(
+                    return_value=mock_response_obj
+                )
                 result = await encryption_service._validate_token()
                 assert result is True
 
         @pytest.mark.asyncio
         async def test_validate_token_failure(self, encryption_service):
             """Test token validation failure"""
-            with patch.object(encryption_service, '_vault_request', side_effect=Exception("Unauthorized")):
-                result = await encryption_service._validate_token()
-                assert result is False
+            mock_response_obj = MagicMock()
+            mock_response_obj.status_code = 403
+            mock_response_obj.text = "Forbidden"
+            with patch('httpx.AsyncClient') as mock_client:
+                mock_client.return_value.__aenter__.return_value.get = AsyncMock(
+                    return_value=mock_response_obj
+                )
+                # Prevent file-token refresh from succeeding
+                with patch.object(encryption_service, '_get_token_from_file', return_value=None):
+                    result = await encryption_service._validate_token()
+                    assert result is False
 
         @pytest.mark.asyncio
         async def test_validate_token_caching(self, encryption_service):
-            """Test token validation caching"""
-            mock_response = {"data": {"policies": ["default"]}}
-            
-            with patch.object(encryption_service, '_vault_request', return_value=mock_response) as mock_request:
-                # First call should validate
+            """Test token validation caching — second call must use cached result."""
+            mock_response_obj = MagicMock()
+            mock_response_obj.status_code = 200
+            mock_response_obj.json.return_value = {"data": {"policies": ["default"]}}
+            with patch('httpx.AsyncClient') as mock_client:
+                mock_get = AsyncMock(return_value=mock_response_obj)
+                mock_client.return_value.__aenter__.return_value.get = mock_get
+
+                # First call validates against Vault
                 result1 = await encryption_service._validate_token()
                 assert result1 is True
-                
-                # Second call should use cache
+
+                # Second call must use cache — no new HTTP request
                 result2 = await encryption_service._validate_token()
                 assert result2 is True
-                
-                # Should only call vault once due to caching
-                assert mock_request.call_count == 1
+
+                # Only one real HTTP call should have been made
+                assert mock_get.call_count == 1
 
     class TestVaultRequest:
         """Test Vault API request handling"""
@@ -240,7 +255,7 @@ class TestEncryptionService:
                 
                 # Verify context was included in request
                 call_args = mock_request.call_args
-                assert call_args[1]['data']['context'] == context
+                assert call_args[0][2]['context'] == context
 
         @pytest.mark.asyncio
         async def test_encrypt_empty_plaintext(self, encryption_service):
@@ -267,11 +282,11 @@ class TestEncryptionService:
             context = "test-context"
             
             with patch.object(encryption_service, '_vault_request', return_value=mock_vault_response) as mock_request:
-                result = await encryption_service.decrypt(ciphertext, key_name, context)
+                await encryption_service.decrypt(ciphertext, key_name, context)
                 
                 # Verify context was included in request
                 call_args = mock_request.call_args
-                assert call_args[1]['data']['context'] == context
+                assert call_args[0][2]['context'] == context
 
         @pytest.mark.asyncio
         async def test_decrypt_empty_ciphertext(self, encryption_service):
@@ -301,11 +316,13 @@ class TestEncryptionService:
             with patch.object(encryption_service, 'encrypt', return_value=("ciphertext", "v1")) as mock_encrypt:
                 ciphertext, key_version = await encryption_service.encrypt_with_user_key(plaintext, key_id)
                 
-                # Verify encrypt was called with correct parameters
+                # Verify encrypt was called with correct parameters.
+                # encrypt_with_user_key calls: await self.encrypt(plaintext, key_name=key_id, context=context)
+                # So positional args: (plaintext,); keyword args: {key_name: key_id, context: ...}
                 mock_encrypt.assert_called_once()
                 call_args = mock_encrypt.call_args
                 assert call_args[0][0] == plaintext
-                assert call_args[0][1] == key_id
+                assert call_args[1]['key_name'] == key_id
                 assert 'context' in call_args[1]
 
         @pytest.mark.asyncio
@@ -322,13 +339,14 @@ class TestEncryptionService:
             key_id = "user_12345"
             
             with patch.object(encryption_service, 'decrypt', return_value="decrypted data") as mock_decrypt:
-                result = await encryption_service.decrypt_with_user_key(ciphertext, key_id)
+                await encryption_service.decrypt_with_user_key(ciphertext, key_id)
                 
-                # Verify decrypt was called with correct parameters
+                # Verify decrypt was called with correct parameters.
+                # decrypt_with_user_key calls: await self.decrypt(ciphertext, key_name=key_id, context=context)
                 mock_decrypt.assert_called_once()
                 call_args = mock_decrypt.call_args
                 assert call_args[0][0] == ciphertext
-                assert call_args[0][1] == key_id
+                assert call_args[1]['key_name'] == key_id
                 assert 'context' in call_args[1]
 
         @pytest.mark.asyncio
@@ -405,9 +423,13 @@ class TestEncryptionService:
                 assert result is False
 
     class TestEmailDecryption:
-        """Test email decryption with PyNaCl"""
+        """Test email decryption with PyNaCl.
+        
+        decrypt_with_email_key is async, so all tests use @pytest.mark.asyncio + await.
+        """
 
-        def test_decrypt_with_email_key_success(self, encryption_service):
+        @pytest.mark.asyncio
+        async def test_decrypt_with_email_key_success(self, encryption_service):
             """Test successful email decryption"""
             # This test requires PyNaCl to be installed
             try:
@@ -420,59 +442,67 @@ class TestEncryptionService:
             email = "test@example.com"
             email_encryption_key = nacl.utils.random(32)
             
-            # Encrypt email
+            # Encrypt email using nacl SecretBox.
+            # box.encrypt(message, nonce) returns an EncryptedMessage which is already
+            # nonce + ciphertext (the nonce is prepended by PyNaCl).
+            # The server's decrypt_with_email_key expects base64(nonce + ciphertext),
+            # so we pass the EncryptedMessage bytes directly — do NOT prepend nonce again.
             box = nacl.secret.SecretBox(email_encryption_key)
             nonce = nacl.utils.random(24)
             encrypted_email_bytes = box.encrypt(email.encode('utf-8'), nonce)
             
-            # Combine nonce and ciphertext
-            combined = nonce + encrypted_email_bytes
-            encrypted_email_b64 = base64.b64encode(combined).decode('utf-8')
+            # EncryptedMessage is already nonce + ciphertext (no double-prepend)
+            encrypted_email_b64 = base64.b64encode(bytes(encrypted_email_bytes)).decode('utf-8')
             email_key_b64 = base64.b64encode(email_encryption_key).decode('utf-8')
             
-            # Test decryption
-            result = encryption_service.decrypt_with_email_key(encrypted_email_b64, email_key_b64)
+            # Test decryption (must await — function is async)
+            result = await encryption_service.decrypt_with_email_key(encrypted_email_b64, email_key_b64)
             assert result == email
 
-        def test_decrypt_with_email_key_invalid_key_length(self, encryption_service):
+        @pytest.mark.asyncio
+        async def test_decrypt_with_email_key_invalid_key_length(self, encryption_service):
             """Test email decryption with invalid key length"""
             encrypted_email = "dGVzdA=="  # base64 for "test"
             invalid_key = "dGVzdA=="  # 4 bytes instead of 32
             
-            result = encryption_service.decrypt_with_email_key(encrypted_email, invalid_key)
+            result = await encryption_service.decrypt_with_email_key(encrypted_email, invalid_key)
             assert result is None
 
-        def test_decrypt_with_email_key_invalid_base64(self, encryption_service):
+        @pytest.mark.asyncio
+        async def test_decrypt_with_email_key_invalid_base64(self, encryption_service):
             """Test email decryption with invalid base64"""
             encrypted_email = "invalid-base64!"
             email_key = base64.b64encode(b"test-key-32-bytes-long-123456789").decode('utf-8')
             
-            result = encryption_service.decrypt_with_email_key(encrypted_email, email_key)
+            result = await encryption_service.decrypt_with_email_key(encrypted_email, email_key)
             assert result is None
 
-        def test_decrypt_with_email_key_too_short(self, encryption_service):
+        @pytest.mark.asyncio
+        async def test_decrypt_with_email_key_too_short(self, encryption_service):
             """Test email decryption with too short encrypted data"""
             encrypted_email = base64.b64encode(b"short").decode('utf-8')  # Less than 24 bytes
             email_key = base64.b64encode(b"test-key-32-bytes-long-123456789").decode('utf-8')
             
-            result = encryption_service.decrypt_with_email_key(encrypted_email, email_key)
+            result = await encryption_service.decrypt_with_email_key(encrypted_email, email_key)
             assert result is None
 
-        def test_decrypt_with_email_key_missing_pynacl(self, encryption_service):
+        @pytest.mark.asyncio
+        async def test_decrypt_with_email_key_missing_pynacl(self, encryption_service):
             """Test email decryption when PyNaCl is not available"""
             with patch('nacl.secret', side_effect=ImportError("No module named 'nacl'")):
                 encrypted_email = "dGVzdA=="
                 email_key = base64.b64encode(b"test-key-32-bytes-long-123456789").decode('utf-8')
                 
-                result = encryption_service.decrypt_with_email_key(encrypted_email, email_key)
+                result = await encryption_service.decrypt_with_email_key(encrypted_email, email_key)
                 assert result is None
 
-        def test_decrypt_with_email_key_empty_input(self, encryption_service):
+        @pytest.mark.asyncio
+        async def test_decrypt_with_email_key_empty_input(self, encryption_service):
             """Test email decryption with empty input"""
-            result = encryption_service.decrypt_with_email_key("", "key")
+            result = await encryption_service.decrypt_with_email_key("", "key")
             assert result is None
             
-            result = encryption_service.decrypt_with_email_key("data", "")
+            result = await encryption_service.decrypt_with_email_key("data", "")
             assert result is None
 
     class TestServiceLifecycle:
@@ -512,35 +542,67 @@ class TestEncryptionService:
 
         @pytest.mark.asyncio
         async def test_ensure_keys_exist_transit_not_enabled(self, encryption_service):
-            """Test when transit engine needs to be enabled"""
-            # First call fails (transit not enabled), second succeeds (enabling transit)
-            with patch.object(encryption_service, '_vault_request', side_effect=[
-                Exception("404"),  # Transit not found
-                {"data": {}}       # Transit enabled successfully
-            ]):
+            """Test when transit engine needs to be enabled.
+            
+            ensure_keys_exist has many key sections. Use MagicMock with side_effect as a
+            function that returns success for any call after the initial failure.
+            """
+            call_count = [0]
+            def vault_response(*args, **kwargs):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    raise Exception("404")  # Transit not found on first call
+                # All subsequent calls succeed (transit enable + all key checks)
+                path = args[1] if len(args) > 1 else ""
+                if "keys/" in str(path):
+                    key_name = str(path).split("keys/")[-1]
+                    return {"data": {"name": key_name}}
+                return {"data": {}}
+
+            with patch.object(encryption_service, '_vault_request', side_effect=vault_response):
                 await encryption_service.ensure_keys_exist()
 
         @pytest.mark.asyncio
         async def test_ensure_keys_exist_email_key_exists(self, encryption_service):
-            """Test when email HMAC key already exists"""
-            mock_responses = [
-                {"data": {"type": "transit"}},  # Transit enabled
-                {"data": {"name": "email-hmac-key"}}  # Email key exists
-            ]
+            """Test when all keys already exist.
             
-            with patch.object(encryption_service, '_vault_request', side_effect=mock_responses):
+            Mocks _vault_request to return success for all transit/key checks.
+            """
+            def vault_response(*args, **kwargs):
+                path = args[1] if len(args) > 1 else ""
+                if "keys/" in str(path):
+                    key_name = str(path).split("keys/")[-1]
+                    return {"data": {"name": key_name}}
+                return {"data": {"type": "transit"}}
+
+            with patch.object(encryption_service, '_vault_request', side_effect=vault_response):
                 await encryption_service.ensure_keys_exist()
 
         @pytest.mark.asyncio
         async def test_ensure_keys_exist_email_key_creation(self, encryption_service):
-            """Test email HMAC key creation"""
-            mock_responses = [
-                {"data": {"type": "transit"}},  # Transit enabled
-                Exception("404"),              # Email key not found
-                {"data": {}}                   # Email key created
-            ]
+            """Test email HMAC key creation when it doesn't exist.
             
-            with patch.object(encryption_service, '_vault_request', side_effect=mock_responses):
+            First key check (email-hmac) returns 404, triggering creation.
+            All other key checks succeed.
+            """
+            email_hmac_check_done = [False]
+            def vault_response(*args, **kwargs):
+                path = args[1] if len(args) > 1 else ""
+                path_str = str(path)
+                # Transit check succeeds
+                if "sys/mounts" in path_str:
+                    return {"data": {"type": "transit"}}
+                # First GET for email-hmac returns 404 (triggers creation)
+                if "keys/email-hmac-key" in path_str and not email_hmac_check_done[0]:
+                    email_hmac_check_done[0] = True
+                    raise Exception("404")
+                # All other key GETs and the email-hmac POST succeed
+                if "keys/" in path_str:
+                    key_name = path_str.split("keys/")[-1]
+                    return {"data": {"name": key_name}}
+                return {"data": {}}
+
+            with patch.object(encryption_service, '_vault_request', side_effect=vault_response):
                 await encryption_service.ensure_keys_exist()
 
     class TestWaitForValidToken:

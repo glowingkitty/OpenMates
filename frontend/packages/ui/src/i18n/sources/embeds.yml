@@ -2912,6 +2912,7 @@ view_on_meetup:
   th: ดูบน Meetup
   cs: Zobrazit na Meetup
   sv: Visa på Meetup
+  he: צפייה ב-Meetup
   verified_by_human: []
 focus_mode.context_menu.stop:
   context: Context menu button to stop an activated focus mode session
@@ -3110,13 +3111,47 @@ pii_hide:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently visible — clicking will hide it
   en: Hide sensitive data
   de: Sensible Daten ausblenden
-
+  zh: 隐藏敏感数据
+  es: Ocultar datos sensibles
+  fr: Masquer les données sensibles
+  pt: Ocultar dados sensíveis
+  ru: Скрыть конфиденциальные данные
+  ja: 機密データを非表示
+  ko: 민감한 데이터 숨기기
+  it: Nascondi dati sensibili
+  tr: Hassas verileri gizle
+  vi: Ẩn dữ liệu nhạy cảm
+  id: Sembunyikan data sensitif
+  pl: Ukryj dane wrażliwe
+  nl: Gevoelige gegevens verbergen
+  ar: إخفاء البيانات الحساسة
+  hi: संवेदनशील डेटा छुपाएं
+  th: ซ่อนข้อมูลที่ละเอียดอ่อน
+  cs: Skrýt citlivá data
+  sv: Dölj känsliga uppgifter
   he: הסתרת נתונים רגישים
 pii_show:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
   en: Show sensitive data
   de: Sensible Daten anzeigen
-
+  zh: 显示敏感数据
+  es: Mostrar datos sensibles
+  fr: Afficher les données sensibles
+  pt: Mostrar dados sensíveis
+  ru: Показать конфиденциальные данные
+  ja: 機密データを表示
+  ko: 민감한 데이터 표시
+  it: Mostra dati sensibili
+  tr: Hassas verileri göster
+  vi: Hiển thị dữ liệu nhạy cảm
+  id: Tampilkan data sensitif
+  pl: Pokaż dane wrażliwe
+  nl: Gevoelige gegevens tonen
+  ar: عرض البيانات الحساسة
+  hi: संवेदनशील डेटा दिखाएं
+  th: แสดงข้อมูลที่ละเอียดอ่อน
+  cs: Zobrazit citlivá data
+  sv: Visa känsliga uppgifter
   he: הצגת נתונים רגישים
 maps_location:
   context: Maps Location skill label shown in BasicInfosBar
@@ -3291,6 +3326,56 @@ health.doctors_with_slots:
   cs: lékaři k dispozici
   sv: läkare tillgängliga
   he: רופאים זמינים
+  verified_by_human: []
+
+health.appointment_available:
+  context: Singular label in the health appointment search preview card — "1 appointment available"
+  en: appointment available
+  de: Termin verfügbar
+  zh: 个预约可用
+  es: cita disponible
+  fr: rendez-vous disponible
+  pt: consulta disponível
+  ru: запись доступна
+  ja: 予約可能
+  ko: 예약 가능
+  it: appuntamento disponibile
+  tr: randevu mevcut
+  vi: lịch hẹn có sẵn
+  id: janji temu tersedia
+  pl: wizyta dostępna
+  nl: afspraak beschikbaar
+  ar: موعد متاح
+  hi: अपॉइंटमेंट उपलब्ध
+  th: นัดหมายว่าง
+  cs: termín k dispozici
+  sv: tid tillgänglig
+  he: תור זמין
+  verified_by_human: []
+
+health.appointments_available:
+  context: Plural label in the health appointment search preview card — "3 appointments available"
+  en: appointments available
+  de: Termine verfügbar
+  zh: 个预约可用
+  es: citas disponibles
+  fr: rendez-vous disponibles
+  pt: consultas disponíveis
+  ru: записи доступны
+  ja: 予約可能
+  ko: 예약 가능
+  it: appuntamenti disponibili
+  tr: randevu mevcut
+  vi: lịch hẹn có sẵn
+  id: janji temu tersedia
+  pl: wizyty dostępne
+  nl: afspraken beschikbaar
+  ar: مواعيد متاحة
+  hi: अपॉइंटमेंट उपलब्ध हैं
+  th: นัดหมายว่าง
+  cs: termíny k dispozici
+  sv: tider tillgängliga
+  he: תורים זמינים
   verified_by_human: []
 
 health.book_slot:
@@ -3492,6 +3577,57 @@ health.no_appointments_found:
   sv: Inga bokningar hittades.
   he: לא נמצאו תורים.
   verified_by_human: []
+
+health.book_on_jameda:
+  context: Button label linking to the direct booking URL on Jameda where the user can book the specific appointment slot
+  en: Book on Jameda
+  de: Auf Jameda buchen
+  zh: 在 Jameda 预约
+  es: Reservar en Jameda
+  fr: Réserver sur Jameda
+  pt: Reservar no Jameda
+  ru: Записаться на Jameda
+  ja: Jameda で予約する
+  ko: Jameda에서 예약
+  it: Prenota su Jameda
+  tr: Jameda'da randevu al
+  vi: Đặt lịch trên Jameda
+  id: Pesan di Jameda
+  pl: Zarezerwuj na Jameda
+  nl: Boek op Jameda
+  ar: احجز على Jameda
+  hi: Jameda पर बुक करें
+  th: จองบน Jameda
+  cs: Rezervovat na Jameda
+  sv: Boka på Jameda
+  he: הזמן ב-Jameda
+  verified_by_human: []
+
+health.reviews:
+  context: Label after the review count number on Jameda appointment cards — e.g. "(42 reviews)"
+  en: reviews
+  de: Bewertungen
+  zh: 条评价
+  es: opiniones
+  fr: avis
+  pt: avaliações
+  ru: отзывов
+  ja: 件のレビュー
+  ko: 개 리뷰
+  it: recensioni
+  tr: değerlendirme
+  vi: đánh giá
+  id: ulasan
+  pl: opinii
+  nl: beoordelingen
+  ar: تقييمات
+  hi: समीक्षाएं
+  th: รีวิว
+  cs: hodnocení
+  sv: omdömen
+  he: ביקורות
+  verified_by_human: []
+
 shopping.product:
   context: Singular label for a shopping product result
   en: product

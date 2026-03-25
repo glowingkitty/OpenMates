@@ -3,7 +3,6 @@ Functions for managing Vault secret engines.
 """
 
 import logging
-from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger("vault-setup.engines")
 

@@ -137,7 +137,7 @@
       </div>
     {:else if results.length === 0}
       {#if status === 'processing'}
-        <div class="loading-state"><p>{$text('embeds.loading')}</p></div>
+        <div class="loading-state"><p>{$text('common.loading')}</p></div>
       {:else}
         <div class="loading-state"><p>No results.</p></div>
       {/if}

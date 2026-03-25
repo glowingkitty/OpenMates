@@ -45,6 +45,11 @@ export default defineConfig({
 				]
 			},
 			workbox: {
+				// CRITICAL: Disable navigateFallback — adapter-vercel does NOT prerender "/",
+				// so it is never in the precache manifest. Without this override the
+				// @vite-pwa/sveltekit plugin auto-sets navigateFallback to "/" which causes
+				// createHandlerBoundToURL("/") to throw "non-precached-url" on every page load.
+				navigateFallback: null,
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
 				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
 				cleanupOutdatedCaches: true,
@@ -53,8 +58,7 @@ export default defineConfig({
 			},
 			devOptions: {
 				enabled: true,
-				type: 'module',
-				navigateFallback: '/'
+				type: 'module'
 			}
 		})
 	],

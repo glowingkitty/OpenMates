@@ -231,8 +231,19 @@ class ConnectionManager:
                     f"(message_summary={_safe_message_summary(message)})"
                 )
 
-    async def broadcast_to_user_specific_event(self, user_id: str, event_name: str, payload: dict):
-        """Sends a specific event message to all connected devices for a specific user."""
+    async def broadcast_to_user_specific_event(
+        self,
+        user_id: str,
+        event_name: str,
+        payload: dict,
+        exclude_device_hash: Optional[str] = None,
+    ):
+        """
+        Sends a specific event message to all connected devices for a specific user.
+
+        exclude_device_hash: if provided, skip the connection with this hash.
+        Used by force_logout broadcasts so the revoking device does not log itself out.
+        """
         if user_id in self.active_connections:
             message = {"type": event_name, "payload": payload}
             tasks = []
@@ -240,6 +251,8 @@ class ConnectionManager:
             connection_count = len(self.active_connections[user_id])
 
             for device_hash, websocket in list(self.active_connections[user_id].items()):
+                if device_hash == exclude_device_hash:
+                    continue
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
             
@@ -314,9 +327,56 @@ class ConnectionManager:
         return None
 
     def get_connections_for_user(self, user_id: str) -> Dict[str, WebSocket]:
-        """Gets all currently live WebSocket connections for a given user_id."""
-        # This will return only connections that have a live WebSocket object in active_connections.
-        # Connections that are only in a grace period (i.e., their WebSocket object might have been
-        # removed from active_connections or is otherwise stale) are not returned here,
-        # as they cannot be reliably used for sending messages directly.
-        return self.active_connections.get(user_id, {})
+        """Gets all currently live WebSocket connections for a given user_id.
+
+        Returns a shallow *copy* of the inner device→WebSocket mapping so that
+        callers can safely iterate the result while concurrent disconnects
+        modify the live ``active_connections`` dict without raising
+        ``RuntimeError: dictionary changed size during iteration``.
+        """
+        # Shallow copy — safe for iteration; callers must not store this beyond
+        # a single event-handler invocation since the WebSocket objects may
+        # become stale at any point after the copy is taken.
+        return dict(self.active_connections.get(user_id, {}))
+
+    async def broadcast_to_all(self, message: dict, timeout_seconds: float = 2.0) -> None:
+        """Broadcast a message to every connected WebSocket across all users.
+
+        Intended for server-wide notifications such as ``server_restarting``,
+        which is sent once during the lifespan shutdown sequence before the
+        process exits.  The ``timeout_seconds`` cap ensures a hung TCP send
+        buffer on a single slow client never delays the shutdown process.
+
+        Uses ``return_exceptions=True`` so that one broken socket does not
+        abort delivery to the remaining connections.
+        """
+        # Snapshot all sockets at this moment — iterate a flat copy so that
+        # concurrent disconnects can't mutate the dict mid-loop.
+        all_sockets = [
+            ws
+            for user_sockets in self.active_connections.values()
+            for ws in user_sockets.values()
+        ]
+
+        if not all_sockets:
+            logger.info("broadcast_to_all: no active connections, nothing to send.")
+            return
+
+        logger.info(
+            f"broadcast_to_all: sending '{message.get('type', '?')}' to "
+            f"{len(all_sockets)} connection(s) (timeout={timeout_seconds}s)"
+        )
+
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(
+                    *[ws.send_json(message) for ws in all_sockets],
+                    return_exceptions=True,
+                ),
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"broadcast_to_all: timed out after {timeout_seconds}s — "
+                f"some clients may not have received the '{message.get('type', '?')}' message."
+            )

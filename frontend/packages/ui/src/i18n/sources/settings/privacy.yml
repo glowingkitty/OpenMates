@@ -2,671 +2,2375 @@ privacy:
   context: Privacy settings menu item
   en: Privacy
   de: Datenschutz
+  zh: 隐私
+  es: Privacidad
+  fr: Confidentialité
+  pt: Privacidade
+  ru: Конфиденциальность
+  ja: プライバシー
+  ko: 개인정보
+  it: Privacy
+  tr: Gizlilik
+  vi: Quyền riêng tư
+  id: Privasi
+  pl: Prywatność
+  nl: Privacy
   ar: الخصوصية
+  hi: गोपनीयता
+  th: ความเป็นส่วนตัว
+  cs: Soukromí
+  sv: Integritet
   he: פרטיות
   verified_by_human: []
 description:
   context: Description text on privacy settings page explaining data processing
   en: If you want to learn more about how OpenMates is processing your data, check the privacy policy.
   de: Wenn du mehr darüber erfahren möchtest, wie OpenMates deine Daten verarbeitet, schau dir die Datenschutzrichtlinie an.
-  ar: ادعم المبدع بإرسال إكرامية من رصيد رصيدك.
+  zh: 如果您想了解更多关于 OpenMates 如何处理您的数据，请查看隐私政策。
+  es: Si deseas saber más sobre cómo OpenMates procesa tus datos, consulta la política de privacidad.
+  fr: Si vous souhaitez en savoir plus sur la façon dont OpenMates traite vos données, consultez la politique de confidentialité.
+  pt: Se você quiser saber mais sobre como o OpenMates processa seus dados, consulte a política de privacidade.
+  ru: Если вы хотите узнать больше о том, как OpenMates обрабатывает ваши данные, ознакомьтесь с политикой конфиденциальности.
+  ja: OpenMates があなたのデータをどのように処理しているか詳しく知りたい場合は、プライバシーポリシーをご確認ください。
+  ko: OpenMates가 데이터를 처리하는 방법에 대해 더 알고 싶으시면 개인정보 보호정책을 확인하세요.
+  it: Se vuoi sapere di più su come OpenMates elabora i tuoi dati, consulta l'informativa sulla privacy.
+  tr: OpenMates'in verilerinizi nasıl işlediği hakkında daha fazla bilgi edinmek istiyorsanız gizlilik politikasını inceleyin.
+  vi: Nếu bạn muốn tìm hiểu thêm về cách OpenMates xử lý dữ liệu của bạn, hãy xem chính sách quyền riêng tư.
+  id: Jika Anda ingin mempelajari lebih lanjut tentang cara OpenMates memproses data Anda, lihat kebijakan privasi.
+  pl: Jeśli chcesz dowiedzieć się więcej o tym, jak OpenMates przetwarza Twoje dane, zapoznaj się z polityką prywatności.
+  nl: Als u meer wilt weten over hoe OpenMates uw gegevens verwerkt, raadpleeg dan het privacybeleid.
+  ar: إذا أردت معرفة المزيد عن كيفية معالجة OpenMates لبياناتك، فراجع سياسة الخصوصية.
+  hi: यदि आप जानना चाहते हैं कि OpenMates आपके डेटा को कैसे संसाधित करता है, तो गोपनीयता नीति देखें।
+  th: หากคุณต้องการเรียนรู้เพิ่มเติมเกี่ยวกับวิธีที่ OpenMates ประมวลผลข้อมูลของคุณ โปรดดูนโยบายความเป็นส่วนตัว
+  cs: Chcete-li se dozvědět více o tom, jak OpenMates zpracovává vaše data, přečtěte si zásady ochrany osobních údajů.
+  sv: Om du vill veta mer om hur OpenMates behandlar dina data, läs integritetspolicyn.
   he: אם ברצונך ללמוד עוד על האופן שבו OpenMates מעבדת את הנתונים שלך, כדאי לעיין במדיניות הפרטיות.
   verified_by_human: []
 open_privacy_policy:
   context: Link text to open the OpenMates privacy policy
   en: Open OpenMates privacy policy
   de: OpenMates Datenschutzrichtlinie öffnen
+  zh: 打开 OpenMates 隐私政策
+  es: Abrir política de privacidad de OpenMates
+  fr: Ouvrir la politique de confidentialité d'OpenMates
+  pt: Abrir política de privacidade do OpenMates
+  ru: Открыть политику конфиденциальности OpenMates
+  ja: OpenMates プライバシーポリシーを開く
+  ko: OpenMates 개인정보 보호정책 열기
+  it: Apri l'informativa sulla privacy di OpenMates
+  tr: OpenMates gizlilik politikasını aç
+  vi: Mở chính sách quyền riêng tư của OpenMates
+  id: Buka kebijakan privasi OpenMates
+  pl: Otwórz politykę prywatności OpenMates
+  nl: OpenMates privacybeleid openen
   ar: فتح سياسة خصوصية OpenMates
+  hi: OpenMates गोपनीयता नीति खोलें
+  th: เปิดนโยบายความเป็นส่วนตัวของ OpenMates
+  cs: Otevřít zásady ochrany osobních údajů OpenMates
+  sv: Öppna OpenMates integritetspolicy
   he: פתיחת מדיניות הפרטיות של OpenMates
   verified_by_human: []
 anonymization:
   context: Section heading for anonymization settings
   en: Anonymization
   de: Anonymisierung
+  zh: 匿名化
+  es: Anonimización
+  fr: Anonymisation
+  pt: Anonimização
+  ru: Анонимизация
+  ja: 匿名化
+  ko: 익명화
+  it: Anonimizzazione
+  tr: Anonimleştirme
+  vi: Ẩn danh hóa
+  id: Anonimisasi
+  pl: Anonimizacja
+  nl: Anonimisering
   ar: إخفاء الهوية
+  hi: अनामीकरण
+  th: การทำให้ไม่ระบุตัวตน
+  cs: Anonymizace
+  sv: Anonymisering
   he: אנונימיזציה
   verified_by_human: []
 hide_personal_data:
   context: Toggle label for hiding personal data in chats
   en: Hide personal data
   de: Persönliche Daten verbergen
+  zh: 隐藏个人数据
+  es: Ocultar datos personales
+  fr: Masquer les données personnelles
+  pt: Ocultar dados pessoais
+  ru: Скрыть личные данные
+  ja: 個人データを非表示
+  ko: 개인 데이터 숨기기
+  it: Nascondi dati personali
+  tr: Kişisel verileri gizle
+  vi: Ẩn dữ liệu cá nhân
+  id: Sembunyikan data pribadi
+  pl: Ukryj dane osobowe
+  nl: Persoonlijke gegevens verbergen
   ar: إخفاء البيانات الشخصية
+  hi: व्यक्तिगत डेटा छुपाएं
+  th: ซ่อนข้อมูลส่วนตัว
+  cs: Skrýt osobní údaje
+  sv: Dölj personuppgifter
   he: הסתרת נתונים אישיים
   verified_by_human: []
 hide_personal_data.chats:
   context: Subtitle for the hide personal data toggle
   en: Chats
   de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
   ar: المحادثات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
   he: "צ'אטים"
   verified_by_human: []
 hide_personal_data.description:
   context: Description text explaining the hide personal data feature
   en: OpenMates will auto replace sensitive data with placeholders, before sending them to the OpenMates server and any external provider, to protect your privacy. Replaced data are visually highlighted. You can always click on a replaced data entry to overwrite the replacement, or turn off the functionality completely here.
   de: OpenMates ersetzt automatisch sensible Daten durch Platzhalter, bevor sie an den OpenMates-Server und externe Anbieter gesendet werden, um deine Privatsphäre zu schützen. Ersetzte Daten werden visuell hervorgehoben. Du kannst jederzeit auf einen ersetzten Dateneintrag klicken, um die Ersetzung zu überschreiben, oder die Funktionalität hier komplett deaktivieren.
+  zh: OpenMates 会在将敏感数据发送到 OpenMates 服务器和任何外部提供商之前自动用占位符替换，以保护您的隐私。替换的数据会以视觉方式突出显示。您可以随时单击替换的数据条目来覆盖替换，或在此处完全关闭该功能。
+  es: OpenMates reemplazará automáticamente los datos confidenciales con marcadores de posición antes de enviarlos al servidor de OpenMates y a cualquier proveedor externo para proteger tu privacidad. Los datos reemplazados se resaltan visualmente. Siempre puedes hacer clic en una entrada de datos reemplazada para sobrescribir el reemplazo, o desactivar la funcionalidad completamente aquí.
+  fr: OpenMates remplacera automatiquement les données sensibles par des espaces réservés avant de les envoyer au serveur OpenMates et à tout fournisseur externe pour protéger votre confidentialité. Les données remplacées sont mises en évidence visuellement. Vous pouvez toujours cliquer sur une entrée de données remplacée pour écraser le remplacement, ou désactiver complètement la fonctionnalité ici.
+  pt: O OpenMates substituirá automaticamente dados sensíveis por marcadores antes de enviá-los ao servidor do OpenMates e a qualquer provedor externo para proteger sua privacidade. Os dados substituídos são destacados visualmente. Você sempre pode clicar em uma entrada de dados substituída para sobrescrever a substituição, ou desativar completamente a funcionalidade aqui.
+  ru: OpenMates автоматически заменит конфиденциальные данные заполнителями перед отправкой их на сервер OpenMates и любому внешнему провайдеру, чтобы защитить вашу конфиденциальность. Замененные данные визуально выделены. Вы всегда можете нажать на замененную запись данных, чтобы перезаписать замену, или полностью отключить функцию здесь.
+  ja: OpenMates はプライバシーを保護するため、OpenMates サーバーおよび外部プロバイダーに送信する前に、センシティブなデータをプレースホルダーで自動的に置き換えます。置き換えられたデータは視覚的に強調表示されます。置き換えられたデータ項目をクリックして置き換えを上書きするか、ここで機能を完全にオフにすることができます。
+  ko: OpenMates는 개인정보를 보호하기 위해 OpenMates 서버 및 외부 공급자에게 전송하기 전에 민감한 데이터를 자리표시자로 자동 교체합니다. 교체된 데이터는 시각적으로 강조 표시됩니다. 교체된 데이터 항목을 클릭하여 교체를 덮어쓰거나 여기서 기능을 완전히 끌 수 있습니다.
+  it: OpenMates sostituirà automaticamente i dati sensibili con segnaposto prima di inviarli al server di OpenMates e a qualsiasi provider esterno per proteggere la tua privacy. I dati sostituiti vengono evidenziati visivamente. Puoi sempre fare clic su una voce di dati sostituita per sovrascrivere la sostituzione, o disattivare completamente la funzionalità qui.
+  tr: OpenMates, gizliliğinizi korumak için hassas verileri OpenMates sunucusuna ve harici sağlayıcılara göndermeden önce yer tutucularla otomatik olarak değiştirir. Değiştirilen veriler görsel olarak vurgulanır. Değiştirilen bir veri girişine tıklayarak değiştirmeyi her zaman üzerine yazabilir veya işlevi burada tamamen kapatabilirsiniz.
+  vi: OpenMates sẽ tự động thay thế dữ liệu nhạy cảm bằng các ký tự giữ chỗ trước khi gửi đến máy chủ OpenMates và bất kỳ nhà cung cấp bên ngoài nào để bảo vệ quyền riêng tư của bạn. Dữ liệu được thay thế được làm nổi bật trực quan. Bạn luôn có thể nhấp vào một mục dữ liệu được thay thế để ghi đè lên sự thay thế, hoặc tắt hoàn toàn chức năng tại đây.
+  id: OpenMates akan secara otomatis mengganti data sensitif dengan placeholder sebelum mengirimkannya ke server OpenMates dan penyedia eksternal mana pun untuk melindungi privasi Anda. Data yang diganti disorot secara visual. Anda selalu dapat mengklik entri data yang diganti untuk menimpa penggantian, atau mematikan fungsionalitas sepenuhnya di sini.
+  pl: OpenMates automatycznie zastąpi poufne dane placeholderami przed wysłaniem ich do serwera OpenMates i zewnętrznych dostawców, aby chronić Twoją prywatność. Zastąpione dane są wizualnie wyróżnione. Zawsze możesz kliknąć zastąpiony wpis danych, aby nadpisać zastępstwo, lub całkowicie wyłączyć tę funkcję tutaj.
+  nl: OpenMates vervangt automatisch gevoelige gegevens door tijdelijke aanduidingen voordat ze naar de OpenMates-server en externe providers worden verzonden om uw privacy te beschermen. Vervangen gegevens worden visueel gemarkeerd. U kunt altijd op een vervangen gegevensinvoer klikken om de vervanging te overschrijven, of de functionaliteit hier volledig uitschakelen.
   ar: سيقوم OpenMates تلقائيًا باستبدال البيانات الحساسة بعناصر نائبة، قبل إرسالها إلى خادم OpenMates وأي مزود خارجي، لحماية خصوصيتك. يتم تمييز البيانات المستبدلة بصريًا. يمكنك دائمًا النقر على إدخال بيانات مستبدل لتجاوز الاستبدال، أو إيقاف تشغيل الوظيفة بالكامل هنا.
+  hi: OpenMates आपकी गोपनीयता की रक्षा के लिए OpenMates सर्वर और किसी भी बाहरी प्रदाता को भेजने से पहले संवेदनशील डेटा को प्लेसहोल्डर से स्वचालित रूप से बदल देगा। बदले गए डेटा को दृश्य रूप से हाइलाइट किया गया है। आप हमेशा प्रतिस्थापन को अधिलेखित करने के लिए प्रतिस्थापित डेटा प्रविष्टि पर क्लिक कर सकते हैं, या यहां पूरी तरह से कार्यक्षमता को बंद कर सकते हैं।
+  th: OpenMates จะแทนที่ข้อมูลที่ละเอียดอ่อนด้วยตัวแทนโดยอัตโนมัติ ก่อนส่งไปยังเซิร์ฟเวอร์ OpenMates และผู้ให้บริการภายนอก เพื่อปกป้องความเป็นส่วนตัวของคุณ ข้อมูลที่ถูกแทนที่จะถูกเน้นด้วยภาพ คุณสามารถคลิกที่รายการข้อมูลที่ถูกแทนที่เสมอเพื่อเขียนทับการแทนที่ หรือปิดการทำงานนี้ทั้งหมดที่นี่
+  cs: OpenMates automaticky nahradí citlivá data zástupnými symboly před jejich odesláním na server OpenMates a externím poskytovatelům, aby chránil vaše soukromí. Nahrazená data jsou vizuálně zvýrazněna. Vždy můžete kliknout na nahrazenou datovou položku a přepsat nahrazení, nebo zde funkci zcela vypnout.
+  sv: OpenMates ersätter automatiskt känslig data med platshållare innan de skickas till OpenMates-servern och externa leverantörer för att skydda din integritet. Ersatt data är visuellt markerad. Du kan alltid klicka på en ersatt datapost för att skriva över ersättningen, eller stänga av funktionaliteten helt här.
   he: OpenMates תחליף באופן אוטומטי נתונים רגישים בממלאי מקום, לפני שליחתם לשרת של OpenMates ולכל ספק חיצוני, כדי להגן על הפרטיות שלך. נתונים שהוחלפו מודגשים באופן חזותי. תמיד ניתן ללחוץ על ערך נתונים שהוחלף כדי לדרוס את ההחלפה, או לכבות את הפונקציונליות לחלוטין כאן.
   verified_by_human: []
 nearby_by_default:
   context: Toggle label for nearby by default location setting
   en: Nearby by default
   de: Standardmäßig in der Nähe
+  zh: 默认附近
+  es: Cercano por defecto
+  fr: À proximité par défaut
+  pt: Próximo por padrão
+  ru: Рядом по умолчанию
+  ja: デフォルトで近く
+  ko: 기본적으로 근처
+  it: Vicino per impostazione predefinita
+  tr: Varsayılan olarak yakın
+  vi: Gần theo mặc định
+  id: Terdekat secara default
+  pl: Domyślnie w pobliżu
+  nl: Standaard in de buurt
   ar: بالقرب افتراضيًا
+  hi: डिफ़ॉल्ट रूप से निकट
+  th: ใกล้เคียงโดยค่าเริ่มต้น
+  cs: Ve výchozím nastavení v blízkosti
+  sv: Nära som standard
   he: בקרבת מקום כברירת מחדל
   verified_by_human: []
 maps_location:
   context: Subtitle for the nearby by default toggle
   en: Maps | Location
   de: Karten | Standort
+  zh: 地图 | 位置
+  es: Mapas | Ubicación
+  fr: Cartes | Localisation
+  pt: Mapas | Localização
+  ru: Карты | Местоположение
+  ja: マップ | 位置情報
+  ko: 지도 | 위치
+  it: Mappe | Posizione
+  tr: Haritalar | Konum
+  vi: Bản đồ | Vị trí
+  id: Peta | Lokasi
+  pl: Mapy | Lokalizacja
+  nl: Kaarten | Locatie
   ar: الخرائط | الموقع
+  hi: मानचित्र | स्थान
+  th: แผนที่ | ตำแหน่ง
+  cs: Mapy | Poloha
+  sv: Kartor | Plats
   he: "מפות | מיקום"
   verified_by_human: []
 device_permissions:
   context: Section heading for device permission settings
   en: Device permissions
   de: Geräteberechtigungen
+  zh: 设备权限
+  es: Permisos del dispositivo
+  fr: Autorisations de l'appareil
+  pt: Permissões do dispositivo
+  ru: Разрешения устройства
+  ja: デバイスの権限
+  ko: 기기 권한
+  it: Autorizzazioni del dispositivo
+  tr: Cihaz izinleri
+  vi: Quyền thiết bị
+  id: Izin perangkat
+  pl: Uprawnienia urządzenia
+  nl: Apparaatmachtigingen
   ar: أذونات الجهاز
+  hi: डिवाइस अनुमतियां
+  th: สิทธิ์อุปกรณ์
+  cs: Oprávnění zařízení
+  sv: Enhetsbehörigheter
   he: הרשאות מכשיר
   verified_by_human: []
 microphone:
   context: Toggle label for microphone permission
   en: Microphone
   de: Mikrofon
+  zh: 麦克风
+  es: Micrófono
+  fr: Microphone
+  pt: Microfone
+  ru: Микрофон
+  ja: マイク
+  ko: 마이크
+  it: Microfono
+  tr: Mikrofon
+  vi: Micrô
+  id: Mikrofon
+  pl: Mikrofon
+  nl: Microfoon
   ar: الميكروفون
+  hi: माइक्रोफ़ोन
+  th: ไมโครโฟน
+  cs: Mikrofon
+  sv: Mikrofon
   he: מיקרופון
   verified_by_human: []
 camera:
   context: Toggle label for camera permission
   en: Camera
   de: Kamera
+  zh: 摄像头
+  es: Cámara
+  fr: Caméra
+  pt: Câmera
+  ru: Камера
+  ja: カメラ
+  ko: 카메라
+  it: Fotocamera
+  tr: Kamera
+  vi: Camera
+  id: Kamera
+  pl: Kamera
+  nl: Camera
   ar: الكاميرا
+  hi: कैमरा
+  th: กล้อง
+  cs: Kamera
+  sv: Kamera
   he: מצלמה
   verified_by_human: []
 location:
   context: Toggle label for location permission
   en: Location
   de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Localisation
+  pt: Localização
+  ru: Местоположение
+  ja: 位置情報
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Vị trí
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
   ar: الموقع
+  hi: स्थान
+  th: ตำแหน่ง
+  cs: Poloha
+  sv: Plats
   he: מיקום
   verified_by_human: []
 auto_deletion:
   context: Section heading for auto deletion settings
   en: Auto deletion
   de: Automatische Löschung
+  zh: 自动删除
+  es: Eliminación automática
+  fr: Suppression automatique
+  pt: Exclusão automática
+  ru: Автоматическое удаление
+  ja: 自動削除
+  ko: 자동 삭제
+  it: Eliminazione automatica
+  tr: Otomatik silme
+  vi: Tự động xóa
+  id: Penghapusan otomatis
+  pl: Automatyczne usuwanie
+  nl: Automatisch verwijderen
   ar: الحذف التلقائي
+  hi: स्वचालित हटाना
+  th: การลบอัตโนมัติ
+  cs: Automatické mazání
+  sv: Automatisk radering
   he: מחיקה אוטומטית
   verified_by_human: []
 auto_deletion.chats:
   context: Label for chat auto deletion setting
   en: Chats
   de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
   ar: المحادثات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
   he: "צ'אטים"
   verified_by_human: []
 auto_deletion.chats.value:
   context: Default value for chat auto deletion
   en: 90 days & older
   de: 90 Tage & älter
+  zh: 90 天及以上
+  es: 90 días y más
+  fr: 90 jours et plus
+  pt: 90 dias e mais
+  ru: 90 дней и старше
+  ja: 90日以上
+  ko: 90일 이상
+  it: 90 giorni e oltre
+  tr: 90 gün ve üzeri
+  vi: 90 ngày trở lên
+  id: 90 hari ke atas
+  pl: 90 dni i starsze
+  nl: 90 dagen & ouder
   ar: 90 يومًا فأكثر
+  hi: 90 दिन और पुराना
+  th: 90 วันขึ้นไป
+  cs: 90 dní a starší
+  sv: 90 dagar & äldre
   he: 90 ימים ומעלה
   verified_by_human: []
 auto_deletion.files:
   context: Label for files auto deletion setting
   en: Files (on OpenMates)
   de: Dateien (auf OpenMates)
+  zh: 文件（在 OpenMates 上）
+  es: Archivos (en OpenMates)
+  fr: Fichiers (sur OpenMates)
+  pt: Arquivos (no OpenMates)
+  ru: Файлы (в OpenMates)
+  ja: ファイル（OpenMates 上）
+  ko: 파일 (OpenMates에서)
+  it: File (su OpenMates)
+  tr: Dosyalar (OpenMates'te)
+  vi: Tệp (trên OpenMates)
+  id: File (di OpenMates)
+  pl: Pliki (w OpenMates)
+  nl: Bestanden (op OpenMates)
   ar: الملفات (على OpenMates)
+  hi: फ़ाइलें (OpenMates पर)
+  th: ไฟล์ (บน OpenMates)
+  cs: Soubory (na OpenMates)
+  sv: Filer (på OpenMates)
   he: קבצים (ב-OpenMates)
   verified_by_human: []
 auto_deletion.files.value:
   context: Default value for files auto deletion
   en: 90 days & older
   de: 90 Tage & älter
+  zh: 90 天及以上
+  es: 90 días y más
+  fr: 90 jours et plus
+  pt: 90 dias e mais
+  ru: 90 дней и старше
+  ja: 90日以上
+  ko: 90일 이상
+  it: 90 giorni e oltre
+  tr: 90 gün ve üzeri
+  vi: 90 ngày trở lên
+  id: 90 hari ke atas
+  pl: 90 dni i starsze
+  nl: 90 dagen & ouder
   ar: 90 يومًا فأكثر
+  hi: 90 दिन और पुराना
+  th: 90 วันขึ้นไป
+  cs: 90 dní a starší
+  sv: 90 dagar & äldre
   he: 90 ימים ומעלה
   verified_by_human: []
 auto_deletion.usage_data:
   context: Label for usage data auto deletion setting
   en: Usage data
   de: Nutzungsdaten
+  zh: 使用数据
+  es: Datos de uso
+  fr: Données d'utilisation
+  pt: Dados de uso
+  ru: Данные использования
+  ja: 使用データ
+  ko: 사용 데이터
+  it: Dati di utilizzo
+  tr: Kullanım verileri
+  vi: Dữ liệu sử dụng
+  id: Data penggunaan
+  pl: Dane użytkowania
+  nl: Gebruiksgegevens
   ar: بيانات الاستخدام
+  hi: उपयोग डेटा
+  th: ข้อมูลการใช้งาน
+  cs: Data o používání
+  sv: Användningsdata
   he: נתוני שימוש
   verified_by_human: []
 auto_deletion.usage_data.value:
   context: Default value for usage data auto deletion
   en: 1 year & older
   de: 1 Jahr & älter
+  zh: 1 年及以上
+  es: 1 año y más
+  fr: 1 an et plus
+  pt: 1 ano e mais
+  ru: 1 год и старше
+  ja: 1年以上
+  ko: 1년 이상
+  it: 1 anno e oltre
+  tr: 1 yıl ve üzeri
+  vi: 1 năm trở lên
+  id: 1 tahun ke atas
+  pl: 1 rok i starsze
+  nl: 1 jaar & ouder
   ar: سنة واحدة فأكثر
+  hi: 1 वर्ष और पुराना
+  th: 1 ปีขึ้นไป
+  cs: 1 rok a starší
+  sv: 1 år & äldre
   he: שנה ומעלה
   verified_by_human: []
 auto_deletion.compliance_logs:
   context: Label for compliance logs auto deletion setting
   en: Compliance logs
   de: Compliance-Protokolle
+  zh: 合规日志
+  es: Registros de cumplimiento
+  fr: Journaux de conformité
+  pt: Registros de conformidade
+  ru: Журналы соответствия
+  ja: コンプライアンスログ
+  ko: 규정 준수 로그
+  it: Log di conformità
+  tr: Uyumluluk günlükleri
+  vi: Nhật ký tuân thủ
+  id: Log kepatuhan
+  pl: Dzienniki zgodności
+  nl: Nalevingslogboeken
   ar: سجلات الامتثال
+  hi: अनुपालन लॉग
+  th: บันทึกการปฏิบัติตามข้อกำหนด
+  cs: Protokoly dodržování předpisů
+  sv: Efterlevnadsloggar
   he: יומני תאימות
   verified_by_human: []
 auto_deletion.compliance_logs.value:
   context: Default value for compliance logs auto deletion
   en: 1 year & older
   de: 1 Jahr & älter
+  zh: 1 年及以上
+  es: 1 año y más
+  fr: 1 an et plus
+  pt: 1 ano e mais
+  ru: 1 год и старше
+  ja: 1年以上
+  ko: 1년 이상
+  it: 1 anno e oltre
+  tr: 1 yıl ve üzeri
+  vi: 1 năm trở lên
+  id: 1 tahun ke atas
+  pl: 1 rok i starsze
+  nl: 1 jaar & ouder
   ar: سنة واحدة فأكثر
+  hi: 1 वर्ष और पुराना
+  th: 1 ปีขึ้นไป
+  cs: 1 rok a starší
+  sv: 1 år & äldre
   he: שנה ומעלה
   verified_by_human: []
 auto_deletion.invoices:
   context: Label for invoices auto deletion setting
   en: Invoices
   de: Rechnungen
+  zh: 发票
+  es: Facturas
+  fr: Factures
+  pt: Faturas
+  ru: Счета
+  ja: 請求書
+  ko: 청구서
+  it: Fatture
+  tr: Faturalar
+  vi: Hóa đơn
+  id: Faktur
+  pl: Faktury
+  nl: Facturen
   ar: الفواتير
+  hi: चालान
+  th: ใบแจ้งหนี้
+  cs: Faktury
+  sv: Fakturor
   he: חשבוניות
   verified_by_human: []
 auto_deletion.invoices.value:
   context: Default value for invoices auto deletion
   en: 10 years & older
   de: 10 Jahre & älter
+  zh: 10 年及以上
+  es: 10 años y más
+  fr: 10 ans et plus
+  pt: 10 anos e mais
+  ru: 10 лет и старше
+  ja: 10年以上
+  ko: 10년 이상
+  it: 10 anni e oltre
+  tr: 10 yıl ve üzeri
+  vi: 10 năm trở lên
+  id: 10 tahun ke atas
+  pl: 10 lat i starsze
+  nl: 10 jaar & ouder
   ar: 10 سنوات فأكثر
+  hi: 10 वर्ष और पुराना
+  th: 10 ปีขึ้นไป
+  cs: 10 let a starší
+  sv: 10 år & äldre
   he: 10 שנים ומעלה
   verified_by_human: []
 auto_deletion.select_period:
   context: Heading for the period selection list on the auto-deletion editing page
   en: Select deletion period
   de: Löschzeitraum auswählen
+  zh: 选择删除期限
+  es: Seleccionar período de eliminación
+  fr: Sélectionner la période de suppression
+  pt: Selecionar período de exclusão
+  ru: Выбрать период удаления
+  ja: 削除期間を選択
+  ko: 삭제 기간 선택
+  it: Seleziona il periodo di eliminazione
+  tr: Silme dönemini seçin
+  vi: Chọn khoảng thời gian xóa
+  id: Pilih periode penghapusan
+  pl: Wybierz okres usuwania
+  nl: Verwijderingsperiode selecteren
   ar: تحديد فترة الحذف
+  hi: हटाने की अवधि चुनें
+  th: เลือกระยะเวลาการลบ
+  cs: Vybrat dobu mazání
+  sv: Välj raderingsperiod
   he: בחירת תקופת מחיקה
   verified_by_human: []
 auto_deletion.chats.description:
   context: Description text on the chats auto-deletion editing page
   en: Choose how long your chats should be kept before being automatically deleted. Older chats will be permanently removed.
   de: Wähle, wie lange deine Chats aufbewahrt werden sollen, bevor sie automatisch gelöscht werden. Ältere Chats werden dauerhaft entfernt.
+  zh: 选择聊天在自动删除之前应保留多长时间。较旧的聊天将被永久删除。
+  es: Elige cuánto tiempo deben guardarse tus chats antes de eliminarse automáticamente. Los chats más antiguos se eliminarán permanentemente.
+  fr: Choisissez combien de temps vos chats doivent être conservés avant d'être automatiquement supprimés. Les chats plus anciens seront définitivement supprimés.
+  pt: Escolha por quanto tempo seus chats devem ser mantidos antes de serem excluídos automaticamente. Chats mais antigos serão removidos permanentemente.
+  ru: Выберите, как долго ваши чаты должны храниться перед автоматическим удалением. Более старые чаты будут удалены навсегда.
+  ja: チャットが自動削除される前にどのくらいの期間保持するかを選択してください。古いチャットは完全に削除されます。
+  ko: 자동으로 삭제되기 전에 채팅을 얼마나 오래 보관할지 선택하세요. 오래된 채팅은 영구적으로 제거됩니다.
+  it: Scegli per quanto tempo i tuoi messaggi devono essere conservati prima di essere eliminati automaticamente. Le chat più vecchie verranno rimosse definitivamente.
+  tr: Otomatik olarak silinmeden önce sohbetlerinizin ne kadar süre saklanacağını seçin. Eski sohbetler kalıcı olarak kaldırılacaktır.
+  vi: Chọn thời gian lưu trữ các cuộc trò chuyện trước khi bị tự động xóa. Các cuộc trò chuyện cũ hơn sẽ bị xóa vĩnh viễn.
+  id: Pilih berapa lama obrolan Anda harus disimpan sebelum dihapus secara otomatis. Obrolan yang lebih lama akan dihapus secara permanen.
+  pl: Wybierz, jak długo Twoje czaty powinny być przechowywane przed automatycznym usunięciem. Starsze czaty zostaną trwale usunięte.
+  nl: Kies hoe lang uw chats bewaard moeten worden voordat ze automatisch worden verwijderd. Oudere chats worden permanent verwijderd.
   ar: اختر المدة التي يجب الاحتفاظ بمحادثاتك خلالها قبل حذفها تلقائيًا. سيتم حذف المحادثات الأقدم نهائيًا.
+  hi: चुनें कि आपकी चैट को स्वचालित रूप से हटाए जाने से पहले कितने समय तक रखा जाए। पुरानी चैट को स्थायी रूप से हटा दिया जाएगा।
+  th: เลือกระยะเวลาที่ต้องการเก็บการแชทของคุณก่อนที่จะถูกลบอัตโนมัติ การแชทที่เก่ากว่าจะถูกลบอย่างถาวร
+  cs: Zvolte, jak dlouho mají být vaše chaty uchovávány před automatickým smazáním. Starší chaty budou trvale odstraněny.
+  sv: Välj hur länge dina chattar ska sparas innan de raderas automatiskt. Äldre chattar tas bort permanent.
   he: "יש לבחור כמה זמן לשמור את הצ'אטים שלך לפני שיימחקו אוטומטית. צ'אטים ישנים יותר יוסרו לצמיתות."
   verified_by_human: []
 auto_deletion.files.description:
   context: Description text on the files auto-deletion editing page
   en: Choose how long your uploaded files should be kept on OpenMates before being automatically deleted.
   de: Wähle, wie lange deine hochgeladenen Dateien auf OpenMates aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
+  zh: 选择上传的文件在 OpenMates 上自动删除之前应保留多长时间。
+  es: Elige cuánto tiempo deben mantenerse tus archivos cargados en OpenMates antes de eliminarse automáticamente.
+  fr: Choisissez combien de temps vos fichiers téléchargés doivent être conservés sur OpenMates avant d'être automatiquement supprimés.
+  pt: Escolha por quanto tempo seus arquivos enviados devem ser mantidos no OpenMates antes de serem excluídos automaticamente.
+  ru: Выберите, как долго ваши загруженные файлы должны храниться в OpenMates перед автоматическим удалением.
+  ja: アップロードされたファイルが自動削除される前に OpenMates に保持する期間を選択してください。
+  ko: 업로드된 파일이 자동으로 삭제되기 전에 OpenMates에 보관할 기간을 선택하세요.
+  it: Scegli per quanto tempo i tuoi file caricati devono essere conservati su OpenMates prima di essere eliminati automaticamente.
+  tr: Yüklenen dosyalarınızın otomatik olarak silinmeden önce OpenMates'te ne kadar süre saklanacağını seçin.
+  vi: Chọn thời gian lưu trữ các tệp đã tải lên trên OpenMates trước khi bị tự động xóa.
+  id: Pilih berapa lama file yang diunggah harus disimpan di OpenMates sebelum dihapus secara otomatis.
+  pl: Wybierz, jak długo przesłane pliki powinny być przechowywane w OpenMates przed automatycznym usunięciem.
+  nl: Kies hoe lang uw geüploade bestanden op OpenMates bewaard moeten worden voordat ze automatisch worden verwijderd.
   ar: اختر المدة التي يجب الاحتفاظ بملفاتك المحملة على OpenMates خلالها قبل حذفها تلقائيًا.
+  hi: चुनें कि आपकी अपलोड की गई फ़ाइलें स्वचालित रूप से हटाए जाने से पहले OpenMates पर कितने समय तक रखी जाएं।
+  th: เลือกระยะเวลาที่ต้องการเก็บไฟล์ที่อัปโหลดบน OpenMates ก่อนที่จะถูกลบอัตโนมัติ
+  cs: Zvolte, jak dlouho mají být vaše nahrané soubory uchovávány na OpenMates před automatickým smazáním.
+  sv: Välj hur länge dina uppladdade filer ska sparas på OpenMates innan de raderas automatiskt.
   he: יש לבחור כמה זמן לשמור את הקבצים שהעלית ב-OpenMates לפני שיימחקו אוטומטית.
   verified_by_human: []
 auto_deletion.usage_data.description:
   context: Description text on the usage data auto-deletion editing page
   en: Choose how long your usage data (statistics, activity logs) should be kept before being automatically deleted.
   de: Wähle, wie lange deine Nutzungsdaten (Statistiken, Aktivitätsprotokolle) aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
+  zh: 选择使用数据（统计数据、活动日志）在自动删除之前应保留多长时间。
+  es: Elige cuánto tiempo deben conservarse tus datos de uso (estadísticas, registros de actividad) antes de eliminarse automáticamente.
+  fr: Choisissez combien de temps vos données d'utilisation (statistiques, journaux d'activité) doivent être conservées avant d'être automatiquement supprimées.
+  pt: Escolha por quanto tempo seus dados de uso (estatísticas, registros de atividade) devem ser mantidos antes de serem excluídos automaticamente.
+  ru: Выберите, как долго ваши данные использования (статистика, журналы активности) должны храниться перед автоматическим удалением.
+  ja: 使用データ（統計、アクティビティログ）が自動削除される前に保持する期間を選択してください。
+  ko: 사용 데이터(통계, 활동 로그)가 자동으로 삭제되기 전에 보관할 기간을 선택하세요.
+  it: Scegli per quanto tempo i tuoi dati di utilizzo (statistiche, registri attività) devono essere conservati prima di essere eliminati automaticamente.
+  tr: Kullanım verilerinizin (istatistikler, etkinlik günlükleri) otomatik olarak silinmeden önce ne kadar süre saklanacağını seçin.
+  vi: Chọn thời gian lưu trữ dữ liệu sử dụng (thống kê, nhật ký hoạt động) trước khi bị tự động xóa.
+  id: Pilih berapa lama data penggunaan Anda (statistik, log aktivitas) harus disimpan sebelum dihapus secara otomatis.
+  pl: Wybierz, jak długo Twoje dane użytkowania (statystyki, dzienniki aktywności) powinny być przechowywane przed automatycznym usunięciem.
+  nl: Kies hoe lang uw gebruiksgegevens (statistieken, activiteitslogboeken) bewaard moeten worden voordat ze automatisch worden verwijderd.
   ar: اختر المدة التي يجب الاحتفاظ ببيانات استخدامك (الإحصائيات، سجلات النشاط) خلالها قبل حذفها تلقائيًا.
+  hi: चुनें कि आपका उपयोग डेटा (आंकड़े, गतिविधि लॉग) स्वचालित रूप से हटाए जाने से पहले कितने समय तक रखा जाए।
+  th: เลือกระยะเวลาที่ต้องการเก็บข้อมูลการใช้งาน (สถิติ บันทึกกิจกรรม) ก่อนที่จะถูกลบอัตโนมัติ
+  cs: Zvolte, jak dlouho mají být vaše data o používání (statistiky, protokoly aktivit) uchovávána před automatickým smazáním.
+  sv: Välj hur länge dina användningsdata (statistik, aktivitetsloggar) ska sparas innan de raderas automatiskt.
   he: יש לבחור כמה זמן לשמור את נתוני השימוש שלך (סטטיסטיקה, יומני פעילות) לפני שיימחקו אוטומטית.
   verified_by_human: []
 auto_deletion.period.30_days:
   context: Auto-deletion period option - 30 days
   en: 30 days & older
   de: 30 Tage & älter
+  zh: 30 天及以上
+  es: 30 días y más
+  fr: 30 jours et plus
+  pt: 30 dias e mais
+  ru: 30 дней и старше
+  ja: 30日以上
+  ko: 30일 이상
+  it: 30 giorni e oltre
+  tr: 30 gün ve üzeri
+  vi: 30 ngày trở lên
+  id: 30 hari ke atas
+  pl: 30 dni i starsze
+  nl: 30 dagen & ouder
   ar: 30 يومًا فأكثر
+  hi: 30 दिन और पुराना
+  th: 30 วันขึ้นไป
+  cs: 30 dní a starší
+  sv: 30 dagar & äldre
   he: 30 ימים ומעלה
   verified_by_human: []
 auto_deletion.period.60_days:
   context: Auto-deletion period option - 60 days
   en: 60 days & older
   de: 60 Tage & älter
+  zh: 60 天及以上
+  es: 60 días y más
+  fr: 60 jours et plus
+  pt: 60 dias e mais
+  ru: 60 дней и старше
+  ja: 60日以上
+  ko: 60일 이상
+  it: 60 giorni e oltre
+  tr: 60 gün ve üzeri
+  vi: 60 ngày trở lên
+  id: 60 hari ke atas
+  pl: 60 dni i starsze
+  nl: 60 dagen & ouder
   ar: 60 يومًا فأكثر
+  hi: 60 दिन और पुराना
+  th: 60 วันขึ้นไป
+  cs: 60 dní a starší
+  sv: 60 dagar & äldre
   he: 60 ימים ומעלה
   verified_by_human: []
 auto_deletion.period.90_days:
   context: Auto-deletion period option - 90 days
   en: 90 days & older
   de: 90 Tage & älter
+  zh: 90 天及以上
+  es: 90 días y más
+  fr: 90 jours et plus
+  pt: 90 dias e mais
+  ru: 90 дней и старше
+  ja: 90日以上
+  ko: 90일 이상
+  it: 90 giorni e oltre
+  tr: 90 gün ve üzeri
+  vi: 90 ngày trở lên
+  id: 90 hari ke atas
+  pl: 90 dni i starsze
+  nl: 90 dagen & ouder
   ar: 90 يومًا فأكثر
+  hi: 90 दिन और पुराना
+  th: 90 วันขึ้นไป
+  cs: 90 dní a starší
+  sv: 90 dagar & äldre
   he: 90 יום ומעלה
   verified_by_human: []
 auto_deletion.period.6_months:
   context: Auto-deletion period option - 6 months
   en: 6 months & older
   de: 6 Monate & älter
+  zh: 6 个月及以上
+  es: 6 meses y más
+  fr: 6 mois et plus
+  pt: 6 meses e mais
+  ru: 6 месяцев и старше
+  ja: 6ヶ月以上
+  ko: 6개월 이상
+  it: 6 mesi e oltre
+  tr: 6 ay ve üzeri
+  vi: 6 tháng trở lên
+  id: 6 bulan ke atas
+  pl: 6 miesięcy i starsze
+  nl: 6 maanden & ouder
   ar: 6 أشهر فأكثر
+  hi: 6 महीने और पुराना
+  th: 6 เดือนขึ้นไป
+  cs: 6 měsíců a starší
+  sv: 6 månader & äldre
   he: 6 חודשים ומעלה
   verified_by_human: []
 auto_deletion.period.1_year:
   context: Auto-deletion period option - 1 year
   en: 1 year & older
   de: 1 Jahr & älter
+  zh: 1 年及以上
+  es: 1 año y más
+  fr: 1 an et plus
+  pt: 1 ano e mais
+  ru: 1 год и старше
+  ja: 1年以上
+  ko: 1년 이상
+  it: 1 anno e oltre
+  tr: 1 yıl ve üzeri
+  vi: 1 năm trở lên
+  id: 1 tahun ke atas
+  pl: 1 rok i starsze
+  nl: 1 jaar & ouder
   ar: سنة واحدة فأكثر
+  hi: 1 वर्ष और पुराना
+  th: 1 ปีขึ้นไป
+  cs: 1 rok a starší
+  sv: 1 år & äldre
   he: שנה ומעלה
   verified_by_human: []
 auto_deletion.period.2_years:
   context: Auto-deletion period option - 2 years
   en: 2 years & older
   de: 2 Jahre & älter
+  zh: 2 年及以上
+  es: 2 años y más
+  fr: 2 ans et plus
+  pt: 2 anos e mais
+  ru: 2 года и старше
+  ja: 2年以上
+  ko: 2년 이상
+  it: 2 anni e oltre
+  tr: 2 yıl ve üzeri
+  vi: 2 năm trở lên
+  id: 2 tahun ke atas
+  pl: 2 lata i starsze
+  nl: 2 jaar & ouder
   ar: سنتان فأكثر
+  hi: 2 वर्ष और पुराना
+  th: 2 ปีขึ้นไป
+  cs: 2 roky a starší
+  sv: 2 år & äldre
   he: שנתיים ומעלה
+  verified_by_human: []
+auto_deletion.period.3_years:
+  context: Auto-deletion period option - 3 years (platform default for usage data)
+  en: 3 years & older
+  de: 3 Jahre & älter
+  zh: 3 年及以上
+  es: 3 años y más
+  fr: 3 ans et plus
+  pt: 3 anos e mais
+  ru: 3 года и старше
+  ja: 3年以上
+  ko: 3년 이상
+  it: 3 anni e oltre
+  tr: 3 yıl ve üzeri
+  vi: 3 năm trở lên
+  id: 3 tahun ke atas
+  pl: 3 lata i starsze
+  nl: 3 jaar & ouder
+  ar: 3 سنوات فأكثر
+  hi: 3 वर्ष और पुराना
+  th: 3 ปีขึ้นไป
+  cs: 3 roky a starší
+  sv: 3 år & äldre
+  he: 3 שנים ומעלה
   verified_by_human: []
 auto_deletion.period.5_years:
   context: Auto-deletion period option - 5 years
   en: 5 years & older
   de: 5 Jahre & älter
+  zh: 5 年及以上
+  es: 5 años y más
+  fr: 5 ans et plus
+  pt: 5 anos e mais
+  ru: 5 лет и старше
+  ja: 5年以上
+  ko: 5년 이상
+  it: 5 anni e oltre
+  tr: 5 yıl ve üzeri
+  vi: 5 năm trở lên
+  id: 5 tahun ke atas
+  pl: 5 lat i starsze
+  nl: 5 jaar & ouder
   ar: 5 سنوات فأكثر
+  hi: 5 वर्ष और पुराना
+  th: 5 ปีขึ้นไป
+  cs: 5 let a starší
+  sv: 5 år & äldre
   he: 5 שנים ומעלה
   verified_by_human: []
 auto_deletion.period.never:
   context: Auto-deletion period option - never delete
   en: Never delete
   de: Nie löschen
+  zh: 从不删除
+  es: Nunca eliminar
+  fr: Ne jamais supprimer
+  pt: Nunca excluir
+  ru: Никогда не удалять
+  ja: 削除しない
+  ko: 절대 삭제 안 함
+  it: Non eliminare mai
+  tr: Asla silme
+  vi: Không bao giờ xóa
+  id: Jangan pernah hapus
+  pl: Nigdy nie usuwaj
+  nl: Nooit verwijderen
   ar: عدم الحذف أبدًا
+  hi: कभी न हटाएं
+  th: ไม่ลบเลย
+  cs: Nikdy nesmazat
+  sv: Radera aldrig
   he: אל תמחק לעולם
   verified_by_human: []
 auto_deletion.compliance_note:
   context: Note about legal compliance for auto deletion
   en: The compliance logs and invoices auto deletion time can not be reduced, because of legal compliance.
   de: Die automatische Löschzeit für Compliance-Protokolle und Rechnungen kann aufgrund gesetzlicher Vorschriften nicht reduziert werden.
+  zh: 出于法律合规原因，合规日志和发票的自动删除时间不能缩短。
+  es: El tiempo de eliminación automática de los registros de cumplimiento y facturas no puede reducirse por razones de cumplimiento legal.
+  fr: Le délai de suppression automatique des journaux de conformité et des factures ne peut pas être réduit pour des raisons de conformité légale.
+  pt: O tempo de exclusão automática dos registros de conformidade e faturas não pode ser reduzido por motivos de conformidade legal.
+  ru: Время автоматического удаления журналов соответствия и счетов не может быть сокращено в связи с требованиями законодательства.
+  ja: コンプライアンスログと請求書の自動削除時間は、法的コンプライアンスのため短縮できません。
+  ko: 법적 규정 준수를 위해 규정 준수 로그와 청구서의 자동 삭제 시간은 줄일 수 없습니다.
+  it: Il tempo di eliminazione automatica dei log di conformità e delle fatture non può essere ridotto per ragioni di conformità legale.
+  tr: Yasal uyumluluk nedeniyle uyumluluk günlükleri ve faturaların otomatik silme süresi azaltılamaz.
+  vi: Thời gian xóa tự động của nhật ký tuân thủ và hóa đơn không thể giảm vì lý do tuân thủ pháp lý.
+  id: Waktu penghapusan otomatis log kepatuhan dan faktur tidak dapat dikurangi karena kepatuhan hukum.
+  pl: Czas automatycznego usuwania dzienników zgodności i faktur nie może być skrócony ze względu na wymogi prawne.
+  nl: De automatische verwijderingstijd voor nalevingslogboeken en facturen kan niet worden verkort vanwege wettelijke naleving.
   ar: لا يمكن تقليل وقت الحذف التلقائي لسجلات الامتثال والفواتير، وذلك للامتثال القانوني.
+  hi: कानूनी अनुपालन के कारण अनुपालन लॉग और चालान का स्वचालित हटाने का समय कम नहीं किया जा सकता।
+  th: ไม่สามารถลดเวลาการลบอัตโนมัติของบันทึกการปฏิบัติตามข้อกำหนดและใบแจ้งหนี้ได้ เนื่องจากการปฏิบัติตามกฎหมาย
+  cs: Čas automatického mazání protokolů dodržování předpisů a faktur nelze zkrátit z důvodu právního souladu.
+  sv: Den automatiska raderingstiden för efterlevnadsloggar och fakturor kan inte minskas på grund av juridisk efterlevnad.
   he: לא ניתן לקצר את זמן המחיקה האוטומטית של יומני הציות והחשבוניות, בשל דרישות ציות לחוק.
   verified_by_human: []
 contacts:
   context: Section heading for consolidated contacts section (names, addresses, birthdays) in hide personal data
   en: Contacts
   de: Kontakte
+  zh: 联系人
+  es: Contactos
+  fr: Contacts
+  pt: Contatos
+  ru: Контакты
+  ja: 連絡先
+  ko: 연락처
+  it: Contatti
+  tr: Kişiler
+  vi: Danh bạ
+  id: Kontak
+  pl: Kontakty
+  nl: Contacten
   ar: جهات الاتصال
+  hi: संपर्क
+  th: ผู้ติดต่อ
+  cs: Kontakty
+  sv: Kontakter
   he: אנשי קשר
   verified_by_human: []
 names:
   context: Section heading for names in hide personal data
   en: Names
   de: Namen
+  zh: 姓名
+  es: Nombres
+  fr: Noms
+  pt: Nomes
+  ru: Имена
+  ja: 名前
+  ko: 이름
+  it: Nomi
+  tr: İsimler
+  vi: Tên
+  id: Nama
+  pl: Nazwy
+  nl: Namen
   ar: الأسماء
+  hi: नाम
+  th: ชื่อ
+  cs: Jména
+  sv: Namn
   he: שמות
   verified_by_human: []
 add_name:
   context: Button text to add a new name entry
   en: Add name
   de: Name hinzufügen
+  zh: 添加姓名
+  es: Agregar nombre
+  fr: Ajouter un nom
+  pt: Adicionar nome
+  ru: Добавить имя
+  ja: 名前を追加
+  ko: 이름 추가
+  it: Aggiungi nome
+  tr: İsim ekle
+  vi: Thêm tên
+  id: Tambah nama
+  pl: Dodaj nazwę
+  nl: Naam toevoegen
   ar: إضافة اسم
+  hi: नाम जोड़ें
+  th: เพิ่มชื่อ
+  cs: Přidat jméno
+  sv: Lägg till namn
   he: הוספת שם
   verified_by_human: []
 addresses:
   context: Section heading for addresses in hide personal data
   en: Addresses
   de: Adressen
+  zh: 地址
+  es: Direcciones
+  fr: Adresses
+  pt: Endereços
+  ru: Адреса
+  ja: 住所
+  ko: 주소
+  it: Indirizzi
+  tr: Adresler
+  vi: Địa chỉ
+  id: Alamat
+  pl: Adresy
+  nl: Adressen
   ar: العناوين
+  hi: पते
+  th: ที่อยู่
+  cs: Adresy
+  sv: Adresser
   he: כתובות
   verified_by_human: []
 add_address:
   context: Button text to add a new address entry
   en: Add address
   de: Adresse hinzufügen
+  zh: 添加地址
+  es: Agregar dirección
+  fr: Ajouter une adresse
+  pt: Adicionar endereço
+  ru: Добавить адрес
+  ja: 住所を追加
+  ko: 주소 추가
+  it: Aggiungi indirizzo
+  tr: Adres ekle
+  vi: Thêm địa chỉ
+  id: Tambah alamat
+  pl: Dodaj adres
+  nl: Adres toevoegen
   ar: إضافة عنوان
+  hi: पता जोड़ें
+  th: เพิ่มที่อยู่
+  cs: Přidat adresu
+  sv: Lägg till adress
   he: הוספת כתובת
   verified_by_human: []
 birthday:
   context: Section heading for birthday in hide personal data
   en: Birthday
   de: Geburtstag
+  zh: 生日
+  es: Cumpleaños
+  fr: Anniversaire
+  pt: Aniversário
+  ru: День рождения
+  ja: 誕生日
+  ko: 생일
+  it: Compleanno
+  tr: Doğum günü
+  vi: Ngày sinh
+  id: Ulang tahun
+  pl: Urodziny
+  nl: Verjaardag
   ar: تاريخ الميلاد
+  hi: जन्मदिन
+  th: วันเกิด
+  cs: Narozeniny
+  sv: Födelsedag
   he: יום הולדת
   verified_by_human: []
 add_birthday:
   context: Button text to add a new birthday entry
   en: Add birthday
   de: Geburtstag hinzufügen
+  zh: 添加生日
+  es: Agregar cumpleaños
+  fr: Ajouter un anniversaire
+  pt: Adicionar aniversário
+  ru: Добавить день рождения
+  ja: 誕生日を追加
+  ko: 생일 추가
+  it: Aggiungi compleanno
+  tr: Doğum günü ekle
+  vi: Thêm ngày sinh
+  id: Tambah ulang tahun
+  pl: Dodaj urodziny
+  nl: Verjaardag toevoegen
   ar: إضافة تاريخ ميلاد
+  hi: जन्मदिन जोड़ें
+  th: เพิ่มวันเกิด
+  cs: Přidat narozeniny
+  sv: Lägg till födelsedag
   he: הוספת יום הולדת
   verified_by_human: []
 for_everyone:
   context: Section heading for universal PII detection patterns
   en: For everyone
   de: Für alle
+  zh: 适用于所有人
+  es: Para todos
+  fr: Pour tout le monde
+  pt: Para todos
+  ru: Для всех
+  ja: 全員向け
+  ko: 모든 사람용
+  it: Per tutti
+  tr: Herkes için
+  vi: Cho tất cả mọi người
+  id: Untuk semua orang
+  pl: Dla wszystkich
+  nl: Voor iedereen
   ar: للجميع
+  hi: सभी के लिए
+  th: สำหรับทุกคน
+  cs: Pro všechny
+  sv: För alla
   he: לכולם
   verified_by_human: []
 email_addresses:
   context: Toggle label for email address detection
   en: E-mail addresses
   de: E-Mail-Adressen
+  zh: 电子邮件地址
+  es: Direcciones de correo electrónico
+  fr: Adresses e-mail
+  pt: Endereços de e-mail
+  ru: Адреса электронной почты
+  ja: メールアドレス
+  ko: 이메일 주소
+  it: Indirizzi e-mail
+  tr: E-posta adresleri
+  vi: Địa chỉ email
+  id: Alamat email
+  pl: Adresy e-mail
+  nl: E-mailadressen
   ar: عناوين البريد الإلكتروني
+  hi: ईमेल पते
+  th: ที่อยู่อีเมล
+  cs: E-mailové adresy
+  sv: E-postadresser
   he: כתובות אימייל
   verified_by_human: []
 phone_numbers:
   context: Toggle label for phone number detection
   en: Phone numbers
   de: Telefonnummern
+  zh: 电话号码
+  es: Números de teléfono
+  fr: Numéros de téléphone
+  pt: Números de telefone
+  ru: Номера телефонов
+  ja: 電話番号
+  ko: 전화번호
+  it: Numeri di telefono
+  tr: Telefon numaraları
+  vi: Số điện thoại
+  id: Nomor telepon
+  pl: Numery telefonów
+  nl: Telefoonnummers
   ar: أرقام الهواتف
+  hi: फ़ोन नंबर
+  th: หมายเลขโทรศัพท์
+  cs: Telefonní čísla
+  sv: Telefonnummer
   he: מספרי טלפון
   verified_by_human: []
 credit_card_numbers:
   context: Toggle label for credit card number detection
   en: Credit card numbers
   de: Kreditkartennummern
+  zh: 信用卡号码
+  es: Números de tarjeta de crédito
+  fr: Numéros de carte de crédit
+  pt: Números de cartão de crédito
+  ru: Номера кредитных карт
+  ja: クレジットカード番号
+  ko: 신용카드 번호
+  it: Numeri di carta di credito
+  tr: Kredi kartı numaraları
+  vi: Số thẻ tín dụng
+  id: Nomor kartu kredit
+  pl: Numery kart kredytowych
+  nl: Creditcardnummers
   ar: أرقام بطاقات الائتمان
+  hi: क्रेडिट कार्ड नंबर
+  th: หมายเลขบัตรเครดิต
+  cs: Čísla kreditních karet
+  sv: Kreditkortsnummer
   he: מספרי כרטיסי אשראי
   verified_by_human: []
 iban_bank_account:
   context: Toggle label for IBAN/bank account detection
   en: IBAN / Bank account numbers
   de: IBAN / Bankkontonummern
+  zh: IBAN / 银行账户号码
+  es: IBAN / Números de cuenta bancaria
+  fr: IBAN / Numéros de compte bancaire
+  pt: IBAN / Números de conta bancária
+  ru: IBAN / Номера банковских счетов
+  ja: IBAN / 銀行口座番号
+  ko: IBAN / 은행 계좌 번호
+  it: IBAN / Numeri di conto bancario
+  tr: IBAN / Banka hesap numaraları
+  vi: IBAN / Số tài khoản ngân hàng
+  id: IBAN / Nomor rekening bank
+  pl: IBAN / Numery kont bankowych
+  nl: IBAN / Bankrekeningnummers
   ar: IBAN / أرقام الحسابات المصرفية
+  hi: IBAN / बैंक खाता नंबर
+  th: IBAN / หมายเลขบัญชีธนาคาร
+  cs: IBAN / Čísla bankovních účtů
+  sv: IBAN / Bankkontonummer
   he: IBAN / מספרי חשבון בנק
   verified_by_human: []
 tax_id_vat:
   context: Toggle label for tax ID/VAT detection
   en: Tax ID / VAT
   de: Steuer-ID / USt-IdNr.
+  zh: 税号 / 增值税
+  es: ID fiscal / IVA
+  fr: ID fiscal / TVA
+  pt: ID fiscal / IVA
+  ru: ИНН / НДС
+  ja: 税ID / VAT
+  ko: 세금 ID / VAT
+  it: Codice fiscale / IVA
+  tr: Vergi kimliği / KDV
+  vi: Mã số thuế / VAT
+  id: ID pajak / PPN
+  pl: NIP / VAT
+  nl: Fiscaal ID / BTW
   ar: الرقم الضريبي / VAT
-  he: "מזהה מס / מע\"מ"
+  hi: कर आईडी / वैट
+  th: รหัสภาษี / VAT
+  cs: DIČ / DPH
+  sv: Skatte-ID / moms
+  he: 'מזהה מס / מע"מ'
   verified_by_human: []
 crypto_wallets:
   context: Toggle label for cryptocurrency wallet detection
   en: Crypto wallets
   de: Krypto-Wallets
+  zh: 加密钱包
+  es: Carteras de criptomonedas
+  fr: Portefeuilles crypto
+  pt: Carteiras de criptomoedas
+  ru: Криптокошельки
+  ja: 暗号ウォレット
+  ko: 암호화폐 지갑
+  it: Portafogli crypto
+  tr: Kripto cüzdanlar
+  vi: Ví tiền điện tử
+  id: Dompet kripto
+  pl: Portfele krypto
+  nl: Cryptowallets
   ar: محافظ العملات المشفرة
+  hi: क्रिप्टो वॉलेट
+  th: กระเป๋าเงินคริปโต
+  cs: Krypto peněženky
+  sv: Kryptoplånböcker
   he: ארנקי קריפטו
   verified_by_human: []
 social_security_numbers:
   context: Toggle label for social security number detection
   en: Social security numbers
   de: Sozialversicherungsnummern
+  zh: 社会安全号码
+  es: Números de seguridad social
+  fr: Numéros de sécurité sociale
+  pt: Números de seguridade social
+  ru: Номера социального страхования
+  ja: 社会保障番号
+  ko: 사회보장번호
+  it: Numeri di previdenza sociale
+  tr: Sosyal güvenlik numaraları
+  vi: Số an sinh xã hội
+  id: Nomor jaminan sosial
+  pl: Numery ubezpieczenia społecznego
+  nl: Burgerservicenummers
   ar: أرقام الضمان الاجتماعي
+  hi: सामाजिक सुरक्षा नंबर
+  th: หมายเลขประกันสังคม
+  cs: Čísla sociálního pojištění
+  sv: Personnummer
   he: מספרי ביטוח לאומי
   verified_by_human: []
 passport_numbers:
   context: Toggle label for passport number detection
   en: Passport numbers
   de: Passnummern
+  zh: 护照号码
+  es: Números de pasaporte
+  fr: Numéros de passeport
+  pt: Números de passaporte
+  ru: Номера паспортов
+  ja: パスポート番号
+  ko: 여권 번호
+  it: Numeri di passaporto
+  tr: Pasaport numaraları
+  vi: Số hộ chiếu
+  id: Nomor paspor
+  pl: Numery paszportów
+  nl: Paspoortnummers
   ar: أرقام جوازات السفر
+  hi: पासपोर्ट नंबर
+  th: หมายเลขหนังสือเดินทาง
+  cs: Čísla pasů
+  sv: Passnummer
   he: מספרי דרכון
   verified_by_human: []
 for_developers:
   context: Section heading for developer-specific PII detection patterns
   en: For developers
   de: Für Entwickler
+  zh: 适用于开发者
+  es: Para desarrolladores
+  fr: Pour les développeurs
+  pt: Para desenvolvedores
+  ru: Для разработчиков
+  ja: 開発者向け
+  ko: 개발자용
+  it: Per sviluppatori
+  tr: Geliştiriciler için
+  vi: Dành cho nhà phát triển
+  id: Untuk pengembang
+  pl: Dla programistów
+  nl: Voor ontwikkelaars
   ar: للمطورين
+  hi: डेवलपर्स के लिए
+  th: สำหรับนักพัฒนา
+  cs: Pro vývojáře
+  sv: För utvecklare
   he: למפתחים
   verified_by_human: []
 api_keys:
   context: Toggle label for API key detection
   en: API keys
   de: API-Schlüssel
+  zh: API 密钥
+  es: Claves API
+  fr: Clés API
+  pt: Chaves de API
+  ru: API-ключи
+  ja: APIキー
+  ko: API 키
+  it: Chiavi API
+  tr: API anahtarları
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucze API
+  nl: API-sleutels
   ar: مفاتيح API
+  hi: API कुंजियां
+  th: คีย์ API
+  cs: Klíče API
+  sv: API-nycklar
   he: מפתחות API
   verified_by_human: []
 jwt_tokens:
   context: Toggle label for JWT token detection
   en: JWT tokens
   de: JWT-Token
+  zh: JWT 令牌
+  es: Tokens JWT
+  fr: Jetons JWT
+  pt: Tokens JWT
+  ru: JWT-токены
+  ja: JWTトークン
+  ko: JWT 토큰
+  it: Token JWT
+  tr: JWT jetonları
+  vi: Token JWT
+  id: Token JWT
+  pl: Tokeny JWT
+  nl: JWT-tokens
   ar: رموز JWT
+  hi: JWT टोकन
+  th: โทเค็น JWT
+  cs: JWT tokeny
+  sv: JWT-tokens
   he: אסימוני JWT
   verified_by_human: []
 private_keys:
   context: Toggle label for private key detection
   en: Private keys
   de: Private Schlüssel
+  zh: 私钥
+  es: Claves privadas
+  fr: Clés privées
+  pt: Chaves privadas
+  ru: Приватные ключи
+  ja: 秘密鍵
+  ko: 개인 키
+  it: Chiavi private
+  tr: Özel anahtarlar
+  vi: Khóa riêng tư
+  id: Kunci privat
+  pl: Klucze prywatne
+  nl: Privésleutels
   ar: مفاتيح خاصة
+  hi: निजी कुंजियां
+  th: คีย์ส่วนตัว
+  cs: Soukromé klíče
+  sv: Privata nycklar
   he: מפתחות פרטיים
   verified_by_human: []
 generic_secrets:
   context: Toggle label for generic secret detection
   en: Generic secrets
   de: Allgemeine Geheimnisse
+  zh: 通用密钥
+  es: Secretos genéricos
+  fr: Secrets génériques
+  pt: Segredos genéricos
+  ru: Общие секреты
+  ja: 汎用シークレット
+  ko: 일반 시크릿
+  it: Segreti generici
+  tr: Genel sırlar
+  vi: Bí mật chung
+  id: Rahasia umum
+  pl: Ogólne sekrety
+  nl: Algemene geheimen
   ar: أسرار عامة
+  hi: सामान्य रहस्य
+  th: ความลับทั่วไป
+  cs: Obecná tajemství
+  sv: Generiska hemligheter
   he: סודות כלליים
   verified_by_human: []
 ip_addresses:
   context: Toggle label for IP address detection
   en: IP addresses
   de: IP-Adressen
+  zh: IP 地址
+  es: Direcciones IP
+  fr: Adresses IP
+  pt: Endereços IP
+  ru: IP-адреса
+  ja: IPアドレス
+  ko: IP 주소
+  it: Indirizzi IP
+  tr: IP adresleri
+  vi: Địa chỉ IP
+  id: Alamat IP
+  pl: Adresy IP
+  nl: IP-adressen
   ar: عناوين IP
+  hi: IP पते
+  th: ที่อยู่ IP
+  cs: IP adresy
+  sv: IP-adresser
   he: כתובות IP
   verified_by_human: []
 mac_addresses:
   context: Toggle label for MAC address detection
   en: MAC addresses
   de: MAC-Adressen
+  zh: MAC 地址
+  es: Direcciones MAC
+  fr: Adresses MAC
+  pt: Endereços MAC
+  ru: MAC-адреса
+  ja: MACアドレス
+  ko: MAC 주소
+  it: Indirizzi MAC
+  tr: MAC adresleri
+  vi: Địa chỉ MAC
+  id: Alamat MAC
+  pl: Adresy MAC
+  nl: MAC-adressen
   ar: عناوين MAC
+  hi: MAC पते
+  th: ที่อยู่ MAC
+  cs: MAC adresy
+  sv: MAC-adresser
   he: כתובות MAC
   verified_by_human: []
 user_at_hostname:
   context: Toggle label for user@hostname detection
   en: user@hostname
   de: user@hostname
+  zh: user@hostname
+  es: user@hostname
+  fr: user@hostname
+  pt: user@hostname
+  ru: user@hostname
+  ja: user@hostname
+  ko: user@hostname
+  it: user@hostname
+  tr: user@hostname
+  vi: user@hostname
+  id: user@hostname
+  pl: user@hostname
+  nl: user@hostname
   ar: المستخدم@اسم_المضيف
+  hi: user@hostname
+  th: user@hostname
+  cs: user@hostname
+  sv: user@hostname
   he: user@hostname
   verified_by_human: []
 home_folder:
   context: Toggle label for home folder path detection
   en: Home folder
   de: Home-Ordner
+  zh: 主文件夹
+  es: Carpeta de inicio
+  fr: Dossier personnel
+  pt: Pasta inicial
+  ru: Домашняя папка
+  ja: ホームフォルダ
+  ko: 홈 폴더
+  it: Cartella home
+  tr: Ana klasör
+  vi: Thư mục home
+  id: Folder beranda
+  pl: Folder domowy
+  nl: Basismap
   ar: مجلد المنزل
+  hi: होम फ़ोल्डर
+  th: โฟลเดอร์หลัก
+  cs: Domovská složka
+  sv: Hemkatalog
   he: תיקיית בית
   verified_by_human: []
 custom:
   context: Section heading for custom PII entries
   en: Custom
   de: Benutzerdefiniert
+  zh: 自定义
+  es: Personalizado
+  fr: Personnalisé
+  pt: Personalizado
+  ru: Пользовательский
+  ja: カスタム
+  ko: 사용자 정의
+  it: Personalizzato
+  tr: Özel
+  vi: Tùy chỉnh
+  id: Kustom
+  pl: Niestandardowy
+  nl: Aangepast
   ar: مخصص
+  hi: कस्टम
+  th: กำหนดเอง
+  cs: Vlastní
+  sv: Anpassad
   he: מותאם אישית
   verified_by_human: []
 add_custom_entry:
   context: Button text to add a custom PII entry
   en: Add custom entry
   de: Benutzerdefinierten Eintrag hinzufügen
+  zh: 添加自定义条目
+  es: Agregar entrada personalizada
+  fr: Ajouter une entrée personnalisée
+  pt: Adicionar entrada personalizada
+  ru: Добавить пользовательскую запись
+  ja: カスタムエントリを追加
+  ko: 사용자 정의 항목 추가
+  it: Aggiungi voce personalizzata
+  tr: Özel giriş ekle
+  vi: Thêm mục tùy chỉnh
+  id: Tambah entri kustom
+  pl: Dodaj niestandardowy wpis
+  nl: Aangepaste invoer toevoegen
   ar: إضافة إدخال مخصص
+  hi: कस्टम प्रविष्टि जोड़ें
+  th: เพิ่มรายการที่กำหนดเอง
+  cs: Přidat vlastní položku
+  sv: Lägg till anpassad post
   he: הוספת ערך מותאם אישית
   verified_by_human: []
 form.title:
   context: Form field label for entry title
   en: Title
   de: Titel
+  zh: 标题
+  es: Título
+  fr: Titre
+  pt: Título
+  ru: Заголовок
+  ja: タイトル
+  ko: 제목
+  it: Titolo
+  tr: Başlık
+  vi: Tiêu đề
+  id: Judul
+  pl: Tytuł
+  nl: Titel
   ar: العنوان
+  hi: शीर्षक
+  th: ชื่อเรื่อง
+  cs: Název
+  sv: Titel
   he: כותרת
   verified_by_human: []
 form.title.placeholder_name:
   context: Placeholder for name title input
   en: "example: 'My first name'"
   de: "Beispiel: 'Mein Vorname'"
+  zh: "示例：'我的名字'"
+  es: "ejemplo: 'Mi nombre'"
+  fr: "exemple : 'Mon prénom'"
+  pt: "exemplo: 'Meu primeiro nome'"
+  ru: "пример: 'Моё имя'"
+  ja: "例：'私の名前'"
+  ko: "예: '내 이름'"
+  it: "esempio: 'Il mio nome'"
+  tr: "örnek: 'Adım'"
+  vi: "ví dụ: 'Tên của tôi'"
+  id: "contoh: 'Nama depan saya'"
+  pl: "przykład: 'Moje imię'"
+  nl: "voorbeeld: 'Mijn voornaam'"
   ar: "مثال: 'اسمي الأول'"
+  hi: "उदाहरण: 'मेरा पहला नाम'"
+  th: "ตัวอย่าง: 'ชื่อจริงของฉัน'"
+  cs: "příklad: 'Moje jméno'"
+  sv: "exempel: 'Mitt förnamn'"
   he: "לדוגמה: 'השם הפרטי שלי'"
   verified_by_human: []
 form.title.placeholder_address:
   context: Placeholder for address title input
   en: "example: 'Home'"
   de: "Beispiel: 'Zuhause'"
+  zh: "示例：'家'"
+  es: "ejemplo: 'Casa'"
+  fr: "exemple : 'Domicile'"
+  pt: "exemplo: 'Casa'"
+  ru: "пример: 'Дом'"
+  ja: "例：'自宅'"
+  ko: "예: '집'"
+  it: "esempio: 'Casa'"
+  tr: "örnek: 'Ev'"
+  vi: "ví dụ: 'Nhà'"
+  id: "contoh: 'Rumah'"
+  pl: "przykład: 'Dom'"
+  nl: "voorbeeld: 'Thuis'"
   ar: "مثال: 'المنزل'"
+  hi: "उदाहरण: 'घर'"
+  th: "ตัวอย่าง: 'บ้าน'"
+  cs: "příklad: 'Domů'"
+  sv: "exempel: 'Hem'"
   he: "לדוגמה: 'בית'"
   verified_by_human: []
 form.title.placeholder_birthday:
   context: Placeholder for birthday title input
   en: "example: 'Me'"
   de: "Beispiel: 'Ich'"
+  zh: "示例：'我'"
+  es: "ejemplo: 'Yo'"
+  fr: "exemple : 'Moi'"
+  pt: "exemplo: 'Eu'"
+  ru: "пример: 'Я'"
+  ja: "例：'私'"
+  ko: "예: '나'"
+  it: "esempio: 'Io'"
+  tr: "örnek: 'Ben'"
+  vi: "ví dụ: 'Tôi'"
+  id: "contoh: 'Saya'"
+  pl: "przykład: 'Ja'"
+  nl: "voorbeeld: 'Ik'"
   ar: "مثال: 'أنا'"
+  hi: "उदाहरण: 'मैं'"
+  th: "ตัวอย่าง: 'ฉัน'"
+  cs: "příklad: 'Já'"
+  sv: "exempel: 'Jag'"
   he: "לדוגמה: 'אני'"
   verified_by_human: []
 form.title.placeholder_custom:
   context: Placeholder for custom entry title input
   en: "example: 'My company name'"
   de: "Beispiel: 'Mein Firmenname'"
+  zh: "示例：'我的公司名称'"
+  es: "ejemplo: 'Nombre de mi empresa'"
+  fr: "exemple : 'Nom de mon entreprise'"
+  pt: "exemplo: 'Nome da minha empresa'"
+  ru: "пример: 'Название моей компании'"
+  ja: "例：'会社名'"
+  ko: "예: '내 회사 이름'"
+  it: "esempio: 'Nome della mia azienda'"
+  tr: "örnek: 'Şirket adım'"
+  vi: "ví dụ: 'Tên công ty của tôi'"
+  id: "contoh: 'Nama perusahaan saya'"
+  pl: "przykład: 'Nazwa mojej firmy'"
+  nl: "voorbeeld: 'Mijn bedrijfsnaam'"
   ar: "مثال: 'اسم شركتي'"
+  hi: "उदाहरण: 'मेरी कंपनी का नाम'"
+  th: "ตัวอย่าง: 'ชื่อบริษัทของฉัน'"
+  cs: "příklad: 'Název mé společnosti'"
+  sv: "exempel: 'Mitt företagsnamn'"
   he: "לדוגמה: 'שם החברה שלי'"
   verified_by_human: []
 form.text_to_hide:
   context: Form field label for the text that should be hidden
   en: Text to hide
   de: Text zum Verbergen
+  zh: 要隐藏的文本
+  es: Texto a ocultar
+  fr: Texte à masquer
+  pt: Texto para ocultar
+  ru: Текст для скрытия
+  ja: 非表示にするテキスト
+  ko: 숨길 텍스트
+  it: Testo da nascondere
+  tr: Gizlenecek metin
+  vi: Văn bản cần ẩn
+  id: Teks yang akan disembunyikan
+  pl: Tekst do ukrycia
+  nl: Te verbergen tekst
   ar: نص للإخفاء
+  hi: छुपाने के लिए टेक्स्ट
+  th: ข้อความที่จะซ่อน
+  cs: Text ke skrytí
+  sv: Text att dölja
   he: טקסט להסתרה
   verified_by_human: []
 form.text_to_hide.placeholder_name:
   context: Placeholder for name text input
   en: "example: 'Max'"
   de: "Beispiel: 'Max'"
+  zh: "示例：'小明'"
+  es: "ejemplo: 'Juan'"
+  fr: "exemple : 'Jean'"
+  pt: "exemplo: 'João'"
+  ru: "пример: 'Иван'"
+  ja: "例：'太郎'"
+  ko: "예: '철수'"
+  it: "esempio: 'Mario'"
+  tr: "örnek: 'Ahmet'"
+  vi: "ví dụ: 'Minh'"
+  id: "contoh: 'Budi'"
+  pl: "przykład: 'Jan'"
+  nl: "voorbeeld: 'Jan'"
   ar: "مثال: 'ماكس'"
+  hi: "उदाहरण: 'राज'"
+  th: "ตัวอย่าง: 'สมชาย'"
+  cs: "příklad: 'Jan'"
+  sv: "exempel: 'Erik'"
   he: "לדוגמה: 'מקס'"
   verified_by_human: []
 form.text_to_hide.placeholder_custom:
   context: Placeholder for custom text to hide input
   en: "example: 'Acme Corp'"
   de: "Beispiel: 'Acme GmbH'"
+  zh: "示例：'示例公司'"
+  es: "ejemplo: 'Acme Corp'"
+  fr: "exemple : 'Acme Corp'"
+  pt: "exemplo: 'Acme Corp'"
+  ru: "пример: 'Acme Corp'"
+  ja: "例：'Acme Corp'"
+  ko: "예: 'Acme Corp'"
+  it: "esempio: 'Acme Corp'"
+  tr: "örnek: 'Acme Corp'"
+  vi: "ví dụ: 'Acme Corp'"
+  id: "contoh: 'Acme Corp'"
+  pl: "przykład: 'Acme Corp'"
+  nl: "voorbeeld: 'Acme Corp'"
   ar: "مثال: 'Acme Corp'"
+  hi: "उदाहरण: 'Acme Corp'"
+  th: "ตัวอย่าง: 'Acme Corp'"
+  cs: "příklad: 'Acme Corp'"
+  sv: "exempel: 'Acme Corp'"
   he: "לדוגמה: 'Acme Corp'"
   verified_by_human: []
 form.first_line:
   context: Form field label for the first address line to hide
   en: First line to hide
   de: Erste Zeile zum Verbergen
+  zh: 要隐藏的第一行
+  es: Primera línea a ocultar
+  fr: Première ligne à masquer
+  pt: Primeira linha a ocultar
+  ru: Первая строка для скрытия
+  ja: 非表示にする1行目
+  ko: 숨길 첫 번째 줄
+  it: Prima riga da nascondere
+  tr: Gizlenecek ilk satır
+  vi: Dòng đầu tiên cần ẩn
+  id: Baris pertama yang akan disembunyikan
+  pl: Pierwsza linia do ukrycia
+  nl: Eerste regel te verbergen
   ar: السطر الأول للإخفاء
+  hi: छुपाने के लिए पहली पंक्ति
+  th: บรรทัดแรกที่จะซ่อน
+  cs: První řádek ke skrytí
+  sv: Första raden att dölja
   he: שורה ראשונה להסתרה
   verified_by_human: []
 form.first_line.placeholder:
   context: Placeholder for the first address line input
   en: "example: 'Friedrichstr. 19'"
   de: "Beispiel: 'Friedrichstr. 19'"
+  zh: "示例：'中关村大街 19 号'"
+  es: "ejemplo: 'Calle Mayor 19'"
+  fr: "exemple : '19 rue de la Paix'"
+  pt: "exemplo: 'Rua das Flores, 19'"
+  ru: "пример: 'ул. Ленина, 19'"
+  ja: "例：'中央通り19番'"
+  ko: "예: '강남대로 19'"
+  it: "esempio: 'Via Roma 19'"
+  tr: "örnek: 'Atatürk Cad. 19'"
+  vi: "ví dụ: 'Số 19 phố Huế'"
+  id: "contoh: 'Jl. Sudirman No. 19'"
+  pl: "przykład: 'ul. Główna 19'"
+  nl: "voorbeeld: 'Hoofdstraat 19'"
   ar: "مثال: 'Friedrichstr. 19'"
+  hi: "उदाहरण: 'मुख्य सड़क 19'"
+  th: "ตัวอย่าง: '19 ถนนสุขุมวิท'"
+  cs: "příklad: 'Hlavní ul. 19'"
+  sv: "exempel: 'Storgatan 19'"
   he: "לדוגמה: 'רחוב הרצל 19'"
   verified_by_human: []
 form.second_line:
   context: Form field label for the second address line to hide
   en: Second line to hide
   de: Zweite Zeile zum Verbergen
+  zh: 要隐藏的第二行
+  es: Segunda línea a ocultar
+  fr: Deuxième ligne à masquer
+  pt: Segunda linha a ocultar
+  ru: Вторая строка для скрытия
+  ja: 非表示にする2行目
+  ko: 숨길 두 번째 줄
+  it: Seconda riga da nascondere
+  tr: Gizlenecek ikinci satır
+  vi: Dòng thứ hai cần ẩn
+  id: Baris kedua yang akan disembunyikan
+  pl: Druga linia do ukrycia
+  nl: Tweede regel te verbergen
   ar: السطر الثاني للإخفاء
+  hi: छुपाने के लिए दूसरी पंक्ति
+  th: บรรทัดที่สองที่จะซ่อน
+  cs: Druhý řádek ke skrytí
+  sv: Andra raden att dölja
   he: שורה שנייה להסתרה
   verified_by_human: []
 form.second_line.placeholder:
   context: Placeholder for the second address line input
   en: "example: '10247 Berlin'"
   de: "Beispiel: '10247 Berlin'"
+  zh: "示例：'北京 100080'"
+  es: "ejemplo: '28001 Madrid'"
+  fr: "exemple : '75001 Paris'"
+  pt: "exemplo: '01310-100 São Paulo'"
+  ru: "пример: '123456 Москва'"
+  ja: "例：'東京都 100-0001'"
+  ko: "예: '서울 06236'"
+  it: "esempio: '00100 Roma'"
+  tr: "örnek: '34000 İstanbul'"
+  vi: "ví dụ: 'Hà Nội 100000'"
+  id: "contoh: 'Jakarta 10110'"
+  pl: "przykład: '00-001 Warszawa'"
+  nl: "voorbeeld: '1000 AA Amsterdam'"
   ar: "مثال: '10247 برلين'"
+  hi: "उदाहरण: 'नई दिल्ली 110001'"
+  th: "ตัวอย่าง: 'กรุงเทพฯ 10110'"
+  cs: "příklad: '110 00 Praha'"
+  sv: "exempel: '111 20 Stockholm'"
   he: "לדוגמה: 'תל אביב 64239'"
   verified_by_human: []
 form.replace_with:
   context: Form field label for the replacement placeholder
   en: Replace with
   de: Ersetzen durch
+  zh: 替换为
+  es: Reemplazar con
+  fr: Remplacer par
+  pt: Substituir por
+  ru: Заменить на
+  ja: 置き換え先
+  ko: 다음으로 교체
+  it: Sostituisci con
+  tr: Şununla değiştir
+  vi: Thay thế bằng
+  id: Ganti dengan
+  pl: Zastąp przez
+  nl: Vervangen door
   ar: استبدال بـ
+  hi: इससे बदलें
+  th: แทนที่ด้วย
+  cs: Nahradit s
+  sv: Ersätt med
   he: החלפה ב-
   verified_by_human: []
 form.replace_with.placeholder_name:
   context: Placeholder for name replacement input
   en: "example: 'ME_FIRST_NAME'"
   de: "Beispiel: 'MEIN_VORNAME'"
+  zh: "示例：'MY_FIRST_NAME'"
+  es: "ejemplo: 'MI_NOMBRE'"
+  fr: "exemple : 'MON_PRENOM'"
+  pt: "exemplo: 'MEU_NOME'"
+  ru: "пример: 'МОЁ_ИМЯ'"
+  ja: "例：'MY_FIRST_NAME'"
+  ko: "예: 'MY_FIRST_NAME'"
+  it: "esempio: 'MIO_NOME'"
+  tr: "örnek: 'BENIM_ADIM'"
+  vi: "ví dụ: 'TEN_CUA_TOI'"
+  id: "contoh: 'NAMA_DEPAN_SAYA'"
+  pl: "przykład: 'MOJE_IMIĘ'"
+  nl: "voorbeeld: 'MIJN_VOORNAAM'"
   ar: "مثال: 'ME_FIRST_NAME'"
+  hi: "उदाहरण: 'MERA_NAAM'"
+  th: "ตัวอย่าง: 'MY_FIRST_NAME'"
+  cs: "příklad: 'MÉ_JMÉNO'"
+  sv: "exempel: 'MITT_FÖRNAMN'"
   he: "לדוגמה: 'ME_FIRST_NAME'"
   verified_by_human: []
 form.replace_with.placeholder_address:
   context: Placeholder for address replacement input
   en: "example: 'MY_HOME_ADDRESS'"
   de: "Beispiel: 'MEINE_ADRESSE'"
+  zh: "示例：'MY_HOME_ADDRESS'"
+  es: "ejemplo: 'MI_DIRECCION_CASA'"
+  fr: "exemple : 'MON_ADRESSE_DOMICILE'"
+  pt: "exemplo: 'MEU_ENDERECO_CASA'"
+  ru: "пример: 'МОЙ_ДОМАШНИЙ_АДРЕС'"
+  ja: "例：'MY_HOME_ADDRESS'"
+  ko: "예: 'MY_HOME_ADDRESS'"
+  it: "esempio: 'MIO_INDIRIZZO_CASA'"
+  tr: "örnek: 'EV_ADRESIM'"
+  vi: "ví dụ: 'DIA_CHI_NHA_TOI'"
+  id: "contoh: 'ALAMAT_RUMAH_SAYA'"
+  pl: "przykład: 'MÓJ_ADRES_DOMOWY'"
+  nl: "voorbeeld: 'MIJN_HUISADRES'"
   ar: "مثال: 'MY_HOME_ADDRESS'"
+  hi: "उदाहरण: 'MERA_GHAR_PATA'"
+  th: "ตัวอย่าง: 'MY_HOME_ADDRESS'"
+  cs: "příklad: 'MÁ_DOMOVNÍ_ADRESA'"
+  sv: "exempel: 'MIN_HEMADRESS'"
   he: "לדוגמה: 'MY_HOME_ADDRESS'"
   verified_by_human: []
 form.replace_with.placeholder_birthday:
   context: Placeholder for birthday replacement input
   en: "example: 'MY_BIRTHDAY'"
   de: "Beispiel: 'MEIN_GEBURTSTAG'"
+  zh: "示例：'MY_BIRTHDAY'"
+  es: "ejemplo: 'MI_CUMPLEANOS'"
+  fr: "exemple : 'MON_ANNIVERSAIRE'"
+  pt: "exemplo: 'MEU_ANIVERSARIO'"
+  ru: "пример: 'МОЙ_ДЕНЬ_РОЖДЕНИЯ'"
+  ja: "例：'MY_BIRTHDAY'"
+  ko: "예: 'MY_BIRTHDAY'"
+  it: "esempio: 'MIO_COMPLEANNO'"
+  tr: "örnek: 'DOGUM_GUNUM'"
+  vi: "ví dụ: 'NGAY_SINH_CUA_TOI'"
+  id: "contoh: 'ULANG_TAHUN_SAYA'"
+  pl: "przykład: 'MOJE_URODZINY'"
+  nl: "voorbeeld: 'MIJN_VERJAARDAG'"
   ar: "مثال: 'MY_BIRTHDAY'"
+  hi: "उदाहरण: 'MERA_JANMDIN'"
+  th: "ตัวอย่าง: 'MY_BIRTHDAY'"
+  cs: "příklad: 'MÉ_NAROZENINY'"
+  sv: "exempel: 'MIN_FÖDELSEDAG'"
   he: "לדוגמה: 'MY_BIRTHDAY'"
   verified_by_human: []
 form.replace_with.placeholder_custom:
   context: Placeholder for custom replacement input
   en: "example: 'MY_COMPANY'"
   de: "Beispiel: 'MEINE_FIRMA'"
+  zh: "例如: 'MY_COMPANY'"
+  es: "ejemplo: 'MI_EMPRESA'"
+  fr: "exemple: 'MON_ENTREPRISE'"
+  pt: "exemplo: 'MINHA_EMPRESA'"
+  ru: "пример: 'МОЯ_КОМПАНИЯ'"
+  ja: "例: 'MY_COMPANY'"
+  ko: "예시: 'MY_COMPANY'"
+  it: "esempio: 'MIA_AZIENDA'"
+  tr: "örnek: 'ŞİRKETİM'"
+  vi: "ví dụ: 'CÔNG_TY'"
+  id: "contoh: 'PERUSAHAAN_SAYA'"
+  pl: "przykład: 'MOJA_FIRMA'"
+  nl: "voorbeeld: 'MIJN_BEDRIJF'"
   ar: "مثال: 'MY_COMPANY'"
+  hi: "उदाहरण: 'MY_COMPANY'"
+  th: "ตัวอย่าง: 'MY_COMPANY'"
+  cs: "příklad: 'MOJE_FIRMA'"
+  sv: "exempel: 'MITT_FÖRETAG'"
   he: "לדוגמה: 'MY_COMPANY'"
   verified_by_human: []
 form.date:
   context: Form field label for birthday date
   en: Date
   de: Datum
+  zh: 日期
+  es: Fecha
+  fr: Date
+  pt: Data
+  ru: Дата
+  ja: 日付
+  ko: 날짜
+  it: Data
+  tr: Tarih
+  vi: Ngày
+  id: Tanggal
+  pl: Data
+  nl: Datum
   ar: التاريخ
+  hi: तारीख
+  th: วันที่
+  cs: Datum
+  sv: Datum
   he: תאריך
   verified_by_human: []
 form.date.placeholder:
   context: Placeholder for birthday date input
   en: "example: '15.03.1990'"
   de: "Beispiel: '15.03.1990'"
+  zh: "例如: '15.03.1990'"
+  es: "ejemplo: '15.03.1990'"
+  fr: "exemple: '15.03.1990'"
+  pt: "exemplo: '15.03.1990'"
+  ru: "пример: '15.03.1990'"
+  ja: "例: '15.03.1990'"
+  ko: "예시: '15.03.1990'"
+  it: "esempio: '15.03.1990'"
+  tr: "örnek: '15.03.1990'"
+  vi: "ví dụ: '15.03.1990'"
+  id: "contoh: '15.03.1990'"
+  pl: "przykład: '15.03.1990'"
+  nl: "voorbeeld: '15.03.1990'"
   ar: "مثال: '15.03.1990'"
+  hi: "उदाहरण: '15.03.1990'"
+  th: "ตัวอย่าง: '15.03.1990'"
+  cs: "příklad: '15.03.1990'"
+  sv: "exempel: '15.03.1990'"
   he: "לדוגמה: '15.03.1990'"
   verified_by_human: []
 form.street:
   context: Form field label for street address
   en: Street
   de: Straße
+  zh: 街道
+  es: Calle
+  fr: Rue
+  pt: Rua
+  ru: Улица
+  ja: 通り
+  ko: 거리
+  it: Via
+  tr: Sokak
+  vi: Đường
+  id: Jalan
+  pl: Ulica
+  nl: Straat
   ar: الشارع
+  hi: सड़क
+  th: ถนน
+  cs: Ulice
+  sv: Gata
   he: רחוב
   verified_by_human: []
 form.street.placeholder:
   context: Placeholder for street address input
   en: "example: '123 Main Street'"
   de: "Beispiel: 'Hauptstraße 123'"
+  zh: "例如: '主街123号'"
+  es: "ejemplo: 'Calle Mayor 123'"
+  fr: "exemple: '123 rue de la Paix'"
+  pt: "exemplo: 'Rua Principal 123'"
+  ru: "пример: 'ул. Главная, 123'"
+  ja: "例: 'メインストリート123'"
+  ko: "예시: '메인로 123'"
+  it: "esempio: 'Via Roma 123'"
+  tr: "örnek: 'Ana Cadde 123'"
+  vi: "ví dụ: '123 Đường Chính'"
+  id: "contoh: 'Jalan Utama 123'"
+  pl: "przykład: 'ul. Główna 123'"
+  nl: "voorbeeld: 'Hoofdstraat 123'"
   ar: "مثال: '123 الشارع الرئيسي'"
+  hi: "उदाहरण: 'मुख्य सड़क 123'"
+  th: "ตัวอย่าง: '123 ถนนหลัก'"
+  cs: "příklad: 'Hlavní ulice 123'"
+  sv: "exempel: 'Huvudgatan 123'"
   he: "לדוגמה: 'רחוב הרצל 123'"
   verified_by_human: []
 form.city:
   context: Form field label for city
   en: City
   de: Stadt
+  zh: 城市
+  es: Ciudad
+  fr: Ville
+  pt: Cidade
+  ru: Город
+  ja: 市区町村
+  ko: 도시
+  it: Città
+  tr: Şehir
+  vi: Thành phố
+  id: Kota
+  pl: Miasto
+  nl: Stad
   ar: المدينة
+  hi: शहर
+  th: เมือง
+  cs: Město
+  sv: Stad
   he: עיר
   verified_by_human: []
 form.city.placeholder:
   context: Placeholder for city input
   en: "example: 'Berlin'"
   de: "Beispiel: 'Berlin'"
-  ar: "مثال: \"برلين\""
+  zh: "例如: '北京'"
+  es: "ejemplo: 'Madrid'"
+  fr: "exemple: 'Paris'"
+  pt: "exemplo: 'Lisboa'"
+  ru: "пример: 'Москва'"
+  ja: "例: '東京'"
+  ko: "예시: '서울'"
+  it: "esempio: 'Roma'"
+  tr: "örnek: 'İstanbul'"
+  vi: "ví dụ: 'Hà Nội'"
+  id: "contoh: 'Jakarta'"
+  pl: "przykład: 'Warszawa'"
+  nl: "voorbeeld: 'Amsterdam'"
+  ar: 'مثال: "برلين"'
+  hi: "उदाहरण: 'दिल्ली'"
+  th: "ตัวอย่าง: 'กรุงเทพ'"
+  cs: "příklad: 'Praha'"
+  sv: "exempel: 'Stockholm'"
   he: "לדוגמה: 'תל אביב'"
   verified_by_human: []
 form.state:
   context: Form field label for state/province
   en: State / Province
   de: Bundesland
+  zh: 省 / 州
+  es: Estado / Provincia
+  fr: État / Province
+  pt: Estado / Província
+  ru: Штат / Область
+  ja: 都道府県
+  ko: 주 / 도
+  it: Stato / Provincia
+  tr: Eyalet / İl
+  vi: Tỉnh / Thành phố
+  id: Provinsi
+  pl: Województwo
+  nl: Provincie
   ar: الولاية / المقاطعة
+  hi: राज्य / प्रांत
+  th: จังหวัด / รัฐ
+  cs: Kraj / Provincie
+  sv: Stat / Provins
   he: מדינה / מחוז
   verified_by_human: []
 form.state.placeholder:
   context: Placeholder for state input
   en: "example: 'California'"
   de: "Beispiel: 'Bayern'"
-  ar: "مثال: \"كاليفورنيا\""
+  zh: "例如: '广东省'"
+  es: "ejemplo: 'Cataluña'"
+  fr: "exemple: 'Île-de-France'"
+  pt: "exemplo: 'São Paulo'"
+  ru: "пример: 'Московская область'"
+  ja: "例: '東京都'"
+  ko: "예시: '경기도'"
+  it: "esempio: 'Lombardia'"
+  tr: "örnek: 'İstanbul'"
+  vi: "ví dụ: 'TP. Hồ Chí Minh'"
+  id: "contoh: 'Jawa Barat'"
+  pl: "przykład: 'Mazowieckie'"
+  nl: "voorbeeld: 'Noord-Holland'"
+  ar: 'مثال: "كاليفورنيا"'
+  hi: "उदाहरण: 'महाराष्ट्र'"
+  th: "ตัวอย่าง: 'กรุงเทพมหานคร'"
+  cs: "příklad: 'Jihomoravský kraj'"
+  sv: "exempel: 'Stockholms län'"
   he: "לדוגמה: 'קליפורניה'"
   verified_by_human: []
 form.zip:
   context: Form field label for zip/postal code
   en: ZIP / Postal code
   de: PLZ
+  zh: 邮政编码
+  es: Código postal
+  fr: Code postal
+  pt: CEP / Código postal
+  ru: Почтовый индекс
+  ja: 郵便番号
+  ko: 우편번호
+  it: CAP / Codice postale
+  tr: Posta kodu
+  vi: Mã bưu chính
+  id: Kode pos
+  pl: Kod pocztowy
+  nl: Postcode
   ar: الرمز البريدي
+  hi: पिन कोड
+  th: รหัสไปรษณีย์
+  cs: PSČ
+  sv: Postnummer
   he: מיקוד
   verified_by_human: []
 form.zip.placeholder:
   context: Placeholder for zip code input
   en: "example: '10115'"
   de: "Beispiel: '10115'"
-  ar: "مثال: \"10115\""
+  zh: "例如: '100000'"
+  es: "ejemplo: '28001'"
+  fr: "exemple: '75001'"
+  pt: "exemplo: '01310-100'"
+  ru: "пример: '101000'"
+  ja: "例: '100-0001'"
+  ko: "예시: '04524'"
+  it: "esempio: '00100'"
+  tr: "örnek: '34000'"
+  vi: "ví dụ: '700000'"
+  id: "contoh: '10110'"
+  pl: "przykład: '00-001'"
+  nl: "voorbeeld: '1000 AA'"
+  ar: 'مثال: "10115"'
+  hi: "उदाहरण: '110001'"
+  th: "ตัวอย่าง: '10100'"
+  cs: "příklad: '110 00'"
+  sv: "exempel: '111 29'"
   he: "לדוגמה: '10115'"
   verified_by_human: []
 form.country:
   context: Form field label for country
   en: Country
   de: Land
+  zh: 国家
+  es: País
+  fr: Pays
+  pt: País
+  ru: Страна
+  ja: 国
+  ko: 국가
+  it: Paese
+  tr: Ülke
+  vi: Quốc gia
+  id: Negara
+  pl: Kraj
+  nl: Land
   ar: البلد
+  hi: देश
+  th: ประเทศ
+  cs: Země
+  sv: Land
   he: מדינה
   verified_by_human: []
 form.country.placeholder:
   context: Placeholder for country input
   en: "example: 'Germany'"
   de: "Beispiel: 'Deutschland'"
-  ar: "مثال: \"ألمانيا\""
+  zh: "例如: '中国'"
+  es: "ejemplo: 'España'"
+  fr: "exemple: 'France'"
+  pt: "exemplo: 'Brasil'"
+  ru: "пример: 'Россия'"
+  ja: "例: '日本'"
+  ko: "예시: '한국'"
+  it: "esempio: 'Italia'"
+  tr: "örnek: 'Türkiye'"
+  vi: "ví dụ: 'Việt Nam'"
+  id: "contoh: 'Indonesia'"
+  pl: "przykład: 'Polska'"
+  nl: "voorbeeld: 'Nederland'"
+  ar: 'مثال: "ألمانيا"'
+  hi: "उदाहरण: 'भारत'"
+  th: "ตัวอย่าง: 'ประเทศไทย'"
+  cs: "příklad: 'Česká republika'"
+  sv: "exempel: 'Sverige'"
   he: "לדוגמה: 'גרמניה'"
   verified_by_human: []
 form.save:
   context: Save button text for personal data form
   en: Save
   de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
   ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
   he: שמירה
   verified_by_human: []
 form.delete:
   context: Delete button text for personal data entry
   en: Delete
   de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
   ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
   he: מחיקה
   verified_by_human: []
 encryption_note:
   context: Note explaining that personal data entries are client-side encrypted
   en: All your personal data entries are encrypted on your device. Not even the OpenMates server can read them.
   de: Alle deine persönlichen Dateneinträge werden auf deinem Gerät verschlüsselt. Nicht einmal der OpenMates-Server kann sie lesen.
+  zh: 您所有的个人数据条目都在您的设备上加密。即使是 OpenMates 服务器也无法读取它们。
+  es: Todas tus entradas de datos personales están cifradas en tu dispositivo. Ni siquiera el servidor de OpenMates puede leerlas.
+  fr: Toutes vos entrées de données personnelles sont chiffrées sur votre appareil. Même le serveur OpenMates ne peut pas les lire.
+  pt: Todas as suas entradas de dados pessoais são criptografadas no seu dispositivo. Nem mesmo o servidor OpenMates pode lê-las.
+  ru: Все ваши личные данные зашифрованы на вашем устройстве. Даже сервер OpenMates не может их прочитать.
+  ja: すべての個人データはデバイス上で暗号化されています。OpenMatesのサーバーでさえ読み取ることができません。
+  ko: 모든 개인 데이터 항목이 기기에서 암호화됩니다. OpenMates 서버조차 읽을 수 없습니다.
+  it: Tutte le tue voci di dati personali sono crittografate sul tuo dispositivo. Nemmeno il server di OpenMates può leggerle.
+  tr: Tüm kişisel veri girişleriniz cihazınızda şifrelenir. OpenMates sunucusu bile onları okuyamaz.
+  vi: Tất cả mục nhập dữ liệu cá nhân của bạn được mã hóa trên thiết bị của bạn. Ngay cả máy chủ OpenMates cũng không thể đọc chúng.
+  id: Semua entri data pribadi Anda dienkripsi di perangkat Anda. Bahkan server OpenMates pun tidak dapat membacanya.
+  pl: Wszystkie wpisy danych osobowych są szyfrowane na Twoim urządzeniu. Nawet serwer OpenMates nie może ich odczytać.
+  nl: Al uw persoonlijke gegevensinvoer is versleuteld op uw apparaat. Zelfs de OpenMates-server kan ze niet lezen.
   ar: جميع إدخالات بياناتك الشخصية مشفرة على جهازك. حتى خادم OpenMates لا يمكنه قراءتها.
+  hi: आपके सभी व्यक्तिगत डेटा प्रविष्टियां आपके डिवाइस पर एन्क्रिप्ट की गई हैं। यहां तक कि OpenMates सर्वर भी उन्हें नहीं पढ़ सकता।
+  th: รายการข้อมูลส่วนตัวทั้งหมดของคุณถูกเข้ารหัสบนอุปกรณ์ของคุณ แม้แต่เซิร์ฟเวอร์ OpenMates ก็ไม่สามารถอ่านได้
+  cs: Všechny vaše osobní datové záznamy jsou šifrovány na vašem zařízení. Ani server OpenMates je nemůže číst.
+  sv: Alla dina personliga dataposter är krypterade på din enhet. Inte ens OpenMates-servern kan läsa dem.
   he: כל נתוניך האישיים מוצפנים במכשיר שלך. אפילו השרת של OpenMates לא יכול לקרוא אותם.
+  verified_by_human: []
+auth.title:
+  context: Title shown in the identity verification modal when opening a personal data entry for editing
+  en: Verify your identity
+  de: Identität bestätigen
+  zh: 验证您的身份
+  es: Verifica tu identidad
+  fr: Vérifiez votre identité
+  pt: Verifique sua identidade
+  ru: Подтвердите свою личность
+  ja: 本人確認
+  ko: 신원을 확인하세요
+  it: Verifica la tua identità
+  tr: Kimliğinizi doğrulayın
+  vi: Xác minh danh tính của bạn
+  id: Verifikasi identitas Anda
+  pl: Zweryfikuj swoją tożsamość
+  nl: Verifieer uw identiteit
+  ar: التحقق من هويتك
+  hi: अपनी पहचान सत्यापित करें
+  th: ยืนยันตัวตนของคุณ
+  cs: Ověřte svou identitu
+  sv: Verifiera din identitet
+  he: אמת את זהותך
+  verified_by_human: []
+auth.description:
+  context: Description shown in the identity verification modal before editing a personal data entry
+  en: To protect your private data, please confirm your identity before editing.
+  de: Um deine privaten Daten zu schützen, bestätige bitte deine Identität vor dem Bearbeiten.
+  zh: 为保护您的私人数据，请在编辑前确认您的身份。
+  es: Para proteger tus datos privados, confirma tu identidad antes de editar.
+  fr: Pour protéger vos données privées, veuillez confirmer votre identité avant de modifier.
+  pt: Para proteger seus dados privados, confirme sua identidade antes de editar.
+  ru: Чтобы защитить ваши личные данные, подтвердите свою личность перед редактированием.
+  ja: プライベートデータを保護するため、編集前に本人確認を行ってください。
+  ko: 개인 데이터를 보호하기 위해 편집 전에 신원을 확인해 주세요.
+  it: Per proteggere i tuoi dati privati, conferma la tua identità prima di modificare.
+  tr: Özel verilerinizi korumak için düzenlemeden önce lütfen kimliğinizi doğrulayın.
+  vi: Để bảo vệ dữ liệu riêng tư của bạn, vui lòng xác nhận danh tính trước khi chỉnh sửa.
+  id: Untuk melindungi data pribadi Anda, konfirmasi identitas Anda sebelum mengedit.
+  pl: Aby chronić swoje prywatne dane, potwierdź swoją tożsamość przed edycją.
+  nl: Om uw privégegevens te beschermen, bevestig uw identiteit voordat u bewerkt.
+  ar: لحماية بياناتك الخاصة، يرجى تأكيد هويتك قبل التعديل.
+  hi: अपने निजी डेटा की सुरक्षा के लिए, कृपया संपादित करने से पहले अपनी पहचान की पुष्टि करें।
+  th: เพื่อปกป้องข้อมูลส่วนตัวของคุณ โปรดยืนยันตัวตนก่อนแก้ไข
+  cs: Chcete-li chránit svá soukromá data, před úpravou potvrďte svou identitu.
+  sv: För att skydda dina privata uppgifter, bekräfta din identitet innan du redigerar.
+  he: כדי להגן על המידע הפרטי שלך, אנא אמת את זהותך לפני העריכה.
   verified_by_human: []

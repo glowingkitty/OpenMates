@@ -1,18 +1,17 @@
 /**
  * Preview mock data for HealthAppointmentEmbedPreview.
  *
- * Represents a single doctor card (child embed rendered inside HealthSearchEmbedFullscreen grid).
+ * Represents a single appointment slot card (child embed rendered inside HealthSearchEmbedFullscreen grid).
  * Access at: /dev/preview/embeds/health/HealthAppointmentEmbedPreview
  */
 
-/** Default props — ophthalmologist with available slots */
+/** Default props — Doctolib ophthalmologist appointment slot */
 const defaultProps = {
   id: "preview-health-appointment-1",
+  slotDatetime: "2026-04-03T10:30:00",
   name: "Dr. Sophie Müller",
   speciality: "Ophthalmologist",
   address: "Maximilianstraße 12\n80539 Munich",
-  slotsCount: 3,
-  nextSlot: "2026-04-03T10:30:00",
   insurance: "public",
   telehealth: false,
   status: "finished" as const,
@@ -24,30 +23,44 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
-  /** Doctor with telehealth option */
+  /** Telehealth appointment slot (Doctolib) */
   telehealth: {
     ...defaultProps,
     id: "preview-health-appointment-telehealth",
+    slotDatetime: "2026-04-05T14:00:00",
     name: "Prof. Dr. Klaus Weber",
     speciality: "Cardiologist",
     address: "Leopoldstraße 45\n80802 Munich",
-    slotsCount: 5,
-    nextSlot: "2026-04-05T14:00:00",
     insurance: "private",
     telehealth: true,
+    providerPlatform: "Doctolib",
   },
 
-  /** No slots available */
-  noSlots: {
+  /** Jameda appointment with rating + price */
+  jameda: {
     ...defaultProps,
-    id: "preview-health-appointment-noslots",
-    name: "Dr. Hans Braun",
-    speciality: "Dermatologist",
-    address: "Sendlinger Straße 8\n80331 Munich",
-    slotsCount: 0,
-    nextSlot: undefined,
-    insurance: "public",
+    id: "preview-health-appointment-jameda",
+    slotDatetime: "2026-04-03T08:00:00",
+    name: "Dr. Markus Reinholz",
+    speciality: "Hautarzt / Dermatologe",
+    address: "Frauenplatz 11, 80331 München",
+    insurance: "",
     telehealth: false,
+    rating: 5.0,
+    price: 120,
+    providerPlatform: "Jameda",
+  },
+
+  /** Jameda appointment without price */
+  jamedaNoPrice: {
+    ...defaultProps,
+    id: "preview-health-appointment-jameda-no-price",
+    slotDatetime: "2026-04-03T09:30:00",
+    name: "Konrad Witkowski",
+    speciality: "Zahnarzt",
+    address: "Hoheluftchaussee 2, 20253 Hamburg",
+    rating: 4.8,
+    providerPlatform: "Jameda",
   },
 
   /** Mobile layout */
@@ -55,5 +68,18 @@ export const variants = {
     ...defaultProps,
     id: "preview-health-appointment-mobile",
     isMobile: true,
+  },
+
+  /** Mobile Jameda */
+  mobileJameda: {
+    ...defaultProps,
+    id: "preview-health-appointment-mobile-jameda",
+    isMobile: true,
+    name: "Beatrice Kochanek",
+    speciality: "Frauenärztin / Gynäkologin",
+    address: "Aachener Str. 56, 50674 Köln",
+    rating: 5.0,
+    price: 80,
+    providerPlatform: "Jameda",
   },
 };

@@ -283,7 +283,7 @@ async def _sanitize_text_chunk(
         
         if not tool_definition:
             logger.error(f"[{task_id}] Detection tool definition not found in config")
-            return chunk  # Return as-is if config is invalid
+            return None
         
         # Load content sanitization model from cache (preloaded by main API server at startup)
         # The main API server preloads this into the shared Dragonfly cache during startup.
@@ -566,8 +566,11 @@ async def sanitize_external_content(
             detection_config = _load_prompt_injection_detection_config()
         
         if not detection_config:
-            logger.error(f"[{task_id}] Failed to load prompt injection detection config from cache or disk, skipping sanitization")
-            return content
+            logger.error(
+                f"[{task_id}] Failed to load prompt injection detection config from cache or disk. "
+                "Failing closed to avoid passing unsanitized external content."
+            )
+            return ""
         
         # Get configuration values
         max_tokens_per_chunk = detection_config.get("text_chunking", {}).get("max_tokens_per_chunk", 50000)
@@ -700,8 +703,11 @@ async def sanitize_message_for_import(
     # ------------------------------------------------------------------
     detection_config = _load_prompt_injection_detection_config()
     if not detection_config:
-        logger.error(f"[{task_id}] Failed to load prompt injection detection config — skipping LLM scan")
-        return content  # fail-open if config is broken (safe for import: user's own data)
+        logger.error(
+            f"[{task_id}] Failed to load prompt injection detection config — "
+            "failing closed for import safety scan"
+        )
+        return ""
 
     max_tokens_per_chunk = detection_config.get("text_chunking", {}).get("max_tokens_per_chunk", 50000)
     block_threshold = detection_config.get("prompt_injection_thresholds", {}).get("block_threshold", 7.0)
@@ -777,4 +783,3 @@ async def sanitize_message_for_import(
     result_content = "".join(sanitized_chunks)
     logger.info(f"[{task_id}] Import scan complete: {len(content)} → {len(result_content)} chars")
     return result_content
-

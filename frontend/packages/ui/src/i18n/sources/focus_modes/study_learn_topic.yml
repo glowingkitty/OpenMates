@@ -56,6 +56,120 @@ process:
     - breaks down the topic into manageable subtopics
     - creates a personalized learning schedule with spaced repetition
     - integrates with Reminder app to send periodic review notifications
+  de: |
+    - fragt, welches Thema du lernen möchtest
+    - ermittelt dein aktuelles Wissensniveau und deine Lernziele
+    - unterteilt das Thema in handhabbare Unterthemen
+    - erstellt einen personalisierten Lernplan mit verteiltem Lernen
+    - integriert sich mit der Erinnerungs-App, um regelmäßige Wiederholungsbenachrichtigungen zu senden
+  zh: |
+    - 询问您想学习什么主题
+    - 确定您当前的知识水平和学习目标
+    - 将主题分解为可管理的子主题
+    - 创建具有间隔重复的个性化学习计划
+    - 与提醒应用集成以发送定期复习通知
+  es: |
+    - pregunta qué tema quieres aprender
+    - determina tu nivel de conocimiento actual y tus objetivos de aprendizaje
+    - divide el tema en subtemas manejables
+    - crea un horario de aprendizaje personalizado con repetición espaciada
+    - se integra con la app de Recordatorios para enviar notificaciones periódicas de repaso
+  fr: |
+    - demande quel sujet vous souhaitez apprendre
+    - détermine votre niveau de connaissance actuel et vos objectifs d'apprentissage
+    - décompose le sujet en sous-thèmes gérables
+    - crée un programme d'apprentissage personnalisé avec répétition espacée
+    - s'intègre avec l'app Rappels pour envoyer des notifications de révision périodiques
+  pt: |
+    - pergunta qual tópico você quer aprender
+    - determina seu nível de conhecimento atual e objetivos de aprendizado
+    - divide o tópico em subtópicos gerenciáveis
+    - cria um cronograma de aprendizado personalizado com repetição espaçada
+    - integra-se ao app de Lembretes para enviar notificações periódicas de revisão
+  ru: |
+    - спрашивает, какую тему вы хотите изучить
+    - определяет ваш текущий уровень знаний и цели обучения
+    - разбивает тему на управляемые подтемы
+    - создаёт персонализированное расписание обучения с интервальным повторением
+    - интегрируется с приложением напоминаний для отправки периодических уведомлений об обзоре
+  ja: |
+    - 学びたいトピックを尋ねる
+    - あなたの現在の知識レベルと学習目標を決定する
+    - トピックを管理しやすいサブトピックに分解する
+    - 間隔反復を用いたパーソナライズされた学習スケジュールを作成する
+    - リマインダーアプリと統合して定期的な復習通知を送る
+  ko: |
+    - 어떤 주제를 배우고 싶은지 묻습니다
+    - 현재 지식 수준과 학습 목표를 파악합니다
+    - 주제를 관리 가능한 하위 주제로 나눕니다
+    - 간격 반복을 포함한 개인화된 학습 일정을 만듭니다
+    - 알림 앱과 통합하여 주기적인 복습 알림을 보냅니다
+  it: |
+    - chiede quale argomento vuoi imparare
+    - determina il tuo attuale livello di conoscenza e gli obiettivi di apprendimento
+    - suddivide l'argomento in sotto-argomenti gestibili
+    - crea un programma di apprendimento personalizzato con ripetizione spaziata
+    - si integra con l'app Promemoria per inviare notifiche periodiche di revisione
+  tr: |
+    - hangi konuyu öğrenmek istediğinizi sorar
+    - mevcut bilgi seviyenizi ve öğrenme hedeflerinizi belirler
+    - konuyu yönetilebilir alt konulara böler
+    - aralıklı tekrar ile kişiselleştirilmiş bir öğrenme programı oluşturur
+    - periyodik tekrar bildirimleri göndermek için Hatırlatıcı uygulamasıyla entegre olur
+  vi: |
+    - hỏi chủ đề bạn muốn học
+    - xác định mức độ kiến thức hiện tại và mục tiêu học tập của bạn
+    - chia nhỏ chủ đề thành các chủ đề con dễ quản lý
+    - tạo lịch học cá nhân hóa với việc ôn tập có khoảng cách
+    - tích hợp với ứng dụng Nhắc nhở để gửi thông báo ôn tập định kỳ
+  id: |
+    - menanyakan topik apa yang ingin Anda pelajari
+    - menentukan tingkat pengetahuan dan tujuan belajar Anda saat ini
+    - memecah topik menjadi sub-topik yang dapat dikelola
+    - membuat jadwal belajar yang dipersonalisasi dengan pengulangan berspasi
+    - terintegrasi dengan aplikasi Pengingat untuk mengirim notifikasi ulasan berkala
+  pl: |
+    - pyta, jakiego tematu chcesz się nauczyć
+    - określa twój aktualny poziom wiedzy i cele nauki
+    - rozkłada temat na zarządzalne podtematy
+    - tworzy spersonalizowany harmonogram nauki z powtarzaniem rozłożonym w czasie
+    - integruje się z aplikacją Przypomnienia, aby wysyłać okresowe powiadomienia o powtórkach
+  nl: |
+    - vraagt welk onderwerp je wilt leren
+    - bepaalt uw huidige kennisniveau en leerdoelen
+    - breekt het onderwerp op in beheersbare subonderwerpen
+    - maakt een gepersonaliseerd leerrooster met gespreide herhaling
+    - integreert met de Herinneringsapp om periodieke herhalingsnotificaties te sturen
+  ar: |
+    - يسأل عن الموضوع الذي تريد تعلمه
+    - يحدد مستوى معرفتك الحالي وأهداف التعلم
+    - يقسم الموضوع إلى موضوعات فرعية يمكن إدارتها
+    - ينشئ جدولاً دراسياً شخصياً مع التكرار المتباعد
+    - يتكامل مع تطبيق التذكيرات لإرسال إشعارات المراجعة الدورية
+  hi: |
+    - पूछता है कि आप कौन सा विषय सीखना चाहते हैं
+    - आपके वर्तमान ज्ञान स्तर और सीखने के लक्ष्यों का निर्धारण करता है
+    - विषय को प्रबंधनीय उप-विषयों में तोड़ता है
+    - अंतराल पुनरावृत्ति के साथ व्यक्तिगत सीखने का कार्यक्रम बनाता है
+    - आवधिक समीक्षा सूचनाएं भेजने के लिए Reminder ऐप के साथ एकीकृत करता है
+  th: |
+    - ถามว่าต้องการเรียนรู้หัวข้ออะไร
+    - กำหนดระดับความรู้ปัจจุบันและเป้าหมายการเรียนรู้ของคุณ
+    - แบ่งหัวข้อออกเป็นหัวข้อย่อยที่จัดการได้
+    - สร้างตารางการเรียนรู้แบบส่วนตัวด้วยการทบทวนแบบเว้นช่วง
+    - เชื่อมต่อกับแอปเตือนความจำเพื่อส่งการแจ้งเตือนการทบทวนเป็นระยะ
+  cs: |
+    - ptá se, jaké téma se chcete naučit
+    - určuje vaši aktuální úroveň znalostí a cíle učení
+    - rozděluje téma na zvládnutelná podtémata
+    - vytváří personalizovaný studijní plán s rozloženým opakováním
+    - integruje se s aplikací Připomínky pro zasílání pravidelných upozornění na opakování
+  sv: |
+    - frågar vilket ämne du vill lära dig
+    - fastställer din nuvarande kunskapsnivå och inlärningsmål
+    - delar upp ämnet i hanterbara underämnen
+    - skapar ett personligt lärschema med glesad repetition
+    - integreras med påminnelseappen för att skicka periodiska repetitionsaviseringar
   he: |
     - שואל איזה נושא ברצונך ללמוד
     - קובע את רמת הידע הנוכחית ואת יעדי הלמידה שלך
@@ -67,6 +181,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when learn_topic focus mode is active
   en: You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
+  de: Du bist ein Experte für Lernbegleitung. Helfe Nutzern, neue Themen durch strukturiertes Lernen, klare Erklärungen und strategische Wiederholung zu meistern.
+  zh: 你是一位专业的学习促进者。通过结构化学习、清晰的解释和战略性重复帮助用户掌握新主题。
+  es: Eres un facilitador de aprendizaje experto. Ayuda a los usuarios a dominar nuevos temas mediante aprendizaje estructurado, explicaciones claras y repetición estratégica.
+  fr: Vous êtes un facilitateur d'apprentissage expert. Aidez les utilisateurs à maîtriser de nouveaux sujets grâce à un apprentissage structuré, des explications claires et une répétition stratégique.
+  pt: Você é um facilitador de aprendizado especialista. Ajude os usuários a dominar novos tópicos por meio de aprendizado estruturado, explicações claras e repetição estratégica.
+  ru: Вы опытный фасилитатор обучения. Помогайте пользователям осваивать новые темы через структурированное обучение, чёткие объяснения и стратегическое повторение.
+  ja: あなたは学習ファシリテーターの専門家です。構造化された学習、明確な説明、戦略的な反復を通じてユーザーが新しいトピックを習得できるよう支援してください。
+  ko: 당신은 전문 학습 퍼실리테이터입니다. 구조적 학습, 명확한 설명, 전략적 반복을 통해 사용자들이 새로운 주제를 마스터할 수 있도록 도와주세요.
+  it: Sei un facilitatore di apprendimento esperto. Aiuta gli utenti a padroneggiare nuovi argomenti attraverso l'apprendimento strutturato, spiegazioni chiare e ripetizione strategica.
+  tr: Uzman bir öğrenme kolaylaştırıcısısınız. Kullanıcıların yapılandırılmış öğrenme, net açıklamalar ve stratejik tekrar yoluyla yeni konulara hakim olmalarına yardımcı olun.
+  vi: Bạn là một người hỗ trợ học tập chuyên nghiệp. Giúp người dùng thành thạo các chủ đề mới thông qua học tập có cấu trúc, giải thích rõ ràng và lặp lại chiến lược.
+  id: Anda adalah fasilitator pembelajaran ahli. Bantu pengguna menguasai topik baru melalui pembelajaran terstruktur, penjelasan yang jelas, dan pengulangan strategis.
+  pl: Jesteś ekspertem ds. ułatwiania nauki. Pomagaj użytkownikom opanowywać nowe tematy poprzez strukturyzowane uczenie się, jasne wyjaśnienia i strategiczne powtarzanie.
+  nl: U bent een expert leerbegelei der. Help gebruikers nieuwe onderwerpen te beheersen door gestructureerd leren, duidelijke uitleg en strategische herhaling.
+  ar: أنت ميسر تعليمي خبير. ساعد المستخدمين على إتقان موضوعات جديدة من خلال التعلم المنظم والشروحات الواضحة والتكرار الاستراتيجي.
+  hi: आप एक विशेषज्ञ शिक्षण सुविधाकर्ता हैं। संरचित शिक्षण, स्पष्ट स्पष्टीकरण और रणनीतिक पुनरावृत्ति के माध्यम से उपयोगकर्ताओं को नए विषयों में महारत हासिल करने में मदद करें।
+  th: คุณเป็นผู้อำนวยความสะดวกด้านการเรียนรู้ผู้เชี่ยวชาญ ช่วยให้ผู้ใช้เชี่ยวชาญหัวข้อใหม่ๆ ผ่านการเรียนรู้แบบมีโครงสร้าง คำอธิบายที่ชัดเจน และการทบทวนเชิงกลยุทธ์
+  cs: Jste odborný facilitátor učení. Pomáhejte uživatelům zvládnout nová témata prostřednictvím strukturovaného učení, jasných vysvětlení a strategického opakování.
+  sv: Du är en expertlärande facilitator. Hjälp användare att bemästra nya ämnen genom strukturerat lärande, tydliga förklaringar och strategisk repetition.
   he: אתה מנחה למידה מומחה. עזור למשתמשים לשלוט בנושאים חדשים באמצעות למידה מובנית, הסברים ברורים וחזרה אסטרטגית.
   verified_by_human:
     - en

@@ -83,20 +83,24 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Google');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<ConnectionResult[]>([]);
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+  let isLoadingChildren = $state(false);
+
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Google';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
-    localErrorMessage = '';
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Google';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+      localErrorMessage = '';
+    }
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -121,14 +125,17 @@
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
       localStatus = data.status;
     }
-    
+    if (data.status !== 'processing') {
+      storeResolved = true;
+    }
+
     const content = data.decodedContent;
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
-      
+
       // Load child embeds if parent has embed_ids but no results
       if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
         const embedIds = content.embed_ids;
@@ -137,8 +144,9 @@
             ? (embedIds as string).split('|').filter((cid: string) => cid.length > 0)
             : Array.isArray(embedIds) ? (embedIds as string[]) : [];
           
-          if (childEmbedIds.length > 0) {
+          if (childEmbedIds.length > 0 && !isLoadingChildren) {
             console.debug(`[TravelSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
+            isLoadingChildren = true;
             loadChildEmbedsForPreview(childEmbedIds);
           }
         }
@@ -188,6 +196,8 @@
       }
     } catch (error) {
       console.warn('[TravelSearchEmbedPreview] Error loading child embeds for preview:', error);
+    } finally {
+      isLoadingChildren = false;
     }
   }
   
@@ -330,8 +340,10 @@
             <span class="connection-count">
               {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
             </span>
+          {:else if isLoadingChildren}
+            <span class="loading-text">{$text('common.loading')}</span>
           {/if}
-          
+
           {#if priceInfo}
             <span class="price-info">{priceInfo}</span>
           {/if}
@@ -420,6 +432,13 @@
     margin-top: 2px;
   }
   
+  /* Loading text (shown while child embeds are being fetched) */
+  .loading-text {
+    font-size: 14px;
+    color: var(--color-grey-70);
+    font-weight: 500;
+  }
+
   /* Connection count */
   .connection-count {
     font-size: 14px;

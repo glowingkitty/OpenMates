@@ -19,10 +19,20 @@
       "svelte": "./src/legal/index.ts",
       "default": "./src/legal/index.ts"
     },
+    "./components/*": "./src/components/*",
+    "./components/settings/elements": {
+      "types": "./src/components/settings/elements/index.ts",
+      "svelte": "./src/components/settings/elements/index.ts",
+      "default": "./src/components/settings/elements/index.ts"
+    },
     "./src/styles/*": "./src/styles/*",
     "./services/clientLogForwarder": {
       "types": "./src/services/clientLogForwarder.ts",
       "default": "./src/services/clientLogForwarder.ts"
+    },
+    "./services/shortUrlEncryption": {
+      "types": "./src/services/shortUrlEncryption.ts",
+      "default": "./src/services/shortUrlEncryption.ts"
     }
   },
   "scripts": {
@@ -34,12 +44,14 @@
     "generate-embed-registry": "node scripts/generate-embed-registry.js",
     "generate-models-metadata": "node scripts/generate-models-metadata.js",
     "generate-providers-metadata": "node scripts/generate-providers-metadata.js",
+    "generate-icon-urls": "node scripts/generate-icon-urls.js",
     "build:translations": "node scripts/build-translations.js",
     "validate:locales": "node scripts/validate-locales.js",
+    "validate:icon-refs": "node scripts/validate-icon-refs.js",
     "update:translations": "node scripts/update-yaml-files.js",
-    "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata",
-    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata",
-    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata"
+    "prepare": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run validate:icon-refs",
+    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run validate:icon-refs",
+    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run validate:icon-refs"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",
@@ -48,7 +60,7 @@
     "@revolut/checkout": "^1.1.23",
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
-    "@sveltejs/kit": "^2.53.0",
+    "@sveltejs/kit": "^2.55.0",
     "@tiptap/core": "^3.4.3",
     "@tiptap/extension-highlight": "^3.4.3",
     "@tiptap/extension-link": "^3.4.3",
@@ -68,12 +80,12 @@
     "@types/pica": "^9.0.5",
     "@types/uuid": "^10.0.0",
     "date-fns": "^4.1.0",
-    "dompurify": "^3.3.0",
+    "dompurify": "^3.3.2",
     "function-plot": "1.25.3",
     "highlight.js": "^11.11.1",
     "highlightjs-svelte": "^1.0.6",
     "html-docx-js-typescript": "0.1.5",
-    "jspdf": "4.2.0",
+    "jspdf": "4.2.1",
     "jszip": "^3.10.1",
     "katex": "^0.16.22",
     "leaflet": "^1.9.4",
@@ -100,7 +112,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.35.0",
     "jsdom": "^25.0.1",
-    "svelte": "^5.53.0",
+    "svelte": "^5.54.0",
     "svelte-check": "^4.4.3",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

@@ -12,7 +12,7 @@ Transitous endpoints to be used:
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
@@ -46,6 +46,12 @@ class TransitousProvider(BaseTransportProvider):
         max_results: int,
         non_stop_only: bool,
         currency: str,
+        children: int = 0,
+        infants_in_seat: int = 0,
+        infants_on_lap: int = 0,
+        max_stops: Optional[int] = None,
+        include_airlines: Optional[List[str]] = None,
+        exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
         """
         Stub: train/bus/boat search is not yet implemented.

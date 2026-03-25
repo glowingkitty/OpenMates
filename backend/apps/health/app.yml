@@ -11,9 +11,14 @@ embed_types:
     skill_id: search_appointments
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: appointment
+    child_frontend_type: health-appointment
+    groupable: false
     preview_component: health/HealthSearchEmbedPreview.svelte
     fullscreen_component: health/HealthSearchEmbedFullscreen.svelte
+    child_preview_component: health/HealthAppointmentEmbedPreview.svelte
+    child_fullscreen_component: health/HealthAppointmentEmbedFullscreen.svelte
     icon: heart
     gradient_var: "--color-app-health"
     i18n_namespace: embeds.health.search_appointments
@@ -210,7 +215,10 @@ skills:
         credits: 10
         unit_name: request
     providers:
-      - Doctolib
+      - name: Doctolib
+        no_api_key: true
+      - name: Jameda
+        no_api_key: true
     exclude_fields_for_llm:
       - type
       - hash
@@ -252,11 +260,15 @@ skills:
               provider_platform:
                 type: string
                 description: >
-                  Booking platform to search. Currently supported: "doctolib_de"
-                  (Doctolib Germany). Future: "jameda", "doctolib_fr", "zocdoc".
+                  Booking platform to search. "both" (default) searches Doctolib and
+                  Jameda in parallel and merges results sorted by soonest slot.
+                  "doctolib_de" for Doctolib Germany only. "jameda" for Jameda Germany
+                  only (includes ratings, prices, direct booking URLs).
                 enum:
+                  - both
                   - doctolib_de
-                default: doctolib_de
+                  - jameda
+                default: both
               insurance_sector:
                 type: string
                 description: >
@@ -296,6 +308,21 @@ skills:
                   Maximum number of doctors to check for availability. Higher values
                   return more results but take longer. Defaults to 10.
                 default: 10
+              visit_motive_category:
+                type: string
+                description: >
+                  Filter results by appointment type category. When set, the skill
+                  searches a larger pool of doctors and filters by the Doctolib visit
+                  motive name to return only relevant appointment types.
+                  "general" = consultation, acute visit, new patient examination.
+                  "checkup" = preventive screening, health check, cancer screening.
+                  "vaccination" = immunisation appointments.
+                  "followup" = follow-up visit, existing patient, check-up after treatment.
+                enum:
+                  - general
+                  - checkup
+                  - vaccination
+                  - followup
             required:
               - speciality
               - city

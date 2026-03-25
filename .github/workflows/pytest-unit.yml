@@ -1,0 +1,42 @@
+# .github/workflows/pytest-unit.yml
+#
+# Runs pytest unit tests for the backend (excluding integration, slow, vault, benchmark).
+# Covers status aggregation, URL normalization, text sanitization, and other pure-logic tests.
+#
+# Triggers:
+# - Push to dev branch
+# - Pull requests targeting dev
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: "Pytest: Unit Tests"
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "backend/**"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "backend/**"
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+        working-directory: backend
+      - name: Run unit tests
+        run: pytest -m "not integration and not slow and not vault and not benchmark"
+        working-directory: backend

@@ -3,6 +3,7 @@
 export {};
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -31,7 +32,9 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 /**
@@ -72,16 +75,14 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	const screenshot = createStepScreenshotter(log);
 
 	// Pre-test skip checks
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(log);
 
 	log('Starting fork conversation test.', { email: TEST_EMAIL });
 
 	// ── 1. Navigate to home ──────────────────────────────────────────────────
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await screenshot(page, 'home');
 
 	// ── 2. Open login dialog ─────────────────────────────────────────────────
@@ -91,22 +92,22 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'login-dialog');
 
 	// ── 3. Enter email ───────────────────────────────────────────────────────
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 	await page.getByRole('button', { name: /continue/i }).click();
 	log('Entered email and clicked continue.');
 
 	// ── 4. Enter password ────────────────────────────────────────────────────
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible();
+	const passwordInput = page.locator('#login-password-input');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await screenshot(page, 'password-entered');
 
 	// ── 5. Handle 2FA OTP ────────────────────────────────────────────────────
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	log('Generated and entered OTP.');
 	await screenshot(page, 'otp-entered');
@@ -136,7 +137,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('Reply with the single word: alpha');
+	await page.keyboard.type(withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'));
 	log('Typed first message.');
 	await screenshot(page, 'first-message-typed');
 
@@ -161,7 +162,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 10. Send second message ──────────────────────────────────────────────
 	await messageEditor.click();
-	await page.keyboard.type('Reply with the single word: beta');
+	await page.keyboard.type(withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'));
 	log('Typed second message.');
 
 	await sendButton.click();

@@ -1,16 +1,15 @@
 <!--
   frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedPreview.svelte
 
-  Preview card for a single doctor appointment result.
+  Preview card for a single appointment slot.
   Rendered inside the HealthSearchEmbedFullscreen grid — analogous to
   TravelConnectionEmbedPreview rendered inside TravelSearchEmbedFullscreen.
 
   Shows:
-  - Doctor name (prominent)
-  - Speciality + address
-  - Next available slot date (informational — no booking deep-link, slots expire)
+  - Slot datetime (prominent)
+  - Doctor name + speciality
+  - Address
   - Telehealth badge if applicable
-  - "No slots available" if slots_count === 0
 -->
 
 <script lang="ts">
@@ -18,54 +17,59 @@
   import { text } from '@repo/ui';
 
   /**
-   * Props for a single doctor appointment card.
+   * Props for a single appointment slot card.
    * Data comes from the parent fullscreen component which transforms
    * raw embed content into this structured format.
    */
   interface Props {
     /** Unique embed ID for this appointment result */
     id: string;
+    /** ISO datetime of this specific appointment slot */
+    slotDatetime?: string;
     /** Doctor's full name */
     name?: string;
     /** Medical speciality (e.g., "Ophthalmologist") */
     speciality?: string;
     /** Practice address */
     address?: string;
-    /** Number of available slots */
-    slotsCount?: number;
-    /** ISO datetime of the next available slot */
-    nextSlot?: string;
-    /**
-     * Legacy field — kept for backward-compat with cached embeds but not rendered.
-     * Slot deep-links expire; users are directed to the practice page instead.
-     */
-    nextSlotUrl?: string;
     /** Insurance sector (e.g., "public", "private") */
     insurance?: string;
     /** Whether the doctor offers telehealth consultations */
     telehealth?: boolean;
+    /** Star rating (0-5, from Jameda) */
+    rating?: number;
+    /** Service price in EUR (from Jameda) */
+    price?: number;
+    /** Provider platform: "Doctolib" | "Jameda" */
+    providerPlatform?: string;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler to open fullscreen detail view */
     onFullscreen: () => void;
+    // Legacy backward-compat props (old per-doctor cached embeds)
+    /** @deprecated Use slotDatetime instead */
+    nextSlot?: string;
+    /** @deprecated No longer used */
+    slotsCount?: number;
   }
 
-  // nextSlotUrl is intentionally not destructured — slot deep-links expire and are
-  // not rendered.  The prop is kept in the interface for backward-compat.
   let {
     id,
+    slotDatetime,
     name,
     speciality,
     address,
-    slotsCount = 0,
-    nextSlot,
     insurance,
     telehealth = false,
+    rating,
+    price,
+    providerPlatform,
     status = 'finished',
     isMobile = false,
-    onFullscreen
+    onFullscreen,
+    nextSlot,
   }: Props = $props();
 
   /** Format ISO slot datetime as human-readable short date + time */
@@ -81,13 +85,14 @@
     }
   }
 
-  let nextSlotDisplay = $derived(formatSlot(nextSlot));
-  let hasSlots = $derived(slotsCount > 0);
+  // Use slotDatetime (new per-slot format), fall back to nextSlot (legacy per-doctor format)
+  let effectiveSlotDatetime = $derived(slotDatetime || nextSlot);
+  let slotDisplay = $derived(formatSlot(effectiveSlotDatetime));
 
   // Short display name used in the BasicInfosBar title area
   let displayTitle = $derived(name || speciality || 'Doctor');
 
-  // No-op stop (individual doctor cards are not cancellable tasks)
+  // No-op stop (individual slot cards are not cancellable tasks)
   async function handleStop() {
     // Not applicable
   }
@@ -109,6 +114,11 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="appointment-details" class:mobile={isMobileLayout}>
 
+      <!-- Slot datetime — prominent -->
+      {#if slotDisplay}
+        <div class="slot-datetime">{slotDisplay}</div>
+      {/if}
+
       <!-- Doctor name -->
       {#if name}
         <div class="doctor-name">{name}</div>
@@ -124,6 +134,21 @@
         <div class="doctor-address">{address.split('\n')[0]}</div>
       {/if}
 
+      <!-- Rating + Price row (Jameda) -->
+      {#if rating != null || price != null}
+        <div class="extras-row">
+          {#if rating != null}
+            <span class="rating-compact">{rating.toFixed(1)} ★</span>
+          {/if}
+          {#if price != null}
+            <span class="price-compact">{price} €</span>
+          {/if}
+          {#if providerPlatform}
+            <span class="provider-compact">{providerPlatform}</span>
+          {/if}
+        </div>
+      {/if}
+
       <!-- Badges row: telehealth, insurance -->
       {#if telehealth || insurance}
         <div class="badges-row">
@@ -134,16 +159,6 @@
             <span class="badge insurance-badge">{insurance}</span>
           {/if}
         </div>
-      {/if}
-
-      <!-- Slot info — informational only, no booking deep-link (slots expire) -->
-      {#if hasSlots && nextSlotDisplay}
-        <div class="slot-row">
-          <span class="next-slot-label">{$text('embeds.health.next_slot')}:</span>
-          <span class="next-slot-date">{nextSlotDisplay}</span>
-        </div>
-      {:else}
-        <div class="no-slots">{$text('embeds.health.no_slots_available')}</div>
       {/if}
     </div>
   {/snippet}
@@ -167,10 +182,22 @@
     justify-content: flex-start;
   }
 
-  /* Doctor name — prominent */
-  .doctor-name {
+  /* Slot datetime — most prominent element */
+  .slot-datetime {
     font-size: 15px;
     font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1.25;
+  }
+
+  .appointment-details.mobile .slot-datetime {
+    font-size: 14px;
+  }
+
+  /* Doctor name */
+  .doctor-name {
+    font-size: 14px;
+    font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.25;
     display: -webkit-box;
@@ -182,7 +209,7 @@
   }
 
   .appointment-details.mobile .doctor-name {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   /* Speciality */
@@ -205,6 +232,32 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Rating + Price extras row */
+  .extras-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 1px;
+  }
+
+  .rating-compact {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-warning, #f5a623);
+  }
+
+  .price-compact {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-font-secondary);
+  }
+
+  .provider-compact {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-grey-50);
   }
 
   /* Badges row */
@@ -236,32 +289,4 @@
     text-transform: capitalize;
   }
 
-  /* Slot info */
-  .slot-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 3px;
-    flex-wrap: wrap;
-    font-size: 12px;
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-
-  .next-slot-label {
-    font-weight: 500;
-  }
-
-  .next-slot-date {
-    color: var(--color-primary);
-    font-weight: 600;
-  }
-
-  /* No slots state */
-  .no-slots {
-    font-size: 12px;
-    color: var(--color-grey-50);
-    margin-top: 3px;
-    font-style: italic;
-  }
 </style>

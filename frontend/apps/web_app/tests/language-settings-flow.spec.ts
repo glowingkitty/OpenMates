@@ -27,6 +27,7 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
 	createSignupLogger,
@@ -35,6 +36,7 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 // ---------------------------------------------------------------------------
@@ -53,9 +55,9 @@ const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://
 
 const SELECTORS = {
 	// Login / auth
-	emailInput: 'input[name="username"][type="email"]',
-	passwordInput: 'input[type="password"]',
-	otpInput: 'input[autocomplete="one-time-code"]',
+	emailInput: '#login-email-input',
+	passwordInput: '#login-password-input',
+	otpInput: '#login-otp-input',
 	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
 
 	// Chat UI (used as "logged-in" signal)
@@ -178,9 +180,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	test.slow(); // triples timeout → 360s
 	test.setTimeout(120000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('LANG_SETTINGS');
 	const takeScreenshot = createStepScreenshotter(log);
@@ -192,7 +192,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	// Step 1 — Login
 	// -------------------------------------------------------------------------
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await page
 		.waitForLoadState('networkidle', { timeout: 15000 })
 		.catch(() => log('WARNING: networkidle timeout — continuing anyway.'));

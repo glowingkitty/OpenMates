@@ -395,6 +395,31 @@ context_menu.hide:
   he: הסתרה
   verified_by_human: []
 
+context_menu.share:
+  context: Menu option to share a chat (opens the share settings deep link)
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+
 hidden_chats.unlock:
   context: Button to unlock hidden chats
   en: Unlock hidden chats
@@ -1573,12 +1598,50 @@ context_menu.start_debugging:
   context: Context menu action to enable chat raw text debug mode
   en: Start debugging
   de: Debugging starten
+  zh: 开始调试
+  es: Iniciar depuración
+  fr: Démarrer le débogage
+  pt: Iniciar depuração
+  ru: Начать отладку
+  ja: デバッグ開始
+  ko: 디버깅 시작
+  it: Avvia debug
+  tr: Hata ayıklamayı başlat
+  vi: Bắt đầu gỡ lỗi
+  id: Mulai debugging
+  pl: Rozpocznij debugowanie
+  nl: Debuggen starten
+  ar: بدء التصحيح
+  hi: डीबगिंग शुरू करें
+  th: เริ่มต้นการดีบัก
+  cs: Spustit ladění
+  sv: Starta felsökning
+  he: התחל איתור שגיאות
   verified_by_human: []
 
 context_menu.end_debugging:
   context: Context menu action to disable chat raw text debug mode
   en: End debugging
   de: Debugging beenden
+  zh: 结束调试
+  es: Finalizar depuración
+  fr: Arrêter le débogage
+  pt: Encerrar depuração
+  ru: Завершить отладку
+  ja: デバッグ終了
+  ko: 디버깅 종료
+  it: Termina debug
+  tr: Hata ayıklamayı bitir
+  vi: Kết thúc gỡ lỗi
+  id: Akhiri debugging
+  pl: Zakończ debugowanie
+  nl: Debuggen beëindigen
+  ar: إنهاء التصحيح
+  hi: डीबगिंग समाप्त करें
+  th: สิ้นสุดการดีบัก
+  cs: Ukončit ladění
+  sv: Avsluta felsökning
+  he: סיים איתור שגיאות
   verified_by_human: []
 
 hidden_chats.no_hidden_chats:
@@ -1628,6 +1691,31 @@ hidden_chats.no_hidden_chats_unlocked:
   cs: Žádné skryté chaty nebyly odemčeny. Heslo může být nesprávné.
   sv: Inga dolda chattar låstes upp. Lösenordet kan vara felaktigt.
   he: "לא שוחררו צ'אטים מוסתרים. ייתכן שהסיסמה שגויה."
+  verified_by_human: []
+
+activity_history:
+  context: ARIA label for the scrollable chat history region in the chats sidebar
+  en: Chat history
+  de: Chatverlauf
+  zh: 聊天记录
+  es: Historial de chat
+  fr: Historique des discussions
+  pt: Histórico de chat
+  ru: История чатов
+  ja: チャット履歴
+  ko: 채팅 기록
+  it: Cronologia chat
+  tr: Sohbet geçmişi
+  vi: Lịch sử chat
+  id: Riwayat obrolan
+  pl: Historia czatu
+  nl: Chatgeschiedenis
+  ar: سجل المحادثات
+  hi: चैट इतिहास
+  th: ประวัติแชท
+  cs: Historie chatu
+  sv: Chatthistorik
+  he: היסטוריית צ'אט
   verified_by_human: []
 
 search.placeholder:
@@ -1980,6 +2068,106 @@ search.go_to_message:
   he: מעבר להודעה
   verified_by_human: []
 
+search.summary_match:
+  context: Label shown before a search match found in the chat summary (metadata-only search for chats beyond the initial 100)
+  en: Summary
+  de: Zusammenfassung
+  zh: 摘要
+  es: Resumen
+  fr: Résumé
+  pt: Resumo
+  ru: Резюме
+  ja: 概要
+  ko: 요약
+  it: Riepilogo
+  tr: Özet
+  vi: Tóm tắt
+  id: Ringkasan
+  pl: Podsumowanie
+  nl: Samenvatting
+  ar: ملخص
+  hi: सारांश
+  th: สรุป
+  cs: Shrnutí
+  sv: Sammanfattning
+  he: סיכום
+  verified_by_human: []
+
+search.tag_match:
+  context: Label shown before a search match found in the chat tags (metadata-only search for chats beyond the initial 100)
+  en: Tag
+  de: Tag
+  zh: 标签
+  es: Etiqueta
+  fr: Étiquette
+  pt: Tag
+  ru: Тег
+  ja: タグ
+  ko: 태그
+  it: Tag
+  tr: Etiket
+  vi: Thẻ
+  id: Tag
+  pl: Tag
+  nl: Tag
+  ar: علامة
+  hi: टैग
+  th: แท็ก
+  cs: Štítek
+  sv: Tagg
+  he: תגית
+  verified_by_human: []
+
+search.sort.newest_first:
+  context: Sort option label in the chat sidebar search bar — sort results by newest first
+  en: Newest first
+  de: Neueste zuerst
+  zh: 最新优先
+  es: Más recientes primero
+  fr: Plus récents en premier
+  pt: Mais recentes primeiro
+  ru: Сначала новые
+  ja: 新しい順
+  ko: 최신순
+  it: Più recenti prima
+  tr: En yeni önce
+  vi: Mới nhất trước
+  id: Terbaru dahulu
+  pl: Najnowsze najpierw
+  nl: Nieuwste eerst
+  ar: الأحدث أولاً
+  hi: नवीनतम पहले
+  th: ใหม่ที่สุดก่อน
+  cs: Nejnovější první
+  sv: Nyaste först
+  he: החדש ביותר קודם
+  verified_by_human: []
+
+search.sort.oldest_first:
+  context: Sort option label in the chat sidebar search bar — sort results by oldest first
+  en: Oldest first
+  de: Älteste zuerst
+  zh: 最旧优先
+  es: Más antiguos primero
+  fr: Plus anciens en premier
+  pt: Mais antigos primeiro
+  ru: Сначала старые
+  ja: 古い順
+  ko: 오래된순
+  it: Più vecchi prima
+  tr: En eski önce
+  vi: Cũ nhất trước
+  id: Terlama dahulu
+  pl: Najstarsze najpierw
+  nl: Oudste eerst
+  ar: الأقدم أولاً
+  hi: सबसे पुराना पहले
+  th: เก่าที่สุดก่อน
+  cs: Nejstarší první
+  sv: Äldsta först
+  he: הישן ביותר קודם
+  verified_by_human: []
+
 scroll_to_active_chat:
   context: Accessible aria-label for the sticky pin button that scrolls the active chat back into view when it is out of the visible chat list
   en: Scroll to active chat
@@ -2078,6 +2266,81 @@ context_menu.fork:
   cs: Rozvětvit
   sv: Förgrena
   he: פיצול
+  verified_by_human: []
+
+context_menu.edit:
+  context: Message context menu option to edit a user message and resend it — short label, 1 word
+  en: Edit
+  de: Bearbeiten
+  zh: 编辑
+  es: Editar
+  fr: Modifier
+  pt: Editar
+  ru: Изменить
+  ja: 編集
+  ko: 편집
+  it: Modifica
+  tr: Düzenle
+  vi: Chỉnh sửa
+  id: Edit
+  pl: Edytuj
+  nl: Bewerken
+  ar: تعديل
+  hi: संपादित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Redigera
+  he: עריכה
+  verified_by_human: []
+
+edit_banner.editing:
+  context: Banner text shown above the message input when editing a previous message
+  en: Editing message
+  de: Nachricht bearbeiten
+  zh: 编辑消息
+  es: Editando mensaje
+  fr: Modification du message
+  pt: Editando mensagem
+  ru: Редактирование сообщения
+  ja: メッセージを編集中
+  ko: 메시지 편집 중
+  it: Modifica messaggio
+  tr: Mesaj düzenleniyor
+  vi: Đang chỉnh sửa tin nhắn
+  id: Mengedit pesan
+  pl: Edytowanie wiadomości
+  nl: Bericht bewerken
+  ar: تعديل الرسالة
+  hi: संदेश संपादित कर रहे हैं
+  th: กำลังแก้ไขข้อความ
+  cs: Úprava zprávy
+  sv: Redigerar meddelande
+  he: עריכת הודעה
+  verified_by_human: []
+
+edit_banner.cancel:
+  context: Accessible label for the cancel button on the edit message banner
+  en: Cancel editing
+  de: Bearbeitung abbrechen
+  zh: 取消编辑
+  es: Cancelar edición
+  fr: Annuler la modification
+  pt: Cancelar edição
+  ru: Отменить редактирование
+  ja: 編集をキャンセル
+  ko: 편집 취소
+  it: Annulla modifica
+  tr: Düzenlemeyi iptal et
+  vi: Hủy chỉnh sửa
+  id: Batalkan edit
+  pl: Anuluj edycję
+  nl: Bewerking annuleren
+  ar: إلغاء التعديل
+  hi: संपादन रद्द करें
+  th: ยกเลิกการแก้ไข
+  cs: Zrušit úpravu
+  sv: Avbryt redigering
+  he: ביטול עריכה
   verified_by_human: []
 
 fork.title:
@@ -2328,4 +2591,28 @@ fork.messages_label:
   cs: Zprávy k rozvětvení
   sv: Meddelanden att förgrena
   he: הודעות לפיצול
+  verified_by_human: []
+
+search_placeholder:
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חפש
   verified_by_human: []

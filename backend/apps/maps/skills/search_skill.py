@@ -9,7 +9,6 @@
 import logging
 import os
 import yaml
-import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -18,10 +17,53 @@ from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_maps.google_places import search_places
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import check_rate_limit, wait_for_rate_limit
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
+
+
+class MapSearchRequestItem(BaseModel):
+    """A single maps/places search request."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    query: str = Field(
+        description="Text query string to search for places (e.g. 'restaurants in Berlin', 'museums near Times Square')."
+    )
+    pageSize: int = Field(default=10, description="Number of results to return per request (max 20).")
+    languageCode: str = Field(default="en", description="Language code for results (ISO 639-1, e.g. 'en', 'es', 'fr', 'de').")
+    locationBias: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional location bias (circle with center+radius, or rectangle viewport).",
+    )
+    includedType: Optional[str] = Field(
+        default=None,
+        description="Filter results by place type (e.g. 'restaurant', 'museum', 'hotel').",
+    )
+    minRating: Optional[float] = Field(
+        default=None,
+        description="Minimum rating filter (0.0 to 5.0).",
+    )
+    openNow: Optional[bool] = Field(
+        default=None,
+        description="If true, only return places that are currently open.",
+    )
+    includeReviews: Optional[bool] = Field(
+        default=None,
+        description="If true, include reviews in the results.",
+    )
+    priceLevels: Optional[List[str]] = Field(
+        default=None,
+        description="Filter by price level. Array of: 'PRICE_LEVEL_FREE', "
+        "'PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE', "
+        "'PRICE_LEVEL_EXPENSIVE', 'PRICE_LEVEL_VERY_EXPENSIVE'.",
+    )
 
 
 class SearchRequest(BaseModel):
@@ -30,10 +72,9 @@ class SearchRequest(BaseModel):
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[MapSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews) with defaults from schema."
+        description="Array of map search request objects. Each object must contain 'query' and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews)."
     )
 
 
@@ -234,12 +275,12 @@ class SearchSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If search skill not found
-            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -279,7 +320,7 @@ class SearchSkill(BaseSkill):
         # Extract query and parameters from request
         search_query = req.get("query")
         if not search_query:
-            return (request_id, [], f"Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter")
         
         # Extract request-specific parameters (with defaults from schema)
         req_page_size = req.get("pageSize", 20)
@@ -287,8 +328,14 @@ class SearchSkill(BaseSkill):
         req_location_bias = req.get("locationBias")
         req_included_type = req.get("includedType")
         req_min_rating = req.get("minRating")
-        req_open_now = req.get("openNow", False)
-        req_include_reviews = req.get("includeReviews", False)
+        # Use "is not None" checks to handle None from Pydantic model_dump() for Optional[bool].
+        # "or False" would incorrectly convert an explicit False to False (safe), but we prefer
+        # explicit None-awareness for booleans since False is a meaningful value.
+        _raw_open_now = req.get("openNow")
+        req_open_now = _raw_open_now if _raw_open_now is not None else False
+        _raw_include_reviews = req.get("includeReviews")
+        req_include_reviews = _raw_include_reviews if _raw_include_reviews is not None else False
+        req_price_levels = req.get("priceLevels")
         
         logger.debug(f"Executing place search (id: {request_id}): query='{search_query}', page_size={req_page_size}")
         
@@ -338,7 +385,7 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise
@@ -353,7 +400,8 @@ class SearchSkill(BaseSkill):
                 included_type=req_included_type if req_included_type else None,
                 min_rating=req_min_rating if req_min_rating is not None else None,
                 open_now=req_open_now if req_open_now else None,
-                include_reviews=req_include_reviews
+                include_reviews=req_include_reviews,
+                price_levels=req_price_levels,
             )
             
             if search_result.get("error"):
@@ -384,6 +432,8 @@ class SearchSkill(BaseSkill):
                     "next_close_time": place.get("next_close_time"),
                     "business_status": place.get("business_status"),
                     "description": place.get("description"),
+                    "photo_url": place.get("photo_url"),
+                    "image_url": place.get("image_url") or place.get("photo_url"),
                     "hash": self._generate_result_hash(place.get("place_id", ""))
                 }
                 # Only include generative_summary if it exists
@@ -395,6 +445,20 @@ class SearchSkill(BaseSkill):
                 if reviews:
                     preview["reviews"] = reviews
                 previews.append(preview)
+
+            try:
+                previews = await sanitize_long_text_fields_in_payload(
+                    payload=previews,
+                    task_id=f"maps_search_{request_id}",
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                )
+            except Exception as sanitize_error:
+                logger.error(
+                    f"Content sanitization failed for maps request {request_id}: {sanitize_error}",
+                    exc_info=True,
+                )
+                return (request_id, [], f"Query '{search_query}': Content sanitization failed")
             
             logger.info(f"Place search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
             return (request_id, previews, None)
@@ -495,4 +559,3 @@ class SearchSkill(BaseSkill):
         return response
     
     # _generate_result_hash is now provided by BaseSkill (can hash any string, including place_id)
-

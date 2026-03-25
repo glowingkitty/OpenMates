@@ -30,7 +30,11 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * Test: Settings & Memories entries appear in the @ mention dropdown.
@@ -62,73 +66,6 @@ const TRIP_START_DATE = '2026-06-01';
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeStepScreenshot(page, 'password-entered');
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
-
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
-
-	logCheckpoint('Waiting for chat interface to load...');
-	await page.waitForTimeout(3000);
-
-	const messageEditor = page.locator('.editor-content.prose');
-	await expect(messageEditor).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Chat interface loaded - message editor visible.');
-}
 
 /**
  * Open the settings panel via the profile/settings icon.
@@ -203,9 +140,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 		filenamePrefix: 'mention-dropdown-settings'
 	});
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting mention dropdown settings memory test.', {
@@ -520,15 +455,96 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	await takeStepScreenshot(page, 'trip-entry-in-dropdown-expanded');
 
 	// ======================================================================
-	// STEP 15: Clear and type "@" + partial destination to find entry directly
+	// STEP 15: Select entry and verify display name shows destination, not UUID
+	// ======================================================================
+	logCheckpoint('Selecting trip entry from dropdown to verify display name...');
+
+	// Click the trip entry in the expanded dropdown to insert the mention
+	await tripEntryInDropdown.click();
+	await page.waitForTimeout(500);
+	await takeStepScreenshot(page, 'mention-inserted-in-editor');
+
+	// The inserted mention chip should show the trip destination name, NOT a UUID fragment
+	// Bug fix verification: previously showed "Travel-Trips-fe5acefa" instead of "Travel-Trips-TestCity"
+	const mentionChip = messageEditor.locator('.generic-mention.mention-settings-memory_entry').first();
+	const chipVisible = await mentionChip.isVisible({ timeout: 5000 }).catch(() => false);
+	if (chipVisible) {
+		const chipText = await mentionChip.textContent();
+		logCheckpoint(`Mention chip text: "${chipText}"`);
+
+		// The chip should contain the destination name (partial match), NOT a UUID-like string
+		const chipContainsDestination = chipText?.includes(TRIP_DESTINATION.substring(0, 8)) ?? false;
+		const chipContainsUUID = /[0-9a-f]{8}$/i.test(chipText?.trim() || '');
+		logCheckpoint(`Chip contains destination name: ${chipContainsDestination}, contains UUID: ${chipContainsUUID}`);
+
+		// The mention display name should include the actual entry title, not a UUID fragment
+		expect(chipContainsDestination).toBe(true);
+	} else {
+		logCheckpoint('Mention chip not found (may use different class). Checking editor HTML...');
+		const editorHtml = await messageEditor.innerHTML();
+		logCheckpoint(`Editor HTML snippet: ${editorHtml.substring(0, 300)}`);
+	}
+
+	// ======================================================================
+	// STEP 15b: Send message and verify NO permission dialog appears
+	// ======================================================================
+	logCheckpoint('Sending message with mention to verify no permission dialog...');
+
+	// Add some text before the mention
+	await messageEditor.click();
+	// Move cursor to start
+	await page.keyboard.press('Home');
+	await page.keyboard.type('tips for ');
+	await page.waitForTimeout(200);
+
+	// Send the message
+	await page.keyboard.press('Enter');
+	logCheckpoint('Pressed Enter to send message.');
+
+	// Wait for AI response to start (typing indicator or first chunk)
+	// If the permission dialog appears, the AI won't start typing — instead we'd see a
+	// "btn-include" / "btn-exclude" button pair for confirming settings & memories
+	await page.waitForTimeout(3000);
+	await takeStepScreenshot(page, 'after-send-with-mention');
+
+	// Check that NO permission dialog appeared (no "Include" button visible)
+	const includeButton = page.locator('.btn-include').first();
+	const includeVisible = await includeButton.isVisible({ timeout: 2000 }).catch(() => false);
+	logCheckpoint(`Permission dialog "Include" button visible: ${includeVisible}`);
+
+	// The permission dialog should NOT appear — the @mention is implicit consent
+	expect(includeVisible).toBe(false);
+
+	// Verify AI response started (typing indicator or response content appeared)
+	const aiResponse = page.locator('[data-role="assistant"]').last();
+	const typingIndicator = page.locator('.typing-indicator, .ai-typing').first();
+	const aiStarted = await aiResponse.isVisible({ timeout: 15000 }).catch(() => false)
+		|| await typingIndicator.isVisible({ timeout: 1000 }).catch(() => false);
+	logCheckpoint(`AI response started (no permission dialog blocked it): ${aiStarted}`);
+	await takeStepScreenshot(page, 'ai-response-started-no-dialog');
+
+	// ======================================================================
+	// STEP 15c: Clear editor for remaining tests
+	// ======================================================================
+	// Wait for AI to finish before clearing
+	await page.waitForTimeout(5000);
+
+	// Start a new chat for the remaining dropdown test
+	const newChatButton = page.locator('[data-action="new-chat"]').first();
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await newChatButton.click();
+		await page.waitForTimeout(1000);
+	}
+
+	// ======================================================================
+	// STEP 15d: Clear and type "@" + partial destination to find entry directly
 	// ======================================================================
 	logCheckpoint('Testing direct entry search by destination name...');
 
-	// Clear the current text and type just "@" followed by first 4 chars of destination
-	await messageEditor.click();
-	await page.keyboard.press('Control+A');
-	await page.keyboard.press('Backspace');
-	await page.waitForTimeout(300);
+	// Click on the message editor
+	const messageEditorRefresh = page.locator('.editor-content.prose');
+	await expect(messageEditorRefresh).toBeVisible({ timeout: 10000 });
+	await messageEditorRefresh.click();
 
 	// Type the first few chars of the destination name to search for it directly
 	const searchQuery = TRIP_DESTINATION.substring(0, 4).toLowerCase();

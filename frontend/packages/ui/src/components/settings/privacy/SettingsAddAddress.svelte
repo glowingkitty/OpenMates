@@ -17,6 +17,7 @@ Based on Figma design for addresses section in hide personal data.
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import { personalDataStore } from '../../../stores/personalDataStore';
 
     const dispatch = createEventDispatcher();
@@ -109,14 +110,11 @@ Based on Figma design for addresses section in hide personal data.
     title={$text('settings.privacy.form.title')}
 />
 
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.form.title.placeholder_address')}
-        bind:value={title}
-    />
-</div>
+<SettingsInput
+    bind:value={title}
+    placeholder={$text('settings.privacy.form.title.placeholder_address')}
+    disabled={isSaving}
+/>
 
 <!-- First line to hide -->
 <SettingsItem
@@ -125,14 +123,11 @@ Based on Figma design for addresses section in hide personal data.
     title={$text('settings.privacy.form.first_line')}
 />
 
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.form.first_line.placeholder')}
-        bind:value={firstLine}
-    />
-</div>
+<SettingsInput
+    bind:value={firstLine}
+    placeholder={$text('settings.privacy.form.first_line.placeholder')}
+    disabled={isSaving}
+/>
 
 <!-- Second line to hide -->
 <SettingsItem
@@ -141,14 +136,11 @@ Based on Figma design for addresses section in hide personal data.
     title={$text('settings.privacy.form.second_line')}
 />
 
-<div class="form-field">
-    <input
-        type="text"
-        class="form-input"
-        placeholder={$text('settings.privacy.form.second_line.placeholder')}
-        bind:value={secondLine}
-    />
-</div>
+<SettingsInput
+    bind:value={secondLine}
+    placeholder={$text('settings.privacy.form.second_line.placeholder')}
+    disabled={isSaving}
+/>
 
 <!-- Error message -->
 {#if errorMessage}
@@ -165,38 +157,11 @@ Based on Figma design for addresses section in hide personal data.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 
 <style>
-    .form-field {
-        padding: 0 16px 16px;
-    }
-
-    .form-input {
-        width: 100%;
-        height: 54px;
-        border: none;
-        border-radius: 24px;
-        padding: 0 20px;
-        font-size: 16px;
-        font-family: inherit;
-        color: var(--color-grey-100);
-        background-color: white;
-        box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
-        outline: none;
-        box-sizing: border-box;
-    }
-
-    .form-input::placeholder {
-        color: var(--color-grey-50);
-    }
-
-    .form-input:focus {
-        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15);
-    }
-
     .error-message {
         padding: 0 16px;
     }

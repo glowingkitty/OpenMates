@@ -44,6 +44,11 @@
     }
     
     let { app, onSelect, skillProviders, cardIconType = 'app' }: Props = $props();
+
+    /** Whether this app is unavailable (unhealthy, degraded, or unknown health status) */
+    let isUnavailable = $derived(
+        app.healthStatus === 'unhealthy' || app.healthStatus === 'unknown'
+    );
     
     // Reference to the app icon container for checking icon existence
     let appIconContainer: HTMLDivElement | null = $state(null);
@@ -293,14 +298,22 @@
     
 </script>
 
-<div 
-    class="app-store-card" 
+<div
+    class="app-store-card"
+    class:app-unavailable={isUnavailable}
     role="button"
     tabindex="0"
+    aria-label={app.name}
     onclick={handleInteraction}
     onkeydown={handleInteraction}
     style={`background: ${getAppGradient(app.id)}`}
 >
+    <!-- Unavailable status badge -->
+    {#if isUnavailable}
+        <div class="unavailable-badge" title="Service temporarily unavailable">
+            <span class="unavailable-dot"></span>
+        </div>
+    {/if}
     <!-- App icon and name side by side -->
     <div class="app-header-row">
         <!-- App icon container - 38px x 38px with provider icons behind it -->
@@ -309,7 +322,7 @@
             <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
             <!-- Icons have decreasing opacity from left to right: 1, 0.85, 0.7, 0.55, 0.4 -->
             {#if orderedProviders.length > 0 && !isSkillCard}
-                <div class="provider-icons-background">
+                <div class="provider-icons-background" aria-hidden="true">
                     {#each orderedProviders.slice(0, MAX_PROVIDER_ICONS) as provider, index}
                         <div 
                             class="provider-icon-container"
@@ -351,8 +364,8 @@
         <h3 class="app-card-name">{appName}</h3>
     </div>
     
-    <!-- App description below -->
-    <p class="app-card-description">{appDescription}</p>
+    <!-- App description below — aria-hidden since card has aria-label={app.name} -->
+    <p class="app-card-description" aria-hidden="true">{appDescription}</p>
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
@@ -361,7 +374,7 @@
         {@const maxSkillProviderIcons = 4}
         {@const displayedProviders = orderedProviders.slice(0, maxSkillProviderIcons)}
         {@const remainingCount = orderedProviders.length - maxSkillProviderIcons}
-        <div class="skill-providers">
+        <div class="skill-providers" aria-hidden="true">
             <span class="via-text">via</span>
             {#each displayedProviders as provider, index}
                 <div class="skill-provider-icon" style="opacity: {getProviderIconOpacity(index)}">
@@ -387,7 +400,6 @@
         padding: 1rem;
         cursor: pointer;
         transition: all 0.2s ease;
-        outline: none;
         /* Prevent mobile browsers from misinterpreting taps as scroll gestures
            in horizontally scrollable containers */
         touch-action: manipulation;
@@ -415,6 +427,34 @@
         margin-top: 0px; /* Move up to create space below for provider icons */
     }
     
+    /* Greyed-out state for unavailable apps (unhealthy/unknown health status) */
+    .app-store-card.app-unavailable {
+        filter: grayscale(0.7) brightness(0.8);
+        opacity: 0.65;
+    }
+
+    .app-store-card.app-unavailable:hover {
+        filter: grayscale(0.5) brightness(0.85);
+        opacity: 0.75;
+    }
+
+    /* Small red dot badge in top-right corner for unavailable apps */
+    .unavailable-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 10;
+    }
+
+    .unavailable-dot {
+        display: block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: rgba(255, 80, 80, 0.9);
+        box-shadow: 0 0 4px rgba(255, 80, 80, 0.5);
+    }
+
     .app-store-card:focus {
         outline: 2px solid rgba(255, 255, 255, 0.8);
         outline-offset: 2px;

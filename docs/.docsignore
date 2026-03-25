@@ -11,14 +11,8 @@ images/
 assets/
 figma-newchat/
 
-# Exclude AI assistant instructions (internal development docs)
-claude/
-
-# Exclude internal documents (marketing, reports, slides, stories, todos)
-internal/
-
-# Exclude planned/idea-stage features (not yet implemented)
-planned/
+# Exclude developer contribution docs (guides, standards — not user-facing)
+contributing/
 
 # Exclude any temporary or draft files
 *.draft.md

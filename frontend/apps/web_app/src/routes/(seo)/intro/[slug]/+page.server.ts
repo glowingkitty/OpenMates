@@ -19,6 +19,7 @@
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { getSiteOrigin } from '$lib/backendUrl';
 
 /** Static i18n content for each intro chat (English only — SEO pages are English). */
 interface IntroChatContent {
@@ -141,7 +142,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
 		hostname === 'localhost' ||
 		hostname === '127.0.0.1';
 
-	const siteOrigin = url.origin;
+	const siteOrigin = getSiteOrigin(url);
 	const canonicalUrl = `${siteOrigin}/intro/${slug}`;
 
 	// JSON-LD: WebApplication schema — intro pages describe the app itself, not an article

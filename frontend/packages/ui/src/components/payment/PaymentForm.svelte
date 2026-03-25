@@ -111,7 +111,7 @@
                 disabled={!canSubmit || isLoading || isButtonCooldown}
             >
                 {#if isLoading}
-                    {$text('login.loading')}
+                    {$text('common.loading')}
                 {:else}
                     {(isSupportContribution ? $text('signup.send_amount') : $text('signup.buy_for'))
                         .replace('{currency}', currency)

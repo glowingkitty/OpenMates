@@ -19,6 +19,9 @@ class UserDatabaseService {
   // Flag to prevent new operations during database deletion
   // This ensures that no new transactions are started while we're trying to delete the database
   private isDeleting: boolean = false;
+  // Promise that resolves when an in-progress deleteDatabase() finishes.
+  // Used by init() to wait for deletion instead of throwing permanently.
+  private deletionPromise: Promise<void> | null = null;
 
   /**
    * Initialize the database.
@@ -32,10 +35,60 @@ class UserDatabaseService {
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
   async init(): Promise<void> {
-    // Prevent initialization during deletion to avoid blocking the delete operation
+    // If a deletion was in progress, complete it before re-opening the database.
+    // A pending indexedDB.deleteDatabase() request blocks all subsequent open() calls
+    // per the IDB spec — the open handlers never fire while a delete is pending.
     if (this.isDeleting) {
-      console.debug("[UserDatabase] Skipping init - database is being deleted");
-      throw new Error("Database is being deleted and cannot be initialized");
+      console.warn(
+        "[UserDatabase] Deletion was in progress — completing before re-init",
+      );
+      this.isDeleting = false;
+      this.deletionPromise = null;
+
+      // Close any lingering connection that might block the pending deletion
+      if (this.db) {
+        this.db.close();
+        this.db = null;
+      }
+
+      // Complete the pending deletion (or timeout) before proceeding to open()
+      await new Promise<void>((resolve) => {
+        const DB_DELETE_TIMEOUT_MS = 3000;
+        const timeout = setTimeout(() => {
+          console.warn(
+            `[UserDatabase] Pending deletion timed out (${DB_DELETE_TIMEOUT_MS}ms) — proceeding with open`,
+          );
+          resolve();
+        }, DB_DELETE_TIMEOUT_MS);
+
+        try {
+          const req = indexedDB.deleteDatabase(this.DB_NAME);
+          req.onsuccess = () => {
+            console.warn(
+              "[UserDatabase] Pending deletion completed successfully",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onerror = () => {
+            console.warn(
+              "[UserDatabase] Pending deletion errored — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+          req.onblocked = () => {
+            console.warn(
+              "[UserDatabase] Deletion blocked by another connection — proceeding",
+            );
+            clearTimeout(timeout);
+            resolve();
+          };
+        } catch {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
@@ -56,59 +109,96 @@ class UserDatabaseService {
         );
         setForcedLogoutInProgress();
       } else {
-        // Check if master key is missing but database was previously initialized
-        const { getKeyFromStorage } = await import("./cryptoService");
-        const hasMasterKey = await getKeyFromStorage();
+        // FIX 2 (ported from ChatDB): Skip orphan detection for a short window
+        // after a page resume event (visibilitychange / pageshow). On mobile,
+        // init() can be called before memory key stores have re-initialized.
+        const {
+          lastResumeTimestamp,
+          RESUME_ORPHAN_GRACE_MS,
+        } = await import("../stores/signupState");
+        const timeSinceResume =
+          lastResumeTimestamp > 0
+            ? Date.now() - lastResumeTimestamp
+            : Infinity;
 
-        if (!hasMasterKey) {
-          const dbInitialized =
-            typeof localStorage !== "undefined" &&
-            localStorage.getItem("openmates_user_db_initialized") === "true";
+        if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
+          console.warn(
+            `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
+          );
+        } else {
+          // Check if master key is missing but database was previously initialized
+          const { getKeyFromStorage } = await import("./cryptoService");
+          const hasMasterKey = await getKeyFromStorage();
 
-          if (dbInitialized) {
-            // Try to open database and check if it contains user data
-            // Only trigger cleanup if there are actual user records
-            try {
-              const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+          if (!hasMasterKey) {
+            const dbInitialized =
+              typeof localStorage !== "undefined" &&
+              localStorage.getItem("openmates_user_db_initialized") === "true";
 
-              checkRequest.onsuccess = (event) => {
-                const db = (event.target as IDBOpenDBRequest).result;
-                const transaction = db.transaction(
-                  [this.STORE_NAME],
-                  "readonly",
-                );
-                const store = transaction.objectStore(this.STORE_NAME);
-                const countRequest = store.count();
+            if (dbInitialized) {
+              // Try to open database and check if it contains MEANINGFUL user data.
+              // Only trigger cleanup if a real user ID exists — not just
+              // default/empty profile records written before authentication.
+              // Default records (username="", user_id=null) are written by
+              // updateProfile() during initial page load and do NOT indicate
+              // orphaned data from a previous authenticated session.
+              try {
+                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
 
-                countRequest.onsuccess = () => {
-                  const recordCount = countRequest.result;
-                  if (recordCount > 0) {
-                    console.warn(
-                      "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                      recordCount,
-                      "user records",
+                checkRequest.onsuccess = (event) => {
+                  const db = (event.target as IDBOpenDBRequest).result;
+                  try {
+                    const transaction = db.transaction(
+                      [this.STORE_NAME],
+                      "readonly",
                     );
+                    const store = transaction.objectStore(this.STORE_NAME);
+                    const idRequest = store.get("id");
+
+                    idRequest.onsuccess = () => {
+                      if (idRequest.result) {
+                        console.warn(
+                          "[UserDatabase] ORPHANED DATABASE DETECTED: No master key but found user ID:",
+                          idRequest.result,
+                        );
+                        console.warn(
+                          "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                        );
+                        if (typeof localStorage !== "undefined") {
+                          localStorage.setItem(
+                            "openmates_needs_cleanup",
+                            "true",
+                          );
+                        }
+                        setForcedLogoutInProgress();
+                      } else {
+                        console.debug(
+                          "[UserDatabase] Orphan check: no user ID found — skipping (default/empty records only)",
+                        );
+                      }
+                      db.close();
+                    };
+
+                    idRequest.onerror = () => {
+                      db.close();
+                    };
+                  } catch (e) {
+                    // NotFoundError: object store doesn't exist yet (DB needs migration).
+                    // Close and let normal init() handle the upgrade — not an orphan scenario.
                     console.warn(
-                      "[UserDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
+                      "[UserDatabase] Orphan check skipped: object store not found (DB needs migration)",
+                      e,
                     );
-                    if (typeof localStorage !== "undefined") {
-                      localStorage.setItem("openmates_needs_cleanup", "true");
-                    }
-                    setForcedLogoutInProgress();
+                    db.close();
                   }
-                  db.close();
                 };
 
-                countRequest.onerror = () => {
-                  db.close();
+                checkRequest.onerror = () => {
+                  // Database doesn't exist or can't be opened, no cleanup needed
                 };
-              };
-
-              checkRequest.onerror = () => {
-                // Database doesn't exist or can't be opened, no cleanup needed
-              };
-            } catch {
-              // Error checking database, assume no cleanup needed
+              } catch {
+                // Error checking database, assume no cleanup needed
+              }
             }
           }
         }
@@ -129,7 +219,7 @@ class UserDatabaseService {
       (get(forcedLogoutInProgress) || get(isLoggingOut)) &&
       !isAuthInProgress
     ) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping init() - logout in progress (forcedLogout:",
         get(forcedLogoutInProgress),
         ", isLoggingOut:",
@@ -143,7 +233,7 @@ class UserDatabaseService {
       );
     }
 
-    console.debug("[UserDatabase] Initializing user database");
+    console.warn("[UserDatabase] Initializing user database");
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
@@ -152,8 +242,26 @@ class UserDatabaseService {
         reject(request.error);
       };
 
+      // CRITICAL: Handle the blocked event to prevent an infinite hang.
+      // This fires when a pending deleteDatabase() request (from the orphaned-DB
+      // cleanup flow) holds a lock on the database, or when another tab has an
+      // open connection that blocks the version change. Without this handler the
+      // Promise never settles, leaving isPasskeyLoading=true and the login screen
+      // permanently frozen. Rejecting here propagates to saveUserData(), which
+      // catches the error and continues gracefully (login still succeeds because
+      // the session cookies and authStore state are already set by this point).
+      request.onblocked = (event) => {
+        console.error(
+          "[UserDatabase] CRITICAL: Database open request blocked — " +
+            "a pending delete or another tab is holding the connection. " +
+            "Rejecting to unblock the login flow.",
+          event,
+        );
+        reject(new Error("Database open request is blocked"));
+      };
+
       request.onsuccess = () => {
-        console.debug("[UserDatabase] Database opened successfully");
+        console.warn("[UserDatabase] Database opened successfully");
         this.db = request.result;
 
         // Set marker in localStorage to indicate database has been initialized
@@ -166,7 +274,7 @@ class UserDatabaseService {
       };
 
       request.onupgradeneeded = (event) => {
-        console.debug("[UserDatabase] Database upgrade needed");
+        console.warn("[UserDatabase] Database upgrade needed");
         const db = (event.target as IDBOpenDBRequest).result;
 
         if (!db.objectStoreNames.contains(this.STORE_NAME)) {
@@ -182,7 +290,7 @@ class UserDatabaseService {
   async saveUserData(userData: User): Promise<void> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping saveUserData - database is being deleted",
       );
       return;
@@ -196,7 +304,7 @@ class UserDatabaseService {
       const transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
       const store = transaction.objectStore(this.STORE_NAME);
 
-      // console.debug(userData);
+      // console.warn(userData);
 
       // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
       // This prevents server sync from overwriting the user's current chat selection on tab reload
@@ -240,13 +348,13 @@ class UserDatabaseService {
         if (serverLastOpened && serverLastOpened.trim() !== "") {
           // Server has a meaningful value, use it (for cross-device sync)
           store.put(serverLastOpened, "last_opened");
-          console.debug(
+          console.warn(
             `[UserDatabase] Updated last_opened from server: ${serverLastOpened}`,
           );
         } else if (localLastOpened) {
           // Server value is empty/null, preserve local value
           store.put(localLastOpened, "last_opened");
-          console.debug(
+          console.warn(
             `[UserDatabase] Preserved local last_opened (server value was empty): ${localLastOpened}`,
           );
         } else {
@@ -500,7 +608,7 @@ class UserDatabaseService {
       };
 
       transaction.oncomplete = () => {
-        console.debug("[UserDatabase] User data saved successfully");
+        console.warn("[UserDatabase] User data saved successfully");
         resolve();
       };
 
@@ -520,7 +628,7 @@ class UserDatabaseService {
   async getUserProfile(): Promise<UserProfile | null> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping getUserProfile - database is being deleted",
       );
       return null;
@@ -618,7 +726,7 @@ class UserDatabaseService {
 
       idRequest.onsuccess = () => {
         profile.user_id = idRequest.result || null;
-        console.debug(
+        console.warn(
           "[UserDatabase] idRequest success, result:",
           idRequest.result,
           "profile.user_id:",
@@ -814,7 +922,7 @@ class UserDatabaseService {
       };
 
       transaction.oncomplete = () => {
-        console.debug("[UserDatabase] User profile retrieved:", profile);
+        console.warn("[UserDatabase] User profile retrieved:", profile);
         resolve(profile);
       };
 
@@ -834,7 +942,7 @@ class UserDatabaseService {
   async getUserCredits(): Promise<number> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping getUserCredits - database is being deleted",
       );
       return 0;
@@ -870,7 +978,7 @@ class UserDatabaseService {
   async clearUserData(): Promise<void> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping clearUserData - database is being deleted",
       );
       return;
@@ -887,7 +995,7 @@ class UserDatabaseService {
       const clearRequest = store.clear();
 
       clearRequest.onsuccess = () => {
-        console.debug("[UserDatabase] User data cleared successfully");
+        console.warn("[UserDatabase] User data cleared successfully");
         resolve();
       };
 
@@ -910,7 +1018,7 @@ class UserDatabaseService {
   async hasUserDataChanged(newUserData: Partial<User>): Promise<boolean> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping hasUserDataChanged - database is being deleted",
       );
       return false;
@@ -962,7 +1070,7 @@ class UserDatabaseService {
   async getUserData(): Promise<User | null> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping getUserData - database is being deleted",
       );
       return null;
@@ -1008,7 +1116,7 @@ class UserDatabaseService {
         (userData.last_sync_timestamp = last_sync_timestamp.result || 0);
 
       transaction.oncomplete = () => {
-        console.debug("[UserDatabase] User data retrieved:", userData);
+        console.warn("[UserDatabase] User data retrieved:", userData);
         resolve(userData);
       };
 
@@ -1028,7 +1136,7 @@ class UserDatabaseService {
   async updateUserData(partialData: Partial<User>): Promise<void> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.debug(
+      console.warn(
         "[UserDatabase] Skipping updateUserData - database is being deleted",
       );
       return;
@@ -1187,7 +1295,7 @@ class UserDatabaseService {
       }
 
       transaction.oncomplete = () => {
-        console.debug("[UserDatabase] User data updated successfully");
+        console.warn("[UserDatabase] User data updated successfully");
         resolve();
       };
 
@@ -1213,18 +1321,18 @@ class UserDatabaseService {
    * The deletion will succeed once all connections are closed.
    */
   async deleteDatabase(): Promise<void> {
-    console.debug(
+    console.warn(
       `[UserDatabase] Attempting to delete database: ${this.DB_NAME}`,
     );
 
     // Set flag to prevent new operations during deletion
     this.isDeleting = true;
 
-    return new Promise((resolve, reject) => {
+    this.deletionPromise = new Promise((resolve, reject) => {
       if (this.db) {
         this.db.close(); // Close the connection before deleting
         this.db = null;
-        console.debug(
+        console.warn(
           `[UserDatabase] Database connection closed for ${this.DB_NAME}.`,
         );
       }
@@ -1235,10 +1343,11 @@ class UserDatabaseService {
         const request = indexedDB.deleteDatabase(this.DB_NAME);
 
         request.onsuccess = () => {
-          console.debug(
+          console.warn(
             `[UserDatabase] Database ${this.DB_NAME} deleted successfully.`,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
 
           // Clear localStorage marker used for orphaned database detection
           if (typeof localStorage !== "undefined") {
@@ -1246,7 +1355,7 @@ class UserDatabaseService {
             // Also clear the cleanup marker if this is the last database being deleted
             // (chatDB will also try to clear it, but clearing twice is harmless)
             localStorage.removeItem("openmates_needs_cleanup");
-            console.debug(
+            console.warn(
               "[UserDatabase] Cleared localStorage markers after database deletion",
             );
           }
@@ -1260,22 +1369,27 @@ class UserDatabaseService {
             (event.target as IDBOpenDBRequest).error,
           );
           this.isDeleting = false;
+          this.deletionPromise = null;
           reject((event.target as IDBOpenDBRequest).error);
         };
 
-        // CRITICAL: Do NOT reject on onblocked - just log a warning
-        // The deletion will succeed once all connections close
-        // Rejecting here caused logout errors when other operations were in progress
         request.onblocked = (event) => {
           console.warn(
             `[UserDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
             event,
           );
-          // Don't reject - the deletion will proceed once connections close
-          // This is consistent with how chatDB handles this case
+          // Reset isDeleting so init() is not permanently blocked if deletion
+          // gets stuck (e.g. another tab holds an open connection).
+          this.isDeleting = false;
+          this.deletionPromise = null;
+          // Resolve instead of leaving the promise hanging — callers (init()) waiting
+          // on this promise need to unblock so the app can recover.
+          resolve();
         };
       }, 100); // Small delay to allow pending transactions to complete
     });
+
+    return this.deletionPromise;
   }
 }
 

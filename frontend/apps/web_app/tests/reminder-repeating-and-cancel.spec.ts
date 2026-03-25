@@ -25,12 +25,14 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -40,7 +42,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ---------------------------------------------------------------------------
 
 async function loginTestAccount(page: any, log: any): Promise<void> {
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 
 	// Clear any rate-limit localStorage flag from a previous test run
 	await page.evaluate(() => {
@@ -51,8 +53,8 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await page.waitForTimeout(1000);
 	await emailInput.fill(TEST_EMAIL);
 	// Wait for the continue button to be enabled (async email validation / rate-limit check)
@@ -60,12 +62,12 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(continueBtn).toBeEnabled({ timeout: 30000 });
 	await continueBtn.click();
 
-	const pwInput = page.locator('input[type="password"]');
+	const pwInput = page.locator('#login-password-input');
 	await expect(pwInput).toBeVisible();
 	await pwInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(generateTotp(TEST_OTP_KEY));
 
 	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
@@ -78,7 +80,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 }
 
 async function deleteActiveChat(page: any, log: any): Promise<void> {
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible({ timeout: 1000 }).catch(() => false)) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
@@ -140,9 +142,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	test.slow();
 	test.setTimeout(1800000); // 30 min (3 occurrences × 3 min + 2 min cancel wait + overhead)
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('REMINDER_REPEATING');
 	const screenshot = createStepScreenshotter(log);

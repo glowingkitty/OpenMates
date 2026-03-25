@@ -275,6 +275,37 @@ function buildSignupEmail(domain: string): string {
 }
 
 /**
+ * Check Mailosaur daily email quota via /api/usage/limits.
+ * Returns { available: boolean, current, limit } so callers can skip tests cleanly.
+ */
+async function checkMailosaurQuota(apiKey: string): Promise<{ available: boolean; current: number; limit: number }> {
+	const token = Buffer.from(`${apiKey}:`).toString('base64');
+	try {
+		const res = await fetch(`${MAILOSAUR_BASE_URL}/usage/limits`, {
+			headers: { Authorization: `Basic ${token}` }
+		});
+		if (!res.ok) {
+			console.log(`[Mailosaur] Quota check failed: HTTP ${res.status}`);
+			return { available: false, current: 0, limit: 0 };
+		}
+		const data = await res.json();
+		const email = data.email || {};
+		const current = email.current ?? 0;
+		const limit = email.limit ?? 0;
+		const available = current < limit;
+		if (!available) {
+			console.log(`[Mailosaur] Daily email quota reached (${current}/${limit}). Tests requiring email will be skipped.`);
+		} else {
+			console.log(`[Mailosaur] Email quota: ${current}/${limit} used.`);
+		}
+		return { available, current, limit };
+	} catch (err) {
+		console.log(`[Mailosaur] Quota check error: ${err}`);
+		return { available: false, current: 0, limit: 0 };
+	}
+}
+
+/**
  * Create a Mailosaur client wrapper with basic auth and polling helpers.
  * The goal is to keep mail polling logic consistent across signup tests.
  */
@@ -703,6 +734,165 @@ function getTestAccount(slot?: number): {
 	};
 }
 
+/**
+ * Build the hash fragment params for E2E debug log forwarding.
+ *
+ * When E2E_DEBUG_TOKEN and E2E_RUN_ID are set (injected by run-tests-worker.sh),
+ * returns a hash fragment that activates client-side log forwarding to OpenObserve.
+ * This works pre-login so the full test flow — including the login page itself — is
+ * captured and queryable via `debug.py logs --debug-id {runId}`.
+ *
+ * Usage in specs:
+ *   await page.goto(getE2EDebugUrl('/'));
+ *   await page.goto(getE2EDebugUrl('/#gift-card=CODE'));   // composable with other hashes
+ *
+ * When env vars are missing (local manual runs), returns the base URL unchanged.
+ */
+function getE2EDebugUrl(path: string = '/'): string {
+	const token = process.env.E2E_DEBUG_TOKEN;
+	const runId = process.env.E2E_RUN_ID;
+
+	// Graceful degradation: if token or run ID is missing, just return the path unchanged.
+	if (!token || !runId) return path;
+
+	// Build the spec-scoped run ID so logs from individual specs are distinguishable.
+	// Format: {runId}-{specName} where specName is derived from the test file or caller.
+	const specName = process.env.PLAYWRIGHT_TEST_FILE
+		? process.env.PLAYWRIGHT_TEST_FILE.replace(/^tests\//, '').replace(/\.spec\.ts$/, '')
+		: 'unknown';
+	const scopedRunId = `${runId}-${specName}`;
+
+	// Parse the existing hash (if any) so we can compose the params
+	const hashIndex = path.indexOf('#');
+	const basePath = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+	const existingHash = hashIndex >= 0 ? path.slice(hashIndex + 1) : '';
+
+	// Merge e2e-debug params with any existing hash params using &
+	const existingParams = existingHash ? `${existingHash}&` : '';
+	const e2eParams = `e2e-debug=${encodeURIComponent(scopedRunId)}&e2e-token=${encodeURIComponent(token)}`;
+
+	return `${basePath}#${existingParams}${e2eParams}`;
+}
+
+/**
+ * Append a <<<TEST_MOCK:fixture_id>>> marker to a chat message when E2E_USE_MOCKS is set.
+ *
+ * When tests run with E2E_USE_MOCKS=1, the backend replays a pre-recorded fixture
+ * instead of calling real LLM providers and external APIs. This eliminates inference
+ * costs and makes tests deterministic.
+ *
+ * For multi-turn conversations, each message needs its own fixture ID (e.g., "code_gen_turn1",
+ * "code_gen_turn2"). The fixture ID maps to a JSON file in backend/apps/ai/testing/fixtures/.
+ *
+ * An optional speed profile controls the simulated streaming speed:
+ *   "slow"    (~60 tps)   — for testing streaming UX behavior
+ *   "medium"  (~150 tps)  — realistic for most models
+ *   "fast"    (~500 tps)  — simulates fast providers (Cerebras, Groq)
+ *   "instant" (0ms delay) — default for CI, fastest execution
+ *
+ * @param message    The chat message text to send
+ * @param fixtureId  Identifier for the fixture file (e.g., "chat_flow_capital")
+ * @param speed      Optional speed profile override (default: uses fixture's speed_profile)
+ * @returns          Message text, optionally with mock marker appended
+ *
+ * @example
+ *   // Basic usage:
+ *   await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
+ *
+ *   // With speed override for streaming UX tests:
+ *   await page.keyboard.type(withMockMarker('Hello', 'chat_scroll_test', 'slow'));
+ *
+ *   // Multi-turn conversation:
+ *   await page.keyboard.type(withMockMarker('Write a function', 'code_gen_turn1'));
+ *   // ... wait for response ...
+ *   await page.keyboard.type(withMockMarker('Add error handling', 'code_gen_turn2'));
+ */
+function withMockMarker(message: string, fixtureId: string, speed?: string): string {
+	if (process.env.E2E_RECORD_FIXTURES) {
+		// Record mode: run real LLMs but capture the response as a fixture file
+		return `${message} <<<TEST_RECORD:${fixtureId}>>>`;
+	}
+	if (process.env.E2E_USE_MOCKS) {
+		const speedSuffix = speed ? `:${speed}` : '';
+		return `${message} <<<TEST_MOCK:${fixtureId}${speedSuffix}>>>`;
+	}
+	return message;
+}
+
+/**
+ * Append a <<<TEST_RECORD:fixture_id>>> marker to a chat message.
+ *
+ * Used to record a real LLM response as a fixture file. The test runs normally
+ * (hitting real APIs) but the backend captures all events and saves them as
+ * a fixture JSON file in backend/apps/ai/testing/fixtures/{fixtureId}.json.
+ *
+ * After recording, the fixture can be replayed with withMockMarker().
+ *
+ * @param message    The chat message text to send
+ * @param fixtureId  Identifier for the fixture file to create
+ * @returns          Message text with record marker appended
+ */
+function withRecordMarker(message: string, fixtureId: string): string {
+	return `${message} <<<TEST_RECORD:${fixtureId}>>>`;
+}
+
+/**
+ * Append a <<<TEST_LIVE_MOCK:group_id>>> marker to a chat message when E2E_USE_LIVE_MOCKS is set.
+ *
+ * Unlike withMockMarker (which skips the entire pipeline and replays a fixture),
+ * live mock mode runs the FULL processing pipeline (preprocessing, main inference,
+ * postprocessing, billing) but intercepts external API calls (LLM providers, skill
+ * HTTP requests) with cached record-and-replay responses. This tests everything
+ * except the parts that cost money.
+ *
+ * The group_id namespaces cached responses so different test flows don't collide
+ * (e.g., "web_search_flow", "travel_search_flow").
+ *
+ * @param message  The chat message text to send
+ * @param groupId  Namespace for cached API responses (e.g., "web_search_flow")
+ * @returns        Message text with live mock/record marker appended
+ *
+ * @example
+ *   await page.keyboard.type(withLiveMockMarker('Search for flights to Paris', 'travel_search'));
+ */
+function withLiveMockMarker(message: string, groupId: string): string {
+	if (process.env.E2E_RECORD_LIVE_FIXTURES) {
+		// Record mode: run real APIs and cache responses for future replay
+		return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+	}
+	if (process.env.E2E_USE_LIVE_MOCKS) {
+		// Replay mode: use cached API responses (zero cost)
+		return `${message} <<<TEST_LIVE_MOCK:${groupId}>>>`;
+	}
+	// No env var set: send message without marker (real APIs, real costs)
+	return message;
+}
+
+/**
+ * Append a <<<TEST_LIVE_RECORD:group_id>>> marker to a chat message.
+ *
+ * Used to record real API responses for live mock replay. The test runs the full
+ * pipeline with real APIs, but the backend caches all external API responses
+ * (LLM calls, skill HTTP requests) as JSON files for future replay.
+ *
+ * After recording, the cached responses can be replayed with withLiveMockMarker().
+ *
+ * @param message  The chat message text to send
+ * @param groupId  Namespace for cached API responses
+ * @returns        Message text with live record marker appended
+ */
+function withLiveRecordMarker(message: string, groupId: string): string {
+	return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+}
+
+/**
+ * Build a deterministic test account email for a given slot number.
+ * Used by create-test-account.spec.ts to provision persistent E2E test accounts.
+ */
+function buildTestAccountEmail(slot: number, domain: string): string {
+	return `testacct${slot}@${domain}`;
+}
+
 module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
@@ -714,8 +904,15 @@ module.exports = {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	buildSignupEmail,
+	buildTestAccountEmail,
+	checkMailosaurQuota,
 	createMailosaurClient,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker,
+	withRecordMarker,
+	withLiveMockMarker,
+	withLiveRecordMarker,
 };

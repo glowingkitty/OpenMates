@@ -326,7 +326,7 @@
     // When the AI is actively viewing this image, show "Viewing…" regardless of upload status
     if (isBeingViewed) return $text('app_skills.images.view.viewing');
     if (status === 'uploading') return $text('app_skills.images.view.uploading');
-    if (status === 'error') return uploadError || $text('app_skills.images.view.upload_failed');
+    if (status === 'error') return uploadError || $text('common.upload_failed');
     if (imageError) return imageError;
     if (status === 'finished') {
       // Unauthenticated users: prompt to sign up for actual upload
@@ -466,27 +466,45 @@
           Shown full-bleed with no overlay — status is communicated via the
           card's subtitle (customStatusText), not drawn on top of the image.
         -->
-        <div
-          class="image-content"
-          class:clickable={isFullscreenEnabled}
-        >
-          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-          <img
-            src={displayUrl}
-            alt={filename || 'Uploaded image'}
-            class="preview-image"
-            class:portrait={isPortrait}
-            onload={handleImageLoad}
-            onclick={isFullscreenEnabled ? onFullscreen : undefined}
-          />
-          {#if showAiBadge}
-            <!-- AI generated badge: shown only when SightEngine confirms ai_generated > 0.7 -->
-            <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
-              <span class="ai-badge-icon"></span>
-              <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
-            </div>
-          {/if}
-        </div>
+        {#if isFullscreenEnabled}
+          <div
+            class="image-content clickable"
+            onclick={onFullscreen}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFullscreen?.(); } }}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              src={displayUrl}
+              alt={filename || 'Uploaded image'}
+              class="preview-image"
+              class:portrait={isPortrait}
+              onload={handleImageLoad}
+            />
+            {#if showAiBadge}
+              <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
+                <span class="ai-badge-icon"></span>
+                <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div class="image-content">
+            <img
+              src={displayUrl}
+              alt={filename || 'Uploaded image'}
+              class="preview-image"
+              class:portrait={isPortrait}
+              onload={handleImageLoad}
+            />
+            {#if showAiBadge}
+              <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
+                <span class="ai-badge-icon"></span>
+                <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
 
       {:else if imageError}
         <!-- S3 decryption failed (read-only context) -->

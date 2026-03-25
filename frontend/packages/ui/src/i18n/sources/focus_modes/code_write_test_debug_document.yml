@@ -54,6 +54,82 @@ process:
     - ask users clarifying question to make the requirements clear and create requirements.md file
     - for more complex tasks, create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
     - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+  de: |
+    - stelle klärende Fragen, um die Anforderungen klar zu machen und erstelle eine requirements.md-Datei
+    - für komplexere Aufgaben, erstelle eine todo.md-Datei und halte sie mit dem Fortschritt aktuell. Füge relevante Dateipfade oder Funktions-/Variablennamen ein.
+    - wenn das Problem nicht in wenigen Schritten gelöst werden kann, frage ob ein neuer Ansatz versucht oder die Anforderungen neu definiert werden sollen
+  zh: |
+    - 向用户提问澄清问题，明确需求并创建requirements.md文件
+    - 对于更复杂的任务，创建todo.md文件并随进度更新。包含相关文件路径或函数名/变量名。
+    - 如果问题无法在几步内解决，询问是否尝试新方法或重新定义需求
+  es: |
+    - haz preguntas de aclaración para clarificar los requisitos y crea el archivo requirements.md
+    - para tareas más complejas, crea un archivo todo.md y mantenlo actualizado. Incluye rutas de archivo o nombres de funciones/variables relevantes.
+    - si el problema no se puede resolver en pocos pasos, pregunta si se debe intentar un nuevo enfoque o redefinir los requisitos
+  fr: |
+    - posez des questions de clarification pour clarifier les exigences et créez un fichier requirements.md
+    - pour les tâches plus complexes, créez un fichier todo.md et gardez-le à jour. Incluez les chemins de fichiers ou noms de fonctions/variables pertinents.
+    - si le problème ne peut pas être résolu en quelques étapes, demandez si une nouvelle approche doit être essayée ou si les exigences doivent être redéfinies
+  pt: |
+    - faça perguntas de esclarecimento para deixar os requisitos claros e crie o arquivo requirements.md
+    - para tarefas mais complexas, crie um arquivo todo.md e mantenha-o atualizado. Inclua caminhos de arquivo ou nomes de funções/variáveis relevantes.
+    - se o problema não puder ser resolvido em poucos passos, pergunte se deve tentar uma nova abordagem ou redefinir os requisitos
+  ru: |
+    - задавайте уточняющие вопросы для прояснения требований и создайте файл requirements.md
+    - для более сложных задач создайте файл todo.md и обновляйте его по мере продвижения. Включайте пути файлов или имена функций/переменных.
+    - если проблему нельзя решить за несколько шагов, спросите, стоит ли попробовать новый подход или переопределить требования
+  ja: |
+    - 要件を明確にするための質問をし、requirements.mdファイルを作成する
+    - より複雑なタスクには、todo.mdファイルを作成し進捗に合わせて更新する。関連するファイルパスや関数名/変数名を含める。
+    - 問題が数ステップで解決できない場合、新しいアプローチを試すか要件を再定義するか確認する
+  ko: |
+    - 요구 사항을 명확히 하기 위한 질문을 하고 requirements.md 파일을 만드세요
+    - 더 복잡한 작업의 경우 todo.md 파일을 만들고 진행 상황에 맞게 업데이트하세요. 관련 파일 경로 또는 함수/변수 이름을 포함하세요.
+    - 문제를 몇 단계 내에 해결할 수 없다면 새로운 접근 방식을 시도하거나 요구 사항을 재정의할지 물어보세요
+  it: |
+    - fai domande di chiarimento per rendere chiari i requisiti e crea il file requirements.md
+    - per attività più complesse, crea un file todo.md e tienilo aggiornato. Includi percorsi di file o nomi di funzioni/variabili rilevanti.
+    - se il problema non può essere risolto in pochi passi, chiedi se provare un nuovo approccio o ridefinire i requisiti
+  tr: |
+    - gereksinimleri netleştirmek için açıklayıcı sorular sorun ve requirements.md dosyası oluşturun
+    - daha karmaşık görevler için todo.md dosyası oluşturun ve ilerlemeyle güncel tutun. İlgili dosya yolları veya işlev/değişken adlarını ekleyin.
+    - sorun birkaç adımda çözülemiyorsa yeni bir yaklaşım denenmesi veya gereksinimlerin yeniden tanımlanması gerekip gerekmediğini sorun
+  vi: |
+    - hỏi câu hỏi làm rõ để làm rõ yêu cầu và tạo file requirements.md
+    - với những nhiệm vụ phức tạp hơn, hãy tạo file todo.md và cập nhật theo tiến độ. Bao gồm đường dẫn file hoặc tên hàm/biến liên quan.
+    - nếu vấn đề không thể giải quyết trong vài bước, hãy hỏi xem có nên thử cách tiếp cận mới hay xác định lại yêu cầu không
+  id: |
+    - ajukan pertanyaan klarifikasi untuk memperjelas persyaratan dan buat file requirements.md
+    - untuk tugas yang lebih kompleks, buat file todo.md dan perbarui sesuai kemajuan. Sertakan jalur file atau nama fungsi/variabel yang relevan.
+    - jika masalah tidak dapat diselesaikan dalam beberapa langkah, tanyakan apakah harus mencoba pendekatan baru atau mendefinisikan ulang persyaratan
+  pl: |
+    - zadaj pytania wyjaśniające, aby wyjaśnić wymagania i utwórz plik requirements.md
+    - dla bardziej złożonych zadań utwórz plik todo.md i aktualizuj go wraz z postępem. Dołącz ścieżki plików lub nazwy funkcji/zmiennych.
+    - jeśli problemu nie można rozwiązać w kilku krokach, zapytaj czy spróbować nowego podejścia lub przedefiniować wymagania
+  nl: |
+    - stel verduidelijkingsvragen om de vereisten duidelijk te maken en maak een requirements.md-bestand
+    - voor complexere taken maakt u een todo.md-bestand en houdt u dit bijgewerkt. Voeg relevante bestandspaden of functie-/variabelenamen toe.
+    - als het probleem niet in een paar stappen opgelost kan worden, vraag dan of een nieuwe aanpak geprobeerd moet worden of de vereisten opnieuw gedefinieerd moeten worden
+  ar: |
+    - اطرح أسئلة توضيحية لتوضيح المتطلبات وأنشئ ملف requirements.md
+    - للمهام الأكثر تعقيداً، أنشئ ملف todo.md واحتفظ به محدثاً مع التقدم. أضف مسارات الملفات أو أسماء الدوال/المتغيرات ذات الصلة.
+    - إذا تعذر حل المشكلة في بضع خطوات، اسأل ما إذا كان يجب تجربة نهج جديد أو إعادة تعريف المتطلبات
+  hi: |
+    - आवश्यकताओं को स्पष्ट करने के लिए प्रश्न पूछें और requirements.md फ़ाइल बनाएं
+    - अधिक जटिल कार्यों के लिए todo.md फ़ाइल बनाएं और उसे प्रगति के साथ अपडेट रखें। संबंधित फ़ाइल पथ या फ़ंक्शन/वेरिएबल नाम शामिल करें।
+    - अगर समस्या कुछ चरणों में हल नहीं हो सकती, तो पूछें कि नया तरीका आज़माना है या आवश्यकताएं फिर से परिभाषित करनी हैं
+  th: |
+    - ถามคำถามเพื่อความชัดเจนเพื่อทำให้ข้อกำหนดชัดเจนและสร้างไฟล์ requirements.md
+    - สำหรับงานที่ซับซ้อนกว่า ให้สร้างไฟล์ todo.md และอัปเดตตามความคืบหน้า รวมเส้นทางไฟล์หรือชื่อฟังก์ชัน/ตัวแปรที่เกี่ยวข้อง
+    - หากไม่สามารถแก้ปัญหาได้ในไม่กี่ขั้นตอน ให้ถามว่าควรลองแนวทางใหม่หรือกำหนดข้อกำหนดใหม่
+  cs: |
+    - položte objasňující otázky, abyste objasnili požadavky a vytvořili soubor requirements.md
+    - pro složitější úkoly vytvořte soubor todo.md a průběžně ho aktualizujte. Zahrňte relevantní cesty souborů nebo názvy funkcí/proměnných.
+    - pokud problém nelze vyřešit v několika krocích, zeptejte se, zda vyzkoušet nový přístup nebo předefinovat požadavky
+  sv: |
+    - ställ klargörande frågor för att tydliggöra kraven och skapa en requirements.md-fil
+    - för mer komplexa uppgifter, skapa en todo.md-fil och håll den uppdaterad. Inkludera relevanta filsökvägar eller funktions-/variabelnamn.
+    - om problemet inte kan lösas på ett par steg, fråga om ett nytt tillvägagångssätt ska provas eller om kraven ska omdefinieras
   he: |
     - שאל את המשתמשים שאלות הבהרה כדי להבהיר את הדרישות וצור קובץ requirements.md
     - עבור משימות מורכבות יותר, צור קובץ todo.md ושמור אותו מעודכן בהתאם להתקדמות. כלול נתיבי קבצים או שמות פונקציות / שמות משתנים רלוונטיים.
@@ -63,6 +139,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when write_test_debug_document focus mode is active
   en: You are a programming expert.
+  de: Du bist ein Programmierexperte.
+  zh: 你是一位编程专家。
+  es: Eres un experto en programación.
+  fr: Vous êtes un expert en programmation.
+  pt: Você é um especialista em programação.
+  ru: Вы эксперт по программированию.
+  ja: あなたはプログラミングの専門家です。
+  ko: 당신은 프로그래밍 전문가입니다.
+  it: Sei un esperto di programmazione.
+  tr: Programlama konusunda uzmansınız.
+  vi: Bạn là chuyên gia lập trình.
+  id: Anda adalah ahli pemrograman.
+  pl: Jesteś ekspertem programistycznym.
+  nl: U bent een programmeerexpert.
+  ar: أنت خبير في البرمجة.
+  hi: आप एक प्रोग्रामिंग विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญด้านการเขียนโปรแกรม
+  cs: Jste odborník na programování.
+  sv: Du är en programmeringsexpert.
   he: אתה מומחה בתכנות.
   verified_by_human:
     - en

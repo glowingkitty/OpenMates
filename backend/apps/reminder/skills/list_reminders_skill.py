@@ -4,6 +4,7 @@
 # Retrieves and displays user's scheduled reminders.
 
 import logging
+import hashlib
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from celery import Celery
@@ -134,11 +135,28 @@ class ListRemindersSkill(BaseSkill):
             # Determine status filter
             status_filter = "pending" if status == "pending" else None
 
-            # Get user's reminders from cache
-            reminders = await cache_service.get_user_reminders(
-                user_id=user_id,
-                status_filter=status_filter
-            )
+            # Initialize directus_service if not provided
+            if not hasattr(self, '_directus_service_initialized'):
+                directus_service = kwargs.get('directus_service')
+                if not directus_service:
+                    try:
+                        from backend.core.api.app.services.directus.directus import DirectusService
+                        directus_service = DirectusService(cache_service=cache_service, encryption_service=encryption_service)
+                    except Exception as e:
+                        logger.warning(f"Could not initialize DirectusService: {e}")
+                        directus_service = None
+
+            # Query reminders from PostgreSQL (source of truth) — no TTL issues
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            reminders = []
+            if directus_service:
+                try:
+                    reminders = await directus_service.reminder.get_user_reminders(
+                        hashed_user_id=hashed_user_id,
+                        status_filter=status_filter,
+                    )
+                except Exception as db_err:
+                    logger.error(f"Failed to query reminders from DB: {db_err}", exc_info=True)
 
             if not reminders:
                 return ListRemindersResponse(
@@ -153,7 +171,7 @@ class ListRemindersSkill(BaseSkill):
             
             for reminder in reminders:
                 try:
-                    reminder_id = reminder.get("reminder_id", "")
+                    reminder_id = reminder.get("id") or reminder.get("reminder_id", "")
                     vault_key_id = reminder.get("vault_key_id")
                     encrypted_prompt = reminder.get("encrypted_prompt", "")
                     trigger_at = reminder.get("trigger_at", 0)

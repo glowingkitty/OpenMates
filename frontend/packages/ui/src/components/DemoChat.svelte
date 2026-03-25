@@ -205,7 +205,6 @@
 	.message-input {
 		flex: 1;
 		border: none;
-		outline: none;
 		resize: none;
 		font-family: inherit;
 		font-size: 16px;

@@ -6,65 +6,100 @@ Technical architecture documentation for developers and contributors. For user-f
 
 ## Core Systems
 
-- [Servers](servers.md) - Docker Compose infrastructure, container architecture
-- [Security](security.md) - Zero-knowledge encryption, Vault key management
-- [Zero-Knowledge Storage](zero-knowledge-storage.md) - Encrypted storage architecture
-- [Signup & Authentication](signup-and-auth.md) - Auth flows, passkeys, 2FA
-- [Passkeys](passkeys.md) - WebAuthn/PRF implementation details
-- [Account Recovery](account-recovery.md) - Account reset and recovery flows
-- [Account Backup](account-backup.md) - GDPR data export architecture
+- [Servers](core/servers.md) - Docker Compose infrastructure, container architecture
+- [Security](core/security.md) - Zero-knowledge encryption, Vault key management
+- [Zero-Knowledge Storage](core/zero-knowledge-storage.md) - Encrypted storage architecture
+- [Signup & Authentication](core/signup-and-auth.md) - Auth flows, passkeys, 2FA
+- [Passkeys](core/passkeys.md) - WebAuthn/PRF implementation details
+- [Account Recovery](core/account-recovery.md) - Account reset and recovery flows
+- [Account Backup](core/account-backup.md) - GDPR data export architecture
+- [Delete Account](core/delete-account.md) - Account deletion flow
+- [Chat Encryption Implementation](core/chat-encryption-implementation.md) - Encryption implementation details
+- [Guest Mode](core/guest-mode.md) - Unauthenticated guest access
 
 ## Message Pipeline
 
-- [Message Processing](message-processing.md) - Full request/response pipeline with encryption
-- [Message Parsing](message-parsing.md) - Client-side TipTap JSON parsing and rendering
-- [Message Input Field](message-input-field.md) - Input field architecture and embed detection
-- [Message Previews Grouping](message-previews-grouping.md) - Dynamic embed grouping
-- [Embeds](embeds.md) - First-class embed entity system
+- [Message Processing](messaging/message-processing.md) - Full request/response pipeline with encryption
+- [Message Parsing](messaging/message-parsing.md) - Client-side TipTap JSON parsing and rendering
+- [Message Input Field](messaging/message-input-field.md) - Input field architecture and embed detection
+- [Message Previews Grouping](messaging/message-previews-grouping.md) - Dynamic embed grouping
+- [Embeds](messaging/embeds.md) - First-class embed entity system
 
 ## AI & Models
 
-- [AI Model Selection](ai-model-selection.md) - Provider configuration and automatic routing
-- [Thinking Models](thinking-models.md) - Support for reasoning models (Gemini, Claude, o-series)
-- [Hallucination Mitigation](hallucination-mitigation.md) - Reducing AI hallucinations
-- [Preprocessing Model Comparison](preprocessing-model-comparison.md) - Mistral model benchmarks
-- [Mates](mates.md) - Specialized AI assistant identities and routing
-- [Followup Suggestions](followup-suggestions.md) - Post-processing follow-up generation
+- [AI Model Selection](ai/ai-model-selection.md) - Provider configuration and automatic routing
+- [Thinking Models](ai/thinking-models.md) - Support for reasoning models (Gemini, Claude, o-series)
+- [Hallucination Mitigation](ai/hallucination-mitigation.md) - Reducing AI hallucinations
+- [Preprocessing Model Comparison](ai/preprocessing-model-comparison.md) - Mistral model benchmarks
+- [Mates](ai/mates.md) - Specialized AI assistant identities and routing
+- [Followup Suggestions](ai/followup-suggestions.md) - Post-processing follow-up generation
+- [Learning Mode](ai/learning-mode.md) - Interactive learning mode for AI assistants
+- [Multi-Agents](ai/multi-agents.md) - Multi-agent orchestration architecture
+- [Weekly Review](ai/weekly-review.md) - Automated weekly review generation
 
 ## Privacy & Security
 
-- [PII Protection](pii-protection.md) - Client-side PII detection and anonymization
-- [Prompt Injection](prompt-injection.md) - Defense-in-depth against prompt injection
-- [Sensitive Data Redaction](sensitive-data-redaction.md) - Redacting PII before LLM processing
-- [Email Privacy](email-privacy.md) - Client-side email encryption
+- [PII Protection](privacy/pii-protection.md) - Client-side PII detection and anonymization
+- [Prompt Injection](privacy/prompt-injection.md) - Defense-in-depth against prompt injection
+- [Sensitive Data Redaction](privacy/sensitive-data-redaction.md) - Redacting PII before LLM processing
+- [Email Privacy](privacy/email-privacy.md) - Client-side email encryption
+- [PII Detection Phase 2](privacy/pii-detection-phase2.md) - Extended PII detection capabilities
+- [Remove Website](privacy/remove-website.md) - Website data removal process
 
 ## Data & Sync
 
-- [Sync](sync.md) - 3-phase multi-device sync with zero-knowledge encryption
-- [Device Sessions](device-sessions.md) - Device and session management
-- [Translations](translations.md) - YAML-based i18n system
+- [Sync](data/sync.md) - 3-phase multi-device synchronization system
+- [Device Sessions](data/device-sessions.md) - Multi-device session management
+- [Translations](data/translations.md) - i18n system and translation workflow
 
-## Payments & Billing
+## Payments
 
-- [Payment Processing](payment-processing.md) - Stripe integration, receipts, anti-fraud
-
-## Infrastructure
-
-- [Health Checks](health-checks.md) - Service monitoring and health endpoints
-- [Logging](logging.md) - Backend logging with JSON formatting
-- [Admin Console Log Forwarding](admin-console-log-forwarding.md) - Browser log forwarding to Loki
-- [Developer Settings](developer-settings.md) - API key and device management
-- [File Upload Pipeline](file-upload-pipeline.md) - 10-step secure upload pipeline
-- [Vector Personalization](vector-personalization.md) - Client-side semantic search
-
-## API & Integration
-
-- [REST API](rest-api.md) - Programmatic access to skills and focus modes
-- [Docs Web App](docs-web-app.md) - Documentation site architecture
-- [Web App](web-app.md) - Unified website and chat app architecture
+- [Payment Processing](payments/payment-processing.md) - Stripe integration and credit system
+- [Auto Top-Up](payments/auto-topup.md) - Automatic credit top-up system
 
 ## Apps Architecture
 
-For individual app documentation, see the [Apps](../apps/README.md) section. For technical details:
+Technical implementation details for the apps system. For user-facing app guides, see [User Guide > Apps](../user-guide/apps/README.md).
 
-- [App Skills Architecture](app-skills.md) - JSON/TOON output, skill cancellation, embed storage
+- [App Skills](apps/app-skills.md) - Skill registration, BaseSkill, app.yml schema
+- [Function Calling](apps/function-calling.md) - LLM tool calling integration
+- [Focus Modes Implementation](apps/focus-modes-implementation.md) - Focus mode technical details
+- [Action Confirmation](apps/action-confirmation.md) - User confirmation for destructive actions
+- [REST API](apps/rest-api.md) - OpenAI-compatible API endpoints
+- [CLI Package](apps/cli-package.md) - OpenMates CLI package architecture
+- [CLI Remote Access](apps/cli-remote-access.md) - Remote CLI access and tunneling
+
+## Frontend
+
+- [Web App](frontend/web-app.md) - SvelteKit application architecture
+- [Docs Web App](frontend/docs-web-app.md) - Documentation rendering system
+- [Daily Inspiration](frontend/daily-inspiration.md) - Curated daily prompts system
+- [Accessibility](frontend/accessibility.md) - WCAG compliance and a11y patterns
+
+## Infrastructure
+
+- [Health Checks](infrastructure/health-checks.md) - Service health monitoring
+- [Logging](infrastructure/logging.md) - Structured logging and OpenObserve
+- [Admin Console Log Forwarding](infrastructure/admin-console-log-forwarding.md) - Client log forwarding
+- [Cronjobs](infrastructure/cronjobs.md) - Scheduled tasks
+- [Developer Settings](infrastructure/developer-settings.md) - API keys and developer mode
+- [File Upload Pipeline](infrastructure/file-upload-pipeline.md) - Presigned URLs and S3 storage
+- [Analytics](infrastructure/analytics.md) - Privacy-preserving analytics
+- [Status Page](infrastructure/status-page.md) - Service status monitoring
+- [Vector Personalization](infrastructure/vector-personalization.md) - Personalized search
+
+## Integrations
+
+- [Luma API](integrations/luma.md) - Luma video generation API
+- [Media Generation](integrations/media-generation.md) - OG images and social media graphics
+- [Calendar Sync](integrations/calendar-sync.md) - Calendar synchronization integration
+- [Email OpenMates](integrations/email-openmates.md) - Email integration for OpenMates
+- [Voice Calling](integrations/voice-calling.md) - Voice calling integration
+
+## Storage
+
+- [Embed Cold Storage](storage/embed-cold-storage.md) - Archival and cold storage for embeds
+
+## Contributing
+
+- [Contributing Guide](../contributing/contributing.md) - How to contribute to OpenMates

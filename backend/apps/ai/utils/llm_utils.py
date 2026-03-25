@@ -1,5 +1,6 @@
 # backend/apps/ai/utils/llm_utils.py
 # Utilities for interacting with Language Models (LLMs).
+# ruff: noqa: E402
 
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
@@ -16,13 +17,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
-from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse, ParsedMistralToolCall
+from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse
 from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
-from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse, ParsedAnthropicToolCall
-from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata, _sanitize_schema_for_llm_providers
+from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse
+from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse  # noqa: F401
+from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, _sanitize_schema_for_llm_providers
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
-    FIRST_CHUNK_TIMEOUT_SECONDS,
     PREPROCESSING_TIMEOUT_SECONDS,
     get_first_chunk_timeout_seconds,
     get_inter_chunk_timeout_seconds,
@@ -75,6 +76,35 @@ def _is_reasoning_model(model_id: str) -> bool:
     for model in provider_config.get("models", []):
         if isinstance(model, dict) and model.get("id") == model_suffix:
             return bool(model.get("reasoning"))
+    return False
+
+
+def _is_usage_chunk(chunk: Any) -> bool:
+    """Return True when a streamed chunk is usage metadata, not user-visible output."""
+    return chunk.__class__.__name__ in {
+        "MistralUsage",
+        "GoogleUsageMetadata",
+        "AnthropicUsageMetadata",
+        "OpenAIUsageMetadata",
+        "BedrockUsageMetadata",
+    }
+
+
+def _chunk_has_substantive_output(chunk: Any) -> bool:
+    """Return True when a chunk contains real assistant progress we should keep."""
+    if isinstance(chunk, str):
+        return bool(chunk)
+
+    if hasattr(chunk, "tool_call_id") and hasattr(chunk, "function_name"):
+        return True
+
+    chunk_type = getattr(chunk, "type", None)
+    chunk_type_value = getattr(chunk_type, "value", chunk_type)
+    if chunk_type_value == "text":
+        return bool(getattr(chunk, "content", None))
+    if chunk_type_value == "tool_call":
+        return getattr(chunk, "tool_call", None) is not None
+
     return False
 
 
@@ -187,13 +217,38 @@ def _build_provider_registry() -> Dict[str, Any]:
         if server_id in all_available_clients:
             registry[server_id] = all_available_clients[server_id]
         else:
-            logger.warning(
-                f"Server '{server_id}' is configured in YAML but no client function found. "
-                f"Expected function: invoke_{server_id}_chat_completions. "
-                f"Available clients: {sorted(all_available_clients.keys())}"
+            # Non-LLM server IDs (e.g. 'recraft', 'fal', 'aws_bedrock') appear in provider
+            # YAML files for image/video apps but have no chat-completions client function —
+            # this is expected. Log at DEBUG to avoid misleading startup noise.
+            logger.debug(
+                f"Server '{server_id}' is configured in a provider YAML but has no LLM chat-completions "
+                f"client function (invoke_{server_id}_chat_completions). "
+                f"This is expected for non-LLM servers (image generation, video, etc.). "
+                f"Available LLM clients: {sorted(all_available_clients.keys())}"
             )
     
     logger.info(f"Provider registry built with {len(registry)} server providers from YAML configs: {sorted(registry.keys())}")
+
+    # Live mock system: wrap each provider with caching when MOCK_EXTERNAL_APIS=true.
+    # The wrapper checks mock_mode_var per-request — if "off", calls real provider directly
+    # with zero overhead. Only activates for requests with TEST_LIVE_MOCK/RECORD markers.
+    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and os.getenv("SERVER_ENVIRONMENT", "production") != "production":
+        try:
+            from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
+            from backend.shared.testing.api_response_cache import get_shared_cache
+
+            cache = get_shared_cache()
+            wrapped_count = 0
+            for server_id in list(registry.keys()):
+                registry[server_id] = wrap_provider_with_cache(registry[server_id], cache)
+                wrapped_count += 1
+            logger.info(
+                f"[LiveMock] Wrapped {wrapped_count} LLM provider(s) with caching "
+                f"(activated per-request via TEST_LIVE_MOCK/RECORD markers)"
+            )
+        except ImportError as e:
+            logger.warning(f"[LiveMock] Could not import caching wrapper: {e}")
+
     return registry
 
 
@@ -224,7 +279,7 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
         if not isinstance(tiptap_content, (str, dict, list)):
             try:
                 return str(tiptap_content)
-            except:
+            except Exception:
                 return ""
         return ""
 
@@ -1226,12 +1281,8 @@ async def call_main_llm_stream(
 
     # Check if model_id needs server resolution (e.g., alibaba provider)
     # If the provider has a default_server configured, resolve it and transform the model_id
-    provider_prefix = ""
-    actual_model_id = model_id
     if "/" in model_id:
         parts = model_id.split("/", 1)
-        provider_prefix = parts[0]
-        actual_model_id = parts[1]
         
         # Resolve default_server for any provider that defines it in provider YAML.
         # This allows routing "provider/model" to a concrete server like "openrouter/*" or "google_ai_studio/*".
@@ -1241,8 +1292,6 @@ async def call_main_llm_stream(
             model_id = transformed_model_id
             if "/" in model_id:
                 parts = model_id.split("/", 1)
-                provider_prefix = parts[0]
-                actual_model_id = parts[1]
             else:
                 logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
         else:
@@ -1385,7 +1434,8 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks (thinking/tool calls/usage) stay fully real-time.
+                    # chunks stay fully real-time. Usage metadata is buffered until
+                    # we confirm the provider produced substantive output.
                     async for _retry_chunk in _retry_timeout_stream:
                         yield _retry_chunk
                     logger.info(
@@ -1451,7 +1501,6 @@ async def call_main_llm_stream(
         # Parse the server model_id to get provider prefix and actual model_id
         server_provider_prefix = ""
         server_actual_model_id = server_model_id
-        server_original_model_id = original_model_id  # Keep original for openrouter
         
         if "/" in server_model_id:
             parts = server_model_id.split("/", 1)
@@ -1543,6 +1592,8 @@ async def call_main_llm_stream(
                     f"{inter_chunk_timeout_seconds}s inter-chunk timeout..."
                 )
                 try:
+                    buffered_usage_chunks: List[Any] = []
+                    provider_produced_substantive_output = False
                     # Wrap stream with first chunk AND inter-chunk timeout protection
                     # This prevents both dead streams (never starts) and hung streams (stops mid-stream)
                     timeout_stream = stream_with_first_chunk_timeout(
@@ -1552,10 +1603,37 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks (thinking/tool calls/usage) stay fully real-time.
+                    # chunks stay fully real-time. Usage metadata is buffered until
+                    # we confirm the provider produced substantive output.
                     async for chunk in timeout_stream:
+                        if _is_usage_chunk(chunk):
+                            buffered_usage_chunks.append(chunk)
+                            continue
+
+                        if _chunk_has_substantive_output(chunk):
+                            provider_produced_substantive_output = True
+
                         _any_content_yielded = True
                         yield chunk
+
+                    if not provider_produced_substantive_output:
+                        error_msg = (
+                            "Provider stream completed without any substantive output "
+                            "(no text or tool calls)."
+                        )
+                        logger.error(f"{attempt_log_prefix} {error_msg}")
+                        last_error = error_msg
+                        if len(attempted_servers) < len(servers_to_try):
+                            logger.warning(
+                                f"{attempt_log_prefix} Empty-stream failure detected. "
+                                "Will try next server if available."
+                            )
+                            continue
+
+                        raise AllServersFailedError(original_model_id, attempted_servers, last_error)
+
+                    for usage_chunk in buffered_usage_chunks:
+                        yield usage_chunk
                     # Successfully completed - return from function
                     return
                 except TimeoutError as timeout_err:

@@ -45,7 +45,12 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -73,58 +78,6 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // The hidden chat service is in-memory (resets on page reload), so each test
 // gets a fresh page with a fresh vault state — no cross-test pollution.
 const VAULT_PASSWORD = `VaultPW${Date.now().toString().slice(-6)}`;
-
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`OTP attempt ${attempt}.`);
-		await submitLoginButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
-			}
-		}
-	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Logged in.');
-}
 
 /**
  * Create a new chat with a message and wait for AI response.
@@ -215,9 +168,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('HIDDEN_CHATS_FIRST_TIME');
 	const screenshot = createStepScreenshotter(log);
@@ -228,7 +179,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 
 	// Create a chat to hide
 	log('Creating test chat to hide...');
-	await createTestChat(page, 'What is the capital of France?', log);
+	await createTestChat(page, withMockMarker('What is the capital of France?', 'hidden_chats_1'), log);
 	await screenshot(page, 'test-chat-created');
 
 	// Get the active chat item reference before hiding
@@ -295,9 +246,7 @@ test('shows error in inline vault form on wrong password without closing the for
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('HIDDEN_CHATS_WRONG_PASSWORD');
 	const screenshot = createStepScreenshotter(log);
@@ -308,7 +257,7 @@ test('shows error in inline vault form on wrong password without closing the for
 
 	// Create a chat to trigger the hide flow
 	log('Creating test chat for wrong-password test...');
-	await createTestChat(page, 'What is the speed of light?', log);
+	await createTestChat(page, withMockMarker('What is the speed of light?', 'hidden_chats_2'), log);
 	await screenshot(page, 'test-chat-created');
 
 	// Open context menu → Hide
@@ -417,9 +366,7 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('HIDDEN_CHATS_UNHIDE');
 	const screenshot = createStepScreenshotter(log);
@@ -430,7 +377,7 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 
 	// Step 1: Create and hide a chat
 	log('Creating test chat to hide then unhide...');
-	await createTestChat(page, 'What is photosynthesis?', log);
+	await createTestChat(page, withMockMarker('What is photosynthesis?', 'hidden_chats_3'), log);
 	await screenshot(page, 'test-chat-created');
 
 	// Hide the chat using the inline vault form
@@ -514,9 +461,7 @@ test('hides second chat directly without inline form when vault is already unloc
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('HIDDEN_CHATS_ALREADY_UNLOCKED');
 	const screenshot = createStepScreenshotter(log);
@@ -527,7 +472,7 @@ test('hides second chat directly without inline form when vault is already unloc
 
 	// Step 1: Create first chat and hide it (this unlocks the vault in memory)
 	log('Creating first chat to unlock vault...');
-	await createTestChat(page, 'What is the boiling point of water?', log);
+	await createTestChat(page, withMockMarker('What is the boiling point of water?', 'hidden_chats_4'), log);
 	await screenshot(page, 'first-chat-created');
 
 	await openContextMenuForActiveChat(page);
@@ -563,7 +508,7 @@ test('hides second chat directly without inline form when vault is already unloc
 		await page.goto('/?new=true');
 		await page.waitForTimeout(3000);
 	}
-	await createTestChat(page, 'How many planets are in our solar system?', log);
+	await createTestChat(page, withMockMarker('How many planets are in our solar system?', 'hidden_chats_5'), log);
 	await screenshot(page, 'second-chat-created');
 
 	// Step 3: Try to hide the second chat — since vault is unlocked in memory,

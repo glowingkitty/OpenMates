@@ -61,7 +61,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
-    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper } from './settings/settingsRoutes';
+    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper } from './settings/settingsRoutes';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -152,7 +152,12 @@ changes to the documentation (to keep the documentation up to date).
             // Main app details route
             const appRoute = `app_store/${appId}`;
             views[appRoute] = AppDetailsWrapper;
-            
+
+            // Reminder app: add create route for the reminder creation settings page
+            if (appId === 'reminder') {
+                views[`app_store/reminder/create`] = AppDetailsWrapper;
+            }
+
             // Add skill detail routes and their provider sub-routes
             if (app.skills && app.skills.length > 0) {
                 for (const skill of app.skills) {
@@ -208,6 +213,12 @@ changes to the documentation (to keep the documentation up to date).
      * so they need to be added dynamically when navigated to.
      */
     let dynamicEntryRoutes = $state<Set<string>>(new Set());
+
+    /**
+     * Track dynamically added personal data edit routes.
+     * Pattern: privacy/hide-personal-data/edit-{type}/{entryId}
+     */
+    let dynamicPersonalDataEditRoutes = $state<Set<string>>(new Set());
     
     // Reactive settingsViews that includes dynamic app routes and entry detail routes
     // Entry detail routes are added dynamically when navigated to (tracked in dynamicEntryRoutes)
@@ -218,6 +229,12 @@ changes to the documentation (to keep the documentation up to date).
         // These are routes like: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
         for (const route of dynamicEntryRoutes) {
             views[route] = AppDetailsWrapper;
+        }
+
+        // Add any dynamically registered personal data edit routes
+        // These are routes like: privacy/hide-personal-data/edit-name/{entryId}
+        for (const route of dynamicPersonalDataEditRoutes) {
+            views[route] = EditPersonalDataEntryWrapper;
         }
         
         return views;
@@ -297,7 +314,7 @@ changes to the documentation (to keep the documentation up to date).
     // Optional human-readable title override for the cameFrom path, used in breadcrumb display.
     // When set, replaces the auto-derived label for the cameFrom path segment.
     let cameFromTitleOverride = $state<string | null>(null);
-    let breadcrumbLabel = $state($text('settings.settings'));
+    let breadcrumbLabel = $state($text('common.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
     let currentPageInstance: CurrentSettingsPage | null = $state(null); // Reference to child component instance
@@ -441,7 +458,11 @@ changes to the documentation (to keep the documentation up to date).
             const recentIcons = await loadRecentHeaderChatIcons();
             headerChatDecorIcons = buildHeaderDecorIcons(recentIcons);
         } catch (error) {
-            console.error('[Settings] Failed to load recent chat icons for settings header:', error);
+            if (error instanceof Error && error.message?.includes('blocked during logout')) {
+                console.debug('[Settings] DB unavailable during cleanup, skipping header icons');
+            } else {
+                console.error('[Settings] Failed to load recent chat icons for settings header:', error);
+            }
         } finally {
             isRefreshingHeaderIcons = false;
         }
@@ -520,7 +541,7 @@ changes to the documentation (to keep the documentation up to date).
     // Function to update breadcrumb label based on navigation path
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
-            breadcrumbLabel = $text('settings.settings');
+            breadcrumbLabel = $text('common.settings');
             fullBreadcrumbLabel = breadcrumbLabel;
             return;
         }
@@ -529,7 +550,7 @@ changes to the documentation (to keep the documentation up to date).
         const pathLabels = [];
         
         // Always start with "Settings"
-        pathLabels.push($text('settings.settings'));
+        pathLabels.push($text('common.settings'));
         
         // Track if we've already added the app name for app_store routes
         // This prevents duplicate app names when navigating to app_store/{appId}
@@ -601,6 +622,9 @@ changes to the documentation (to keep the documentation up to date).
                     if (category && category.name_translation_key) {
                         pathLabels.push($text(category.name_translation_key));
                     }
+                } else if (pathParts.length === 2 && pathParts[0] === 'reminder' && pathParts[1] === 'create') {
+                    // Reminder create page: add "Create reminder" to breadcrumb
+                    pathLabels.push($text('reminder.settings.create_title'));
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
                     const skillId = pathParts[2];
                     const skill = app?.skills?.find(s => s.id === skillId);
@@ -614,7 +638,7 @@ changes to the documentation (to keep the documentation up to date).
                         pathLabels.push($text(focusMode.name_translation_key));
                     }
                 }
-                
+
                 if (!app) {
                     // Fallback to translation key if app not found
                     const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
@@ -668,9 +692,16 @@ changes to the documentation (to keep the documentation up to date).
             resolvedProfileImageBlobUrl = null;
             return;
         }
+        // Stale-closure guard: if the effect re-runs before the previous fetch
+        // resolves (e.g. because an unrelated store field like last_opened changed),
+        // we cancel the old .then() so it cannot overwrite the latest state.
+        let cancelled = false;
         getProfileImageBlobUrl(url, getApiUrl(), userId).then((resolved) => {
-            resolvedProfileImageBlobUrl = resolved;
+            if (!cancelled) {
+                resolvedProfileImageBlobUrl = resolved;
+            }
         });
+        return () => { cancelled = true; };
     });
 
     // State to track active submenu view
@@ -729,7 +760,8 @@ changes to the documentation (to keep the documentation up to date).
      * instead of the top-level app description + capability counts.
      */
     let isAppSubPage = $derived(
-        /^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) &&
+        (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
+         activeSettingsView === 'app_store/reminder/create') &&
         !isModelDetailPage
     );
 
@@ -833,6 +865,22 @@ changes to the documentation (to keep the documentation up to date).
     } | null => {
         if (!isAppSubPage) return null;
 
+        // Special case: reminder/create page — show "Create reminder" with reminder gradient
+        if (activeSettingsView === 'app_store/reminder/create') {
+            const appMeta = appSkillsStore.getState().apps['reminder'];
+            if (!appMeta) return null;
+            const rawIcon = appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            return {
+                appId: 'reminder',
+                itemName: $text('reminder.settings.create_title'),
+                itemTypeLabel: $text('reminder.settings.title'),
+                description: $text('reminder.settings.description_new_chat'),
+                iconName,
+                iconType: 'skill',
+            };
+        }
+
         // Parse the route: app_store/{appId}/{type}/{itemId}
         const match = activeSettingsView.match(
             /^app_store\/([^/]+)\/(skill|focus|settings_memories)\/([^/]+)/
@@ -853,7 +901,7 @@ changes to the documentation (to keep the documentation up to date).
             return {
                 appId,
                 itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
-                itemTypeLabel: $text('settings.app_store.skill'),
+                itemTypeLabel: $text('common.skill'),
                 description: skill.description_translation_key
                     ? $text(skill.description_translation_key)
                     : '',
@@ -897,7 +945,7 @@ changes to the documentation (to keep the documentation up to date).
                 // Create entry sub-page: show "Add entry" title with category context
                 return {
                     appId,
-                    itemName: $text('settings.app_settings_memories.add_entry'),
+                    itemName: $text('common.add_entry'),
                     itemTypeLabel: categoryName,
                     description: cat.description_translation_key
                         ? $text(cat.description_translation_key)
@@ -1137,6 +1185,14 @@ changes to the documentation (to keep the documentation up to date).
             // Dynamically registered model detail route: settingsPath
         }
 
+        // Check if this is a dynamic personal data edit route that needs to be registered
+        // Pattern: privacy/hide-personal-data/edit-{name|address|birthday|custom}/{entryId}
+        const personalDataEditPattern = /^privacy\/hide-personal-data\/edit-(name|address|birthday|custom)\/[^/]+$/;
+        if (personalDataEditPattern.test(settingsPath) && !dynamicPersonalDataEditRoutes.has(settingsPath)) {
+            dynamicPersonalDataEditRoutes.add(settingsPath);
+            dynamicPersonalDataEditRoutes = new Set(dynamicPersonalDataEditRoutes);
+        }
+
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
         
@@ -1304,7 +1360,7 @@ changes to the documentation (to keep the documentation up to date).
             updateBreadcrumbLabel();
         } else {
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings');
+            breadcrumbLabel = $text('common.settings');
         }
 
         // Reset submenu info visibility
@@ -1366,7 +1422,7 @@ changes to the documentation (to keep the documentation up to date).
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings');
+                breadcrumbLabel = $text('common.settings');
                 // currentHelpLink = baseHelpLink; // Help button disabled
                 
                 if (profileContainer) {
@@ -1432,7 +1488,7 @@ changes to the documentation (to keep the documentation up to date).
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings');
+                breadcrumbLabel = $text('common.settings');
                 if (profileContainer) {
                     profileContainer.classList.remove('submenu-active');
                 }
@@ -1573,7 +1629,7 @@ changes to the documentation (to keep the documentation up to date).
             showSubmenuInfo = false;
             navButtonLeft = false;
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings');
+            breadcrumbLabel = $text('common.settings');
             
             if (profileContainer) {
                 profileContainer.classList.remove('submenu-active');
@@ -1618,7 +1674,7 @@ changes to the documentation (to keep the documentation up to date).
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
         	navigationPath = [];
-        	breadcrumbLabel = $text('settings.settings');
+        	breadcrumbLabel = $text('common.settings');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
@@ -1764,7 +1820,7 @@ changes to the documentation (to keep the documentation up to date).
                 // Reset to main settings page — mirrors toggleMenu() close logic
                 activeSettingsView = 'main';
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings');
+                breadcrumbLabel = $text('common.settings');
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 hideNavButton = false;
@@ -2228,7 +2284,7 @@ changes to the documentation (to keep the documentation up to date).
     		// Mirrors the reset logic in toggleMenu() when the menu is closed.
     		activeSettingsView = 'main';
     		navigationPath = [];
-    		breadcrumbLabel = $text('settings.settings');
+    		breadcrumbLabel = $text('common.settings');
     		showSubmenuInfo = false;
     		navButtonLeft = false;
     		hideNavButton = false;
@@ -2297,7 +2353,8 @@ changes to the documentation (to keep the documentation up to date).
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
     	<div
-    		class="profile-container"
+			id="settings-menu-toggle"
+     		class="profile-container"
     		class:menu-open={isMenuVisible}
     		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
@@ -2363,6 +2420,7 @@ changes to the documentation (to keep the documentation up to date).
         <div class="header-content">
             {#if !hideNavButton}
                 <button
+					id="settings-back-button"
                     class="nav-button"
                     class:left={navButtonLeft}
                     class:left-aligned={activeSettingsView !== 'main'}
@@ -2416,13 +2474,14 @@ changes to the documentation (to keep the documentation up to date).
                         <strong class="model-detail-title">{activeSubMenuTitle}</strong>
                     </div>
                 {:else}
-                    <!-- Use iconType="app" for app store sub-pages to render proper app-style icon -->
+                    <!-- App store sub-pages render icon SVG with app-specific gradient (no bg square) -->
                     <!-- Focus mode details pages now use the same icon+title header as skills -->
                     <SettingsItem
                         type="heading"
                         icon={activeSubMenuIcon}
                         title={activeSubMenuTitle}
-                        iconType={isAppStoreSubPage ? 'app' : 'default'}
+                        iconBackground={isAppStoreSubPage ? 'none' : 'primary'}
+                        iconColor={isAppStoreSubPage ? `var(--color-app-${activeSubMenuIcon})` : undefined}
                     />
                 {/if}
             </div>
@@ -2534,6 +2593,7 @@ changes to the documentation (to keep the documentation up to date).
             {isMenuVisible}
             {paymentEnabled}
             showProfileHeader={false}
+            resolvedProfileImageUrl={resolvedProfileImageBlobUrl}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
@@ -2726,11 +2786,21 @@ changes to the documentation (to keep the documentation up to date).
             bottom: 18px;
             height: auto;
             z-index: 1000;
-            visibility: hidden; /* Hide by default on mobile */
+            /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
+            width: 323px;
+            transition: transform 0.3s ease, visibility 0.3s ease;
+            transform: translateX(calc(100% + 40px));
+            visibility: hidden;
+            will-change: transform;
         }
 
         .settings-menu.visible {
+            transform: translateX(0);
             visibility: visible;
+        }
+
+        :global([dir="rtl"]) .settings-menu:not(.visible) {
+            transform: translateX(calc(-100% - 40px));
         }
 
         .settings-menu.overlay {
@@ -2749,6 +2819,15 @@ changes to the documentation (to keep the documentation up to date).
         .settings-menu {
             inset-inline-end: 10px;
             bottom: 10px;
+            transform: translateX(calc(100% + 20px));
+        }
+
+        :global([dir="rtl"]) .settings-menu:not(.visible) {
+            transform: translateX(calc(-100% - 20px));
+        }
+
+        .settings-menu.visible {
+            transform: translateX(0);
         }
     }
 

@@ -1,1 +1,0 @@
-Coming soon - the restore user data settings will be available here.

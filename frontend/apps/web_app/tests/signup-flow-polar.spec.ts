@@ -39,7 +39,8 @@ const {
 	buildSignupEmail,
 	createMailosaurClient,
 	generateTotp,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 /**
@@ -194,7 +195,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	// ─── Navigation & signup basics ──────────────────────────────────────────────
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginSignupButton = page.getByRole('button', {
@@ -228,7 +229,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible();
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 	await takeStepScreenshot(page, 'basics-filled');

@@ -17,6 +17,7 @@ Props:
 <script lang="ts">
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { userProfile, updateProfile } from '../../../stores/userProfile';
     import { tfaApps, tfaAppIcons } from '../../../config/tfa';
@@ -294,6 +295,8 @@ Props:
         try {
             // Get email encryption key for 2FA setup (base64 encoded for API)
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            // Keep 2FA setup endpoints aligned with CLI blocked operations:
+            // frontend/packages/openmates-cli/src/client.ts (BLOCKED_SETTINGS_POST_PATHS)
             
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
                 method: 'POST',
@@ -362,10 +365,9 @@ Props:
     /**
      * Handle code input - auto-verify when 6 digits entered.
      */
-    function handleCodeInput(event: Event) {
-        const input = event.target as HTMLInputElement;
-        verificationCode = input.value.replace(/\D/g, '').slice(0, 6);
-        
+    function handleCodeInput(rawValue: string) {
+        verificationCode = rawValue.replace(/\D/g, '').slice(0, 6);
+
         if (verificationCode.length === 6) {
             verifyCode();
         }
@@ -650,17 +652,16 @@ Props:
                 
                 <div class="code-input-section">
                     <p>{$text('settings.security.tfa_enter_code')}</p>
-                    <input
+                    <SettingsInput
                         type="text"
                         inputmode="numeric"
                         pattern="[0-9]*"
-                        maxlength="6"
+                        maxlength={6}
                         bind:value={verificationCode}
-                        oninput={handleCodeInput}
                         placeholder="000000"
                         disabled={isVerifying}
-                        class="otp-input"
-                        class:error={!!errorMessage}
+                        hasError={!!errorMessage}
+                        onInput={handleCodeInput}
                     />
                     {#if isVerifying}
                         <div class="verifying-indicator">
@@ -965,28 +966,6 @@ Props:
         width: 100%;
     }
 
-    .otp-input {
-        width: 200px;
-        padding: 16px;
-        font-size: 24px;
-        text-align: center;
-        letter-spacing: 8px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        background: var(--color-grey-5);
-        color: var(--color-grey-100);
-        font-family: monospace;
-    }
-
-    .otp-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-
-    .otp-input.error {
-        border-color: var(--color-danger);
-    }
-
     .verifying-indicator {
         display: flex;
         align-items: center;
@@ -1236,4 +1215,3 @@ Props:
         }
     }
 </style>
-

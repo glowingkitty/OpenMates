@@ -4,6 +4,7 @@
  */
 
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
 import type { Chat, Message, PIIMapping } from "../types/chat";
@@ -567,7 +568,7 @@ async function convertMessageToYaml(
       else if (message.encrypted_thinking_content) {
         try {
           // Get chat key for this message's chat to decrypt thinking content
-          const chatKey = chatDB.getChatKey(message.chat_id);
+          const chatKey = await chatKeyManager.getKey(message.chat_id);
           if (chatKey) {
             const { decryptWithChatKey } = await import("./cryptoService");
             const decryptedThinking = await decryptWithChatKey(

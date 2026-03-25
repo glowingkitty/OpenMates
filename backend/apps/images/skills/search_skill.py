@@ -64,16 +64,53 @@ INTERNAL_API_TIMEOUT_SECONDS = 30
 
 # ── Pydantic models (auto-discovered by apps_api.py for OpenAPI docs) ────────
 
+class ImageSearchRequestItem(BaseModel):
+    """A single image search request (text or reverse image search)."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    query: Optional[str] = Field(
+        default=None,
+        description="Text description of images to search for (e.g. 'sunset over mountains'). "
+        "Mutually exclusive with file_path.",
+    )
+    file_path: Optional[str] = Field(
+        default=None,
+        description="The original filename (embed_ref) of an image in the conversation to "
+        "reverse-search. Mutually exclusive with query.",
+    )
+    count: int = Field(default=10, description="Number of image results to return (default 10, max 20).")
+    country: str = Field(default="us", description="Country code for localised results (default 'us').")
+    search_lang: str = Field(default="en", description="Language code for search (default 'en').")
+    size: Optional[str] = Field(
+        default=None,
+        description="Filter by image size: 'small', 'medium', 'large', 'wallpaper'.",
+    )
+    image_type: Optional[str] = Field(
+        default=None,
+        description="Filter by image type: 'photo', 'clipart', 'gif', 'transparent', 'line'.",
+    )
+    color: Optional[str] = Field(
+        default=None,
+        description="Filter by dominant color: 'red', 'orange', 'yellow', 'green', 'blue', "
+        "'purple', 'pink', 'brown', 'black', 'gray', 'white', 'coloronly', 'monochrome'.",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for the images.search skill.
     Always uses 'requests' array for parallel processing consistency.
     Each request must have either 'query' (text search) or 'file_path' (reverse image search).
     """
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[ImageSearchRequestItem] = Field(
         ...,
         description=(
-            "Array of search request objects. Each object must contain either "
+            "Array of image search request objects. Each object must contain either "
             "'query' (text image search) or 'file_path' (reverse image search using an "
             "uploaded image's embed_ref). Optional: 'count' (default 10, max 20), "
             "'country' (default 'us'), 'search_lang' (default 'en')."
@@ -361,6 +398,9 @@ class SearchSkill(BaseSkill):
         count: int = DEFAULT_IMAGE_RESULTS,
         country: str = "us",
         search_lang: str = "en",
+        size: Optional[str] = None,
+        image_type: Optional[str] = None,
+        color: Optional[str] = None,
     ) -> tuple[List[Dict[str, Any]], str]:
         """
         Search for images via Brave Search Images API.
@@ -375,6 +415,9 @@ class SearchSkill(BaseSkill):
             count=min(count, MAX_IMAGE_RESULTS),
             country=country,
             search_lang=search_lang,
+            size=size,
+            image_type=image_type,
+            color=color,
         )
 
         if response.get("error"):
@@ -509,6 +552,9 @@ class SearchSkill(BaseSkill):
                     count=count,
                     country=country,
                     search_lang=search_lang,
+                    size=req.get("size"),
+                    image_type=req.get("image_type"),
+                    color=req.get("color"),
                 )
             else:
                 raise ValueError("Each request must have either 'query' or 'file_path'")

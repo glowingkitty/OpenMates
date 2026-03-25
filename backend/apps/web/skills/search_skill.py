@@ -24,6 +24,11 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.providers.youtube.youtube_metadata import (
+    extract_youtube_id_from_url,
+    get_video_metadata_batched,
+    get_channel_thumbnails_batched,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,16 +73,46 @@ def strip_html_tags(text: str) -> str:
     return cleaned
 
 
+class WebSearchRequestItem(BaseModel):
+    """A single web search request."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    query: str = Field(description="Search query string (e.g. 'Python async', 'FastAPI best practices').")
+    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    country: Optional[str] = Field(
+        default=None,
+        description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
+    )
+    search_lang: Optional[str] = Field(
+        default=None,
+        description="Language code for search (e.g. 'en', 'de', 'fr'). Defaults to 'en'.",
+    )
+    safesearch: Optional[str] = Field(
+        default=None,
+        description="Safe search setting: 'off', 'moderate', or 'strict'.",
+    )
+    freshness: Optional[str] = Field(
+        default=None,
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month), "
+        "'py' (past year), or a custom date range 'YYYY-MM-DDtoYYYY-MM-DD' "
+        "(e.g. '2026-01-01to2026-01-31' for January 2026).",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for web search skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[WebSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch) with defaults from schema."
+        description="Array of web search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch)."
     )
 
 
@@ -329,13 +364,30 @@ class SearchSkill(BaseSkill):
         if not search_query:
             return (request_id, [], "Missing 'query' parameter")
         
-        # Extract request-specific parameters (with defaults from schema)
-        req_count = req.get("count", DEFAULT_RESULT_COUNT)  # Default from schema
-        req_country_raw = req.get("country", "us")  # Default from schema
-        req_lang = req.get("search_lang", "en")  # Default from schema
-        req_safesearch = req.get("safesearch", "moderate")  # Default from schema
+        # Extract request-specific parameters (with defaults from schema).
+        # NOTE: Pydantic model_dump() serialises Optional[str] = None as None (not the
+        # string "None"). req.get(key, default) returns None (not default) when the key
+        # is present with value None. We therefore use "or <default>" to treat both None
+        # and empty-string the same as "not provided", preventing httpx from sending
+        # None/empty values to the Brave API (which rejects them with 422).
+        req_count = req.get("count") or DEFAULT_RESULT_COUNT
+        req_country_raw = req.get("country") or "us"
+        req_lang = req.get("search_lang") or "en"
+        _raw_safesearch = req.get("safesearch") or None
+        # Validate safesearch — Brave Web API rejects anything except 'off', 'moderate', 'strict'.
+        VALID_SAFESEARCH_VALUES = {"off", "moderate", "strict"}
+        if _raw_safesearch and _raw_safesearch in VALID_SAFESEARCH_VALUES:
+            req_safesearch = _raw_safesearch
+        else:
+            if _raw_safesearch:
+                logger.warning(
+                    f"Invalid safesearch value '{_raw_safesearch}' for web search '{search_query}' "
+                    f"(id: {request_id}). Valid values: {sorted(VALID_SAFESEARCH_VALUES)}. Falling back to 'moderate'."
+                )
+            req_safesearch = "moderate"
+        req_freshness = req.get("freshness") or None
         # Default to web articles only (excludes news, videos, discussions, etc.)
-        req_result_filter = req.get("result_filter", "web")  # Default to "web" for web articles
+        req_result_filter = req.get("result_filter") or "web"
         # Tabloid/boulevard domain filtering — enabled by default
         req_filter_tabloids = req.get("filter_tabloids", True)
         
@@ -427,6 +479,7 @@ class SearchSkill(BaseSkill):
                 search_lang=req_lang,
                 safesearch=req_safesearch,
                 extra_snippets=True,  # Enable extra snippets for richer results
+                freshness=req_freshness,
                 result_filter=req_result_filter,  # Filter to web articles by default
                 sanitize_output=True  # Enable sanitization for user-facing requests (default)
             )
@@ -491,25 +544,29 @@ class SearchSkill(BaseSkill):
                     profile_name = profile.get("name")
                 
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 # DEBUG: Log thumbnail and favicon extraction
                 logger.debug(
                     f"[{task_id}] Result {idx} metadata extraction: "
                     f"url={result.get('url', '')[:50]}... "
                     f"raw_thumbnail={result.get('thumbnail')}, "
                     f"raw_meta_url={result.get('meta_url')}, "
+                    f"extracted_thumbnail_src={thumbnail_src}, "
                     f"extracted_thumbnail_original={thumbnail_original}, "
                     f"extracted_favicon={favicon}"
                 )
-                
+
                 result_metadata.append({
                     "url": result.get("url", ""),
                     "page_age": result.get("page_age", result.get("age", "")),
                     "profile_name": profile_name,
                     "favicon": favicon,
+                    "thumbnail_src": thumbnail_src,
                     "thumbnail_original": thumbnail_original,
                     "original_title": title,
                     "original_description": description,
@@ -680,8 +737,9 @@ class SearchSkill(BaseSkill):
                                     "favicon": metadata["favicon"]
                                 } if metadata["favicon"] else None,
                                 "thumbnail": {
+                                    "src": metadata.get("thumbnail_src"),
                                     "original": metadata["thumbnail_original"]
-                                } if metadata["thumbnail_original"] else None,
+                                } if (metadata.get("thumbnail_src") or metadata["thumbnail_original"]) else None,
                                 "extra_snippets": sanitized_extra_snippets,
                                 "hash": self._generate_result_hash(metadata["url"])
                             }
@@ -710,13 +768,14 @@ class SearchSkill(BaseSkill):
                         profile = result.get("profile", {})
                         profile_name = profile.get("name") if isinstance(profile, dict) else None
                         thumbnail = result.get("thumbnail", {})
+                        thumbnail_src = thumbnail.get("src") if isinstance(thumbnail, dict) else None
                         thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
-                        
+
                         # Strip HTML tags even in fallback case
                         raw_extra_snippets = result.get("extra_snippets", [])
                         if not isinstance(raw_extra_snippets, list):
                             raw_extra_snippets = []
-                        
+
                         preview = {
                             "type": "search_result",
                             "title": strip_html_tags(result.get("title", "")),
@@ -725,12 +784,129 @@ class SearchSkill(BaseSkill):
                             "page_age": result.get("page_age", result.get("age", "")),
                             "profile": {"name": profile_name} if profile_name else None,
                             "meta_url": {"favicon": favicon} if favicon else None,
-                            "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                            "thumbnail": {"src": thumbnail_src, "original": thumbnail_original} if (thumbnail_src or thumbnail_original) else None,
                             "extra_snippets": [strip_html_tags(s) for s in raw_extra_snippets if s],
                             "hash": self._generate_result_hash(result.get("url", ""))
                         }
                         previews.append(preview)
             
+            # ── YouTube metadata enrichment ──────────────────────────────────
+            # Detect YouTube URLs among web search results and enrich them with
+            # YouTube API metadata (views, duration, channel info, etc.) so they
+            # render properly as video embeds on the frontend.
+            # Uses snake_case field names matching the frontend video embed schema.
+            youtube_previews: Dict[str, Dict[str, Any]] = {}  # video_id → preview ref
+            for preview in previews:
+                vid = extract_youtube_id_from_url(preview.get("url", ""))
+                if vid:
+                    youtube_previews[vid] = preview
+
+            if youtube_previews:
+                logger.info(
+                    f"[{task_id}] Enriching {len(youtube_previews)} YouTube result(s) "
+                    f"with YouTube API metadata"
+                )
+                try:
+                    yt_metadata = await get_video_metadata_batched(
+                        video_ids=list(youtube_previews.keys()),
+                        secrets_manager=secrets_manager,
+                        batch_size=50,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[{task_id}] YouTube metadata fetch failed: {e}. "
+                        f"Video embeds will render with basic data only."
+                    )
+                    yt_metadata = {}
+
+                # Collect channel IDs for thumbnail fetch
+                channel_ids = []
+                for vid, meta in yt_metadata.items():
+                    ch_id = meta.get("snippet", {}).get("channelId")
+                    if ch_id:
+                        channel_ids.append(ch_id)
+
+                channel_thumbs: Dict[str, str] = {}
+                if channel_ids:
+                    try:
+                        ch_data = await get_channel_thumbnails_batched(
+                            channel_ids=channel_ids,
+                            secrets_manager=secrets_manager,
+                            batch_size=50,
+                        )
+                        for ch_id, ch_info in ch_data.items():
+                            thumbs = ch_info.get("snippet", {}).get("thumbnails", {})
+                            channel_thumbs[ch_id] = (
+                                thumbs.get("high", {}).get("url")
+                                or thumbs.get("medium", {}).get("url")
+                                or thumbs.get("default", {}).get("url")
+                                or ""
+                            )
+                    except Exception as e:
+                        logger.warning(f"[{task_id}] Channel thumbnail fetch failed: {e}")
+
+                # Merge YouTube metadata into previews using snake_case field names
+                # (matching frontend video embed schema used by GroupRenderer / VideoEmbedPreview)
+                for vid, preview in youtube_previews.items():
+                    meta = yt_metadata.get(vid, {})
+                    if not meta:
+                        # Even without API metadata, add video_id so the frontend
+                        # can derive a thumbnail from the video ID
+                        preview["video_id"] = vid
+                        continue
+
+                    snippet = meta.get("snippet", {})
+                    stats = meta.get("statistics", {})
+                    content_d = meta.get("contentDetails", {})
+
+                    ch_id = snippet.get("channelId", "")
+                    yt_thumbs = snippet.get("thumbnails", {})
+                    yt_thumb = (
+                        yt_thumbs.get("maxres", {}).get("url")
+                        or yt_thumbs.get("standard", {}).get("url")
+                        or yt_thumbs.get("high", {}).get("url")
+                        or yt_thumbs.get("medium", {}).get("url")
+                        or ""
+                    )
+
+                    # Override thumbnail with higher-quality YouTube thumbnail
+                    if yt_thumb:
+                        preview["thumbnail"] = {"original": yt_thumb}
+
+                    # Add YouTube-specific fields (snake_case for frontend compat)
+                    preview["video_id"] = vid
+                    preview["channel_name"] = snippet.get("channelTitle", "")
+                    preview["channel_id"] = ch_id
+                    preview["channel_thumbnail"] = channel_thumbs.get(ch_id, "")
+                    preview["view_count"] = int(stats.get("viewCount", 0)) if stats.get("viewCount") else 0
+                    preview["like_count"] = int(stats.get("likeCount", 0)) if stats.get("likeCount") else 0
+                    preview["published_at"] = snippet.get("publishedAt", "")
+
+                    # Parse ISO 8601 duration (e.g. "PT17M8S") into seconds + formatted
+                    raw_dur = content_d.get("duration", "")
+                    if raw_dur:
+                        preview["duration"] = raw_dur
+                        dur_secs = self._parse_iso_duration(raw_dur)
+                        preview["duration_seconds"] = dur_secs
+                        preview["duration_formatted"] = self._format_duration(dur_secs)
+                    else:
+                        preview["duration_seconds"] = 0
+                        preview["duration_formatted"] = ""
+
+                    logger.debug(
+                        f"[{task_id}] Enriched YouTube result {vid}: "
+                        f"views={preview.get('view_count')}, "
+                        f"channel={preview.get('channel_name')}, "
+                        f"duration={preview.get('duration_formatted')}"
+                    )
+
+                logger.info(
+                    f"[{task_id}] YouTube enrichment complete: "
+                    f"{sum(1 for v in youtube_previews if yt_metadata.get(v))} enriched, "
+                    f"{sum(1 for v in youtube_previews if not yt_metadata.get(v))} basic-only"
+                )
+            # ── End YouTube enrichment ─────────────────────────────────────
+
             logger.info(f"Search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
             return (request_id, previews, None)
             
@@ -829,4 +1005,41 @@ class SearchSkill(BaseSkill):
         return response
     
     # _generate_result_hash is now provided by BaseSkill
+
+    @staticmethod
+    def _parse_iso_duration(iso_duration: str) -> int:
+        """
+        Parse ISO 8601 duration string (e.g. "PT17M8S", "PT1H3M45S") to total seconds.
+        YouTube API returns duration in this format.
+        """
+        if not iso_duration:
+            return 0
+        d = iso_duration.replace("PT", "")
+        hours = minutes = seconds = 0
+        if "H" in d:
+            parts = d.split("H")
+            hours = int(parts[0])
+            d = parts[1]
+        if "M" in d:
+            parts = d.split("M")
+            minutes = int(parts[0])
+            d = parts[1]
+        if "S" in d:
+            seconds = int(d.replace("S", ""))
+        return hours * 3600 + minutes * 60 + seconds
+
+    @staticmethod
+    def _format_duration(total_seconds: int) -> str:
+        """
+        Format total seconds to video duration string (e.g. "17:08", "1:03:45").
+        Matches the format used by YouTube and the VideoEmbedPreview component.
+        """
+        if total_seconds <= 0:
+            return ""
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        secs = total_seconds % 60
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        return f"{minutes}:{secs:02d}"
 

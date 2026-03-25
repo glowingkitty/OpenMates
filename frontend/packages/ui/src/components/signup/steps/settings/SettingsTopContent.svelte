@@ -10,7 +10,7 @@ step_7_top_content_svelte:
     settings_explainer:
         type: 'text'
         text:
-            - $text('signup.settings')
+            - $text('common.settings')
             - $text('signup.default_settings_balance')
             - $text('signup.click_toggle_to_open_settings')
         purpose:
@@ -26,7 +26,7 @@ step_7_top_content_svelte:
         type: 'settings_block'
         text:
             - $text('signup.default_settings')
-            - $text('settings.privacy')
+            - $text('common.privacy')
             - $text('settings.app_store')
             - $text('settings.interface')
         purpose:
@@ -116,7 +116,7 @@ step_7_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size settings"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.settings')}</h2>
+        <h2 class="signup-menu-title">{@html $text('common.settings')}</h2>
     </div>
     
     <div class="text-block">
@@ -134,7 +134,7 @@ step_7_top_content_svelte:
         <SettingsItem 
             type="submenu" 
             icon="privacy" 
-            title={$text('settings.privacy')}
+            title={$text('common.privacy')}
             onClick={() => handleSettingsClick('privacy')}
             hasToggle={true}
             checked={privacyToggleOn}

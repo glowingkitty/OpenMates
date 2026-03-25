@@ -8,9 +8,7 @@
 
 import logging
 import os
-import json
 import yaml
-import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -33,16 +31,46 @@ TABLOID_FILTER_OVER_REQUEST_COUNT = 15
 DEFAULT_RESULT_COUNT = 10
 
 
+class NewsSearchRequestItem(BaseModel):
+    """A single news search request."""
+
+    id: Optional[Any] = Field(
+        default=None,
+        description="Optional caller-supplied ID for correlating responses to requests. "
+            "Auto-generated as a sequential integer if not provided.",
+    )
+
+    query: str = Field(description="Search query string (e.g. 'AI news', 'Tesla earnings').")
+    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    country: Optional[str] = Field(
+        default=None,
+        description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us' if invalid.",
+    )
+    search_lang: Optional[str] = Field(
+        default=None,
+        description="Language code for search (e.g. 'en', 'de', 'fr'). Defaults to 'en'.",
+    )
+    safesearch: Optional[str] = Field(
+        default=None,
+        description="Safe search setting: 'off', 'moderate', or 'strict'.",
+    )
+    freshness: Optional[str] = Field(
+        default=None,
+        description="Filter by recency: 'pd' (past day), 'pw' (past week), 'pm' (past month), "
+        "'py' (past year), or a custom date range 'YYYY-MM-DDtoYYYY-MM-DD' "
+        "(e.g. '2026-01-01to2026-01-31' for January 2026).",
+    )
+
+
 class SearchRequest(BaseModel):
     """
     Request model for news search skill.
     Always uses 'requests' array format for consistency and parallel processing support.
     Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Multiple queries (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[NewsSearchRequestItem] = Field(
         ...,
-        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch) with defaults from schema."
+        description="Array of news search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch, freshness)."
     )
 
 
@@ -248,12 +276,12 @@ class SearchSkill(BaseSkill):
                         logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
                         return
                     else:
-                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        logger.warning("Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
                         self.suggestions_follow_up_requests = []
                         return
             
             # If search skill not found
-            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            logger.error("Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
             self.suggestions_follow_up_requests = []
             
         except Exception as e:
@@ -292,15 +320,31 @@ class SearchSkill(BaseSkill):
         # Extract query and parameters from request
         search_query = req.get("query") or req.get("q")
         if not search_query:
-            return (request_id, [], f"Missing 'query' parameter")
+            return (request_id, [], "Missing 'query' parameter")
         
-        # Extract request-specific parameters (with defaults from schema)
-        req_count = req.get("count", DEFAULT_RESULT_COUNT)  # Default from schema
-        req_country_raw = req.get("country", "us")  # Default from schema
-        req_lang = req.get("search_lang", "en")  # Default from schema
-        req_safesearch = req.get("safesearch", "moderate")  # Default from schema
+        # Extract request-specific parameters (with defaults from schema).
+        # NOTE: Pydantic model_dump() serialises Optional[str] = None as None (not the
+        # string "None"). req.get(key, default) returns None (not default) when the key
+        # is present with value None. We therefore use "or <default>" to treat both None
+        # and empty-string the same as "not provided", which prevents httpx from sending
+        # None/empty values to the Brave API (causing 422 Unprocessable Entity).
+        req_count = req.get("count") or DEFAULT_RESULT_COUNT
+        req_country_raw = req.get("country") or "us"
+        req_lang = req.get("search_lang") or "en"
+        _raw_safesearch = req.get("safesearch") or None
+        # Validate safesearch — Brave News API rejects anything except 'off', 'moderate', 'strict'.
+        VALID_SAFESEARCH_VALUES = {"off", "moderate", "strict"}
+        if _raw_safesearch and _raw_safesearch in VALID_SAFESEARCH_VALUES:
+            req_safesearch = _raw_safesearch
+        else:
+            if _raw_safesearch:
+                logger.warning(
+                    f"Invalid safesearch value '{_raw_safesearch}' for news search '{search_query}' "
+                    f"(id: {request_id}). Valid values: {sorted(VALID_SAFESEARCH_VALUES)}. Falling back to 'moderate'."
+                )
+            req_safesearch = "moderate"
         # Default freshness to "pw" (past week) for news searches to prioritize recent content
-        req_freshness = req.get("freshness", "pw")  # Default to past week for news
+        req_freshness = req.get("freshness") or "pw"
         # Tabloid/boulevard domain filtering — enabled by default
         req_filter_tabloids = req.get("filter_tabloids", True)
         
@@ -371,7 +415,7 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except Exception as e:
+                except Exception:
                     # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
                     # These should bubble up to the route handler
                     raise
@@ -439,15 +483,18 @@ class SearchSkill(BaseSkill):
                     profile_name = profile.get("name")
                 
                 thumbnail = result.get("thumbnail", {})
+                thumbnail_src = None
                 thumbnail_original = None
                 if isinstance(thumbnail, dict):
+                    thumbnail_src = thumbnail.get("src")
                     thumbnail_original = thumbnail.get("original")
-                
+
                 result_metadata.append({
                     "url": result.get("url", ""),
                     "page_age": result.get("page_age", result.get("age", "")),
                     "profile_name": profile_name,
                     "favicon": favicon,
+                    "thumbnail_src": thumbnail_src,
                     "thumbnail_original": thumbnail_original,
                     "original_title": title,
                     "original_description": description,
@@ -565,7 +612,7 @@ class SearchSkill(BaseSkill):
                                 "page_age": metadata["page_age"],
                                 "profile": {"name": metadata["profile_name"]} if metadata["profile_name"] else None,
                                 "meta_url": {"favicon": metadata["favicon"]} if metadata["favicon"] else None,
-                                "thumbnail": {"original": metadata["thumbnail_original"]} if metadata["thumbnail_original"] else None,
+                                "thumbnail": {"src": metadata.get("thumbnail_src"), "original": metadata["thumbnail_original"]} if (metadata.get("thumbnail_src") or metadata["thumbnail_original"]) else None,
                                 "extra_snippets": sanitized_extra_snippets,
                                 "hash": self._generate_result_hash(metadata["url"])
                             }
@@ -583,8 +630,9 @@ class SearchSkill(BaseSkill):
                         profile = result.get("profile", {})
                         profile_name = profile.get("name") if isinstance(profile, dict) else None
                         thumbnail = result.get("thumbnail", {})
+                        thumbnail_src = thumbnail.get("src") if isinstance(thumbnail, dict) else None
                         thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
-                        
+
                         preview = {
                             "type": "search_result",
                             "title": result.get("title", ""),
@@ -593,7 +641,7 @@ class SearchSkill(BaseSkill):
                             "page_age": result.get("page_age", result.get("age", "")),
                             "profile": {"name": profile_name} if profile_name else None,
                             "meta_url": {"favicon": favicon} if favicon else None,
-                            "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                            "thumbnail": {"src": thumbnail_src, "original": thumbnail_original} if (thumbnail_src or thumbnail_original) else None,
                             "extra_snippets": result.get("extra_snippets", []),
                             "hash": self._generate_result_hash(result.get("url", ""))
                         }
@@ -654,9 +702,13 @@ class SearchSkill(BaseSkill):
         if error_response:
             return error_response
         
-        # Extract requests array from Pydantic model
-        # The Pydantic model validates the structure, but we still need to validate individual request items
-        requests = request.requests
+        # Extract requests array from Pydantic model and serialize to plain dicts.
+        # _validate_requests_array and downstream helpers call req.get("id") which requires
+        # dicts; keeping items as Pydantic objects raises AttributeError at runtime.
+        requests = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in request.requests
+        ]
         
         # Validate requests array using BaseSkill helper
         validated_requests, error = self._validate_requests_array(

@@ -31,16 +31,15 @@
 //   async and non-blocking. forkProgressStore is global and survives navigation.
 
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { forkProgressStore } from "../stores/forkProgressStore";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import {
-  generateChatKey,
   encryptWithChatKey,
   decryptWithChatKey,
-  encryptChatKeyWithMasterKey,
 } from "./cryptoService";
 import { get } from "svelte/store";
 import type { Message, Chat } from "../types/chat";
@@ -139,15 +138,11 @@ async function runForkAsync(
       `(${messagesToCopy.length} messages, title: "${forkTitle}")`,
   );
 
-  // Step 1: Generate a fresh AES key for the new chat
-  const newChatKey = generateChatKey();
-
-  // Step 2: Encrypt the new chat key with the user's master key so it can be
-  //         stored in IndexedDB + sent to the server in encrypted form.
-  const encryptedNewChatKey = await encryptChatKeyWithMasterKey(newChatKey);
-  if (!encryptedNewChatKey) {
-    throw new Error("Failed to encrypt new chat key with master key");
-  }
+  // Step 1+2: Atomically create and persist the chat key through ChatKeyManager.
+  // This ensures the key is tracked with provenance and persisted to IDB before
+  // any data is encrypted with it.
+  const { chatKey: newChatKey, encryptedChatKey: encryptedNewChatKey } =
+    await chatKeyManager.createAndPersistKey(newChatId);
 
   // Step 3: Encrypt the fork title with the new chat key
   const encryptedTitle = await encryptWithChatKey(forkTitle, newChatKey);
@@ -183,7 +178,7 @@ async function runForkAsync(
       newChatRecord.user_id = sourceChat.user_id;
     }
 
-    const sourceChatKey = chatDB.getChatKey(sourceChatId);
+    const sourceChatKey = await chatKeyManager.getKey(sourceChatId);
     if (sourceChatKey) {
       // Re-encrypt category
       if (sourceChat?.encrypted_category) {

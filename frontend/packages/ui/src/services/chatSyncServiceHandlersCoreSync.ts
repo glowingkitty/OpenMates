@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { userDB } from "./userDB";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -54,7 +55,7 @@ async function populateResumeChatDataFromPhase1(
     try {
       const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
         await import("./cryptoService");
-      let chatKey = chatDB.getChatKey(chatId);
+      let chatKey = await chatKeyManager.getKey(chatId);
       if (!chatKey && chat.encrypted_chat_key) {
         chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
         if (chatKey) chatDB.setChatKey(chatId, chatKey);

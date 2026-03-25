@@ -19,32 +19,32 @@ sign_up:
   hi: साइन अप करें
   th: สมัครสมาชิก
   cs: Registrovat
-  sv: ""
+  sv: "Registrera dig"
   he: הרשמה
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.6 alpha
-  de: v0.6 alpha
-  zh: v0.6 测试版
-  es: v0.6 alfa
-  fr: v0.6 alpha
-  pt: v0.6 alfa
-  ru: v0.6 альфа
-  ja: v0.6 アルファ
-  ko: v0.6 알파
-  it: v0.6 alpha
-  tr: v0.6 alfa
-  vi: v0.6 alpha
-  id: v0.6 alpha
-  pl: v0.6 alpha
-  nl: v0.6 alpha
-  ar: v0.6 ألفا
-  hi: v0.6 अल्फा
-  th: v0.6 อัลฟา
-  cs: v0.6 alpha
-  sv: ""
-  he: v0.6 אלפא
+  en: v0.7 alpha
+  de: v0.7 alpha
+  zh: v0.7 测试版
+  es: v0.7 alfa
+  fr: v0.7 alpha
+  pt: v0.7 alfa
+  ru: v0.7 альфа
+  ja: v0.7 アルファ
+  ko: v0.7 알파
+  it: v0.7 alpha
+  tr: v0.7 alfa
+  vi: v0.7 alpha
+  id: v0.7 alpha
+  pl: v0.7 alpha
+  nl: v0.7 alpha
+  ar: v0.7 ألفا
+  hi: v0.7 अल्फा
+  th: v0.7 อัลฟา
+  cs: v0.7 alpha
+  sv: "v0.7 alpha"
+  he: v0.7 אלפא
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
@@ -67,7 +67,7 @@ domain_not_allowed:
   hi: ई-मेल डोमेन की अनुमति नहीं है।
   th: ไม่อนุญาตโดเมนอีเมล
   cs: E-mailová doména není povolena.
-
+  sv: E-postdomän är inte tillåten.
   he: דומיין האימייל אינו מורשה.
 email_ignored:
   context: Error message shown when the email address is on the ignored list
@@ -90,7 +90,7 @@ email_ignored:
   hi: इस ई-मेल पते का उपयोग पंजीकरण के लिए नहीं किया जा सकता है। यदि आपको लगता है कि यह एक त्रुटि है, तो कृपया समर्थन से संपर्क करें।
   th: ไม่สามารถใช้ที่อยู่อีเมลนี้เพื่อลงทะเบียนได้ โปรดติดต่อฝ่ายสนับสนุนหากคุณเชื่อว่านี่เป็นข้อผิดพลาด
   cs: Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu.
-  sv: ""
+  sv: "Den här e-postadressen kan inte användas för registrering. Kontakta support om du tror att detta är ett fel."
   he: לא ניתן להשתמש בכתובת אימייל זו להרשמה. אנא צור קשר עם התמיכה אם לדעתך זו טעות.
   verified_by_human: []
 is_alpha_disclaimer:
@@ -114,7 +114,7 @@ is_alpha_disclaimer:
   hi: OpenMates वर्तमान में प्रारंभिक परीक्षकों के लिए एक अल्फा रिलीज़ है।
   th: OpenMates อยู่ในช่วงเวอร์ชันอัลฟาสำหรับผู้ทดสอบก่อน
   cs: OpenMates je v současnosti alfa verze pro rané testery.
-  sv: ""
+  sv: "OpenMates är för närvarande en alfaversion för tidiga testare."
   he: OpenMates נמצאת כרגע בגרסת אלפא לנסיינים מוקדמים.
   verified_by_human: []
 decent_stable:
@@ -138,7 +138,7 @@ decent_stable:
   hi: यह अल्फा रिलीज़ काफी स्थिर है
   th: เวอร์ชันอัลฟานี้ค่อนข้างเสถียร
   cs: Tato alfa verze je poměrně stabilní
-  sv: ""
+  sv: "Den här alfaversionen är ganska stabil"
   he: גרסת אלפא זו יציבה למדי
   verified_by_human: []
 not_all_core_features_implemented:
@@ -162,7 +162,7 @@ not_all_core_features_implemented:
   hi: हालांकि, अभी तक सभी मुख्य सुविधाएं लागू नहीं की गई हैं।
   th: อย่างไรก็ตาม ยังไม่ได้ใช้งานฟีเจอร์หลักทั้งหมด
   cs: Nicméně ještě nejsou implementovány všechny základní funkce.
-  sv: ""
+  sv: "Alla kärnfunktioner är dock inte implementerade ännu."
   he: עם זאת, לא כל תכונות הליבה הוטמעו עדיין.
   verified_by_human: []
 expect_bugs_and_missing_features:
@@ -186,7 +186,7 @@ expect_bugs_and_missing_features:
   hi: "यहाँ-वहाँ कुछ बग की अपेक्षा करें और याद रखें: AI चैटबॉट गलतियाँ कर सकते हैं।"
   th: "คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้"
   cs: "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
-  sv: ""
+  sv: "Förvänta dig några buggar här och där och kom ihåg: AI-chatbotar kan göra misstag."
   he: "צפו לבאגים פה ושם וזכרו: צ'אטבוטים מבוססי בינה מלאכותית עלולים לטעות."
   verified_by_human: []
 view_on_github:
@@ -210,7 +210,7 @@ view_on_github:
   hi: GitHub पर OpenMates देखें
   th: ดู OpenMates บน GitHub
   cs: Zobrazit OpenMates na GitHub
-  sv: ""
+  sv: "Visa OpenMates på GitHub"
   he: צפה ב-OpenMates ב-GitHub
   verified_by_human: []
 view_on_github_description:
@@ -234,7 +234,7 @@ view_on_github_description:
   hi: बग, सुविधाओं पर चर्चा करने और नए रिलीज़ पर अपडेट रहने के लिए।
   th: เพื่อหารือเกี่ยวกับข้อผิดพลาด ฟีเจอร์ และรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่
   cs: Pro diskusi o chybách, funkcích a aktualizacích o nových verzích.
-  sv: ""
+  sv: "För att diskutera buggar, funktioner och hålla dig uppdaterad om nya versioner."
   he: כדי לדון בבאגים, תכונות ולהישאר מעודכנים בגרסאות חדשות.
   verified_by_human: []
 view_on_instagram:
@@ -258,7 +258,7 @@ view_on_instagram:
   hi: Instagram पर OpenMates देखें
   th: ดู OpenMates บน Instagram
   cs: Zobrazit OpenMates na Instagram
-  sv: ""
+  sv: "Visa OpenMates på Instagram"
   he: צפה ב-OpenMates ב-Instagram
   verified_by_human: []
 view_on_instagram_description:
@@ -282,7 +282,7 @@ view_on_instagram_description:
   hi: नए रिलीज़ और अन्य अपडेट पर अपडेट रहने के लिए।
   th: เพื่อรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่และการอัปเดตอื่นๆ
   cs: Pro aktualizace o nových verzích a dalších aktualizacích.
-  sv: ""
+  sv: "För att hålla dig uppdaterad om nya versioner och andra uppdateringar."
   he: כדי להישאר מעודכנים בגרסאות חדשות ועדכונים נוספים.
   verified_by_human: []
 continue_with_alpha:
@@ -306,7 +306,7 @@ continue_with_alpha:
   hi: "{version} के साथ जारी रखें"
   th: ดำเนินการต่อด้วย {version}
   cs: Pokračovat s {version}
-  sv: ""
+  sv: "Fortsätt med {version}"
   he: "המשך עם {version}"
   verified_by_human: []
 server_admin:
@@ -330,7 +330,7 @@ server_admin:
   hi: सर्वर व्यवस्थापक
   th: ผู้ดูแลระบบเซิร์ฟเวอร์
   cs: Správce serveru
-  sv: ""
+  sv: "Serveradministratör"
   he: מנהל שרת
   verified_by_human: []
 enter_personal_invite_code:
@@ -354,7 +354,7 @@ enter_personal_invite_code:
   hi: आमंत्रण कोड दर्ज करें
   th: ใส่รหัสเชิญ
   cs: Zadejte pozvánkový kód
-  sv: ""
+  sv: "Ange inbjudningskod"
   he: הזן קוד הזמנה
   verified_by_human: []
 dont_have_personal_invite_code:
@@ -378,7 +378,7 @@ dont_have_personal_invite_code:
   hi: आमंत्रण कोड नहीं है?
   th: ไม่มีรหัสเชิญ?
   cs: Nemáte pozvánkový kód?
-  sv: ""
+  sv: "Har du ingen inbjudningskod?"
   he: "אין לך קוד הזמנה?"
   verified_by_human: []
 follow_us:
@@ -478,7 +478,11 @@ follow_us:
     znovu zaregistrovat bez kódu.
 
     "
-  sv: ""
+  sv: "Följ oss för att se när du kan
+
+    registrera dig igen utan kod.
+
+    "
   he: |
     עקבו אחרינו כדי לראות מתי תוכלו
     להירשם שוב ללא קוד.
@@ -504,7 +508,7 @@ open_instagram:
   hi: Instagram खोलें
   th: เปิด Instagram
   cs: Otevřít Instagram
-  sv: ""
+  sv: "Öppna Instagram"
   he: פתח את Instagram
   verified_by_human: []
 open_mastodon:
@@ -528,7 +532,7 @@ open_mastodon:
   hi: Mastodon खोलें
   th: เปิด Mastodon
   cs: Otevřít Mastodon
-  sv: ""
+  sv: "Öppna Mastodon"
   he: פתח את Mastodon
   verified_by_human: []
 checking_code:
@@ -552,7 +556,7 @@ checking_code:
   hi: कोड जांचा जा रहा है...
   th: กำลังตรวจสอบรหัส...
   cs: Kontrola kódu...
-  sv: ""
+  sv: "Kontrollerar kod..."
   he: בודק קוד...
   verified_by_human: []
 too_many_requests:
@@ -576,7 +580,7 @@ too_many_requests:
   hi: आपने बहुत अधिक अनुरोध भेजे हैं। बाद में पुनः प्रयास करें।
   th: คุณส่งคำขอมากเกินไป ลองอีกครั้งในภายหลัง
   cs: Odeslali jste příliš mnoho požadavků. Zkuste to znovu později.
-  sv: ""
+  sv: "Du skickade för många förfrågningar. Försök igen senare."
   he: שלחת יותר מדי בקשות. נסה שוב מאוחר יותר.
   verified_by_human: []
 username_too_short:
@@ -600,7 +604,7 @@ username_too_short:
   hi: न्यूनतम 3 वर्ण
   th: อย่างน้อย 3 ตัวอักษร
   cs: Minimálně 3 znaky
-  sv: ""
+  sv: "Minst 3 tecken"
   he: מינימום 3 תווים
   verified_by_human: []
 username_too_long:
@@ -624,7 +628,7 @@ username_too_long:
   hi: 20 वर्ण से कम
   th: น้อยกว่า 20 ตัวอักษร
   cs: Méně než 20 znaků
-  sv: ""
+  sv: "Färre än 20 tecken"
   he: פחות מ-20 תווים
   verified_by_human: []
 username_invalid_chars:
@@ -648,7 +652,7 @@ username_invalid_chars:
   hi: "अनुमत: अक्षर, संख्याएं, _, ."
   th: "อนุญาต: ตัวอักษร, ตัวเลข, _, ."
   cs: "Povoleno: písmena, číslice, _, ."
-  sv: ""
+  sv: "Tillåtet: bokstäver, siffror, _, ."
   he: "מותר: אותיות, מספרים, _, ."
   verified_by_human: []
 username_taken:
@@ -672,7 +676,7 @@ username_taken:
   hi: यह उपयोगकर्ता नाम पहले से उपयोग में है। कृपया कोई अन्य नाम चुनें।
   th: ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว กรุณาเลือกชื่ออื่น
   cs: Toto uživatelské jméno je již obsazeno. Prosím zvolte jiné.
-  sv: ""
+  sv: "Det här användarnamnet är redan taget. Välj ett annat."
   he: שם המשתמש הזה כבר תפוס. אנא בחר שם אחר.
   verified_by_human: []
 enter_username:
@@ -696,7 +700,7 @@ enter_username:
   hi: उपयोगकर्ता नाम दर्ज करें
   th: ใส่ชื่อผู้ใช้
   cs: Zadejte uživatelské jméno
-  sv: ""
+  sv: "Ange användarnamn"
   he: הזן שם משתמש
   verified_by_human: []
 repeat_password:
@@ -720,7 +724,7 @@ repeat_password:
   hi: पासवर्ड दोहराएं
   th: ยืนยันรหัสผ่าน
   cs: Zopakujte heslo
-  sv: ""
+  sv: "Upprepa lösenord"
   he: חזור על הסיסמה
   verified_by_human: []
 create_password:
@@ -744,7 +748,7 @@ create_password:
   hi: अपना नया पासवर्ड बनाएं
   th: สร้างรหัสผ่านใหม่ของคุณ
   cs: Vytvořte si nové heslo
-  sv: ""
+  sv: "Skapa ditt nya lösenord"
   he: צור את הסיסמה החדשה שלך
   verified_by_human: []
 confirm_password:
@@ -768,7 +772,7 @@ confirm_password:
   hi: पासवर्ड की पुष्टि करें
   th: ยืนยันรหัสผ่าน
   cs: Potvrďte heslo
-  sv: ""
+  sv: "Bekräfta lösenord"
   he: אשר סיסמה
   verified_by_human: []
 passwords_do_not_match:
@@ -792,7 +796,7 @@ passwords_do_not_match:
   hi: पासवर्ड मेल नहीं खाते
   th: รหัสผ่านไม่ตรงกัน
   cs: Hesla se neshodují
-  sv: ""
+  sv: "Lösenorden matchar inte"
   he: הסיסמאות אינן תואמות
   verified_by_human: []
 password_too_short:
@@ -816,7 +820,7 @@ password_too_short:
   hi: न्यूनतम 10 वर्ण
   th: อย่างน้อย 10 ตัวอักษร
   cs: Minimálně 10 znaků
-  sv: ""
+  sv: "Minst 10 tecken"
   he: מינימום 10 תווים
   verified_by_human: []
 password_too_common:
@@ -840,7 +844,7 @@ password_too_common:
   hi: यह पासवर्ड बहुत सामान्य है। कृपया अधिक मजबूत पासवर्ड चुनें।
   th: รหัสผ่านนี้พบบ่อยเกินไป โปรดเลือกรหัสผ่านที่ปลอดภัยกว่า
   cs: Toto heslo je příliš běžné. Vyberte prosím silnější.
-  sv: ""
+  sv: "Det här lösenordet är för vanligt. Välj ett starkare."
   he: הסיסמה הזו נפוצה מדי. בחר/י סיסמה חזקה יותר.
   verified_by_human: []
 password_needs_lowercase:
@@ -864,7 +868,7 @@ password_needs_lowercase:
   hi: कम से कम एक लोअरकेस अक्षर
   th: อย่างน้อยหนึ่งตัวอักษรพิมพ์เล็ก
   cs: Alespoň jedno malé písmeno
-  sv: ""
+  sv: "Minst en gemen bokstav"
   he: לפחות אות קטנה אחת
   verified_by_human: []
 password_needs_uppercase:
@@ -888,7 +892,7 @@ password_needs_uppercase:
   hi: कम से कम एक अपरकेस अक्षर
   th: อย่างน้อยหนึ่งตัวอักษรพิมพ์ใหญ่
   cs: Alespoň jedno velké písmeno
-  sv: ""
+  sv: "Minst en versal bokstav"
   he: לפחות אות גדולה אחת
   verified_by_human: []
 password_too_long:
@@ -912,7 +916,7 @@ password_too_long:
   hi: 60 वर्ण से कम
   th: น้อยกว่า 60 ตัวอักษร
   cs: Méně než 60 znaků
-  sv: ""
+  sv: "Färre än 60 tecken"
   he: פחות מ-60 תווים
   verified_by_human: []
 password_needs_letter:
@@ -936,7 +940,7 @@ password_needs_letter:
   hi: कम से कम एक अक्षर
   th: อย่างน้อยหนึ่งตัวอักษร
   cs: Alespoň jedno písmeno
-  sv: ""
+  sv: "Minst en bokstav"
   he: לפחות אות אחת
   verified_by_human: []
 password_needs_number:
@@ -960,7 +964,7 @@ password_needs_number:
   hi: कम से कम एक संख्या
   th: อย่างน้อยหนึ่งตัวเลข
   cs: Alespoň jedna číslice
-  sv: ""
+  sv: "Minst en siffra"
   he: לפחות ספרה אחת
   verified_by_human: []
 password_needs_special:
@@ -984,53 +988,224 @@ password_needs_special:
   hi: कम से कम एक विशेष वर्ण
   th: อย่างน้อยหนึ่งอักขระพิเศษ
   cs: Alespoň jeden speciální znak
-  sv: ""
+  sv: "Minst ett specialtecken"
   he: לפחות תו מיוחד אחד
   verified_by_human: []
 skip_for_now:
   context: Small link text on 2FA setup to defer 2FA until later
   en: Skip for now
   de: Vorerst überspringen
+  zh: 暂时跳过
+  es: Omitir por ahora
+  fr: Ignorer pour l'instant
+  pt: Pular por agora
+  ru: Пропустить пока
+  ja: 後で設定する
+  ko: 지금은 건너뛰기
+  it: Salta per ora
+  tr: Şimdilik atla
+  vi: Bỏ qua lúc này
+  id: Lewati untuk sekarang
+  pl: Pomiń na razie
+  nl: Nu overslaan
+  ar: تخطى الآن
+  hi: अभी छोड़ें
+  th: ข้ามไปก่อน
+  cs: Přeskočit prozatím
+  sv: Hoppa över nu
+  he: דלג לעת עתה
   verified_by_human: []
 skip_2fa_warning_title:
   context: Title on warning screen shown before user skips 2FA setup
   en: Be aware before skipping 2FA
   de: Hinweis vor dem Überspringen von 2FA
+  zh: 跳过两步验证前请注意
+  es: Ten en cuenta antes de omitir la 2FA
+  fr: Attention avant de passer l'authentification à deux facteurs
+  pt: Atenção antes de pular a autenticação de dois fatores
+  ru: Обратите внимание перед пропуском двухфакторной аутентификации
+  ja: 二段階認証をスキップする前にご注意ください
+  ko: 2FA를 건너뛰기 전에 주의하세요
+  it: Fai attenzione prima di saltare il 2FA
+  tr: 2FA'yı atlamadan önce dikkat edin
+  vi: Lưu ý trước khi bỏ qua xác thực 2 yếu tố
+  id: Perhatikan sebelum melewati 2FA
+  pl: Zwróć uwagę przed pominięciem 2FA
+  nl: Let op voordat u 2FA overslaat
+  ar: انتبه قبل تخطي المصادقة الثنائية
+  hi: 2FA छोड़ने से पहले सावधान रहें
+  th: โปรดระวังก่อนข้าม 2FA
+  cs: Pozor před přeskočením dvoufaktorového ověření
+  sv: Var uppmärksam innan du hoppar över 2FA
+  he: שים לב לפני דילוג על 2FA
   verified_by_human: []
 skip_2fa_warning_intro:
   context: Intro warning text on 2FA skip consent screen
   en: "Be aware: your account is not properly secured as long as password login is active without a 2FA app. If you continue, follow these rules:"
   de: "Achtung: Dein Konto ist nicht ausreichend geschützt, solange Passwort-Login ohne 2FA-App aktiv ist. Wenn du fortfährst, befolge bitte diese Regeln:"
+  zh: "注意：只要密码登录在没有2FA应用的情况下处于活跃状态，您的账户就没有得到适当保护。如果继续，请遵循以下规则："
+  es: "Atención: tu cuenta no está correctamente asegurada mientras el inicio de sesión con contraseña esté activo sin una aplicación de 2FA. Si continúas, sigue estas reglas:"
+  fr: "Attention : votre compte n'est pas correctement sécurisé tant que la connexion par mot de passe est active sans application 2FA. Si vous continuez, suivez ces règles :"
+  pt: "Atenção: sua conta não está devidamente protegida enquanto o login por senha estiver ativo sem um aplicativo de 2FA. Se continuar, siga estas regras:"
+  ru: "Внимание: ваша учётная запись не защищена должным образом, пока вход по паролю активен без приложения двухфакторной аутентификации. Если продолжите, следуйте этим правилам:"
+  ja: "注意：パスワードログインが2FAアプリなしで有効になっている場合、アカウントは適切に保護されていません。続行する場合は、次のルールに従ってください："
+  ko: "주의: 2FA 앱 없이 비밀번호 로그인이 활성화된 경우 계정이 제대로 보호되지 않습니다. 계속하려면 다음 규칙을 따르세요:"
+  it: "Attenzione: il tuo account non è adeguatamente protetto finché il login con password è attivo senza un'app 2FA. Se continui, segui queste regole:"
+  tr: "Dikkat: 2FA uygulaması olmadan şifre girişi aktif olduğu sürece hesabınız düzgün güvence altına alınmamıştır. Devam ederseniz şu kurallara uyun:"
+  vi: "Lưu ý: tài khoản của bạn không được bảo mật đúng cách khi đăng nhập bằng mật khẩu còn hoạt động mà không có ứng dụng 2FA. Nếu tiếp tục, hãy tuân theo các quy tắc sau:"
+  id: "Perhatian: akun Anda tidak diamankan dengan benar selama login kata sandi aktif tanpa aplikasi 2FA. Jika melanjutkan, ikuti aturan berikut:"
+  pl: "Uwaga: Twoje konto nie jest odpowiednio zabezpieczone, dopóki logowanie hasłem jest aktywne bez aplikacji 2FA. Jeśli kontynuujesz, postępuj zgodnie z tymi zasadami:"
+  nl: "Let op: uw account is niet goed beveiligd zolang wachtwoordlogin actief is zonder een 2FA-app. Als u doorgaat, volg dan deze regels:"
+  ar: "انتبه: حسابك غير محمي بشكل صحيح طالما أن تسجيل الدخول بكلمة المرور نشط بدون تطبيق 2FA. إذا واصلت، اتبع هذه القواعد:"
+  hi: "सावधान: जब तक 2FA ऐप के बिना पासवर्ड लॉगिन सक्रिय है, तब तक आपका खाता ठीक से सुरक्षित नहीं है। यदि आप जारी रखते हैं, तो इन नियमों का पालन करें:"
+  th: "โปรดระวัง: บัญชีของคุณไม่ได้รับการรักษาความปลอดภัยอย่างเหมาะสมตราบใดที่การเข้าสู่ระบบด้วยรหัสผ่านทำงานอยู่โดยไม่มีแอป 2FA หากดำเนินการต่อ ให้ปฏิบัติตามกฎเหล่านี้:"
+  cs: "Pozor: váš účet není správně zabezpečen, dokud je přihlášení heslem aktivní bez aplikace 2FA. Pokud budete pokračovat, dodržujte tato pravidla:"
+  sv: "Obs: ditt konto är inte ordentligt säkrat så länge inloggning med lösenord är aktivt utan en 2FA-app. Om du fortsätter, följ dessa regler:"
+  he: "שים לב: חשבונך אינו מאובטח כראוי כל עוד כניסת הסיסמה פעילה ללא אפליקציית 2FA. אם תמשיך, פעל לפי הכללים הבאים:"
   verified_by_human: []
 skip_2fa_warning_rule_1:
   context: Rule 1 for skipping 2FA warning screen
   en: Never reuse your password anywhere else
   de: Verwende dein Passwort nirgendwo sonst erneut
+  zh: 不要在其他任何地方重复使用您的密码
+  es: Nunca reutilices tu contraseña en ningún otro lugar
+  fr: Ne réutilisez jamais votre mot de passe ailleurs
+  pt: Nunca reutilize sua senha em nenhum outro lugar
+  ru: Никогда не используйте пароль повторно где-либо ещё
+  ja: パスワードを他の場所で再使用しないでください
+  ko: 다른 어느 곳에서도 비밀번호를 재사용하지 마세요
+  it: Non riutilizzare mai la tua password altrove
+  tr: Şifrenizi başka hiçbir yerde yeniden kullanmayın
+  vi: Không bao giờ tái sử dụng mật khẩu ở bất kỳ nơi nào khác
+  id: Jangan pernah menggunakan ulang kata sandi Anda di tempat lain
+  pl: Nigdy nie używaj ponownie hasła w żadnym innym miejscu
+  nl: Hergebruik uw wachtwoord nooit ergens anders
+  ar: لا تُعيد استخدام كلمة مرورك في أي مكان آخر
+  hi: अपना पासवर्ड कहीं और दोबारा इस्तेमाल न करें
+  th: อย่าใช้รหัสผ่านของคุณซ้ำที่ไหนอีก
+  cs: Nikdy znovu nepoužívejte své heslo nikde jinde
+  sv: Återanvänd aldrig ditt lösenord någon annanstans
+  he: לעולם אל תשתמש שוב בסיסמה שלך בשום מקום אחר
   verified_by_human: []
 skip_2fa_warning_rule_2:
   context: Rule 2 for skipping 2FA warning screen
   en: "Remember or store your password securely (Recommended: Use a password manager)"
   de: "Merke dir dein Passwort oder speichere es sicher (Empfohlen: Nutze einen Passwortmanager)"
+  zh: "记住或安全存储您的密码（推荐：使用密码管理器）"
+  es: "Recuerda o almacena tu contraseña de forma segura (Recomendado: Usa un gestor de contraseñas)"
+  fr: "Mémorisez ou stockez votre mot de passe en toute sécurité (Recommandé : Utilisez un gestionnaire de mots de passe)"
+  pt: "Lembre ou armazene sua senha com segurança (Recomendado: Use um gerenciador de senhas)"
+  ru: "Запомните или надёжно храните пароль (Рекомендуется: используйте менеджер паролей)"
+  ja: "パスワードを記憶するか安全に保存してください（推奨：パスワードマネージャーを使用する）"
+  ko: "비밀번호를 기억하거나 안전하게 저장하세요 (권장: 비밀번호 관리자 사용)"
+  it: "Ricorda o archivia la tua password in modo sicuro (Consigliato: Usa un gestore di password)"
+  tr: "Şifrenizi hatırlayın veya güvenli şekilde saklayın (Önerilen: Şifre yöneticisi kullanın)"
+  vi: "Ghi nhớ hoặc lưu mật khẩu của bạn một cách an toàn (Khuyến nghị: Sử dụng trình quản lý mật khẩu)"
+  id: "Ingat atau simpan kata sandi Anda dengan aman (Disarankan: Gunakan pengelola kata sandi)"
+  pl: "Zapamiętaj lub bezpiecznie przechowuj swoje hasło (Zalecane: Użyj menedżera haseł)"
+  nl: "Onthoud of sla uw wachtwoord veilig op (Aanbevolen: Gebruik een wachtwoordmanager)"
+  ar: "تذكر أو خزّن كلمة مرورك بأمان (موصى به: استخدم مدير كلمات المرور)"
+  hi: "अपना पासवर्ड याद रखें या सुरक्षित रूप से संग्रहीत करें (अनुशंसित: पासवर्ड मैनेजर का उपयोग करें)"
+  th: "จำหรือเก็บรหัสผ่านของคุณอย่างปลอดภัย (แนะนำ: ใช้ตัวจัดการรหัสผ่าน)"
+  cs: "Zapamatujte si nebo bezpečně uložte své heslo (Doporučeno: Používejte správce hesel)"
+  sv: "Kom ihåg eller lagra ditt lösenord säkert (Rekommenderat: Använd en lösenordshanterare)"
+  he: "זכור או שמור את הסיסמה שלך בצורה מאובטחת (מומלץ: השתמש במנהל סיסמאות)"
   verified_by_human: []
 skip_2fa_warning_rule_3:
   context: Rule 3 for skipping 2FA warning screen
   en: Never share your password with anyone else (No real contributor/employee will ever ask for your password)
   de: Teile dein Passwort niemals mit anderen (Kein echter Mitwirkender/Mitarbeiter wird dich jemals nach deinem Passwort fragen)
+  zh: 永远不要与任何人分享您的密码（没有真正的贡献者/员工会要求您提供密码）
+  es: Nunca compartas tu contraseña con nadie (Ningún colaborador/empleado real te pedirá tu contraseña)
+  fr: Ne partagez jamais votre mot de passe avec qui que ce soit (Aucun vrai contributeur/employé ne vous demandera jamais votre mot de passe)
+  pt: Nunca compartilhe sua senha com ninguém (Nenhum colaborador/funcionário real jamais pedirá sua senha)
+  ru: Никогда не делитесь паролем с кем-либо (Ни один настоящий участник/сотрудник никогда не попросит ваш пароль)
+  ja: パスワードを絶対に他人と共有しないでください（本物の貢献者/従業員がパスワードを求めることは絶対にありません）
+  ko: 절대로 비밀번호를 다른 사람과 공유하지 마세요 (진짜 기여자/직원은 절대 비밀번호를 요청하지 않습니다)
+  it: Non condividere mai la tua password con nessuno (Nessun vero collaboratore/dipendente ti chiederà mai la tua password)
+  tr: Şifrenizi asla kimseyle paylaşmayın (Hiçbir gerçek katkıda bulunan/çalışan şifrenizi istemeyecektir)
+  vi: Không bao giờ chia sẻ mật khẩu với bất kỳ ai (Không có cộng tác viên/nhân viên thực sự nào sẽ hỏi mật khẩu của bạn)
+  id: Jangan pernah membagikan kata sandi Anda kepada siapapun (Tidak ada kontributor/karyawan nyata yang akan meminta kata sandi Anda)
+  pl: Nigdy nie udostępniaj swojego hasła nikomu (Żaden prawdziwy współpracownik/pracownik nigdy nie poprosi o twoje hasło)
+  nl: Deel uw wachtwoord nooit met iemand anders (Geen echte bijdrager/medewerker zal ooit om uw wachtwoord vragen)
+  ar: لا تشارك كلمة مرورك مع أي شخص آخر (لن يطلب منك أي مساهم/موظف حقيقي كلمة مرورك أبدًا)
+  hi: अपना पासवर्ड कभी भी किसी के साथ साझा न करें (कोई भी वास्तविक योगदानकर्ता/कर्मचारी कभी भी आपका पासवर्ड नहीं मांगेगा)
+  th: อย่าแชร์รหัสผ่านของคุณกับใครทั้งนั้น (ผู้ร่วมงาน/พนักงานที่แท้จริงจะไม่มีวันขอรหัสผ่านของคุณ)
+  cs: Nikdy nesdílejte své heslo s nikým (Žádný skutečný přispěvatel/zaměstnanec vás nikdy nepožádá o heslo)
+  sv: Dela aldrig ditt lösenord med någon annan (Ingen riktig bidragsgivare/anställd kommer någonsin att be om ditt lösenord)
+  he: לעולם אל תשתף את הסיסמה שלך עם אף אחד (אף תורם/עובד אמיתי לעולם לא יבקש את הסיסמה שלך)
   verified_by_human: []
 skip_2fa_warning_rule_4:
   context: Rule 4 for skipping 2FA warning screen
   en: Never enter your password on a domain that is not openmates.org
   de: Gib dein Passwort niemals auf einer Domain ein, die nicht openmates.org ist
+  zh: 永远不要在非 openmates.org 的域名上输入您的密码
+  es: Nunca ingreses tu contraseña en un dominio que no sea openmates.org
+  fr: Ne saisissez jamais votre mot de passe sur un domaine qui n'est pas openmates.org
+  pt: Nunca insira sua senha em um domínio que não seja openmates.org
+  ru: Никогда не вводите пароль на домене, который не является openmates.org
+  ja: openmates.org 以外のドメインでパスワードを入力しないでください
+  ko: openmates.org가 아닌 도메인에 비밀번호를 절대 입력하지 마세요
+  it: Non inserire mai la tua password su un dominio diverso da openmates.org
+  tr: Şifrenizi openmates.org dışındaki bir etki alanına asla girmeyin
+  vi: Không bao giờ nhập mật khẩu trên một tên miền không phải openmates.org
+  id: Jangan pernah memasukkan kata sandi di domain yang bukan openmates.org
+  pl: Nigdy nie wpisuj hasła na domenie innej niż openmates.org
+  nl: Voer uw wachtwoord nooit in op een domein dat niet openmates.org is
+  ar: لا تُدخل كلمة مرورك أبدًا على نطاق غير openmates.org
+  hi: कभी भी openmates.org के अलावा किसी अन्य डोमेन पर अपना पासवर्ड दर्ज न करें
+  th: อย่าป้อนรหัสผ่านของคุณบนโดเมนที่ไม่ใช่ openmates.org
+  cs: Nikdy nezadávejte své heslo na doméně, která není openmates.org
+  sv: Ange aldrig ditt lösenord på en domän som inte är openmates.org
+  he: לעולם אל תזין את הסיסמה שלך בדומיין שאינו openmates.org
   verified_by_human: []
 skip_2fa_warning_rule_5:
   context: Rule 5 for skipping 2FA warning screen
   en: Complete setup of a 2FA OTP app or passkey in Settings / Account / Security as soon as possible
   de: Richte so schnell wie möglich eine 2FA-OTP-App oder einen Passkey unter Einstellungen / Konto / Sicherheit ein
+  zh: 尽快在设置 / 账户 / 安全中完成2FA OTP应用或通行密钥的设置
+  es: Completa la configuración de una aplicación OTP de 2FA o clave de acceso en Ajustes / Cuenta / Seguridad lo antes posible
+  fr: Terminez la configuration d'une application OTP 2FA ou d'une clé de sécurité dans Paramètres / Compte / Sécurité dès que possible
+  pt: Complete a configuração de um aplicativo OTP 2FA ou chave de acesso em Configurações / Conta / Segurança o mais rápido possível
+  ru: Завершите настройку приложения 2FA OTP или ключа доступа в Настройках / Аккаунт / Безопасность как можно скорее
+  ja: できるだけ早く設定 / アカウント / セキュリティで2FA OTPアプリまたはパスキーの設定を完了してください
+  ko: 가능한 빨리 설정 / 계정 / 보안에서 2FA OTP 앱 또는 패스키 설정을 완료하세요
+  it: Completa la configurazione di un'app OTP 2FA o di una chiave di accesso in Impostazioni / Account / Sicurezza il prima possibile
+  tr: Mümkün olan en kısa sürede Ayarlar / Hesap / Güvenlik bölümünde bir 2FA OTP uygulaması veya geçiş anahtarı kurulumunu tamamlayın
+  vi: Hoàn thành thiết lập ứng dụng OTP 2FA hoặc khóa truy cập trong Cài đặt / Tài khoản / Bảo mật càng sớm càng tốt
+  id: Selesaikan pengaturan aplikasi OTP 2FA atau kunci sandi di Pengaturan / Akun / Keamanan sesegera mungkin
+  pl: Zakończ konfigurację aplikacji OTP 2FA lub klucza dostępu w Ustawienia / Konto / Bezpieczeństwo jak najszybciej
+  nl: Voltooi de instelling van een 2FA OTP-app of toegangssleutel in Instellingen / Account / Beveiliging zo snel mogelijk
+  ar: أكمل إعداد تطبيق OTP للمصادقة الثنائية أو مفتاح المرور في الإعدادات / الحساب / الأمان في أقرب وقت ممكن
+  hi: जल्द से जल्द सेटिंग्स / खाता / सुरक्षा में 2FA OTP ऐप या पासकी का सेटअप पूरा करें
+  th: ทำการตั้งค่าแอป OTP 2FA หรือพาสคีย์ในการตั้งค่า / บัญชี / ความปลอดภัยให้เสร็จสิ้นโดยเร็วที่สุด
+  cs: Co nejdříve dokončete nastavení aplikace 2FA OTP nebo přístupového klíče v Nastavení / Účet / Zabezpečení
+  sv: Slutför konfigurationen av en 2FA OTP-app eller lösenordsnyckel i Inställningar / Konto / Säkerhet så snart som möjligt
+  he: השלם את הגדרת אפליקציית OTP לאימות דו-שלבי או מפתח גישה בהגדרות / חשבון / אבטחה בהקדם האפשרי
   verified_by_human: []
 skip_2fa_consent_toggle:
   context: Consent checkbox label to acknowledge security risks before skipping 2FA setup
   en: I understand these risks and want to continue without setting up 2FA now
   de: Ich verstehe diese Risiken und möchte ohne sofortige 2FA-Einrichtung fortfahren
+  zh: 我了解这些风险，并希望现在不设置2FA就继续
+  es: Entiendo estos riesgos y quiero continuar sin configurar la 2FA ahora
+  fr: Je comprends ces risques et je souhaite continuer sans configurer le 2FA maintenant
+  pt: Entendo esses riscos e quero continuar sem configurar o 2FA agora
+  ru: Я понимаю эти риски и хочу продолжить без настройки двухфакторной аутентификации сейчас
+  ja: これらのリスクを理解し、今すぐ2FAを設定せずに続行したいと思います
+  ko: 이러한 위험을 이해하고 지금 2FA를 설정하지 않고 계속 진행하고 싶습니다
+  it: Comprendo questi rischi e voglio continuare senza configurare il 2FA ora
+  tr: Bu riskleri anlıyorum ve şimdi 2FA kurmadan devam etmek istiyorum
+  vi: Tôi hiểu những rủi ro này và muốn tiếp tục mà không thiết lập 2FA ngay bây giờ
+  id: Saya memahami risiko ini dan ingin melanjutkan tanpa menyiapkan 2FA sekarang
+  pl: Rozumiem te zagrożenia i chcę kontynuować bez konfigurowania 2FA teraz
+  nl: Ik begrijp deze risico's en wil doorgaan zonder nu 2FA in te stellen
+  ar: أفهم هذه المخاطر وأريد المتابعة دون إعداد المصادقة الثنائية الآن
+  hi: मैं इन जोखिमों को समझता हूं और अभी 2FA सेट किए बिना आगे बढ़ना चाहता हूं
+  th: ฉันเข้าใจความเสี่ยงเหล่านี้และต้องการดำเนินการต่อโดยไม่ตั้งค่า 2FA ในตอนนี้
+  cs: Rozumím těmto rizikům a chci pokračovat bez nastavení dvoufaktorového ověření nyní
+  sv: Jag förstår dessa risker och vill fortsätta utan att konfigurera 2FA nu
+  he: אני מבין את הסיכונים הללו ורוצה להמשיך ללא הגדרת 2FA כעת
   verified_by_human: []
 agree_to:
   context: "in message: 'Agree to Terms of service' and 'Agree to Privacy policy'"
@@ -1053,7 +1228,7 @@ agree_to:
   hi: सहमत हैं
   th: ยอมรับ
   cs: Souhlasím s
-  sv: ""
+  sv: "Godkänner"
   he: אני מסכים ל-
   verified_by_human: []
 terms_of_service:
@@ -1077,7 +1252,7 @@ terms_of_service:
   hi: सेवा की शर्तें
   th: เงื่อนไขการให้บริการ
   cs: Podmínky služby
-  sv: ""
+  sv: "Användarvillkor"
   he: תנאי השימוש
   verified_by_human: []
 privacy_policy:
@@ -1101,7 +1276,7 @@ privacy_policy:
   hi: गोपनीयता नीति
   th: นโยบายความเป็นส่วนตัว
   cs: Zásady ochrany osobních údajů
-  sv: ""
+  sv: "Integritetspolicy"
   he: מדיניות הפרטיות
   verified_by_human: []
 subscribe_to_newsletter:
@@ -1149,7 +1324,7 @@ create_new_account:
   hi: नया खाता बनाएं
   th: สร้างบัญชีใหม่
   cs: Vytvořit nový účet
-  sv: ""
+  sv: "Skapa nytt konto"
   he: יצירת חשבון חדש
   verified_by_human: []
 email_address_already_in_use:
@@ -1173,7 +1348,7 @@ email_address_already_in_use:
   hi: ई-मेल पता पहले से उपयोग में है
   th: ที่อยู่อีเมลถูกใช้งานแล้ว
   cs: E-mailová adresa je již používána
-  sv: ""
+  sv: "E-postadressen används redan"
   he: כתובת האימייל כבר בשימוש
   verified_by_human: []
 you_received_a_one_time_code_via_email:
@@ -1197,7 +1372,7 @@ you_received_a_one_time_code_via_email:
   hi: आपने ई-मेल के माध्यम से एक वन-टाइम कोड प्राप्त किया है
   th: คุณได้รับรหัสครั้งเดียวทางอีเมล
   cs: Obdrželi jste jednorázový kód e-mailem
-  sv: ""
+  sv: "Du fick en engångskod via e-post"
   he: קיבלת קוד חד-פעמי באימייל
   verified_by_human: []
 open_mail_app:
@@ -1221,7 +1396,7 @@ open_mail_app:
   hi: मेल ऐप खोलें
   th: เปิดแอปอีเมล
   cs: Otevřít e-mailovou aplikaci
-  sv: ""
+  sv: "Öppna e-postapp"
   he: פתיחת אפליקציית המייל
   verified_by_human: []
 enter_one_time_code:
@@ -1245,7 +1420,7 @@ enter_one_time_code:
   hi: 6 अंकों का वन-टाइम कोड दर्ज करें
   th: ใส่รหัส 6 หลัก
   cs: Zadejte 6místný jednorázový kód
-  sv: ""
+  sv: "Ange 6-siffrig engångskod"
   he: הזן קוד חד-פעמי בן 6 ספרות
   verified_by_human: []
 havent_received_a_code:
@@ -1269,7 +1444,7 @@ havent_received_a_code:
   hi: कोड प्राप्त नहीं हुआ?
   th: ยังไม่ได้รับรหัส?
   cs: Neobdrželi jste kód?
-  sv: ""
+  sv: "Har du inte fått en kod?"
   he: "לא קיבלת קוד?"
   verified_by_human: []
 click_to_resend:
@@ -1293,7 +1468,7 @@ click_to_resend:
   hi: फिर से भेजने के लिए यहां क्लिक करें
   th: คลิกที่นี่เพื่อส่งอีกครั้ง
   cs: Klikněte sem pro opětovné odeslání
-  sv: ""
+  sv: "Klicka här för att skicka igen"
   he: לחץ כאן לשליחה חוזרת
   verified_by_human: []
 code_is_invalid:
@@ -1317,7 +1492,7 @@ code_is_invalid:
   hi: कोड अमान्य है
   th: รหัสไม่ถูกต้อง
   cs: Kód je neplatný
-  sv: ""
+  sv: "Koden är ogiltig"
   he: הקוד אינו תקין
   verified_by_human: []
 at_missing:
@@ -1341,7 +1516,7 @@ at_missing:
   hi: "@ गायब है"
   th: "@ ขาดหายไป"
   cs: "@ chybí"
-  sv: ""
+  sv: "@ saknas"
   he: חסר @
   verified_by_human: []
 domain_ending_missing:
@@ -1365,7 +1540,7 @@ domain_ending_missing:
   hi: डोमेन अंत गायब है
   th: ส่วนท้ายโดเมนขาดหายไป
   cs: Chybí koncovka domény
-  sv: ""
+  sv: "Domänändelse saknas"
   he: חסרה סיומת דומיין
   verified_by_human: []
 skip:
@@ -1389,7 +1564,7 @@ skip:
   hi: छोड़ें
   th: ข้าม
   cs: Přeskočit
-  sv: ""
+  sv: "Hoppa över"
   he: דילוג
   verified_by_human: []
 next:
@@ -1413,7 +1588,7 @@ next:
   hi: अगला
   th: ถัดไป
   cs: Další
-  sv: ""
+  sv: "Nästa"
   he: הבא
   verified_by_human: []
 upload_profile_image:
@@ -1437,7 +1612,7 @@ upload_profile_image:
   hi: प्रोफ़ाइल छवि अपलोड करें
   th: อัปโหลดรูปโปรไฟล์
   cs: Nahrát profilový obrázek
-  sv: ""
+  sv: "Ladda upp en profilbild"
   he: העלאת תמונת פרופיל
   verified_by_human: []
 image_too_large:
@@ -1461,7 +1636,7 @@ image_too_large:
   hi: अधिकतम 2MB
   th: สูงสุด 2MB
   cs: Max 2MB
-  sv: ""
+  sv: "Max 2MB"
   he: מקסימום 2MB
   verified_by_human: []
 image_wrong_filetype:
@@ -1485,7 +1660,7 @@ image_wrong_filetype:
   hi: केवल .jpg, .jpeg, .png
   th: เฉพาะ .jpg, .jpeg, .png
   cs: Pouze .jpg, .jpeg, .png
-  sv: ""
+  sv: "Endast .jpg, .jpeg, .png"
   he: רק .jpg, .jpeg, .png
   verified_by_human: []
 image_no_nudity_or_violence:
@@ -1509,7 +1684,7 @@ image_no_nudity_or_violence:
   hi: नग्नता या हिंसा की अनुमति नहीं है
   th: ไม่อนุญาตให้มีภาพเปลือยหรือความรุนแรง
   cs: Nahota nebo násilí není povoleno
-  sv: ""
+  sv: "Ingen nakenhet eller våld tillåtet"
   he: ללא עירום או אלימות
   verified_by_human: []
 profile_image:
@@ -1533,7 +1708,7 @@ profile_image:
   hi: प्रोफ़ाइल छवि
   th: รูปโปรไฟล์
   cs: Profilový obrázek
-  sv: ""
+  sv: "Profilbild"
   he: תמונת פרופיל
   verified_by_human: []
 cancel_signup:
@@ -1557,7 +1732,7 @@ cancel_signup:
   hi: साइनअप रद्द करें
   th: ยกเลิกการสมัครสมาชิก
   cs: Zrušit registraci
-  sv: ""
+  sv: "Avbryt registrering"
   he: ביטול ההרשמה
   verified_by_human: []
 secure_your_account:
@@ -1581,7 +1756,7 @@ secure_your_account:
   hi: अपने खाते को सुरक्षित करें
   th: ป้องกันบัญชีของคุณ
   cs: Zabezpečte svůj účet
-  sv: ""
+  sv: "Säkra ditt konto"
   he: אבטחת החשבון שלך
   verified_by_human: []
 click_on_an_option:
@@ -1605,7 +1780,7 @@ click_on_an_option:
   hi: एक विकल्प पर क्लिक करें
   th: คลิกที่ตัวเลือก
   cs: Klikněte na možnost
-  sv: ""
+  sv: "Klicka på ett alternativ"
   he: לחץ על אפשרות
   verified_by_human: []
 how_to_login:
@@ -1629,7 +1804,7 @@ how_to_login:
   hi: आप कैसे लॉगिन करना चाहते हैं?
   th: คุณต้องการเข้าสู่ระบบอย่างไร?
   cs: Jak se chcete přihlásit?
-  sv: ""
+  sv: "Hur vill du logga in?"
   he: "איך ברצונך להתחבר?"
   verified_by_human: []
 password:
@@ -1653,7 +1828,7 @@ password:
   hi: पासवर्ड
   th: รหัสผ่าน
   cs: Heslo
-  sv: ""
+  sv: "Lösenord"
   he: סיסמה
   verified_by_human: []
 passkey:
@@ -1677,7 +1852,7 @@ passkey:
   hi: पासकी
   th: คีย์ผ่าน
   cs: Přístupový klíč
-  sv: ""
+  sv: "Lösenordsnyckel"
   he: מפתח גישה
   verified_by_human: []
 passkey_descriptor:
@@ -1701,7 +1876,7 @@ passkey_descriptor:
   hi: "सबसे सुरक्षित, फ़िशिंग-प्रूफ, सबसे तेज़ और उपयोग में सबसे आसान।"
   th: "ปลอดภัยที่สุด ป้องกันฟิชชิ่ง เร็วที่สุด และใช้งานง่ายที่สุด"
   cs: "Nejbezpečnější, odolné proti phishingu, nejrychlejší a nejsnadnější na použití."
-  sv: ""
+  sv: "Säkrast, nätfiskeresistent, snabbast och enklast att använda."
   he: הכי מאובטח, עמיד בפני פישינג, הכי מהיר וקל לשימוש.
   verified_by_human: []
 passkey_instruction_title:
@@ -1725,7 +1900,7 @@ passkey_instruction_title:
   hi: "पासकी बनाएं"
   th: "สร้างคีย์ผ่าน"
   cs: "Vytvořit přístupový klíč"
-  sv: ""
+  sv: "Skapa en lösenordsnyckel"
   he: יצירת מפתח גישה
   verified_by_human: []
 passkey_instruction_text:
@@ -1749,7 +1924,7 @@ passkey_instruction_text:
   hi: "अपने डिवाइस बायोमेट्रिक्स या पासवर्ड मैनेजर का उपयोग करके पासकी बनाने के लिए नीचे दिए गए बटन पर क्लिक करें। यह आपको बिना पासवर्ड के साइन इन करने की अनुमति देगा।"
   th: "คลิกปุ่มด้านล่างเพื่อสร้างคีย์ผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่านของคุณ ซึ่งจะช่วยให้คุณเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน"
   cs: "Klikněte na tlačítko níže a vytvořte přístupový klíč pomocí biometrie vašeho zařízení nebo správce hesel. To vám umožní přihlásit se bez hesla."
-  sv: ""
+  sv: "Klicka på knappen nedan för att skapa en lösenordsnyckel med hjälp av enhetens biometri eller lösenordshanterare. Detta gör att du kan logga in utan lösenord."
   he: לחץ על הכפתור למטה כדי ליצור מפתח גישה באמצעות הביומטריה של המכשיר או מנהל הסיסמאות שלך. זה יאפשר לך להיכנס ללא סיסמה.
   verified_by_human: []
 create_passkey:
@@ -1773,7 +1948,7 @@ create_passkey:
   hi: "पासकी बनाएं"
   th: "สร้างคีย์ผ่าน"
   cs: "Vytvořit přístupový klíč"
-  sv: ""
+  sv: "Skapa lösenordsnyckel"
   he: יצירת מפתח גישה
   verified_by_human: []
 passkey_info:
@@ -1797,7 +1972,7 @@ passkey_info:
   hi: "आपकी पासकी आपके डिवाइस या पासवर्ड मैनेजर में सुरक्षित रूप से संग्रहीत की जाएगी।"
   th: "คีย์ผ่านของคุณจะถูกเก็บไว้อย่างปลอดภัยบนอุปกรณ์หรือในตัวจัดการรหัสผ่านของคุณ"
   cs: "Váš přístupový klíč bude bezpečně uložen na vašem zařízení nebo ve správci hesel."
-  sv: ""
+  sv: "Din lösenordsnyckel lagras säkert på din enhet eller i din lösenordshanterare."
   he: מפתח הגישה שלך יישמר בצורה מאובטחת במכשיר שלך או במנהל הסיסמאות שלך.
   verified_by_human: []
 passkey_prf_error_title:
@@ -1821,7 +1996,7 @@ passkey_prf_error_title:
   hi: "PRF समर्थित नहीं"
   th: "ไม่รองรับ PRF"
   cs: "PRF není podporováno"
-  sv: ""
+  sv: "PRF stöds inte"
   he: PRF אינו נתמך
   verified_by_human: []
 passkey_prf_error_message:
@@ -1845,7 +2020,7 @@ passkey_prf_error_message:
   hi: "आपका पासवर्ड मैनेजर PRF मानक का समर्थन नहीं करता है। किसी अन्य पासवर्ड मैनेजर को आज़माएं या इसके बजाय पासवर्ड को साइनअप विकल्प के रूप में उपयोग करें।"
   th: "ตัวจัดการรหัสผ่านของคุณไม่รองรับมาตรฐาน PRF ลองใช้ตัวจัดการรหัสผ่านอื่นหรือใช้รหัสผ่านเป็นตัวเลือกการสมัครแทน"
   cs: "Váš správce hesel nepodporuje standard PRF. Zkuste jiný správce hesel nebo místo toho použijte heslo jako možnost registrace."
-  sv: ""
+  sv: "Din lösenordshanterare stöder inte PRF-standarden. Prova en annan lösenordshanterare eller använd lösenord som registreringsalternativ istället."
   he: מנהל הסיסמאות שלך אינו תומך בתקן PRF. נסה מנהל סיסמאות אחר או השתמש בסיסמה כאפשרות הרשמה במקום זאת.
   verified_by_human: []
 password_descriptor:
@@ -1945,7 +2120,11 @@ password_descriptor:
     Pro lepší zabezpečení je vyžadováno dodatečné ověření prostřednictvím aplikace 2FA OTP.
 
     "
-  sv: ""
+  sv: "Mest välkänt.
+
+    Extra autentisering via 2FA OTP-app behövs för bättre säkerhet.
+
+    "
   he: |
     הכי מוכר.
     נדרש אימות נוסף באמצעות אפליקציית 2FA OTP לאבטחה טובה יותר.
@@ -1971,7 +2150,7 @@ security_key:
   hi: सुरक्षा कुंजी
   th: คีย์ความปลอดภัย
   cs: Bezpečnostní klíč
-  sv: ""
+  sv: "Säkerhetsnyckel"
   he: מפתח אבטחה
   verified_by_human: []
 security_key_descriptor:
@@ -2071,7 +2250,11 @@ security_key_descriptor:
     Prostřednictvím vyhrazeného hardwaru.
 
     "
-  sv: ""
+  sv: "Alternativ till lösenordsnyckel.
+
+    Via dedikerad hårdvara.
+
+    "
   he: |
     חלופה למפתח גישה.
     באמצעות חומרה ייעודית.
@@ -2097,7 +2280,7 @@ additional_options_follow_soon:
   hi: पासकी और सुरक्षा कुंजी जैसे अतिरिक्त विकल्प जल्द ही आएंगे।
   th: ตัวเลือกเพิ่มเติม เช่น คีย์การเข้าถึงและคีย์ความปลอดภัยจะตามมาเร็วๆ นี้
   cs: Další možnosti, jako jsou přístupové klíče a bezpečnostní klíče, budou brzy následovat.
-  sv: ""
+  sv: "Ytterligare alternativ som lösenordsnycklar och säkerhetsnycklar kommer snart."
   he: אפשרויות נוספות כמו מפתחות גישה ומפתחות אבטחה יתווספו בקרוב.
   verified_by_human: []
 advice:
@@ -2121,7 +2304,7 @@ advice:
   hi: सलाह
   th: คำแนะนำ
   cs: Rada
-  sv: ""
+  sv: "Råd"
   he: עצה
   verified_by_human: []
 use_your_password_manager:
@@ -2221,7 +2404,11 @@ use_your_password_manager:
     k vygenerování a uložení silného hesla.
 
     "
-  sv: ""
+  sv: "Använd din lösenordshanterare
+
+    för att generera och spara ett starkt lösenord.
+
+    "
   he: |
     השתמש במנהל הסיסמאות שלך
     כדי ליצור ולשמור סיסמה חזקה.
@@ -2247,7 +2434,7 @@ dont_have_password_manager_yet:
   hi: अभी तक पासवर्ड मैनेजर नहीं है?
   th: ยังไม่มีตัวจัดการรหัสผ่าน?
   cs: Ještě nemáte správce hesel?
-  sv: ""
+  sv: "Har du ingen lösenordshanterare ännu?"
   he: "עדיין אין לך מנהל סיסמאות?"
   verified_by_human: []
 click_here_to_show_password_managers:
@@ -5526,21 +5713,21 @@ vat_info:
   zh: "根据 §19 UStG（小企业规定）不收取增值税。"
   es: "No se cobra IVA según §19 UStG (regulación de pequeños negocios)."
   fr: "Aucune TVA facturée conformément à l'article 19 de la loi allemande sur la TVA (réglementation des petites entreprises)."
-  pt: ""
-  ru: ""
+  pt: "Nenhum IVA cobrado de acordo com o §19 UStG (regulamento de pequenas empresas)."
+  ru: "НДС не взимается согласно §19 UStG (регулирование малых предприятий)."
   ja: "§19 UStG（小規模事業者規定）に基づき、VATは課税されません。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "§19 UStG(소규모 사업자 규정)에 따라 부가세가 부과되지 않습니다."
+  it: "Nessuna IVA addebitata ai sensi del §19 UStG (regolamento per le piccole imprese)."
+  tr: "§19 UStG (küçük işletme düzenlemesi) uyarınca KDV alınmamaktadır."
+  vi: "Không thu VAT theo §19 UStG (quy định doanh nghiệp nhỏ)."
+  id: "Tidak ada PPN yang dikenakan sesuai §19 UStG (peraturan usaha kecil)."
+  pl: "Brak VAT zgodnie z §19 UStG (regulacja małych przedsiębiorstw)."
+  nl: "Geen btw in rekening gebracht op grond van §19 UStG (kleine ondernemersregeling)."
+  ar: "لا يُفرض ضريبة القيمة المضافة وفقًا للمادة §19 UStG (نظام الشركات الصغيرة)."
+  hi: "§19 UStG (लघु व्यवसाय विनियमन) के अनुसार कोई VAT नहीं लिया जाता।"
+  th: "ไม่มีการเรียกเก็บภาษีมูลค่าเพิ่มตาม §19 UStG (ข้อบังคับธุรกิจขนาดเล็ก)"
+  cs: "Žádné DPH není účtováno podle §19 UStG (nařízení pro malé podniky)."
+  sv: "Ingen moms debiteras enligt §19 UStG (småföretagsreglering)."
   he: 'לא נגבה מע"מ בהתאם ל-§19 UStG (תקנת עסקים קטנים).'
   verified_by_human: []
 card_number:
@@ -5550,21 +5737,21 @@ card_number:
   zh: 卡号
   es: Número de tarjeta
   fr: Numéro de carte
-  pt: ""
-  ru: ""
+  pt: Número do cartão
+  ru: Номер карты
   ja: カード番号
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 카드 번호
+  it: Numero di carta
+  tr: Kart numarası
+  vi: Số thẻ
+  id: Nomor kartu
+  pl: Numer karty
+  nl: Kaartnummer
+  ar: رقم البطاقة
+  hi: कार्ड नंबर
+  th: หมายเลขบัตร
+  cs: Číslo karty
+  sv: "Kortnummer"
   he: מספר כרטיס
   verified_by_human: []
 cvv:
@@ -5574,21 +5761,21 @@ cvv:
   zh: CVV
   es: CVV
   fr: CVV
-  pt: ""
-  ru: ""
+  pt: CVV
+  ru: CVV
   ja: CVV
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: CVV
+  it: CVV
+  tr: CVV
+  vi: CVV
+  id: CVV
+  pl: CVV
+  nl: CVV
+  ar: CVV
+  hi: CVV
+  th: CVV
+  cs: CVV
+  sv: "CVV"
   he: CVV
   verified_by_human: []
 mm_yy:
@@ -5598,21 +5785,21 @@ mm_yy:
   zh: 月/年
   es: MM/AA
   fr: MM/AA
-  pt: ""
-  ru: ""
+  pt: MM/AA
+  ru: ММ/ГГ
   ja: 月/年
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: MM/YY
+  it: MM/AA
+  tr: AA/YY
+  vi: MM/YY
+  id: MM/TT
+  pl: MM/RR
+  nl: MM/JJ
+  ar: MM/YY
+  hi: MM/YY
+  th: MM/YY
+  cs: MM/RR
+  sv: "MM/ÅÅ"
   he: MM/YY
   verified_by_human: []
 buy_for:
@@ -5622,21 +5809,21 @@ buy_for:
   zh: 以 {amount} {currency} 购买
   es: Comprar por {amount} {currency}
   fr: Acheter pour {amount} {currency}
-  pt: ""
-  ru: ""
+  pt: "Comprar por {amount} {currency}"
+  ru: "Купить за {amount} {currency}"
   ja: "{amount} {currency}で購入"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "{amount} {currency}에 구매"
+  it: "Acquista per {amount} {currency}"
+  tr: "{amount} {currency} için satın al"
+  vi: "Mua với {amount} {currency}"
+  id: "Beli seharga {amount} {currency}"
+  pl: "Kup za {amount} {currency}"
+  nl: "Koop voor {amount} {currency}"
+  ar: "اشترِ بـ {amount} {currency}"
+  hi: "{amount} {currency} में खरीदें"
+  th: "ซื้อสำหรับ {amount} {currency}"
+  cs: "Koupit za {amount} {currency}"
+  sv: "Köp för {amount} {currency}"
   he: "קנייה ב-{amount} {currency}"
   verified_by_human: []
 send_amount:
@@ -5670,21 +5857,21 @@ secured_and_powered_by:
   zh: 由 {provider} 安全支持
   es: Seguro y alimentado por {provider}
   fr: Sécurisé et propulsé par {provider}
-  pt: ""
-  ru: ""
+  pt: "Protegido e desenvolvido por {provider}"
+  ru: "Защищено и работает на {provider}"
   ja: "{provider}により安全に処理"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "{provider}에 의해 보안 처리됨"
+  it: "Protetto e gestito da {provider}"
+  tr: "{provider} tarafından güvence altında"
+  vi: "Được bảo mật và hỗ trợ bởi {provider}"
+  id: "Diamankan dan didukung oleh {provider}"
+  pl: "Zabezpieczone i obsługiwane przez {provider}"
+  nl: "Beveiligd en mogelijk gemaakt door {provider}"
+  ar: "مؤمَّن ومدعوم من {provider}"
+  hi: "{provider} द्वारा सुरक्षित और संचालित"
+  th: "ปลอดภัยและขับเคลื่อนโดย {provider}"
+  cs: "Zabezpečeno a provozováno {provider}"
+  sv: "Säkrad och drivs av {provider}"
   he: "מאובטח ומופעל על ידי {provider}"
   verified_by_human: []
 name_too_short:
@@ -5694,21 +5881,21 @@ name_too_short:
   zh: 至少3个字符
   es: Mínimo 3 caracteres
   fr: Minimum 3 caractères
-  pt: ""
-  ru: ""
+  pt: Mínimo de 3 caracteres
+  ru: Минимум 3 символа
   ja: 最低3文字必要
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 최소 3자
+  it: Minimo 3 caratteri
+  tr: En az 3 karakter
+  vi: Tối thiểu 3 ký tự
+  id: Minimal 3 karakter
+  pl: Minimum 3 znaki
+  nl: Minimaal 3 tekens
+  ar: الحد الأدنى 3 أحرف
+  hi: न्यूनतम 3 वर्ण
+  th: อย่างน้อย 3 ตัวอักษร
+  cs: Minimálně 3 znaky
+  sv: "Minst 3 tecken"
   he: מינימום 3 תווים
   verified_by_human: []
 invalid_card_number:
@@ -5958,21 +6145,21 @@ switch_to_eu_card:
   zh: 改用欧盟卡支付
   es: Pagar con una tarjeta de la UE
   fr: Payer avec une carte européenne
-  pt: ""
-  ru: ""
+  pt: Pagar com um cartão da UE
+  ru: Оплатить картой ЕС
   ja: EU圏のカードで支払う
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: EU 카드로 결제하기
+  it: Paga con una carta UE
+  tr: AB kartıyla öde
+  vi: Thanh toán bằng thẻ EU
+  id: Bayar dengan kartu EU
+  pl: Zapłać kartą UE
+  nl: Betaal met een EU-kaart
+  ar: الدفع ببطاقة أوروبية
+  hi: EU कार्ड से भुगतान करें
+  th: ชำระด้วยบัตร EU แทน
+  cs: Zaplatit kartou EU
+  sv: "Betala med ett EU-kort istället"
   he: תשלום בכרטיס אירופאי במקום זאת
   verified_by_human: []
 switch_to_non_eu_card:
@@ -5982,21 +6169,21 @@ switch_to_non_eu_card:
   zh: 使用非欧盟卡支付
   es: Pagar con una tarjeta no europea
   fr: Payer avec une carte non européenne
-  pt: ""
-  ru: ""
+  pt: Pagar com um cartão não europeu
+  ru: Оплатить картой не из ЕС
   ja: EU圏外のカードで支払う
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: EU 외 카드로 결제하기
+  it: Paga con una carta non UE
+  tr: AB dışı kartla öde
+  vi: Thanh toán bằng thẻ ngoài EU
+  id: Bayar dengan kartu non-EU
+  pl: Zapłać kartą spoza UE
+  nl: Betaal met een niet-EU kaart
+  ar: الدفع ببطاقة غير أوروبية
+  hi: गैर-EU कार्ड से भुगतान करें
+  th: ชำระด้วยบัตรที่ไม่ใช่ EU
+  cs: Zaplatit kartou mimo EU
+  sv: "Betala med ett icke EU-kort"
   he: תשלום בכרטיס לא-אירופאי
   verified_by_human: []
 you_will_receive_payment_confirmation_soon:
@@ -6006,21 +6193,21 @@ you_will_receive_payment_confirmation_soon:
   zh: 您将很快收到带有付款确认的电子邮件确认信息。
   es: Recibirás pronto una confirmación por correo electrónico con tu confirmación de pago.
   fr: Vous recevrez prochainement un e-mail de confirmation avec votre confirmation de paiement.
-  pt: ""
-  ru: ""
+  pt: "Você receberá em breve uma confirmação por e-mail com sua confirmação de pagamento."
+  ru: "Вы скоро получите письмо с подтверждением оплаты."
   ja: お支払い確認書を添付したメール確認が間もなく届きます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "결제 확인이 담긴 이메일 확인서가 곧 발송됩니다."
+  it: "Riceverai presto una conferma via e-mail con la tua conferma di pagamento."
+  tr: "Ödeme onayınızı içeren bir e-posta onayı yakında alacaksınız."
+  vi: "Bạn sẽ sớm nhận được xác nhận qua e-mail với xác nhận thanh toán của bạn."
+  id: "Anda akan segera menerima konfirmasi e-mail dengan konfirmasi pembayaran Anda."
+  pl: "Wkrótce otrzymasz e-mail z potwierdzeniem płatności."
+  nl: "U ontvangt binnenkort een e-mailbevestiging met uw betalingsbevestiging."
+  ar: "ستتلقى قريبًا تأكيدًا بالبريد الإلكتروني مع تأكيد دفعك."
+  hi: "आपको जल्द ही भुगतान की पुष्टि के साथ एक ई-मेल पुष्टि मिलेगी।"
+  th: "คุณจะได้รับการยืนยันทางอีเมลพร้อมการยืนยันการชำระเงินในเร็วๆ นี้"
+  cs: "Brzy obdržíte e-mailové potvrzení s potvrzením vaší platby."
+  sv: "Du kommer att få en e-postbekräftelse med din betalningsbekräftelse snart."
   he: אישור אימייל עם אישור התשלום שלך יישלח אליך בקרוב.
   verified_by_human: []
 enjoy_your_gift:

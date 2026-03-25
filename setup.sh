@@ -279,6 +279,43 @@ setup_network() {
     echo ""
 }
 
+# --- LLM Credential Check ---
+
+# Check if at least one LLM provider API key is configured in .env.
+# Returns 0 if a key is found, 1 otherwise.
+check_llm_credentials() {
+    local has_key=false
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "$key" ]] && continue
+        # Trim whitespace from key
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
+        # Check for any SECRET__*__API_KEY with a real value
+        if [[ "$key" == SECRET__*__API_KEY ]] && [ -n "$value" ] && [ "$value" != "IMPORTED_TO_VAULT" ]; then
+            has_key=true
+            break
+        fi
+    done < .env
+
+    if ! $has_key; then
+        echo ""
+        echo "=========================================="
+        print_error "No LLM provider API key found"
+        echo "=========================================="
+        echo ""
+        print_warning "At least one AI provider API key is required to start the server."
+        print_info "Edit your .env file and add at least one of these:"
+        echo "  SECRET__OPENAI__API_KEY=sk-..."
+        echo "  SECRET__ANTHROPIC__API_KEY=sk-ant-..."
+        echo "  SECRET__GOOGLE__API_KEY=..."
+        echo ""
+        return 1
+    fi
+    return 0
+}
+
 # Main execution
 main() {
     echo ""
@@ -286,47 +323,57 @@ main() {
     echo "  OpenMates Self-Hosted Setup"
     echo "=========================================="
     echo ""
-    
+
     # Step 1: Check Docker requirements
     check_docker_requirements
-    
+
     # Step 2: Setup environment file
     setup_env_file
-    
+
     # Step 3: Setup Docker network
-setup_network
-    
-    # Final instructions
-    echo "=========================================="
-    print_success "Setup complete!"
-    echo "=========================================="
-    echo ""
-    print_info "Your .env file has been created and configured."
-    echo ""
-    echo "=========================================="
-    print_error "⚠️  CRITICAL: Add API Keys Before Starting"
-    echo "=========================================="
-    echo ""
-    print_warning "BEFORE starting the server, you MUST:"
-    echo "  1. Edit the .env file"
-    echo "  2. Add the REQUIRED AI provider API keys (see .env file for details)"
-    echo "  3. Add RECOMMENDED API keys (for optional App skills)"
-    echo ""
-    print_error "The server will NOT start successfully without the required API keys!"
-    print_info "Check your .env file to see which API keys are available and required."
-    echo ""
-    print_info "After adding your API keys, start OpenMates with:"
-    echo ""
-    echo -e "  ${GREEN}docker compose --env-file .env -f backend/core/docker-compose.yml up -d${NC}"
-    echo ""
-    print_info "To also access web UIs (Directus, Grafana), use:"
-    echo ""
-    echo -e "  ${GREEN}docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d${NC}"
-    echo ""
-    print_info "After starting, check the logs for your invite code:"
-    echo ""
-    echo -e "  ${GREEN}docker compose --env-file .env -f backend/core/docker-compose.yml logs cms-setup${NC}"
-    echo ""
+    setup_network
+
+    # Step 4: Check LLM credentials and show appropriate next steps
+    if check_llm_credentials; then
+        echo "=========================================="
+        print_success "Setup complete!"
+        echo "=========================================="
+        echo ""
+        print_info "Your .env file has been created and LLM credentials detected."
+        echo ""
+        print_info "Start OpenMates with:"
+        echo ""
+        echo -e "  ${GREEN}openmates server start${NC}"
+        echo ""
+        echo -e "  or: ${GREEN}docker compose --env-file .env -f backend/core/docker-compose.yml up -d${NC}"
+        echo ""
+        print_info "To also access web UIs (Directus, Grafana), use:"
+        echo ""
+        echo -e "  ${GREEN}openmates server start --with-overrides${NC}"
+        echo ""
+        print_info "After starting, check the logs for your invite code:"
+        echo ""
+        echo -e "  ${GREEN}openmates server logs --container cms-setup --tail 50${NC}"
+        echo ""
+    else
+        echo "=========================================="
+        print_warning "Setup complete, but server cannot start yet."
+        echo "=========================================="
+        echo ""
+        print_info "Your .env file has been created and configured."
+        echo ""
+        print_warning "BEFORE starting the server, you MUST add at least one AI provider API key."
+        print_info "Edit the .env file and add your key(s), then start with:"
+        echo ""
+        echo -e "  ${GREEN}openmates server start${NC}"
+        echo ""
+        echo -e "  or: ${GREEN}docker compose --env-file .env -f backend/core/docker-compose.yml up -d${NC}"
+        echo ""
+        print_info "After starting, check the logs for your invite code:"
+        echo ""
+        echo -e "  ${GREEN}openmates server logs --container cms-setup --tail 50${NC}"
+        echo ""
+    fi
 }
 
 # Run main function

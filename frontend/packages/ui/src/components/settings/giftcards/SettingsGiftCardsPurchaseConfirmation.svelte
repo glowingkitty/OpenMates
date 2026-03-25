@@ -85,7 +85,7 @@ This gift card can only be used once.
             settingsPath: 'billing/gift-cards',
             direction: 'backward',
             icon: 'coins',
-            title: $text('settings.gift_cards')
+            title: $text('common.gift_cards')
         });
     }
 
@@ -147,7 +147,7 @@ This gift card can only be used once.
             <div class="copy-icon"></div>
         </button>
         <div class="credits-info">
-            {formatCredits(creditsValue)} {$text('settings.gift_cards.credits')}
+            {formatCredits(creditsValue)} {$text('common.credits')}
         </div>
     </div>
 
@@ -156,8 +156,8 @@ This gift card can only be used once.
         <button class="download-button" onclick={downloadGiftCardCode}>
             {$text('settings.gift_cards.download')}
         </button>
-        <button class="done-button" onclick={goBackToGiftCards} aria-label={$text('settings.gift_cards.done')}>
-            {$text('settings.gift_cards.done')}
+        <button class="done-button" onclick={goBackToGiftCards} aria-label={$text('common.done')}>
+            {$text('common.done')}
         </button>
     </div>
 {:else}

@@ -52,6 +52,7 @@
       currency?: string;
     };
     image_url?: string | null;
+    cover_url?: string | null;
   }
 
   /** Legacy result shape from .preview.ts files (no embed_id yet) */
@@ -71,6 +72,7 @@
     is_paid?: boolean;
     fee?: EventResult['fee'];
     image_url?: string | null;
+    cover_url?: string | null;
   }
 
   interface Props {
@@ -150,6 +152,7 @@
       is_paid:     r.is_paid,
       fee:         r.fee,
       image_url:   r.image_url,
+      cover_url:   r.cover_url,
     }));
   }
 
@@ -215,6 +218,7 @@
       is_paid:     content.is_paid     as boolean | undefined,
       fee,
       image_url:   content.image_url   as string | null | undefined,
+      cover_url:   content.cover_url   as string | null | undefined,
     };
   }
 

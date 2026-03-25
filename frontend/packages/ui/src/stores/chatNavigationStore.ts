@@ -27,8 +27,9 @@ import { chatListCache } from "../services/chatListCache";
 import {
   INTRO_CHATS,
   LEGAL_CHATS,
-  getAllCommunityDemoChats,
+  getUiVisibleCommunityDemoChats,
   communityDemoStore,
+  loadCommunityDemos,
   translateDemoChat,
 } from "../demo_chats";
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
@@ -65,6 +66,34 @@ let chatList: Chat[] = [];
 let currentChatId: string | null = null;
 
 /**
+ * True when Chats.svelte (the sidebar) has explicitly set the chat list via
+ * setChatNavigationList(). This distinguishes the authoritative sidebar list
+ * from the interim list built by updateNavFromCache() during cold boot.
+ *
+ * Without this flag, the communityDemoStore subscription in updateNavFromCache
+ * sees a non-empty chatList (populated by _applyNavigableList with intro/legal
+ * chats only) and incorrectly assumes Chats.svelte owns the list, causing it
+ * to bail out before community demo chats arrive — so nav arrows skip examples
+ * on first load.
+ */
+let chatListOwnedByChatsComponent = false;
+
+/**
+ * Replace the internal navigation list without marking it as owned by Chats.svelte.
+ *
+ * Used by updateNavFromCache() during cold boot while building a provisional list
+ * from in-memory/public/cache sources. This keeps the list independent from sidebar
+ * mount state and allows follow-up refinements (community demos + DB chats) to land.
+ */
+function setProvisionalChatNavigationList(
+  chats: Chat[],
+  activeChatId: string | null,
+): void {
+  chatList = chats;
+  currentChatId = activeChatId;
+}
+
+/**
  * Update the internal chat list and active chat ID used for navigation.
  * Called by Chats.svelte whenever the list or selection changes.
  */
@@ -74,6 +103,7 @@ export function setChatNavigationList(
 ): void {
   chatList = chats;
   currentChatId = activeChatId;
+  chatListOwnedByChatsComponent = true;
 }
 
 /**
@@ -88,6 +118,7 @@ export function setChatNavigationList(
 export function resetChatNavigationList(): void {
   chatList = [];
   currentChatId = null;
+  chatListOwnedByChatsComponent = false;
   chatNavigationStore.set({ hasPrev: false, hasNext: false });
 }
 
@@ -153,15 +184,47 @@ export async function navigateNext(): Promise<void> {
  * Called by ActiveChat.loadChat() on every chat switch.
  */
 export function updateNavFromCache(activeChatId: string): void {
-  // ── Case 1: Chats.svelte already owns the list ───────────────────────────
+  // ── Case 1: List already populated ───────────────────────────────────────
+  //
+  // If Chats.svelte owns the list (sidebar is/was open), it keeps the list
+  // up-to-date via its own reactive $effect, so we can safely reuse it here.
+  //
+  // If the list is only provisional (built during cold boot from intro/legal
+  // with possibly zero community demos), we must check whether community
+  // demos have since loaded. If the active chat is missing from the list OR
+  // new community demos are available, we fall through to Case 3 to rebuild
+  // rather than returning stale hasPrev=false / hasNext=false.
   if (chatList.length > 0) {
-    currentChatId = activeChatId;
+    if (chatListOwnedByChatsComponent) {
+      // Chats.svelte manages the list — just update position.
+      currentChatId = activeChatId;
+      const idx = chatList.findIndex((c) => c.chat_id === activeChatId);
+      chatNavigationStore.set({
+        hasPrev: idx > 0,
+        hasNext: idx >= 0 && idx < chatList.length - 1,
+      });
+      return;
+    }
+
+    // Provisional list — check if it needs rebuilding.
     const idx = chatList.findIndex((c) => c.chat_id === activeChatId);
-    chatNavigationStore.set({
-      hasPrev: idx > 0,
-      hasNext: idx >= 0 && idx < chatList.length - 1,
-    });
-    return;
+    const communityCountInList = chatList.filter(
+      (c) => c.group_key === "examples",
+    ).length;
+    const communityCountAvailable = getUiVisibleCommunityDemoChats().length;
+
+    if (idx >= 0 && communityCountInList >= communityCountAvailable) {
+      // Active chat found AND we haven't missed any community demos.
+      currentChatId = activeChatId;
+      chatNavigationStore.set({
+        hasPrev: idx > 0,
+        hasNext: idx >= 0 && idx < chatList.length - 1,
+      });
+      return;
+    }
+
+    // Active chat not found OR more community demos are now available.
+    // Fall through to Case 3 to rebuild the list from scratch.
   }
 
   // ── Case 2: Cache already populated by Chats.svelte ──────────────────────
@@ -195,10 +258,12 @@ export function updateNavFromCache(activeChatId: string): void {
     return chat;
   });
   // Community demos are already Chat objects with group_key='examples'
-  const communityChats: Chat[] = getAllCommunityDemoChats().map((chat) => ({
-    ...chat,
-    group_key: "examples" as const,
-  }));
+  const communityChats: Chat[] = getUiVisibleCommunityDemoChats().map(
+    (chat) => ({
+      ...chat,
+      group_key: "examples" as const,
+    }),
+  );
 
   // Apply public-only list immediately (synchronous) so arrows are visible right away.
   // This is especially important after logout on mobile (sidebar closed = Chats.svelte
@@ -208,30 +273,77 @@ export function updateNavFromCache(activeChatId: string): void {
     _applyNavigableList(publicOnlyChats, activeChatId);
   }
 
-  // ── Case 3b: Active chat is a community demo that wasn't loaded yet ──────
-  // Community demos are fetched from the server asynchronously, so
-  // getAllCommunityDemoChats() may return [] on a cold boot (the network
-  // request is still in flight). If activeChatId was not found in the
-  // list we just built, subscribe to communityDemoStore for one update
-  // so that the nav arrows appear once the demos arrive.
-  const immediateFoundIdx = publicOnlyChats.findIndex(
-    (c) => c.chat_id === activeChatId,
-  );
-  if (immediateFoundIdx === -1) {
-    const unsubscribeCommunity = communityDemoStore.subscribe(() => {
-      // Skip if Chats.svelte has since mounted and taken ownership
-      if (chatList.length > 0) {
-        unsubscribeCommunity();
+  // If community demos are still empty on cold boot, proactively trigger the
+  // shared loader so example chats are available to header prev/next navigation
+  // even when Chats.svelte (sidebar) has never mounted.
+  const shouldBootstrapCommunityDemos =
+    communityChats.length === 0 &&
+    !communityDemoStore.isLoading() &&
+    !communityDemoStore.isLoaded();
+  if (shouldBootstrapCommunityDemos) {
+    loadCommunityDemos().catch((error) => {
+      console.warn(
+        "[chatNavigationStore] Failed to bootstrap community demos for navigation:",
+        error,
+      );
+    });
+  }
+
+  // ── Case 3b: Community demos not loaded yet ───────────────────────────────
+  // Community demos are fetched asynchronously, so cold boot often starts with
+  // intro/legal only. Subscribe and keep rebuilding the navigation list while
+  // demos stream in so header navigation improves immediately and progressively,
+  // without waiting for Chats.svelte to mount.
+  //
+  // FIX: Svelte's subscribe() fires the callback synchronously on the first call,
+  // BEFORE the return value (unsubscribe function) is assigned. If `chatList`
+  // is already populated (e.g. by _applyNavigableList above), the callback would
+  // try to call `unsubscribeCommunity` while it's still in the Temporal Dead Zone,
+  // crashing with "Cannot access variable before initialization". We use a mutable
+  // holder so the callback can safely reference `unsub[0]` — on the synchronous
+  // first invocation it's still `undefined` (harmless no-op), and on subsequent
+  // calls the real unsubscribe function is available.
+  if (communityChats.length === 0) {
+    const unsub: [(() => void) | undefined] = [undefined];
+    let done = false;
+    unsub[0] = communityDemoStore.subscribe(() => {
+      if (done) return;
+      // Skip if Chats.svelte has since mounted and taken ownership of the list.
+      // We check the explicit flag rather than chatList.length > 0 because our
+      // own _applyNavigableList() also populates chatList (with intro/legal
+      // chats) — checking length alone would bail out on the synchronous first
+      // invocation before community demos have a chance to load.
+      if (chatListOwnedByChatsComponent) {
+        done = true;
+        unsub[0]?.();
         return;
       }
-      const updatedCommunityChats: Chat[] = getAllCommunityDemoChats().map(
-        (chat) => ({ ...chat, group_key: "examples" as const }),
-      );
-      if (updatedCommunityChats.length === 0) return; // still loading
-      const rebuilt = [...introChats, ...updatedCommunityChats, ...legalChats];
-      _applyNavigableList(rebuilt, activeChatId);
-      unsubscribeCommunity(); // one-shot: stop listening after first successful update
+      const updatedCommunityChats: Chat[] =
+        getUiVisibleCommunityDemoChats().map((chat) => ({
+          ...chat,
+          group_key: "examples" as const,
+        }));
+      if (updatedCommunityChats.length > 0) {
+        const rebuilt = [
+          ...introChats,
+          ...updatedCommunityChats,
+          ...legalChats,
+        ];
+        _applyNavigableList(rebuilt, activeChatId);
+      }
+
+      // Stop listening once the demo loader finished. Until then, keep the
+      // subscription active so each newly-loaded demo chat is reflected in nav.
+      if (communityDemoStore.isLoaded()) {
+        done = true;
+        unsub[0]?.();
+      }
     });
+    // If the synchronous first call already resolved (chatList was populated),
+    // unsubscribe immediately now that the function is available.
+    if (done) {
+      unsub[0]();
+    }
   }
 
   // ── Case 3c: Async DB fetch to pick up authenticated user chats ───────────
@@ -242,7 +354,7 @@ export function updateNavFromCache(activeChatId: string): void {
     .then(({ chatDB }) => chatDB.getAllChats())
     .then((dbChats) => {
       // Skip if Chats.svelte has since mounted and taken ownership
-      if (chatList.length > 0) return;
+      if (chatListOwnedByChatsComponent) return;
       // Skip if there are no user chats to add (avoids re-sorting unnecessarily)
       if (!dbChats || dbChats.length === 0) return;
 
@@ -250,7 +362,7 @@ export function updateNavFromCache(activeChatId: string): void {
       const allChats = [
         ...dbChats,
         ...introChats,
-        ...getAllCommunityDemoChats().map((chat) => ({
+        ...getUiVisibleCommunityDemoChats().map((chat) => ({
           ...chat,
           group_key: "examples" as const,
         })),
@@ -304,7 +416,10 @@ function _applyNavigableList(allChats: Chat[], activeChatId: string): void {
     );
   });
 
-  setChatNavigationList(navigable, activeChatId);
+  // Keep this list provisional unless Chats.svelte explicitly overwrites it via
+  // setChatNavigationList(). This ensures cold-boot updates (community demos,
+  // IndexedDB chats) keep flowing even when the sidebar never mounts.
+  setProvisionalChatNavigationList(navigable, activeChatId);
   const idx = navigable.findIndex((c) => c.chat_id === activeChatId);
   chatNavigationStore.set({
     hasPrev: idx > 0,

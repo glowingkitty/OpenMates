@@ -347,7 +347,7 @@
     {#if embedCredits !== null && embedCredits > 0}
       <div class="embed-credits">
         <div class="clickable-icon icon_coins"></div>
-        {formatCredits(embedCredits)} {$text('chats.context_menu.credits')}
+        {formatCredits(embedCredits)} {$text('common.credits')}
       </div>
     {/if}
     
@@ -358,7 +358,7 @@
         onclick={(event) => handleButtonClick('view', event)}
       >
         <div class="clickable-icon icon_fullscreen"></div>
-        {$text('embeds.context_menu.view')}
+        {$text('common.view')}
       </button>
     {/if}
 
@@ -369,7 +369,7 @@
         onclick={(event) => handleButtonClick('share', event)}
       >
         <div class="clickable-icon icon_share"></div>
-        {$text('embeds.context_menu.share')}
+        {$text('common.share')}
       </button>
     {/if}
 
@@ -380,7 +380,7 @@
         onclick={(event) => handleButtonClick('copy', event)}
       >
         <div class="clickable-icon icon_copy"></div>
-        {$text('embeds.context_menu.copy')}
+        {$text('common.copy')}
       </button>
     {/if}
 
@@ -391,7 +391,7 @@
         onclick={(event) => handleButtonClick('download', event)}
       >
         <div class="clickable-icon icon_download"></div>
-        {$text('embeds.context_menu.download')}
+        {$text('common.download')}
       </button>
     {/if}
 
@@ -413,7 +413,7 @@
         onclick={(event) => handleButtonClick('details', event)}
       >
         <div class="clickable-icon icon_info"></div>
-        {$text('embeds.context_menu.details')}
+        {$text('common.details')}
       </button>
     {/if}
   </div>

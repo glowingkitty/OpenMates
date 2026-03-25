@@ -612,7 +612,7 @@ Invoices Settings - View and download past invoices
     <SettingsItem
         type="quickaction"
         icon="subsetting_icon reload"
-        title={$text('login.retry')}
+        title={$text('common.retry')}
         onClick={fetchInvoices}
     />
 {:else if invoices.length === 0}
@@ -643,7 +643,7 @@ Invoices Settings - View and download past invoices
                         <div class="invoice-details">
                             <span class="invoice-amount">{formatAmount(invoice.amount, invoice.currency)}</span>
                             <span class="invoice-credits">
-                                {formatCredits(invoice.credits_purchased)} {$text('settings.billing.credits')}
+                                {formatCredits(invoice.credits_purchased)} {$text('common.credits')}
                             </span>
                         </div>
                     </div>
@@ -699,7 +699,7 @@ Invoices Settings - View and download past invoices
                                     title={$text('settings.billing.invoices_download_invoice')}
                                 >
                                     <div class="download-icon"></div>
-                                    <span>{$text('settings.billing.invoices_download')}</span>
+                                    <span>{$text('common.download')}</span>
                                 </button>
                             {/if}
                             {#if isInvoiceEligibleForRefund(invoice)}

@@ -306,7 +306,6 @@
         background: none;
         font-size: 1rem;
         color: var(--color-grey-900, #111827);
-        outline: none;
     }
     
     .search-input::placeholder {

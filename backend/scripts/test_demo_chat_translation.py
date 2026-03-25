@@ -15,7 +15,6 @@ import sys
 import logging
 import json
 import argparse
-from typing import Optional
 
 # Set up logging to see what's happening
 logging.basicConfig(

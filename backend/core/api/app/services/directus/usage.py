@@ -279,7 +279,8 @@ class UsageMethods:
                         credits_charged=credits_charged,
                         chat_id=normalized_chat_id,
                         app_id=app_id,
-                        api_key_hash=api_key_hash
+                        api_key_hash=api_key_hash,
+                        device_hash=device_hash
                     )
                 except Exception as e_summary:
                     # Log error but don't fail usage entry creation
@@ -294,7 +295,8 @@ class UsageMethods:
                         credits_charged=credits_charged,
                         chat_id=normalized_chat_id,
                         app_id=app_id,
-                        api_key_hash=api_key_hash
+                        api_key_hash=api_key_hash,
+                        device_hash=device_hash
                     )
                 except Exception as e_daily:
                     # Log error but don't fail usage entry creation
@@ -316,7 +318,8 @@ class UsageMethods:
         credits_charged: int,
         chat_id: Optional[str],
         app_id: str,
-        api_key_hash: Optional[str]
+        api_key_hash: Optional[str],
+        device_hash: Optional[str] = None
     ):
         """
         Update monthly summaries incrementally when a usage entry is created.
@@ -329,6 +332,7 @@ class UsageMethods:
             chat_id: Optional chat ID (for chat summaries)
             app_id: App identifier (for app summaries)
             api_key_hash: Optional API key hash (for API key summaries)
+            device_hash: Optional device hash (for CLI usage tracking)
         """
         log_prefix = "DirectusService (usage summaries):"
         
@@ -375,6 +379,22 @@ class UsageMethods:
                     log_prefix=log_prefix,
                     summary_type="api_key"
                 )
+
+            # CLI device tracking: when neither API key nor chat is present
+            # but a device_hash exists (CLI session auth), create a summary
+            # entry using "cli:<device_hash>" as the api_key_hash identifier.
+            # This makes CLI usage visible in the API/devices usage tab.
+            if device_hash and not api_key_hash and not chat_id:
+                await self._update_summary(
+                    collection="usage_monthly_api_key_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="api_key_hash",
+                    identifier_value=f"cli:{device_hash}",
+                    year_month=year_month,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix,
+                    summary_type="api_key"
+                )
             
         except Exception as e:
             logger.error(f"{log_prefix} Error updating monthly summaries: {e}", exc_info=True)
@@ -405,6 +425,9 @@ class UsageMethods:
         """
         try:
             # Try to find existing summary
+            # TODO(audit-2026-03-19): No composite index on (user_id_hash, year_month) for usage_monthly_*_summaries tables.
+            # This query runs on every AI message (credit charge). Create migrate_usage_indexes.py with:
+            # CREATE INDEX CONCURRENTLY IF NOT EXISTS <table>_user_month_idx ON public.<table> (user_id_hash, year_month);
             params = {
                 "filter": {
                     "user_id_hash": {"_eq": user_id_hash},
@@ -481,7 +504,8 @@ class UsageMethods:
         credits_charged: int,
         chat_id: Optional[str],
         app_id: str,
-        api_key_hash: Optional[str]
+        api_key_hash: Optional[str],
+        device_hash: Optional[str] = None
     ):
         """
         Update daily summaries incrementally when a usage entry is created.
@@ -495,6 +519,7 @@ class UsageMethods:
             chat_id: Optional chat ID (for chat summaries)
             app_id: App identifier (for app summaries)
             api_key_hash: Optional API key hash (for API key summaries)
+            device_hash: Optional device hash (for CLI usage tracking)
         """
         log_prefix = "DirectusService (daily summaries):"
         
@@ -533,6 +558,19 @@ class UsageMethods:
                     user_id_hash=user_id_hash,
                     identifier_key="api_key_hash",
                     identifier_value=api_key_hash,
+                    date_str=date_str,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix
+                )
+
+            # Update device daily summary for CLI direct calls (no api_key, no chat)
+            # Uses device_hash as identifier so CLI usage appears in the API/devices tab
+            if device_hash and not api_key_hash and not chat_id:
+                await self._update_daily_summary(
+                    collection="usage_daily_api_key_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="api_key_hash",
+                    identifier_value=f"cli:{device_hash}",
                     date_str=date_str,
                     credits_charged=credits_charged,
                     log_prefix=log_prefix
@@ -1212,7 +1250,14 @@ class UsageMethods:
                 elif summary_type == "app":
                     filter_dict["app_id"] = {"_eq": identifier}
                 elif summary_type == "api_key":
-                    filter_dict["api_key_hash"] = {"_eq": identifier}
+                    # CLI entries use a synthetic "cli:<device_hash>" identifier in summary tables,
+                    # but in the raw usage table they have api_key_hash=None and device_hash=<hash>.
+                    # Extract the device_hash and filter on that column instead.
+                    if identifier.startswith("cli:"):
+                        device_hash = identifier[4:]  # strip "cli:" prefix
+                        filter_dict["device_hash"] = {"_eq": device_hash}
+                    else:
+                        filter_dict["api_key_hash"] = {"_eq": identifier}
                 
                 params = {
                     "filter": filter_dict,

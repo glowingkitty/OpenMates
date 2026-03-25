@@ -49,10 +49,12 @@ import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel
 
 # =============================================================================
 # Configuration
@@ -99,18 +101,9 @@ _update_in_progress = False
 # Result of the most recent completed update (None if none has run yet)
 _last_update_result: Optional[dict] = None
 
-# =============================================================================
-# Test run state (in-memory — resets on sidecar restart)
-# =============================================================================
-
-# Whether a test run is currently executing
-_test_run_in_progress = False
-
-# Result of the most recent completed test run (None if none has run yet)
-_last_test_run_result: Optional[dict] = None
-
-# Timeout for the full test run (vitest + pytest + playwright can take a while)
-_STEP_TIMEOUT_TESTS = 1800  # 30 minutes
+# Daily test runs are now handled by a system crontab (see `crontab -l`)
+# that invokes scripts/run-tests-daily.sh directly on the host.
+# The sidecar no longer orchestrates test execution.
 
 
 # =============================================================================
@@ -884,283 +877,174 @@ async def get_version() -> JSONResponse:
 
 
 
+
+
+
 # =============================================================================
-# Test run helpers
+# Admin-triggered claude issue investigation
 # =============================================================================
 
-def _run_test_script(force: bool = False) -> tuple[bool, str, int]:
+class _InvestigateRequest(BaseModel):
+    """Payload sent by the API container to trigger a Claude Code investigation."""
+    issue_id: str
+    issue_title: str
+    issue_description: str = ""
+    chat_or_embed_url: str = ""
+    console_logs: str = ""
+    action_history: str = ""
+    screenshot_presigned_url: str = ""
+    environment: str = "development"
+    domain: str = ""
+
+
+def _build_investigate_prompt(data: _InvestigateRequest) -> str:
     """
-    Execute scripts/run-tests-daily.sh on the **host** via ``docker run`` + ``chroot``.
+    Load the prompt template and substitute all placeholders.
 
-    This container has the Docker socket but does NOT have host binaries (node,
-    pnpm, npx, pytest) in its filesystem namespace. To run the test script with
-    full access to all host tools, we use the Docker socket to launch a
-    throwaway container that:
-      1. Mounts the host root filesystem at /host_root
-      2. Uses ``chroot /host_root`` to enter the host's filesystem namespace
-      3. Runs the test script with full access to host binaries
-
-    This is safe because the sidecar already has the Docker socket mounted,
-    which is equivalent to root access on the host. The throwaway container
-    is removed immediately after the run.
-
-    Args:
-        force: If True, pass --force to skip the 24h commit-activity gate.
-
-    Returns:
-        (success: bool, output: str, exit_code: int)
+    Template path: scripts/prompts/admin-issue-investigation.md (relative to GIT_WORK_DIR).
+    Falls back to an inline minimal prompt if the file is missing.
     """
-    work_dir = _GIT_WORK_DIR
-    script_rel = "scripts/run-tests-daily.sh"
+    template_path = Path(_GIT_WORK_DIR) / "scripts" / "prompts" / "admin-issue-investigation.md"
 
-    # Verify the script exists on the bind-mounted host filesystem
-    script_path = os.path.join(work_dir, script_rel)
-    if not os.path.isfile(script_path):
-        msg = f"run-tests-daily.sh not found at {script_path}"
-        logger.error("[AdminSidecar/tests] %s", msg)
-        return False, msg, 1
+    if template_path.is_file():
+        template = template_path.read_text()
+    else:
+        logger.warning(
+            "[AdminSidecar/investigate] Prompt template not found at %s — using inline fallback",
+            template_path,
+        )
+        template = (
+            "You are investigating a user-reported issue for the OpenMates project.\n\n"
+            "Environment: {{ENVIRONMENT}}\nDomain: {{DOMAIN}}\n"
+            "Issue ID: {{ISSUE_ID}}\nTitle: {{ISSUE_TITLE}}\n"
+            "Description:\n{{ISSUE_DESCRIPTION}}\n\n"
+            "Console logs:\n{{CONSOLE_LOGS}}\n\n"
+            "Action history:\n{{ACTION_HISTORY}}\n\n"
+            "Screenshot: {{SCREENSHOT_URL}}\n\n"
+            "Diagnose the root cause and propose a concrete fix."
+        )
 
-    # Build the inner command that runs inside chroot
-    inner_cmd = f"cd {work_dir} && ./{script_rel}"
-    if force:
-        inner_cmd += " --force"
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    # Pass env vars the test script needs (email recipient, internal API token,
-    # and the server environment so the script can apply production limits).
-    admin_email = os.environ.get("ADMIN_NOTIFY_EMAIL", "")
-    internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
-    server_environment = os.environ.get("SERVER_ENVIRONMENT", "development")
-
-    # Use `docker run` with host root mounted at /host_root, then chroot into it.
-    # --rm: auto-remove container after exit
-    # --pid=host: share host PID namespace (needed for test processes)
-    # --network=host: share host network (needed for API calls, browser tests)
-    # -v /:/host_root: mount host root filesystem
-    # debian:bookworm-slim: minimal image with chroot and bash
-    cmd = [
-        "docker", "run", "--rm",
-        "--pid=host",
-        "--network=host",
-        "-v", "/:/host_root",
-        "debian:bookworm-slim",
-        "chroot", "/host_root",
-        "/bin/bash", "-c",
-        (
-            # The chroot starts with a minimal PATH that lacks user-installed
-            # binaries (node, npx, pnpm, pip tools). Explicitly set PATH and
-            # HOME so the host's Node.js, pnpm, pytest, etc. are found.
-            #
-            # GIT_CONFIG_COUNT / GIT_CONFIG_KEY_0 / GIT_CONFIG_VALUE_0:
-            # When HOME=/home/superdev is set inside the chroot, git reads the
-            # host's /home/superdev/.gitconfig which has no [safe] directory
-            # entry, causing git to exit 128 ("detected dubious ownership").
-            # With set -euo pipefail in run-tests-daily.sh this aborts the
-            # whole script in ~0.5s. Using git's environment-variable config
-            # injection (available since git 2.32) bypasses the need to write
-            # to .gitconfig and works even though debian:bookworm-slim has no
-            # git binary (the variable is read by the HOST's git binary after
-            # chroot re-execs into the host filesystem).
-            f"export HOME=/home/superdev && "
-            f"export PATH=/home/superdev/.npm-global/bin:/home/superdev/.local/bin:"
-            f"/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin && "
-            f"export ADMIN_NOTIFY_EMAIL='{admin_email}' && "
-            f"export INTERNAL_API_SHARED_TOKEN='{internal_token}' && "
-            f"export SERVER_ENVIRONMENT='{server_environment}' && "
-            f"export GIT_CONFIG_COUNT=1 && "
-            f"export GIT_CONFIG_KEY_0=safe.directory && "
-            f"export GIT_CONFIG_VALUE_0='{work_dir}' && "
-            f"{inner_cmd}"
-        ),
-    ]
-
-    logger.info(
-        "[AdminSidecar/tests] Launching test run via docker+chroot: %s (force=%s)",
-        script_path, force,
+    return (
+        template
+        .replace("{{ISSUE_ID}}", data.issue_id)
+        .replace("{{ISSUE_TITLE}}", data.issue_title)
+        .replace("{{ISSUE_DESCRIPTION}}", data.issue_description or "(not provided)")
+        .replace("{{CHAT_OR_EMBED_URL}}", data.chat_or_embed_url or "(none)")
+        .replace("{{CONSOLE_LOGS}}", data.console_logs or "(not provided)")
+        .replace("{{ACTION_HISTORY}}", data.action_history or "(not provided)")
+        .replace("{{SCREENSHOT_URL}}", data.screenshot_presigned_url or "(no screenshot)")
+        .replace("{{ENVIRONMENT}}", data.environment)
+        .replace("{{DOMAIN}}", data.domain or "(unknown)")
+        .replace("{{DATE}}", date_str)
     )
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=_STEP_TIMEOUT_TESTS,
-        )
-        combined = (result.stdout or "") + (result.stderr or "")
-        # Truncate to keep memory reasonable
-        if len(combined) > 50000:
-            combined = combined[:25000] + "\n...truncated...\n" + combined[-25000:]
 
-        logger.info(
-            "[AdminSidecar/tests] Test run completed with exit code %d",
-            result.returncode,
-        )
-        return result.returncode == 0, combined, result.returncode
-
-    except subprocess.TimeoutExpired:
-        msg = f"Test run timed out after {_STEP_TIMEOUT_TESTS}s"
-        logger.error("[AdminSidecar/tests] %s", msg)
-        return False, msg, -1
-
-    except Exception as exc:
-        msg = f"Failed to launch test run: {exc}"
-        logger.error("[AdminSidecar/tests] %s", msg, exc_info=True)
-        return False, msg, -1
-
-
-async def _run_tests_background(started_at: str, force: bool) -> None:
+def _write_agent_trigger(data: _InvestigateRequest) -> str:
     """
-    Run the test suite in a background thread and store the result.
-    Releases the in-progress lock when done.
+    Write a JSON trigger file to the shared bind-mount so the host-side
+    agent-trigger-watcher.sh can pick it up and run claude on the host.
+
+    The sidecar runs inside Docker and cannot execute host binaries (claude).
+    Instead it writes a trigger file to ``<GIT_WORK_DIR>/scripts/.agent-triggers/``
+    which is on the bind-mounted project root, visible to the host.
+
+    Returns:
+        The path to the written trigger file.
     """
-    global _test_run_in_progress, _last_test_run_result
+    import json as _json
 
-    logger.info("[AdminSidecar/tests] Background test run starting (started_at=%s, force=%s)", started_at, force)
-    wall_start = time.monotonic()
+    prompt = _build_investigate_prompt(data)
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    session_title = f"issue-investigation {data.issue_id[:8]} {date_str}"
 
-    try:
-        success, output, exit_code = await asyncio.to_thread(_run_test_script, force)
-        elapsed_s = round(time.monotonic() - wall_start, 1)
+    trigger_dir = Path(_GIT_WORK_DIR) / "scripts" / ".agent-triggers"
+    trigger_dir.mkdir(parents=True, exist_ok=True)
 
-        status = "completed" if success else "tests_failed"
-        if exit_code == -1:
-            status = "error"
+    trigger_file = trigger_dir / f"{data.issue_id}.json"
+    payload = {
+        "issue_id": data.issue_id,
+        "prompt": prompt,
+        "session_title": session_title,
+        "environment": data.environment,
+        "domain": data.domain,
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
 
-        logger.info(
-            "[AdminSidecar/tests] Test run finished: status=%s, exit_code=%d, duration=%.1fs",
-            status, exit_code, elapsed_s,
-        )
+    trigger_file.write_text(_json.dumps(payload, indent=2))
+    logger.info(
+        "[AdminSidecar/investigate] Wrote trigger file: %s (issue_id=%s)",
+        trigger_file,
+        data.issue_id,
+    )
+    return str(trigger_file)
 
-        _last_test_run_result = {
-            "status": status,
-            "started_at": started_at,
-            "finished_at": datetime.datetime.utcnow().isoformat() + "Z",
-            "duration_s": elapsed_s,
-            "exit_code": exit_code,
-            "output_tail": output[-3000:] if output else "",
-        }
-    except Exception as exc:
-        elapsed_s = round(time.monotonic() - wall_start, 1)
-        logger.error(
-            "[AdminSidecar/tests] Unexpected error in background test run: %s",
-            exc, exc_info=True,
-        )
-        _last_test_run_result = {
-            "status": "error",
-            "started_at": started_at,
-            "finished_at": datetime.datetime.utcnow().isoformat() + "Z",
-            "duration_s": elapsed_s,
-            "exit_code": -1,
-            "error": str(exc),
-        }
-    finally:
-        _test_run_in_progress = False
-        logger.info("[AdminSidecar/tests] Lock released")
-
-
-# =============================================================================
-# Test run routes
-# =============================================================================
 
 @app.post(
-    "/admin/run-tests",
-    summary="Trigger a full test run on the host",
+    "/admin/claude-investigate",
+    summary="Trigger a Claude Code plan-mode investigation for a reported issue",
     description=(
-        "Runs scripts/run-tests-daily.sh on the host filesystem in the background. "
-        "Returns 202 immediately. Use GET /admin/run-tests/status to poll progress. "
-        "Requires X-Admin-Log-Key header."
+        "Called by the API container when an admin submits an issue report with "
+        "'Submit to agent' enabled. Writes a JSON trigger file to the shared "
+        "bind-mount at scripts/.agent-triggers/ for the host-side watcher to "
+        "pick up and run claude. "
+        "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
     ),
+    include_in_schema=False,
 )
-async def post_run_tests(
-    force: bool = Query(
-        default=False,
-        description="Pass --force to skip the 24h commit-activity gate",
-    ),
+async def post_claude_investigate(
+    body: _InvestigateRequest,
     x_admin_log_key: Optional[str] = Header(None),
 ) -> JSONResponse:
     """
-    Trigger a full test run: vitest + pytest + Playwright via run-tests-daily.sh.
+    Write a trigger file for host-side claude investigation.
 
-    The script runs on the host filesystem (bind-mounted at GIT_WORK_DIR).
-    Returns 202 immediately; test execution runs in the background.
-    Results are written to test-results/last-run.json on disk.
-
-    Returns 409 if a test run is already in progress.
+    Returns 202 immediately. The host-side agent-trigger-watcher.sh service
+    polls for new trigger files and runs claude on the host where the
+    binary is installed.
     """
-    global _test_run_in_progress
-
     _require_admin_key(x_admin_log_key)
 
-    if _test_run_in_progress:
-        logger.warning("[AdminSidecar/tests] Test run already in progress — rejecting request")
-        raise HTTPException(
-            status_code=409,
-            detail="A test run is already in progress. Use GET /admin/run-tests/status to monitor.",
-        )
-
-    _test_run_in_progress = True
-    started_at = datetime.datetime.utcnow().isoformat() + "Z"
     logger.info(
-        "[AdminSidecar/tests] Test run triggered at %s (force=%s)", started_at, force
+        "[AdminSidecar/investigate] Received investigation request "
+        "(issue_id=%s, env=%s, domain=%s)",
+        body.issue_id,
+        body.environment,
+        body.domain,
     )
 
-    asyncio.create_task(_run_tests_background(started_at, force))
+    try:
+        trigger_path = _write_agent_trigger(body)
+    except Exception as exc:
+        logger.error(
+            "[AdminSidecar/investigate] Failed to write trigger file "
+            "(issue_id=%s): %s",
+            body.issue_id,
+            exc,
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "issue_id": body.issue_id,
+                "message": f"Failed to write trigger file: {exc}",
+            },
+        )
 
     return JSONResponse(
         status_code=202,
         content={
             "status": "accepted",
-            "started_at": started_at,
-            "force": force,
+            "issue_id": body.issue_id,
+            "trigger_file": trigger_path,
             "message": (
-                "Test run started. Results will be written to test-results/last-run.json. "
-                "Poll GET /admin/run-tests/status for progress."
+                "Trigger file written. The host-side agent-trigger-watcher "
+                "will pick it up and start a Claude Code investigation."
             ),
         },
     )
-
-
-@app.get(
-    "/admin/run-tests/status",
-    summary="Poll the current or last test run status",
-    description=(
-        "Returns whether tests are currently running, or the result of the last "
-        "completed test run. Requires X-Admin-Log-Key header."
-    ),
-)
-async def get_test_run_status(
-    x_admin_log_key: Optional[str] = Header(None),
-) -> JSONResponse:
-    """
-    Poll test run progress.
-
-    Possible 'status' values:
-      - "in_progress"  — a test run is currently executing
-      - "completed"    — tests all passed
-      - "tests_failed" — some tests failed (results in test-results/)
-      - "error"        — script failed to execute or timed out
-      - "never_run"    — no test run has been triggered since sidecar restart
-    """
-    _require_admin_key(x_admin_log_key)
-
-    if _test_run_in_progress:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "in_progress",
-                "message": "Test run is currently executing.",
-            },
-        )
-
-    if _last_test_run_result is None:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "never_run",
-                "message": "No test run has been triggered since this sidecar started.",
-            },
-        )
-
-    return JSONResponse(status_code=200, content=_last_test_run_result)
 
 
 # =============================================================================

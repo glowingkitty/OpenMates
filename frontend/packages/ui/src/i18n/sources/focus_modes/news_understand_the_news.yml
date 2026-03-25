@@ -1,11 +1,49 @@
 news_understand_the_news:
   context: Focus mode display name for understand_the_news in news app
   en: Understand The News
+  de: Nachrichten verstehen
+  zh: 理解新闻
+  es: Entender las noticias
+  fr: Comprendre les actualités
+  pt: Entender as notícias
+  ru: Понять новости
+  ja: ニュースを理解する
+  ko: 뉴스 이해하기
+  it: Capire le notizie
+  tr: Haberleri anla
+  vi: Hiểu tin tức
+  id: Memahami berita
+  pl: Rozumiej wiadomości
+  nl: Nieuws begrijpen
+  ar: فهم الأخبار
+  hi: समाचार समझें
+  th: ทำความเข้าใจข่าว
+  cs: Porozumět zprávám
+  sv: Förstå nyheterna
   he: להבין את החדשות
   verified_by_human:
 description:
   context: Focus mode description for understand_the_news
   en: Focus mode for Understand The News
+  de: Fokusmodus für Nachrichten verstehen
+  zh: 理解新闻的专注模式
+  es: Modo de enfoque para entender las noticias
+  fr: Mode de concentration pour comprendre les actualités
+  pt: Modo de foco para entender as notícias
+  ru: Режим фокуса для понимания новостей
+  ja: ニュースを理解するためのフォーカスモード
+  ko: 뉴스 이해하기 집중 모드
+  it: Modalità focus per capire le notizie
+  tr: Haberleri anlamak için odak modu
+  vi: Chế độ tập trung để hiểu tin tức
+  id: Mode fokus untuk memahami berita
+  pl: Tryb skupienia dla rozumienia wiadomości
+  nl: Focusmodus voor nieuws begrijpen
+  ar: وضع التركيز لفهم الأخبار
+  hi: समाचार समझने का फ़ोकस मोड
+  th: โหมดโฟกัสสำหรับทำความเข้าใจข่าว
+  cs: Fókusový režim pro porozumění zprávám
+  sv: Fokusläge för att förstå nyheterna
   he: מצב מיקוד להבנת החדשות
   verified_by_human:
 process:
@@ -15,6 +53,101 @@ process:
     - asks the users which news they want to learn more about and discuss more
     - triggers the Web Read skill to get the full news article
     - discusses the article and topic with the user
+  de: |
+    - sucht nach den neuesten Nachrichten
+    - fragt die Nutzer, über welche Nachrichten sie mehr erfahren und diskutieren möchten
+    - löst die Web Read-Fähigkeit aus, um den vollständigen Nachrichtenartikel zu erhalten
+    - diskutiert den Artikel und das Thema mit dem Nutzer
+  zh: |
+    - 搜索最新新闻
+    - 询问用户想进一步了解和讨论哪些新闻
+    - 触发网络阅读技能获取完整新闻文章
+    - 与用户讨论文章和相关话题
+  es: |
+    - busca las últimas noticias
+    - pregunta a los usuarios sobre qué noticias quieren saber más y discutir
+    - activa la habilidad Web Read para obtener el artículo completo
+    - discute el artículo y el tema con el usuario
+  fr: |
+    - recherche les dernières actualités
+    - demande aux utilisateurs quelles nouvelles ils souhaitent approfondir et discuter
+    - déclenche la compétence Web Read pour obtenir l'article complet
+    - discute de l'article et du sujet avec l'utilisateur
+  pt: |
+    - pesquisa as últimas notícias
+    - pergunta aos usuários sobre quais notícias querem saber mais e discutir
+    - aciona a habilidade Web Read para obter o artigo completo
+    - discute o artigo e o tópico com o usuário
+  ru: |
+    - ищет последние новости
+    - спрашивает пользователей, о каких новостях они хотят узнать больше и обсудить
+    - запускает навык Web Read для получения полной статьи
+    - обсуждает статью и тему с пользователем
+  ja: |
+    - 最新ニュースを検索する
+    - ユーザーにどのニュースについてもっと知りたいか尋ねる
+    - Web Readスキルを起動して完全な記事を取得する
+    - 記事とトピックについてユーザーと話し合う
+  ko: |
+    - 최신 뉴스를 검색합니다
+    - 사용자에게 어떤 뉴스를 더 알고 싶은지 묻습니다
+    - Web Read 스킬을 실행하여 전체 기사를 가져옵니다
+    - 기사와 주제에 대해 사용자와 토론합니다
+  it: |
+    - cerca le ultime notizie
+    - chiede agli utenti quali notizie vogliono approfondire e discutere
+    - attiva la competenza Web Read per ottenere l'articolo completo
+    - discute l'articolo e il tema con l'utente
+  tr: |
+    - en son haberleri arar
+    - kullanıcılara hangi haberler hakkında daha fazla bilgi edinmek istediklerini sorar
+    - Web Read becerisini tetikleyerek tam haber makalesini alır
+    - kullanıcıyla makale ve konu hakkında tartışır
+  vi: |
+    - tìm kiếm tin tức mới nhất
+    - hỏi người dùng về tin tức họ muốn tìm hiểu thêm và thảo luận
+    - kích hoạt kỹ năng Web Read để lấy bài báo đầy đủ
+    - thảo luận về bài báo và chủ đề với người dùng
+  id: |
+    - mencari berita terbaru
+    - menanyakan kepada pengguna berita mana yang ingin mereka pelajari lebih lanjut
+    - memicu keterampilan Web Read untuk mendapatkan artikel lengkap
+    - mendiskusikan artikel dan topik dengan pengguna
+  pl: |
+    - wyszukuje najnowsze wiadomości
+    - pyta użytkowników, o których wiadomościach chcą dowiedzieć się więcej
+    - uruchamia umiejętność Web Read, aby uzyskać pełny artykuł
+    - omawia artykuł i temat z użytkownikiem
+  nl: |
+    - zoekt naar het laatste nieuws
+    - vraagt gebruikers over welk nieuws ze meer willen weten en bespreken
+    - activeert de Web Read-vaardigheid om het volledige nieuwsartikel te krijgen
+    - bespreekt het artikel en het onderwerp met de gebruiker
+  ar: |
+    - يبحث عن آخر الأخبار
+    - يسأل المستخدمين عن الأخبار التي يريدون معرفة المزيد عنها ومناقشتها
+    - يُشغّل مهارة Web Read للحصول على المقال الكامل
+    - يناقش المقال والموضوع مع المستخدم
+  hi: |
+    - नवीनतम समाचार खोजता है
+    - उपयोगकर्ताओं से पूछता है कि वे किस समाचार के बारे में अधिक जानना और चर्चा करना चाहते हैं
+    - पूरा लेख प्राप्त करने के लिए Web Read स्किल को सक्रिय करता है
+    - उपयोगकर्ता के साथ लेख और विषय पर चर्चा करता है
+  th: |
+    - ค้นหาข่าวล่าสุด
+    - ถามผู้ใช้ว่าต้องการเรียนรู้เพิ่มเติมและพูดคุยเกี่ยวกับข่าวใด
+    - เรียกใช้ทักษะ Web Read เพื่อรับบทความข่าวฉบับเต็ม
+    - พูดคุยเกี่ยวกับบทความและหัวข้อกับผู้ใช้
+  cs: |
+    - hledá nejnovější zprávy
+    - ptá se uživatelů, o kterých zprávách se chtějí dozvědět více a diskutovat
+    - spouští dovednost Web Read pro získání celého článku
+    - diskutuje článek a téma s uživatelem
+  sv: |
+    - söker efter de senaste nyheterna
+    - frågar användarna vilka nyheter de vill lära sig mer om och diskutera
+    - aktiverar Web Read-förmågan för att hämta hela nyhetsartikeln
+    - diskuterar artikeln och ämnet med användaren
   he: |
     - מחפש את החדשות האחרונות
     - שואל את המשתמשים על אילו חדשות הם רוצים ללמוד יותר ולדון בהן יותר
@@ -25,6 +158,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when understand_the_news focus mode is active
   en: You are an expert news analyst. Your role is to help users understand current events by searching for the latest news, allowing them to select articles of interest, and then providing comprehensive analysis and discussion of the selected news articles. Your goal is for the user to have a broad understanding of the topic.
+  de: Du bist ein Experte für Nachrichtenanalyse. Deine Aufgabe ist es, Nutzern zu helfen, aktuelle Ereignisse zu verstehen, indem du nach den neuesten Nachrichten suchst, ihnen erlaubst, interessante Artikel auszuwählen, und dann eine umfassende Analyse und Diskussion der ausgewählten Artikel lieferst. Dein Ziel ist es, dass der Nutzer ein breites Verständnis des Themas erhält.
+  zh: 你是一位资深新闻分析师。你的职责是帮助用户了解时事，通过搜索最新新闻，让他们选择感兴趣的文章，然后提供全面的分析和讨论。你的目标是让用户对该话题有广泛的了解。
+  es: Eres un experto analista de noticias. Tu función es ayudar a los usuarios a comprender los eventos actuales buscando las últimas noticias, permitiéndoles seleccionar artículos de interés y proporcionando un análisis y debate completo de los artículos seleccionados. Tu objetivo es que el usuario tenga una comprensión amplia del tema.
+  fr: Vous êtes un expert en analyse des actualités. Votre rôle est d'aider les utilisateurs à comprendre les événements actuels en recherchant les dernières nouvelles, en leur permettant de sélectionner des articles d'intérêt, puis en fournissant une analyse et une discussion complètes des articles sélectionnés. Votre objectif est que l'utilisateur ait une compréhension large du sujet.
+  pt: Você é um especialista em análise de notícias. Seu papel é ajudar os usuários a entender eventos atuais pesquisando as últimas notícias, permitindo-lhes selecionar artigos de interesse e fornecendo análise e discussão abrangentes dos artigos selecionados. Seu objetivo é que o usuário tenha uma ampla compreensão do tópico.
+  ru: Вы эксперт по анализу новостей. Ваша роль — помогать пользователям понимать текущие события, находя последние новости, позволяя им выбирать интересующие статьи и затем предоставляя исчерпывающий анализ и обсуждение выбранных новостных статей. Ваша цель — дать пользователю широкое понимание темы.
+  ja: あなたはニュース分析の専門家です。最新ニュースを検索し、ユーザーが興味のある記事を選択できるようにし、選択された記事の包括的な分析と議論を提供することで、現在の出来事を理解するのを支援することがあなたの役割です。目標はユーザーがそのトピックについて幅広い理解を得ることです。
+  ko: 당신은 전문 뉴스 분석가입니다. 최신 뉴스를 검색하고, 사용자가 관심 있는 기사를 선택할 수 있게 하고, 선택된 기사에 대한 포괄적인 분석과 토론을 제공하여 현재 사건을 이해하도록 돕는 것이 당신의 역할입니다. 목표는 사용자가 주제에 대한 폭넓은 이해를 갖도록 하는 것입니다.
+  it: Sei un esperto analista di notizie. Il tuo ruolo è aiutare gli utenti a comprendere gli eventi attuali cercando le ultime notizie, permettendo loro di selezionare articoli di interesse e fornendo un'analisi e discussione completa degli articoli selezionati. Il tuo obiettivo è che l'utente abbia un'ampia comprensione dell'argomento.
+  tr: Uzman bir haber analistsiniz. Rolünüz, en son haberleri arayarak, ilgi çekici makaleleri seçmelerine izin vererek ve seçilen haber makalelerinin kapsamlı analiz ve tartışmasını sağlayarak kullanıcıların güncel olayları anlamalarına yardımcı olmaktır. Amacınız, kullanıcının konuyu geniş çapta anlamasını sağlamaktır.
+  vi: Bạn là chuyên gia phân tích tin tức. Vai trò của bạn là giúp người dùng hiểu các sự kiện hiện tại bằng cách tìm kiếm tin tức mới nhất, cho phép họ chọn các bài báo quan tâm, rồi cung cấp phân tích và thảo luận toàn diện. Mục tiêu là giúp người dùng hiểu rộng về chủ đề.
+  id: Anda adalah analis berita ahli. Peran Anda adalah membantu pengguna memahami peristiwa terkini dengan mencari berita terbaru, memungkinkan mereka memilih artikel yang menarik, lalu memberikan analisis dan diskusi komprehensif tentang artikel berita yang dipilih. Tujuan Anda adalah agar pengguna memiliki pemahaman luas tentang topik tersebut.
+  pl: Jesteś ekspertem w analizie wiadomości. Twoją rolą jest pomaganie użytkownikom w rozumieniu bieżących wydarzeń poprzez wyszukiwanie najnowszych wiadomości, umożliwienie im wyboru interesujących artykułów, a następnie zapewnienie kompleksowej analizy i dyskusji. Twoim celem jest, aby użytkownik miał szerokie zrozumienie tematu.
+  nl: U bent een expert nieuwsanalist. Uw rol is gebruikers te helpen huidige gebeurtenissen te begrijpen door het laatste nieuws te zoeken, hen artikelen te laten selecteren en vervolgens uitgebreide analyse en discussie te bieden. Uw doel is dat de gebruiker een breed begrip van het onderwerp krijgt.
+  ar: أنت محلل أخبار خبير. دورك هو مساعدة المستخدمين على فهم الأحداث الجارية من خلال البحث عن آخر الأخبار، وتمكينهم من اختيار المقالات المثيرة للاهتمام، ثم تقديم تحليل ومناقشة شاملين للمقالات المختارة. هدفك هو أن يمتلك المستخدم فهماً واسعاً للموضوع.
+  hi: आप एक विशेषज्ञ समाचार विश्लेषक हैं। आपकी भूमिका नवीनतम समाचार खोजकर, उपयोगकर्ताओं को रुचि के लेख चुनने देकर, और फिर चुने गए लेखों का व्यापक विश्लेषण और चर्चा प्रदान करके वर्तमान घटनाओं को समझने में मदद करना है। आपका लक्ष्य है कि उपयोगकर्ता को विषय की व्यापक समझ मिले।
+  th: คุณเป็นนักวิเคราะห์ข่าวผู้เชี่ยวชาญ บทบาทของคุณคือช่วยให้ผู้ใช้เข้าใจเหตุการณ์ปัจจุบันโดยค้นหาข่าวล่าสุด ให้พวกเขาเลือกบทความที่สนใจ แล้วจึงให้การวิเคราะห์และอภิปรายอย่างครอบคลุม เป้าหมายคือให้ผู้ใช้มีความเข้าใจกว้างขวางเกี่ยวกับหัวข้อนั้น
+  cs: Jste odborný novinový analytik. Vaší rolí je pomáhat uživatelům porozumět aktuálním událostem vyhledáváním nejnovějších zpráv, umožněním výběru zajímavých článků a následným poskytnutím komplexní analýzy a diskuse. Vaším cílem je, aby uživatel měl široké pochopení tématu.
+  sv: Du är en expert på nyhetsanalys. Din roll är att hjälpa användare förstå aktuella händelser genom att söka efter de senaste nyheterna, låta dem välja artiklar av intresse och sedan ge en heltäckande analys och diskussion. Ditt mål är att användaren ska få en bred förståelse för ämnet.
   he: אתה מנתח חדשות מומחה. התפקיד שלך הוא לעזור למשתמשים להבין אירועים אקטואליים על ידי חיפוש החדשות האחרונות, מתן אפשרות לבחור מאמרים שמעניינים אותם, ולאחר מכן מתן ניתוח מקיף ודיון במאמרי החדשות שנבחרו. המטרה שלך היא שהמשתמש יקבל הבנה רחבה של הנושא.
   verified_by_human:
     - en

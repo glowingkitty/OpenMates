@@ -5,125 +5,484 @@ banner_title:
   context: Title shown in the PII warning banner when sensitive data is detected
   en: Sensitive data detected
   de: Sensible Daten erkannt
-
+  zh: 检测到敏感数据
+  es: Datos sensibles detectados
+  fr: Données sensibles détectées
+  pt: Dados sensíveis detectados
+  ru: Обнаружены конфиденциальные данные
+  ja: 機密データが検出されました
+  ko: 민감한 데이터가 감지되었습니다
+  it: Dati sensibili rilevati
+  tr: Hassas veriler tespit edildi
+  vi: Phát hiện dữ liệu nhạy cảm
+  id: Data sensitif terdeteksi
+  pl: Wykryto dane wrażliwe
+  nl: Gevoelige gegevens gedetecteerd
+  ar: تم اكتشاف بيانات حساسة
+  hi: संवेदनशील डेटा पाया गया
+  th: ตรวจพบข้อมูลที่ละเอียดอ่อน
+  cs: Detekována citlivá data
+  sv: Känsliga uppgifter hittades
   he: זוהו נתונים רגישים
 banner_description:
   context: Description explaining what will happen to detected sensitive data. {summary} is replaced with a list like "2 emails, 1 API key"
   en: "Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original."
   de: "{summary} gefunden. Diese werden vor dem Senden durch Platzhalter ersetzt. Klicke auf markierten Text, um das Original zu behalten."
-
+  zh: "发现 {summary}。发送前将用占位符替换。单击高亮文本以保留原始内容。"
+  es: "Se encontró {summary}. Serán reemplazados con marcadores antes de enviar. Haz clic en el texto resaltado para mantener el original."
+  fr: "{summary} trouvé(s). Ceux-ci seront remplacés par des espaces réservés avant l'envoi. Cliquez sur le texte surligné pour conserver l'original."
+  pt: "Encontrado {summary}. Estes serão substituídos por marcadores antes do envio. Clique no texto destacado para manter o original."
+  ru: "Найдено: {summary}. Они будут заменены заполнителями перед отправкой. Нажмите на выделенный текст, чтобы сохранить оригинал."
+  ja: "{summary} が見つかりました。送信前にプレースホルダーに置き換えられます。ハイライトされたテキストをクリックして元のまま保持。"
+  ko: "{summary}을(를) 발견했습니다. 전송 전에 자리 표시자로 교체됩니다. 강조된 텍스트를 클릭하여 원본을 유지하세요."
+  it: "Trovato {summary}. Questi verranno sostituiti con segnaposto prima dell'invio. Clicca sul testo evidenziato per mantenere l'originale."
+  tr: "{summary} bulundu. Gönderilmeden önce yer tutucularla değiştirilecek. Orijinali korumak için vurgulanan metne tıklayın."
+  vi: "Tìm thấy {summary}. Chúng sẽ được thay thế bằng ký tự giữ chỗ trước khi gửi. Nhấp vào văn bản được đánh dấu để giữ nguyên bản."
+  id: "Ditemukan {summary}. Ini akan diganti dengan placeholder sebelum dikirim. Klik teks yang disorot untuk mempertahankan aslinya."
+  pl: "Znaleziono {summary}. Zostaną zastąpione symbolami zastępczymi przed wysłaniem. Kliknij wyróżniony tekst, aby zachować oryginał."
+  nl: "{summary} gevonden. Deze worden vervangen door tijdelijke aanduidingen voor verzending. Klik op gemarkeerde tekst om het origineel te behouden."
+  ar: "تم العثور على {summary}. ستُستبدَل بعناصر نائبة قبل الإرسال. انقر على النص المميز للاحتفاظ بالنص الأصلي."
+  hi: "{summary} मिला। भेजने से पहले इन्हें प्लेसहोल्डर से बदला जाएगा। मूल रखने के लिए हाइलाइट किए गए टेक्स्ट पर क्लिक करें।"
+  th: "พบ {summary} จะถูกแทนที่ด้วย placeholder ก่อนส่ง คลิกที่ข้อความที่ไฮไลต์เพื่อเก็บต้นฉบับ"
+  cs: "Nalezeno: {summary}. Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text pro zachování originálu."
+  sv: "Hittade {summary}. Dessa ersätts med platshållare innan de skickas. Klicka på markerad text för att behålla originalet."
   he: "נמצאו {summary}. אלו יוחלפו בממלאי מקום לפני השליחה. לחץ על הטקסט המודגש כדי לשמור על המקור."
 undo_all:
   context: Tooltip/title for the Undo All button
   en: Undo all replacements
   de: Alle Ersetzungen rückgängig machen
-
+  zh: 撤销所有替换
+  es: Deshacer todos los reemplazos
+  fr: Annuler tous les remplacements
+  pt: Desfazer todas as substituições
+  ru: Отменить все замены
+  ja: すべての置き換えを元に戻す
+  ko: 모든 교체 실행 취소
+  it: Annulla tutte le sostituzioni
+  tr: Tüm değiştirmeleri geri al
+  vi: Hoàn tác tất cả thay thế
+  id: Batalkan semua penggantian
+  pl: Cofnij wszystkie zamiany
+  nl: Alle vervangingen ongedaan maken
+  ar: التراجع عن كل الاستبدالات
+  hi: सभी प्रतिस्थापन पूर्ववत करें
+  th: เลิกทำการแทนที่ทั้งหมด
+  cs: Vrátit zpět všechny náhrady
+  sv: Ångra alla ersättningar
   he: בטל את כל ההחלפות
 undo_all_short:
   context: Short button label for Undo All
   en: Undo All
   de: Alle zurück
-
+  zh: 全部撤销
+  es: Deshacer todo
+  fr: Tout annuler
+  pt: Desfazer tudo
+  ru: Отменить всё
+  ja: すべて元に戻す
+  ko: 모두 실행 취소
+  it: Annulla tutto
+  tr: Tümünü geri al
+  vi: Hoàn tác tất cả
+  id: Batalkan semua
+  pl: Cofnij wszystko
+  nl: Alles ongedaan maken
+  ar: التراجع عن الكل
+  hi: सब पूर्ववत करें
+  th: เลิกทำทั้งหมด
+  cs: Vrátit vše zpět
+  sv: Ångra allt
   he: בטל הכל
 click_to_restore:
   context: Tooltip shown when hovering over highlighted PII text
   en: Click to keep original
   de: Klicken um Original zu behalten
+  zh: 点击保留原始内容
+  es: Haz clic para conservar el original
+  fr: Cliquez pour conserver l'original
+  pt: Clique para manter o original
+  ru: Нажмите, чтобы сохранить оригинал
+  ja: クリックして元のテキストを保持
+  ko: 클릭하여 원본 유지
+  it: Clicca per mantenere l'originale
+  tr: Orijinali korumak için tıklayın
+  vi: Nhấp để giữ nguyên bản
+  id: Klik untuk mempertahankan aslinya
+  pl: Kliknij, aby zachować oryginał
+  nl: Klik om het origineel te behouden
+  ar: انقر للاحتفاظ بالأصل
+  hi: मूल रखने के लिए क्लिक करें
+  th: คลิกเพื่อเก็บต้นฉบับ
+  cs: Klikněte pro zachování originálu
+  sv: Klicka för att behålla originalet
+  he: לחץ כדי לשמור על המקור
 
 # PII type labels (for summary)
-  he: לחץ כדי לשמור על המקור
 type_email:
   context: Label for email address PII type
   en: email
   de: E-Mail
-
+  zh: 电子邮件
+  es: correo electrónico
+  fr: e-mail
+  pt: e-mail
+  ru: эл. почта
+  ja: メール
+  ko: 이메일
+  it: e-mail
+  tr: e-posta
+  vi: email
+  id: email
+  pl: e-mail
+  nl: e-mail
+  ar: بريد إلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: e-mail
+  sv: e-post
   he: אימייל
 type_phone:
   context: Label for phone number PII type
   en: phone number
   de: Telefonnummer
-
+  zh: 电话号码
+  es: número de teléfono
+  fr: numéro de téléphone
+  pt: número de telefone
+  ru: номер телефона
+  ja: 電話番号
+  ko: 전화번호
+  it: numero di telefono
+  tr: telefon numarası
+  vi: số điện thoại
+  id: nomor telepon
+  pl: numer telefonu
+  nl: telefoonnummer
+  ar: رقم الهاتف
+  hi: फ़ोन नंबर
+  th: หมายเลขโทรศัพท์
+  cs: telefonní číslo
+  sv: telefonnummer
   he: מספר טלפון
 type_api_key:
   context: Generic label for API key PII types
   en: API key
   de: API-Schlüssel
-
+  zh: API密钥
+  es: clave API
+  fr: clé API
+  pt: chave de API
+  ru: ключ API
+  ja: APIキー
+  ko: API 키
+  it: chiave API
+  tr: API anahtarı
+  vi: khóa API
+  id: kunci API
+  pl: klucz API
+  nl: API-sleutel
+  ar: مفتاح API
+  hi: API कुंजी
+  th: API key
+  cs: klíč API
+  sv: API-nyckel
   he: מפתח API
 type_credit_card:
   context: Label for credit card number PII type
   en: credit card
   de: Kreditkarte
-
+  zh: 信用卡
+  es: tarjeta de crédito
+  fr: carte de crédit
+  pt: cartão de crédito
+  ru: кредитная карта
+  ja: クレジットカード
+  ko: 신용카드
+  it: carta di credito
+  tr: kredi kartı
+  vi: thẻ tín dụng
+  id: kartu kredit
+  pl: karta kredytowa
+  nl: creditcard
+  ar: بطاقة ائتمان
+  hi: क्रेडिट कार्ड
+  th: บัตรเครดิต
+  cs: kreditní karta
+  sv: kreditkort
   he: כרטיס אשראי
 type_ssn:
   context: Label for Social Security Number PII type
   en: SSN
   de: SSN
-
+  zh: SSN
+  es: SSN
+  fr: SSN
+  pt: SSN
+  ru: SSN
+  ja: SSN
+  ko: SSN
+  it: SSN
+  tr: SSN
+  vi: SSN
+  id: SSN
+  pl: SSN
+  nl: SSN
+  ar: SSN
+  hi: SSN
+  th: SSN
+  cs: SSN
+  sv: SSN
   he: SSN
 type_ip_address:
   context: Label for IP address PII type
   en: IP address
   de: IP-Adresse
-
+  zh: IP地址
+  es: dirección IP
+  fr: adresse IP
+  pt: endereço IP
+  ru: IP-адрес
+  ja: IPアドレス
+  ko: IP 주소
+  it: indirizzo IP
+  tr: IP adresi
+  vi: địa chỉ IP
+  id: alamat IP
+  pl: adres IP
+  nl: IP-adres
+  ar: عنوان IP
+  hi: IP पता
+  th: ที่อยู่ IP
+  cs: IP adresa
+  sv: IP-adress
   he: כתובת IP
 type_private_key:
   context: Label for private key PII type
   en: private key
   de: privater Schlüssel
-
+  zh: 私钥
+  es: clave privada
+  fr: clé privée
+  pt: chave privada
+  ru: приватный ключ
+  ja: 秘密鍵
+  ko: 개인 키
+  it: chiave privata
+  tr: özel anahtar
+  vi: khóa riêng tư
+  id: kunci pribadi
+  pl: klucz prywatny
+  nl: privésleutel
+  ar: مفتاح خاص
+  hi: निजी कुंजी
+  th: คีย์ส่วนตัว
+  cs: soukromý klíč
+  sv: privat nyckel
   he: מפתח פרטי
 type_jwt:
   context: Label for JWT token PII type
   en: JWT token
   de: JWT-Token
-
+  zh: JWT令牌
+  es: token JWT
+  fr: jeton JWT
+  pt: token JWT
+  ru: JWT-токен
+  ja: JWTトークン
+  ko: JWT 토큰
+  it: token JWT
+  tr: JWT belirteci
+  vi: token JWT
+  id: token JWT
+  pl: token JWT
+  nl: JWT-token
+  ar: رمز JWT
+  hi: JWT टोकन
+  th: JWT token
+  cs: JWT token
+  sv: JWT-token
   he: אסימון JWT
 type_iban:
   context: Label for IBAN / bank account number PII type
   en: IBAN
   de: IBAN
-
+  zh: IBAN
+  es: IBAN
+  fr: IBAN
+  pt: IBAN
+  ru: IBAN
+  ja: IBAN
+  ko: IBAN
+  it: IBAN
+  tr: IBAN
+  vi: IBAN
+  id: IBAN
+  pl: IBAN
+  nl: IBAN
+  ar: IBAN
+  hi: IBAN
+  th: IBAN
+  cs: IBAN
+  sv: IBAN
   he: IBAN
 type_home_folder:
   context: Label for home folder path PII type (leaks local username via /home/user/, /Users/user/, C:\Users\user\)
   en: home folder path
   de: Home-Verzeichnis
-
+  zh: 主文件夹路径
+  es: ruta de carpeta de inicio
+  fr: chemin du dossier personnel
+  pt: caminho da pasta pessoal
+  ru: путь к домашней папке
+  ja: ホームフォルダのパス
+  ko: 홈 폴더 경로
+  it: percorso cartella home
+  tr: ana klasör yolu
+  vi: đường dẫn thư mục home
+  id: jalur folder beranda
+  pl: ścieżka folderu domowego
+  nl: pad naar basismap
+  ar: مسار المجلد الرئيسي
+  hi: होम फ़ोल्डर पथ
+  th: เส้นทางโฟลเดอร์หลัก
+  cs: cesta k domovské složce
+  sv: sökväg till hemkatalog
   he: נתיב תיקיית בית
 type_user_at_hostname:
   context: Label for terminal prompt user@hostname PII type (leaks username and machine name, e.g. marco@Marcos-MacBook ~ %)
   en: user@hostname
   de: User@Hostname
-
+  zh: user@hostname
+  es: user@hostname
+  fr: user@hostname
+  pt: user@hostname
+  ru: user@hostname
+  ja: user@hostname
+  ko: user@hostname
+  it: user@hostname
+  tr: user@hostname
+  vi: user@hostname
+  id: user@hostname
+  pl: user@hostname
+  nl: user@hostname
+  ar: user@hostname
+  hi: user@hostname
+  th: user@hostname
+  cs: user@hostname
+  sv: user@hostname
   he: user@hostname
 type_mac_address:
   context: Label for MAC address PII type (network hardware identifier)
   en: MAC address
   de: MAC-Adresse
-
+  zh: MAC地址
+  es: dirección MAC
+  fr: adresse MAC
+  pt: endereço MAC
+  ru: MAC-адрес
+  ja: MACアドレス
+  ko: MAC 주소
+  it: indirizzo MAC
+  tr: MAC adresi
+  vi: địa chỉ MAC
+  id: alamat MAC
+  pl: adres MAC
+  nl: MAC-adres
+  ar: عنوان MAC
+  hi: MAC पता
+  th: ที่อยู่ MAC
+  cs: MAC adresa
+  sv: MAC-adress
   he: כתובת MAC
 type_passport:
   context: Label for passport number PII type
   en: passport number
   de: Passnummer
-
+  zh: 护照号码
+  es: número de pasaporte
+  fr: numéro de passeport
+  pt: número de passaporte
+  ru: номер паспорта
+  ja: パスポート番号
+  ko: 여권 번호
+  it: numero di passaporto
+  tr: pasaport numarası
+  vi: số hộ chiếu
+  id: nomor paspor
+  pl: numer paszportu
+  nl: paspoortnummer
+  ar: رقم جواز السفر
+  hi: पासपोर्ट नंबर
+  th: หมายเลขหนังสือเดินทาง
+  cs: číslo pasu
+  sv: passnummer
   he: מספר דרכון
 type_tax_id:
   context: Label for tax ID / VAT number PII type
   en: tax ID
   de: Steuernummer
-
+  zh: 税务ID
+  es: ID fiscal
+  fr: numéro fiscal
+  pt: ID fiscal
+  ru: ИНН
+  ja: 税務ID
+  ko: 세금 ID
+  it: codice fiscale
+  tr: vergi kimliği
+  vi: mã số thuế
+  id: ID pajak
+  pl: NIP
+  nl: belasting-ID
+  ar: الرقم الضريبي
+  hi: कर आईडी
+  th: เลขประจำตัวผู้เสียภาษี
+  cs: daňové ID
+  sv: skatte-ID
   he: מזהה מס
 type_vehicle_plate:
   context: Label for vehicle license plate number PII type
   en: license plate
   de: Kennzeichen
-
+  zh: 车牌
+  es: matrícula
+  fr: plaque d'immatriculation
+  pt: placa de veículo
+  ru: номерной знак
+  ja: ナンバープレート
+  ko: 차량 번호판
+  it: targa
+  tr: plaka
+  vi: biển số xe
+  id: nomor plat
+  pl: tablica rejestracyjna
+  nl: kenteken
+  ar: لوحة ترخيص
+  hi: लाइसेंस प्लेट
+  th: ป้ายทะเบียน
+  cs: registrační značka
+  sv: registreringsskylt
   he: לוחית רישוי
 type_crypto_wallet:
   context: Label for cryptocurrency wallet address PII type
   en: crypto wallet
   de: Krypto-Wallet
+  zh: 加密钱包
+  es: billetera cripto
+  fr: portefeuille crypto
+  pt: carteira cripto
+  ru: криптокошелёк
+  ja: 暗号ウォレット
+  ko: 암호화폐 지갑
+  it: portafoglio crypto
+  tr: kripto cüzdanı
+  vi: ví tiền điện tử
+  id: dompet kripto
+  pl: portfel krypto
+  nl: cryptoportefeuille
+  ar: محفظة مشفرة
+  hi: क्रिप्टो वॉलेट
+  th: กระเป๋า crypto
+  cs: krypto peněženka
+  sv: kryptoplånbok
   he: ארנק קריפטו

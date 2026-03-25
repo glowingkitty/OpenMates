@@ -17,7 +17,7 @@
   import ImageResultEmbedPreview from './ImageResultEmbedPreview.svelte';
   import ImageResultEmbedFullscreen from './ImageResultEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
-  import { proxyImage } from '../../../utils/imageProxy';
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
 
   /**
    * Single image result (child embed content schema).
@@ -100,10 +100,10 @@
   let provider = $derived(localProvider);
   let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
 
-  /** Proxy an external image URL */
+  /** Proxy an external image URL — cap at 1024px for grid cards */
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return proxyImage(url);
+    return proxyImage(url, MAX_WIDTH_HEADER_IMAGE);
   }
 
   /**

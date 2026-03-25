@@ -88,6 +88,7 @@ export interface Message {
   encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
   encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
   encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
+  key_version?: number | null; // Which key_version of the chat key encrypted this message. Enables diagnosis of "wrong key version" decryption failures.
 
   // Cleartext/Decrypted fields
   // For regular chats: computed on-demand from encrypted_* fields, never stored
@@ -117,8 +118,8 @@ export interface Message {
 
   // PII (Personally Identifiable Information) anonymization fields
   // Used to store placeholder-to-original-value mappings for client-side restoration
-  // Server only sees placeholders (e.g., [EMAIL_1]), client restores originals for display
-  encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_1]": { original: "user@example.com", type: "EMAIL" }, ... }
+  // Server only sees placeholders (e.g., [EMAIL_com]), client restores originals for display
+  encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_com]": { original: "user@example.com", type: "EMAIL" }, ... }
   pii_mappings?: PIIMapping[]; // Decrypted PII mappings (computed on-demand, never stored)
 }
 
@@ -126,7 +127,7 @@ export interface Message {
  * A single PII mapping entry for restoration
  */
 export interface PIIMapping {
-  /** The placeholder text (e.g., "[EMAIL_1]") */
+  /** The placeholder text (e.g., "[EMAIL_com]") */
   placeholder: string;
   /** The original PII value (e.g., "user@example.com") */
   original: string;
@@ -167,6 +168,8 @@ export interface Chat {
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
+  key_version?: number | null; // Monotonic version counter — incremented on key rotation. Used to match messages to the key that encrypted them.
+  key_fingerprint?: string | null; // FNV-1a fingerprint of the raw chat key (not cryptographic). Stored server-side for decryption failure diagnosis.
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
   encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
@@ -202,6 +205,11 @@ export interface Chat {
 
   // Optional group key for manual UI grouping (e.g., 'intro', 'examples', 'legal')
   group_key?: string;
+
+  // Metadata-only chats (positions 101–1000) — synced without messages for search coverage.
+  // Messages load on-demand when the user opens the chat. Search matches against
+  // title, summary, and tags only (no message content search until opened).
+  is_metadata_only?: boolean;
 }
 
 export interface ChatComponentVersions {
@@ -707,6 +715,21 @@ export interface LoadMoreChatsResponsePayload {
   has_more: boolean;
   total_count: number;
   offset: number;
+  error?: string;
+}
+
+/**
+ * Metadata-only chats response payload — returned after Phase 3 for chats 101–1000.
+ * Contains metadata (title, summary, tags, icon, category, chat key) but no messages.
+ * Stored in IndexedDB for offline search by title, summary, and tags.
+ */
+export interface MetadataChatsResponsePayload {
+  chats: Array<{
+    chat_details: Partial<Chat> & { id: string };
+    messages?: null;
+    server_message_count?: null;
+  }>;
+  total_count: number;
   error?: string;
 }
 

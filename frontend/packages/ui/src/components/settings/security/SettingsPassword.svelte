@@ -17,6 +17,7 @@ This ensures users can never have a password without 2FA enabled.
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+    import SettingsInput from '../elements/SettingsInput.svelte';
     import * as cryptoService from '../../../services/cryptoService';
     import { getMasterKey } from '../../../services/cryptoKeyStorage';
     import SecurityAuth from './SecurityAuth.svelte';
@@ -95,8 +96,8 @@ This ensures users can never have a password without 2FA enabled.
     /** Page title based on whether user has password */
     let pageTitle = $derived(
         hasPassword 
-            ? $text('settings.security.change_password')
-            : $text('settings.security.add_password')
+            ? $text('common.change_password')
+            : $text('common.add_password')
     );
     
     /** Page description based on whether user has password */
@@ -313,6 +314,8 @@ This ensures users can never have a password without 2FA enabled.
      */
     async function savePasswordToServer(passwordData: PendingPasswordData) {
         try {
+            // Keep password endpoint aligned with CLI blocked operations:
+            // frontend/packages/openmates-cli/src/client.ts (BLOCKED_SETTINGS_POST_PATHS)
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.updatePassword), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -418,7 +421,7 @@ This ensures users can never have a password without 2FA enabled.
         <!-- Loading State -->
         <div class="loading-container">
             <div class="loading-spinner"></div>
-            <p>{$text('settings.security.loading')}</p>
+            <p>{$text('common.loading')}</p>
         </div>
     {:else if currentStep === 'auth'}
         <!-- Authentication Step -->
@@ -457,13 +460,13 @@ This ensures users can never have a password without 2FA enabled.
                 <!-- New Password Input -->
                 <div class="form-group">
                     <label for="new-password">{$text('settings.security.new_password')}</label>
-                    <input
+                    <SettingsInput
                         id="new-password"
                         type="password"
                         bind:value={newPassword}
                         placeholder={$text('settings.security.new_password_placeholder')}
                         disabled={isSubmitting}
-                        class:error={passwordStrengthError}
+                        hasError={!!passwordStrengthError}
                     />
                     {#if passwordStrengthError}
                         <span class="field-error">{passwordStrengthError}</span>
@@ -475,13 +478,13 @@ This ensures users can never have a password without 2FA enabled.
                 <!-- Confirm Password Input -->
                 <div class="form-group">
                     <label for="confirm-password">{$text('settings.security.confirm_password')}</label>
-                    <input
+                    <SettingsInput
                         id="confirm-password"
                         type="password"
                         bind:value={confirmPassword}
                         placeholder={$text('settings.security.confirm_password_placeholder')}
                         disabled={isSubmitting}
-                        class:error={confirmPassword && !passwordsMatch}
+                        hasError={!!(confirmPassword && !passwordsMatch)}
                     />
                     {#if confirmPassword && !passwordsMatch}
                         <span class="field-error">{$text('signup.passwords_do_not_match')}</span>
@@ -522,8 +525,8 @@ This ensures users can never have a password without 2FA enabled.
                         <span class="loading-spinner-small"></span>
                     {/if}
                     {hasPassword 
-                        ? $text('settings.security.change_password_button')
-                        : $text('settings.security.add_password_button')}
+                        ? $text('common.change_password')
+                        : $text('common.add_password')}
                 </button>
             </div>
         </div>
@@ -658,30 +661,6 @@ This ensures users can never have a password without 2FA enabled.
         font-size: 14px;
         font-weight: 500;
         color: var(--color-grey-80);
-    }
-
-    .form-group input {
-        padding: 12px 16px;
-        font-size: 16px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
-        background: var(--color-grey-5);
-        color: var(--color-grey-100);
-        transition: border-color 0.2s;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-
-    .form-group input.error {
-        border-color: var(--color-danger);
-    }
-
-    .form-group input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
     }
 
     .field-error {
@@ -890,4 +869,3 @@ This ensures users can never have a password without 2FA enabled.
         display: none;
     }
 </style>
-

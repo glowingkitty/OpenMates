@@ -48,7 +48,7 @@ step_6_bottom_content_svelte:
             - '/signup/2fa-reminder'
     continue_button:
         type: 'button'
-        text: $text('signup.continue')
+        text: $text('common.continue')
         purpose:
             - 'User clicks to continue to the next step of the signup process.'
         processing:
@@ -282,11 +282,11 @@ step_6_bottom_content_svelte:
     {/if}
     {#if showContinueButton}
         <button id="signup-2fa-reminder-continue" bind:this={continueButtonElement} class="continue-button" onclick={handleContinue} disabled={isLoading}>
-            {@html $text('signup.continue')}
+            {@html $text('common.continue')}
         </button>
     {:else if isLoading && !errorMessage}
          <button id="signup-2fa-reminder-continue" bind:this={continueButtonElement} class="continue-button" disabled>
-            {@html $text('login.loading')}
+            {@html $text('common.loading')}
         </button>
     {/if}
 </div>

@@ -191,7 +191,7 @@ skills:
       # When true, uses intelligent auto-selection based on leaderboard rankings.
       enable_auto_model_selection: true
       default_llms:
-        preprocessing_model: mistral/mistral-small-latest
+        preprocessing_model: mistral/mistral-small-2506
         # main_processing_simple: google/gemini-3-flash-preview
         # main_processing_simple_name: Gemini 3 Flash
         main_processing_simple: alibaba/qwen3-235b-a22b-2507

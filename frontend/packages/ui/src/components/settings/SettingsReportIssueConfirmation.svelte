@@ -81,11 +81,11 @@
                     type="button"
                     class:copied={issueIdCopied}
                     onclick={handleCopyIssueId}
-                    aria-label={$text('settings.report_issue.copy_issue_id')}
+                    aria-label={$text('common.copy')}
                 >
                     {issueIdCopied
-                        ? $text('settings.report_issue.issue_id_copied')
-                        : $text('settings.report_issue.copy_issue_id')}
+                        ? $text('common.not_found.url_copied')
+                        : $text('common.copy')}
                 </button>
             </div>
         </div>

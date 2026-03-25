@@ -72,18 +72,21 @@
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Google');
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let storeResolved = $state(false);
   let localResults = $state<PlaceSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  
+
   // Initialize local state from props
   $effect(() => {
-    localQuery = queryProp || '';
-    localProvider = providerProp || 'Google';
-    localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
-    localTaskId = taskIdProp;
-    localSkillTaskId = skillTaskIdProp;
+    if (!storeResolved) {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Google';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+      localSkillTaskId = skillTaskIdProp;
+    }
   });
   
   // Use local state as the source of truth
@@ -102,8 +105,9 @@
     
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
+      if (data.status !== 'processing') { storeResolved = true; }
     }
-    
+
     const content = data.decodedContent;
     if (content) {
       if (content.query) localQuery = content.query;
@@ -119,7 +123,7 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';

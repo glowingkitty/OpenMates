@@ -79,7 +79,7 @@ export function createContentId(hash: string): string {
 }
 
 // Create stream key from UUID
-export function createStreamKey(uuid: string): string {
+function createStreamKey(uuid: string): string {
   return `stream:${uuid}`;
 }
 

@@ -34,62 +34,8 @@ input[type="number"] {
   overflow: hidden;
 }
 
-.revolut-card-field-dark {
-  width: 100%;
-  max-width: 350px;
-  padding: 0px;
-  padding-left: 17px;
-  padding-right: 20px;
-  border-radius: 24px;
-  border: 2px solid #1c1b22;
-  background-color: #1c1b22;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease-in-out;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  min-height: 48px;
-  font-family: "Lexend Deca Variable";
-  font-size: 16px;
-  font-weight: 700;
-  line-height: normal;
-}
 
-.revolut-card-field-light {
-  width: 100%;
-  max-width: 350px;
-  padding: 0px;
-  padding-left: 17px;
-  padding-right: 20px;
-  border-radius: 24px;
-  border: 2px solid #ffffff;
-  background-color: #ffffff;
-  color: #000000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease-in-out;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  min-height: 48px;
-  font-family: "Lexend Deca Variable";
-  font-size: 16px;
-  font-weight: 700;
-  line-height: normal;
-}
 
-.revolut-card-field--focused {
-  border-color: var(--color-grey-50);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.revolut-card-field--invalid {
-  border-color: var(--color-error, #e74c3c);
-}
 
 input[type="text"]:focus,
 input[type="email"]:focus,
@@ -158,17 +104,8 @@ input[type="number"]:focus {
   transform: translateY(-1px);
 }
 
-.icon-field.search-field::before {
-  background-image: url("@openmates/ui/static/icons/search.svg");
-}
 
-.icon-field.apikey-field::before {
-  background-image: url("@openmates/ui/static/icons/secret.svg");
-}
 
-.icon-field.teamslug-field::before {
-  background-image: url("@openmates/ui/static/icons/team.svg");
-}
 
 .icon-field.email-field::before {
   background-image: url("@openmates/ui/static/icons/mail.svg");

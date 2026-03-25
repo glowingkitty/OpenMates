@@ -1,48 +1,96 @@
+explore_next:
+  context: Bold title text above the follow-up suggestions gradient card
+  en: "What do you want to explore next?"
+  de: "Was möchtest du als Nächstes erkunden?"
+  zh: 接下来你想探索什么？
+  es: "¿Qué quieres explorar a continuación?"
+  fr: "Que voulez-vous explorer ensuite ?"
+  pt: "O que você quer explorar a seguir?"
+  ru: "Что вы хотите исследовать дальше?"
+  ja: "次に何を探求しますか？"
+  ko: "다음에 무엇을 탐구하시겠어요?"
+  it: "Cosa vuoi esplorare dopo?"
+  tr: "Sonra ne keşfetmek istersin?"
+  vi: "Bạn muốn khám phá gì tiếp theo?"
+  id: "Apa yang ingin Anda eksplorasi selanjutnya?"
+  pl: "Co chcesz zbadać dalej?"
+  nl: "Wat wil je als volgende verkennen?"
+  ar: "ماذا تريد أن تستكشف بعد ذلك؟"
+  hi: "आगे आप क्या खोजना चाहते हैं?"
+  th: "คุณต้องการสำรวจอะไรต่อไป?"
+  cs: "Co chcete prozkoumat dál?"
+  sv: "Vad vill du utforska härnäst?"
+  he: "מה אתה רוצה לחקור הלאה?"
+  verified_by_human: []
+filter_no_match:
+  context: Header text shown above suggestions when the typed query matched no suggestions (graceful fallback — all suggestions are still shown)
+  en: "No matching suggestions — showing all"
+  de: "Keine passenden Vorschläge — alle werden angezeigt"
+  zh: 没有匹配的建议 — 显示全部
+  es: "Sin sugerencias coincidentes — mostrando todo"
+  fr: "Aucune suggestion correspondante — affichage de tout"
+  pt: "Nenhuma sugestão correspondente — mostrando tudo"
+  ru: "Нет подходящих предложений — показаны все"
+  ja: "一致する提案なし — すべて表示"
+  ko: "일치하는 제안 없음 — 전체 표시"
+  it: "Nessun suggerimento corrispondente — mostro tutto"
+  tr: "Eşleşen öneri yok — hepsi gösteriliyor"
+  vi: "Không có gợi ý phù hợp — hiển thị tất cả"
+  id: "Tidak ada saran yang cocok — menampilkan semua"
+  pl: "Brak pasujących sugestii — pokazuję wszystkie"
+  nl: "Geen overeenkomende suggesties — alles weergeven"
+  ar: "لا توجد اقتراحات مطابقة — عرض الكل"
+  hi: "कोई मिलान सुझाव नहीं — सभी दिखाए जा रहे हैं"
+  th: "ไม่มีคำแนะนำที่ตรงกัน — แสดงทั้งหมด"
+  cs: "Žádné odpovídající návrhy — zobrazuji vše"
+  sv: "Inga matchande förslag — visar alla"
+  he: "אין הצעות תואמות — מציג הכל"
+  verified_by_human: []
 header_click:
-  context: Header text for suggestions on non-touch devices
-  en: 'Click to copy to message input:'
-  de: 'Klicken, um in Nachrichteneingabe zu kopieren:'
-  zh: 单击以复制到消息输入：
-  es: 'Haz clic para copiar a la entrada de mensajes:'
-  fr: 'Cliquez pour copier dans la saisie de message :'
-  pt: 'Clique para copiar para a entrada de mensagem:'
-  ru: 'Нажмите, чтобы скопировать в ввод сообщения:'
-  ja: 'メッセージ入力にコピーするにはクリックしてください：'
-  ko: '메시지 입력으로 복사하려면 클릭:'
-  it: 'Fai clic per copiare nell''input del messaggio:'
-  tr: 'İleti girişine kopyalamak için tıkla:'
-  vi: 'Nhấp để sao chép vào nhập tin nhắn:'
-  id: 'Klik untuk menyalin ke input pesan:'
-  pl: 'Kliknij, aby skopiować do wpisania wiadomości:'
-  nl: 'Klik om naar berichtinvoer te kopiëren:'
-  ar: 'انقر لنسخ إلى إدخال الرسالة:'
-  hi: 'संदेश इनपुट में कॉपी करने के लिए क्लिक करें:'
-  th: 'คลิกเพื่อคัดลอกไปยังการป้อนข้อความ:'
-  cs: 'Klikněte pro kopírování do vstupu zprávy:'
-  sv: 'Klicka för att kopiera till meddelandeinmatning:'
-  he: "לחץ כדי להעתיק לשורת ההודעה:"
+  context: Header text above the new chat suggestion cards on the welcome screen
+  en: "OpenMates can help you with:"
+  de: "OpenMates kann dir dabei helfen:"
+  zh: OpenMates 可以帮助你：
+  es: "OpenMates puede ayudarte con:"
+  fr: "OpenMates peut vous aider avec :"
+  pt: "OpenMates pode te ajudar com:"
+  ru: "OpenMates может помочь вам с:"
+  ja: "OpenMatesがお手伝いできること："
+  ko: "OpenMates가 도움드릴 수 있어요:"
+  it: "OpenMates può aiutarti con:"
+  tr: "OpenMates sana şunlarda yardımcı olabilir:"
+  vi: "OpenMates có thể giúp bạn với:"
+  id: "OpenMates dapat membantu Anda dengan:"
+  pl: "OpenMates może ci pomóc w:"
+  nl: "OpenMates kan je helpen met:"
+  ar: "يمكن لـ OpenMates مساعدتك في:"
+  hi: "OpenMates आपकी मदद कर सकता है:"
+  th: "OpenMates สามารถช่วยคุณเกี่ยวกับ:"
+  cs: "OpenMates vám může pomoci s:"
+  sv: "OpenMates kan hjälpa dig med:"
+  he: "OpenMates יכול לעזור לך עם:"
   verified_by_human: []
 header_tap:
-  context: Header text for suggestions on touch devices
-  en: 'Tap to copy to message input:'
-  de: 'Tippen, um in Nachrichteneingabe zu kopieren:'
-  zh: 点击以复制到消息输入：
-  es: 'Toca para copiar a la entrada de mensajes:'
-  fr: 'Appuyez pour copier dans la saisie de message :'
-  pt: 'Toque para copiar para a entrada de mensagem:'
-  ru: 'Коснитесь, чтобы скопировать в ввод сообщения:'
-  ja: 'メッセージ入力にコピーするにはタップしてください：'
-  ko: '메시지 입력으로 복사하려면 탭:'
-  it: 'Tocca per copiare nell''input del messaggio:'
-  tr: 'İleti girişine kopyalamak için dokun:'
-  vi: 'Chạm để sao chép vào nhập tin nhắn:'
-  id: 'Ketuk untuk menyalin ke input pesan:'
-  pl: 'Dotknij, aby skopiować do wpisania wiadomości:'
-  nl: 'Tik om naar berichtinvoer te kopiëren:'
-  ar: 'اضغط لنسخ إلى إدخال الرسالة:'
-  hi: 'संदेश इनपुट में कॉपी करने के लिए टैप करें:'
-  th: 'แตะเพื่อคัดลอกไปยังการป้อนข้อความ:'
-  cs: 'Klepněte pro kopírování do vstupu zprávy:'
-  sv: 'Tryck för att kopiera till meddelandeinmatning:'
-  he: "הקש כדי להעתיק לשורת ההודעה:"
+  context: Header text above the new chat suggestion cards on the welcome screen (touch devices)
+  en: "OpenMates can help you with:"
+  de: "OpenMates kann dir dabei helfen:"
+  zh: OpenMates 可以帮助你：
+  es: "OpenMates puede ayudarte con:"
+  fr: "OpenMates peut vous aider avec :"
+  pt: "OpenMates pode te ajudar com:"
+  ru: "OpenMates может помочь вам с:"
+  ja: "OpenMatesがお手伝いできること："
+  ko: "OpenMates가 도움드릴 수 있어요:"
+  it: "OpenMates può aiutarti con:"
+  tr: "OpenMates sana şunlarda yardımcı olabilir:"
+  vi: "OpenMates có thể giúp bạn với:"
+  id: "OpenMates dapat membantu Anda dengan:"
+  pl: "OpenMates może ci pomóc w:"
+  nl: "OpenMates kan je helpen met:"
+  ar: "يمكن لـ OpenMates مساعدتك في:"
+  hi: "OpenMates आपकी मदद कर सकता है:"
+  th: "OpenMates สามารถช่วยคุณเกี่ยวกับ:"
+  cs: "OpenMates vám může pomoci s:"
+  sv: "OpenMates kan hjälpa dig med:"
+  he: "OpenMates יכול לעזור לך עם:"
   verified_by_human: []

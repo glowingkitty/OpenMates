@@ -1,0 +1,38 @@
+# Instagram carousel — 1080x1080px per slide
+# Multiple slides captured individually by the Playwright script.
+
+template: instagram-carousel
+format: instagram-square
+width: 1080
+height: 1080
+
+slides:
+  - type: hero
+    headline: "Meet your digital team mates"
+    subtitle: "AI for everyone."
+    iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=fixed"
+    device: phone
+
+  - type: chat
+    headline: "Ask anything"
+    iframe_src: "/?media=1&seed=42&sidebar=closed&inspirations=none"
+    device: phone
+
+  - type: chat
+    headline: "Get code help"
+    iframe_src: "/?media=1&seed=77&sidebar=open&inspirations=none"
+    device: laptop
+
+  - type: feature
+    headline: "Built different"
+    features:
+      - "No subscription — fair pay per use"
+      - "End-to-end privacy focus"
+      - "20+ languages supported"
+      - "Works on any device"
+
+  - type: cta
+    headline: "Try it free"
+    subtitle: "openmates.org"
+    cta_text: "Get Started"
+    cta_url: "https://openmates.org"

@@ -6,28 +6,14 @@ export {};
 // provides the @playwright/test module at runtime. To keep repo-wide TypeScript
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
-const { test, expect } = require('@playwright/test');
 
-const consoleLogs: string[] = [];
-const networkActivities: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-	networkActivities.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-30).forEach((log) => console.log(log));
-
-		console.log('\n[RECENT NETWORK ACTIVITIES]');
-		networkActivities.slice(-30).forEach((activity) => console.log(activity));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
-});
+// Use shared console monitor (Rule 10) — replaces inline console boilerplate
+const {
+	test,
+	expect,
+	attachConsoleListeners,
+	attachNetworkListeners
+} = require('./console-monitor');
 
 const {
 	createSignupLogger,
@@ -37,7 +23,9 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * Backup code setup and login flow test against a deployed web app.
@@ -56,7 +44,11 @@ const {
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
  */
 
-const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
+const {
+	email: OPENMATES_TEST_ACCOUNT_EMAIL,
+	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
+	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
+} = getTestAccount();
 
 test('sets up backup codes in settings and logs in with a backup code', async ({
 	page,
@@ -65,26 +57,11 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	page: any;
 	context: any;
 }) => {
-	// Listen for console logs
-	page.on('console', (msg: any) => {
-		const timestamp = new Date().toISOString();
-		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
-	});
-
-	// Listen for network requests
-	page.on('request', (request: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
-	});
-
-	// Listen for network responses
-	page.on('response', (response: any) => {
-		const timestamp = new Date().toISOString();
-		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
-	});
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
 
 	test.slow();
-	test.setTimeout(180000);
+	test.setTimeout(360000); // Extra time for TOTP window waits (2 logins + 2FA setup) + full flow
 
 	const logCheckpoint = createSignupLogger('BACKUP_CODE_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -94,9 +71,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// Validate required environment variables
-	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!OPENMATES_TEST_ACCOUNT_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, OPENMATES_TEST_ACCOUNT_EMAIL, OPENMATES_TEST_ACCOUNT_PASSWORD, OPENMATES_TEST_ACCOUNT_OTP_KEY);
 
 	// Grant clipboard permissions for "Copy" actions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -109,7 +84,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// PHASE 1: Login with password + OTP to access settings
 	// ========================================================================
 
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
@@ -122,44 +97,61 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Opened login dialog.');
 
 	// Enter email
-	const emailInput = page.locator('input[type="email"][name="username"]');
+	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for lookup.');
 
 	// Enter password
-	const passwordInput = page.locator('input[type="password"]');
+	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	// Handle 2FA - enter OTP code (fill BEFORE clicking submit, same as chat-flow)
-	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-	const tfaInput = page.locator('input[autocomplete="one-time-code"]');
+	// Handle 2FA — TOTP with race-condition fix.
+	// Wait until we're well into the current 30s window before generating the code.
+	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput).toBeVisible({ timeout: 15000 });
-	await tfaInput.fill(otpCode);
-	await takeStepScreenshot(page, 'otp-entered');
-	logCheckpoint('Entered OTP code.');
-
-	// Submit login (password + OTP together in one click)
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login with password + OTP.');
 
-	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat/, { timeout: 60000 });
-	await takeStepScreenshot(page, 'logged-in');
-	logCheckpoint('Login successful with password + OTP.');
+	let loginSuccess = false;
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+		if (secondsIntoWindow > 27) {
+			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
+			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt + 1})...`);
+			await page.waitForTimeout(msToWait);
+		}
+		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+		await tfaInput.fill(otpCode);
+		logCheckpoint(`OTP attempt ${attempt + 1}: entered code ${otpCode}`);
+		await takeStepScreenshot(page, 'otp-entered');
+		await submitLoginButton.click();
+		logCheckpoint('Submitted login with password + OTP.');
+		try {
+			await page.waitForURL(/chat/, { timeout: 15000 });
+			loginSuccess = true;
+			logCheckpoint('Login successful with password + OTP.');
+			break;
+		} catch {
+			logCheckpoint(`OTP attempt ${attempt + 1} failed, retrying...`);
+			await page.waitForTimeout(3000);
+		}
+	}
+	if (!loginSuccess) {
+		await takeStepScreenshot(page, 'login-failed');
+		throw new Error('Login failed after 3 OTP attempts');
+	}
 
 	// ========================================================================
 	// PHASE 2: Navigate to Settings > Security > 2FA to regenerate backup codes
 	// ========================================================================
 
 	// Open settings
-	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	const settingsMenuButton = page.locator('#settings-menu-toggle');
 	await settingsMenuButton.click();
 	await expect(page.locator('.settings-menu.visible')).toBeVisible();
 	await takeStepScreenshot(page, 'settings-open');
@@ -215,7 +207,13 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	expect(newTfaSecret, 'Expected a new 2FA secret.').toBeTruthy();
 	logCheckpoint('Got new 2FA secret from setup page.');
 
-	// Enter new OTP based on new secret
+	// Enter new OTP based on new secret — wait for fresh window to avoid boundary expiry
+	const setupSecondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+	if (setupSecondsIntoWindow > 27) {
+		const setupMsToWait = (30 - setupSecondsIntoWindow) * 1000 + 3000;
+		logCheckpoint(`Waiting ${setupMsToWait}ms for fresh TOTP window before 2FA setup...`);
+		await page.waitForTimeout(setupMsToWait);
+	}
 	const setupOtp = generateTotp(newTfaSecret);
 	await otpSetupInput.fill(setupOtp);
 	logCheckpoint('Entered OTP for new 2FA secret.');
@@ -305,12 +303,15 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// The actual back button is `.nav-button` inside `.settings-header`, with a
 	// `.icon_back.visible` child indicating it's active (not on the main menu).
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	const settingsBackButton = page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;
 		const backVisible = await settingsBackButton.isVisible().catch(() => false);
 		if (!backVisible) break;
+		const backDisabled =
+			(await settingsBackButton.getAttribute('aria-disabled').catch(() => 'true')) === 'true';
+		if (backDisabled) break;
 		await settingsBackButton.click();
 		await page.waitForTimeout(500);
 	}
@@ -339,23 +340,23 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email
-	const emailInputRelogin = page.locator('input[type="email"][name="username"]');
+	const emailInputRelogin = page.locator('#login-email-input');
 	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
 	await emailInputRelogin.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
 	// Enter password — the password+TFA form is a single combined step.
 	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
 	// visible alongside the password field. We do NOT need to click login first.
-	const passwordInputRelogin = page.locator('input[type="password"]');
-	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
-	await passwordInputRelogin.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	const passwordInputRelogin = page.locator('#login-password-input');
+	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
+	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
 	// The TFA input should already be visible (tfa_enabled=true from lookup)
-	const tfaInputRelogin = page.locator('input[autocomplete="one-time-code"]');
-	await expect(tfaInputRelogin.first()).toBeVisible({ timeout: 15000 });
+	const tfaInputRelogin = page.locator('#login-otp-input');
+	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 	logCheckpoint('TFA input visible alongside password (combined form).');
 
@@ -373,14 +374,14 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	});
 
 	// The TFA input now accepts backup code format (alphanumeric 14-char)
-	const backupCodeInput = page.locator('input[autocomplete="one-time-code"]').first();
+	const backupCodeInput = page.locator('#login-otp-input');
 	await expect(backupCodeInput).toBeVisible();
 	await backupCodeInput.fill(backupCodeToUse);
 	await takeStepScreenshot(page, 'backup-code-entered');
 	logCheckpoint('Entered backup code.');
 
 	// Submit login with password + backup code using the form submit button
-	const loginSubmitButton = page.locator('button[type="submit"].login-button');
+	const loginSubmitButton = page.locator('#login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');

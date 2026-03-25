@@ -47,6 +47,7 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -74,7 +75,9 @@ const {
 	createStepScreenshotter,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -116,15 +119,13 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	const log = createSignupLogger('DAILY_INSPIRATION');
 	const screenshot = createStepScreenshotter(log);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(log);
 	log('Starting daily inspiration chat flow test.', { email: TEST_EMAIL });
 
 	// ── 1. Navigate to home ──────────────────────────────────────────────────
-	await page.goto('/');
+	await page.goto(getE2EDebugUrl('/'));
 	await screenshot(page, 'home');
 
 	// ── 2. Open login dialog ─────────────────────────────────────────────────
@@ -136,26 +137,26 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await screenshot(page, 'login-dialog');
 
 	// ── 3. Enter email ───────────────────────────────────────────────────────
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.locator('#login-continue-button').click();
 	log('Entered email and clicked continue.');
 
 	// ── 4. Enter password ────────────────────────────────────────────────────
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible();
+	const passwordInput = page.locator('#login-password-input');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
 	// ── 5. Enter OTP ─────────────────────────────────────────────────────────
 	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible();
+	const otpInput = page.locator('#login-otp-input');
+	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(otpCode);
 	log('Generated and entered OTP.');
 
 	// ── 6. Submit login ──────────────────────────────────────────────────────
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
 	log('Submitted login form.');
@@ -171,7 +172,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// The banner is a button wrapping the inspiration text and "Click to start chat" CTA.
 	// It may take a moment to appear as the WS delivers pending inspirations.
 	log('Looking for daily inspiration banner...');
-	const inspirationBanner = page.locator('button:has-text("Click to start chat")').first();
+	const inspirationBanner = page.locator('[data-testid="daily-inspiration-banner"]').first();
 	await expect(inspirationBanner).toBeVisible({ timeout: 15000 });
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
@@ -221,10 +222,10 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	const messageEditor = page.locator('.editor-content.prose');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	await page.keyboard.type('tell me more');
+	await page.keyboard.type(withMockMarker('tell me more', 'daily_inspiration'));
 	await screenshot(page, 'followup-message-typed');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	log('Sent follow-up message "tell me more".');
@@ -284,7 +285,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Cleaning up: deleting the inspiration chat...');
 
 	// Ensure sidebar is accessible
-	const sidebarToggle = page.locator('.sidebar-toggle-button');
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await sidebarToggle.isVisible()) {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);

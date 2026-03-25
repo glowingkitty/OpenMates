@@ -12,14 +12,18 @@
 // 3. Queue-and-flush — operations that need a missing key are queued and auto-executed on key arrival
 // 4. createKeyForNewChat() is the ONLY way to generate a new key (explicit, auditable)
 // 5. All encryption operations receive the key as a parameter (enforced by TypeScript)
+// 6. IMMUTABLE KEYS — once a key is set, it cannot be silently replaced (defense-in-depth)
+// 7. KEY PROVENANCE — every key records its source for debugging decryption failures
 //
 // Tests: (to be added)
 
 import {
-  generateChatKey,
+  _generateChatKeyInternal,
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
+  clearCryptoKeyCache,
 } from "../cryptoService";
+import { clearDecryptionFailureCache } from "../db/decryptionFailureCache";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,6 +31,25 @@ import {
 
 /** Possible states for a chat key in the manager */
 export type ChatKeyState = "unloaded" | "loading" | "ready" | "failed";
+
+/** Where a key came from — critical for debugging decryption failures */
+export type KeySource =
+  | "created" // createKeyForNewChat() on originating device
+  | "master_key" // Unwrapped from encrypted_chat_key via master key
+  | "server_sync" // Received via WebSocket broadcast (encrypted, then unwrapped)
+  | "share_link" // Extracted from a share link URL fragment
+  | "shared_storage" // Loaded from openmates_shared_keys IndexedDB
+  | "bulk_init" // Loaded during app init (loadChatKeysFromDatabase)
+  | "hidden_chat" // Decrypted via hidden chat combined secret
+  | "injected"; // Generic injection (legacy/migration path)
+
+/** Provenance record for a key — tracks how and when it was loaded */
+export interface KeyProvenance {
+  source: KeySource;
+  timestamp: number;
+  /** First 8 hex chars of SHA-256 hash of the key bytes (for comparison, not security) */
+  keyFingerprint: string;
+}
 
 /** A queued operation waiting for a chat key to become available */
 interface QueuedOperation {
@@ -44,6 +67,7 @@ export interface ChatKeyInfo {
   state: ChatKeyState;
   keyLengthBytes: number | null;
   pendingOps: number;
+  provenance: KeyProvenance | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +79,44 @@ const QUEUE_TIMEOUT_MS = 30_000;
 
 /** Maximum number of queued operations per chat before new ones are rejected */
 const MAX_QUEUE_SIZE = 50;
+
+/**
+ * Compute a short fingerprint of a key for comparison/logging.
+ * Uses first 8 hex chars of a simple hash (NOT cryptographic — just for debugging).
+ * Fast and synchronous, no Web Crypto needed.
+ *
+ * Exported so other modules can use the same fingerprint algorithm without
+ * duplicating the implementation (was duplicated in chatCrudOperations.ts).
+ */
+export function computeKeyFingerprint(key: Uint8Array): string {
+  // Simple FNV-1a hash for speed (this is NOT for security, just comparison)
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key[i];
+    hash = Math.imul(hash, 0x01000193);
+  }
+  // Second pass with offset for more bits
+  let hash2 = 0x1a47e90b;
+  for (let i = key.length - 1; i >= 0; i--) {
+    hash2 ^= key[i];
+    hash2 = Math.imul(hash2, 0x01000193);
+  }
+  return (
+    (hash >>> 0).toString(16).padStart(8, "0") +
+    (hash2 >>> 0).toString(16).padStart(8, "0")
+  );
+}
+
+/**
+ * Compare two Uint8Array keys for byte-level equality.
+ */
+function keysAreEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // ChatKeyManager
@@ -87,6 +149,16 @@ const MAX_QUEUE_SIZE = 50;
  * await chatKeyManager.receiveKeyFromServer(chatId, encryptedChatKey);
  * ```
  */
+// ---------------------------------------------------------------------------
+// BroadcastChannel message types (cross-tab coordination)
+// ---------------------------------------------------------------------------
+
+type CrossTabMessage =
+  /** A tab called clearAll() — all other tabs should also clear */
+  | { type: "clearAll" }
+  /** A tab loaded a new key — broadcast so other tabs can warm their cache */
+  | { type: "keyLoaded"; chatId: string; encryptedChatKey: string };
+
 export class ChatKeyManager {
   // ---- State ----
 
@@ -96,11 +168,25 @@ export class ChatKeyManager {
   /** Per-chat key state */
   private states: Map<string, ChatKeyState> = new Map();
 
+  /** Per-chat key provenance — tracks where each key came from */
+  private provenances: Map<string, KeyProvenance> = new Map();
+
   /** Per-chat loading promises (so multiple concurrent getKey() calls share one load) */
   private loadingPromises: Map<string, Promise<Uint8Array | null>> = new Map();
 
   /** Operations queued waiting for a key to arrive */
   private pendingOps: Map<string, QueuedOperation[]> = new Map();
+
+  /**
+   * Operation lock counter. When > 0, clearAll() is deferred.
+   * This prevents multi-tab auth disruptions from wiping the key cache
+   * while sendEncryptedStoragePackage() or other critical crypto operations
+   * are mid-flight — the root cause of K1→K2 key corruption.
+   */
+  private criticalOpCount = 0;
+
+  /** If clearAll() was requested while locked, it runs when the lock drops to 0 */
+  private deferredClearAll = false;
 
   /** Callback to fetch encrypted_chat_key from IndexedDB for a given chatId */
   private fetchEncryptedChatKey:
@@ -111,6 +197,51 @@ export class ChatKeyManager {
   private hiddenChatKeyDecryptor:
     | ((encryptedKey: string, chatId?: string) => Promise<Uint8Array | null>)
     | null = null;
+
+  /**
+   * Callback to persist encrypted_chat_key to IndexedDB for a given chatId.
+   * Set during ChatDatabase init via setEncryptedChatKeyPersister().
+   * Used by createAndPersistKey() to atomically create + persist keys.
+   */
+  private persistEncryptedChatKeyFn:
+    | ((chatId: string, encryptedChatKey: string) => Promise<void>)
+    | null = null;
+
+  /**
+   * BroadcastChannel for cross-tab coordination.
+   * When this tab clears all keys (logout), other tabs are notified so they
+   * also clear — preventing stale decrypted keys from lingering in other tabs.
+   * Each tab's own critical-op lock is still respected on the receiving side.
+   */
+  private broadcastChannel: BroadcastChannel | null = null;
+
+  // ---- Constructor ----
+
+  constructor() {
+    // Initialise BroadcastChannel if available (not available in SSR/Node)
+    if (typeof BroadcastChannel !== "undefined") {
+      this.broadcastChannel = new BroadcastChannel("openmates_crypto_v1");
+      this.broadcastChannel.onmessage = (event: MessageEvent) => {
+        this.handleCrossTabMessage(event.data as CrossTabMessage);
+      };
+    }
+  }
+
+  // ---- Cross-tab messaging ----
+
+  private handleCrossTabMessage(msg: CrossTabMessage): void {
+    if (msg.type === "clearAll") {
+      console.debug(
+        "[ChatKeyManager] Received cross-tab clearAll — clearing keys",
+      );
+      // clearAll() respects the critical-op lock: if THIS tab has a critical
+      // op running, the clear will be deferred until the op finishes.
+      this.clearAll({ broadcast: false });
+    }
+    // keyLoaded: another tab loaded a key — we could warm our cache here,
+    // but decrypting the encrypted key requires the master key (async).
+    // Instead we rely on the existing lazy-load path (getKey/loadKeyFromDB).
+  }
 
   // ---- Initialization ----
 
@@ -134,6 +265,17 @@ export class ChatKeyManager {
       | null,
   ): void {
     this.hiddenChatKeyDecryptor = decryptor;
+  }
+
+  /**
+   * Register the function that persists encrypted_chat_key to IndexedDB.
+   * Called once during ChatDatabase initialization.
+   * Used by createAndPersistKey() to atomically create + persist keys.
+   */
+  setEncryptedChatKeyPersister(
+    persister: (chatId: string, encryptedChatKey: string) => Promise<void>,
+  ): void {
+    this.persistEncryptedChatKeyFn = persister;
   }
 
   // ---- Core Key Access ----
@@ -204,9 +346,8 @@ export class ChatKeyManager {
       return existing;
     }
 
-    const newKey = generateChatKey();
-    this.keys.set(chatId, newKey);
-    this.states.set(chatId, "ready");
+    const newKey = _generateChatKeyInternal();
+    this.setKeyWithProvenance(chatId, newKey, "created");
 
     console.info(
       `[ChatKeyManager] Created new chat key for originator chat ${chatId}`,
@@ -216,6 +357,46 @@ export class ChatKeyManager {
     this.flushPendingOps(chatId, newKey);
 
     return newKey;
+  }
+
+  /**
+   * Atomically create a new chat key AND persist the encrypted form to IndexedDB.
+   * This is the preferred way to create keys for new chats — it guarantees the key
+   * is persisted before any data is encrypted with it.
+   *
+   * Returns both the raw key (for immediate encryption) and the encrypted form
+   * (for inclusion in the chat record sent to server).
+   *
+   * @throws Error if master key is unavailable or persistence callback not registered
+   */
+  async createAndPersistKey(chatId: string): Promise<{
+    chatKey: Uint8Array;
+    encryptedChatKey: string;
+  }> {
+    // Step 1: Create the key (idempotent — returns existing if already created)
+    const chatKey = this.createKeyForNewChat(chatId);
+
+    // Step 2: Encrypt with master key for server/IDB storage
+    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    if (!encryptedChatKey) {
+      throw new Error(
+        `[ChatKeyManager] Failed to encrypt chat key for ${chatId} — master key unavailable`,
+      );
+    }
+
+    // Step 3: Persist to IndexedDB (if persister is registered)
+    if (this.persistEncryptedChatKeyFn) {
+      await this.persistEncryptedChatKeyFn(chatId, encryptedChatKey);
+      console.info(
+        `[ChatKeyManager] ✅ Created and persisted key for chat ${chatId}`,
+      );
+    } else {
+      console.warn(
+        `[ChatKeyManager] Key created for ${chatId} but no persister registered — encrypted_chat_key not saved to IDB`,
+      );
+    }
+
+    return { chatKey, encryptedChatKey };
   }
 
   // ---- Key Loading ----
@@ -246,8 +427,7 @@ export class ChatKeyManager {
         // Try master key decryption first
         const chatKey = await decryptChatKeyWithMasterKey(encryptedKey);
         if (chatKey) {
-          this.keys.set(chatId, chatKey);
-          this.states.set(chatId, "ready");
+          this.setKeyWithProvenance(chatId, chatKey, "master_key");
           this.flushPendingOps(chatId, chatKey);
           return chatKey;
         }
@@ -259,8 +439,7 @@ export class ChatKeyManager {
             chatId,
           );
           if (hiddenKey) {
-            this.keys.set(chatId, hiddenKey);
-            this.states.set(chatId, "ready");
+            this.setKeyWithProvenance(chatId, hiddenKey, "hidden_chat");
             this.flushPendingOps(chatId, hiddenKey);
             return hiddenKey;
           }
@@ -295,6 +474,8 @@ export class ChatKeyManager {
    */
   async reloadKey(chatId: string): Promise<Uint8Array | null> {
     this.states.set(chatId, "unloaded");
+    this.keys.delete(chatId);
+    this.provenances.delete(chatId);
     this.loadingPromises.delete(chatId);
     return this.loadKeyFromDB(chatId);
   }
@@ -316,15 +497,35 @@ export class ChatKeyManager {
     chatId: string,
     encryptedChatKey: string,
   ): Promise<Uint8Array | null> {
-    // If key is already ready, skip decryption (it's the same key from server)
     const existing = this.keys.get(chatId);
-    if (existing) return existing;
+    if (existing) {
+      // Key already loaded — verify it matches the server key instead of
+      // silently skipping. A mismatch here means the server has a different key
+      // than what we have locally, which is the root cause of decryption failures.
+      try {
+        const serverKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+        if (serverKey && !keysAreEqual(existing, serverKey)) {
+          const existingFp = computeKeyFingerprint(existing);
+          const serverFp = computeKeyFingerprint(serverKey);
+          console.error(
+            `[ChatKeyManager] ⚠️ KEY CONFLICT in receiveKeyFromServer for chat ${chatId}! ` +
+              `Local key fp=${existingFp} differs from server key fp=${serverFp}. ` +
+              `Server key wins as source of truth — locally encrypted data may need re-encryption.`,
+          );
+          // Server is the source of truth — accept the server key
+          this.setKeyWithProvenance(chatId, serverKey, "server_sync");
+          return serverKey;
+        }
+      } catch {
+        // Decryption of server key failed — keep existing
+      }
+      return existing;
+    }
 
     try {
       const chatKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
       if (chatKey) {
-        this.keys.set(chatId, chatKey);
-        this.states.set(chatId, "ready");
+        this.setKeyWithProvenance(chatId, chatKey, "server_sync");
         console.debug(
           `[ChatKeyManager] Received and cached key from server for chat ${chatId}`,
         );
@@ -339,8 +540,7 @@ export class ChatKeyManager {
           chatId,
         );
         if (hiddenKey) {
-          this.keys.set(chatId, hiddenKey);
-          this.states.set(chatId, "ready");
+          this.setKeyWithProvenance(chatId, hiddenKey, "hidden_chat");
           this.flushPendingOps(chatId, hiddenKey);
           return hiddenKey;
         }
@@ -366,11 +566,98 @@ export class ChatKeyManager {
    * - Share link keys (decrypted from URL fragment)
    * - Keys loaded from sharedChatKeyStorage (unauthenticated users)
    * - Bulk load during app initialization
+   *
+   * @param chatId - Chat identifier
+   * @param chatKey - Raw AES key bytes
+   * @param source - Where this key came from (for provenance tracking)
+   * @param force - If true, allow overwriting an existing key (use with caution)
+   * @returns true if the key was accepted, false if rejected (existing key differs)
    */
-  injectKey(chatId: string, chatKey: Uint8Array): void {
+  injectKey(
+    chatId: string,
+    chatKey: Uint8Array,
+    source: KeySource = "injected",
+    force = false,
+  ): boolean {
+    const existing = this.keys.get(chatId);
+
+    if (existing) {
+      if (keysAreEqual(existing, chatKey)) {
+        // Same key — update provenance if the new source is more authoritative
+        // Priority: master_key > server_sync > created > hidden_chat > shared_storage > share_link > injected
+        const currentProv = this.provenances.get(chatId);
+        const SOURCE_PRIORITY: Record<KeySource, number> = {
+          master_key: 100,
+          server_sync: 90,
+          created: 80,
+          hidden_chat: 70,
+          bulk_init: 60,
+          shared_storage: 30,
+          share_link: 20,
+          injected: 10,
+        };
+        if (
+          !currentProv ||
+          SOURCE_PRIORITY[source] > SOURCE_PRIORITY[currentProv.source]
+        ) {
+          this.provenances.set(chatId, {
+            source,
+            timestamp: Date.now(),
+            keyFingerprint: computeKeyFingerprint(chatKey),
+          });
+        }
+        return true; // Same key, no-op
+      }
+
+      // DIFFERENT key — this is the dangerous case
+      if (!force) {
+        const existingProv = this.provenances.get(chatId);
+        const existingFp = computeKeyFingerprint(existing);
+        const newFp = computeKeyFingerprint(chatKey);
+        console.error(
+          `[ChatKeyManager] BLOCKED key replacement for chat ${chatId}! ` +
+            `Existing key (fp=${existingFp}, source=${existingProv?.source ?? "unknown"}) ` +
+            `would be replaced by different key (fp=${newFp}, source=${source}). ` +
+            `This prevents silent key corruption. Use force=true to override.`,
+        );
+        return false; // Reject the replacement
+      }
+
+      // Force override — log prominently
+      const existingFp = computeKeyFingerprint(existing);
+      const newFp = computeKeyFingerprint(chatKey);
+      console.warn(
+        `[ChatKeyManager] FORCE replacing key for chat ${chatId}: ` +
+          `old fp=${existingFp}, new fp=${newFp}, source=${source}`,
+      );
+    }
+
+    this.setKeyWithProvenance(chatId, chatKey, source);
+    this.flushPendingOps(chatId, chatKey);
+    return true;
+  }
+
+  // ---- Internal Key Setting ----
+
+  /**
+   * Internal: set a key with provenance tracking.
+   * Bypasses the immutability guard — callers must validate first.
+   */
+  private setKeyWithProvenance(
+    chatId: string,
+    chatKey: Uint8Array,
+    source: KeySource,
+  ): void {
     this.keys.set(chatId, chatKey);
     this.states.set(chatId, "ready");
-    this.flushPendingOps(chatId, chatKey);
+    this.provenances.set(chatId, {
+      source,
+      timestamp: Date.now(),
+      keyFingerprint: computeKeyFingerprint(chatKey),
+    });
+    // Clear decryption failure cache for this chat — new key may succeed
+    // where the old one failed (key rotation, re-encryption, etc.)
+    clearDecryptionFailureCache(chatId);
   }
 
   // ---- Queue-and-Flush ----
@@ -543,8 +830,14 @@ export class ChatKeyManager {
    * Used when locking hidden chats or removing a chat.
    */
   removeKey(chatId: string): void {
+    // Clear cached CryptoKey for this chat key's fingerprint
+    const key = this.keys.get(chatId);
+    if (key) {
+      clearCryptoKeyCache(computeKeyFingerprint(key));
+    }
     this.keys.delete(chatId);
     this.states.delete(chatId);
+    this.provenances.delete(chatId);
     this.loadingPromises.delete(chatId);
     // Reject any pending operations
     const queue = this.pendingOps.get(chatId);
@@ -556,28 +849,101 @@ export class ChatKeyManager {
     }
   }
 
+  // ---- Critical Operation Lock ----
+
+  /**
+   * Acquire a lock that prevents clearAll() from running.
+   * Call this before starting a critical crypto operation (e.g. sendEncryptedStoragePackage).
+   * MUST be paired with releaseCriticalOp().
+   */
+  acquireCriticalOp(): void {
+    this.criticalOpCount++;
+    if (this.criticalOpCount === 1) {
+      console.debug("[ChatKeyManager] Critical crypto operation lock acquired");
+    }
+  }
+
+  /**
+   * Release the critical operation lock.
+   * If clearAll() was deferred, it runs now (when count drops to 0).
+   */
+  releaseCriticalOp(): void {
+    this.criticalOpCount = Math.max(0, this.criticalOpCount - 1);
+    if (this.criticalOpCount === 0 && this.deferredClearAll) {
+      console.warn(
+        "[ChatKeyManager] Executing deferred clearAll() after critical op completed",
+      );
+      this.deferredClearAll = false;
+      // broadcast=false: already sent when clearAll() was first called
+      this.clearAll({ broadcast: false });
+    }
+  }
+
   /**
    * Clear ALL chat keys from memory.
    * Called on logout, forced logout, or session expiry.
+   *
+   * If a critical crypto operation is in progress (acquireCriticalOp),
+   * the clear is DEFERRED until the operation completes. This prevents
+   * the multi-tab auth disruption from wiping keys mid-flight, which
+   * causes sendEncryptedStoragePackage to generate a new key (K2) and
+   * corrupt messages already encrypted with the original key (K1).
+   *
+   * By default also broadcasts to other tabs via BroadcastChannel so they
+   * also clear their in-memory keys (cross-tab logout safety).
    */
-  clearAll(): void {
+  clearAll({ broadcast = true }: { broadcast?: boolean } = {}): void {
+    if (this.criticalOpCount > 0) {
+      console.warn(
+        `[ChatKeyManager] clearAll() DEFERRED — ${this.criticalOpCount} critical crypto op(s) in progress. ` +
+          `Keys will be cleared when all operations complete.`,
+      );
+      this.deferredClearAll = true;
+      // Still broadcast immediately so other tabs begin their own deferred clear
+      if (broadcast) {
+        this.broadcastChannel?.postMessage({ type: "clearAll" } satisfies CrossTabMessage);
+      }
+      return;
+    }
+
+    // Broadcast BEFORE clearing so other tabs receive the message while this
+    // tab is still alive (prevents timing issues on tab close)
+    if (broadcast) {
+      this.broadcastChannel?.postMessage({ type: "clearAll" } satisfies CrossTabMessage);
+    }
+
     // Reject all pending operations
     for (const [chatId, queue] of Array.from(this.pendingOps.entries())) {
       for (const op of queue) {
         op.reject(
-          new Error(`All chat keys cleared (logout) for ${chatId}: ${op.label}`),
+          new Error(
+            `All chat keys cleared (logout) for ${chatId}: ${op.label}`,
+          ),
         );
       }
     }
 
     this.keys.clear();
     this.states.clear();
+    this.provenances.clear();
     this.loadingPromises.clear();
     this.pendingOps.clear();
+    this.deferredClearAll = false;
+    // Clear all cached CryptoKey objects since all raw keys are gone
+    clearCryptoKeyCache();
+    // Clear decryption failure cache — all keys gone, fresh start on re-login
+    clearDecryptionFailureCache();
     console.debug("[ChatKeyManager] All keys cleared");
   }
 
   // ---- State Inspection (for debug tools) ----
+
+  /**
+   * Total number of keys currently held in memory.
+   */
+  size(): number {
+    return this.keys.size;
+  }
 
   /**
    * Get the current state of a chat key.
@@ -621,6 +987,7 @@ export class ChatKeyManager {
         state: this.states.get(chatId) ?? "unloaded",
         keyLengthBytes: this.keys.get(chatId)?.length ?? null,
         pendingOps: this.pendingOps.get(chatId)?.length ?? 0,
+        provenance: this.provenances.get(chatId) ?? null,
       });
     }
 
@@ -634,17 +1001,11 @@ export class ChatKeyManager {
     };
   }
 
-  // ---- Legacy Compatibility ----
-
   /**
-   * Access the raw keys Map for legacy code that reads chatDB.chatKeys directly.
-   *
-   * @deprecated — callers should migrate to getKeySync() / getKey() / withKey().
-   * This is provided ONLY for the transition period so that existing code
-   * referencing `chatDB.chatKeys` continues to work.
+   * Get provenance info for a specific chat key.
    */
-  get legacyKeysMap(): Map<string, Uint8Array> {
-    return this.keys;
+  getProvenance(chatId: string): KeyProvenance | null {
+    return this.provenances.get(chatId) ?? null;
   }
 
   /**
@@ -653,13 +1014,23 @@ export class ChatKeyManager {
    *
    * @param entries - Array of [chatId, chatKey] pairs
    */
-  bulkInject(entries: Array<[string, Uint8Array]>): void {
+  bulkInject(
+    entries: Array<[string, Uint8Array]>,
+    source: KeySource = "bulk_init",
+  ): void {
+    let injected = 0;
+    let skipped = 0;
     for (const [chatId, chatKey] of entries) {
-      this.keys.set(chatId, chatKey);
-      this.states.set(chatId, "ready");
+      // Use injectKey so the immutability guard applies — a key already loaded
+      // from a higher-priority source (master_key, server_sync) will not be
+      // silently overwritten by a bulk load.
+      const accepted = this.injectKey(chatId, chatKey, source);
+      if (accepted) injected++;
+      else skipped++;
     }
     console.debug(
-      `[ChatKeyManager] Bulk-injected ${entries.length} chat keys`,
+      `[ChatKeyManager] Bulk-injected ${injected} chat keys (source=${source})` +
+        (skipped > 0 ? `, skipped ${skipped} (already loaded from higher-priority source)` : ""),
     );
   }
 }

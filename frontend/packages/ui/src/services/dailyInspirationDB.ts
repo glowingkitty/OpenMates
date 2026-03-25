@@ -359,10 +359,17 @@ export async function loadInspirationsFromIndexedDB(): Promise<
     );
     return decrypted.slice(0, 3);
   } catch (error) {
-    console.error(
-      `${LOG_PREFIX} Failed to load inspirations from IndexedDB:`,
-      error,
-    );
+    if (
+      error instanceof Error &&
+      error.message?.includes("blocked during logout")
+    ) {
+      console.debug(`${LOG_PREFIX} DB unavailable during cleanup, skipping`);
+    } else {
+      console.error(
+        `${LOG_PREFIX} Failed to load inspirations from IndexedDB:`,
+        error,
+      );
+    }
     return [];
   }
 }

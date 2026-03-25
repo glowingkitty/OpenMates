@@ -104,7 +104,7 @@ export function getBaseUrl(app: "website" | "webapp"): string {
 }
 
 // Helper to get webapp URL
-export function getWebappUrl(): string {
+function getWebappUrl(): string {
   return getBaseUrl("webapp");
 }
 

@@ -34,6 +34,7 @@ import SettingsAddName from "./privacy/SettingsAddName.svelte";
 import SettingsAddAddress from "./privacy/SettingsAddAddress.svelte";
 import SettingsAddBirthday from "./privacy/SettingsAddBirthday.svelte";
 import SettingsAddCustomEntry from "./privacy/SettingsAddCustomEntry.svelte";
+import EditPersonalDataEntryWrapper from "./privacy/EditPersonalDataEntryWrapper.svelte";
 import SettingsAutoDeletion from "./privacy/SettingsAutoDeletion.svelte";
 
 // Account & Security
@@ -100,11 +101,13 @@ import SettingsSupportMonthly from "./support/SettingsSupportMonthly.svelte";
 import SettingsNewsletter from "./SettingsNewsletter.svelte";
 import SettingsReportIssue from "./SettingsReportIssue.svelte";
 import SettingsReportIssueConfirmation from "./SettingsReportIssueConfirmation.svelte";
+import SettingsShareDebugLogs from "./SettingsShareDebugLogs.svelte";
 
 // Developers
 import SettingsDevelopers from "./SettingsDevelopers.svelte";
 import SettingsApiKeys from "./developers/SettingsApiKeys.svelte";
 import SettingsDevices from "./developers/SettingsDevices.svelte";
+import SettingsWebhooks from "./developers/SettingsWebhooks.svelte";
 
 // Server (admin only)
 import SettingsServer from "./SettingsServer.svelte";
@@ -179,6 +182,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   developers: SettingsDevelopers,
   "developers/api-keys": SettingsApiKeys,
   "developers/devices": SettingsDevices,
+  "developers/webhooks": SettingsWebhooks,
   // Interface
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,
@@ -236,6 +240,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Report Issue
   report_issue: SettingsReportIssue,
   "report_issue/confirmation": SettingsReportIssueConfirmation,
+  "report_issue/share-debug-logs": SettingsShareDebugLogs,
 };
 
 /**
@@ -250,3 +255,9 @@ export { AppDetailsWrapper };
  */
 import MateDetailsWrapper from "./MateDetailsWrapper.svelte";
 export { MateDetailsWrapper };
+
+/**
+ * Re-export EditPersonalDataEntryWrapper for use in the dynamic route builder
+ * (privacy/hide-personal-data/edit-{type}/{entryId} routes).
+ */
+export { EditPersonalDataEntryWrapper };

@@ -1,1 +1,0 @@
-Coming soon - the delete user data settings will be available here.

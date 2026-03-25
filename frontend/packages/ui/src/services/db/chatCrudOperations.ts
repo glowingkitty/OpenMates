@@ -10,15 +10,16 @@
 
 import type { Chat, Message, TiptapJSON } from "../../types/chat";
 import {
-  generateChatKey,
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
+import { chatKeyManager, computeKeyFingerprint } from "../encryption/ChatKeyManager";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 
 // Type for ChatDatabase instance to avoid circular import
-// Only includes properties/methods needed by this module
+// Only includes properties/methods needed by this module.
+// NOTE: getChatKey/setChatKey/clearChatKey have been removed — use chatKeyManager directly.
 interface ChatDatabaseInstance {
   db: IDBDatabase | null;
   CHATS_STORE_NAME: string;
@@ -28,10 +29,8 @@ interface ChatDatabaseInstance {
     mode: IDBTransactionMode,
   ): Promise<IDBTransaction>;
 
-  // Chat key management methods (from chatKeyManagement)
-  getChatKey(chatId: string): Uint8Array | null;
-  setChatKey(chatId: string, chatKey: Uint8Array): void;
-  clearChatKey(chatId: string): void;
+  // Chat retrieval (for IDB integrity checks)
+  getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
 }
 
 // Store name constant for messages (needed for deleteChat)
@@ -44,7 +43,7 @@ const MESSAGES_STORE_NAME = "messages";
 /**
  * Extract title from TipTap JSON content (first line of text)
  */
-export function extractTitleFromContent(content: TiptapJSON): string {
+function extractTitleFromContent(content: TiptapJSON): string {
   if (!content) return "";
   try {
     const firstTextNode = content.content?.[0]?.content?.[0];
@@ -120,50 +119,65 @@ export async function encryptChatForStorage(
     return encryptedChat;
   }
 
-  let chatKey = dbInstance.getChatKey(chat.chat_id);
+  // Step 1: check ChatKeyManager (single source of truth)
+  let chatKey = chatKeyManager.getKeySync(chat.chat_id);
+
+  // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
-    // Decrypt the server-provided key and cache it
-    // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
     chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
     if (chatKey) {
-      dbInstance.setChatKey(chat.chat_id, chatKey);
-      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key; // Keep the server's encrypted key
+      chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
+      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
     } else {
       console.error(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,
       );
     }
-  } else if (!chatKey) {
-    // No cached key and no server key - generate new one (new chat creation)
+  }
+
+  // Step 3: IDB integrity check — the chat object may lack the key but IDB already holds it
+  if (!chatKey) {
+    const existingChat = await dbInstance.getChat(chat.chat_id);
+    if (existingChat?.encrypted_chat_key) {
+      chatKey = await decryptChatKeyWithMasterKey(
+        existingChat.encrypted_chat_key,
+      );
+      if (chatKey) {
+        chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
+        encryptedChat.encrypted_chat_key = existingChat.encrypted_chat_key;
+        console.info(
+          `[ChatDatabase] Recovered existing encrypted_chat_key from IDB for chat ${chat.chat_id}`,
+        );
+      }
+    }
+  }
+
+  // Step 4: genuinely new chat — create key through ChatKeyManager (single source of truth)
+  if (!chatKey) {
     console.log(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
-    chatKey = generateChatKey();
-    dbInstance.setChatKey(chat.chat_id, chatKey);
-    // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
+    chatKey = chatKeyManager.createKeyForNewChat(chat.chat_id);
+  }
+
+  // Ensure encrypted_chat_key is present in the stored object
+  if (!encryptedChat.encrypted_chat_key) {
     const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
-      console.log(
-        `[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`,
-      );
     } else {
       console.error(
-        `[ChatDatabase] ❌ Failed to encrypt chat key for new chat ${chat.chat_id} - master key may be missing`,
+        `[ChatDatabase] ❌ Failed to encrypt chat key for chat ${chat.chat_id} — master key may be missing`,
       );
     }
-  } else {
-    // Key already in cache - make sure encrypted version is in the chat object
-    if (!chat.encrypted_chat_key) {
-      // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
-      const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-      if (encryptedChatKey) {
-        encryptedChat.encrypted_chat_key = encryptedChatKey;
-      }
-    } else {
-      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
-    }
   }
+
+  // Stamp key_version and key_fingerprint for decryption-failure diagnosis and future key rotation.
+  // key_version starts at 1 for new chats; existing chats without this field read as null (version unknown).
+  if (!encryptedChat.key_version) {
+    encryptedChat.key_version = 1;
+  }
+  encryptedChat.key_fingerprint = computeKeyFingerprint(chatKey);
 
   // TODO: Add encryption for new fields when implemented:
   // - encrypted_chat_summary (from post-processing)
@@ -233,24 +247,20 @@ export async function decryptChatFromStorage(
     }
 
     if (result.chatKey) {
-      // Cache the key (update cache even if it was already cached)
-      dbInstance.setChatKey(chat.chat_id, result.chatKey);
-      // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current password)
-      // This ensures only chats that can be decrypted with the current password show up in hidden section
+      // Inject into ChatKeyManager (single source of truth)
+      chatKeyManager.injectKey(chat.chat_id, result.chatKey, "master_key");
       if (result.isHidden) {
         decryptedChat.is_hidden = true;
       } else {
-        // Explicitly mark as not hidden if decrypted via normal path
         decryptedChat.is_hidden = false;
       }
     } else {
       // Both decryption paths failed - could be corrupted or a locked hidden chat
-      // OR a hidden chat encrypted with a different password (can't decrypt with current password)
       console.debug(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`,
       );
-      // Clear any cached key since decryption failed
-      dbInstance.clearChatKey(chat.chat_id);
+      // Clear any stale key since decryption failed
+      chatKeyManager.removeKey(chat.chat_id);
       // is_hidden is already false from the initial clear above
     }
 
@@ -1222,5 +1232,153 @@ export async function addOrUpdateChatWithFullData(
           currentTransaction.abort();
         reject(error);
       });
+  });
+}
+
+// ============================================================================
+// METADATA-ONLY CHAT OPERATIONS (for expanded search coverage)
+// ============================================================================
+
+/**
+ * Batch-save metadata-only chats to IndexedDB.
+ *
+ * These are chats from positions 101–1000 that have metadata (title, summary,
+ * tags, icon, category) but no messages. They're stored in the same `chats`
+ * object store as full chats, with `is_metadata_only: true` to distinguish them.
+ *
+ * Uses a single IndexedDB transaction for efficiency (~1-2ms per chat).
+ * Skips chats that already exist in IndexedDB (avoids overwriting full chats
+ * that may have been promoted from metadata-only).
+ *
+ * @param dbInstance - ChatDatabase instance
+ * @param chats - Array of metadata-only Chat objects (with is_metadata_only: true)
+ * @returns Number of chats actually saved (excludes already-existing ones)
+ */
+export async function batchSaveMetadataChats(
+  dbInstance: ChatDatabaseInstance,
+  chats: Chat[],
+): Promise<number> {
+  if (chats.length === 0) return 0;
+
+  await dbInstance.init();
+
+  // Pre-process all chats: encrypt and prepare for storage (async work done before transaction)
+  const prepared: Chat[] = [];
+  for (const chat of chats) {
+    try {
+      const chatToSave = await encryptChatForStorage(dbInstance, {
+        ...chat,
+        is_metadata_only: true,
+        draft_v: chat.draft_v ?? 0,
+        title_v: chat.title_v ?? 0,
+        messages_v: chat.messages_v ?? 0,
+        last_edited_overall_timestamp:
+          chat.last_edited_overall_timestamp ??
+          chat.updated_at ??
+          chat.created_at ??
+          Math.floor(Date.now() / 1000),
+      });
+      delete chatToSave.messages;
+      prepared.push(chatToSave);
+    } catch (error) {
+      console.error(
+        `[ChatDatabase] Error preparing metadata chat ${chat.chat_id} for storage:`,
+        error,
+      );
+    }
+  }
+
+  if (prepared.length === 0) return 0;
+
+  return new Promise<number>((resolve, reject) => {
+    (async () => {
+      try {
+        const transaction = await dbInstance.getTransaction(
+          dbInstance.CHATS_STORE_NAME,
+          "readwrite",
+        );
+        const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+        let savedCount = 0;
+
+        for (const chat of prepared) {
+          // Use put (upsert) — if the chat already exists as a full chat, keep it.
+          // Check first: only save if not already present OR if already metadata-only.
+          const getRequest = store.get(chat.chat_id);
+          getRequest.onsuccess = () => {
+            const existing = getRequest.result;
+            if (existing && !existing.is_metadata_only) {
+              // Already a full chat — don't overwrite with metadata-only
+              return;
+            }
+            // Save metadata-only chat (new or updating existing metadata-only)
+            store.put(chat);
+            savedCount++;
+          };
+        }
+
+        transaction.oncomplete = () => {
+          console.debug(
+            `[ChatDatabase] Batch saved ${savedCount}/${prepared.length} metadata-only chats`,
+          );
+          resolve(savedCount);
+        };
+        transaction.onerror = () => {
+          console.error(
+            "[ChatDatabase] Batch save metadata chats transaction failed:",
+            transaction.error,
+          );
+          reject(transaction.error);
+        };
+      } catch (error) {
+        reject(error);
+      }
+    })();
+  });
+}
+
+/**
+ * Get all metadata-only chat IDs currently in IndexedDB.
+ * Used to send existing_chat_ids to the server during metadata sync
+ * so unchanged chats can be skipped.
+ *
+ * @param dbInstance - ChatDatabase instance
+ * @returns Array of chat IDs that are metadata-only
+ */
+export async function getMetadataOnlyChatIds(
+  dbInstance: ChatDatabaseInstance,
+): Promise<string[]> {
+  await dbInstance.init();
+
+  return new Promise<string[]>((resolve, reject) => {
+    (async () => {
+      try {
+        const transaction = await dbInstance.getTransaction(
+          dbInstance.CHATS_STORE_NAME,
+          "readonly",
+        );
+        const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+        const request = store.openCursor();
+        const metadataOnlyIds: string[] = [];
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            if (cursor.value.is_metadata_only) {
+              metadataOnlyIds.push(cursor.value.chat_id);
+            }
+            cursor.continue();
+          }
+        };
+
+        transaction.oncomplete = () => {
+          resolve(metadataOnlyIds);
+        };
+        transaction.onerror = () => {
+          reject(transaction.error);
+        };
+      } catch (error) {
+        reject(error);
+      }
+    })();
   });
 }

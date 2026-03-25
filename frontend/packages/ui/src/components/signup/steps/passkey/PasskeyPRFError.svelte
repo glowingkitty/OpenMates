@@ -33,7 +33,7 @@
             class="continue-button" 
             onclick={handleContinue}
         >
-            {@html $text('signup.continue')}
+            {@html $text('common.continue')}
         </button>
     </div>
 </div>

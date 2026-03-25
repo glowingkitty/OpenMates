@@ -2,7 +2,24 @@ app_settings_memories:
   context: App settings and memories section title
   en: Settings & Memories
   de: Einstellungen & Erinnerungen
+  zh: 设置与记忆
+  es: Configuración y Memorias
+  fr: Paramètres et Souvenirs
+  pt: Configurações e Memórias
+  ru: Настройки и воспоминания
+  ja: 設定とメモリ
+  ko: 설정 및 메모리
+  it: Impostazioni e Memorie
+  tr: Ayarlar ve Anılar
+  vi: Cài đặt & Ký ức
+  id: Pengaturan & Memori
+  pl: Ustawienia i Wspomnienia
+  nl: Instellingen & Herinneringen
   ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar och minnen
   he: הגדרות וזיכרונות
   verified_by_human: []
 
@@ -10,7 +27,24 @@ item_key_required:
   context: Validation error when creating a memory entry without a key
   en: Entry key is required
   de: Eintragsschlüssel ist erforderlich
+  zh: 条目键是必填项
+  es: La clave de entrada es obligatoria
+  fr: La clé d'entrée est requise
+  pt: A chave de entrada é obrigatória
+  ru: Ключ записи обязателен
+  ja: エントリキーは必須です
+  ko: 항목 키는 필수입니다
+  it: La chiave dell'elemento è obbligatoria
+  tr: Giriş anahtarı gereklidir
+  vi: Khóa mục nhập là bắt buộc
+  id: Kunci entri diperlukan
+  pl: Klucz wpisu jest wymagany
+  nl: Invoersleutel is vereist
   ar: مفتاح الإدخال مطلوب
+  hi: प्रविष्टि कुंजी आवश्यक है
+  th: จำเป็นต้องมีคีย์รายการ
+  cs: Klíč záznamu je povinný
+  sv: Inmatningsnyckel krävs
   he: חובה להזין מפתח רשומה
   verified_by_human: []
 
@@ -18,7 +52,24 @@ item_value_required:
   context: Validation error when creating a memory entry without a value
   en: Entry value is required
   de: Eintragswert ist erforderlich
+  zh: 条目值是必填项
+  es: El valor de entrada es obligatorio
+  fr: La valeur d'entrée est requise
+  pt: O valor de entrada é obrigatório
+  ru: Значение записи обязательно
+  ja: エントリ値は必須です
+  ko: 항목 값은 필수입니다
+  it: Il valore dell'elemento è obbligatorio
+  tr: Giriş değeri gereklidir
+  vi: Giá trị mục nhập là bắt buộc
+  id: Nilai entri diperlukan
+  pl: Wartość wpisu jest wymagana
+  nl: Invoerwaarde is vereist
   ar: قيمة الإدخال مطلوبة
+  hi: प्रविष्टि मान आवश्यक है
+  th: จำเป็นต้องมีค่ารายการ
+  cs: Hodnota záznamu je povinná
+  sv: Inmatningsvärde krävs
   he: חובה להזין ערך רשומה
   verified_by_human: []
 
@@ -26,7 +77,24 @@ authentication_required:
   context: Error when unauthenticated user tries to access memory entries
   en: Authentication required
   de: Authentifizierung erforderlich
+  zh: 需要身份验证
+  es: Se requiere autenticación
+  fr: Authentification requise
+  pt: Autenticação necessária
+  ru: Требуется аутентификация
+  ja: 認証が必要です
+  ko: 인증이 필요합니다
+  it: Autenticazione richiesta
+  tr: Kimlik doğrulama gerekli
+  vi: Yêu cầu xác thực
+  id: Autentikasi diperlukan
+  pl: Wymagane uwierzytelnienie
+  nl: Authenticatie vereist
   ar: المصادقة مطلوبة
+  hi: प्रमाणीकरण आवश्यक है
+  th: จำเป็นต้องมีการยืนยันตัวตน
+  cs: Vyžaduje se ověření
+  sv: Autentisering krävs
   he: נדרש אימות
   verified_by_human: []
 
@@ -34,7 +102,24 @@ confirm_delete:
   context: Confirmation dialog text before deleting a memory entry
   en: Are you sure you want to delete this entry?
   de: Bist du sicher, dass du diesen Eintrag löschen möchtest?
+  zh: 您确定要删除此条目吗？
+  es: ¿Estás seguro de que quieres eliminar esta entrada?
+  fr: Êtes-vous sûr de vouloir supprimer cette entrée ?
+  pt: Tem certeza que deseja excluir esta entrada?
+  ru: Вы уверены, что хотите удалить эту запись?
+  ja: このエントリを削除してもよろしいですか？
+  ko: 이 항목을 삭제하시겠습니까?
+  it: Sei sicuro di voler eliminare questa voce?
+  tr: Bu girişi silmek istediğinizden emin misiniz?
+  vi: Bạn có chắc muốn xóa mục này không?
+  id: Apakah Anda yakin ingin menghapus entri ini?
+  pl: Czy na pewno chcesz usunąć ten wpis?
+  nl: Weet u zeker dat u dit item wilt verwijderen?
   ar: هل أنت متأكد أنك تريد حذف هذا الإدخال؟
+  hi: क्या आप वाकई इस प्रविष्टि को हटाना चाहते हैं?
+  th: คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?
+  cs: Opravdu chcete tento záznam smazat?
+  sv: Är du säker på att du vill ta bort det här inlägget?
   he: "האם ברצונך למחוק את הרשומה הזו?"
   verified_by_human: []
 
@@ -42,7 +127,24 @@ entry_not_found:
   context: Error when a memory entry doesn't exist
   en: Entry not found
   de: Eintrag nicht gefunden
+  zh: 未找到条目
+  es: Entrada no encontrada
+  fr: Entrée introuvable
+  pt: Entrada não encontrada
+  ru: Запись не найдена
+  ja: エントリが見つかりません
+  ko: 항목을 찾을 수 없습니다
+  it: Voce non trovata
+  tr: Giriş bulunamadı
+  vi: Không tìm thấy mục
+  id: Entri tidak ditemukan
+  pl: Wpis nie znaleziony
+  nl: Item niet gevonden
   ar: الإدخال غير موجود
+  hi: प्रविष्टि नहीं मिली
+  th: ไม่พบรายการ
+  cs: Záznam nenalezen
+  sv: Inlägget hittades inte
   he: הרשומה לא נמצאה
   verified_by_human: []
 
@@ -50,7 +152,24 @@ back_to_category:
   context: Back button label on entry detail page
   en: Back to category
   de: Zurück zur Kategorie
+  zh: 返回分类
+  es: Volver a la categoría
+  fr: Retour à la catégorie
+  pt: Voltar à categoria
+  ru: Назад к категории
+  ja: カテゴリに戻る
+  ko: 카테고리로 돌아가기
+  it: Torna alla categoria
+  tr: Kategoriye geri dön
+  vi: Quay lại danh mục
+  id: Kembali ke kategori
+  pl: Powrót do kategorii
+  nl: Terug naar categorie
   ar: العودة إلى الفئة
+  hi: श्रेणी पर वापस जाएं
+  th: กลับไปยังหมวดหมู่
+  cs: Zpět na kategorii
+  sv: Tillbaka till kategorin
   he: חזרה לקטגוריה
   verified_by_human: []
 
@@ -58,7 +177,24 @@ deleting:
   context: Delete button text while deletion is in progress
   en: Deleting...
   de: Wird gelöscht...
+  zh: 正在删除...
+  es: Eliminando...
+  fr: Suppression...
+  pt: Excluindo...
+  ru: Удаление...
+  ja: 削除中...
+  ko: 삭제 중...
+  it: Eliminazione...
+  tr: Siliniyor...
+  vi: Đang xóa...
+  id: Menghapus...
+  pl: Usuwanie...
+  nl: Verwijderen...
   ar: جارٍ الحذف...
+  hi: हटाया जा रहा है...
+  th: กำลังลบ...
+  cs: Mazání...
+  sv: Tar bort...
   he: מוחק...
   verified_by_human: []
 
@@ -66,7 +202,24 @@ saving:
   context: Save button text while saving is in progress
   en: Saving...
   de: Wird gespeichert...
+  zh: 正在保存...
+  es: Guardando...
+  fr: Enregistrement...
+  pt: Salvando...
+  ru: Сохранение...
+  ja: 保存中...
+  ko: 저장 중...
+  it: Salvataggio...
+  tr: Kaydediliyor...
+  vi: Đang lưu...
+  id: Menyimpan...
+  pl: Zapisywanie...
+  nl: Opslaan...
   ar: جارٍ الحفظ...
+  hi: सहेजा जा रहा है...
+  th: กำลังบันทึก...
+  cs: Ukládání...
+  sv: Sparar...
   he: שומר...
   verified_by_human: []
 

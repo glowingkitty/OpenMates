@@ -13,6 +13,7 @@
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
 
   interface EventResult {
     embed_id: string;
@@ -46,6 +47,7 @@
       currency?: string;
     };
     image_url?: string | null;
+    cover_url?: string | null;
   }
 
   interface Props {
@@ -259,6 +261,10 @@
   }
 
   let providerLabel  = $derived(getProviderLabel(event.provider));
+  let eventImageUrl = $derived.by(() => {
+    const rawImageUrl = event.image_url || event.cover_url;
+    return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_HEADER_IMAGE) : '';
+  });
   let openButtonText = $derived.by(() => {
     if (!providerLabel) return '';
 
@@ -291,7 +297,11 @@
   {mapMarkers}
   currentEmbedId={embedId}
 >
-  {#snippet detailContent()}
+  {#snippet detailContent(_ctx)}
+    {#if eventImageUrl}
+      <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
+    {/if}
+
     <!-- Type badge + RSVP row + source -->
     <div class="event-meta-row">
       {#if event.event_type}
@@ -364,6 +374,13 @@
 </EntryWithMapTemplate>
 
 <style>
+  .event-image {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
   .event-meta-row {
     display: flex;
     align-items: center;

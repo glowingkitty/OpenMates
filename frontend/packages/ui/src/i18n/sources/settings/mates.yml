@@ -10,21 +10,21 @@ mates:
   zh: 伙伴
   es: Compañeros
   fr: Compagnons
-  pt: ""
-  ru: ""
+  pt: Mates
+  ru: Mates
   ja: メイト
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 메이트
+  it: Mates
+  tr: Arkadaşlar
+  vi: Mates
+  id: Mates
+  pl: Mates
+  nl: Mates
   ar: رفاق
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Mates
+  th: Mates
+  cs: Mates
+  sv: Mates
   he: Mates
   verified_by_human: []
 
@@ -35,21 +35,21 @@ chat_with_mate:
   zh: "与 {mate_name} 聊天"
   es: "Chatear con {mate_name}"
   fr: "Discuter avec {mate_name}"
-  pt: ""
-  ru: ""
+  pt: "Conversar com {mate_name}"
+  ru: "Чат с {mate_name}"
   ja: "{mate_name} とチャット"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: "{mate_name}와 채팅"
+  it: "Chatta con {mate_name}"
+  tr: "{mate_name} ile sohbet et"
+  vi: "Trò chuyện với {mate_name}"
+  id: "Mengobrol dengan {mate_name}"
+  pl: "Czatuj z {mate_name}"
+  nl: "Chatten met {mate_name}"
   ar: "الدردشة مع {mate_name}"
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: "{mate_name} के साथ चैट करें"
+  th: "แชทกับ {mate_name}"
+  cs: "Chatovat s {mate_name}"
+  sv: "Chatta med {mate_name}"
   he: "צ'אט עם {mate_name}"
   verified_by_human: []
 
@@ -60,21 +60,21 @@ system_prompt_heading:
   zh: 指令
   es: Instrucciones
   fr: Instructions
-  pt: ""
-  ru: ""
+  pt: Instruções
+  ru: Инструкции
   ja: 指示
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 지침
+  it: Istruzioni
+  tr: Talimatlar
+  vi: Hướng dẫn
+  id: Instruksi
+  pl: Instrukcje
+  nl: Instructies
   ar: التعليمات
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: निर्देश
+  th: คำแนะนำ
+  cs: Pokyny
+  sv: Instruktioner
   he: הוראות
   verified_by_human: []
 
@@ -85,21 +85,21 @@ show_full_prompt:
   zh: 显示完整系统提示
   es: Mostrar prompt del sistema completo
   fr: Afficher le prompt système complet
-  pt: ""
-  ru: ""
+  pt: Mostrar prompt de sistema completo
+  ru: Показать полный системный промпт
   ja: フルシステムプロンプトを表示
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 전체 시스템 프롬프트 표시
+  it: Mostra il prompt di sistema completo
+  tr: Tam sistem komut istemini göster
+  vi: Hiển thị toàn bộ system prompt
+  id: Tampilkan prompt sistem lengkap
+  pl: Pokaż pełny prompt systemowy
+  nl: Volledig systeemprompt weergeven
   ar: إظهار موجه النظام الكامل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: पूरा सिस्टम प्रॉम्प्ट दिखाएं
+  th: แสดง system prompt ฉบับเต็ม
+  cs: Zobrazit celý systémový prompt
+  sv: Visa fullständig systemprompt
   he: הצג הנחיית מערכת מלאה
   verified_by_human: []
 
@@ -110,21 +110,21 @@ hide_full_prompt:
   zh: 隐藏完整系统提示
   es: Ocultar prompt del sistema completo
   fr: Masquer le prompt système complet
-  pt: ""
-  ru: ""
+  pt: Ocultar prompt de sistema completo
+  ru: Скрыть полный системный промпт
   ja: フルシステムプロンプトを隠す
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 전체 시스템 프롬프트 숨기기
+  it: Nascondi il prompt di sistema completo
+  tr: Tam sistem komut istemini gizle
+  vi: Ẩn toàn bộ system prompt
+  id: Sembunyikan prompt sistem lengkap
+  pl: Ukryj pełny prompt systemowy
+  nl: Volledig systeemprompt verbergen
   ar: إخفاء موجه النظام الكامل
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: पूरा सिस्टम प्रॉम्प्ट छिपाएं
+  th: ซ่อน system prompt ฉบับเต็ม
+  cs: Skrýt celý systémový prompt
+  sv: Dölj fullständig systemprompt
   he: הסתר הנחיית מערכת מלאה
   verified_by_human: []
 
@@ -135,21 +135,21 @@ no_description:
   zh: 暂无描述。
   es: No hay descripción disponible.
   fr: Aucune description disponible.
-  pt: ""
-  ru: ""
+  pt: Nenhuma descrição disponível.
+  ru: Описание недоступно.
   ja: 説明はありません。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 사용 가능한 설명이 없습니다.
+  it: Nessuna descrizione disponibile.
+  tr: Açıklama mevcut değil.
+  vi: Không có mô tả.
+  id: Tidak ada deskripsi tersedia.
+  pl: Brak dostępnego opisu.
+  nl: Geen beschrijving beschikbaar.
   ar: لا يوجد وصف متاح.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: कोई विवरण उपलब्ध नहीं है।
+  th: ไม่มีคำอธิบาย
+  cs: Popis není k dispozici.
+  sv: Ingen beskrivning tillgänglig.
   he: אין תיאור זמין.
   verified_by_human: []
 
@@ -160,20 +160,20 @@ mate_not_found:
   zh: 未找到伙伴。
   es: Compañero no encontrado.
   fr: Compagnon introuvable.
-  pt: ""
-  ru: ""
+  pt: Mate não encontrado.
+  ru: Mate не найден.
   ja: メイトが見つかりません。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
+  ko: 메이트를 찾을 수 없습니다.
+  it: Mate non trovato.
+  tr: Arkadaş bulunamadı.
+  vi: Không tìm thấy mate.
+  id: Mate tidak ditemukan.
+  pl: Mate nie znaleziono.
+  nl: Mate niet gevonden.
   ar: لم يتم العثور على رفيق.
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  hi: Mate नहीं मिला।
+  th: ไม่พบ Mate
+  cs: Mate nebyl nalezen.
+  sv: Mate hittades inte.
   he: ה-Mate לא נמצא.
   verified_by_human: []

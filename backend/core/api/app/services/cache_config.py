@@ -37,3 +37,11 @@ CHAT_LIST_ITEM_DATA_TTL = 2700 # 45 minutes
 USER_DRAFT_TTL = 2700          # 45 minutes (For the new user:{user_id}:chat:{chat_id}:draft key)
 CHAT_MESSAGES_TTL = 259200     # 72 hours (cache last 3 chats for follow-up context)
 TOP_N_MESSAGES_COUNT = 3       # Configurable: How many chats keep full messages in cache
+
+# --- Short URL Sharing Cache Settings ---
+SHORT_URL_KEY_PREFIX = "short_url:"
+SHORT_URL_RESOLVES_KEY_PREFIX = "short_url_resolves:"
+SHORT_URL_DEFAULT_TTL = 300        # 5 minutes default
+SHORT_URL_MIN_TTL = 60             # 1 minute minimum
+SHORT_URL_MAX_TTL = 3600           # 1 hour maximum
+MAX_SHORT_URL_RESOLVES = 10        # Max resolves per token lifetime

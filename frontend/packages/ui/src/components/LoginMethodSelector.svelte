@@ -70,7 +70,7 @@
                 </div>
                 <p class="option-description">
                     {isLoading && selectedOption === 'passkey'
-                        ? $text('login.loading')
+                        ? $text('common.loading')
                         : $text('signup.passkey_descriptor')}
                 </p>
             </button>
@@ -90,7 +90,7 @@
                 <div class="clickable-icon icon_password" style="width: 30px; height: 30px"></div>
             </div>
             <div class="option-content">
-                <h3 class="option-title">{@html $text('signup.password')}</h3>
+                <h3 class="option-title">{@html $text('common.password')}</h3>
             </div>
         </div>
         <p class="option-description">{@html $text('signup.password_descriptor')}</p>

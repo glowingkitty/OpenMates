@@ -53,13 +53,6 @@
   right: var(--card-padding);
 }
 
-.app-card-header.app-card-header-events {
-  bottom: unset;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-top: 10px;
-}
 
 .app-card-subheader-bottom {
   position: absolute;

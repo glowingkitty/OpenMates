@@ -363,16 +363,18 @@
 </script>
 
 <!-- Chat message notification wrapper -->
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
 <div
     class="notification notification-chat-message"
     class:expanded={isExpanded}
+    data-testid="chat-notification"
     transition:slide={{ axis: 'y', duration: 300 }}
-    role="alert"
+    role="button"
+    tabindex="0"
     aria-live="polite"
     onmouseenter={handleMouseEnter}
     onmouseleave={handleMouseLeave}
     onclick={handleNotificationInteraction}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationInteraction(e); } }}
 >
     <!-- Header row with announcement icon, title, and close button -->
     <div class="notification-header">
@@ -388,8 +390,13 @@
     </div>
     
     <!-- Content row with mate profile image and message -->
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="notification-content" onclick={handleNotificationClick}>
+    <div
+        class="notification-content"
+        role="button"
+        tabindex="0"
+        onclick={handleNotificationClick}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(); } }}
+    >
         <div class="notification-avatar">
             {#if notification.avatarUrl}
                 <img src={notification.avatarUrl} alt="" class="avatar-image" />
@@ -408,7 +415,7 @@
             {/if}
         </div>
         <div class="notification-message-wrapper">
-            <span class="notification-message-primary">{notification.message}</span>
+            <span class="notification-message-primary" data-testid="notification-message">{notification.message}</span>
         </div>
     </div>
     
@@ -475,6 +482,7 @@
         <!-- Collapsed reply button -->
         <button
             class="notification-reply-button"
+            data-testid="notification-reply-button"
             onclick={handleReplyClick}
         >
             {$text('notifications.click_to_respond')}
@@ -728,7 +736,6 @@
     
     /* TipTap editor styles */
     .notification-reply-input :global(.notification-reply-editor) {
-        outline: none;
         min-height: 20px;
     }
     

@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Design guidelines
 
 ![Design guidelines header image](../images/designguidelines_header.png)
@@ -74,6 +79,20 @@ The landing page, when the user visits [openmates.org](https://openmates.org). I
 >_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
 
 Docs have a similar core structure as the web app, to keep a consistent design language that's easy to understand for users and easy to maintain from a developer perspective. Left we have again a sidebar, but with the chapters of the docs page. Center we have the actual docs page. And in the top right (where in the web app we find the user profile image opening the settings menu), we find the language settings button that opens the settings sidebar on the right side with the language selection.
+
+## Live Component Previews
+
+Browse live implementations of UI components in the dev preview environment:
+
+- **[Component Library](/dev/preview)** - Full index of all shared UI components
+- **[Settings Components](/dev/preview/settings)** - 29 canonical settings UI elements ([guidelines](settings-ui.md))
+- **[Embed Showcases](/dev/preview/embeds/code)** - Preview embed types by app (code, docs, web, videos, images, news, etc.)
+
+> These preview pages are available on the dev server at `app.dev.openmates.org/dev/preview`.
+
+## Documentation Standards
+
+- [Documentation Writing Guidelines](../contributing/guides/docs-writing-guidelines.md) - How to write and structure docs for both human and AI contributors
 
 ## Design board
 

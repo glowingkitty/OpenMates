@@ -1140,7 +1140,7 @@
                 onclick={handleSubmit}
                 transition:fade
             >
-                {isLoading ? $text('login.loading') : $text('signup.create_new_account')}
+                {isLoading ? $text('common.loading') : $text('signup.create_new_account')}
             </button>
         </div>
     {/if}

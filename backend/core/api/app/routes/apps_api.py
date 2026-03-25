@@ -14,10 +14,9 @@ import hashlib
 import os
 
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI
+from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI, Cookie
 from pydantic import BaseModel, Field
 
-from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -26,6 +25,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -135,6 +135,80 @@ async def get_directus_service(request: Request) -> DirectusService:
     return request.app.state.directus_service
 
 
+# ---------------------------------------------------------------------------
+# Dual auth: session cookie OR API key
+# ---------------------------------------------------------------------------
+# This dependency replaces ApiKeyAuth for routes that should accept both
+# session-authenticated users (e.g. CLI pair-auth) and API-key-authenticated
+# external callers. It returns the same Dict[str, Any] shape that all
+# existing handlers and call_app_skill() expect.
+#
+# Priority: session cookie first, API key second.
+# When authenticated via session cookie, the api_key_* tracking fields are
+# empty/None — this is fine because call_app_skill and billing helpers treat
+# them as optional (.get with defaults).
+
+
+async def get_session_or_api_key_info(
+    request: Request,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
+) -> Dict[str, Any]:
+    """
+    Authenticate via session cookie or API key, returning a Dict[str, Any]
+    compatible with call_app_skill() and billing helpers.
+
+    Tries session cookie first (for CLI / web-app callers), then falls back
+    to Bearer API key (for external REST API consumers).
+    """
+    # --- 1. Try session cookie ---
+    if refresh_token:
+        try:
+            user = await get_current_user(
+                directus_service=directus_service,
+                cache_service=cache_service,
+                refresh_token=refresh_token,
+            )
+            # Detect CLI callers by User-Agent and generate a device_hash so
+            # usage entries are trackable in the API/device usage tab.
+            # CLI sends: "OpenMates CLI/0.1 (linux ...)"
+            user_agent = request.headers.get("User-Agent", "")
+            device_hash = None
+            is_cli = user_agent.lower().startswith("openmates cli") or user_agent.lower().startswith("openmates-cli")
+            if is_cli:
+                import hashlib
+                device_hash = hashlib.sha256(user_agent.encode()).hexdigest()
+                logger.debug(f"CLI request detected, device_hash: {device_hash[:8]}...")
+            return {
+                "user_id": user.id,
+                "api_key_encrypted_name": "",
+                "api_key_hash": None,
+                "device_hash": device_hash,
+                "is_cli": is_cli,
+                "email": getattr(user, "encrypted_email_address", None),
+            }
+        except HTTPException:
+            pass  # session invalid — fall through to API key
+
+    # --- 2. Try API key ---
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            from backend.core.api.app.utils.api_key_auth import get_api_key_auth_service
+            api_key_auth_service = get_api_key_auth_service(request)
+            api_key = auth_header[7:]
+            user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
+            return user_info  # already the correct Dict shape
+        except Exception:
+            pass  # API key invalid — fall through to 401
+
+    raise HTTPException(status_code=401, detail="Not authenticated: provide a session cookie or API key")
+
+
+SessionOrApiKeyAuth = Depends(get_session_or_api_key_info)
+
+
 async def get_encryption_service(request: Request) -> EncryptionService:
     """Get encryption service from app state"""
     return request.app.state.encryption_service
@@ -189,6 +263,10 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     elif isinstance(data, list):
         return [_sanitize_dict_recursively(item, log_prefix) for item in data]
     elif isinstance(data, str):
+        # Only sanitize for ASCII smuggling — do NOT strip URL query params here.
+        # Skill input_data often contains URLs where query params are functional
+        # (e.g. ?v=VIDEO_ID for YouTube). The URL query/fragment stripping is
+        # appropriate for LLM chat context but not for structured skill inputs.
         return sanitize_text_simple(data, log_prefix=log_prefix)
     else:
         # Primitives (int, float, bool, None) pass through unchanged
@@ -315,6 +393,8 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
+        "protonmail": ["SECRET__PROTONMAIL__BRIDGE_PASSWORD"],
+        "serpapi": ["SECRET__SERPAPI__API_KEY"],
     }
     
     # Return mapped env vars or default pattern
@@ -403,16 +483,93 @@ async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_man
         return True
 
     # Check if at least one provider has an available API key (or needs no key)
-    for provider_name in skill.providers:
-        provider_id = map_provider_name_to_id(provider_name, app_id)
+    for provider_ref in skill.providers:
+        # Providers marked with no_api_key=True (e.g., web scrapers) are always available
+        if provider_ref.no_api_key:
+            logger.debug(f"Skill '{skill.id}' is available - provider '{provider_ref.name}' does not require an API key")
+            return True
+
+        provider_id = map_provider_name_to_id(provider_ref.name, app_id)
         is_available = await check_provider_api_key_available(provider_id, secrets_manager, config_manager)
         if is_available:
             logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' has API key configured")
             return True
-    
+
     # No providers have API keys configured
     logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
     return False
+
+
+async def _get_secret_or_env(
+    *,
+    secrets_manager: SecretsManager,
+    secret_key: str,
+    env_var: str,
+    default: str = "",
+) -> str:
+    try:
+        value = await secrets_manager.get_secret(
+            secret_path="kv/data/providers/protonmail",
+            secret_key=secret_key,
+        )
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    except Exception:
+        pass
+    return (os.getenv(env_var, default) or "").strip()
+
+
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def _is_enabled_flag(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def _is_protonmail_allowed_for_external_user(
+    *,
+    user_info: Dict[str, Any],
+    secrets_manager: SecretsManager,
+) -> bool:
+    enabled_raw = await _get_secret_or_env(
+        secrets_manager=secrets_manager,
+        secret_key="enabled",
+        env_var="SECRET__PROTONMAIL__ENABLED",
+        default="false",
+    )
+    if not _is_enabled_flag(enabled_raw):
+        return False
+
+    required_fields = [
+        ("bridge_host", "SECRET__PROTONMAIL__BRIDGE_HOST"),
+        ("bridge_imap_port", "SECRET__PROTONMAIL__BRIDGE_IMAP_PORT"),
+        ("bridge_username", "SECRET__PROTONMAIL__BRIDGE_USERNAME"),
+        ("bridge_password", "SECRET__PROTONMAIL__BRIDGE_PASSWORD"),
+    ]
+    for key_name, env_name in required_fields:
+        value = await _get_secret_or_env(
+            secrets_manager=secrets_manager,
+            secret_key=key_name,
+            env_var=env_name,
+        )
+        if not value:
+            return False
+
+    allowed_email_raw = await _get_secret_or_env(
+        secrets_manager=secrets_manager,
+        secret_key="allowed_openmates_email",
+        env_var="SECRET__PROTONMAIL__ALLOWED_OPENMATES_EMAIL",
+    )
+    allowed_email = _normalize_email(allowed_email_raw)
+    if not allowed_email:
+        return False
+
+    caller_email = _normalize_email(str(user_info.get("email") or ""))
+    if not caller_email:
+        return False
+
+    return caller_email == allowed_email
 
 
 async def fetch_provider_pricing(provider_id: str) -> Optional[Dict[str, Any]]:
@@ -514,7 +671,8 @@ async def get_skill_providers_with_pricing(
     
     # Then, fetch pricing and metadata for each provider listed in the skill
     if skill.providers:
-        for provider_name in skill.providers:
+        for provider_ref in skill.providers:
+            provider_name = provider_ref.name
             provider_id = map_provider_name_to_id(provider_name, app_id)
             
             # Get provider config to extract name and description
@@ -779,7 +937,7 @@ async def calculate_skill_credits(
     if not pricing_config and skill_def.providers and len(skill_def.providers) > 0:
         # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
         # Use the first provider (most skills will have one primary provider)
-        provider_name = skill_def.providers[0]
+        provider_name = skill_def.providers[0].name
         # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
         provider_id = provider_name.lower()
         
@@ -881,7 +1039,7 @@ def resolve_skill_provider_info(
     if skill.full_model_reference and "/" in skill.full_model_reference:
         provider_id = skill.full_model_reference.split("/", 1)[0]
     elif skill.providers and len(skill.providers) > 0:
-        pname = skill.providers[0]
+        pname = skill.providers[0].name
         provider_id = pname.lower()
         # Same name-to-ID mapping as main_processor.py
         if pname == "Google" and app_id == "maps":
@@ -987,21 +1145,22 @@ async def charge_credits_via_internal_api(
 @router.get(
     "",
     response_model=AppsListResponse,
-    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+    dependencies=[SessionOrApiKeyAuth],
     tags=["Apps"],  # Use "Apps" tag (not "Apps API")
     summary="List all available apps",
-    description="List all available apps and their skills. Requires API key authentication."
+    description="List all available apps and their skills. Accepts session cookie or API key authentication."
 )
 @limiter.limit("60/minute")
 async def list_apps(
     request: Request,
-    user_info: Dict[str, Any] = ApiKeyAuth,
-    cache_service: CacheService = Depends(get_cache_service)
+    user_info: Dict[str, Any] = SessionOrApiKeyAuth,
+    cache_service: CacheService = Depends(get_cache_service),
+    include_unavailable: bool = False,
 ):
     """
     List all available apps and their skills.
     
-    Requires API key authentication.
+    Accepts session cookie or API key authentication.
     Returns apps that are discovered and available on the server.
     """
     try:
@@ -1009,9 +1168,17 @@ async def list_apps(
         translation_service = get_translation_service(request)
         config_manager = get_config_manager(request)
         
-        # Initialize secrets manager for API key availability checks
+        # Initialize secrets manager for API key availability checks.
+        # TODO(audit-2026-03-18): SecretsManager.initialize() performs a Vault HTTP round-trip
+        # on every list_apps request.  SecretsManager is a singleton — initialize() should be
+        # a no-op once the singleton is already initialised; move to app startup instead.
+        # See audit finding #5: N×M serial Vault + internal HTTP calls in list_apps.
         secrets_manager = SecretsManager(cache_service=cache_service)
         await secrets_manager.initialize()
+        protonmail_allowed_for_user = await _is_protonmail_allowed_for_external_user(
+            user_info=user_info,
+            secrets_manager=secrets_manager,
+        )
         
         if not discovered_apps:
             logger.info("No apps discovered, returning empty list")
@@ -1045,17 +1212,30 @@ async def list_apps(
             )
             
             # Convert skills - filter by stage and API key availability
+            # TODO(audit-2026-03-18): is_skill_available() may call secrets_manager.get_secret()
+            # (a Vault HTTP call) per provider per skill, and get_skill_providers_with_pricing()
+            # issues an internal HTTP call per provider.  For N apps × M skills × K providers
+            # this is O(N×M×K) sequential round-trips per list_apps request.
+            # Fix: parallelise with asyncio.gather and cache results at the handler level.
+            # See audit finding #5.
             skills = []
             for skill in app_metadata.skills or []:
                 skill_stage = getattr(skill, 'stage', 'development').lower()
                 if skill_stage not in allowed_stages:
                     continue
                 
-                # Check if skill is available based on API key configuration
-                skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
-                if not skill_available:
-                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
-                    continue
+                # Check if skill is available based on API key configuration.
+                # When include_unavailable=True (used by CLI to match the web app's
+                # build-time static metadata), skip provider availability checks.
+                if not include_unavailable:
+                    skill_available = await is_skill_available(skill, app_id, secrets_manager, config_manager)
+                    if not skill_available:
+                        logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
+                        continue
+
+                    if app_id == "mail" and skill.id == "search" and not protonmail_allowed_for_user:
+                        logger.debug("Skipping mail/search for external user without ProtonMail permission")
+                        continue
                 
                 skill_name = resolve_translation(
                     translation_service,
@@ -1341,7 +1521,7 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 error=f"Booking lookup failed: {str(e)}",
             )
 
-    # Register the endpoint — no ApiKeyAuth dependency since we use
+    # Register the endpoint — no SessionOrApiKeyAuth dependency since we use
     # get_current_user_or_api_key which handles both auth methods
     app.add_api_route(
         path="/v1/apps/travel/booking-link",
@@ -1569,7 +1749,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     Overrides the generic skill POST registration for the 'transcribe' skill so that the
     webapp (which authenticates via session cookies, not API keys) can call it directly.
 
-    The generic ``create_post_skill_handler`` only accepts API key auth (``ApiKeyAuth``).
+    The generic ``create_post_skill_handler`` accepts session or API key auth (``SessionOrApiKeyAuth``).
     Transcription is initiated by the webapp, which has no API key — it uses the session
     cookie for authentication.  This custom handler uses ``get_current_user_or_api_key``
     instead, mirroring the pattern used by ``_register_travel_custom_routes``.
@@ -1663,7 +1843,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
             )
             return SkillResponse(success=False, error=f"Transcription failed: {str(e)}")
 
-    # Register the endpoint without ApiKeyAuth dependency — auth is handled inside the handler
+    # Register the endpoint without SessionOrApiKeyAuth dependency — auth is handled inside the handler
     # via get_current_user_or_api_key, which accepts both session cookies and API keys.
     app.add_api_route(
         path="/v1/apps/audio/skills/transcribe",
@@ -1724,9 +1904,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         def create_get_app_handler(captured_app_id: str, captured_app_metadata: AppYAML):
             async def get_app_handler(
                 request: Request,
-                user_info: Dict[str, Any] = ApiKeyAuth  # This will be injected by Security()
+                user_info: Dict[str, Any] = SessionOrApiKeyAuth,
             ) -> AppMetadata:
-                """Get metadata for a specific app. Requires API key authentication."""
+                """Get metadata for a specific app. Accepts session cookie or API key authentication."""
                 try:
                     # Get server environment for stage filtering
                     server_env = os.getenv("SERVER_ENVIRONMENT", "development").lower()
@@ -1866,7 +2046,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             name=f"get_app_{app_id}",
             summary=f"Get metadata for {app_name}",
             description=f"Get metadata for the {app_name} app. {app_description}".strip(),
-            dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+            dependencies=[SessionOrApiKeyAuth],
             include_in_schema=include_in_schema,  # Hide from /docs when expose_in_api=False
         )
         
@@ -1888,7 +2068,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             def create_get_skill_handler(captured_app_id: str, captured_skill: AppSkillDefinition, captured_app_metadata: AppYAML):
                 async def get_skill_handler(
                     request: Request,
-                    user_info: Dict[str, Any] = ApiKeyAuth  # This will be injected by Security()
+                    user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                 ) -> SkillMetadata:
                     """Get metadata for a specific skill including pricing information. Requires API key authentication."""
                     try:
@@ -2073,7 +2253,47 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 elif schema_type == "boolean":
                                     prop_type = bool
                                 elif schema_type == "array":
-                                    prop_type = List[Any]
+                                    # If the array items are objects with known properties,
+                                    # create a nested Pydantic model for the items so that
+                                    # the CLI's getSkillSchema() can resolve $ref and show
+                                    # the full nested field structure (e.g. legs → origin/destination/date).
+                                    array_items_schema = prop_schema.get("items", {})
+                                    if (
+                                        array_items_schema.get("type") == "object"
+                                        and "properties" in array_items_schema
+                                    ):
+                                        nested_field_defs = {}
+                                        nested_required = set(array_items_schema.get("required", []))
+                                        for nested_name, nested_prop in array_items_schema["properties"].items():
+                                            n_type = nested_prop.get("type")
+                                            if n_type == "string":
+                                                n_py_type = str
+                                            elif n_type == "integer":
+                                                n_py_type = int
+                                            elif n_type == "boolean":
+                                                n_py_type = bool
+                                            elif n_type == "number":
+                                                n_py_type = float
+                                            else:
+                                                n_py_type = Any
+                                            n_desc = nested_prop.get("description", "")
+                                            n_default = nested_prop.get("default")
+                                            if nested_name in nested_required:
+                                                nested_field_defs[nested_name] = (n_py_type, Field(..., description=n_desc))
+                                            elif n_default is not None:
+                                                nested_field_defs[nested_name] = (n_py_type, Field(default=n_default, description=n_desc))
+                                            else:
+                                                nested_field_defs[nested_name] = (Optional[n_py_type], Field(default=None, description=n_desc))
+                                        if nested_field_defs:
+                                            NestedItemModel = create_model(
+                                                f"NestedItem_{captured_app_id}_{captured_skill.id}_{prop_name}",
+                                                **nested_field_defs
+                                            )
+                                            prop_type = List[NestedItemModel]
+                                        else:
+                                            prop_type = List[Any]
+                                    else:
+                                        prop_type = List[Any]
                                 
                                 # Check if field is required
                                 is_required = prop_name in requests_items_schema.get("required", [])
@@ -2129,7 +2349,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     async def post_skill_handler(
                         request_body: SkillRequestModel,
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> WrappedSkillResponse:
@@ -2260,7 +2480,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         async def ai_ask_skill_handler(
                             request_body: SkillRequestModel,
                             request: Request = None,
-                            user_info: Dict[str, Any] = ApiKeyAuth,
+                            user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                             cache_service: CacheService = Depends(get_cache_service),
                             directus_service: DirectusService = Depends(get_directus_service)
                         ) -> Any:
@@ -2406,7 +2626,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     async def post_skill_handler(
                         request_body: SkillRequestModel,
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> WrappedSkillResponse:
@@ -2509,7 +2729,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             example=tool_schema.get('example', {})
                         ),
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> SkillResponse:
@@ -2588,7 +2808,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     async def post_skill_handler(
                         request_data: SkillRequest,
                         request: Request = None,
-                        user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
                         cache_service: CacheService = Depends(get_cache_service),
                         directus_service: DirectusService = Depends(get_directus_service)
                     ) -> SkillResponse:
@@ -2702,6 +2922,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             
             if should_expose_get:
                 get_handler = create_get_skill_handler(app_id, skill, app_metadata)
+                get_unique_name = f"get_skill_{app_id}_{skill.id}"
+                get_handler.__name__ = get_unique_name
+                get_handler.__qualname__ = get_unique_name
                 app.add_api_route(
                     path=f"/v1/apps/{app_id}/skills/{skill.id}",
                     endpoint=limiter.limit("60/minute")(get_handler),
@@ -2711,7 +2934,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     name=f"get_skill_{app_id}_{skill.id}",
                     summary=f"Get metadata for {skill_name}",
                     description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
-                    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                    dependencies=[SessionOrApiKeyAuth],
                     include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
                 )
             
@@ -2731,7 +2954,13 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 continue
 
             post_handler = create_post_skill_handler(app_id, skill, app_metadata)
-            
+            # Give each handler a unique name so slowapi registers separate rate
+            # limit counters per skill (closures share the same __name__ by default,
+            # causing all skills to collide in slowapi's _route_limits registry).
+            unique_name = f"post_skill_{app_id}_{skill.id}"
+            post_handler.__name__ = unique_name
+            post_handler.__qualname__ = unique_name
+
             # Determine response model - check if handler uses a custom response model
             # by inspecting its return type annotation
             import inspect
@@ -2769,7 +2998,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",
                 description=f"Execute the {skill_name} skill. The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication.",
-                dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+                dependencies=[SessionOrApiKeyAuth],
                 include_in_schema=include_in_schema,  # Hide from /docs when app has expose_in_api=False
             )
             

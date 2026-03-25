@@ -81,6 +81,7 @@ type KnownMessageTypes =
   | "app_settings_memories_sync_ready" // Post-Phase 3: Server sends encrypted app settings/memories entries for sync
   | "app_settings_memories_entry_synced" // Multi-device sync: Another device created/updated an entry
   | "app_settings_memories_entry_stored" // Acknowledgment that server stored entry successfully
+  | "app_settings_memories_entry_deleted" // Multi-device sync: An entry was deleted (by this or another device)
   | "error" // General error message from server (e.g., validation failure, unexpected issue)
   | "pong" // Response to client's ping
 
@@ -99,7 +100,8 @@ type KnownMessageTypes =
   | "user_admin_status_updated" // Notification that user admin status has changed
   | "credit_note_ready" // Notification that credit note PDF is ready for download
   | "message_queued" // Notification that a message was queued because an AI task is active
-  | "demo_chat_updated"; // Notification that a demo chat status has changed (for admins)
+  | "demo_chat_updated" // Notification that a demo chat status has changed (for admins)
+  | "server_restarting"; // Server is restarting after a deployment — distinct from network offline
 
 interface WebSocketMessage {
   type: KnownMessageTypes | string; // Allow known types + any string
@@ -126,8 +128,16 @@ class WebSocketService extends EventTarget {
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
   private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
   private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
+  private hasEverConnected = false; // Tracks whether a WebSocket connection was ever established (suppresses initial network change event)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
-  private readonly AUTH_FAILURE_THRESHOLD = 2; // After 2 consecutive 1006 failures, treat as auth error
+  private readonly AUTH_FAILURE_THRESHOLD = 4; // After 4 consecutive 1006 failures, treat as auth error
+  // Rationale: 2 was too aggressive — transient network events (WiFi handoff, brief server
+  // restart, mobile network change) can produce 2 rapid 1006 closures without the session
+  // actually being invalid. Raising to 4 gives the reconnect loop enough room to recover
+  // from short-lived network disruptions without triggering a spurious logout flow that
+  // blanks the daily inspiration store and forces a full Phase 1 re-sync.
+  // A genuine 403 auth rejection will still be caught by the isAuthRelated reason check
+  // on the first occurrence, so legitimate expired sessions still log out immediately.
 
   // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
   // These are acknowledgment messages from the server that confirm operations completed successfully.
@@ -178,6 +188,7 @@ class WebSocketService extends EventTarget {
     });
     this.registerDefaultErrorHandlers();
     this.registerPongHandler(); // Add call to new pong handler registration
+    this.registerServerRestartingHandler();
 
     // Listen for network online event to trigger immediate reconnection
     // This helps detect when server comes back online faster than exponential backoff
@@ -239,6 +250,11 @@ class WebSocketService extends EventTarget {
       const connection = (navigator as any).connection;
       if (connection && typeof connection.addEventListener === "function") {
         connection.addEventListener("change", () => {
+          // Skip if we've never connected and user isn't authenticated —
+          // browsers fire a 'change' event during initial page load
+          if (!this.hasEverConnected && !get(authStore).isAuthenticated) {
+            return;
+          }
           console.info(
             "[WebSocketService] Network connection type changed — checking connection",
           );
@@ -397,6 +413,17 @@ class WebSocketService extends EventTarget {
     });
   }
 
+  private registerServerRestartingHandler(): void {
+    this.on("server_restarting", (_payload: any) => {
+      // Server is about to restart after a deployment. Notify the UI so it can
+      // show a "Server updating" banner instead of the generic "You are offline"
+      // message. The WS reconnect loop will still fire normally — this message
+      // just improves the copy shown to the user while they wait.
+      console.info("[WebSocketService] Received server_restarting — dispatching serverRestarting event");
+      this.dispatchEvent(new CustomEvent("serverRestarting"));
+    });
+  }
+
   /**
    * Called by external consumers (e.g., ChatSyncService) when any data-bearing
    * message is received. Receiving real data (like AI streaming chunks) is proof
@@ -484,6 +511,7 @@ class WebSocketService extends EventTarget {
             return;
           }
           console.info("[WebSocketService] Connection established.");
+          this.hasEverConnected = true;
           this.reconnectAttempts = 0; // Reset on successful connection
           this.reconnectInterval = 1000; // Reset interval
           this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection

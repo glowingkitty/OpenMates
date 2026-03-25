@@ -23,11 +23,13 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
+from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
+from backend.apps.ai.llm_providers.bedrock_shared import BedrockUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.apps.ai.processing.url_validator import (
@@ -35,11 +37,12 @@ from backend.apps.ai.processing.url_validator import (
     extract_urls_from_markdown,
     replace_broken_urls_with_search
 )
+from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
 
 logger = logging.getLogger(__name__)
 
 # Type alias for usage metadata
-UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]
+UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]
 
 # Regex pattern to match <tool_call>...</tool_call> blocks
 # Some LLMs (e.g., Qwen3) output tool calls as XML text IN ADDITION to proper function calling.
@@ -78,6 +81,23 @@ _INLINE_EMBED_LINK_PATTERN = re.compile(
 # Regex to detect embed_ref-like display text — domain.tld-XYZ or slug-XYZ patterns
 # where XYZ is a 2-4 character alphanumeric random suffix.
 _EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
+
+# Regex to detect bare embed ref brackets that are missing the (embed:...) parenthetical.
+# Matches: [domain.tld-XYZ] where the bracketed content has a dot and looks like an embed_ref.
+# Negative lookahead (?!\() ensures we only match brackets NOT already followed by (...).
+# Example: [news.ycombinator.com-ANo] → should become [Hacker News](embed:news.ycombinator.com-ANo)
+_BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+\.[^\]\s]+)\](?!\()')
+
+# Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
+# https:// link and an (embed:ref) parenthetical for the same anchor.
+# Matches: [display text](https://some-url) (embed:some-ref)
+#      or: [display text](https://some-url)(embed:some-ref)   (no space)
+# Group 1 = display text, Group 2 = https URL, Group 3 = embed_ref slug.
+# The correct form is [display text](embed:some-ref) — the URL is redundant
+# when an embed ref exists and must be removed so the embed card renders.
+_MIXED_URL_EMBED_PATTERN = re.compile(
+    r'\[([^\]]+)\]\((https?://[^\s)]+)\)\s*\(embed:([^)]+)\)'
+)
 
 _EMAIL_TO_PATTERN = re.compile(r'^(?:to|receiver|recipient)\s*:\s*(.+)$', re.IGNORECASE)
 _EMAIL_SUBJECT_PATTERN = re.compile(r'^subject\s*:\s*(.+)$', re.IGNORECASE)
@@ -459,7 +479,16 @@ async def _fix_bad_embed_display_text(
     # Find all inline embed links (skip blockquote source-quotes)
     # We use finditer on the full response but exclude lines starting with ">"
     all_matches = list(_INLINE_EMBED_LINK_PATTERN.finditer(aggregated_response))
-    if not all_matches:
+
+    # Find bare bracket embed refs: [domain.tld-XYZ] NOT followed by (...)
+    # These are cases where the LLM forgot the (embed:...) parenthetical entirely.
+    bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(aggregated_response))
+    bare_matches = [
+        m for m in bare_matches
+        if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
+    ]
+
+    if not all_matches and not bare_matches:
         return aggregated_response
 
     # Filter out matches that are inside blockquote lines (source quotes)
@@ -602,6 +631,89 @@ async def _fix_bad_embed_display_text(
     if replacements_made > 0:
         logger.info(
             f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {replacements_made} bad embed display text(s)"
+        )
+
+    # --- Bare embed ref fix ---
+    # Handle [embed_ref_slug] brackets where the LLM omitted the (embed:...) parenthetical.
+    # Only convert if the bracketed content is a known embed_ref from this response.
+    # Process in reverse order to preserve match positions after in-place replacements.
+    if bare_matches and embed_ref_to_title:
+        # Re-scan on the (possibly already modified) text so positions are accurate.
+        current_bare_matches = list(_BARE_EMBED_REF_PATTERN.finditer(modified))
+        current_bare_matches = [
+            m for m in current_bare_matches
+            if _EMBED_REF_SUFFIX_PATTERN.search(m.group(1))
+            and m.group(1) in embed_ref_to_title
+        ]
+
+        bare_fixed = 0
+        for match in reversed(current_bare_matches):
+            embed_ref = match.group(1)
+            full_match = match.group(0)
+            display = embed_ref_to_title.get(embed_ref) or _EMBED_REF_SUFFIX_PATTERN.sub('', embed_ref)
+            new_link = f"[{display}](embed:{embed_ref})"
+            modified = modified[:match.start()] + new_link + modified[match.end():]
+            bare_fixed += 1
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed bare ref: {full_match} → {new_link}"
+            )
+
+        if bare_fixed > 0:
+            logger.info(
+                f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
+            )
+
+    return modified
+
+
+def _fix_mixed_url_embed_references(aggregated_response: str, log_prefix: str = "") -> str:
+    """
+    Post-streaming safety fix: detect and rewrite mixed URL+embed patterns where
+    the LLM wrote both a markdown https:// link and a trailing (embed:ref) for the
+    same anchor text.
+
+    The LLM is instructed to use embed refs exclusively when an embed_ref is available,
+    but occasionally produces the redundant form:
+
+        [Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)
+
+    This is rewritten to the correct form:
+
+        [Mistral Small 4 Release Post](embed:mistral.ai-nvh)
+
+    Both space-separated and immediately-adjacent variants are handled:
+        [text](https://url) (embed:ref)   → [text](embed:ref)
+        [text](https://url)(embed:ref)    → [text](embed:ref)
+
+    Runs before source-quote verification so all embed refs in the response are in
+    their canonical form before any further processing.
+    """
+    if not aggregated_response or '(embed:' not in aggregated_response:
+        return aggregated_response
+
+    matches = list(_MIXED_URL_EMBED_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    modified = aggregated_response
+    replacements_made = 0
+
+    # Process in reverse order to preserve match positions after replacements
+    for match in reversed(matches):
+        display_text = match.group(1)
+        url = match.group(2)
+        embed_ref = match.group(3)
+        corrected = f"[{display_text}](embed:{embed_ref})"
+        modified = modified[:match.start()] + corrected + modified[match.end():]
+        replacements_made += 1
+        logger.info(
+            f"{log_prefix} [MIXED_EMBED_FIX] Rewrote mixed URL+embed: "
+            f"[{display_text}]({url}) → [{display_text}](embed:{embed_ref})"
+        )
+
+    if replacements_made > 0:
+        logger.info(
+            f"{log_prefix} [MIXED_EMBED_FIX] Fixed {replacements_made} mixed URL+embed reference(s)"
         )
 
     return modified
@@ -1150,6 +1262,18 @@ async def _handle_normal_billing(
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
         provider_name = "anthropic"
+    elif isinstance(usage, BedrockUsageMetadata):
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+        user_input_tokens = usage.user_input_tokens
+        system_prompt_tokens = usage.system_prompt_tokens
+        # Bedrock is provider-agnostic — determine billing provider from model_id prefix
+        try:
+            selected_full_model = preprocessing_result.selected_main_llm_model_id or "anthropic/unknown"
+            provider_name = selected_full_model.split("/", 1)[0]
+            logger.info(f"{log_prefix} Bedrock usage - extracted billing provider from model_id: {provider_name}")
+        except Exception:
+            provider_name = "anthropic"
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
@@ -1526,6 +1650,7 @@ async def _consume_main_processing_stream(
     cache_service: Optional[CacheService],
     secrets_manager: Optional[SecretsManager] = None,
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
+    user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -1632,7 +1757,7 @@ async def _consume_main_processing_stream(
         )
 
     # Normal processing flow for other non-harmful content
-    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
+    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
         task_id=task_id,
         request_data=request_data,
         preprocessing_results=preprocessing_result,
@@ -1644,11 +1769,12 @@ async def _consume_main_processing_stream(
         discovered_apps_metadata=discovered_apps_metadata,
         secrets_manager=secrets_manager, # Pass SecretsManager
         cache_service=cache_service, # Pass CacheService for skill status publishing
-        always_include_skills=always_include_skills  # Pass always-include skills from config
+        always_include_skills=always_include_skills,  # Pass always-include skills from config
+        user_overrides=user_overrides  # Pass user overrides for skip-permission logic
     )
 
     stream_chunk_count = 0
-    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
+    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
 
     # Cumulative token totals from all LLM iterations in this turn (set via sentinel dict
     # emitted by handle_main_processing just before the final usage metadata object).
@@ -1860,7 +1986,7 @@ async def _consume_main_processing_stream(
                 # Skip to next chunk - thinking chunks don't go to main response
                 continue
             
-            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
             
@@ -3686,6 +3812,30 @@ async def _consume_main_processing_stream(
                 f"Failed embed IDs: {failed_embed_ids}"
             )
 
+    # --- Mixed URL+Embed Reference Fix ---
+    # Detect and rewrite patterns where the LLM wrote both an https:// markdown link
+    # and a trailing (embed:ref) for the same anchor, e.g.:
+    #   [Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)
+    # This must be rewritten to the canonical form before quote verification runs,
+    # so all embed refs are in their correct format for subsequent pipeline steps.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        mixed_fixed_response = _fix_mixed_url_embed_references(aggregated_response, log_prefix)
+        if mixed_fixed_response != aggregated_response:
+            aggregated_response = mixed_fixed_response
+            final_response_chunks = [aggregated_response]
+
+            # Publish the corrected response to the client immediately
+            if cache_service:
+                mixed_fix_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                    is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, mixed_fix_payload, log_prefix,
+                    f"Published response with mixed URL+embed references fixed "
+                    f"(length: {len(aggregated_response)})"
+                )
+
     # --- Source Quote Verification ---
     # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
     # in the referenced embed's source content. Strips unverified quotes silently
@@ -3763,6 +3913,31 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Error during display text fix: {e}",
                 exc_info=True
             )
+
+    # Remove URL query and fragment parameters from assistant response text.
+    # This applies to markdown links and plain URLs to avoid leaking sensitive
+    # data via query strings or hash fragments.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        cleaned_response = sanitize_text_urls_remove_query_and_fragment(aggregated_response)
+        if cleaned_response != aggregated_response:
+            aggregated_response = cleaned_response
+            final_response_chunks = [aggregated_response]
+            if cache_service:
+                cleaned_payload = _create_redis_payload(
+                    task_id,
+                    request_data,
+                    aggregated_response,
+                    stream_chunk_count + 4,
+                    is_final=False,
+                    model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    cleaned_payload,
+                    log_prefix,
+                    "Published response with URL query/fragment parameters stripped",
+                )
 
     # --- Hardcoded Advice Disclaimer Injection ---
     # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.

@@ -3,8 +3,8 @@
     
     This component allows users (including non-authenticated users) to report issues.
     The form includes:
-    - Issue title (required)
-    - Issue description (optional)
+    - Short description (required, multi-line)
+    - Structured description fields (optional)
     - Toggle to share chat/embed with the report (optional)
     - Reminder about Signal group for discussion/screenshots
 -->
@@ -14,6 +14,7 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
+    import { SettingsInput, SettingsTextarea, SettingsInfoBox } from './elements';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -25,13 +26,28 @@
     import { aiTypingStore } from '../../stores/aiTypingStore';
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
+    import { userProfile } from '../../stores/userProfile';
+    import SettingsItem from '../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
+
+    /**
+     * Navigate to the Share Debug Logs sub-page.
+     * Available to authenticated users for temporary log sharing.
+     */
+    function navigateToShareDebugLogs() {
+        dispatch('openSettings', {
+            settingsPath: 'report_issue/share-debug-logs',
+            direction: 'forward',
+            icon: 'report_issue',
+            title: $text('settings.report_issue.share_debug_logs_title')
+        });
+    }
     
     // Form state
-    let issueTitle = $state('');
-    // Structured description fields — replace the old single freeform textarea.
-    // All three are optional. On submit they are composed into a formatted description
+    let issueTitle = $state('');  // "Short description" — multi-line, mandatory
+    // Structured description fields — all three are optional.
+    // On submit they are composed into a formatted description
     // string sent to the backend's existing `description` field.
     let userFlow = $state('');
     let expectedBehaviour = $state('');
@@ -53,12 +69,20 @@
      * Defaults to true (opt-in by default) so users get follow-up contact.
      */
     let includeEmailToggle = $state(true);
-    
+
+    /**
+     * Admin-only: whether to submit this report to the Claude Code agent for an
+     * automatic plan-mode investigation session. Only shown when isAdminUser is true.
+     * Defaults to true so the admin gets an investigation started immediately.
+     */
+    let submitToAgent = $state(true);
+
     /**
      * Whether the current context has an active chat or embed that can be shared.
      * When false, the share toggle is hidden since there's nothing to share.
      */
     let hasActiveChatOrEmbed = $state(false);
+    let isAdminUser = $derived($userProfile.is_admin === true);
 
     // Device information (collected for debugging purposes)
     let deviceInfo = $state({
@@ -69,7 +93,6 @@
     });
     
     // Input references for warnings
-    let titleInput = $state<HTMLInputElement>();
     let userFlowInput = $state<HTMLTextAreaElement>();
     let emailInput = $state<HTMLInputElement>();
     
@@ -97,7 +120,7 @@
     
     /**
      * Validate form fields.
-     * Only the title is required. All three structured description fields and email are optional.
+     * Only the short description is required. All three structured description fields and email are optional.
      */
     function validateForm(): boolean {
         let isValid = true;
@@ -451,8 +474,8 @@
         // Validate form
         if (!validateForm()) {
             // Focus first invalid field
-            if (titleError && titleInput) {
-                titleInput.focus();
+            if (titleError) {
+                document.getElementById('issue-title')?.focus();
             } else if (emailError && emailInput) {
                 emailInput.focus();
             }
@@ -527,7 +550,7 @@
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({
+                    body: JSON.stringify({
                     title: sanitizedTitle,
                     description: sanitizedDescription,
                     chat_or_embed_url: sanitizedUrl,
@@ -548,7 +571,10 @@
                         : null,
                     // outerHTML of the DOM element the user picked via the element picker overlay.
                     // Null if the user did not pick an element.
-                    picked_element_html: pickedElementHtml ?? null
+                    picked_element_html: pickedElementHtml ?? null,
+                    // Admin-only: trigger Claude Code plan-mode investigation.
+                    // Only honoured server-side when reporter is a verified admin.
+                    submit_to_agent: isAdminUser && submitToAgent
                 }),
                 credentials: 'include'
             });
@@ -665,9 +691,7 @@
                             titleError = fieldErrorMessage;
                             showTitleWarning = true;
                             hasFieldErrors = true;
-                            if (titleInput) {
-                                titleInput.focus();
-                            }
+                            document.getElementById('issue-title')?.focus();
                         } else if (fieldName === 'contact_email') {
                             emailError = fieldErrorMessage;
                             showEmailWarning = true;
@@ -716,20 +740,8 @@
     }
     
     /**
-     * Handle Enter key press in title input — move focus to the first structured field
-     */
-    function handleTitleKeyPress(event: KeyboardEvent) {
-        if (event.key === 'Enter' && !isSubmitting) {
-            event.preventDefault();
-            if (userFlowInput) {
-                userFlowInput.focus();
-            }
-        }
-    }
-    
-    /**
      * Check if form is valid.
-     * Only title is required (min 3 chars). All description fields are optional (no minimum).
+     * Only the short description is required (min 3 chars). All other description fields are optional (no minimum).
      * Email is optional but must be valid if provided (guest only).
      */
     let isFormValid = $derived(
@@ -983,6 +995,7 @@
             chatOrEmbedUrl,
             contactEmail,
             includeEmailToggle,
+            submitToAgent,
             pickedElementHtml,
             screenshotDataUrl
         });
@@ -1090,7 +1103,7 @@
         confirmBtn.addEventListener('click', (e) => { e.stopPropagation(); _confirmPick(); });
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = $text('settings.report_issue.element_picker_cancel');
+        cancelBtn.textContent = $text('common.cancel');
         Object.assign(cancelBtn.style, {
             padding: '8px 16px',
             background: 'rgba(255,255,255,0.15)',
@@ -1454,6 +1467,7 @@
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
             includeEmailToggle = draft.includeEmailToggle;
+            if (draft.submitToAgent !== undefined) submitToAgent = draft.submitToAgent;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
             // Clear the draft now that it has been consumed
@@ -1505,76 +1519,60 @@
             </button>
         </div>
 
-        <!-- Title Input -->
+        <!-- Short Description (required, multi-line) -->
         <div class="input-group">
             <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
-            <div class="input-wrapper">
-                <input
-                    id="issue-title"
-                    bind:this={titleInput}
-                    type="text"
-                    placeholder={$text('settings.report_issue.title_placeholder')}
-                    bind:value={issueTitle}
-                    onkeypress={handleTitleKeyPress}
-                    disabled={isSubmitting}
-                    class:error={!!titleError}
-                    aria-label={$text('settings.report_issue.title_label')}
-                    required
+            <SettingsTextarea
+                bind:value={issueTitle}
+                id="issue-title"
+                placeholder={$text('settings.report_issue.title_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.title_label')}
+                rows={3}
+            />
+            {#if showTitleWarning && titleError}
+                <InputWarning
+                    message={titleError}
                 />
-                {#if showTitleWarning && titleError}
-                    <InputWarning
-                        message={titleError}
-                    />
-                {/if}
-            </div>
+            {/if}
         </div>
         
         <!-- User Flow — "What did you do?" (optional) -->
         <div class="input-group">
             <label for="user-flow">{$text('settings.report_issue.user_flow_label')}</label>
-            <div class="input-wrapper">
-                <textarea
-                    id="user-flow"
-                    bind:this={userFlowInput}
-                    placeholder={$text('settings.report_issue.user_flow_placeholder')}
-                    bind:value={userFlow}
-                    disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.user_flow_label')}
-                    rows="3"
-                ></textarea>
-            </div>
+            <SettingsTextarea
+                bind:value={userFlow}
+                placeholder={$text('settings.report_issue.user_flow_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.user_flow_label')}
+                rows={3}
+            />
             <p class="input-hint">{$text('settings.report_issue.user_flow_hint')}</p>
         </div>
 
         <!-- Expected Behaviour (optional) -->
         <div class="input-group">
             <label for="expected-behaviour">{$text('settings.report_issue.expected_behaviour_label')}</label>
-            <div class="input-wrapper">
-                <textarea
-                    id="expected-behaviour"
-                    placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
-                    bind:value={expectedBehaviour}
-                    disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.expected_behaviour_label')}
-                    rows="2"
-                ></textarea>
-            </div>
+            <SettingsTextarea
+                bind:value={expectedBehaviour}
+                placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.expected_behaviour_label')}
+                rows={2}
+            />
             <p class="input-hint">{$text('settings.report_issue.expected_behaviour_hint')}</p>
         </div>
 
         <!-- Actual Behaviour (optional) -->
         <div class="input-group">
             <label for="actual-behaviour">{$text('settings.report_issue.actual_behaviour_label')}</label>
-            <div class="input-wrapper">
-                <textarea
-                    id="actual-behaviour"
-                    placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
-                    bind:value={actualBehaviour}
-                    disabled={isSubmitting}
-                    aria-label={$text('settings.report_issue.actual_behaviour_label')}
-                    rows="2"
-                ></textarea>
-            </div>
+            <SettingsTextarea
+                bind:value={actualBehaviour}
+                placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
+                disabled={isSubmitting}
+                ariaLabel={$text('settings.report_issue.actual_behaviour_label')}
+                rows={2}
+            />
             <p class="input-hint">{$text('settings.report_issue.actual_behaviour_hint')}</p>
         </div>
         
@@ -1622,25 +1620,46 @@
         {:else}
             <div class="input-group">
                 <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
-                <div class="input-wrapper">
-                    <input
-                        id="contact-email"
-                        bind:this={emailInput}
-                        type="email"
-                        placeholder={$text('settings.report_issue.email_placeholder')}
-                        bind:value={contactEmail}
-                        oninput={handleEmailInput}
-                        disabled={isSubmitting}
-                        class:error={!!emailError}
-                        aria-label={$text('settings.report_issue.email_label')}
+                <SettingsInput
+                    bind:value={contactEmail}
+                    bind:inputRef={emailInput}
+                    id="contact-email"
+                    type="email"
+                    placeholder={$text('settings.report_issue.email_placeholder')}
+                    disabled={isSubmitting}
+                    hasError={!!emailError}
+                    ariaLabel={$text('settings.report_issue.email_label')}
+                    onInput={handleEmailInput}
+                />
+                {#if showEmailWarning && emailError}
+                    <InputWarning
+                        message={emailError}
                     />
-                    {#if showEmailWarning && emailError}
-                        <InputWarning
-                            message={emailError}
-                        />
-                    {/if}
-                </div>
+                {/if}
                 <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
+            </div>
+        {/if}
+
+        <!-- Submit to Agent toggle — admin only -->
+        <!-- Triggers a Claude Code plan-mode investigation session for this issue. -->
+        {#if isAdminUser}
+            <div class="toggle-group">
+                <div class="toggle-row">
+                    <label for="submit-to-agent-toggle">{$text('settings.report_issue.submit_to_agent_label')}</label>
+                    <Toggle
+                        id="submit-to-agent-toggle"
+                        bind:checked={submitToAgent}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.submit_to_agent_label')}
+                    />
+                </div>
+                <p class="input-hint">
+                    {#if submitToAgent}
+                        {$text('settings.report_issue.submit_to_agent_hint_on')}
+                    {:else}
+                        {$text('settings.report_issue.submit_to_agent_hint_off')}
+                    {/if}
+                </p>
             </div>
         {/if}
 
@@ -1669,7 +1688,7 @@
                             disabled={isSubmitting || isCopyingElementHtml}
                         >
                             {copyElementHtmlSuccess
-                                ? $text('settings.report_issue.element_picker_copied')
+                                ? $text('common.not_found.url_copied')
                                 : $text('settings.report_issue.element_picker_copy')}
                         </button>
                         <button
@@ -1778,9 +1797,9 @@
         
         <!-- Error message -->
         {#if errorMessage}
-            <div class="message error-message" role="alert">
+            <SettingsInfoBox type="error">
                 {errorMessage}
-            </div>
+            </SettingsInfoBox>
         {/if}
 
         <!-- Device Information Notice -->
@@ -1833,7 +1852,7 @@
                     {#if isCopyingDebugInfo}
                         {$text('settings.report_issue.copy_debug_info_copying')}
                     {:else if copyDebugInfoSuccess}
-                        {$text('settings.report_issue.copy_debug_info_copied')}
+                        {$text('common.not_found.url_copied')}
                     {:else}
                         {$text('settings.report_issue.copy_debug_info_button')}
                     {/if}
@@ -1860,6 +1879,21 @@
             </div>
         </div>
     </div>
+
+    <!-- Share Debug Logs — intentionally below the form so users discover it after scrolling -->
+    {#if $authStore.isAuthenticated}
+        <div class="share-debug-logs-settings-section">
+            <SettingsItem
+                type="submenu"
+                icon="report_issue"
+                title={$text('settings.report_issue.share_debug_logs_title')}
+                onClick={navigateToShareDebugLogs}
+            />
+            {#if isAdminUser}
+                <p class="share-debug-logs-admin-note">{$text('settings.report_issue.share_debug_logs_admin_notice')}</p>
+            {/if}
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -1871,6 +1905,17 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+    }
+
+    .share-debug-logs-settings-section {
+        margin-top: 20px;
+    }
+
+    .share-debug-logs-admin-note {
+        margin: 8px 4px 0;
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--color-font-secondary, #666);
     }
     
     .input-group {
@@ -1915,44 +1960,6 @@
         flex: 1;
     }
     
-    .input-wrapper {
-        position: relative;
-        width: 100%;
-    }
-    
-    .input-wrapper input,
-    .input-wrapper textarea {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: inherit;
-        background-color: var(--color-grey-20);
-        color: var(--color-font-primary);
-        transition: border-color 0.2s ease;
-    }
-    
-    .input-wrapper input:focus,
-    .input-wrapper textarea:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-    
-    .input-wrapper input.error {
-        border-color: var(--color-error, #e74c3c);
-    }
-    
-    .input-wrapper input:disabled,
-    .input-wrapper textarea:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-    
-    .input-wrapper textarea {
-        resize: vertical;
-        min-height: 100px;
-    }
     
     .signal-reminder {
         padding: 12px;
@@ -2016,24 +2023,6 @@
         cursor: not-allowed;
     }
     
-    .message {
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-    
-    .success-message {
-        background-color: var(--color-success-light, #e8f5e9);
-        color: var(--color-success-dark, #2e7d32);
-        border: 1px solid var(--color-success, #4caf50);
-    }
-    
-    .error-message {
-        background-color: var(--color-error-light, #ffebee);
-        color: var(--color-error-dark, #c62828);
-        border: 1px solid var(--color-error, #f44336);
-    }
 
     /* Issue ID copyable element within success message */
     .issue-id-container {

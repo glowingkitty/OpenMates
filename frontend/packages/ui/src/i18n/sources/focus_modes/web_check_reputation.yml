@@ -54,6 +54,82 @@ process:
     - check if a business exist on trustpilot and what its rating is
     - check on whois.com if the website is nearky registered
     - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
+  de: |
+    - prüfen, ob ein Unternehmen auf Trustpilot existiert und was seine Bewertung ist
+    - auf whois.com prüfen, ob die Website kürzlich registriert wurde
+    - Trustpilot, whois.com und andere Websites nutzen, um Betrug und Unternehmen mit schlechten Kundenbewertungen zu identifizieren
+  zh: |
+    - 检查企业是否在 Trustpilot 上存在及其评分
+    - 在 whois.com 上检查该网站是否是最近注册的
+    - 使用 Trustpilot、whois.com 及其他网站识别诈骗和客户评分差的企业
+  es: |
+    - verificar si un negocio existe en Trustpilot y cuál es su calificación
+    - verificar en whois.com si el sitio web fue registrado recientemente
+    - usar Trustpilot, whois.com y otros sitios para identificar estafas y negocios con malas calificaciones de clientes
+  fr: |
+    - vérifier si une entreprise existe sur Trustpilot et quelle est sa note
+    - vérifier sur whois.com si le site web a été récemment enregistré
+    - utiliser Trustpilot, whois.com et d'autres sites pour identifier les arnaques et les entreprises avec de mauvaises notes clients
+  pt: |
+    - verificar se um negócio existe no Trustpilot e qual é sua classificação
+    - verificar no whois.com se o site foi registrado recentemente
+    - usar Trustpilot, whois.com e outros sites para identificar golpes e negócios com más avaliações de clientes
+  ru: |
+    - проверить, есть ли бизнес на Trustpilot и какой у него рейтинг
+    - проверить на whois.com, было ли недавно зарегистрировано это веб-сайт
+    - использовать Trustpilot, whois.com и другие сайты для выявления мошенничества и бизнесов с плохими отзывами клиентов
+  ja: |
+    - Trustpilot にビジネスが存在するかどうかと評価を確認する
+    - whois.com でウェブサイトが最近登録されたかどうかを確認する
+    - Trustpilot、whois.com などのサイトを使って詐欺や悪い顧客評価のビジネスを特定する
+  ko: |
+    - Trustpilot에 비즈니스가 존재하는지, 평점이 어떤지 확인합니다
+    - whois.com에서 웹사이트가 최근에 등록되었는지 확인합니다
+    - Trustpilot, whois.com 및 기타 사이트를 사용하여 사기와 나쁜 고객 평점을 가진 비즈니스를 식별합니다
+  it: |
+    - verificare se un'azienda esiste su Trustpilot e qual è la sua valutazione
+    - verificare su whois.com se il sito web è stato registrato di recente
+    - usare Trustpilot, whois.com e altri siti per identificare truffe e aziende con cattive valutazioni dei clienti
+  tr: |
+    - bir işletmenin Trustpilot'ta var olup olmadığını ve puanının ne olduğunu kontrol etmek
+    - whois.com'da web sitesinin yakın zamanda kayıtlı olup olmadığını kontrol etmek
+    - Trustpilot, whois.com ve diğer siteleri kullanarak dolandırıcılıkları ve kötü müşteri puanlarına sahip işletmeleri tespit etmek
+  vi: |
+    - kiểm tra xem doanh nghiệp có tồn tại trên Trustpilot và điểm đánh giá của họ
+    - kiểm tra trên whois.com xem trang web có được đăng ký gần đây không
+    - sử dụng Trustpilot, whois.com và các trang web khác để xác định gian lận và các doanh nghiệp có đánh giá khách hàng kém
+  id: |
+    - memeriksa apakah bisnis ada di Trustpilot dan berapa peringkatnya
+    - memeriksa di whois.com apakah situs web baru-baru ini didaftarkan
+    - menggunakan Trustpilot, whois.com dan situs lain untuk mengidentifikasi penipuan dan bisnis dengan penilaian pelanggan yang buruk
+  pl: |
+    - sprawdzić, czy firma istnieje na Trustpilot i jaka jest jej ocena
+    - sprawdzić na whois.com, czy strona internetowa jest niedawno zarejestrowana
+    - używać Trustpilot, whois.com i innych witryn do identyfikacji oszustw i firm z niskimi ocenami klientów
+  nl: |
+    - controleren of een bedrijf bestaat op Trustpilot en wat de beoordeling is
+    - op whois.com controleren of de website recent is geregistreerd
+    - Trustpilot, whois.com en andere sites gebruiken om oplichting en bedrijven met slechte klantbeoordelingen te identificeren
+  ar: |
+    - التحقق من وجود العمل على Trustpilot وتقييمه
+    - التحقق على whois.com إذا كان الموقع مسجلاً مؤخراً
+    - استخدام Trustpilot وwhois.com ومواقع أخرى للكشف عن عمليات الاحتيال والأعمال ذات التقييمات السيئة
+  hi: |
+    - जांचें कि क्या व्यवसाय Trustpilot पर मौजूद है और उसकी रेटिंग क्या है
+    - whois.com पर जांचें कि क्या वेबसाइट हाल ही में पंजीकृत की गई है
+    - Trustpilot, whois.com और अन्य साइटों का उपयोग करके घोटालों और खराब ग्राहक रेटिंग वाले व्यवसायों की पहचान करें
+  th: |
+    - ตรวจสอบว่าธุรกิจมีอยู่ใน Trustpilot และคะแนนเป็นเท่าไร
+    - ตรวจสอบบน whois.com ว่าเว็บไซต์ลงทะเบียนล่าสุดหรือไม่
+    - ใช้ Trustpilot, whois.com และไซต์อื่นๆ เพื่อระบุการหลอกลวงและธุรกิจที่มีคะแนนลูกค้าไม่ดี
+  cs: |
+    - ověřit, zda firma existuje na Trustpilot a jaké má hodnocení
+    - ověřit na whois.com, zda je web nedávno registrován
+    - používat Trustpilot, whois.com a další stránky k identifikaci podvodů a firem s nízkými hodnoceními zákazníků
+  sv: |
+    - kontrollera om ett företag finns på Trustpilot och vad dess betyg är
+    - kontrollera på whois.com om webbplatsen är nyligen registrerad
+    - använda Trustpilot, whois.com och andra webbplatser för att identifiera bedrägerier och företag med dåliga kundbetyg
   he: |
     - בדוק אם עסק קיים ב-Trustpilot ומה הדירוג שלו
     - בדוק ב-whois.com אם האתר נרשם לאחרונה
@@ -63,6 +139,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when check_reputation focus mode is active
   en: You are an expert on identifying scams vs legit businesses.
+  de: Du bist ein Experte darin, Betrug von legitimen Unternehmen zu unterscheiden.
+  zh: 你是识别诈骗与合法企业的专家。
+  es: Eres un experto en identificar estafas versus negocios legítimos.
+  fr: Vous êtes un expert pour identifier les arnaques par rapport aux entreprises légitimes.
+  pt: Você é um especialista em identificar golpes versus negócios legítimos.
+  ru: Вы эксперт по выявлению мошенничества и отличию его от законного бизнеса.
+  ja: あなたは詐欺と正当なビジネスを識別する専門家です。
+  ko: 당신은 사기와 합법적인 비즈니스를 구별하는 전문가입니다.
+  it: Sei un esperto nell'identificare truffe rispetto alle aziende legittime.
+  tr: Dolandırıcılıkları meşru işletmelerden ayırt etme konusunda uzmansınız.
+  vi: Bạn là chuyên gia xác định gian lận so với doanh nghiệp hợp pháp.
+  id: Anda adalah ahli dalam mengidentifikasi penipuan versus bisnis yang sah.
+  pl: Jesteś ekspertem w identyfikowaniu oszustw w porównaniu z legalnymi firmami.
+  nl: U bent een expert in het identificeren van oplichting versus legitieme bedrijven.
+  ar: أنت خبير في تحديد عمليات الاحتيال مقابل الأعمال الشرعية.
+  hi: आप घोटालों बनाम वैध व्यवसायों की पहचान करने के विशेषज्ञ हैं।
+  th: คุณเป็นผู้เชี่ยวชาญในการระบุการหลอกลวงเทียบกับธุรกิจที่ถูกต้องตามกฎหมาย
+  cs: Jste odborník na identifikaci podvodů versus legitimní firmy.
+  sv: Du är en expert på att identifiera bedrägerier kontra legitima företag.
   he: אתה מומחה בזיהוי הונאות לעומת עסקים לגיטימיים.
   verified_by_human:
     - en

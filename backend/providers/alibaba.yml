@@ -29,12 +29,15 @@ models:
         name: "Cerebras"
         model_id: "qwen-3-235b-a22b-instruct-2507" # Direct Cerebras model identifier (Preview model)
         region: "US" # Server region for UI display
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "qwen.qwen3-235b-a22b-2507-v1:0" # Bedrock model ID
+        aws_region: "eu-central-1"
+        region: "EU"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "qwen/qwen3-235b-a22b-2507" # OpenRouter's model identifier (fallback when Cerebras is unavailable)
         region: "US" # Server region for UI display
-    # Note: Google Vertex AI removed as fallback - model was not accessible (404 errors).
-    # OpenRouter is now the primary fallback with auto-provider selection.
     pricing:
       tokens:
         input:

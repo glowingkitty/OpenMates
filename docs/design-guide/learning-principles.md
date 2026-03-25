@@ -1,3 +1,8 @@
+---
+status: active
+last_verified: 2026-03-24
+---
+
 # Learning & Growth-First Design Principles for OpenMates
 
 ## Overview

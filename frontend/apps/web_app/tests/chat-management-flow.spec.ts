@@ -35,7 +35,11 @@ const {
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -58,57 +62,6 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-
-async function loginToTestAccount(
-	page: any,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
-	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
-	await page.goto('/');
-	await takeStepScreenshot(page, 'home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('input[name="username"][type="email"]');
-	await expect(emailInput).toBeVisible();
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-
-	const passwordInput = page.locator('input[type="password"]');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('input[autocomplete="one-time-code"]');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		await submitLoginButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
-			}
-		}
-	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
-	logCheckpoint('Logged in.');
-}
 
 /**
  * Create a test chat by sending a message and waiting for AI response.
@@ -141,21 +94,6 @@ async function createTestChat(
 	await page.waitForTimeout(3000); // Allow title to generate
 }
 
-/**
- * Delete the active chat via context menu (two-click confirmation).
- */
-async function deleteActiveChat(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
-	if (!(await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false))) return;
-	await activeChatItem.click({ button: 'right' });
-	const deleteButton = page.locator('.menu-item.delete');
-	await expect(deleteButton).toBeVisible({ timeout: 5000 });
-	await deleteButton.click();
-	await deleteButton.click();
-	await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
-	logCheckpoint('Chat deleted.');
-}
-
 // ---------------------------------------------------------------------------
 // Test 1: Pin / Unpin chat
 // ---------------------------------------------------------------------------
@@ -178,9 +116,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CHAT_MGMT_PIN');
 	const screenshot = createStepScreenshotter(log);
@@ -249,7 +185,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 	log('Pin indicator removed after unpinning.');
 
 	await assertNoMissingTranslations(page);
-	await deleteActiveChat(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log('Test complete.');
 });
 
@@ -269,9 +205,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CHAT_MGMT_MARK_UNREAD');
 	const screenshot = createStepScreenshotter(log);
@@ -341,7 +275,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	log('Unread badge removed after marking as read.');
 
 	await assertNoMissingTranslations(page);
-	await deleteActiveChat(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log('Test complete.');
 });
 
@@ -360,9 +294,7 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
 	);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('CHAT_MGMT_DOWNLOAD');
 	const screenshot = createStepScreenshotter(log);
@@ -411,6 +343,6 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	log(`Download initiated: ${downloadStarted}`);
 
 	await assertNoMissingTranslations(page);
-	await deleteActiveChat(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log('Test complete.');
 });

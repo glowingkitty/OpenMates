@@ -303,20 +303,14 @@ async def _async_send_issue_report_email(
         # Convert newlines to <br/> for HTML display in email
         device_info_formatted = device_info_formatted.replace('\n', '<br/>')
 
-        # Collect Docker Compose logs from all containers via OpenObserve
-        logger.info("Collecting Docker Compose logs from all containers via OpenObserve for issue report")
-        from backend.core.api.app.services.openobserve_log_collector import openobserve_log_collector
-        from datetime import datetime, timedelta, timezone
-        backend_logs = await openobserve_log_collector.get_compose_logs(
-            lines=50,
-            exclude_containers=["grafana", "promtail", "loki", "cadvisor", "prometheus"],
-            start_time=datetime.now(timezone.utc) - timedelta(minutes=5),
-        )
-
         # Prepare consolidated YAML attachment
         attachments = []
 
-        # Create a consolidated YAML file with all issue report data
+        # Create a consolidated YAML file with all issue report data.
+        # NOTE: console_logs and docker_compose_logs are intentionally NOT stored here anymore.
+        # Both are already persisted in OpenObserve (console_logs via push_issue_logs with
+        # job=client-issue-report, backend logs continuously via Promtail/container-logs stream).
+        # Use `debug.py issue <id> --timeline` to query them live in a unified chronological view.
         import yaml
         import base64
         from datetime import datetime, timezone
@@ -336,10 +330,8 @@ async def _async_send_issue_report_email(
                     'chat_or_embed_url': chat_or_embed_url,
                     'device_info': device_info if device_info else None
                 },
-                'logs': {
-                    'console_logs': console_logs.strip() if console_logs and console_logs.strip() else None,
-                    'docker_compose_logs': backend_logs.strip() if backend_logs and backend_logs.strip() else None
-                },
+                # Logs are omitted from S3 YAML — query live via OpenObserve:
+                #   debug.py issue <id> --timeline
                 # IndexedDB inspection report contains ONLY metadata (timestamps, versions, encrypted content lengths)
                 # NO plaintext chat content is included - safe for debugging while preserving user privacy
                 'indexeddb_inspection': indexeddb_report.strip() if indexeddb_report and indexeddb_report.strip() else None,
