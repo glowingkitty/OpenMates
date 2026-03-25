@@ -160,6 +160,11 @@ class AppSkillsStore {
             }
             // Apps without skills bypass health checks (no container needed)
             // Apps when health data unavailable: no status annotation (fail-open)
+            // Apps with skills but no container (status 'unknown') also bypass —
+            // 'unknown' means the app isn't in the health endpoint at all (e.g. OpenMates
+            // app whose skills run inside the core API). Genuinely down containers
+            // show as 'unhealthy', not 'unknown'.
+            if (status === 'unknown') status = undefined;
 
             annotatedApps[appId] = {
                 ...appMetadata,

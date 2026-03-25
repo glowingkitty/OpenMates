@@ -45,9 +45,9 @@
     
     let { app, onSelect, skillProviders, cardIconType = 'app' }: Props = $props();
 
-    /** Whether this app is unavailable (unhealthy, degraded, or unknown health status) */
+    /** Whether this app is unavailable (unhealthy health status) */
     let isUnavailable = $derived(
-        app.healthStatus === 'unhealthy' || app.healthStatus === 'unknown'
+        app.healthStatus === 'unhealthy'
     );
     
     // Reference to the app icon container for checking icon existence
