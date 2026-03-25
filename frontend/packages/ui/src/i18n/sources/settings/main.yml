@@ -7120,100 +7120,100 @@ report_issue.description:
   he: "מצאת באג או שיש לך הצעה? נשמח לשמוע! ככל שיהיו יותר פרטים — ובאופן אידיאלי גם צילום מסך — כך נוכל לזהות ולתקן את הבעיה מהר יותר."
   verified_by_human: []
 report_issue.title_label:
-  context: Label for issue title input field
-  en: Issue Title
-  de: Titel des Problems
-  zh: 问题标题
-  es: Título del problema
-  fr: Titre du problème
-  pt: Título do problema
-  ru: Заголовок проблемы
-  ja: 問題のタイトル
-  ko: 문제 제목
-  it: Titolo del problema
-  tr: Sorun başlığı
-  vi: Tiêu đề sự cố
-  id: Judul masalah
-  pl: Tytuł problemu
-  nl: Probleemtitel
-  ar: عنوان المشكلة
-  hi: समस्या का शीर्षक
-  th: หัวข้อปัญหา
-  cs: Název problému
-  sv: Problemrubrik
-  he: כותרת התקלה
+  context: Label for issue short description textarea field (required, replaces old single-line title)
+  en: Short description
+  de: Kurzbeschreibung
+  zh: 简短描述
+  es: Descripción breve
+  fr: Description courte
+  pt: Descrição breve
+  ru: Краткое описание
+  ja: 簡単な説明
+  ko: 간단한 설명
+  it: Descrizione breve
+  tr: Kısa açıklama
+  vi: Mô tả ngắn
+  id: Deskripsi singkat
+  pl: Krótki opis
+  nl: Korte beschrijving
+  ar: وصف موجز
+  hi: संक्षिप्त विवरण
+  th: คำอธิบายสั้นๆ
+  cs: Krátký popis
+  sv: Kort beskrivning
+  he: תיאור קצר
   verified_by_human: []
 report_issue.title_placeholder:
-  context: Placeholder text for issue title input field
-  en: Enter a brief title for your issue
-  de: Gib einen kurzen Titel für dein Problem ein
-  zh: 输入问题的简短标题
-  es: Ingresa un título breve para tu problema
-  fr: Entrez un titre bref pour votre problème
-  pt: Digite um título breve para seu problema
-  ru: Введите краткий заголовок для вашей проблемы
-  ja: 問題の簡単なタイトルを入力してください
-  ko: 문제에 대한 간단한 제목을 입력하세요
-  it: Inserisci un titolo breve per il tuo problema
-  tr: Sorununuz için kısa bir başlık girin
-  vi: Nhập tiêu đề ngắn gọn cho sự cố của bạn
-  id: Masukkan judul singkat untuk masalah Anda
-  pl: Wprowadź krótki tytuł dla swojego problemu
-  nl: Voer een korte titel in voor uw probleem
-  ar: أدخل عنوانًا موجزًا لمشكلتك
-  hi: अपनी समस्या के लिए एक संक्षिप्त शीर्षक दर्ज करें
-  th: ป้อนหัวข้อสั้นๆ สำหรับปัญหาของคุณ
-  cs: Zadejte stručný název pro váš problém
-  sv: Ange en kort rubrik för ditt problem
-  he: הזן כותרת קצרה לתקלה שלך
+  context: Placeholder text for issue short description textarea field
+  en: Briefly describe the issue — what happened and where?
+  de: Beschreibe kurz das Problem — was ist passiert und wo?
+  zh: 简要描述问题 — 发生了什么，在哪里？
+  es: Describe brevemente el problema — ¿qué pasó y dónde?
+  fr: Décrivez brièvement le problème — que s'est-il passé et où ?
+  pt: Descreva brevemente o problema — o que aconteceu e onde?
+  ru: Кратко опишите проблему — что произошло и где?
+  ja: 問題を簡潔に説明してください — 何が起こりましたか？どこで？
+  ko: 문제를 간략히 설명하세요 — 무슨 일이 어디서 발생했나요?
+  it: Descrivi brevemente il problema — cosa è successo e dove?
+  tr: Sorunu kısaca açıklayın — ne oldu ve nerede?
+  vi: Mô tả ngắn gọn sự cố — chuyện gì đã xảy ra và ở đâu?
+  id: Jelaskan masalah secara singkat — apa yang terjadi dan di mana?
+  pl: Krótko opisz problem — co się stało i gdzie?
+  nl: Beschrijf het probleem kort — wat is er gebeurd en waar?
+  ar: صِف المشكلة بإيجاز — ماذا حدث وأين؟
+  hi: समस्या का संक्षेप में वर्णन करें — क्या हुआ और कहाँ?
+  th: อธิบายปัญหาสั้นๆ — เกิดอะไรขึ้นและที่ไหน?
+  cs: Stručně popište problém — co se stalo a kde?
+  sv: Beskriv problemet kortfattat — vad hände och var?
+  he: תאר בקצרה את הבעיה — מה קרה ואיפה?
   verified_by_human: []
 report_issue.title_required:
-  context: Error message when issue title is empty
-  en: Issue title is required
-  de: Titel des Problems ist erforderlich
-  zh: 问题标题是必需的
-  es: El título del problema es obligatorio
-  fr: Le titre du problème est requis
-  pt: O título do problema é obrigatório
-  ru: Заголовок проблемы обязателен
-  ja: 問題のタイトルは必須です
-  ko: 문제 제목은 필수입니다
-  it: Il titolo del problema è obbligatorio
-  tr: Sorun başlığı gereklidir
-  vi: Tiêu đề sự cố là bắt buộc
-  id: Judul masalah wajib diisi
-  pl: Tytuł problemu jest wymagany
-  nl: Probleemtitel is verplicht
-  ar: عنوان المشكلة مطلوب
-  hi: समस्या का शीर्षक आवश्यक है
-  th: หัวข้อปัญหาจำเป็นต้องระบุ
-  cs: Název problému je povinný
-  sv: Problemrubrik krävs
-  he: נדרשת כותרת לדיווח
+  context: Error message when short description is empty
+  en: A short description is required
+  de: Eine Kurzbeschreibung ist erforderlich
+  zh: 需要简短描述
+  es: Se requiere una descripción breve
+  fr: Une description courte est requise
+  pt: Uma descrição breve é obrigatória
+  ru: Краткое описание обязательно
+  ja: 簡単な説明は必須です
+  ko: 간단한 설명은 필수입니다
+  it: Una descrizione breve è obbligatoria
+  tr: Kısa açıklama gereklidir
+  vi: Cần có mô tả ngắn
+  id: Deskripsi singkat wajib diisi
+  pl: Krótki opis jest wymagany
+  nl: Een korte beschrijving is verplicht
+  ar: الوصف الموجز مطلوب
+  hi: संक्षिप्त विवरण आवश्यक है
+  th: จำเป็นต้องมีคำอธิบายสั้นๆ
+  cs: Krátký popis je povinný
+  sv: En kort beskrivning krävs
+  he: נדרש תיאור קצר
   verified_by_human: []
 report_issue.title_too_short:
-  context: Error message when issue title is too short
-  en: Issue title must be at least 3 characters long
-  de: Der Titel des Problems muss mindestens 3 Zeichen lang sein
-  zh: 问题标题必须至少包含 3 个字符
-  es: El título del problema debe tener al menos 3 caracteres
-  fr: Le titre du problème doit contenir au moins 3 caractères
-  pt: O título do problema deve ter pelo menos 3 caracteres
-  ru: Заголовок проблемы должен содержать не менее 3 символов
-  ja: 問題のタイトルは少なくとも3文字である必要があります
-  ko: 문제 제목은 최소 3자 이상이어야 합니다
-  it: Il titolo del problema deve essere lungo almeno 3 caratteri
-  tr: Sorun başlığı en az 3 karakter uzunluğunda olmalıdır
-  vi: Tiêu đề sự cố phải có ít nhất 3 ký tự
-  id: Judul masalah harus minimal 3 karakter
-  pl: Tytuł problemu musi mieć co najmniej 3 znaki
-  nl: Probleemtitel moet minimaal 3 tekens lang zijn
-  ar: يجب أن يكون عنوان المشكلة 3 أحرف على الأقل
-  hi: समस्या का शीर्षक कम से कम 3 वर्ण लंबा होना चाहिए
-  th: หัวข้อปัญหาต้องมีความยาวอย่างน้อย 3 ตัวอักษร
-  cs: Název problému musí mít alespoň 3 znaky
-  sv: Problemrubriken måste vara minst 3 tecken lång
-  he: כותרת הדיווח חייבת להכיל לפחות 3 תווים
+  context: Error message when short description is too short
+  en: Description must be at least 3 characters long
+  de: Beschreibung muss mindestens 3 Zeichen lang sein
+  zh: 描述必须至少包含 3 个字符
+  es: La descripción debe tener al menos 3 caracteres
+  fr: La description doit contenir au moins 3 caractères
+  pt: A descrição deve ter pelo menos 3 caracteres
+  ru: Описание должно содержать не менее 3 символов
+  ja: 説明は少なくとも3文字である必要があります
+  ko: 설명은 최소 3자 이상이어야 합니다
+  it: La descrizione deve essere lunga almeno 3 caratteri
+  tr: Açıklama en az 3 karakter uzunluğunda olmalıdır
+  vi: Mô tả phải có ít nhất 3 ký tự
+  id: Deskripsi harus minimal 3 karakter
+  pl: Opis musi mieć co najmniej 3 znaki
+  nl: Beschrijving moet minimaal 3 tekens lang zijn
+  ar: يجب أن يكون الوصف 3 أحرف على الأقل
+  hi: विवरण कम से कम 3 वर्ण लंबा होना चाहिए
+  th: คำอธิบายต้องมีความยาวอย่างน้อย 3 ตัวอักษร
+  cs: Popis musí mít alespoň 3 znaky
+  sv: Beskrivningen måste vara minst 3 tecken lång
+  he: התיאור חייב להכיל לפחות 3 תווים
   verified_by_human: []
 report_issue.description_label:
   context: Label for issue description textarea field
@@ -9137,27 +9137,27 @@ report_issue.submit_to_agent_label:
   verified_by_human: []
 report_issue.submit_to_agent_hint_on:
   context: Admin-only toggle hint shown when the submit-to-agent toggle is ON
-  en: An opencode agent will automatically investigate this issue and suggest fixes.
-  de: Ein Opencode-Agent wird dieses Problem automatisch untersuchen und Lösungen vorschlagen.
-  zh: opencode 代理将自动调查此问题并建议修复方案。
-  es: Un agente opencode investigará automáticamente este problema y sugerirá soluciones.
-  fr: Un agent opencode enquêtera automatiquement sur ce problème et suggérera des correctifs.
-  pt: Um agente opencode investigará automaticamente este problema e sugerirá correções.
-  ru: Агент opencode автоматически исследует эту проблему и предложит исправления.
-  ja: opencodeエージェントがこの問題を自動的に調査し、修正を提案します。
-  ko: opencode 에이전트가 이 문제를 자동으로 조사하고 수정 방법을 제안합니다.
-  it: Un agente opencode indagherà automaticamente su questo problema e suggerirà soluzioni.
-  tr: Bir opencode ajanı bu sorunu otomatik olarak araştıracak ve düzeltmeler önerecektir.
-  vi: Một agent opencode sẽ tự động điều tra vấn đề này và đề xuất giải pháp.
-  id: Agen opencode akan secara otomatis menyelidiki masalah ini dan menyarankan perbaikan.
-  pl: Agent opencode automatycznie zbada ten problem i zaproponuje poprawki.
-  nl: Een opencode-agent onderzoekt dit probleem automatisch en stelt oplossingen voor.
-  ar: سيقوم وكيل opencode تلقائيًا بالتحقيق في هذه المشكلة واقتراح الإصلاحات.
-  hi: एक opencode एजेंट इस समस्या की स्वचालित रूप से जांच करेगा और सुधार का सुझाव देगा।
-  th: เอเจนต์ opencode จะตรวจสอบปัญหานี้โดยอัตโนมัติและเสนอการแก้ไข
-  cs: Agent opencode automaticky prošetří tento problém a navrhne opravy.
-  sv: En opencode-agent kommer automatiskt att undersöka detta problem och föreslå lösningar.
-  he: סוכן opencode יחקור אוטומטית את הבעיה הזו ויציע תיקונים.
+  en: A Claude Code agent will automatically investigate this issue and suggest fixes.
+  de: Ein Claude Code-Agent wird dieses Problem automatisch untersuchen und Lösungen vorschlagen.
+  zh: Claude Code 代理将自动调查此问题并建议修复方案。
+  es: Un agente Claude Code investigará automáticamente este problema y sugerirá soluciones.
+  fr: Un agent Claude Code enquêtera automatiquement sur ce problème et suggérera des correctifs.
+  pt: Um agente Claude Code investigará automaticamente este problema e sugerirá correções.
+  ru: Агент Claude Code автоматически исследует эту проблему и предложит исправления.
+  ja: Claude Codeエージェントがこの問題を自動的に調査し、修正を提案します。
+  ko: Claude Code 에이전트가 이 문제를 자동으로 조사하고 수정 방법을 제안합니다.
+  it: Un agente Claude Code indagherà automaticamente su questo problema e suggerirà soluzioni.
+  tr: Bir Claude Code ajanı bu sorunu otomatik olarak araştıracak ve düzeltmeler önerecektir.
+  vi: Một agent Claude Code sẽ tự động điều tra vấn đề này và đề xuất giải pháp.
+  id: Agen Claude Code akan secara otomatis menyelidiki masalah ini dan menyarankan perbaikan.
+  pl: Agent Claude Code automatycznie zbada ten problem i zaproponuje poprawki.
+  nl: Een Claude Code-agent onderzoekt dit probleem automatisch en stelt oplossingen voor.
+  ar: سيقوم وكيل Claude Code تلقائيًا بالتحقيق في هذه المشكلة واقتراح الإصلاحات.
+  hi: एक Claude Code एजेंट इस समस्या की स्वचालित रूप से जांच करेगा और सुधार का सुझाव देगा।
+  th: เอเจนต์ Claude Code จะตรวจสอบปัญหานี้โดยอัตโนมัติและเสนอการแก้ไข
+  cs: Agent Claude Code automaticky prošetří tento problém a navrhne opravy.
+  sv: En Claude Code-agent kommer automatiskt att undersöka detta problem och föreslå lösningar.
+  he: סוכן Claude Code יחקור אוטומטית את הבעיה הזו ויציע תיקונים.
   verified_by_human: []
 report_issue.submit_to_agent_hint_off:
   context: Admin-only toggle hint shown when the submit-to-agent toggle is OFF

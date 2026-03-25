@@ -1072,32 +1072,8 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
-    'health-check-all-providers': {
-        'task': 'health_check.check_all_providers',
-        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
-    'health-check-all-apps': {
-        'task': 'health_check.check_all_apps',
-        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
-    'health-check-external-services': {
-        'task': 'health_check.check_external_services',
-        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
-    'health-events-cleanup': {
-        'task': 'health_check.cleanup_old_events',
-        'schedule': crontab(hour=4, minute=0),  # Daily at 4 AM UTC
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-        'kwargs': {'retention_days': 90},  # Keep 90 days of history
-    },
-    'precompute-status-summary': {
-        'task': 'health_check.precompute_status_summary',
-        'schedule': timedelta(seconds=60),  # Every 60 seconds
-        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
-    },
+    # Health check tasks removed — now handled by the independent status service
+    # (backend/status/) which runs its own async scheduler. See commit 07fb748.
     'archive-old-usage-entries': {
         'task': 'usage.archive_old_entries',
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
