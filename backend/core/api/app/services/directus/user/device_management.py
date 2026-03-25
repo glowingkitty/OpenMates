@@ -1,19 +1,87 @@
+# backend/core/api/app/services/directus/user/device_management.py
+#
+# Manages the connected_devices JSON field on user records.
+# Each entry is a dict with {hash, first_seen, last_seen} for auto-expiry support.
+# Backward-compatible: legacy plain-string entries are migrated on read.
+#
+# Architecture: docs/architecture/core/security.md
+# Tests: backend/tests/test_device_management.py
+
 import logging
 import json
-from typing import List, Tuple
+import time
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
-MAX_DEVICES = 10 # Maximum number of device hashes to store per user
+MAX_DEVICES = 10  # Maximum number of device records to store per user
+DEVICE_EXPIRY_DAYS = 90  # Devices not seen in this many days are eligible for cleanup
+
+
+def _normalize_device_entry(entry: Any) -> Dict[str, Any]:
+    """Convert a legacy plain-string device hash to the new dict format.
+    New entries: {"hash": "abc123", "first_seen": 1711000000, "last_seen": 1711000000}
+    Legacy entries: "abc123" -> migrated with first_seen=0 (unknown) and last_seen=0.
+    """
+    if isinstance(entry, dict) and "hash" in entry:
+        return entry
+    if isinstance(entry, str):
+        return {"hash": entry, "first_seen": 0, "last_seen": 0}
+    return None
+
+
+def _normalize_device_list(raw: Any) -> List[Dict[str, Any]]:
+    """Parse and normalize a connected_devices field from cache or Directus."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    if not isinstance(raw, list):
+        return []
+    result = []
+    for entry in raw:
+        normalized = _normalize_device_entry(entry)
+        if normalized:
+            result.append(normalized)
+    return result
+
+
+async def _fetch_connected_devices(self, user_id: str) -> Tuple[List[Dict[str, Any]], bool]:
+    """Fetch connected_devices from cache or Directus. Returns (devices, success)."""
+    # Try cache first
+    user_data = await self.cache.get_user_by_id(user_id)
+    if user_data:
+        raw = user_data.get("connected_devices")
+        if raw is not None:
+            devices = _normalize_device_list(raw)
+            if devices or raw == "[]":
+                logger.debug(f"Retrieved connected_devices from cache for user {user_id[:6]}...")
+                return devices, True
+
+    # Fall back to Directus
+    user_url = f"{self.base_url}/users/{user_id}"
+    get_response = await self._make_api_request("GET", user_url, params={"fields": "connected_devices"})
+    if get_response.status_code != 200:
+        logger.error(f"Failed to retrieve user {user_id} for device hash update: {get_response.status_code}")
+        return [], False
+
+    raw = get_response.json().get("data", {}).get("connected_devices")
+    devices = _normalize_device_list(raw)
+    logger.debug(f"Retrieved connected_devices from Directus for user {user_id[:6]}...")
+    return devices, True
+
 
 async def add_user_device_hash(
-    self, # Assuming this is part of a class like DirectusService
+    self,
     user_id: str,
     device_hash: str
 ) -> Tuple[bool, str]:
     """
-    Adds a new device hash to a user's 'connected_devices' list in Directus.
-    If the hash already exists, it does nothing.
+    Adds or updates a device hash in a user's connected_devices list.
+    Updates last_seen timestamp if the device already exists.
     Prunes old hashes if the list exceeds MAX_DEVICES.
     Prioritizes writing to cache first, then Directus.
 
@@ -26,103 +94,55 @@ async def add_user_device_hash(
         Tuple[bool, str]: Success status and a message.
     """
     try:
-        # 1. Get user data to retrieve existing connected_devices (try cache first)
-        user_data_from_cache = await self.cache.get_user_by_id(user_id)
-        connected_devices: List[str] = []
-        needs_directus_fetch = True
+        connected_devices, success = await _fetch_connected_devices(self, user_id)
+        if not success:
+            return False, "Failed to retrieve user device data"
 
-        if user_data_from_cache:
-            connected_devices_raw_from_cache = user_data_from_cache.get("connected_devices")
-            if connected_devices_raw_from_cache is not None:
-                if isinstance(connected_devices_raw_from_cache, list):
-                    connected_devices = connected_devices_raw_from_cache
-                    needs_directus_fetch = False
-                    logger.debug(f"Retrieved connected_devices (list from cache) for user {user_id[:6]}...")
-                else:
-                    try:
-                        parsed_devices = json.loads(connected_devices_raw_from_cache)
-                        if isinstance(parsed_devices, list):
-                            connected_devices = parsed_devices
-                            needs_directus_fetch = False # Found in cache, no need to fetch from Directus
-                            logger.debug(f"Retrieved connected_devices (parsed from cache) for user {user_id[:6]}...")
-                        else:
-                            logger.warning(f"Cached connected_devices for user {user_id[:6]} is not a list after parsing. Fetching from Directus.")
-                    except json.JSONDecodeError:
-                        logger.warning(f"Failed to decode cached connected_devices JSON for user {user_id[:6]}. Fetching from Directus.")
-                    except Exception as e:
-                        logger.warning(f"Error processing cached connected_devices for user {user_id[:6]}: {str(e)}. Fetching from Directus.")
-        
-        if needs_directus_fetch:
-            user_url = f"{self.base_url}/users/{user_id}"
-            get_response = await self._make_api_request("GET", user_url, params={"fields": "connected_devices"})
-
-            if get_response.status_code != 200:
-                logger.error(f"Failed to retrieve user {user_id} for device hash update: {get_response.status_code} {get_response.text}")
-                return False, f"Failed to retrieve user: {get_response.status_code}"
-
-            user_data_from_directus = get_response.json().get("data", {})
-            connected_devices_raw_from_directus = user_data_from_directus.get("connected_devices")
-
-            if connected_devices_raw_from_directus is not None:
-                if isinstance(connected_devices_raw_from_directus, list):
-                    connected_devices = connected_devices_raw_from_directus
-                    logger.debug(f"Retrieved connected_devices (list from Directus) for user {user_id[:6]}...")
-                else:
-                    try:
-                        parsed_devices = json.loads(connected_devices_raw_from_directus)
-                        if isinstance(parsed_devices, list):
-                            connected_devices = parsed_devices
-                            logger.debug(f"Retrieved connected_devices (parsed from Directus) for user {user_id[:6]}...")
-                        else:
-                            logger.warning(f"Directus connected_devices for user {user_id[:6]} is not a list after parsing. Starting with empty list.")
-                    except json.JSONDecodeError:
-                        logger.error(f"Failed to decode Directus connected_devices JSON for user {user_id[:6]}. Starting with empty list.")
-                    except Exception as e:
-                        logger.error(f"Error processing Directus connected_devices for user {user_id[:6]}: {str(e)}. Starting with empty list.")
-            else:
-                logger.debug(f"No connected_devices found in Directus for user {user_id[:6]}. Starting with empty list.")
-
+        now = int(time.time())
         needs_update = False
 
-        if device_hash not in connected_devices:
-            # Add new device hash
-            logger.info(f"Adding new device hash {device_hash[:8]}... for user {user_id}")
-            connected_devices.append(device_hash)
+        # Check if device already exists — update last_seen
+        existing = next((d for d in connected_devices if d["hash"] == device_hash), None)
+        if existing:
+            existing["last_seen"] = now
             needs_update = True
+            logger.debug(f"Device hash {device_hash[:8]}... already known for user {user_id}. Updated last_seen.")
         else:
-            logger.debug(f"Device hash {device_hash[:8]}... already known for user {user_id}. No update needed.")
+            # Add new device
+            logger.info(f"Adding new device hash {device_hash[:8]}... for user {user_id}")
+            connected_devices.append({
+                "hash": device_hash,
+                "first_seen": now,
+                "last_seen": now,
+            })
+            needs_update = True
 
-        # 2. Prune old devices if exceeding MAX_DEVICES
+        # Prune old devices if exceeding MAX_DEVICES (keep most recently seen)
         if len(connected_devices) > MAX_DEVICES:
-            logger.info(f"Device hash count ({len(connected_devices)}) exceeds limit ({MAX_DEVICES}) for user {user_id}. Pruning...")
-            # Keep only the MAX_DEVICES most recent devices (assuming append adds to end)
+            logger.info(f"Device count ({len(connected_devices)}) exceeds limit ({MAX_DEVICES}) for user {user_id}. Pruning...")
+            connected_devices.sort(key=lambda d: d.get("last_seen", 0))
             connected_devices = connected_devices[-MAX_DEVICES:]
-            needs_update = True # Ensure update happens if pruning occurred
+            needs_update = True
 
-        # 3. Update cache first if changes were made
         if needs_update:
-            logger.debug(f"Updating connected_devices in cache for user {user_id}")
+            serialized = json.dumps(connected_devices)
             try:
-                # Update cache first
-                await self.cache.update_user(user_id, {"connected_devices": json.dumps(connected_devices)})
-                logger.info(f"Successfully updated connected_devices in cache for user {user_id[:6]}...")
+                await self.cache.update_user(user_id, {"connected_devices": serialized})
+                logger.debug(f"Updated connected_devices in cache for user {user_id[:6]}...")
 
-                # Then update Directus
-                user_url = f"{self.base_url}/users/{user_id}" # Ensure user_url is defined
-                update_payload = {"connected_devices": json.dumps(connected_devices)}
+                user_url = f"{self.base_url}/users/{user_id}"
                 patch_response = await self._make_api_request(
-                    "PATCH", user_url, json=update_payload
+                    "PATCH", user_url, json={"connected_devices": serialized}
                 )
-
                 if patch_response.status_code == 200:
-                    logger.info(f"Successfully updated connected_devices in Directus for user {user_id}")
+                    logger.info(f"Updated connected_devices in Directus for user {user_id}")
                     return True, "Device information updated successfully"
                 else:
-                    logger.error(f"Failed to update connected_devices in Directus for user {user_id}: {patch_response.status_code} {patch_response.text}")
+                    logger.error(f"Failed to update connected_devices in Directus for user {user_id}: {patch_response.status_code}")
                     return False, f"Failed to update device info: {patch_response.status_code}"
             except Exception as e:
-                 logger.error(f"Error updating connected_devices for user {user_id}: {str(e)}", exc_info=True)
-                 return False, f"Error updating devices: {str(e)}"
+                logger.error(f"Error updating connected_devices for user {user_id}: {str(e)}", exc_info=True)
+                return False, f"Error updating devices: {str(e)}"
         else:
             return True, "Device information is up to date"
 
@@ -133,89 +153,47 @@ async def add_user_device_hash(
 
 
 async def get_user_device_hashes(
-    self, # Assuming this is part of a class like DirectusService
+    self,
     user_id: str
 ) -> List[str]:
     """
     Retrieves the list of known device hashes for a user.
-    Prioritizes fetching from cache, falls back to Directus.
+    Returns plain hash strings for backward compatibility with callers
+    that only need to check membership.
 
     Args:
         self: The DirectusService instance.
         user_id: The ID of the user.
 
     Returns:
-        List[str]: A list of device hashes, or an empty list if none are found or an error occurs.
+        List[str]: A list of device hashes, or an empty list if none found.
     """
-    connected_devices: List[str] = []
-    needs_directus_fetch = True
-
     try:
-        # 1. Try to get from cache first
-        user_data_from_cache = await self.cache.get_user_by_id(user_id)
-        if user_data_from_cache:
-            connected_devices_raw_from_cache = user_data_from_cache.get("connected_devices")
-            if connected_devices_raw_from_cache is not None:
-                if isinstance(connected_devices_raw_from_cache, list):
-                    connected_devices = connected_devices_raw_from_cache
-                    needs_directus_fetch = False # Found in cache, no need to fetch from Directus
-                    logger.debug(f"Retrieved connected_devices (list from cache) for user {user_id[:6]}...")
-                else:
-                    try:
-                        parsed_devices = json.loads(connected_devices_raw_from_cache)
-                        if isinstance(parsed_devices, list):
-                            connected_devices = parsed_devices
-                            needs_directus_fetch = False # Found in cache, no need to fetch from Directus
-                            logger.debug(f"Retrieved connected_devices (parsed from cache) for user {user_id[:6]}...")
-                        else:
-                            logger.warning(f"Cached connected_devices for user {user_id[:6]} is not a list after parsing. Falling back to Directus.")
-                    except json.JSONDecodeError:
-                        logger.warning(f"Failed to decode cached connected_devices JSON for user {user_id[:6]}. Falling back to Directus.")
-                    except Exception as e:
-                        logger.warning(f"Error processing cached connected_devices for user {user_id[:6]}: {str(e)}. Falling back to Directus.")
-        
-        # 2. If not found in cache or cache data was invalid, fetch from Directus
-        if needs_directus_fetch:
-            user_url = f"{self.base_url}/users/{user_id}"
-            get_response = await self._make_api_request("GET", user_url, params={"fields": "connected_devices"})
-
-            if get_response.status_code != 200:
-                logger.warning(f"Failed to retrieve user {user_id} from Directus for device hash check: {get_response.status_code}")
-                return [] # Return empty list on Directus fetch failure
-
-            user_data_from_directus = get_response.json().get("data", {})
-            connected_devices_raw_from_directus = user_data_from_directus.get("connected_devices")
-
-            if connected_devices_raw_from_directus is not None:
-                if isinstance(connected_devices_raw_from_directus, list):
-                    connected_devices = connected_devices_raw_from_directus
-                    logger.debug(f"Retrieved connected_devices (list from Directus) for user {user_id[:6]}...")
-                    # Update cache with the data fetched from Directus
-                    await self.cache.update_user(user_id, {"connected_devices": json.dumps(connected_devices)})
-                    logger.debug(f"Updated connected_devices in cache for user {user_id[:6]} after Directus fetch.")
-                else:
-                    try:
-                        parsed_devices = json.loads(connected_devices_raw_from_directus)
-                        if isinstance(parsed_devices, list):
-                            connected_devices = parsed_devices
-                            logger.debug(f"Retrieved connected_devices (parsed from Directus) for user {user_id[:6]}...")
-                            # Update cache with the data fetched from Directus
-                            await self.cache.update_user(user_id, {"connected_devices": json.dumps(connected_devices)})
-                            logger.debug(f"Updated connected_devices in cache for user {user_id[:6]} after Directus fetch.")
-                        else:
-                            logger.warning(f"Directus connected_devices for user {user_id[:6]} is not a list after parsing. Returning empty list.")
-                    except json.JSONDecodeError:
-                        logger.error(f"Failed to decode Directus connected_devices JSON for user {user_id[:6]}. Returning empty list.")
-                    except Exception as e:
-                        logger.error(f"Error processing Directus connected_devices for user {user_id[:6]}: {str(e)}. Returning empty list.")
-            else:
-                logger.debug(f"No connected_devices found in Directus for user {user_id[:6]}. Returning empty list.")
-
+        connected_devices, _ = await _fetch_connected_devices(self, user_id)
+        return [d["hash"] for d in connected_devices]
     except Exception as e:
-        logger.error(f"Unexpected error retrieving user device hashes for user {user_id}: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error retrieving device hashes for user {user_id}: {str(e)}", exc_info=True)
         return []
 
-    return connected_devices
 
-# Removed: update_user_device_record (replaced by add_user_device_hash)
-# Removed: get_stored_device_data (replaced by get_user_device_hashes)
+async def get_user_device_records(
+    self,
+    user_id: str
+) -> List[Dict[str, Any]]:
+    """
+    Retrieves the full device records (with timestamps) for a user.
+    Used by the session management UI to show device age.
+
+    Args:
+        self: The DirectusService instance.
+        user_id: The ID of the user.
+
+    Returns:
+        List[Dict]: Device records with hash, first_seen, last_seen fields.
+    """
+    try:
+        connected_devices, _ = await _fetch_connected_devices(self, user_id)
+        return connected_devices
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving device records for user {user_id}: {str(e)}", exc_info=True)
+        return []

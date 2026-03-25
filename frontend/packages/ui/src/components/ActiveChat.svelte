@@ -3154,12 +3154,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayProviderName = resolvedProviderName || '';
             const displayServerRegion = resolvedServerRegion || '';
 
-            // Build region flag for display
+            // Build region flag for display — must match all region values in backend/providers/*.yml
             const getRegionFlag = (region: string): string => {
                 switch (region) {
                     case 'EU': return '\u{1F1EA}\u{1F1FA}';
                     case 'US': return '\u{1F1FA}\u{1F1F8}';
                     case 'APAC': return '\u{1F30F}';
+                    case 'global': return '\u{1F310}';
+                    case 'Local': return '\u{1F3E0}';
                     default: return '';
                 }
             };
@@ -4027,12 +4029,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
             
-            // Get region flag for display (e.g., "EU" -> "🇪🇺", "US" -> "🇺🇸", "APAC" -> "🌏")
+            // Get region flag for display — must match all region values in backend/providers/*.yml
             const getRegionFlag = (region: string): string => {
                 switch (region) {
                     case 'EU': return '🇪🇺';
                     case 'US': return '🇺🇸';
                     case 'APAC': return '🌏';
+                    case 'global': return '🌐';
+                    case 'Local': return '🏠';
                     default: return '';
                 }
             };

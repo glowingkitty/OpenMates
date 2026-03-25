@@ -786,7 +786,49 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Error creating user key: {str(e)}")
             raise
-    
+
+    async def delete_user_key(self, key_id: str) -> bool:
+        """
+        Permanently delete a user-specific encryption key from Vault transit.
+        This is irreversible — all data encrypted with this key becomes unrecoverable.
+        Called during account deletion (Phase 1) after all encrypted content is already deleted.
+
+        Args:
+            key_id: The Vault transit key name (e.g., "user_<uuid>").
+
+        Returns:
+            True if the key was deleted or didn't exist, False on error.
+        """
+        if not key_id:
+            logger.warning("delete_user_key called with empty key_id, skipping")
+            return True
+
+        try:
+            # Vault requires deletion_allowed=true before a key can be deleted.
+            # First, update the key config to allow deletion.
+            await self._vault_request(
+                "post",
+                f"{self.transit_mount}/keys/{key_id}/config",
+                {"deletion_allowed": True},
+            )
+
+            # Now delete the key
+            await self._vault_request(
+                "delete",
+                f"{self.transit_mount}/keys/{key_id}",
+            )
+            logger.info(f"Deleted Vault transit key: {key_id}")
+            return True
+
+        except Exception as e:
+            error_str = str(e)
+            # Key doesn't exist — treat as success (idempotent)
+            if "no existing key named" in error_str.lower() or "404" in error_str:
+                logger.info(f"Vault transit key {key_id} does not exist (already deleted or never created)")
+                return True
+            logger.error(f"Error deleting Vault transit key {key_id}: {error_str}", exc_info=True)
+            return False
+
     async def encrypt_with_user_key(self, plaintext: str, key_id: str) -> Tuple[str, str]:
         """
         Encrypt plaintext using user's specific Vault key

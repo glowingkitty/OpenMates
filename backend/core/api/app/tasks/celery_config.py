@@ -947,6 +947,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
     "app.tasks.auto_delete_tasks.auto_delete_old_issues": "persistence",
     "app.tasks.auto_delete_tasks.auto_delete_old_usage": "persistence",
+    "app.tasks.auto_delete_tasks.auto_expire_stale_devices": "persistence",
 
     # PDF processing tasks
     "apps.pdf.tasks.process_pdf": "app_pdf",
@@ -1196,6 +1197,14 @@ app.conf.beat_schedule = {
     'auto-delete-old-usage-daily': {
         'task': 'app.tasks.auto_delete_tasks.auto_delete_old_usage',
         'schedule': crontab(hour=3, minute=30),  # Daily 03:30 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily device expiry — removes stale device fingerprints not seen in 90 days.
+    # GDPR data minimization (Article 5(1)(c)): device hashes should not be stored indefinitely.
+    # Runs at 04:00 UTC, staggered from other auto-delete tasks.
+    'auto-expire-stale-devices-daily': {
+        'task': 'app.tasks.auto_delete_tasks.auto_expire_stale_devices',
+        'schedule': crontab(hour=4, minute=0),  # Daily 04:00 UTC
         'options': {'queue': 'persistence'},
     },
     # Daily Inspiration generation - generates personalized inspirations for active users.
