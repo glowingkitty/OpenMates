@@ -946,26 +946,6 @@ async def handle_main_processing(
                 if key not in loaded_app_settings_and_memories_content
             ]
 
-            # Keys explicitly mentioned by user via @memory/@memory-entry should NEVER trigger
-            # a permission dialog — the mention IS the consent. If the client failed to send
-            # cleartext (e.g. store not loaded, entry lookup failed), skip the request for those keys.
-            if missing_keys and user_overrides:
-                mentioned_keys: set = set()
-                for app_id, memory_id, _ in (user_overrides.memory_categories or []):
-                    mentioned_keys.add(f"{app_id}:{memory_id}")
-                for app_id, category_id, _ in (user_overrides.memory_entries or []):
-                    mentioned_keys.add(f"{app_id}:{category_id}")
-
-                if mentioned_keys:
-                    skipped = [k for k in missing_keys if k in mentioned_keys]
-                    if skipped:
-                        logger.warning(
-                            f"{log_prefix} Skipping permission request for {len(skipped)} explicitly-mentioned "
-                            f"key(s) {skipped} — user @mention is implicit consent. "
-                            f"Client cleartext was not provided (frontend extraction may have failed)."
-                        )
-                        missing_keys = [k for k in missing_keys if k not in mentioned_keys]
-
             if missing_keys and getattr(request_data, "is_app_settings_memories_continuation", False):
                 # This is a continuation task (user already confirmed/rejected the original request).
                 # Do NOT issue another permission dialog — the user's decision was already recorded.

@@ -1012,7 +1012,7 @@ export async function sendNewMessageImpl(
       const { extractMentionedSettingsMemoriesCleartext } =
         await import("./mentionedSettingsMemoriesCleartext");
       const mentionedCleartext =
-        extractMentionedSettingsMemoriesCleartext(contentForServer);
+        await extractMentionedSettingsMemoriesCleartext(contentForServer);
       const keys = Object.keys(mentionedCleartext);
       if (keys.length > 0) {
         payload.mentioned_settings_memories_cleartext = mentionedCleartext;
