@@ -1031,8 +1031,10 @@ async function handleApps(
       process.exit(1);
     }
     // Silently forward to the sugar alias execution path
+    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown }> = [];
+    try { runSchemaParams = await client.getSkillSchema(app, skill); } catch { /* best-effort */ }
     try {
-      const inputData = buildSkillInput(flags, inlineTokens);
+      const inputData = buildSkillInput(flags, inlineTokens, runSchemaParams);
       const data = await client.runSkill({ app, skill, inputData, apiKey });
       if (flags.json === true) {
         printJson(data);
@@ -1174,7 +1176,7 @@ async function handleApps(
     }
 
     try {
-      const inputData = buildSkillInput(flags, inlineTokens);
+      const inputData = buildSkillInput(flags, inlineTokens, schemaParams);
       const data = await client.runSkill({ app, skill, inputData, apiKey });
       if (flags.json === true) {
         printJson(data);
@@ -1259,19 +1261,28 @@ async function handleApps(
 
 /**
  * Build skill input data from --input flag or inline positional text.
- * Inline text is wrapped as { requests: [{ query: text }] } which matches
- * the tool_schema convention used by most query-based skills (web, news, etc.).
+ *
+ * When schema params are available and the skill has exactly one required
+ * param, inline text is mapped to that param's name (e.g. { url: text }).
+ * Otherwise falls back to { query: text } which matches the tool_schema
+ * convention used by most query-based skills (web, news, etc.).
  * For skills with different schemas use --input '<json>' explicitly.
  */
 function buildSkillInput(
   flags: Record<string, string | boolean>,
   inlineTokens: string[],
+  schemaParams?: Array<{ name: string; required: boolean }>,
 ): Record<string, unknown> {
   if (typeof flags.input === "string") {
     return JSON.parse(flags.input) as Record<string, unknown>;
   }
   const inlineText = inlineTokens.join(" ").trim();
-  if (inlineText) return { requests: [{ query: inlineText }] };
+  if (inlineText) {
+    // Use the actual param name when the skill has a single required field
+    const required = (schemaParams ?? []).filter((p) => p.required);
+    const paramName = required.length === 1 ? required[0].name : "query";
+    return { requests: [{ [paramName]: inlineText }] };
+  }
   return {};
 }
 
