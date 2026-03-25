@@ -7312,28 +7312,28 @@ report_issue.description_too_short:
   he: תיאור הבעיה חייב להכיל לפחות 10 תווים
   verified_by_human: []
 report_issue.user_flow_label:
-  context: Label for the "What did you do?" textarea in the report issue form
-  en: What did you do?
-  de: Was hast du getan?
-  zh: 你做了什么？
-  es: ¿Qué hiciste?
-  fr: Qu'avez-vous fait ?
-  pt: O que você fez?
-  ru: Что вы сделали?
-  ja: 何をしましたか？
-  ko: 어떻게 했나요?
-  it: Cosa hai fatto?
-  tr: Ne yaptınız?
-  vi: Bạn đã làm gì?
-  id: Apa yang Anda lakukan?
-  pl: Co zrobiłeś?
-  nl: Wat deed je?
-  ar: ماذا فعلت؟
-  hi: आपने क्या किया?
-  th: คุณทำอะไร?
-  cs: Co jste udělal?
-  sv: Vad gjorde du?
-  he: "מה עשית?"
+  context: Label for the "What did you do?" textarea in the report issue form (optional field)
+  en: What did you do? (optional)
+  de: Was hast du getan? (optional)
+  zh: 你做了什么？（可选）
+  es: ¿Qué hiciste? (opcional)
+  fr: Qu'avez-vous fait ? (facultatif)
+  pt: O que você fez? (opcional)
+  ru: Что вы сделали? (необязательно)
+  ja: 何をしましたか？（任意）
+  ko: 어떻게 했나요? (선택 사항)
+  it: Cosa hai fatto? (facoltativo)
+  tr: Ne yaptınız? (isteğe bağlı)
+  vi: Bạn đã làm gì? (tùy chọn)
+  id: Apa yang Anda lakukan? (opsional)
+  pl: Co zrobiłeś? (opcjonalne)
+  nl: Wat deed je? (optioneel)
+  ar: ماذا فعلت؟ (اختياري)
+  hi: आपने क्या किया? (वैकल्पिक)
+  th: คุณทำอะไร? (ไม่บังคับ)
+  cs: Co jste udělal? (volitelné)
+  sv: Vad gjorde du? (valfritt)
+  he: "מה עשית? (אופציונלי)"
   verified_by_human: []
 report_issue.user_flow_placeholder:
   context: Placeholder text inside the "What did you do?" textarea — tells users what kind of steps to write
@@ -7384,28 +7384,28 @@ report_issue.user_flow_hint:
   he: אופציונלי — תאר את השלבים שהובילו לבעיה
   verified_by_human: []
 report_issue.expected_behaviour_label:
-  context: Label for the "What did you expect to happen?" textarea in the report issue form
-  en: What did you expect to happen?
-  de: Was hast du erwartet?
-  zh: 你期望发生什么？
-  es: ¿Qué esperabas que pasara?
-  fr: Qu'est-ce que vous attendiez ?
-  pt: O que você esperava que acontecesse?
-  ru: Что вы ожидали?
-  ja: 何が起こると思っていましたか？
-  ko: 어떤 결과를 예상했나요?
-  it: Cosa ti aspettavi che accadesse?
-  tr: Ne olmasını bekliyordunuz?
-  vi: Bạn mong đợi điều gì xảy ra?
-  id: Apa yang Anda harapkan terjadi?
-  pl: Czego się spodziewałeś?
-  nl: Wat verwachtte je dat er zou gebeuren?
-  ar: ماذا توقعت أن يحدث؟
-  hi: आप क्या होने की उम्मीद कर रहे थे?
-  th: คุณคาดหวังว่าจะเกิดอะไรขึ้น?
-  cs: Co jste očekával, že se stane?
-  sv: Vad förväntade du dig skulle hända?
-  he: "מה ציפית שיקרה?"
+  context: Label for the "What did you expect to happen?" textarea in the report issue form (optional field)
+  en: What did you expect to happen? (optional)
+  de: Was hast du erwartet? (optional)
+  zh: 你期望发生什么？（可选）
+  es: ¿Qué esperabas que pasara? (opcional)
+  fr: Qu'est-ce que vous attendiez ? (facultatif)
+  pt: O que você esperava que acontecesse? (opcional)
+  ru: Что вы ожидали? (необязательно)
+  ja: 何が起こると思っていましたか？（任意）
+  ko: 어떤 결과를 예상했나요? (선택 사항)
+  it: Cosa ti aspettavi che accadesse? (facoltativo)
+  tr: Ne olmasını bekliyordunuz? (isteğe bağlı)
+  vi: Bạn mong đợi điều gì xảy ra? (tùy chọn)
+  id: Apa yang Anda harapkan terjadi? (opsional)
+  pl: Czego się spodziewałeś? (opcjonalne)
+  nl: Wat verwachtte je dat er zou gebeuren? (optioneel)
+  ar: ماذا توقعت أن يحدث؟ (اختياري)
+  hi: आप क्या होने की उम्मीद कर रहे थे? (वैकल्पिक)
+  th: คุณคาดหวังว่าจะเกิดอะไรขึ้น? (ไม่บังคับ)
+  cs: Co jste očekával, že se stane? (volitelné)
+  sv: Vad förväntade du dig skulle hända? (valfritt)
+  he: "מה ציפית שיקרה? (אופציונלי)"
   verified_by_human: []
 report_issue.expected_behaviour_placeholder:
   context: Placeholder text inside the "Expected behaviour" textarea — gives an example of a good answer
@@ -7456,28 +7456,28 @@ report_issue.expected_behaviour_hint:
   he: "אופציונלי — מה היה אמור לקרות במקום?"
   verified_by_human: []
 report_issue.actual_behaviour_label:
-  context: Label for the "What actually happened?" textarea in the report issue form
-  en: What actually happened?
-  de: Was ist tatsächlich passiert?
-  zh: 实际发生了什么？
-  es: ¿Qué pasó realmente?
-  fr: Qu'est-ce qui s'est passé en réalité ?
-  pt: O que realmente aconteceu?
-  ru: Что произошло на самом деле?
-  ja: 実際に何が起こりましたか？
-  ko: 실제로 어떤 일이 있었나요?
-  it: Cosa è successo in realtà?
-  tr: Gerçekte ne oldu?
-  vi: Điều gì thực sự đã xảy ra?
-  id: Apa yang sebenarnya terjadi?
-  pl: Co faktycznie się stało?
-  nl: Wat gebeurde er eigenlijk?
-  ar: ماذا حدث فعلاً؟
-  hi: वास्तव में क्या हुआ?
-  th: สิ่งที่เกิดขึ้นจริงคืออะไร?
-  cs: Co se skutečně stalo?
-  sv: Vad hände faktiskt?
-  he: "מה קרה בפועל?"
+  context: Label for the "What actually happened?" textarea in the report issue form (optional field)
+  en: What actually happened? (optional)
+  de: Was ist tatsächlich passiert? (optional)
+  zh: 实际发生了什么？（可选）
+  es: ¿Qué pasó realmente? (opcional)
+  fr: Qu'est-ce qui s'est passé en réalité ? (facultatif)
+  pt: O que realmente aconteceu? (opcional)
+  ru: Что произошло на самом деле? (необязательно)
+  ja: 実際に何が起こりましたか？（任意）
+  ko: 실제로 어떤 일이 있었나요? (선택 사항)
+  it: Cosa è successo in realtà? (facoltativo)
+  tr: Gerçekte ne oldu? (isteğe bağlı)
+  vi: Điều gì thực sự đã xảy ra? (tùy chọn)
+  id: Apa yang sebenarnya terjadi? (opsional)
+  pl: Co faktycznie się stało? (opcjonalne)
+  nl: Wat gebeurde er eigenlijk? (optioneel)
+  ar: ماذا حدث فعلاً؟ (اختياري)
+  hi: वास्तव में क्या हुआ? (वैकल्पिक)
+  th: สิ่งที่เกิดขึ้นจริงคืออะไร? (ไม่บังคับ)
+  cs: Co se skutečně stalo? (volitelné)
+  sv: Vad hände faktiskt? (valfritt)
+  he: "מה קרה בפועל? (אופציונלי)"
   verified_by_human: []
 report_issue.actual_behaviour_placeholder:
   context: Placeholder text inside the "Actual behaviour" textarea — gives an example of a good answer
@@ -9112,7 +9112,7 @@ report_issue.screenshot_upload_failed:
   he: קריאת התמונה שהועלתה נכשלה.
   verified_by_human: []
 report_issue.submit_to_agent_label:
-  context: Admin-only toggle label to submit a reported issue to the opencode agent for investigation
+  context: Admin-only toggle label to submit a reported issue to the Claude Code agent for investigation
   en: Submit to agent
   de: An Agent senden
   zh: 提交给代理

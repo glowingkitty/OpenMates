@@ -2929,6 +2929,204 @@
       "url_copied": {
         "text": "Copied!"
       }
+    },
+    "search": {
+      "text": "Search"
+    },
+    "processing": {
+      "text": "Processing..."
+    },
+    "delete": {
+      "text": "Delete"
+    },
+    "email": {
+      "text": "Email"
+    },
+    "credits": {
+      "text": "credits"
+    },
+    "download": {
+      "text": "Download"
+    },
+    "loading": {
+      "text": "Loading..."
+    },
+    "chat": {
+      "text": "Chat"
+    },
+    "chats": {
+      "text": "Chats"
+    },
+    "docs": {
+      "text": "Docs"
+    },
+    "password": {
+      "text": "Password"
+    },
+    "pricing": {
+      "text": "Pricing"
+    },
+    "retry": {
+      "text": "Retry"
+    },
+    "share": {
+      "text": "Share"
+    },
+    "summary": {
+      "text": "Summary"
+    },
+    "today": {
+      "text": "Today"
+    },
+    "apps": {
+      "text": "Apps"
+    },
+    "ask": {
+      "text": "Ask"
+    },
+    "buy_credits": {
+      "text": "Buy Credits"
+    },
+    "contact": {
+      "text": "Contact"
+    },
+    "date": {
+      "text": "Date"
+    },
+    "discord": {
+      "text": "Discord"
+    },
+    "duration": {
+      "text": "Duration"
+    },
+    "generate": {
+      "text": "Generate"
+    },
+    "images": {
+      "text": "Images"
+    },
+    "just_now": {
+      "text": "Just now"
+    },
+    "monthly": {
+      "text": "Monthly"
+    },
+    "new_chat": {
+      "text": "New chat"
+    },
+    "privacy": {
+      "text": "Privacy"
+    },
+    "read": {
+      "text": "Read"
+    },
+    "save": {
+      "text": "Save"
+    },
+    "settings": {
+      "text": "Settings"
+    },
+    "upload_failed": {
+      "text": "Upload failed"
+    },
+    "view": {
+      "text": "View"
+    },
+    "add_entry": {
+      "text": "Add Entry"
+    },
+    "add_password": {
+      "text": "Add Password"
+    },
+    "audio": {
+      "text": "Audio"
+    },
+    "back": {
+      "text": "Back"
+    },
+    "change_password": {
+      "text": "Change Password"
+    },
+    "custom": {
+      "text": "Custom"
+    },
+    "details": {
+      "text": "Details"
+    },
+    "devices": {
+      "text": "Devices"
+    },
+    "disabled": {
+      "text": "Disabled"
+    },
+    "enabled": {
+      "text": "Enabled"
+    },
+    "gift_cards": {
+      "text": "Gift Cards"
+    },
+    "github": {
+      "text": "GitHub"
+    },
+    "imprint": {
+      "text": "Imprint"
+    },
+    "invoices": {
+      "text": "Invoices"
+    },
+    "language": {
+      "text": "Language"
+    },
+    "last_updated": {
+      "text": "Last Updated"
+    },
+    "legal": {
+      "text": "Legal"
+    },
+    "location": {
+      "text": "Location"
+    },
+    "newsletter": {
+      "text": "Newsletter"
+    },
+    "other": {
+      "text": "Other"
+    },
+    "pdf": {
+      "text": "PDF"
+    },
+    "provider": {
+      "text": "Provider"
+    },
+    "recovery_key": {
+      "text": "Recovery Key"
+    },
+    "select_all": {
+      "text": "Select all"
+    },
+    "show_less": {
+      "text": "Show less"
+    },
+    "skill": {
+      "text": "Skill"
+    },
+    "status": {
+      "text": "Status"
+    },
+    "stop": {
+      "text": "Stop"
+    },
+    "storage": {
+      "text": "Storage"
+    },
+    "terms_and_conditions": {
+      "text": "Terms and conditions"
+    },
+    "untitled_chat": {
+      "text": "Untitled chat"
+    },
+    "yesterday": {
+      "text": "Yesterday"
     }
   },
   "community": {
@@ -10442,16 +10640,16 @@
         "text": "Found a bug or have a suggestion? Let us know! The more details you include — and ideally a screenshot — the quicker we can identify and fix the issue."
       },
       "title_label": {
-        "text": "Issue Title"
+        "text": "Short description"
       },
       "title_placeholder": {
-        "text": "Enter a brief title for your issue"
+        "text": "Briefly describe the issue — what happened and where?"
       },
       "title_required": {
-        "text": "Issue title is required"
+        "text": "A short description is required"
       },
       "title_too_short": {
-        "text": "Issue title must be at least 3 characters long"
+        "text": "Description must be at least 3 characters long"
       },
       "description_label": {
         "text": "Issue Description"
@@ -10466,7 +10664,7 @@
         "text": "Issue description must be at least 10 characters long"
       },
       "user_flow_label": {
-        "text": "What did you do?"
+        "text": "What did you do? (optional)"
       },
       "user_flow_placeholder": {
         "text": "e.g. I opened a chat, typed a message, then pressed send. The page froze after a few seconds."
@@ -10475,7 +10673,7 @@
         "text": "Optional — describe the steps that led to the issue"
       },
       "expected_behaviour_label": {
-        "text": "What did you expect to happen?"
+        "text": "What did you expect to happen? (optional)"
       },
       "expected_behaviour_placeholder": {
         "text": "e.g. The message should have been sent and the chat should have continued normally."
@@ -10484,7 +10682,7 @@
         "text": "Optional — what should have happened instead?"
       },
       "actual_behaviour_label": {
-        "text": "What actually happened?"
+        "text": "What actually happened? (optional)"
       },
       "actual_behaviour_placeholder": {
         "text": "e.g. The page went blank and showed a spinning loader that never stopped. No error message appeared."
@@ -10687,7 +10885,7 @@
         "text": "Submit to agent"
       },
       "submit_to_agent_hint_on": {
-        "text": "An opencode agent will automatically investigate this issue and suggest fixes."
+        "text": "A Claude Code agent will automatically investigate this issue and suggest fixes."
       },
       "submit_to_agent_hint_off": {
         "text": "No agent investigation will be triggered for this report."
