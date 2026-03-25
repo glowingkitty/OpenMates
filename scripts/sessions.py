@@ -3148,8 +3148,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     commit_cmd = ["git", "commit", "-m", commit_msg]
     if no_verify:
         commit_cmd.append("--no-verify")
+    # Skip pre-commit locale validation — sessions.py already ran it above.
+    os.environ["OPENMATES_SKIP_PRECOMMIT_LOCALES"] = "1"
     print(f"Committing: {args.title}")
     rc, stdout, stderr = _run_cmd(commit_cmd)
+    os.environ.pop("OPENMATES_SKIP_PRECOMMIT_LOCALES", None)
     if rc != 0:
         print(f"git commit failed: {stderr}", file=sys.stderr)
         sys.exit(1)

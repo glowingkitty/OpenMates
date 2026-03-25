@@ -68,7 +68,7 @@ export const text: Readable<TranslateFunction> = browser
               // The JSON locale files store values as { text: "..." } objects to prevent
               // key collisions (e.g., "settings.privacy" can have both a direct value
               // and child keys like "settings.privacy.description"). Callers of $text()
-              // never need to know about this — they just use $text('settings.privacy').
+              // never need to know about this — they just use $text('common.privacy').
               const lookupKey = key + '.text';
 
               // Try to translate, catch if i18n not initialized yet
