@@ -1584,7 +1584,8 @@ async def _async_process_ai_skill_ask_task(
                 # to the main LLM regardless of preprocessing preselection.
                 # This is a safety net for critical skills like web-search that should be available
                 # for follow-up queries even when preprocessing fails to detect the user's intent.
-                always_include_skills=skill_config.always_include_skills if skill_config else None
+                always_include_skills=skill_config.always_include_skills if skill_config else None,
+                user_overrides=user_overrides  # Pass user overrides for skip-permission logic on mentioned keys
             )
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 

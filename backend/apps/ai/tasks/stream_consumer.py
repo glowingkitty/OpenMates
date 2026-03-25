@@ -23,6 +23,7 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
+from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
@@ -1649,6 +1650,7 @@ async def _consume_main_processing_stream(
     cache_service: Optional[CacheService],
     secrets_manager: Optional[SecretsManager] = None,
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
+    user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -1767,7 +1769,8 @@ async def _consume_main_processing_stream(
         discovered_apps_metadata=discovered_apps_metadata,
         secrets_manager=secrets_manager, # Pass SecretsManager
         cache_service=cache_service, # Pass CacheService for skill status publishing
-        always_include_skills=always_include_skills  # Pass always-include skills from config
+        always_include_skills=always_include_skills,  # Pass always-include skills from config
+        user_overrides=user_overrides  # Pass user overrides for skip-permission logic
     )
 
     stream_chunk_count = 0

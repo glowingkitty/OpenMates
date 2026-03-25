@@ -1,15 +1,16 @@
 /**
  * Status page API client (v3).
- * Fetches from status service /api/status/v2 endpoints.
+ * Fetches from core API /v1/status/v2 endpoints.
  * Architecture: docs/architecture/infrastructure/status-page.md
  */
 
+import { getApiEndpoint } from '@repo/ui';
 import type { StatusResponse, IntraDayCheck, IntraDayTestRun } from './types';
 
-const BASE_URL = '/api/status/v2';
+const BASE_PATH = '/v1/status/v2';
 
 export async function fetchStatus(): Promise<StatusResponse> {
-	const res = await fetch(BASE_URL);
+	const res = await fetch(getApiEndpoint(BASE_PATH));
 	if (!res.ok) throw new Error(`Status API error: ${res.status}`);
 	return res.json();
 }
@@ -20,7 +21,7 @@ export async function fetchIntraDay(
 	date: string
 ): Promise<{ checks?: IntraDayCheck[]; runs?: IntraDayTestRun[] }> {
 	const params = new URLSearchParams({ type, id, date });
-	const res = await fetch(`${BASE_URL}/intraday?${params}`);
+	const res = await fetch(getApiEndpoint(`${BASE_PATH}/intraday?${params}`));
 	if (!res.ok) throw new Error(`Intraday API error: ${res.status}`);
 	return res.json();
 }

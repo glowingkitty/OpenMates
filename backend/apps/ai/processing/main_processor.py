@@ -23,6 +23,7 @@ from backend.apps.ai.utils.llm_utils import (
     STANDARDIZED_USER_ERROR_MESSAGE,
 )
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
+from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
@@ -792,7 +793,8 @@ async def handle_main_processing(
     discovered_apps_metadata: Dict[str, AppYAML],
     secrets_manager: Optional[SecretsManager] = None,
     cache_service: Optional[CacheService] = None,
-    always_include_skills: Optional[List[str]] = None  # Skills to ALWAYS include regardless of preprocessing
+    always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
+    user_overrides: Optional[UserOverrides] = None  # User overrides from @mention syntax (for skip-permission logic)
 ) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -862,7 +864,7 @@ async def handle_main_processing(
             for key, value in mentioned.items():
                 if isinstance(key, str) and value is not None:
                     loaded_app_settings_and_memories_content[key] = value
-            logger.debug(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
+            logger.info(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
 
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         logger.debug(f"{log_prefix} Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
@@ -943,7 +945,27 @@ async def handle_main_processing(
                 key for key in requested_keys
                 if key not in loaded_app_settings_and_memories_content
             ]
-            
+
+            # Keys explicitly mentioned by user via @memory/@memory-entry should NEVER trigger
+            # a permission dialog — the mention IS the consent. If the client failed to send
+            # cleartext (e.g. store not loaded, entry lookup failed), skip the request for those keys.
+            if missing_keys and user_overrides:
+                mentioned_keys: set = set()
+                for app_id, memory_id, _ in (user_overrides.memory_categories or []):
+                    mentioned_keys.add(f"{app_id}:{memory_id}")
+                for app_id, category_id, _ in (user_overrides.memory_entries or []):
+                    mentioned_keys.add(f"{app_id}:{category_id}")
+
+                if mentioned_keys:
+                    skipped = [k for k in missing_keys if k in mentioned_keys]
+                    if skipped:
+                        logger.warning(
+                            f"{log_prefix} Skipping permission request for {len(skipped)} explicitly-mentioned "
+                            f"key(s) {skipped} — user @mention is implicit consent. "
+                            f"Client cleartext was not provided (frontend extraction may have failed)."
+                        )
+                        missing_keys = [k for k in missing_keys if k not in mentioned_keys]
+
             if missing_keys and getattr(request_data, "is_app_settings_memories_continuation", False):
                 # This is a continuation task (user already confirmed/rejected the original request).
                 # Do NOT issue another permission dialog — the user's decision was already recorded.

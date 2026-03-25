@@ -43,7 +43,7 @@ from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode p
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
-# status_routes removed — status page now served by independent status service (backend/status/)
+from backend.core.api.app.routes import status_routes  # noqa: E402 # Import status page API v3 (grouped health + tests)
 from backend.core.api.app.routes import docs_routes  # noqa: E402 # Import docs API (public, serves doc tree + markdown for CLI)
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
@@ -1652,7 +1652,7 @@ def create_app() -> FastAPI:
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
-    # status_routes removed — status page now served by independent status service (backend/status/)
+    app.include_router(status_routes.router, include_in_schema=True)  # Status page API v3
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management

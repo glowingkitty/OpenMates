@@ -43,12 +43,24 @@ export function extractMentionedSettingsMemoriesCleartext(
     const entryId = match[3];
     const key = `${appId}:${categoryId}`;
     const entry = decryptedEntries.get(entryId);
-    if (entry && entry.app_id === appId && entry.settings_group === categoryId) {
-      if (!seenEntryIds.has(entryId)) {
-        seenEntryIds.add(entryId);
-        if (!result[key]) result[key] = [];
-        result[key].push(entry.item_value);
-      }
+    if (!entry) {
+      console.warn(
+        `[MentionedCleartext] Entry ${entryId} not found in decryptedEntries ` +
+          `(store has ${decryptedEntries.size} entries). Mention cleartext for ${key} will not be sent.`,
+      );
+      continue;
+    }
+    if (entry.app_id !== appId || entry.settings_group !== categoryId) {
+      console.warn(
+        `[MentionedCleartext] Entry ${entryId} app/group mismatch: ` +
+          `expected ${appId}/${categoryId}, got ${entry.app_id}/${entry.settings_group}`,
+      );
+      continue;
+    }
+    if (!seenEntryIds.has(entryId)) {
+      seenEntryIds.add(entryId);
+      if (!result[key]) result[key] = [];
+      result[key].push(entry.item_value);
     }
   }
 
