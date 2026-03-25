@@ -6,7 +6,7 @@
  * Handles comments (#), empty lines, and multi-line values.
  * Does NOT modify process.env — returns a plain object.
  *
- * Architecture: docs/planned/cli-package.md (Secret sources scanned)
+ * Architecture: docs/architecture/apps/cli-package.md (Secret sources scanned)
  */
 
 /**

@@ -14,7 +14,7 @@
  * - No generic high-entropy heuristic (avoids false positives on git SHAs, UUIDs, etc.)
  *
  * Architecture: docs/architecture/pii-protection.md
- * Planned: docs/planned/cli-package.md (Reversible Secret Tokenization)
+ * Planned: docs/architecture/apps/cli-package.md (Reversible Secret Tokenization)
  */
 
 // Main scanner class

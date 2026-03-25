@@ -22,7 +22,7 @@
  * Mirrors: mentionSearchService.ts (web app)
  * Backend parser: backend/core/api/app/utils/override_parser.py
  *
- * Architecture: docs/planned/cli-package.md (CLI Commands Reference)
+ * Architecture: docs/architecture/apps/cli-package.md (CLI Commands Reference)
  */
 
 // ── Types ──────────────────────────────────────────────────────────────

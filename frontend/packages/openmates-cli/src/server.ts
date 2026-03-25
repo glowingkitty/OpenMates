@@ -4,7 +4,7 @@
  * Purpose: install, start, stop, restart, update, reset, and monitor a
  *          self-hosted OpenMates instance via Docker Compose.
  * Architecture: shells out to git/docker — no OpenMatesClient or login required.
- * Architecture doc: docs/planned/cli-remote-access.md
+ * Architecture doc: docs/architecture/apps/cli-remote-access.md
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 

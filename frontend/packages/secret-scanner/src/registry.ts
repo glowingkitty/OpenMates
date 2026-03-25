@@ -13,7 +13,7 @@
  * against all known secret values simultaneously.
  *
  * Architecture: docs/architecture/pii-protection.md
- * Planned: docs/planned/cli-package.md (Reversible Secret Tokenization)
+ * Planned: docs/architecture/apps/cli-package.md (Reversible Secret Tokenization)
  */
 
 import { createRequire } from "node:module";

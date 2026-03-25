@@ -13,7 +13,7 @@
  * with proven low false-positive rates.
  *
  * Architecture: docs/architecture/pii-protection.md
- * Planned: docs/planned/cli-package.md (Reversible Secret Tokenization)
+ * Planned: docs/architecture/apps/cli-package.md (Reversible Secret Tokenization)
  */
 
 import { SecretRegistry } from "./registry.ts";
