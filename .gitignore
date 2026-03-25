@@ -287,3 +287,9 @@ backend/tests/output/
 
 # OpenCode AI editor local state
 .opencode/
+
+# Claude Code — additional ephemeral state (rules, skills, agents, hooks are committed)
+.claude/plans/
+.claude/memory/
+.claude/tasks/
+.claude/backlog.json

@@ -475,7 +475,17 @@ run_eslint_file() {
     fi
   fi
 
-  if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+  # Use the eslint binary directly via node to bypass pnpm exec resolution,
+  # which can fail with ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL when eslint
+  # isn't in the target package's hoisted deps.
+  if [[ -n "${eslint_bin_path}" ]]; then
+    if node "${eslint_bin_path}" --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
+      echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
+    else
+      echo "${label}: error ${pkg_root#${repo_root}/}/${rel_file}" >&2
+      overall_status=1
+    fi
+  elif [[ "${pnpm_cmd}" == "pnpm" ]]; then
     if pnpm -C "${eslint_cwd}" exec eslint --max-warnings=0 --no-ignore "${eslint_config_args[@]}" "${eslint_target}"; then
       echo "${label}: ok ${pkg_root#${repo_root}/}/${rel_file}"
     else

@@ -58,7 +58,6 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
-BACKLOG_FILE = PROJECT_ROOT / ".claude" / "backlog.json"
 TASKS_DIR = PROJECT_ROOT / ".claude" / "tasks"
 TASKS_META_FILE = TASKS_DIR / ".meta.json"
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
@@ -989,51 +988,6 @@ def _save_task(task: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _load_backlog() -> dict:
-    """Load backlog.json, creating it with defaults if missing."""
-    if not BACKLOG_FILE.exists():
-        BACKLOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        data: dict = {"backlog": []}
-        _save_backlog(data)
-        return data
-    try:
-        with open(BACKLOG_FILE) as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        data = {"backlog": []}
-        _save_backlog(data)
-        return data
-
-
-def _save_backlog(data: dict) -> None:
-    """Atomically write backlog.json."""
-    BACKLOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = BACKLOG_FILE.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-    tmp.replace(BACKLOG_FILE)
-
-
-def _format_backlog_for_display(backlog: list[dict]) -> str:
-    """Format backlog entries as a compact numbered list for session start output."""
-    if not backlog:
-        return ""
-    lines: list[str] = []
-    for i, entry in enumerate(backlog, 1):
-        title = entry.get("title", "(untitled)")
-        desc = entry.get("description", "")
-        files = entry.get("files", [])
-        added = entry.get("added", "")[:10]  # date only
-        line = f"  [{i}] {title}"
-        if added:
-            line += f"  ({added})"
-        lines.append(line)
-        if desc:
-            lines.append(f"      {desc}")
-        if files:
-            lines.append(f"      Files: {', '.join(files)}")
-    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -1988,11 +1942,9 @@ def cmd_start(args: argparse.Namespace) -> None:
                 age_padded = age.ljust(max_age)
                 header_lines.append(f"{prefix}  {sha}  {age_padded}  {msg}")
 
-    # Print header — include backlog count if any items pending
-    backlog_count = len(_load_backlog().get("backlog", []))
-    backlog_suffix = f" [{backlog_count} backlog]" if backlog_count > 0 else ""
-    hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - len(backlog_suffix) - 1)
-    print(f"== SESSION {sid} {hdr_bar}{backlog_suffix}")
+    # Print header
+    hdr_bar = "═" * (BOX_WIDTH - len(f"== SESSION {sid} ") - 1)
+    print(f"== SESSION {sid} {hdr_bar}")
     print("\n".join(header_lines))
     print("═" * BOX_WIDTH)
 
@@ -2274,53 +2226,13 @@ def cmd_start(args: argparse.Namespace) -> None:
         print(f"[Cleared {len(cleared_locks)} stale locks]")
 
     # ── Instruction docs ───────────────────────────────────────────────────
-    docs_to_load = _resolve_docs_for_tags(tags, include_deploy=False)
-    if mode == "question":
-        docs_to_load = docs_to_load[:2]
-
-    if docs_to_load:
-        print()
-        print(f"== INSTRUCTION DOCS ({len(docs_to_load)}: {', '.join(tags)}) ==")
-        for doc_name in docs_to_load:
-            doc_content = _load_doc_content(doc_name)
-            if doc_content:
-                print(f"\n--- {doc_name} ---")
-                print(doc_content.rstrip())
-            else:
-                print(f"  [!] docs/contributing/{doc_name} not found")
-        all_possible = set()
-        for tag in tags:
-            all_possible.update(TAG_TO_DOCS.get(tag, []))
-        deferred = sorted(all_possible & DEPLOY_PHASE_DOCS)
-        if deferred:
-            print(f"\n[Deferred to deploy: {', '.join(deferred)}]")
-
-    # ── Backlog (conditional: skip in question, limit in others) ──────────
-    if mode != "question":
-        backlog_data = _load_backlog()
-        backlog_items = backlog_data.get("backlog", [])
-        if backlog_items:
-            max_show = 5
-            shown_items = backlog_items[:max_show]
-            remaining = len(backlog_items) - max_show
-            print()
-            print(f"== BACKLOG ({len(backlog_items)} items) ==")
-            print("Consider these backlog tasks if related or urgent (ask user first):")
-            # Build a limited display
-            display_lines = []
-            for i, item in enumerate(shown_items, 1):
-                title = item.get("title", "?")
-                desc = item.get("description", "")
-                files = item.get("files", [])
-                line = f"  [{i}] {title}"
-                if desc:
-                    line += f" — {desc[:60]}{'...' if len(desc) > 60 else ''}"
-                if files:
-                    line += f" ({len(files)} files)"
-                display_lines.append(line)
-            print("\n".join(display_lines))
-            if remaining > 0:
-                print(f"  ... +{remaining} more (sessions.py backlog-list)")
+    # Tag-based docs are now handled by .claude/rules/ (path-scoped, auto-loaded).
+    # On-demand loading still available: sessions.py context --doc <name>
+    # Deploy-phase docs still loaded via: sessions.py deploy-docs
+    docs_for_tags = _resolve_docs_for_tags(tags, include_deploy=False)
+    if docs_for_tags:
+        print(f"\nDocs available for tags ({', '.join(tags)}): {', '.join(docs_for_tags)}")
+        print("  Load any with: sessions.py context --doc <name>")
 
     # ── Linked task pending steps ───────────────────────────────────────────
     if mode != "question" and task_id_arg:
@@ -3126,25 +3038,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             "WARNING: committing without pre-commit hooks (--no-verify).",
             file=sys.stderr,
         )
-        # Auto-create backlog entry to track the hook bypass
-        no_backlog = getattr(args, "no_backlog", False)
-        if not no_backlog:
-            try:
-                bl_data = _load_backlog()
-                next_id = bl_data.get("next_id", max((e.get("id", 0) for e in bl_data["backlog"]), default=0) + 1)
-                bl_entry = {
-                    "id": next_id,
-                    "title": f"Pre-commit hook bypassed in session {sid}: {args.title}",
-                    "description": "Deploy used --no-verify to bypass a pre-commit hook failure. Investigate and fix the hook.",
-                    "files": [],
-                    "added": _now_iso()[:10],
-                }
-                bl_data["backlog"].append(bl_entry)
-                bl_data["next_id"] = next_id + 1
-                _save_backlog(bl_data)
-                print(f"  Backlog entry auto-created: [{next_id}] {bl_entry['title'][:70]}")
-            except Exception as e:
-                print(f"  Warning: could not auto-create backlog entry: {e}", file=sys.stderr)
     commit_cmd = ["git", "commit", "-m", commit_msg]
     if no_verify:
         commit_cmd.append("--no-verify")
@@ -4013,71 +3906,6 @@ def cmd_stale_docs(args: argparse.Namespace) -> None:
     print("== END STALE DOCS ==")
 
 
-def cmd_backlog_add(args: argparse.Namespace) -> None:
-    """Add a new entry to the backlog."""
-    data = _load_backlog()
-    # Use a stable auto-incrementing counter (not position-based)
-    next_id = data.get("next_id", max((e.get("id", 0) for e in data["backlog"]), default=0) + 1)
-    entry: dict = {
-        "id": next_id,
-        "title": args.title,
-        "description": args.description or "",
-        "files": args.files or [],
-        "added": _now_iso()[:10],  # date only
-    }
-    data["backlog"].append(entry)
-    data["next_id"] = next_id + 1
-    _save_backlog(data)
-    print(f"Backlog entry [{entry['id']}] added: {entry['title']}")
-    if entry["description"]:
-        print(f"  Description: {entry['description']}")
-    if entry["files"]:
-        print(f"  Files: {', '.join(entry['files'])}")
-
-
-def cmd_backlog_done(args: argparse.Namespace) -> None:
-    """Mark a backlog entry as done (removes it by 1-based index or id)."""
-    data = _load_backlog()
-    backlog = data.get("backlog", [])
-
-    target_id = args.id
-    # Find by the stored id field first, then fall back to positional index
-    match_idx = None
-    for i, entry in enumerate(backlog):
-        if entry.get("id") == target_id:
-            match_idx = i
-            break
-    # Fallback: treat as 1-based position
-    if match_idx is None and 1 <= target_id <= len(backlog):
-        match_idx = target_id - 1
-
-    if match_idx is None:
-        print(f"Error: No backlog entry with id {target_id}.", file=sys.stderr)
-        print("  Run 'sessions.py backlog-list' to see current entries.", file=sys.stderr)
-        sys.exit(1)
-
-    removed = backlog.pop(match_idx)
-    # IDs are stable — no re-numbering after removal
-    data["backlog"] = backlog
-    _save_backlog(data)
-    print(f"Backlog entry removed: [{removed.get('id', '?')}] {removed.get('title', '?')}")
-    print(f"  {len(backlog)} item(s) remaining.")
-
-
-def cmd_backlog_list(args: argparse.Namespace) -> None:
-    """List all backlog entries."""
-    data = _load_backlog()
-    backlog = data.get("backlog", [])
-    if not backlog:
-        print("Backlog is empty.")
-        return
-    print(f"== BACKLOG ({len(backlog)} items) ==")
-    print(_format_backlog_for_display(backlog))
-    print()
-    print("Mark done: sessions.py backlog-done --id <N>")
-    print("Add new:   sessions.py backlog-add --title \"...\" --description \"...\" [--files f1 f2]")
-
-
 def cmd_task_create(args: argparse.Namespace) -> None:
     """Create a new task YAML file in .claude/tasks/."""
     meta = _load_task_meta()
@@ -4665,12 +4493,6 @@ def main() -> None:
         help="Bypass pre-commit hooks (git commit --no-verify). Use only when a "
         "pre-existing hook bug prevents deploy. WARNING printed to stderr.",
     )
-    p_deploy.add_argument(
-        "--no-backlog",
-        action="store_true",
-        dest="no_backlog",
-        help="Skip auto-creating a backlog entry when --no-verify is used.",
-    )
 
     # lint (run linter on tracked files without deploying)
     p_lint = sub.add_parser(
@@ -4810,45 +4632,6 @@ def main() -> None:
         help="Comma-separated tags to filter results",
     )
 
-    # backlog-add
-    p_backlog_add = sub.add_parser(
-        "backlog-add",
-        help="Add a new task to the backlog (.claude/backlog.json)",
-    )
-    p_backlog_add.add_argument(
-        "--title", "-t", required=True,
-        help="Short title for the backlog task",
-    )
-    p_backlog_add.add_argument(
-        "--description", "-d",
-        help="Optional longer description of the task",
-    )
-    p_backlog_add.add_argument(
-        "--files", "-f",
-        nargs="*",
-        metavar="FILE",
-        help="Optional relevant file paths (space-separated)",
-    )
-
-    # backlog-done
-    p_backlog_done = sub.add_parser(
-        "backlog-done",
-        help="Mark a backlog task as done (removes it from backlog)",
-    )
-    p_backlog_done.add_argument(
-        "--id", "-i",
-        required=True,
-        type=int,
-        metavar="N",
-        help="Backlog entry id (shown in backlog-list and session start output)",
-    )
-
-    # backlog-list
-    sub.add_parser(
-        "backlog-list",
-        help="List all current backlog tasks",
-    )
-
     # task-create
     p_task_create = sub.add_parser(
         "task-create",
@@ -4947,9 +4730,6 @@ def main() -> None:
         "code-quality": cmd_code_quality,
         "find-redundancy": cmd_find_redundancy,
         "stale-docs": cmd_stale_docs,
-        "backlog-add": cmd_backlog_add,
-        "backlog-done": cmd_backlog_done,
-        "backlog-list": cmd_backlog_list,
         "task-create": cmd_task_create,
         "task-step": cmd_task_step,
         "task-ac": cmd_task_ac,
