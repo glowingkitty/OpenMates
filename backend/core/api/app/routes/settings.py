@@ -2183,7 +2183,7 @@ class DeviceInfo(BaseModel):
 
 class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
-    title: str = Field(..., min_length=3, max_length=200, description="Issue title (required, 3-200 characters)")
+    title: str = Field(..., min_length=3, max_length=500, description="Short description of the issue (required, 3-500 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
@@ -2216,7 +2216,7 @@ class IssueReportRequest(BaseModel):
     submit_to_agent: bool = Field(
         False,
         description=(
-            "Admin-only flag. When True, triggers an opencode plan-mode investigation session "
+            "Admin-only flag. When True, triggers a Claude Code plan-mode investigation session "
             "for this issue via the admin sidecar. Only honoured when the reporter is an "
             "authenticated admin user — non-admin requests are silently ignored."
         )
@@ -2242,16 +2242,16 @@ async def _trigger_agent_issue_investigation(
     screenshot_presigned_url: Optional[str],
 ) -> None:
     """
-    Fire-and-forget: ask the admin sidecar to start an opencode plan-mode session
+    Fire-and-forget: ask the admin sidecar to start a Claude Code plan-mode session
     investigating this issue.
 
     Called only when:
     - The reporter is a verified admin user (``is_from_admin`` is True)
     - ``issue_data.submit_to_agent`` is True
 
-    The sidecar runs on the host where opencode is installed; the API runs inside
+    The sidecar runs on the host where claude is installed; the API runs inside
     Docker, so we delegate via an authenticated HTTP call to
-    ``CORE_SIDECAR_URL/admin/opencode-investigate``.
+    ``CORE_SIDECAR_URL/admin/claude-investigate``.
 
     Architecture reference: docs/architecture/admin-console-log-forwarding.md
     """
@@ -2264,7 +2264,7 @@ async def _trigger_agent_issue_investigation(
     if not core_sidecar_url:
         logger.warning(
             "[report_issue/agent] CORE_SIDECAR_URL not set — "
-            "cannot trigger opencode investigation"
+            "cannot trigger claude investigation"
         )
         return
 
@@ -2292,9 +2292,9 @@ async def _trigger_agent_issue_investigation(
         "domain": domain,
     }
 
-    endpoint = f"{core_sidecar_url}/admin/opencode-investigate"
+    endpoint = f"{core_sidecar_url}/admin/claude-investigate"
     logger.info(
-        f"[report_issue/agent] Triggering opencode investigation via sidecar: {endpoint} "
+        f"[report_issue/agent] Triggering claude investigation via sidecar: {endpoint} "
         f"(issue_id={issue_id})"
     )
 
@@ -2758,7 +2758,7 @@ async def report_issue(
             f"recipient={admin_email}"
         )
 
-        # Admin-only: trigger opencode plan-mode investigation if requested.
+        # Admin-only: trigger claude plan-mode investigation if requested.
         # Only honoured when the reporter is a verified admin user.
         if is_from_admin and issue_data.submit_to_agent:
             try:

@@ -881,11 +881,11 @@ async def get_version() -> JSONResponse:
 
 
 # =============================================================================
-# Admin-triggered opencode issue investigation
+# Admin-triggered claude issue investigation
 # =============================================================================
 
 class _InvestigateRequest(BaseModel):
-    """Payload sent by the API container to trigger an opencode investigation."""
+    """Payload sent by the API container to trigger a Claude Code investigation."""
     issue_id: str
     issue_title: str
     issue_description: str = ""
@@ -944,9 +944,9 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
 def _write_agent_trigger(data: _InvestigateRequest) -> str:
     """
     Write a JSON trigger file to the shared bind-mount so the host-side
-    agent-trigger-watcher.sh can pick it up and run opencode on the host.
+    agent-trigger-watcher.sh can pick it up and run claude on the host.
 
-    The sidecar runs inside Docker and cannot execute host binaries (opencode).
+    The sidecar runs inside Docker and cannot execute host binaries (claude).
     Instead it writes a trigger file to ``<GIT_WORK_DIR>/scripts/.agent-triggers/``
     which is on the bind-mounted project root, visible to the host.
 
@@ -982,26 +982,26 @@ def _write_agent_trigger(data: _InvestigateRequest) -> str:
 
 
 @app.post(
-    "/admin/opencode-investigate",
-    summary="Trigger an opencode plan-mode investigation for a reported issue",
+    "/admin/claude-investigate",
+    summary="Trigger a Claude Code plan-mode investigation for a reported issue",
     description=(
         "Called by the API container when an admin submits an issue report with "
         "'Submit to agent' enabled. Writes a JSON trigger file to the shared "
         "bind-mount at scripts/.agent-triggers/ for the host-side watcher to "
-        "pick up and run opencode. "
+        "pick up and run claude. "
         "Requires X-Admin-Log-Key header matching ADMIN_LOG_API_KEY env var."
     ),
     include_in_schema=False,
 )
-async def post_opencode_investigate(
+async def post_claude_investigate(
     body: _InvestigateRequest,
     x_admin_log_key: Optional[str] = Header(None),
 ) -> JSONResponse:
     """
-    Write a trigger file for host-side opencode investigation.
+    Write a trigger file for host-side claude investigation.
 
     Returns 202 immediately. The host-side agent-trigger-watcher.sh service
-    polls for new trigger files and runs opencode on the host where the
+    polls for new trigger files and runs claude on the host where the
     binary is installed.
     """
     _require_admin_key(x_admin_log_key)
@@ -1041,7 +1041,7 @@ async def post_opencode_investigate(
             "trigger_file": trigger_path,
             "message": (
                 "Trigger file written. The host-side agent-trigger-watcher "
-                "will pick it up and start an opencode investigation."
+                "will pick it up and start a Claude Code investigation."
             ),
         },
     )
