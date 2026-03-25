@@ -26,6 +26,10 @@
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
   import Icon from './Icon.svelte';
   import { appSkillsStore } from '../stores/appSkillsStore';
+  import { search as performSearch } from '../services/searchService';
+  import { chatMetadataCache } from '../services/chatMetadataCache';
+  import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
+  import { isDemoChat, isLegalChat } from '../demo_chats';
 
   /** Number of suggestion cards to show in the scrollable row */
   const VISIBLE_COUNT = 10;
@@ -34,11 +38,16 @@
    *  Suggestions with fewer words are too vague and get filtered out. */
   const MIN_BODY_WORDS = 4;
 
+  /** Maximum number of existing chat results to show in the suggestion row */
+  const MAX_CHAT_RESULTS = 5;
+
   let {
     onSuggestionClick,
+    onChatNavigate,
     messageInputContent = ''
   }: {
     onSuggestionClick: (suggestion: string) => void;
+    onChatNavigate: (chatId: string) => void;
     messageInputContent?: string;
   } = $props();
 
@@ -225,6 +234,96 @@
     return () => {
       if (_filterDebounceTimer) clearTimeout(_filterDebounceTimer);
     };
+  });
+
+  // --- Existing chat search ---
+  // Processed chat search results to display as cards
+  interface ChatResultCard {
+    chatId: string;
+    title: string;
+    iconName: string;
+    gradientStart: string;
+    gradientEnd: string;
+    dateLabel: string;
+  }
+  let chatSearchResults = $state<ChatResultCard[]>([]);
+  let searchGeneration = 0;
+
+  /**
+   * Format a timestamp into a short relative/absolute date label.
+   * e.g., "Today", "Yesterday", "Mar 15", "Dec 2025"
+   */
+  function formatChatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    const sameYear = date.getFullYear() === now.getFullYear();
+    const month = date.toLocaleString('default', { month: 'short' });
+    return sameYear ? `${month} ${date.getDate()}` : `${month} ${date.getFullYear()}`;
+  }
+
+  /**
+   * Search existing chats when filterQuery changes.
+   * Uses the existing searchService for full-text search across titles + messages.
+   */
+  $effect(() => {
+    const query = filterQuery;
+    if (!query || !$authStore.isAuthenticated) {
+      chatSearchResults = [];
+      return;
+    }
+
+    const gen = ++searchGeneration;
+    const textFn = get(text);
+
+    (async () => {
+      try {
+        await chatDB.init();
+        const allChats = await chatDB.getAllChats();
+        const results = await performSearch(query, allChats, textFn);
+        // Stale guard — a newer search was triggered while this one ran
+        if (gen !== searchGeneration) return;
+
+        // Filter out demo/legal chats, limit to MAX_CHAT_RESULTS
+        const userChatResults = results.chats.filter(
+          r => !isDemoChat(r.chat.chat_id) && !isLegalChat(r.chat.chat_id)
+        );
+
+        // Resolve metadata (icon, category) for each result
+        const processed = await Promise.all(
+          userChatResults.slice(0, MAX_CHAT_RESULTS).map(async (result) => {
+            const metadata = await chatMetadataCache.getDecryptedMetadata(result.chat);
+            const category = metadata?.category || 'general_knowledge';
+            const icon = metadata?.icon || getFallbackIconForCategory(category);
+            const validIcon = getValidIconName(icon, category);
+            const gradient = getCategoryGradientColors(category) || { start: '#DE1E66', end: '#FF763B' };
+            const timestamp = result.chat.last_edited_overall_timestamp || result.chat.created_at || 0;
+
+            return {
+              chatId: result.chat.chat_id,
+              title: result.decryptedTitle || metadata?.title || 'Untitled',
+              iconName: validIcon,
+              gradientStart: gradient.start,
+              gradientEnd: gradient.end,
+              dateLabel: formatChatDate(timestamp),
+            };
+          })
+        );
+
+        // Final stale guard after async metadata resolution
+        if (gen !== searchGeneration) return;
+        chatSearchResults = processed;
+      } catch (error) {
+        console.error('[NewChatSuggestions] Chat search error:', error);
+        if (gen === searchGeneration) chatSearchResults = [];
+      }
+    })();
   });
 
   // Context menu state
@@ -431,16 +530,18 @@
         )
       : parsed;
 
-    // Graceful fallback: if filter matches nothing, show all (not empty)
-    const pool = (filterQuery && filtered.length === 0) ? parsed : filtered;
+    // Graceful fallback: if filter matches nothing AND no chat results found, show all (not empty).
+    // When chat results exist, an empty suggestion filter is fine — the chat cards fill the gap.
+    const pool = (filterQuery && filtered.length === 0 && chatSearchResults.length === 0) ? parsed : filtered;
 
     return pool.slice(0, VISIBLE_COUNT);
   });
 
-  // True when filter produced 0 matches and we're showing the fallback pool
+  // True when filter produced 0 matches across both suggestions AND chat results
   let noMatchFallback = $derived(
     filterQuery !== '' &&
     !loading &&
+    chatSearchResults.length === 0 &&
     fullSuggestionsWithEncrypted
       .filter(s => !hiddenSuggestionTexts.has(s.text))
       .every(s => {
@@ -608,7 +709,7 @@
   }
 </script>
 
-{#if !loading && visibleSuggestions.length > 0}
+{#if !loading && (visibleSuggestions.length > 0 || chatSearchResults.length > 0)}
   <div class="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
@@ -636,6 +737,29 @@
           <span class="card-text">{suggestion.body}</span>
         </button>
       {/each}
+
+      <!-- Existing chat search results (shown when user types a search query) -->
+      {#if chatSearchResults.length > 0}
+        {#if visibleSuggestions.length > 0}
+          <div class="chat-results-divider"></div>
+        {/if}
+        {#each chatSearchResults as chatResult (chatResult.chatId)}
+          {@const IconComponent = getLucideIcon(chatResult.iconName)}
+          <button
+            class="suggestion-card chat-result-card"
+            style="background: linear-gradient(135deg, {chatResult.gradientStart}, {chatResult.gradientEnd});"
+            onclick={() => onChatNavigate(chatResult.chatId)}
+          >
+            <span class="card-icon chat-result-icon">
+              <IconComponent size={24} color="white" />
+            </span>
+            <span class="card-text-group">
+              <span class="card-text">{chatResult.title}</span>
+              <span class="card-date">Chat from {chatResult.dateLabel}</span>
+            </span>
+          </button>
+        {/each}
+      {/if}
     </div>
   </div>
 {/if}
@@ -811,6 +935,46 @@
     font-style: italic;
     font-size: 14px;
     opacity: 0.75;
+  }
+
+  /* --- Existing chat search result cards --- */
+
+  /* Thin vertical divider separating suggestion cards from chat result cards */
+  .chat-results-divider {
+    width: 1px;
+    min-width: 1px;
+    height: 40px;
+    background: var(--color-grey-30);
+    opacity: 0.4;
+    flex-shrink: 0;
+    border-radius: 1px;
+    align-self: center;
+  }
+
+  /* Ensure lucide icon component is centered in the card icon container */
+  .chat-result-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Text group wrapping title + date label for chat result cards */
+  .card-text-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  /* Small date label below the chat title */
+  .card-date {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   @media (max-width: 730px) {

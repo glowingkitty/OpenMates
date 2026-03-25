@@ -2092,6 +2092,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    /**
+     * Navigate to an existing chat when selected from the suggestion area's chat search results.
+     */
+    function handleChatNavigate(chatId: string) {
+        console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
+        activeChatStore.setActiveChat(chatId);
+    }
+
     // Handler for the dislike/report-bad-answer retry prompt.
     // When the user clicks the thumbs-down button on an assistant message,
     // ChatMessage dispatches a 'setRetryMessage' event with a translated
@@ -9705,6 +9713,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              <NewChatSuggestions
                                  messageInputContent={liveInputText}
                                  onSuggestionClick={handleSuggestionClick}
+                                 onChatNavigate={handleChatNavigate}
                              />
                          {/if}
 
