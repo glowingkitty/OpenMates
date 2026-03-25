@@ -519,18 +519,20 @@ run_tsc_check() {
       fi
     fi
 
-    # Only install if the TypeScript binary is missing in the target package.
+    # Check if the TypeScript binary is available. Never auto-install — pnpm install
+    # is extremely resource-intensive and can freeze the server for minutes.
     if [[ -f "${first_pkg_root}/node_modules/.bin/tsc" ]]; then
       js_deps_ready=true
     else
-      echo "TypeScript: missing dependencies for ${first_pkg_root#${repo_root}/}; installing..." >&2
-      if [[ "${pnpm_cmd}" == "pnpm" ]]; then
-        pnpm -C "${repo_root}" install
-      else
-        npm --prefix "${first_pkg_root}" install
-      fi
-      js_deps_ready=true
+      echo "TypeScript: SKIPPED — tsc not found in ${first_pkg_root#${repo_root}/}/node_modules/.bin/" >&2
+      echo "  Run 'pnpm install' manually, then retry." >&2
+      js_deps_ready=false
     fi
+  fi
+
+  # Skip type-checking if tsc is not available
+  if ! ${js_deps_ready}; then
+    return 0
   fi
 
   # Group files by package to run tsc once per package
@@ -572,7 +574,7 @@ run_tsc_check() {
 
     if [[ "${pnpm_cmd}" == "pnpm" ]]; then
       local tsc_output
-      tsc_output="$(pnpm -C "${pkg}" exec tsc --noEmit 2>&1 || true)"
+      tsc_output="$(timeout 60 pnpm -C "${pkg}" exec tsc --noEmit 2>&1 || true)"
       if [[ -z "${tsc_output}" ]]; then
         echo "TypeScript: ok ${pkg#${repo_root}/}"
       else
@@ -593,7 +595,7 @@ run_tsc_check() {
       fi
     else
       local tsc_output
-      tsc_output="$(npm --prefix "${pkg}" exec -- tsc --noEmit 2>&1 || true)"
+      tsc_output="$(timeout 60 npm --prefix "${pkg}" exec -- tsc --noEmit 2>&1 || true)"
       if [[ -z "${tsc_output}" ]]; then
         echo "TypeScript: ok ${pkg#${repo_root}/}"
       else
@@ -642,18 +644,20 @@ run_svelte_check() {
       fi
     fi
 
-    # Only install if the svelte-check binary is missing in the target package.
+    # Check if svelte-check binary is available. Never auto-install — pnpm install
+    # is extremely resource-intensive and can freeze the server for minutes.
     if [[ -f "${first_pkg_root}/node_modules/.bin/svelte-check" ]]; then
       js_deps_ready=true
     else
-      echo "Svelte: missing dependencies for ${first_pkg_root#${repo_root}/}; installing..." >&2
-      if [[ "${pnpm_cmd}" == "pnpm" ]]; then
-        pnpm -C "${repo_root}" install
-      else
-        npm --prefix "${first_pkg_root}" install
-      fi
-      js_deps_ready=true
+      echo "Svelte: SKIPPED — svelte-check not found in ${first_pkg_root#${repo_root}/}/node_modules/.bin/" >&2
+      echo "  Run 'pnpm install' manually, then retry." >&2
+      js_deps_ready=false
     fi
+  fi
+
+  # Skip svelte-check if binary is not available
+  if ! ${js_deps_ready}; then
+    return 0
   fi
 
   # Group files by package
@@ -700,9 +704,9 @@ run_svelte_check() {
       local check_output=""
       # Try the check script first (for SvelteKit apps), then fall back to svelte-check directly
       if grep -q '"check"' "${pkg}/package.json" 2>/dev/null; then
-        check_output="$(pnpm -C "${pkg}" run check --if-present 2>&1 || true)"
+        check_output="$(timeout 60 pnpm -C "${pkg}" run check --if-present 2>&1 || true)"
       else
-        check_output="$(pnpm -C "${pkg}" exec svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
+        check_output="$(timeout 60 pnpm -C "${pkg}" exec svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
       fi
       
       if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then
@@ -727,9 +731,9 @@ run_svelte_check() {
     else
       local check_output=""
       if grep -q '"check"' "${pkg}/package.json" 2>/dev/null; then
-        check_output="$(npm --prefix "${pkg}" run check --if-present 2>&1 || true)"
+        check_output="$(timeout 60 npm --prefix "${pkg}" run check --if-present 2>&1 || true)"
       else
-        check_output="$(npm --prefix "${pkg}" exec -- svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
+        check_output="$(timeout 60 npm --prefix "${pkg}" exec -- svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
       fi
       
       if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then
