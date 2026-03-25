@@ -2355,7 +2355,25 @@ auto_topup_payment_method_error:
 buy_credits_explainer:
   context: Short explainer text shown above credit tier options on the Buy Credits page
   en: Credits are used when you chat with your digital team mates and use app skills.
+  de: Credits werden verwendet, wenn du mit deinen digitalen Team-Mates chattest und App-Fähigkeiten nutzt.
+  zh: 当您与数字团队成员聊天并使用应用技能时，会消耗积分。
+  es: Los créditos se usan cuando chateas con tus compañeros de equipo digitales y usas habilidades de la app.
+  fr: Les crédits sont utilisés lorsque vous discutez avec vos coéquipiers numériques et utilisez les compétences de l'application.
+  pt: Os créditos são usados quando você conversa com seus companheiros de equipe digitais e usa habilidades do aplicativo.
+  ru: Кредиты расходуются при общении с цифровыми товарищами по команде и использовании навыков приложения.
+  ja: クレジットは、デジタルチームメイトとチャットしたり、アプリスキルを使用したりするときに消費されます。
+  ko: 크레딧은 디지털 팀 동료와 채팅하거나 앱 스킬을 사용할 때 소모됩니다.
+  it: I crediti vengono utilizzati quando chatti con i tuoi compagni di squadra digitali e usi le abilità dell'app.
+  tr: Krediler, dijital takım arkadaşlarınızla sohbet ettiğinizde ve uygulama becerilerini kullandığınızda harcanır.
+  vi: Tín dụng được sử dụng khi bạn trò chuyện với các đồng đội kỹ thuật số và sử dụng kỹ năng ứng dụng.
+  id: Kredit digunakan saat Anda mengobrol dengan rekan tim digital dan menggunakan keterampilan aplikasi.
+  pl: Kredyty są używane podczas rozmów z cyfrowymi współpracownikami i korzystania z umiejętności aplikacji.
+  nl: Credits worden gebruikt wanneer u chat met uw digitale teamgenoten en gebruik maakt van app-vaardigheden.
   ar: تُستخدم الاعتمادات عند الدردشة مع رفاقك الرقميين واستخدام مهارات التطبيق.
+  hi: क्रेडिट का उपयोग तब होता है जब आप अपने डिजिटल टीम साथियों के साथ चैट करते हैं और ऐप कौशल का उपयोग करते हैं।
+  th: เครดิตถูกใช้เมื่อคุณสนทนากับเพื่อนร่วมทีมดิจิทัลและใช้ทักษะแอป
+  cs: Kredity se spotřebovávají při chatování s digitálními spoluhráči a používání dovedností aplikace.
+  sv: Credits används när du chattar med dina digitala lagkamrater och använder appfärdigheter.
   he: "הקרדיטים משמשים לצ'אט עם חברי הצוות הדיגיטליים שלך ולשימוש ביכולות האפליקציה."
   verified_by_human: []
 insufficient_credits_error:

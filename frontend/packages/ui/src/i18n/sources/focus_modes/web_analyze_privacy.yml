@@ -55,6 +55,101 @@ process:
     - analyzes the legal pages for privacy implications
     - creates a report based on the findings
     - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
+  de: |
+    - ruft die rechtlichen Seiten einer Website ab
+    - analysiert die rechtlichen Seiten auf Datenschutzimplikationen
+    - erstellt einen Bericht basierend auf den Ergebnissen
+    - fragt den Nutzer, ob er den Dienst basierend auf den Datenschutzimplikationen nutzen möchte oder weitere Fragen hat
+  zh: |
+    - 获取网站的法律页面
+    - 分析法律页面的隐私影响
+    - 根据发现创建报告
+    - 询问用户是否要基于隐私影响继续使用该服务，或是否还有其他问题
+  es: |
+    - obtiene las páginas legales de un sitio web
+    - analiza las páginas legales para identificar implicaciones de privacidad
+    - crea un informe basado en los hallazgos
+    - pregunta al usuario si desea continuar con el servicio basándose en las implicaciones de privacidad o si tiene preguntas adicionales
+  fr: |
+    - récupère les pages légales d'un site web
+    - analyse les pages légales pour les implications en matière de confidentialité
+    - crée un rapport basé sur les résultats
+    - demande à l'utilisateur s'il souhaite continuer à utiliser le service compte tenu des implications de confidentialité ou s'il a des questions supplémentaires
+  pt: |
+    - obtém as páginas legais de um site
+    - analisa as páginas legais para implicações de privacidade
+    - cria um relatório baseado nas descobertas
+    - pergunta ao usuário se deseja continuar com o serviço com base nas implicações de privacidade ou se tem perguntas adicionais
+  ru: |
+    - получает юридические страницы веб-сайта
+    - анализирует юридические страницы на предмет последствий для конфиденциальности
+    - создаёт отчёт на основе результатов
+    - спрашивает пользователя, хочет ли он продолжать использование сервиса, учитывая последствия для конфиденциальности, или есть ли дополнительные вопросы
+  ja: |
+    - ウェブサイトの法的ページを取得する
+    - プライバシーへの影響について法的ページを分析する
+    - 発見事項に基づいてレポートを作成する
+    - プライバシーへの影響に基づいてサービスを続けるかどうか、または追加の質問があるかどうかをユーザーに尋ねる
+  ko: |
+    - 웹사이트의 법적 페이지를 가져옵니다
+    - 개인정보 보호 함의에 대해 법적 페이지를 분석합니다
+    - 결과를 바탕으로 보고서를 작성합니다
+    - 개인정보 보호 함의를 바탕으로 서비스를 계속 사용할지, 추가 질문이 있는지 사용자에게 묻습니다
+  it: |
+    - recupera le pagine legali di un sito web
+    - analizza le pagine legali per le implicazioni sulla privacy
+    - crea un rapporto basato sui risultati
+    - chiede all'utente se desidera procedere con il servizio in base alle implicazioni sulla privacy o se ha ulteriori domande
+  tr: |
+    - bir web sitesinin yasal sayfalarını alır
+    - yasal sayfaları gizlilik etkileri açısından analiz eder
+    - bulgulara dayalı bir rapor oluşturur
+    - kullanıcıya gizlilik etkilerine göre hizmetle devam etmek isteyip istemediğini veya ek soruları olup olmadığını sorar
+  vi: |
+    - lấy các trang pháp lý của một trang web
+    - phân tích các trang pháp lý về hàm ý quyền riêng tư
+    - tạo báo cáo dựa trên các phát hiện
+    - hỏi người dùng xem họ có muốn tiếp tục sử dụng dịch vụ dựa trên hàm ý quyền riêng tư hay có câu hỏi thêm không
+  id: |
+    - mendapatkan halaman hukum suatu situs web
+    - menganalisis halaman hukum untuk implikasi privasi
+    - membuat laporan berdasarkan temuan
+    - menanyakan kepada pengguna apakah mereka ingin melanjutkan dengan layanan berdasarkan implikasi privasi atau jika mereka memiliki pertanyaan tambahan
+  pl: |
+    - pobiera strony prawne strony internetowej
+    - analizuje strony prawne pod kątem implikacji prywatności
+    - tworzy raport na podstawie ustaleń
+    - pyta użytkownika, czy chce korzystać z usługi w oparciu o implikacje prywatności lub czy ma dodatkowe pytania
+  nl: |
+    - haalt de juridische pagina's van een website op
+    - analyseert de juridische pagina's op privacyimplicaties
+    - maakt een rapport op basis van de bevindingen
+    - vraagt de gebruiker of hij door wil gaan met de service op basis van de privacyimplicaties of als hij aanvullende vragen heeft
+  ar: |
+    - يحصل على الصفحات القانونية لموقع ويب
+    - يحلل الصفحات القانونية بحثاً عن تداعيات الخصوصية
+    - ينشئ تقريراً بناءً على النتائج
+    - يسأل المستخدم إذا كان يريد الاستمرار في استخدام الخدمة بناءً على تداعيات الخصوصية أو إذا كانت لديه أسئلة إضافية
+  hi: |
+    - वेबसाइट के कानूनी पृष्ठ प्राप्त करता है
+    - गोपनीयता निहितार्थों के लिए कानूनी पृष्ठों का विश्लेषण करता है
+    - निष्कर्षों के आधार पर एक रिपोर्ट बनाता है
+    - उपयोगकर्ता से पूछता है कि क्या वे गोपनीयता निहितार्थों के आधार पर सेवा के साथ आगे बढ़ना चाहते हैं या क्या उनके अतिरिक्त प्रश्न हैं
+  th: |
+    - รับหน้าทางกฎหมายของเว็บไซต์
+    - วิเคราะห์หน้าทางกฎหมายสำหรับผลกระทบด้านความเป็นส่วนตัว
+    - สร้างรายงานตามผลการค้นพบ
+    - ถามผู้ใช้ว่าต้องการดำเนินการต่อกับบริการตามผลกระทบด้านความเป็นส่วนตัวหรือมีคำถามเพิ่มเติมหรือไม่
+  cs: |
+    - získá právní stránky webové stránky
+    - analyzuje právní stránky z hlediska dopadů na soukromí
+    - vytvoří zprávu na základě zjištění
+    - ptá se uživatele, zda chce pokračovat v používání služby na základě dopadů na soukromí nebo má další otázky
+  sv: |
+    - hämtar de juridiska sidorna på en webbplats
+    - analyserar de juridiska sidorna för sekretessimplikationer
+    - skapar en rapport baserat på resultaten
+    - frågar användaren om de vill fortsätta med tjänsten baserat på sekretessimplikationerna eller om de har ytterligare frågor
   he: |
     - אוסף את הדפים המשפטיים של האתר
     - מנתח את הדפים המשפטיים כדי למצוא השלכות על הפרטיות
@@ -65,6 +160,25 @@ process:
 systemprompt:
   context: System prompt for the LLM when analyze_privacy focus mode is active
   en: You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
+  de: Du bist ein Experte für Datenschutzanalyse und Datenschutz. Deine Aufgabe ist es, rechtliche Seiten (Nutzungsbedingungen, Datenschutzrichtlinie, Cookie-Richtlinie) zu analysieren und Datenschutzimplikationen, Datenerfassungspraktiken und potenzielle Risiken für Nutzer zu identifizieren.
+  zh: 你是隐私分析和数据保护方面的专家。你的角色是分析法律页面（服务条款、隐私政策、Cookie政策）并识别用户的隐私影响、数据收集实践和潜在风险。
+  es: Eres un experto en análisis de privacidad y protección de datos. Tu papel es analizar páginas legales (términos de servicio, política de privacidad, política de cookies) e identificar implicaciones de privacidad, prácticas de recopilación de datos y riesgos potenciales para los usuarios.
+  fr: Vous êtes un expert en analyse de confidentialité et en protection des données. Votre rôle est d'analyser les pages légales (conditions d'utilisation, politique de confidentialité, politique de cookies) et d'identifier les implications sur la confidentialité, les pratiques de collecte de données et les risques potentiels pour les utilisateurs.
+  pt: Você é um especialista em análise de privacidade e proteção de dados. Seu papel é analisar páginas legais (termos de serviço, política de privacidade, política de cookies) e identificar implicações de privacidade, práticas de coleta de dados e riscos potenciais para os usuários.
+  ru: Вы эксперт по анализу конфиденциальности и защите данных. Ваша роль — анализировать юридические страницы (условия обслуживания, политику конфиденциальности, политику файлов cookie) и выявлять последствия для конфиденциальности, практики сбора данных и потенциальные риски для пользователей.
+  ja: あなたはプライバシー分析とデータ保護の専門家です。あなたの役割は法的ページ（利用規約、プライバシーポリシー、Cookieポリシー）を分析し、プライバシーへの影響、データ収集の実践、ユーザーへの潜在的なリスクを特定することです。
+  ko: 당신은 개인정보 분석 및 데이터 보호 전문가입니다. 당신의 역할은 법적 페이지(서비스 약관, 개인정보 보호 정책, 쿠키 정책)를 분석하고 개인정보 보호 함의, 데이터 수집 관행, 사용자에 대한 잠재적 위험을 파악하는 것입니다.
+  it: Sei un esperto di analisi della privacy e protezione dei dati. Il tuo ruolo è analizzare le pagine legali (termini di servizio, informativa sulla privacy, politica sui cookie) e identificare le implicazioni sulla privacy, le pratiche di raccolta dati e i potenziali rischi per gli utenti.
+  tr: Gizlilik analizi ve veri koruma konusunda uzmansınız. Rolünüz, yasal sayfaları (hizmet şartları, gizlilik politikası, çerez politikası) analiz etmek ve kullanıcılar için gizlilik etkilerini, veri toplama uygulamalarını ve potansiyel riskleri belirlemektir.
+  vi: Bạn là một chuyên gia về phân tích quyền riêng tư và bảo vệ dữ liệu. Vai trò của bạn là phân tích các trang pháp lý (điều khoản dịch vụ, chính sách quyền riêng tư, chính sách cookie) và xác định các hàm ý quyền riêng tư, thực tiễn thu thập dữ liệu và rủi ro tiềm ẩn cho người dùng.
+  id: Anda adalah ahli analisis privasi dan perlindungan data. Peran Anda adalah menganalisis halaman hukum (syarat layanan, kebijakan privasi, kebijakan cookie) dan mengidentifikasi implikasi privasi, praktik pengumpulan data, dan risiko potensial bagi pengguna.
+  pl: Jesteś ekspertem w dziedzinie analizy prywatności i ochrony danych. Twoją rolą jest analizowanie stron prawnych (warunki usługi, polityka prywatności, polityka plików cookie) i identyfikowanie implikacji prywatności, praktyk zbierania danych i potencjalnych zagrożeń dla użytkowników.
+  nl: U bent een expert op het gebied van privacyanalyse en gegevensbescherming. Uw rol is het analyseren van juridische pagina's (servicevoorwaarden, privacybeleid, cookiebeleid) en het identificeren van privacyimplicaties, gegevensverzamelingspraktijken en potentiële risico's voor gebruikers.
+  ar: أنت خبير في تحليل الخصوصية وحماية البيانات. دورك هو تحليل الصفحات القانونية (شروط الخدمة وسياسة الخصوصية وسياسة ملفات تعريف الارتباط) وتحديد تداعيات الخصوصية وممارسات جمع البيانات والمخاطر المحتملة على المستخدمين.
+  hi: आप गोपनीयता विश्लेषण और डेटा सुरक्षा के विशेषज्ञ हैं। आपकी भूमिका कानूनी पृष्ठों (सेवा की शर्तें, गोपनीयता नीति, कुकी नीति) का विश्लेषण करना और उपयोगकर्ताओं के लिए गोपनीयता निहितार्थ, डेटा संग्रह प्रथाओं और संभावित जोखिमों की पहचान करना है।
+  th: คุณเป็นผู้เชี่ยวชาญด้านการวิเคราะห์ความเป็นส่วนตัวและการคุ้มครองข้อมูล บทบาทของคุณคือวิเคราะห์หน้าทางกฎหมาย (ข้อกำหนดการให้บริการ นโยบายความเป็นส่วนตัว นโยบายคุกกี้) และระบุผลกระทบด้านความเป็นส่วนตัว แนวปฏิบัติการเก็บรวบรวมข้อมูล และความเสี่ยงที่อาจเกิดขึ้นสำหรับผู้ใช้
+  cs: Jste odborník na analýzu soukromí a ochranu dat. Vaší rolí je analyzovat právní stránky (podmínky služby, zásady ochrany osobních údajů, zásady cookies) a identifikovat dopady na soukromí, praktiky shromažďování dat a potenciální rizika pro uživatele.
+  sv: Du är en expert på integritetsanalys och dataskydd. Din roll är att analysera juridiska sidor (användarvillkor, integritetspolicy, cookiepolicy) och identifiera sekretessimplikationer, datainsamlingsmetoder och potentiella risker för användare.
   he: אתה מומחה לניתוח פרטיות והגנה על נתונים. תפקידך הוא לנתח דפים משפטיים (תנאי שימוש, מדיניות פרטיות, מדיניות קובצי Cookie) ולזהות השלכות על הפרטיות, נוהלי איסוף נתונים וסיכונים פוטנציאליים למשתמשים.
   verified_by_human:
     - en

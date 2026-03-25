@@ -2912,6 +2912,7 @@ view_on_meetup:
   th: ดูบน Meetup
   cs: Zobrazit na Meetup
   sv: Visa på Meetup
+  he: צפייה ב-Meetup
   verified_by_human: []
 focus_mode.context_menu.stop:
   context: Context menu button to stop an activated focus mode session
@@ -3110,13 +3111,47 @@ pii_hide:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently visible — clicking will hide it
   en: Hide sensitive data
   de: Sensible Daten ausblenden
-
+  zh: 隐藏敏感数据
+  es: Ocultar datos sensibles
+  fr: Masquer les données sensibles
+  pt: Ocultar dados sensíveis
+  ru: Скрыть конфиденциальные данные
+  ja: 機密データを非表示
+  ko: 민감한 데이터 숨기기
+  it: Nascondi dati sensibili
+  tr: Hassas verileri gizle
+  vi: Ẩn dữ liệu nhạy cảm
+  id: Sembunyikan data sensitif
+  pl: Ukryj dane wrażliwe
+  nl: Gevoelige gegevens verbergen
+  ar: إخفاء البيانات الحساسة
+  hi: संवेदनशील डेटा छुपाएं
+  th: ซ่อนข้อมูลที่ละเอียดอ่อน
+  cs: Skrýt citlivá data
+  sv: Dölj känsliga uppgifter
   he: הסתרת נתונים רגישים
 pii_show:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
   en: Show sensitive data
   de: Sensible Daten anzeigen
-
+  zh: 显示敏感数据
+  es: Mostrar datos sensibles
+  fr: Afficher les données sensibles
+  pt: Mostrar dados sensíveis
+  ru: Показать конфиденциальные данные
+  ja: 機密データを表示
+  ko: 민감한 데이터 표시
+  it: Mostra dati sensibili
+  tr: Hassas verileri göster
+  vi: Hiển thị dữ liệu nhạy cảm
+  id: Tampilkan data sensitif
+  pl: Pokaż dane wrażliwe
+  nl: Gevoelige gegevens tonen
+  ar: عرض البيانات الحساسة
+  hi: संवेदनशील डेटा दिखाएं
+  th: แสดงข้อมูลที่ละเอียดอ่อน
+  cs: Zobrazit citlivá data
+  sv: Visa känsliga uppgifter
   he: הצגת נתונים רגישים
 maps_location:
   context: Maps Location skill label shown in BasicInfosBar

@@ -67,7 +67,7 @@ domain_not_allowed:
   hi: ई-मेल डोमेन की अनुमति नहीं है।
   th: ไม่อนุญาตโดเมนอีเมล
   cs: E-mailová doména není povolena.
-
+  sv: E-postdomän är inte tillåten.
   he: דומיין האימייל אינו מורשה.
 email_ignored:
   context: Error message shown when the email address is on the ignored list
@@ -5713,20 +5713,20 @@ vat_info:
   zh: "根据 §19 UStG（小企业规定）不收取增值税。"
   es: "No se cobra IVA según §19 UStG (regulación de pequeños negocios)."
   fr: "Aucune TVA facturée conformément à l'article 19 de la loi allemande sur la TVA (réglementation des petites entreprises)."
-  pt: ""
-  ru: ""
+  pt: "Nenhum IVA cobrado de acordo com o §19 UStG (regulamento de pequenas empresas)."
+  ru: "НДС не взимается согласно §19 UStG (регулирование малых предприятий)."
   ja: "§19 UStG（小規模事業者規定）に基づき、VATは課税されません。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "§19 UStG(소규모 사업자 규정)에 따라 부가세가 부과되지 않습니다."
+  it: "Nessuna IVA addebitata ai sensi del §19 UStG (regolamento per le piccole imprese)."
+  tr: "§19 UStG (küçük işletme düzenlemesi) uyarınca KDV alınmamaktadır."
+  vi: "Không thu VAT theo §19 UStG (quy định doanh nghiệp nhỏ)."
+  id: "Tidak ada PPN yang dikenakan sesuai §19 UStG (peraturan usaha kecil)."
+  pl: "Brak VAT zgodnie z §19 UStG (regulacja małych przedsiębiorstw)."
+  nl: "Geen btw in rekening gebracht op grond van §19 UStG (kleine ondernemersregeling)."
+  ar: "لا يُفرض ضريبة القيمة المضافة وفقًا للمادة §19 UStG (نظام الشركات الصغيرة)."
+  hi: "§19 UStG (लघु व्यवसाय विनियमन) के अनुसार कोई VAT नहीं लिया जाता।"
+  th: "ไม่มีการเรียกเก็บภาษีมูลค่าเพิ่มตาม §19 UStG (ข้อบังคับธุรกิจขนาดเล็ก)"
+  cs: "Žádné DPH není účtováno podle §19 UStG (nařízení pro malé podniky)."
   sv: "Ingen moms debiteras enligt §19 UStG (småföretagsreglering)."
   he: 'לא נגבה מע"מ בהתאם ל-§19 UStG (תקנת עסקים קטנים).'
   verified_by_human: []
@@ -5737,20 +5737,20 @@ card_number:
   zh: 卡号
   es: Número de tarjeta
   fr: Numéro de carte
-  pt: ""
-  ru: ""
+  pt: Número do cartão
+  ru: Номер карты
   ja: カード番号
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 카드 번호
+  it: Numero di carta
+  tr: Kart numarası
+  vi: Số thẻ
+  id: Nomor kartu
+  pl: Numer karty
+  nl: Kaartnummer
+  ar: رقم البطاقة
+  hi: कार्ड नंबर
+  th: หมายเลขบัตร
+  cs: Číslo karty
   sv: "Kortnummer"
   he: מספר כרטיס
   verified_by_human: []
@@ -5761,20 +5761,20 @@ cvv:
   zh: CVV
   es: CVV
   fr: CVV
-  pt: ""
-  ru: ""
+  pt: CVV
+  ru: CVV
   ja: CVV
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: CVV
+  it: CVV
+  tr: CVV
+  vi: CVV
+  id: CVV
+  pl: CVV
+  nl: CVV
+  ar: CVV
+  hi: CVV
+  th: CVV
+  cs: CVV
   sv: "CVV"
   he: CVV
   verified_by_human: []
@@ -5785,20 +5785,20 @@ mm_yy:
   zh: 月/年
   es: MM/AA
   fr: MM/AA
-  pt: ""
-  ru: ""
+  pt: MM/AA
+  ru: ММ/ГГ
   ja: 月/年
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: MM/YY
+  it: MM/AA
+  tr: AA/YY
+  vi: MM/YY
+  id: MM/TT
+  pl: MM/RR
+  nl: MM/JJ
+  ar: MM/YY
+  hi: MM/YY
+  th: MM/YY
+  cs: MM/RR
   sv: "MM/ÅÅ"
   he: MM/YY
   verified_by_human: []
@@ -5809,20 +5809,20 @@ buy_for:
   zh: 以 {amount} {currency} 购买
   es: Comprar por {amount} {currency}
   fr: Acheter pour {amount} {currency}
-  pt: ""
-  ru: ""
+  pt: "Comprar por {amount} {currency}"
+  ru: "Купить за {amount} {currency}"
   ja: "{amount} {currency}で購入"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "{amount} {currency}에 구매"
+  it: "Acquista per {amount} {currency}"
+  tr: "{amount} {currency} için satın al"
+  vi: "Mua với {amount} {currency}"
+  id: "Beli seharga {amount} {currency}"
+  pl: "Kup za {amount} {currency}"
+  nl: "Koop voor {amount} {currency}"
+  ar: "اشترِ بـ {amount} {currency}"
+  hi: "{amount} {currency} में खरीदें"
+  th: "ซื้อสำหรับ {amount} {currency}"
+  cs: "Koupit za {amount} {currency}"
   sv: "Köp för {amount} {currency}"
   he: "קנייה ב-{amount} {currency}"
   verified_by_human: []
@@ -5857,20 +5857,20 @@ secured_and_powered_by:
   zh: 由 {provider} 安全支持
   es: Seguro y alimentado por {provider}
   fr: Sécurisé et propulsé par {provider}
-  pt: ""
-  ru: ""
+  pt: "Protegido e desenvolvido por {provider}"
+  ru: "Защищено и работает на {provider}"
   ja: "{provider}により安全に処理"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "{provider}에 의해 보안 처리됨"
+  it: "Protetto e gestito da {provider}"
+  tr: "{provider} tarafından güvence altında"
+  vi: "Được bảo mật và hỗ trợ bởi {provider}"
+  id: "Diamankan dan didukung oleh {provider}"
+  pl: "Zabezpieczone i obsługiwane przez {provider}"
+  nl: "Beveiligd en mogelijk gemaakt door {provider}"
+  ar: "مؤمَّن ومدعوم من {provider}"
+  hi: "{provider} द्वारा सुरक्षित और संचालित"
+  th: "ปลอดภัยและขับเคลื่อนโดย {provider}"
+  cs: "Zabezpečeno a provozováno {provider}"
   sv: "Säkrad och drivs av {provider}"
   he: "מאובטח ומופעל על ידי {provider}"
   verified_by_human: []
@@ -5881,20 +5881,20 @@ name_too_short:
   zh: 至少3个字符
   es: Mínimo 3 caracteres
   fr: Minimum 3 caractères
-  pt: ""
-  ru: ""
+  pt: Mínimo de 3 caracteres
+  ru: Минимум 3 символа
   ja: 最低3文字必要
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: 최소 3자
+  it: Minimo 3 caratteri
+  tr: En az 3 karakter
+  vi: Tối thiểu 3 ký tự
+  id: Minimal 3 karakter
+  pl: Minimum 3 znaki
+  nl: Minimaal 3 tekens
+  ar: الحد الأدنى 3 أحرف
+  hi: न्यूनतम 3 वर्ण
+  th: อย่างน้อย 3 ตัวอักษร
+  cs: Minimálně 3 znaky
   sv: "Minst 3 tecken"
   he: מינימום 3 תווים
   verified_by_human: []
@@ -6145,20 +6145,20 @@ switch_to_eu_card:
   zh: 改用欧盟卡支付
   es: Pagar con una tarjeta de la UE
   fr: Payer avec une carte européenne
-  pt: ""
-  ru: ""
+  pt: Pagar com um cartão da UE
+  ru: Оплатить картой ЕС
   ja: EU圏のカードで支払う
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: EU 카드로 결제하기
+  it: Paga con una carta UE
+  tr: AB kartıyla öde
+  vi: Thanh toán bằng thẻ EU
+  id: Bayar dengan kartu EU
+  pl: Zapłać kartą UE
+  nl: Betaal met een EU-kaart
+  ar: الدفع ببطاقة أوروبية
+  hi: EU कार्ड से भुगतान करें
+  th: ชำระด้วยบัตร EU แทน
+  cs: Zaplatit kartou EU
   sv: "Betala med ett EU-kort istället"
   he: תשלום בכרטיס אירופאי במקום זאת
   verified_by_human: []
@@ -6169,20 +6169,20 @@ switch_to_non_eu_card:
   zh: 使用非欧盟卡支付
   es: Pagar con una tarjeta no europea
   fr: Payer avec une carte non européenne
-  pt: ""
-  ru: ""
+  pt: Pagar com um cartão não europeu
+  ru: Оплатить картой не из ЕС
   ja: EU圏外のカードで支払う
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: EU 외 카드로 결제하기
+  it: Paga con una carta non UE
+  tr: AB dışı kartla öde
+  vi: Thanh toán bằng thẻ ngoài EU
+  id: Bayar dengan kartu non-EU
+  pl: Zapłać kartą spoza UE
+  nl: Betaal met een niet-EU kaart
+  ar: الدفع ببطاقة غير أوروبية
+  hi: गैर-EU कार्ड से भुगतान करें
+  th: ชำระด้วยบัตรที่ไม่ใช่ EU
+  cs: Zaplatit kartou mimo EU
   sv: "Betala med ett icke EU-kort"
   he: תשלום בכרטיס לא-אירופאי
   verified_by_human: []
@@ -6193,20 +6193,20 @@ you_will_receive_payment_confirmation_soon:
   zh: 您将很快收到带有付款确认的电子邮件确认信息。
   es: Recibirás pronto una confirmación por correo electrónico con tu confirmación de pago.
   fr: Vous recevrez prochainement un e-mail de confirmation avec votre confirmation de paiement.
-  pt: ""
-  ru: ""
+  pt: "Você receberá em breve uma confirmação por e-mail com sua confirmação de pagamento."
+  ru: "Вы скоро получите письмо с подтверждением оплаты."
   ja: お支払い確認書を添付したメール確認が間もなく届きます。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
+  ko: "결제 확인이 담긴 이메일 확인서가 곧 발송됩니다."
+  it: "Riceverai presto una conferma via e-mail con la tua conferma di pagamento."
+  tr: "Ödeme onayınızı içeren bir e-posta onayı yakında alacaksınız."
+  vi: "Bạn sẽ sớm nhận được xác nhận qua e-mail với xác nhận thanh toán của bạn."
+  id: "Anda akan segera menerima konfirmasi e-mail dengan konfirmasi pembayaran Anda."
+  pl: "Wkrótce otrzymasz e-mail z potwierdzeniem płatności."
+  nl: "U ontvangt binnenkort een e-mailbevestiging met uw betalingsbevestiging."
+  ar: "ستتلقى قريبًا تأكيدًا بالبريد الإلكتروني مع تأكيد دفعك."
+  hi: "आपको जल्द ही भुगतान की पुष्टि के साथ एक ई-मेल पुष्टि मिलेगी।"
+  th: "คุณจะได้รับการยืนยันทางอีเมลพร้อมการยืนยันการชำระเงินในเร็วๆ นี้"
+  cs: "Brzy obdržíte e-mailové potvrzení s potvrzením vaší platby."
   sv: "Du kommer att få en e-postbekräftelse med din betalningsbekräftelse snart."
   he: אישור אימייל עם אישור התשלום שלך יישלח אליך בקרוב.
   verified_by_human: []

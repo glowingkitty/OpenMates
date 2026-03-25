@@ -855,7 +855,7 @@ login_with_passkey:
   hi: पासकी के साथ लॉगिन करें
   th: เข้าสู่ระบบด้วยคีย์ผ่าน
   cs: Přihlásit se pomocí přístupového klíče
-  sv: ""
+  sv: Logga in med lösenordsnyckel
   he: התחברות עם מפתח גישה
   verified_by_human: []
 or:
@@ -2082,21 +2082,95 @@ enter_backup_code_description:
   context: Description text above backup code input form explaining how backup codes work
   en: Enter one of your backup codes to sign in. Each code can only be used once.
   de: Gib einen deiner Backup-Codes ein, um dich anzumelden. Jeder Code kann nur einmal verwendet werden.
+  zh: 输入您的一个备份代码以登录。每个代码只能使用一次。
+  es: Introduce uno de tus códigos de respaldo para iniciar sesión. Cada código solo puede usarse una vez.
+  fr: Entrez l'un de vos codes de secours pour vous connecter. Chaque code ne peut être utilisé qu'une seule fois.
+  pt: Insira um dos seus códigos de backup para fazer login. Cada código só pode ser usado uma vez.
+  ru: Введите один из ваших резервных кодов для входа. Каждый код можно использовать только один раз.
+  ja: バックアップコードの一つを入力してサインインしてください。各コードは一度しか使用できません。
+  ko: 백업 코드 중 하나를 입력하여 로그인하세요. 각 코드는 한 번만 사용할 수 있습니다.
+  it: Inserisci uno dei tuoi codici di backup per accedere. Ogni codice può essere usato una sola volta.
+  tr: Giriş yapmak için yedek kodlarınızdan birini girin. Her kod yalnızca bir kez kullanılabilir.
+  vi: Nhập một trong các mã dự phòng của bạn để đăng nhập. Mỗi mã chỉ có thể được sử dụng một lần.
+  id: Masukkan salah satu kode cadangan Anda untuk masuk. Setiap kode hanya dapat digunakan sekali.
+  pl: Wprowadź jeden z kodów zapasowych, aby się zalogować. Każdy kod może być użyty tylko raz.
+  nl: Voer een van je back-upcodes in om in te loggen. Elke code kan slechts één keer worden gebruikt.
+  ar: أدخل أحد رموز النسخ الاحتياطي لتسجيل الدخول. يمكن استخدام كل رمز مرة واحدة فقط.
+  hi: साइन इन करने के लिए अपना एक बैकअप कोड दर्ज करें। प्रत्येक कोड केवल एक बार उपयोग किया जा सकता है।
+  th: ป้อนรหัสสำรองของคุณเพื่อลงชื่อเข้าใช้ แต่ละรหัสสามารถใช้ได้เพียงครั้งเดียว
+  cs: Zadejte jeden ze svých záložních kódů pro přihlášení. Každý kód lze použít pouze jednou.
+  sv: Ange en av dina säkerhetskoder för att logga in. Varje kod kan bara användas en gång.
   he: יש להזין את אחד מקודי הגיבוי שלך כדי להתחבר. ניתן להשתמש בכל קוד פעם אחת בלבד.
   verified_by_human: []
 use_authenticator_app:
   context: Button text to switch from backup code entry back to authenticator app verification
   en: Use authenticator app
   de: Authenticator-App verwenden
+  zh: 使用身份验证器应用
+  es: Usar aplicación de autenticación
+  fr: Utiliser l'application d'authentification
+  pt: Usar aplicativo autenticador
+  ru: Использовать приложение-аутентификатор
+  ja: 認証アプリを使用
+  ko: 인증 앱 사용
+  it: Usa app di autenticazione
+  tr: Doğrulayıcı uygulaması kullan
+  vi: Sử dụng ứng dụng xác thực
+  id: Gunakan aplikasi autentikator
+  pl: Użyj aplikacji uwierzytelniającej
+  nl: Authenticatie-app gebruiken
+  ar: استخدام تطبيق المصادقة
+  hi: प्रमाणक ऐप का उपयोग करें
+  th: ใช้แอปตรวจสอบสิทธิ์
+  cs: Použít aplikaci pro ověření
+  sv: Använd autentiseringsapp
   he: שימוש באפליקציית אימות
   verified_by_human: []
 sign_in_via_trusted_device:
   context: Button text on the login screen to start the magic pair login flow — lets the user sign in by having another device (phone, laptop) that is already logged in authorize the new session
   en: Sign in via a trusted device
   de: Über ein vertrauenswürdiges Gerät anmelden
+  zh: 通过受信任设备登录
+  es: Iniciar sesión a través de un dispositivo de confianza
+  fr: Se connecter via un appareil de confiance
+  pt: Entrar através de um dispositivo confiável
+  ru: Войти через доверенное устройство
+  ja: 信頼されたデバイスでサインイン
+  ko: 신뢰할 수 있는 기기로 로그인
+  it: Accedi tramite un dispositivo attendibile
+  tr: Güvenilir bir cihaz üzerinden giriş yap
+  vi: Đăng nhập qua thiết bị đáng tin cậy
+  id: Masuk melalui perangkat terpercaya
+  pl: Zaloguj się przez zaufane urządzenie
+  nl: Inloggen via een vertrouwd apparaat
+  ar: تسجيل الدخول عبر جهاز موثوق به
+  hi: विश्वसनीय डिवाइस के माध्यम से साइन इन करें
+  th: ลงชื่อเข้าใช้ผ่านอุปกรณ์ที่เชื่อถือได้
+  cs: Přihlásit se prostřednictvím důvěryhodného zařízení
+  sv: Logga in via en betrodd enhet
+  he: התחברות דרך מכשיר מהימן
   verified_by_human: []
 login_with_phone_or_pc:
   context: Small text link button on the login screen to start the pair login flow — shown below the passkey button, styled the same way (gradient text, phone icon)
   en: Login with phone or PC
   de: Mit Telefon oder PC einloggen
+  zh: 使用手机或PC登录
+  es: Iniciar sesión con teléfono o PC
+  fr: Se connecter avec un téléphone ou un PC
+  pt: Entrar com telefone ou PC
+  ru: Войти с телефона или ПК
+  ja: 電話またはPCでログイン
+  ko: 전화 또는 PC로 로그인
+  it: Accedi con telefono o PC
+  tr: Telefon veya PC ile giriş yap
+  vi: Đăng nhập bằng điện thoại hoặc PC
+  id: Masuk dengan ponsel atau PC
+  pl: Zaloguj się przez telefon lub komputer
+  nl: Inloggen met telefoon of pc
+  ar: تسجيل الدخول بالهاتف أو الكمبيوتر
+  hi: फ़ोन या PC से लॉगिन करें
+  th: เข้าสู่ระบบด้วยโทรศัพท์หรือ PC
+  cs: Přihlásit se telefonem nebo PC
+  sv: Logga in med telefon eller PC
+  he: התחברות עם טלפון או מחשב
   verified_by_human: []

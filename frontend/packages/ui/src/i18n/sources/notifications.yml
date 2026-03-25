@@ -263,6 +263,24 @@ connection.reconnected:
   context: Message shown in the success notification when the server connection is restored after an offline period
   en: Connection to server restored.
   de: Verbindung zum Server wiederhergestellt.
+  zh: 与服务器的连接已恢复。
+  es: Conexión al servidor restaurada.
+  fr: Connexion au serveur restaurée.
+  pt: Conexão ao servidor restaurada.
+  ru: Соединение с сервером восстановлено.
+  ja: サーバーへの接続が回復しました。
+  ko: 서버 연결이 복구되었습니다.
+  it: Connessione al server ripristinata.
+  tr: Sunucu bağlantısı geri yüklendi.
+  vi: Kết nối đến máy chủ đã được khôi phục.
+  id: Koneksi ke server dipulihkan.
+  pl: Połączenie z serwerem przywrócone.
+  nl: Verbinding met server hersteld.
+  ar: تم استعادة الاتصال بالخادم.
+  hi: सर्वर से कनेक्शन बहाल हो गया।
+  th: การเชื่อมต่อกับเซิร์ฟเวอร์ได้รับการกู้คืนแล้ว
+  cs: Připojení k serveru obnoveno.
+  sv: Anslutning till servern återställd.
   he: החיבור לשרת חודש.
   verified_by_human: []
 
@@ -270,6 +288,24 @@ connection.reconnected.title:
   context: Title for the success notification shown briefly when the server connection is restored
   en: Reconnected
   de: Wieder verbunden
+  zh: 已重新连接
+  es: Reconectado
+  fr: Reconnecté
+  pt: Reconectado
+  ru: Переподключено
+  ja: 再接続しました
+  ko: 재연결됨
+  it: Riconnesso
+  tr: Yeniden bağlandı
+  vi: Đã kết nối lại
+  id: Terhubung kembali
+  pl: Ponownie połączono
+  nl: Opnieuw verbonden
+  ar: أعيد الاتصال
+  hi: पुनः कनेक्ट हो गया
+  th: เชื่อมต่อใหม่แล้ว
+  cs: Znovu připojeno
+  sv: Återansluten
   he: מחובר מחדש
   verified_by_human: []
 
@@ -277,6 +313,24 @@ connection.server_updating.title:
   context: Title for the notification shown when the server is restarting after a deployment/update. Distinct from "You are offline" — the user's network is fine, the server is temporarily unavailable.
   en: Server updating
   de: Server wird aktualisiert
+  zh: 服务器更新中
+  es: Actualizando el servidor
+  fr: Mise à jour du serveur
+  pt: Atualizando servidor
+  ru: Сервер обновляется
+  ja: サーバー更新中
+  ko: 서버 업데이트 중
+  it: Aggiornamento server
+  tr: Sunucu güncelleniyor
+  vi: Máy chủ đang cập nhật
+  id: Server sedang diperbarui
+  pl: Aktualizacja serwera
+  nl: Server wordt bijgewerkt
+  ar: تحديث الخادم
+  hi: सर्वर अपडेट हो रहा है
+  th: กำลังอัปเดตเซิร์ฟเวอร์
+  cs: Server se aktualizuje
+  sv: Servern uppdateras
   he: השרת מתעדכן
   verified_by_human: []
 
@@ -284,6 +338,24 @@ connection.server_updating:
   context: Body message shown when the server is restarting. Should reassure the user that reconnection is automatic and no action is needed.
   en: The server is being updated. You'll reconnect automatically in a moment.
   de: Der Server wird aktualisiert. Du wirst gleich automatisch wieder verbunden.
+  zh: 服务器正在更新。片刻后您将自动重新连接。
+  es: El servidor se está actualizando. Te reconectarás automáticamente en un momento.
+  fr: Le serveur est en cours de mise à jour. Vous serez reconnecté automatiquement dans un instant.
+  pt: O servidor está sendo atualizado. Você se reconectará automaticamente em breve.
+  ru: Сервер обновляется. Вы автоматически переподключитесь через мгновение.
+  ja: サーバーが更新されています。まもなく自動的に再接続します。
+  ko: 서버가 업데이트 중입니다. 곧 자동으로 재연결됩니다.
+  it: Il server è in fase di aggiornamento. Ti riconnetterai automaticamente tra un momento.
+  tr: Sunucu güncelleniyor. Bir an içinde otomatik olarak yeniden bağlanacaksınız.
+  vi: Máy chủ đang được cập nhật. Bạn sẽ tự động kết nối lại sau một lúc.
+  id: Server sedang diperbarui. Anda akan terhubung kembali secara otomatis sebentar lagi.
+  pl: Serwer jest aktualizowany. Za chwilę zostaniesz automatycznie ponownie połączony.
+  nl: De server wordt bijgewerkt. U wordt over een ogenblik automatisch opnieuw verbonden.
+  ar: يتم تحديث الخادم. ستتصل مجددًا تلقائيًا خلال لحظة.
+  hi: सर्वर अपडेट हो रहा है। एक पल में आप स्वचालित रूप से पुनः कनेक्ट हो जाएंगे।
+  th: เซิร์ฟเวอร์กำลังได้รับการอัปเดต คุณจะเชื่อมต่อใหม่โดยอัตโนมัติในอีกสักครู่
+  cs: Server se aktualizuje. Za chvíli se automaticky znovu připojíte.
+  sv: Servern uppdateras. Du återansluts automatiskt inom ett ögonblick.
   he: השרת מתעדכן. תתחבר מחדש אוטומטית בעוד רגע.
   verified_by_human: []
 

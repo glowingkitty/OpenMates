@@ -1598,12 +1598,50 @@ context_menu.start_debugging:
   context: Context menu action to enable chat raw text debug mode
   en: Start debugging
   de: Debugging starten
+  zh: 开始调试
+  es: Iniciar depuración
+  fr: Démarrer le débogage
+  pt: Iniciar depuração
+  ru: Начать отладку
+  ja: デバッグ開始
+  ko: 디버깅 시작
+  it: Avvia debug
+  tr: Hata ayıklamayı başlat
+  vi: Bắt đầu gỡ lỗi
+  id: Mulai debugging
+  pl: Rozpocznij debugowanie
+  nl: Debuggen starten
+  ar: بدء التصحيح
+  hi: डीबगिंग शुरू करें
+  th: เริ่มต้นการดีบัก
+  cs: Spustit ladění
+  sv: Starta felsökning
+  he: התחל איתור שגיאות
   verified_by_human: []
 
 context_menu.end_debugging:
   context: Context menu action to disable chat raw text debug mode
   en: End debugging
   de: Debugging beenden
+  zh: 结束调试
+  es: Finalizar depuración
+  fr: Arrêter le débogage
+  pt: Encerrar depuração
+  ru: Завершить отладку
+  ja: デバッグ終了
+  ko: 디버깅 종료
+  it: Termina debug
+  tr: Hata ayıklamayı bitir
+  vi: Kết thúc gỡ lỗi
+  id: Akhiri debugging
+  pl: Zakończ debugowanie
+  nl: Debuggen beëindigen
+  ar: إنهاء التصحيح
+  hi: डीबगिंग समाप्त करें
+  th: สิ้นสุดการดีบัก
+  cs: Ukončit ladění
+  sv: Avsluta felsökning
+  he: סיים איתור שגיאות
   verified_by_human: []
 
 hidden_chats.no_hidden_chats:
@@ -1659,6 +1697,25 @@ activity_history:
   context: ARIA label for the scrollable chat history region in the chats sidebar
   en: Chat history
   de: Chatverlauf
+  zh: 聊天记录
+  es: Historial de chat
+  fr: Historique des discussions
+  pt: Histórico de chat
+  ru: История чатов
+  ja: チャット履歴
+  ko: 채팅 기록
+  it: Cronologia chat
+  tr: Sohbet geçmişi
+  vi: Lịch sử chat
+  id: Riwayat obrolan
+  pl: Historia czatu
+  nl: Chatgeschiedenis
+  ar: سجل المحادثات
+  hi: चैट इतिहास
+  th: ประวัติแชท
+  cs: Historie chatu
+  sv: Chatthistorik
+  he: היסטוריית צ'אט
   verified_by_human: []
 
 search.placeholder:
@@ -2539,4 +2596,23 @@ fork.messages_label:
 search_placeholder:
   en: Search
   de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חפש
   verified_by_human: []
