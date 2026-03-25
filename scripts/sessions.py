@@ -2103,6 +2103,19 @@ def cmd_start(args: argparse.Namespace) -> None:
         sections.append(_box_section("VERCEL (latest deployment)", vercel_content.split("\n")))
 
     run_id = getattr(args, "run_id", None)
+    # Auto-detect latest test run when --mode testing without explicit --run-id
+    if not run_id and mode == "testing":
+        last_run_file = RESULTS_DIR / "last-run.json"
+        if last_run_file.exists():
+            try:
+                with open(last_run_file) as _f:
+                    lr = json.load(_f)
+                auto_run_id = lr.get("run_id", "")
+                if auto_run_id:
+                    run_id = auto_run_id
+                    print(f"  Auto-loaded latest test run: {run_id[:30]}")
+            except (json.JSONDecodeError, OSError):
+                pass
     if run_id:
         run_content = _prefetch_test_run(run_id)
         sections.append(_box_section(f"TEST RUN {run_id[:20]}", run_content.split("\n")))
@@ -2554,18 +2567,17 @@ def cmd_release(args: argparse.Namespace) -> None:
 
 
 def cmd_track(args: argparse.Namespace) -> None:
-    """Track a file as modified by this session (without write lock).
+    """Track one or more files as modified by this session (without write lock).
 
     If --session is omitted, falls back to the most-recently-active session.
-    This allows the OpenCode plugin to call `track --file <path>` without
-    knowing the session ID (it uses whichever session is currently active).
+    Accepts multiple file paths: --file f1 f2 f3.
     """
     data = _load_sessions()
     sessions = data.get("sessions", {})
     sid = args.session
 
     if not sid:
-        # Fall back to most-recently-active session (OpenCode plugin path)
+        # Fall back to most-recently-active session
         if not sessions:
             return  # No active session — silently ignore
         sid = max(
@@ -2577,34 +2589,42 @@ def cmd_track(args: argparse.Namespace) -> None:
         print(f"Error: Session {sid} not found.", file=sys.stderr)
         sys.exit(1)
 
-    filepath = args.file
-    # Make relative to project root for consistent storage
-    try:
-        filepath = str(Path(filepath).resolve().relative_to(PROJECT_ROOT))
-    except ValueError:
-        pass  # Already relative or outside project
+    # Normalise to list (nargs="+" gives a list, but legacy single-string callers
+    # might still pass a string via programmatic use)
+    filepaths_raw = args.file if isinstance(args.file, list) else [args.file]
 
-    # Check for collisions with other sessions
-    for other_sid, other_info in sessions.items():
-        if other_sid == sid:
-            continue
-        other_files = other_info.get("modified_files", [])
-        if filepath in other_files:
-            other_task = other_info.get("task", "?")[:60]
-            print(
-                f"WARNING: File '{filepath}' is also tracked by session "
-                f"{other_sid} ('{other_task}'). "
-                f"Coordinate to avoid overwriting each other's changes."
-            )
+    changed = False
+    for filepath in filepaths_raw:
+        # Make relative to project root for consistent storage
+        try:
+            filepath = str(Path(filepath).resolve().relative_to(PROJECT_ROOT))
+        except ValueError:
+            pass  # Already relative or outside project
 
-    if filepath not in sessions[sid].get("modified_files", []):
-        sessions[sid].setdefault("modified_files", []).append(filepath)
+        # Check for collisions with other sessions
+        for other_sid, other_info in sessions.items():
+            if other_sid == sid:
+                continue
+            other_files = other_info.get("modified_files", [])
+            if filepath in other_files:
+                other_task = other_info.get("task", "?")[:60]
+                print(
+                    f"WARNING: File '{filepath}' is also tracked by session "
+                    f"{other_sid} ('{other_task}'). "
+                    f"Coordinate to avoid overwriting each other's changes."
+                )
+
+        if filepath not in sessions[sid].get("modified_files", []):
+            sessions[sid].setdefault("modified_files", []).append(filepath)
+            changed = True
+            print(f"Tracked '{filepath}' as modified in session {sid}.")
+        else:
+            print(f"File '{filepath}' already tracked in session {sid}.")
+
+    if changed:
         sessions[sid]["last_active"] = _now_iso()
         data["sessions"] = sessions
         _save_sessions(data)
-        print(f"Tracked '{filepath}' as modified in session {sid}.")
-    else:
-        print(f"File '{filepath}' already tracked in session {sid}.")
 
 
 def cmd_track_stdin(args: argparse.Namespace) -> None:
@@ -2886,9 +2906,19 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         print()
 
     if dirty_but_untracked:
+        # Build owner map: file → session ID (if owned by another session)
+        file_owners: dict[str, str] = {}
+        for other_sid, other_info in data.get("sessions", {}).items():
+            if other_sid == sid:
+                continue
+            for of in other_info.get("modified_files", []):
+                file_owners[of] = other_sid
+
         print("Warning — dirty files NOT tracked by this session:")
         for f in sorted(dirty_but_untracked):
-            print(f"  ? {f}")
+            owner = file_owners.get(f)
+            tag = f"  [owned by: {owner}]" if owner else "  [unowned]"
+            print(f"  ? {f}{tag}")
         print()
 
     # Run linter on files to commit
@@ -2991,12 +3021,22 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     ]
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
+    # Build owner map: file → session ID (if owned by another session)
+    file_owners: dict[str, str] = {}
+    for other_sid, other_info in data.get("sessions", {}).items():
+        if other_sid == sid:
+            continue
+        for of in other_info.get("modified_files", []):
+            file_owners[of] = other_sid
+
     if not to_commit:
         # Surface untracked dirty files so the caller knows why nothing was committed
         if dirty_but_untracked:
             print("No tracked files to commit, but these dirty files are NOT tracked by this session:", file=sys.stderr)
             for f in sorted(dirty_but_untracked):
-                print(f"  ? {f}", file=sys.stderr)
+                owner = file_owners.get(f)
+                tag = f"  [owned by: {owner}]" if owner else "  [unowned]"
+                print(f"  ? {f}{tag}", file=sys.stderr)
             print("Run: sessions.py track --session <ID> --file <path>  to include them.", file=sys.stderr)
         else:
             print("No files to commit.")
@@ -3006,7 +3046,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if dirty_but_untracked:
         print("Warning — dirty files NOT tracked by this session (will not be committed):")
         for f in sorted(dirty_but_untracked):
-            print(f"  ? {f}")
+            owner = file_owners.get(f)
+            tag = f"  [owned by: {owner}]" if owner else "  [unowned]"
+            print(f"  ? {f}{tag}")
         print()
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
@@ -3081,10 +3123,28 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     no_verify = getattr(args, "no_verify", False)
     if no_verify:
         print(
-            "WARNING: committing without pre-commit hooks (--no-verify). "
-            "Report the hook bug as a backlog item.",
+            "WARNING: committing without pre-commit hooks (--no-verify).",
             file=sys.stderr,
         )
+        # Auto-create backlog entry to track the hook bypass
+        no_backlog = getattr(args, "no_backlog", False)
+        if not no_backlog:
+            try:
+                bl_data = _load_backlog()
+                next_id = bl_data.get("next_id", max((e.get("id", 0) for e in bl_data["backlog"]), default=0) + 1)
+                bl_entry = {
+                    "id": next_id,
+                    "title": f"Pre-commit hook bypassed in session {sid}: {args.title}",
+                    "description": "Deploy used --no-verify to bypass a pre-commit hook failure. Investigate and fix the hook.",
+                    "files": [],
+                    "added": _now_iso()[:10],
+                }
+                bl_data["backlog"].append(bl_entry)
+                bl_data["next_id"] = next_id + 1
+                _save_backlog(bl_data)
+                print(f"  Backlog entry auto-created: [{next_id}] {bl_entry['title'][:70]}")
+            except Exception as e:
+                print(f"  Warning: could not auto-create backlog entry: {e}", file=sys.stderr)
     commit_cmd = ["git", "commit", "-m", commit_msg]
     if no_verify:
         commit_cmd.append("--no-verify")
@@ -4514,7 +4574,7 @@ def main() -> None:
     p_track.add_argument(
         "--session", "-s", help="Session ID (omit to use most-recently-active session)"
     )
-    p_track.add_argument("--file", "-f", required=True, help="File path")
+    p_track.add_argument("--file", "-f", required=True, nargs="+", help="File path(s)")
 
     # track-stdin (for hooks)
     p_track_stdin = sub.add_parser(
@@ -4601,6 +4661,12 @@ def main() -> None:
         dest="no_verify",
         help="Bypass pre-commit hooks (git commit --no-verify). Use only when a "
         "pre-existing hook bug prevents deploy. WARNING printed to stderr.",
+    )
+    p_deploy.add_argument(
+        "--no-backlog",
+        action="store_true",
+        dest="no_backlog",
+        help="Skip auto-creating a backlog entry when --no-verify is used.",
     )
 
     # lint (run linter on tracked files without deploying)

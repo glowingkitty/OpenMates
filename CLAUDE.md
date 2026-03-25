@@ -47,6 +47,8 @@ python3 scripts/sessions.py start --mode <MODE> --task "brief description"
 
 # 2. After EVERY file edit/create:
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
+# Multiple files in one call:
+python3 scripts/sessions.py track --session <ID> --file path/a.py path/b.ts path/c.svelte
 
 # 3. Deploy (lint + commit + push):
 python3 scripts/sessions.py deploy-docs                  # load git/deployment docs
@@ -62,7 +64,7 @@ python3 scripts/sessions.py end --session <ID>
 ### On-Demand Doc Loading
 
 ```bash
-python3 scripts/sessions.py context --doc <name>   # e.g. debugging, embed-types-ref
+python3 scripts/sessions.py context --doc <name>   # e.g. debugging, add-embed-type
 # Compact docs are loaded by default at session start (e.g. debugging-compact.md).
 # Use context --doc <name> to load the FULL version (e.g. debugging.md, frontend-standards.md).
 ```
@@ -213,6 +215,10 @@ At task completion, save a summary: `sessions.py task-update --id t001 --status 
 
 If you hit a failure **not related to your task**: STOP. Check `git log -5 -- <broken-file>`. If your session didn't change it, report to user.
 
+### Mode Escalation
+
+If during a `--mode question` session you determine file edits are needed, end the session and restart with `--mode feature` (or `bug`) before making changes. Wrong mode omits feature-specific context (project index, architecture docs, test coverage).
+
 ### Debugging Attempt Limit
 
 **2 tries max** with the same approach. Minor variations (different field name, different time window, different log service) count as the same approach.
@@ -248,7 +254,7 @@ python3 scripts/sessions.py deploy --session <ID> --title "type: description" --
 Before any new app, skill, API integration, or significant feature:
 
 1. Search for official docs (never rely on training data for APIs/pricing).
-2. Check `docs/apps/` and `docs/architecture/` for existing research.
+2. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
 3. Ask clarifying questions before writing code. Wait for confirmation.
 
 ### Privacy Policy Updates

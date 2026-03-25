@@ -36,6 +36,9 @@ Commands:
     --all           Show full log (default: errors + warnings only)
     --url <id>      Inspect a specific deployment URL or ID
     --n <N>         Check last N deployments (default: 1)
+    --failed        Show only the most recent ERROR/CANCELED deployment
+    --include-building  Include BUILDING/QUEUED deploys (skipped by default)
+    --no-truncate   Disable smart truncation for large --all output
     --max-events N  Pagination limit (default: 5000, increase if truncated)
   upload-logs     Logs from the upload server (satellite VM)
   preview-logs    Logs from the preview server (satellite VM)
