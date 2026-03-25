@@ -622,6 +622,9 @@ changes to the documentation (to keep the documentation up to date).
                     if (category && category.name_translation_key) {
                         pathLabels.push($text(category.name_translation_key));
                     }
+                } else if (pathParts.length === 2 && pathParts[0] === 'reminder' && pathParts[1] === 'create') {
+                    // Reminder create page: add "Create reminder" to breadcrumb
+                    pathLabels.push($text('reminder.settings.create_title'));
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
                     const skillId = pathParts[2];
                     const skill = app?.skills?.find(s => s.id === skillId);
@@ -635,7 +638,7 @@ changes to the documentation (to keep the documentation up to date).
                         pathLabels.push($text(focusMode.name_translation_key));
                     }
                 }
-                
+
                 if (!app) {
                     // Fallback to translation key if app not found
                     const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
@@ -757,7 +760,8 @@ changes to the documentation (to keep the documentation up to date).
      * instead of the top-level app description + capability counts.
      */
     let isAppSubPage = $derived(
-        /^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) &&
+        (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
+         activeSettingsView === 'app_store/reminder/create') &&
         !isModelDetailPage
     );
 
@@ -860,6 +864,22 @@ changes to the documentation (to keep the documentation up to date).
         mentionSyntax?: string;
     } | null => {
         if (!isAppSubPage) return null;
+
+        // Special case: reminder/create page — show "Create reminder" with reminder gradient
+        if (activeSettingsView === 'app_store/reminder/create') {
+            const appMeta = appSkillsStore.getState().apps['reminder'];
+            if (!appMeta) return null;
+            const rawIcon = appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            return {
+                appId: 'reminder',
+                itemName: $text('reminder.settings.create_title'),
+                itemTypeLabel: $text('reminder.settings.title'),
+                description: $text('reminder.settings.description_new_chat'),
+                iconName,
+                iconType: 'skill',
+            };
+        }
 
         // Parse the route: app_store/{appId}/{type}/{itemId}
         const match = activeSettingsView.match(

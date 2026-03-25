@@ -21,7 +21,6 @@
     import { chatListCache } from '../../../services/chatListCache';
     import { getApiUrl } from '../../../config/api';
     import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
-    import SettingsPageHeader from '../elements/SettingsPageHeader.svelte';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import SettingsTextarea from '../elements/SettingsTextarea.svelte';
     import SettingsDropdown from '../elements/SettingsDropdown.svelte';
@@ -110,13 +109,6 @@
             : []),
         { value: 'new_chat', label: $text('common.new_chat') },
     ]);
-
-    /** Description text that changes based on target type */
-    let descriptionText = $derived(
-        targetType === 'existing_chat' && hasActiveChat
-            ? $text('reminder.settings.description_this_chat')
-            : $text('reminder.settings.description_new_chat')
-    );
 
     // ─── Submission ────────────────────────────────────────────────────────────
 
@@ -210,11 +202,6 @@
 </script>
 
 <SettingsPageContainer>
-    <SettingsPageHeader
-        title={$text('reminder.settings.create_title')}
-        description={descriptionText}
-    />
-
     <!-- Chat context: show which chat the reminder relates to -->
     {#if hasActiveChat}
         <div class="chat-context">
