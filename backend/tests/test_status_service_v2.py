@@ -329,7 +329,7 @@ class TestAPI:
             async with AsyncClient(
                 transport=transport, base_url="http://test"
             ) as client:
-                resp = await client.get("/api/status/v2?env=dev")
+                resp = await client.get("/api/status?env=dev")
         finally:
             status_main.DB_PATH = original_db
             status_main._load_test_results = original_load
@@ -368,7 +368,7 @@ class TestAPI:
             async with AsyncClient(
                 transport=transport, base_url="http://test"
             ) as client:
-                resp = await client.get("/api/status/v2?env=dev")
+                resp = await client.get("/api/status?env=dev")
         finally:
             status_main.DB_PATH = original_db
             status_main._load_test_results = original_load
@@ -405,7 +405,7 @@ class TestAPI:
                 transport=transport, base_url="http://test"
             ) as client:
                 resp = await client.get(
-                    f"/api/status/v2/intraday?env=dev&date={today}&type=service&id=openai"
+                    f"/api/status/intraday?env=dev&date={today}&type=service&id=openai"
                 )
         finally:
             status_main.DB_PATH = original_db
@@ -433,7 +433,7 @@ class TestAPI:
                 transport=transport, base_url="http://test"
             ) as client:
                 resp = await client.get(
-                    f"/api/status/v2/intraday?env=dev&date={today}&type=test&id=chat-flow"
+                    f"/api/status/intraday?env=dev&date={today}&type=test&id=chat-flow"
                 )
         finally:
             status_main.DB_PATH = original_db
@@ -457,7 +457,7 @@ class TestAPI:
                 transport=transport, base_url="http://test"
             ) as client:
                 resp = await client.get(
-                    "/api/status/v2/intraday?date=2026-03-25&type=invalid&id=test"
+                    "/api/status/intraday?date=2026-03-25&type=invalid&id=test"
                 )
         finally:
             status_main.DB_PATH = original_db

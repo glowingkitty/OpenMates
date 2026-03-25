@@ -1,13 +1,13 @@
 /**
  * Status page API client (v3).
- * Fetches from core API /v1/status/v2 endpoints.
+ * Fetches from core API /v1/status endpoints.
  * Architecture: docs/architecture/infrastructure/status-page.md
  */
 
 import { getApiEndpoint } from '@repo/ui';
 import type { StatusResponse, IntraDayCheck, IntraDayTestRun } from './types';
 
-const BASE_PATH = '/v1/status/v2';
+const BASE_PATH = '/v1/status';
 
 export async function fetchStatus(): Promise<StatusResponse> {
 	const res = await fetch(getApiEndpoint(BASE_PATH));

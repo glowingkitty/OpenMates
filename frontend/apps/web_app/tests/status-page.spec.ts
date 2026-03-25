@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Public status page (v3) E2E tests.
- * Verifies the /status route with a mocked /api/status/v2 payload:
+ * Verifies the /status route with a mocked /v1/status payload:
  * banner, service groups, uptime bars, response time charts, E2E test
  * categories, incidents, and error handling.
  * Architecture: docs/architecture/infrastructure/status-page.md
@@ -196,7 +196,7 @@ const MOCK_STATUS_RESPONSE = {
 
 /** Intercept the v2 status API and return the provided payload. */
 async function mockStatusApi(page: any, payload: any, statusCode: number = 200) {
-	await page.route('**/api/status/v2', async (route: any) => {
+	await page.route('**/v1/status', async (route: any) => {
 		await route.fulfill({
 			status: statusCode,
 			contentType: 'application/json',
@@ -441,7 +441,7 @@ test.describe('Status page — error and loading states', () => {
 
 	test('shows loading state initially before data loads', async ({ page }: { page: any }) => {
 		// Delay the API response to observe the loading state
-		await page.route('**/api/status/v2', async (route: any) => {
+		await page.route('**/v1/status', async (route: any) => {
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 			await route.fulfill({
 				status: 200,

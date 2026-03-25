@@ -169,9 +169,9 @@ def _get_response_times(health_data: Dict[str, Any], service_id: str) -> Optiona
     return None
 
 
-@router.get("/v2", dependencies=[])
+@router.get("", dependencies=[])
 @limiter.limit("30/minute")
-async def get_status_v2(request: Request):
+async def get_status(request: Request):
     """Unified status endpoint for the new status page (v3).
 
     Returns all service groups with current status, 90-day uptime bars,
@@ -262,9 +262,9 @@ async def get_status_v2(request: Request):
     }
 
 
-@router.get("/v2/intraday", dependencies=[])
+@router.get("/intraday", dependencies=[])
 @limiter.limit("60/minute")
-async def get_status_v2_intraday(
+async def get_status_intraday(
     request: Request,
     date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
     type: str = Query(..., description="'service' or 'test'"),
