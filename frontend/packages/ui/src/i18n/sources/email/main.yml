@@ -6033,21 +6033,21 @@ security_alert_password_changed:
   zh: 安全警报：您的密码已更改
   es: "Alerta de seguridad: Tu contraseña fue cambiada"
   fr: "Alerte de sécurité : Votre mot de passe a été modifié"
-  pt: ""
-  ru: ""
+  pt: "Alerta de segurança: Sua senha foi alterada"
+  ru: "Предупреждение безопасности: Ваш пароль был изменён"
   ja: "セキュリティアラート: パスワードが変更されました"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "보안 경고: 비밀번호가 변경되었습니다"
+  it: "Avviso di sicurezza: La tua password è stata modificata"
+  tr: "Güvenlik Uyarısı: Parolanız değiştirildi"
+  vi: "Cảnh báo bảo mật: Mật khẩu của bạn đã được thay đổi"
+  id: "Peringatan Keamanan: Kata sandi Anda telah diubah"
+  pl: "Alert bezpieczeństwa: Twoje hasło zostało zmienione"
+  nl: "Beveiligingswaarschuwing: Je wachtwoord is gewijzigd"
+  ar: "تنبيه أمني: تم تغيير كلمة مرورك"
+  hi: "सुरक्षा चेतावनी: आपका पासवर्ड बदल दिया गया"
+  th: "การแจ้งเตือนความปลอดภัย: รหัสผ่านของคุณถูกเปลี่ยนแปลงแล้ว"
+  cs: "Bezpečnostní upozornění: Vaše heslo bylo změněno"
+  sv: "Säkerhetsvarning: Ditt lösenord har ändrats"
   he: "התראת אבטחה: הסיסמה שלך שונתה"
   verified_by_human: []
 security_advice:
@@ -6057,21 +6057,21 @@ security_advice:
   zh: 安全建议
   es: Consejo de seguridad
   fr: Conseil de sécurité
-  pt: ""
-  ru: ""
+  pt: Conselho de segurança
+  ru: Совет по безопасности
   ja: セキュリティアドバイス
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 보안 조언
+  it: Consiglio di sicurezza
+  tr: Güvenlik tavsiyesi
+  vi: Lời khuyên bảo mật
+  id: Saran keamanan
+  pl: Porada bezpieczeństwa
+  nl: Beveiligingsadvies
+  ar: نصيحة أمنية
+  hi: सुरक्षा सलाह
+  th: คำแนะนำด้านความปลอดภัย
+  cs: Bezpečnostní rada
+  sv: Säkerhetsråd
   he: עצת אבטחה
   verified_by_human: []
 generate_unique_passwords:
@@ -6081,21 +6081,21 @@ generate_unique_passwords:
   zh: 为每个网站生成并保存一个独特的密码在您的密码管理器中。
   es: Genera y guarda una contraseña única para cada sitio web en tu gestor de contraseñas.
   fr: Générez et enregistrez un mot de passe unique pour chaque site web dans votre gestionnaire de mots de passe.
-  pt: ""
-  ru: ""
+  pt: Gere e salve uma senha única para cada site no seu gerenciador de senhas.
+  ru: Создавайте и сохраняйте уникальный пароль для каждого сайта в вашем менеджере паролей.
   ja: パスワードマネージャーで各サイト用の固有のパスワードを生成して保存してください。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 비밀번호 관리자에서 각 웹사이트마다 고유한 비밀번호를 생성하고 저장하세요.
+  it: Genera e salva una password unica per ogni sito web nel tuo gestore di password.
+  tr: Her web sitesi için şifre yöneticinizde benzersiz bir şifre oluşturun ve kaydedin.
+  vi: Tạo và lưu mật khẩu duy nhất cho mỗi trang web trong trình quản lý mật khẩu của bạn.
+  id: Buat & simpan kata sandi unik untuk setiap situs web di pengelola kata sandi Anda.
+  pl: Generuj i zapisuj unikalne hasło dla każdej strony w swoim menedżerze haseł.
+  nl: Genereer en sla een uniek wachtwoord op voor elke website in je wachtwoordmanager.
+  ar: قم بإنشاء وحفظ كلمة مرور فريدة لكل موقع في مدير كلمات المرور الخاص بك.
+  hi: अपने पासवर्ड मैनेजर में प्रत्येक वेबसाइट के लिए एक अद्वितीय पासवर्ड बनाएं और सहेजें।
+  th: สร้างและบันทึกรหัสผ่านที่ไม่ซ้ำกันสำหรับแต่ละเว็บไซต์ในตัวจัดการรหัสผ่านของคุณ
+  cs: Vygenerujte a uložte jedinečné heslo pro každý web ve svém správci hesel.
+  sv: Generera och spara ett unikt lösenord för varje webbplats i din lösenordshanterare.
   he: צור ושמור סיסמה ייחודית לכל אתר במנהל הסיסמאות שלך.
   verified_by_human: []
 your_2fa_app_was_changed:
@@ -6105,21 +6105,21 @@ your_2fa_app_was_changed:
   zh: 您的双重认证应用已更改
   es: Tu aplicación 2FA fue cambiada
   fr: Votre application 2FA a été modifiée
-  pt: ""
-  ru: ""
+  pt: Seu aplicativo 2FA foi alterado
+  ru: Ваше приложение 2FA было изменено
   ja: 2FAアプリが変更されました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 2FA 앱이 변경되었습니다
+  it: La tua app 2FA è stata modificata
+  tr: 2FA uygulamanız değiştirildi
+  vi: Ứng dụng 2FA của bạn đã được thay đổi
+  id: Aplikasi 2FA Anda telah diubah
+  pl: Twoja aplikacja 2FA została zmieniona
+  nl: Je 2FA-app is gewijzigd
+  ar: تم تغيير تطبيق 2FA الخاص بك
+  hi: आपका 2FA ऐप बदल दिया गया
+  th: แอป 2FA ของคุณถูกเปลี่ยนแปลงแล้ว
+  cs: Vaše aplikace 2FA byla změněna
+  sv: Din 2FA-app har ändrats
   he: אפליקציית ה-2FA שלך שונתה
   verified_by_human: []
 security_alert_2fa_app_changed:
@@ -6129,21 +6129,21 @@ security_alert_2fa_app_changed:
   zh: 安全警报：您的双重认证应用已更改
   es: "Alerta de seguridad: Tu aplicación 2FA fue cambiada"
   fr: "Alerte de sécurité : Votre application 2FA a été modifiée"
-  pt: ""
-  ru: ""
+  pt: "Alerta de segurança: Seu aplicativo 2FA foi alterado"
+  ru: "Предупреждение безопасности: Ваше приложение 2FA было изменено"
   ja: "セキュリティアラート: 2FAアプリが変更されました"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "보안 경고: 2FA 앱이 변경되었습니다"
+  it: "Avviso di sicurezza: La tua app 2FA è stata modificata"
+  tr: "Güvenlik Uyarısı: 2FA uygulamanız değiştirildi"
+  vi: "Cảnh báo bảo mật: Ứng dụng 2FA của bạn đã được thay đổi"
+  id: "Peringatan Keamanan: Aplikasi 2FA Anda telah diubah"
+  pl: "Alert bezpieczeństwa: Twoja aplikacja 2FA została zmieniona"
+  nl: "Beveiligingswaarschuwing: Je 2FA-app is gewijzigd"
+  ar: "تنبيه أمني: تم تغيير تطبيق 2FA الخاص بك"
+  hi: "सुरक्षा चेतावनी: आपका 2FA ऐप बदल दिया गया"
+  th: "การแจ้งเตือนความปลอดภัย: แอป 2FA ของคุณถูกเปลี่ยนแปลงแล้ว"
+  cs: "Bezpečnostní upozornění: Vaše aplikace 2FA byla změněna"
+  sv: "Säkerhetsvarning: Din 2FA-app har ändrats"
   he: "התראת אבטחה: אפליקציית ה-2FA שלך שונתה"
   verified_by_human: []
 this_is_your_new_2fa_app:
@@ -6153,21 +6153,21 @@ this_is_your_new_2fa_app:
   zh: 这是您的新双重认证应用：
   es: "Esta es tu nueva aplicación 2FA:"
   fr: "Voici votre nouvelle application 2FA :"
-  pt: ""
-  ru: ""
+  pt: "Este é o seu novo aplicativo 2FA:"
+  ru: "Это ваше новое приложение 2FA:"
   ja: "これがあなたの新しい2FAアプリです:"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "이것이 귀하의 새 2FA 앱입니다:"
+  it: "Questa è la tua nuova app 2FA:"
+  tr: "Bu sizin yeni 2FA uygulamanızdır:"
+  vi: "Đây là ứng dụng 2FA mới của bạn:"
+  id: "Ini adalah aplikasi 2FA baru Anda:"
+  pl: "To jest Twoja nowa aplikacja 2FA:"
+  nl: "Dit is je nieuwe 2FA-app:"
+  ar: "هذا هو تطبيق 2FA الجديد الخاص بك:"
+  hi: "यह आपका नया 2FA ऐप है:"
+  th: "นี่คือแอป 2FA ใหม่ของคุณ:"
+  cs: "Toto je vaše nová aplikace 2FA:"
+  sv: "Detta är din nya 2FA-app:"
   he: "זוהי אפליקציית ה-2FA החדשה שלך:"
   verified_by_human: []
 new_invite_codes_created:
@@ -6177,21 +6177,21 @@ new_invite_codes_created:
   zh: 已创建新的邀请码
   es: Nuevos códigos de invitación creados
   fr: Nouveaux codes d'invitation créés
-  pt: ""
-  ru: ""
+  pt: Novos códigos de convite criados
+  ru: Созданы новые коды приглашений
   ja: 新しい招待コードが作成されました
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 새 초대 코드가 생성되었습니다
+  it: Nuovi codici invito creati
+  tr: Yeni davet kodları oluşturuldu
+  vi: Mã mời mới đã được tạo
+  id: Kode undangan baru dibuat
+  pl: Nowe kody zaproszeń zostały utworzone
+  nl: Nieuwe uitnodigingscodes aangemaakt
+  ar: تم إنشاء رموز دعوة جديدة
+  hi: नए आमंत्रण कोड बनाए गए
+  th: สร้างรหัสเชิญใหม่แล้ว
+  cs: Byly vytvořeny nové pozvánkové kódy
+  sv: Nya inbjudningskoder skapades
   he: נוצרו קודי הזמנה חדשים
   verified_by_human: []
 security_alert_new_invite_codes:
@@ -6201,21 +6201,21 @@ security_alert_new_invite_codes:
   zh: 安全警报：已创建新的邀请码
   es: "Alerta de seguridad: Nuevos códigos de invitación creados"
   fr: "Alerte de sécurité : Nouveaux codes d'invitation créés"
-  pt: ""
-  ru: ""
+  pt: "Alerta de segurança: Novos códigos de convite criados"
+  ru: "Предупреждение безопасности: Созданы новые коды приглашений"
   ja: "セキュリティアラート: 新しい招待コードが作成されました"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "보안 경고: 새 초대 코드가 생성되었습니다"
+  it: "Avviso di sicurezza: Nuovi codici invito creati"
+  tr: "Güvenlik Uyarısı: Yeni davet kodları oluşturuldu"
+  vi: "Cảnh báo bảo mật: Mã mời mới đã được tạo"
+  id: "Peringatan Keamanan: Kode undangan baru dibuat"
+  pl: "Alert bezpieczeństwa: Nowe kody zaproszeń zostały utworzone"
+  nl: "Beveiligingswaarschuwing: Nieuwe uitnodigingscodes aangemaakt"
+  ar: "تنبيه أمني: تم إنشاء رموز دعوة جديدة"
+  hi: "सुरक्षा चेतावनी: नए आमंत्रण कोड बनाए गए"
+  th: "การแจ้งเตือนความปลอดภัย: สร้างรหัสเชิญใหม่แล้ว"
+  cs: "Bezpečnostní upozornění: Byly vytvořeny nové pozvánkové kódy"
+  sv: "Säkerhetsvarning: Nya inbjudningskoder skapades"
   he: "התראת אבטחה: נוצרו קודי הזמנה חדשים"
   verified_by_human: []
 new_codes_created:
@@ -6225,21 +6225,21 @@ new_codes_created:
   zh: 您已创建 {count} 个新的邀请码，供新用户加入您的服务器。
   es: Has creado {count} nuevos códigos de invitación para que nuevos usuarios se unan a tu servidor.
   fr: Vous avez créé {count} nouveaux codes d'invitation pour que de nouveaux utilisateurs rejoignent votre serveur.
-  pt: ""
-  ru: ""
+  pt: Você criou {count} novos códigos de convite para novos usuários se juntarem ao seu servidor.
+  ru: Вы создали {count} новых кодов приглашений для новых пользователей, чтобы присоединиться к вашему серверу.
   ja: 新しいユーザーがサーバーに参加できるように{count}個の招待コードを作成しました。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 새 사용자가 서버에 참여할 수 있도록 {count}개의 새 초대 코드를 만들었습니다.
+  it: Hai creato {count} nuovi codici invito per permettere a nuovi utenti di unirsi al tuo server.
+  tr: Yeni kullanıcıların sunucunuza katılması için {count} yeni davet kodu oluşturdunuz.
+  vi: Bạn đã tạo {count} mã mời mới để người dùng mới tham gia máy chủ của bạn.
+  id: Anda membuat {count} kode undangan baru untuk pengguna baru bergabung ke server Anda.
+  pl: Utworzyłeś {count} nowych kodów zaproszeń dla nowych użytkowników do dołączenia do Twojego serwera.
+  nl: Je hebt {count} nieuwe uitnodigingscodes aangemaakt zodat nieuwe gebruikers je server kunnen joinen.
+  ar: لقد أنشأت {count} رموز دعوة جديدة للمستخدمين الجدد للانضمام إلى خادمك.
+  hi: आपने नए उपयोगकर्ताओं के लिए अपने सर्वर में शामिल होने के लिए {count} नए आमंत्रण कोड बनाए।
+  th: คุณสร้างรหัสเชิญใหม่ {count} รหัสสำหรับผู้ใช้ใหม่เพื่อเข้าร่วมเซิร์ฟเวอร์ของคุณ
+  cs: Vytvořili jste {count} nových pozvánkových kódů pro nové uživatele, kteří se mohou připojit k vašemu serveru.
+  sv: Du skapade {count} nya inbjudningskoder för nya användare att gå med i din server.
   he: "יצרת {count} קודי הזמנה חדשים עבור משתמשים חדשים להצטרפות לשרת שלך."
   verified_by_human: []
 if_this_wasnt_you_react_invite_codes:
@@ -6269,25 +6269,81 @@ if_this_wasnt_you_react_invite_codes:
     <a href='{logout_link_delete_invite_codes}'>Cliquez ici pour supprimer les codes d'invitation, déconnecter tous les appareils connectés et réinitialiser vos données de connexion.</a>
 
     "
-  pt: ""
-  ru: ""
+  pt: "Se não foi você, reaja imediatamente!
+
+    <a href='{logout_link_delete_invite_codes}'>Clique aqui para excluir os códigos de convite, fazer logout de todos os dispositivos conectados e redefinir seus dados de login.</a>
+
+    "
+  ru: "Если это были не вы, реагируйте немедленно!
+
+    <a href='{logout_link_delete_invite_codes}'>Нажмите здесь, чтобы удалить коды приглашений, выйти со всех подключённых устройств и сбросить данные входа.</a>
+
+    "
   ja: "これがあなたではない場合、すぐに対応してください！
 
     <a href='{logout_link_delete_invite_codes}'>ここをクリックして、招待コードを削除し、接続されているすべてのデバイスをログアウトし、ログイン情報をリセットしてください。</a>
 
     "
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "본인이 아니라면 즉시 조치하세요!
+
+    <a href='{logout_link_delete_invite_codes}'>여기를 클릭하여 초대 코드를 삭제하고, 연결된 모든 기기에서 로그아웃하고 로그인 데이터를 재설정하세요.</a>
+
+    "
+  it: "Se non sei stato tu, reagisci immediatamente!
+
+    <a href='{logout_link_delete_invite_codes}'>Clicca qui per eliminare i codici invito, disconnettere tutti i dispositivi collegati e reimpostare i tuoi dati di accesso.</a>
+
+    "
+  tr: "Bu siz olmadıysanız, hemen harekete geçin!
+
+    <a href='{logout_link_delete_invite_codes}'>Davet kodlarını silmek, bağlı tüm cihazların oturumunu kapatmak ve giriş bilgilerinizi sıfırlamak için buraya tıklayın.</a>
+
+    "
+  vi: "Nếu không phải bạn, hãy phản ứng ngay lập tức!
+
+    <a href='{logout_link_delete_invite_codes}'>Nhấp vào đây để xóa mã mời, đăng xuất tất cả các thiết bị được kết nối và đặt lại dữ liệu đăng nhập của bạn.</a>
+
+    "
+  id: "Jika bukan Anda, segera ambil tindakan!
+
+    <a href='{logout_link_delete_invite_codes}'>Klik di sini untuk menghapus kode undangan, keluar dari semua perangkat yang terhubung & mengatur ulang data login Anda.</a>
+
+    "
+  pl: "Jeśli to nie byłeś ty, zareaguj natychmiast!
+
+    <a href='{logout_link_delete_invite_codes}'>Kliknij tutaj, aby usunąć kody zaproszeń, wylogować wszystkie podłączone urządzenia i zresetować dane logowania.</a>
+
+    "
+  nl: "Als dit jij niet was, reageer dan onmiddellijk!
+
+    <a href='{logout_link_delete_invite_codes}'>Klik hier om de uitnodigingscodes te verwijderen, alle verbonden apparaten uit te loggen en je inloggegevens te resetten.</a>
+
+    "
+  ar: "إذا لم تكن أنت، فتصرف فوراً!
+
+    <a href='{logout_link_delete_invite_codes}'>انقر هنا لحذف رموز الدعوة وتسجيل الخروج من جميع الأجهزة المتصلة وإعادة تعيين بيانات تسجيل الدخول.</a>
+
+    "
+  hi: "यदि यह आप नहीं थे, तो तुरंत प्रतिक्रिया करें!
+
+    <a href='{logout_link_delete_invite_codes}'>आमंत्रण कोड हटाने, सभी कनेक्टेड डिवाइस से लॉगआउट करने और अपना लॉगिन डेटा रीसेट करने के लिए यहां क्लिक करें।</a>
+
+    "
+  th: "ถ้าไม่ใช่คุณ ให้ดำเนินการทันที!
+
+    <a href='{logout_link_delete_invite_codes}'>คลิกที่นี่เพื่อลบรหัสเชิญ ออกจากระบบอุปกรณ์ที่เชื่อมต่อทั้งหมด และรีเซ็ตข้อมูลการเข้าสู่ระบบของคุณ</a>
+
+    "
+  cs: "Pokud jste to nebyli vy, okamžitě reagujte!
+
+    <a href='{logout_link_delete_invite_codes}'>Kliknutím zde odstraňte pozvánkové kódy, odhlaste všechna připojená zařízení a resetujte přihlašovací údaje.</a>
+
+    "
+  sv: "Om det inte var du, reagera omedelbart!
+
+    <a href='{logout_link_delete_invite_codes}'>Klicka här för att ta bort inbjudningskoderna, logga ut alla anslutna enheter och återställa dina inloggningsuppgifter.</a>
+
+    "
   he: |
     אם זה לא היית אתה, פעל מיד!
     <a href='{logout_link_delete_invite_codes}'>לחץ כאן כדי למחוק את קודי ההזמנה, לנתק את כל המכשירים המחוברים ולאפס את נתוני ההתחברות שלך.</a>
@@ -6587,18 +6643,18 @@ newsletter_confirmed.unsubscribe_text:
   zh: "不想再收到我们的时事通讯？"
   es: "¿Ya no quieres recibir nuestro boletín?"
   fr: "Vous ne souhaitez plus recevoir notre newsletter ?"
-  pt: ""
-  ru: ""
+  pt: "Não quer mais receber nosso boletim informativo?"
+  ru: "Не хотите больше получать нашу рассылку?"
   ja: "ニュースレターの受信を停止しますか？"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
+  ko: "더 이상 뉴스레터를 받고 싶지 않으신가요?"
+  it: "Non vuoi più ricevere la nostra newsletter?"
+  tr: "Artık bültenimizi almak istemiyor musunuz?"
+  vi: "Không muốn nhận bản tin của chúng tôi nữa?"
+  id: "Tidak ingin menerima newsletter kami lagi?"
+  pl: "Nie chcesz już otrzymywać naszego newslettera?"
+  nl: "Wil je onze nieuwsbrief niet meer ontvangen?"
+  ar: "لا تريد تلقي نشرتنا الإخبارية بعد الآن؟"
+  hi: "हमारा न्यूज़लेटर अब और नहीं पाना चाहते?"
   th: "ไม่ต้องการรับจดหมายข่าวของเราอีกต่อไป?"
   cs: "Nechcete už dostávat náš newsletter?"
   sv: "Vill du inte längre få vårt nyhetsbrev?"
@@ -6611,18 +6667,18 @@ newsletter_confirmed.unsubscribe_link:
   zh: "在此退订"
   es: "Darse de baja aquí"
   fr: "Se désabonner ici"
-  pt: ""
-  ru: ""
+  pt: "Cancelar assinatura aqui"
+  ru: "Отписаться здесь"
   ja: "ここで配信停止"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
+  ko: "여기서 구독 취소"
+  it: "Disiscriviti qui"
+  tr: "Buradan abonelikten çık"
+  vi: "Hủy đăng ký tại đây"
+  id: "Berhenti berlangganan di sini"
+  pl: "Wypisz się tutaj"
+  nl: "Hier uitschrijven"
+  ar: "إلغاء الاشتراك هنا"
+  hi: "यहाँ सदस्यता रद्द करें"
   th: "ยกเลิกการสมัครสมาชิกที่นี่"
   cs: "Zde se odhlásit"
   sv: "Avprenumerera här"
@@ -7347,21 +7403,21 @@ account_recovery_title:
   zh: 账户重置
   es: Restablecer cuenta
   fr: Réinitialisation du compte
-  pt: ""
-  ru: ""
+  pt: Redefinição de conta
+  ru: Сброс аккаунта
   ja: アカウントリセット
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 계정 재설정
+  it: Reimpostazione account
+  tr: Hesap Sıfırlama
+  vi: Đặt lại tài khoản
+  id: Reset Akun
+  pl: Resetowanie konta
+  nl: Account resetten
+  ar: إعادة تعيين الحساب
+  hi: खाता रीसेट
+  th: รีเซ็ตบัญชี
+  cs: Resetování účtu
+  sv: Återställning av konto
   he: איפוס חשבון
   verified_by_human: []
 account_recovery_description:
@@ -7371,21 +7427,21 @@ account_recovery_description:
   zh: "您请求重置账户。警告：这将永久删除您的所有聊天记录、设置和回忆。"
   es: "Has solicitado restablecer tu cuenta. ADVERTENCIA: Esto eliminará permanentemente todos tus chats, configuraciones y recuerdos."
   fr: "Vous avez demandé la réinitialisation de votre compte. AVERTISSEMENT : Cela supprimera définitivement tous vos chats, paramètres et souvenirs."
-  pt: ""
-  ru: ""
+  pt: "Você solicitou redefinir sua conta. AVISO: Isso excluirá permanentemente todos os seus chats, configurações e memórias."
+  ru: "Вы запросили сброс вашей учётной записи. ПРЕДУПРЕЖДЕНИЕ: Это навсегда удалит все ваши чаты, настройки и воспоминания."
   ja: "アカウントのリセットをリクエストしました。警告：すべてのチャット、設定、メモリーが永久に削除されます。"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "계정 재설정을 요청했습니다. 경고: 이렇게 하면 모든 채팅, 설정 및 기억이 영구적으로 삭제됩니다."
+  it: "Hai richiesto di reimpostare il tuo account. AVVISO: Questo eliminerà definitivamente tutte le tue chat, impostazioni e ricordi."
+  tr: "Hesabınızı sıfırlamayı talep ettiniz. UYARI: Bu, tüm sohbetlerinizi, ayarlarınızı ve anılarınızı kalıcı olarak silecektir."
+  vi: "Bạn đã yêu cầu đặt lại tài khoản của mình. CẢNH BÁO: Điều này sẽ xóa vĩnh viễn tất cả các cuộc trò chuyện, cài đặt và ký ức của bạn."
+  id: "Anda meminta untuk mereset akun Anda. PERINGATAN: Ini akan menghapus semua obrolan, pengaturan, dan kenangan Anda secara permanen."
+  pl: "Poprosiłeś o zresetowanie konta. OSTRZEŻENIE: Spowoduje to trwałe usunięcie wszystkich Twoich czatów, ustawień i wspomnień."
+  nl: "Je hebt verzocht om je account te resetten. WAARSCHUWING: Dit zal al je chats, instellingen en herinneringen permanent verwijderen."
+  ar: "طلبت إعادة تعيين حسابك. تحذير: سيؤدي هذا إلى حذف جميع محادثاتك وإعداداتك وذكرياتك بشكل دائم."
+  hi: "आपने अपना खाता रीसेट करने का अनुरोध किया। चेतावनी: इससे आपके सभी चैट, सेटिंग्स और यादें स्थायी रूप से हट जाएंगी।"
+  th: "คุณร้องขอให้รีเซ็ตบัญชีของคุณ คำเตือน: การดำเนินการนี้จะลบแชท การตั้งค่า และความทรงจำทั้งหมดของคุณอย่างถาวร"
+  cs: "Požádali jste o resetování svého účtu. VAROVÁNÍ: Tím se trvale odstraní všechny vaše chaty, nastavení a vzpomínky."
+  sv: "Du begärde att återställa ditt konto. VARNING: Detta kommer att permanent radera alla dina chattar, inställningar och minnen."
   he: "ביקשת לאפס את החשבון שלך. אזהרה: פעולה זו תמחק לצמיתות את כל הצ'אטים, ההגדרות והזיכרונות שלך."
   verified_by_human: []
 code_valid_15_minutes:
@@ -7395,21 +7451,21 @@ code_valid_15_minutes:
   zh: 此代码在15分钟内有效。
   es: Este código es válido durante 15 minutos.
   fr: Ce code est valide pendant 15 minutes.
-  pt: ""
-  ru: ""
+  pt: Este código é válido por 15 minutos.
+  ru: Этот код действителен в течение 15 минут.
   ja: このコードは15分間有効です。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: 이 코드는 15분 동안 유효합니다.
+  it: Questo codice è valido per 15 minuti.
+  tr: Bu kod 15 dakika geçerlidir.
+  vi: Mã này có hiệu lực trong 15 phút.
+  id: Kode ini berlaku selama 15 menit.
+  pl: Ten kod jest ważny przez 15 minut.
+  nl: Deze code is 15 minuten geldig.
+  ar: هذا الرمز صالح لمدة 15 دقيقة.
+  hi: यह कोड 15 मिनट के लिए मान्य है।
+  th: รหัสนี้ใช้ได้เป็นเวลา 15 นาที
+  cs: Tento kód platí 15 minut.
+  sv: Den här koden är giltig i 15 minuter.
   he: קוד זה תקף ל-15 דקות.
   verified_by_human: []
 # AI Response Email Notification - sent when user is offline and AI completes a response
@@ -7751,6 +7807,7 @@ action_verification_title:
   th: ยืนยันการดำเนินการของคุณ
   cs: Ověřte svou akci
   sv: Verifiera din åtgärd
+  he: אמת את הפעולה שלך
   verified_by_human: []
 
 action_verification_description:
@@ -7775,6 +7832,7 @@ action_verification_description:
   th: คุณขอรหัสยืนยันสำหรับการดำเนินการที่ละเอียดอ่อนบนบัญชีของคุณ
   cs: Požádali jste o ověřovací kód pro citlivou akci na vašem účtu.
   sv: Du begärde en verifieringskod för en känslig åtgärd på ditt konto.
+  he: ביקשת קוד אימות לפעולה רגישה בחשבון שלך.
   verified_by_human: []
 
 action_verification_expires:
@@ -7799,6 +7857,7 @@ action_verification_expires:
   th: รหัสนี้จะหมดอายุใน 10 นาที
   cs: Platnost tohoto kódu vyprší za 10 minut.
   sv: Denna kod upphör att gälla om 10 minuter.
+  he: קוד זה פג תוקף בעוד 10 דקות.
   verified_by_human: []
 
 action_verification_subject:
@@ -7823,6 +7882,7 @@ action_verification_subject:
   th: "รหัสยืนยันของคุณ: {code}"
   cs: "Váš ověřovací kód: {code}"
   sv: "Din verifieringskod: {code}"
+  he: "קוד האימות שלך: {code}"
   verified_by_human: []
 
 # ── API Key: new device notification ────────────────────────────────────────
