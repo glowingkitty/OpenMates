@@ -2161,6 +2161,7 @@ interface ReminderFiredPayload {
   chat_title?: string; // For new_chat target
   user_id: string; // User's UUID (used for WebSocket routing)
   fired_at?: number; // Unix timestamp when the reminder actually fired (set by backend)
+  response_type?: "simple" | "full"; // "simple" = notification-only, "full" = AI executes task
 }
 
 /**
@@ -2380,8 +2381,10 @@ export async function handleReminderFiredImpl(
       }),
     );
 
-    // Dispatch reminderFiredInChat event so ActiveChat can trigger an AI follow-up
-    // The AI should acknowledge the reminder and help the user with the task
+    // Dispatch reminderFiredInChat event so ActiveChat can trigger an AI follow-up.
+    // Only relevant for response_type="full" — simple reminders are notification-only
+    // and should NOT trigger any AI request (which would fail credit checks).
+    const response_type = payload.response_type || "simple";
     serviceInstance.dispatchEvent(
       new CustomEvent("reminderFiredInChat", {
         detail: {
@@ -2389,6 +2392,7 @@ export async function handleReminderFiredImpl(
           message_id: message_id,
           content: content,
           target_type: target_type,
+          response_type: response_type,
         },
       }),
     );

@@ -1364,6 +1364,102 @@ reminder_notification.open_chat_button:
   sv: Öppna chatt
   he: "פתח צ'אט"
   verified_by_human: []
+reminder_notification.header_task:
+  context: Header text for task reminder email (Type B - new chat with AI task)
+  en: Your Task Has Been Executed
+  de: Deine Aufgabe wurde ausgeführt
+  zh: 您的任务已执行
+  es: Tu tarea ha sido ejecutada
+  fr: Votre tâche a été exécutée
+  pt: Sua tarefa foi executada
+  ru: Ваша задача выполнена
+  ja: タスクが実行されました
+  ko: 작업이 실행되었습니다
+  it: La tua attività è stata eseguita
+  tr: Göreviniz yürütüldü
+  vi: Nhiệm vụ của bạn đã được thực hiện
+  id: Tugas Anda telah dijalankan
+  pl: Twoje zadanie zostało wykonane
+  nl: Je taak is uitgevoerd
+  ar: تم تنفيذ مهمتك
+  hi: आपका कार्य निष्पादित हो गया है
+  th: งานของคุณถูกดำเนินการแล้ว
+  cs: Váš úkol byl proveden
+  sv: Din uppgift har utförts
+  he: המשימה שלך בוצעה
+  verified_by_human: [en, de]
+reminder_notification.description_task:
+  context: Description for task reminder email (Type B)
+  en: Your scheduled task has been executed. Check the results in your new chat.
+  de: Deine geplante Aufgabe wurde ausgeführt. Überprüfe die Ergebnisse in deinem neuen Chat.
+  zh: 您的计划任务已执行。请在新聊天中查看结果。
+  es: Tu tarea programada ha sido ejecutada. Revisa los resultados en tu nuevo chat.
+  fr: Votre tâche planifiée a été exécutée. Consultez les résultats dans votre nouveau chat.
+  pt: Sua tarefa agendada foi executada. Verifique os resultados no seu novo chat.
+  ru: Ваша запланированная задача выполнена. Проверьте результаты в новом чате.
+  ja: 予定されたタスクが実行されました。新しいチャットで結果を確認してください。
+  ko: 예약된 작업이 실행되었습니다. 새 채팅에서 결과를 확인하세요.
+  it: La tua attività programmata è stata eseguita. Controlla i risultati nella nuova chat.
+  tr: Zamanlanmış göreviniz yürütüldü. Sonuçları yeni sohbetinizde kontrol edin.
+  vi: Nhiệm vụ đã lên lịch của bạn đã được thực hiện. Kiểm tra kết quả trong chat mới.
+  id: Tugas terjadwal Anda telah dijalankan. Periksa hasilnya di chat baru Anda.
+  pl: Twoje zaplanowane zadanie zostało wykonane. Sprawdź wyniki w nowym czacie.
+  nl: Je geplande taak is uitgevoerd. Bekijk de resultaten in je nieuwe chat.
+  ar: تم تنفيذ مهمتك المجدولة. تحقق من النتائج في محادثتك الجديدة.
+  hi: आपका निर्धारित कार्य निष्पादित हो गया है। नए चैट में परिणाम जांचें।
+  th: งานที่กำหนดเวลาของคุณถูกดำเนินการแล้ว ตรวจสอบผลลัพธ์ในแชทใหม่ของคุณ
+  cs: Váš naplánovaný úkol byl proveden. Zkontrolujte výsledky v novém chatu.
+  sv: Din schemalagda uppgift har utförts. Kontrollera resultaten i din nya chatt.
+  he: המשימה המתוזמנת שלך בוצעה. בדוק את התוצאות בצ'אט החדש שלך.
+  verified_by_human: [en, de]
+reminder_notification.description_chat:
+  context: Description for chat reminder email (Type A - existing chat notification)
+  en: You asked to be reminded about this chat.
+  de: Du wolltest an diesen Chat erinnert werden.
+  zh: 您要求提醒您关注此聊天。
+  es: Pediste que te recordaran este chat.
+  fr: Vous avez demandé un rappel pour ce chat.
+  pt: Você pediu para ser lembrado sobre este chat.
+  ru: Вы просили напомнить об этом чате.
+  ja: このチャットのリマインダーを設定しました。
+  ko: 이 채팅에 대한 알림을 요청하셨습니다.
+  it: Hai chiesto di essere ricordato di questa chat.
+  tr: Bu sohbet hakkında hatırlatılmak istediniz.
+  vi: Bạn đã yêu cầu nhắc về chat này.
+  id: Anda meminta untuk diingatkan tentang chat ini.
+  pl: Prosiłeś o przypomnienie o tym czacie.
+  nl: Je hebt gevraagd om herinnerd te worden aan deze chat.
+  ar: طلبت أن يتم تذكيرك بهذه المحادثة.
+  hi: आपने इस चैट के बारे में याद दिलाने के लिए कहा था।
+  th: คุณขอให้แจ้งเตือนเรื่องแชทนี้
+  cs: Požádal/a jste o připomenutí tohoto chatu.
+  sv: Du bad om att bli påmind om denna chatt.
+  he: ביקשת שיזכירו לך את הצ'אט הזה.
+  verified_by_human: [en, de]
+reminder_notification.task_label:
+  context: Label for the task content in task reminder email
+  en: Your task
+  de: Deine Aufgabe
+  zh: 您的任务
+  es: Tu tarea
+  fr: Votre tâche
+  pt: Sua tarefa
+  ru: Ваша задача
+  ja: あなたのタスク
+  ko: 작업 내용
+  it: La tua attività
+  tr: Göreviniz
+  vi: Nhiệm vụ của bạn
+  id: Tugas Anda
+  pl: Twoje zadanie
+  nl: Je taak
+  ar: مهمتك
+  hi: आपका कार्य
+  th: งานของคุณ
+  cs: Váš úkol
+  sv: Din uppgift
+  he: המשימה שלך
+  verified_by_human: [en, de]
 
 test_failure_notification.header:
   context: Header text in test failure notification email body

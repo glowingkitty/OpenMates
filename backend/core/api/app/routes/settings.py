@@ -164,6 +164,175 @@ async def get_active_reminders(
         raise HTTPException(status_code=500, detail="Failed to fetch reminders")
 
 
+# --- Endpoint for updating a reminder ---
+class UpdateReminderRequest(BaseModel):
+    """Request body for PATCH /v1/settings/reminders/{reminder_id}."""
+    trigger_datetime: Optional[str] = Field(None, description="New ISO 8601 datetime")
+    timezone: Optional[str] = Field(None, description="New timezone")
+    prompt: Optional[str] = Field(None, description="New prompt text")
+    target_type: Optional[str] = Field(None, description="new_chat or existing_chat")
+    response_type: Optional[str] = Field(None, description="simple or full")
+    repeat: Optional[Dict[str, Any]] = Field(None, description="New repeat config (or null to remove)")
+    new_chat_title: Optional[str] = Field(None, description="New chat title for new_chat target")
+
+
+@router.patch("/reminders/{reminder_id}", include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_reminder_endpoint(
+    reminder_id: str,
+    request: Request,
+    body: UpdateReminderRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Update a pending reminder's schedule, prompt, or configuration.
+    Only the reminder owner can update it. Only pending reminders can be edited.
+    """
+    try:
+        user_id = current_user.id
+        hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+
+        directus_service = getattr(request.app.state, 'directus_service', None)
+        if not directus_service:
+            raise HTTPException(status_code=500, detail="Service unavailable")
+
+        # Fetch the reminder and verify ownership
+        reminder = await directus_service.reminder.get_reminder(reminder_id)
+        if not reminder:
+            raise HTTPException(status_code=404, detail="Reminder not found")
+        if reminder.get("hashed_user_id") != hashed_uid:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        if reminder.get("status") != "pending":
+            raise HTTPException(status_code=400, detail="Only pending reminders can be edited")
+
+        vault_key_id = reminder.get("vault_key_id")
+        if not vault_key_id:
+            raise HTTPException(status_code=500, detail="Missing encryption key")
+
+        update_data: Dict[str, Any] = {}
+
+        # Update trigger_at if datetime provided
+        if body.trigger_datetime is not None:
+            from backend.apps.reminder.utils import parse_specific_datetime, validate_timezone
+            tz = body.timezone or reminder.get("timezone", "UTC")
+            if not validate_timezone(tz):
+                raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
+            try:
+                new_trigger_at = parse_specific_datetime(body.trigger_datetime, tz)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            if new_trigger_at <= int(time.time()):
+                raise HTTPException(status_code=400, detail="Reminder time must be in the future")
+            update_data["trigger_at"] = new_trigger_at
+            if body.timezone:
+                update_data["timezone"] = tz
+
+        # Update prompt if provided
+        if body.prompt is not None:
+            encrypted_prompt, _ = await encryption_service.encrypt_with_user_key(
+                plaintext=body.prompt, key_id=vault_key_id
+            )
+            update_data["encrypted_prompt"] = encrypted_prompt
+
+        # Update new_chat_title if provided
+        if body.new_chat_title is not None:
+            encrypted_title, _ = await encryption_service.encrypt_with_user_key(
+                plaintext=body.new_chat_title, key_id=vault_key_id
+            )
+            update_data["encrypted_new_chat_title"] = encrypted_title
+
+        # Update target_type
+        if body.target_type is not None:
+            if body.target_type not in ("new_chat", "existing_chat"):
+                raise HTTPException(status_code=400, detail="Invalid target_type")
+            update_data["target_type"] = body.target_type
+
+        # Update response_type
+        if body.response_type is not None:
+            if body.response_type not in ("simple", "full"):
+                raise HTTPException(status_code=400, detail="Invalid response_type")
+            update_data["response_type"] = body.response_type
+
+        # Update repeat config
+        if body.repeat is not None:
+            update_data["repeat_config"] = body.repeat if body.repeat else None
+
+        if not update_data:
+            return {"success": True, "message": "Nothing to update"}
+
+        success = await directus_service.reminder.update_reminder(reminder_id, update_data)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update reminder")
+
+        # Update hot cache if trigger_at changed and is within 48h window
+        if "trigger_at" in update_data:
+            hot_window = 48 * 3600
+            new_trigger = update_data["trigger_at"]
+            current_time = int(time.time())
+            # Remove old entry and re-add if in window
+            await cache_service.remove_reminder_from_cache(reminder_id)
+            if new_trigger <= current_time + hot_window:
+                cache_data = dict(reminder)
+                cache_data.update(update_data)
+                cache_data["reminder_id"] = reminder_id
+                cache_data["user_id"] = user_id
+                await cache_service.load_reminder_into_cache(cache_data)
+
+        logger.info(f"Updated reminder {reminder_id} for user {user_id[:8]}... fields: {list(update_data.keys())}")
+        return {"success": True, "message": "Reminder updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating reminder {reminder_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update reminder")
+
+
+# --- Endpoint for deleting/cancelling a reminder ---
+@router.delete("/reminders/{reminder_id}", include_in_schema=False)
+@limiter.limit("30/minute")
+async def delete_reminder_endpoint(
+    reminder_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Cancel and delete a pending reminder. Only the owner can delete it.
+    """
+    try:
+        user_id = current_user.id
+        hashed_uid = hashlib.sha256(user_id.encode()).hexdigest()
+
+        directus_service = getattr(request.app.state, 'directus_service', None)
+        if not directus_service:
+            raise HTTPException(status_code=500, detail="Service unavailable")
+
+        # Fetch and verify ownership
+        reminder = await directus_service.reminder.get_reminder(reminder_id)
+        if not reminder:
+            raise HTTPException(status_code=404, detail="Reminder not found")
+        if reminder.get("hashed_user_id") != hashed_uid:
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        # Mark as cancelled in DB
+        await directus_service.reminder.update_reminder(reminder_id, {"status": "cancelled"})
+
+        # Remove from hot cache
+        await cache_service.remove_reminder_from_cache(reminder_id)
+
+        logger.info(f"Cancelled reminder {reminder_id} for user {user_id[:8]}...")
+        return {"success": True, "message": "Reminder cancelled"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting reminder {reminder_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete reminder")
+
+
 # --- Endpoint for Privacy & Apps Consent ---
 @router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of consent updates

@@ -248,54 +248,79 @@ panel.action_prompt_placeholder:
   he: מה עלי לעשות כשהתזכורת הזו מופעלת?
   verified_by_human: [en, de]
 
-panel.note:
-  context: Label for the note input shown when response type is "notification"
-  en: Note
-  de: Notiz
-  zh: 备注
-  es: Nota
-  fr: Note
-  pt: Nota
-  ru: Заметка
-  ja: メモ
-  ko: 메모
-  it: Nota
-  tr: Not
-  vi: Ghi chú
-  id: Catatan
-  pl: Notatka
-  nl: Notitie
-  ar: ملاحظة
-  hi: नोट
-  th: หมายเหตุ
-  cs: Poznámka
-  sv: Anteckning
-  he: הערה
+panel.mode_this_chat:
+  context: Toggle button label — remind me about this chat (notification only, no AI)
+  en: Remind me about this chat
+  de: An diesen Chat erinnern
+  zh: 提醒我关注此聊天
+  es: Recordarme este chat
+  fr: Me rappeler ce chat
+  pt: Lembrar-me deste chat
+  ru: Напомнить об этом чате
+  ja: このチャットのリマインダー
+  ko: 이 채팅 알림
+  it: Ricordami questa chat
+  tr: Bu sohbeti hatırlat
+  vi: Nhắc tôi về chat này
+  id: Ingatkan tentang chat ini
+  pl: Przypomnij o tym czacie
+  nl: Herinner mij aan deze chat
+  ar: ذكرني بهذه المحادثة
+  hi: इस चैट की याद दिलाएं
+  th: เตือนเรื่องแชทนี้
+  cs: Připomenout tento chat
+  sv: Påminn mig om denna chatt
+  he: הזכר לי את הצ'אט הזה
   verified_by_human: [en, de]
 
-panel.note_placeholder:
-  context: Placeholder for the note input in the reminder setter panel (also used as default prompt when no note is entered)
-  en: Optional note
-  de: Optionale Notiz
-  zh: 可选备注
-  es: Nota opcional
-  fr: Note optionnelle
-  pt: Nota opcional
-  ru: Необязательная заметка
-  ja: オプションメモ
-  ko: 선택적 메모
-  it: Nota opzionale
-  tr: İsteğe bağlı not
-  vi: Ghi chú tùy chọn
-  id: Catatan opsional
-  pl: Opcjonalna notatka
-  nl: Optionele notitie
-  ar: ملاحظة اختيارية
-  hi: वैकल्पिक नोट
-  th: หมายเหตุเสริม
-  cs: Volitelná poznámka
-  sv: Valfri anteckning
-  he: הערה אופציונלית
+panel.mode_new_task:
+  context: Toggle button label — create a new chat and have AI execute a task
+  en: New chat with task
+  de: Neuer Chat mit Aufgabe
+  zh: 带任务的新聊天
+  es: Nuevo chat con tarea
+  fr: Nouveau chat avec tâche
+  pt: Novo chat com tarefa
+  ru: Новый чат с задачей
+  ja: タスク付き新規チャット
+  ko: 작업이 있는 새 채팅
+  it: Nuova chat con attività
+  tr: Görevli yeni sohbet
+  vi: Chat mới với nhiệm vụ
+  id: Chat baru dengan tugas
+  pl: Nowy czat z zadaniem
+  nl: Nieuw chat met taak
+  ar: محادثة جديدة مع مهمة
+  hi: कार्य के साथ नया चैट
+  th: แชทใหม่พร้อมงาน
+  cs: Nový chat s úkolem
+  sv: Ny chatt med uppgift
+  he: צ'אט חדש עם משימה
+  verified_by_human: [en, de]
+
+panel.auto_prompt:
+  context: Auto-generated prompt used for simple notification reminders (shown in system message when reminder fires)
+  en: Check back on this chat
+  de: Schau nochmal in diesen Chat
+  zh: 回来查看此聊天
+  es: Revisa este chat de nuevo
+  fr: Revenez sur ce chat
+  pt: Volte a ver este chat
+  ru: Вернитесь к этому чату
+  ja: このチャットを確認する
+  ko: 이 채팅을 다시 확인하세요
+  it: Ricontrolla questa chat
+  tr: Bu sohbete tekrar göz at
+  vi: Kiểm tra lại chat này
+  id: Periksa kembali chat ini
+  pl: Wróć do tego czatu
+  nl: Bekijk deze chat opnieuw
+  ar: تحقق من هذه المحادثة مجدداً
+  hi: इस चैट को दोबारा देखें
+  th: กลับมาดูแชทนี้อีกครั้ง
+  cs: Zkontrolujte tento chat
+  sv: Kolla den här chatten igen
+  he: חזור לצ'אט הזה
   verified_by_human: [en, de]
 
 panel.repeat:

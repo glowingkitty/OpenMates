@@ -21,24 +21,36 @@
       <mj-section>
         <mj-column>
           <!-- Notification Icon for Reminder -->
-          <!-- NOTE: Using mail.png until a dedicated bell/notification icon is added to icons/ -->
           <mj-image width="50px" height="50px" src="icons/mail.png" align="center" css-class="email-icon-50" />
+          {% if is_new_chat %}
+          <!-- Type B: New chat with task -->
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ t.email.reminder_notification.header_task.text }}</mark>
+          </mj-text>
+          <mj-text font-size="18px" padding-bottom="20px">
+            {{ t.email.reminder_notification.description_task.text }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="20px" css-class="reminder-content">
+            <strong>{{ t.email.reminder_notification.task_label.text }}:</strong><br/><br/>
+            {{ reminder_prompt | safe }}
+          </mj-text>
+          {% else %}
+          <!-- Type A: Notification about existing chat -->
           <mj-text font-size="30px" padding-bottom="20px">
             <mark>{{ t.email.reminder_notification.header.text }}</mark>
           </mj-text>
+          {% if chat_title %}
+          <mj-text font-size="18px" padding-bottom="20px">
+            {{ t.email.reminder_notification.description_chat.text }}
+          </mj-text>
+          <mj-text font-size="20px" font-weight="bold" padding-bottom="20px">
+            {{ chat_title }}
+          </mj-text>
+          {% else %}
           <mj-text font-size="18px" padding-bottom="20px">
             {{ t.email.reminder_notification.description.text }}
           </mj-text>
-          <!-- Reminder Message -->
-          <mj-text font-size="16px" padding-bottom="20px" css-class="reminder-content">
-            <strong>{{ t.email.reminder_notification.reminder_label.text }}:</strong><br/><br/>
-            {{ reminder_prompt | safe }}
-          </mj-text>
-          <!-- Chat Info -->
-          {% if chat_title %}
-          <mj-text font-size="14px" color="#808080" padding-bottom="10px">
-            {{ t.email.reminder_notification.chat_label.text }}: {{ chat_title }}
-          </mj-text>
+          {% endif %}
           {% endif %}
           <!-- Trigger Time -->
           <mj-text font-size="14px" color="#808080" padding-bottom="30px">

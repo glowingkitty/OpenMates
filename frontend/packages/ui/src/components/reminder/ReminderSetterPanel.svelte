@@ -40,9 +40,8 @@
 
   let date = $state('');
   let time = $state('');
-  let note = $state('');
-  let targetType = $state<'existing_chat' | 'new_chat'>('existing_chat');
-  let responseType = $state<'simple' | 'full'>('simple');
+  /** Single toggle: 'this_chat' (simple notification) or 'new_task' (new chat + AI action) */
+  let reminderMode = $state<'this_chat' | 'new_task'>('this_chat');
   let actionPrompt = $state('');
   let repeatType = $state<'none' | 'daily' | 'weekly' | 'monthly' | 'custom'>('none');
   let customInterval = $state(1);
@@ -84,9 +83,15 @@
     isSubmitting = true;
 
     try {
-      const prompt = responseType === 'full' && actionPrompt.trim()
+      // Map the single toggle to backend fields
+      const isNewTask = reminderMode === 'new_task';
+      const targetType = isNewTask ? 'new_chat' : 'existing_chat';
+      const responseType = isNewTask ? 'full' : 'simple';
+      // For this_chat: auto-generate a standard prompt (no note needed)
+      // For new_task: use the action prompt the user typed
+      const prompt = isNewTask && actionPrompt.trim()
         ? actionPrompt.trim()
-        : (note.trim() || $text('reminder.panel.note_placeholder'));
+        : $text('reminder.panel.auto_prompt');
 
       const body: Record<string, unknown> = {
         prompt,
@@ -99,7 +104,7 @@
         _chat_id: chatId,
       };
 
-      if (targetType === 'new_chat') {
+      if (isNewTask) {
         body.new_chat_title = prompt.slice(0, 50);
       }
 
@@ -183,52 +188,30 @@
       </div>
     </div>
 
-    <!-- Target -->
+    <!-- Reminder mode toggle -->
     <div class="field">
       <div class="toggle-row">
         <button
           type="button"
           class="toggle-btn"
-          class:active={targetType === 'existing_chat'}
-          onclick={() => (targetType = 'existing_chat')}
+          class:active={reminderMode === 'this_chat'}
+          onclick={() => (reminderMode = 'this_chat')}
         >
-          {$text('reminder.panel.target_this_chat')}
+          {$text('reminder.panel.mode_this_chat')}
         </button>
         <button
           type="button"
           class="toggle-btn"
-          class:active={targetType === 'new_chat'}
-          onclick={() => (targetType = 'new_chat')}
+          class:active={reminderMode === 'new_task'}
+          onclick={() => (reminderMode = 'new_task')}
         >
-          {$text('common.new_chat')}
+          {$text('reminder.panel.mode_new_task')}
         </button>
       </div>
     </div>
 
-    <!-- Response type -->
-    <div class="field">
-      <div class="toggle-row">
-        <button
-          type="button"
-          class="toggle-btn"
-          class:active={responseType === 'simple'}
-          onclick={() => (responseType = 'simple')}
-        >
-          {$text('reminder.panel.type_notification')}
-        </button>
-        <button
-          type="button"
-          class="toggle-btn"
-          class:active={responseType === 'full'}
-          onclick={() => (responseType = 'full')}
-        >
-          {$text('reminder.panel.type_action')}
-        </button>
-      </div>
-    </div>
-
-    <!-- Note or action prompt -->
-    {#if responseType === 'full'}
+    <!-- Action prompt (only for new task mode) -->
+    {#if reminderMode === 'new_task'}
       <div class="field">
         <label class="field-label" for="rsp-action">{$text('reminder.panel.action_prompt_label')}</label>
         <textarea
@@ -238,17 +221,6 @@
           placeholder={$text('reminder.panel.action_prompt_placeholder')}
           rows="2"
         ></textarea>
-      </div>
-    {:else}
-      <div class="field">
-        <label class="field-label" for="rsp-note">{$text('reminder.panel.note')}</label>
-        <input
-          id="rsp-note"
-          class="field-input"
-          type="text"
-          bind:value={note}
-          placeholder={$text('reminder.panel.note_placeholder')}
-        />
       </div>
     {/if}
 
@@ -313,7 +285,7 @@
       <button
         type="submit"
         class="btn-submit"
-        disabled={isSubmitting || !date || !time}
+        disabled={isSubmitting || !date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
       >
         {isSubmitting ? $text('reminder.panel.setting') : $text('reminder.panel.submit')}
       </button>

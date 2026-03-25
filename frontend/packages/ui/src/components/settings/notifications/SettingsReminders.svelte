@@ -21,7 +21,6 @@
     import { chatListCache } from '../../../services/chatListCache';
     import { getApiUrl } from '../../../config/api';
     import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
-    import SettingsInput from '../elements/SettingsInput.svelte';
     import SettingsTextarea from '../elements/SettingsTextarea.svelte';
     import SettingsDropdown from '../elements/SettingsDropdown.svelte';
     import SettingsButton from '../elements/SettingsButton.svelte';
@@ -50,9 +49,8 @@
 
     let date = $state('');
     let time = $state('');
-    let note = $state('');
-    let targetType = $state<'existing_chat' | 'new_chat'>('existing_chat');
-    let responseType = $state('simple');
+    /** Single toggle: 'this_chat' (simple notification) or 'new_task' (new chat + AI action) */
+    let reminderMode = $state<'this_chat' | 'new_task'>('this_chat');
     let actionPrompt = $state('');
     let repeatType = $state('none');
     let customInterval = $state('1');
@@ -64,10 +62,10 @@
     let successMessage = $state('');
     let refreshTrigger = $state(0);
 
-    // Default to new_chat if no active chat context
+    // Default to new_task if no active chat context
     $effect(() => {
         if (!hasActiveChat) {
-            targetType = 'new_chat';
+            reminderMode = 'new_task';
         }
     });
 
@@ -98,16 +96,11 @@
         { value: 'months', label: $text('reminder.panel.repeat_months') },
     ]);
 
-    let responseTypeOptions = $derived([
-        { value: 'simple', label: $text('reminder.panel.type_notification') },
-        { value: 'full', label: $text('reminder.panel.type_action') },
-    ]);
-
-    let targetTypeOptions = $derived([
+    let reminderModeOptions = $derived([
         ...(hasActiveChat
-            ? [{ value: 'existing_chat', label: $text('reminder.panel.target_this_chat') }]
+            ? [{ value: 'this_chat', label: $text('reminder.panel.mode_this_chat') }]
             : []),
-        { value: 'new_chat', label: $text('common.new_chat') },
+        { value: 'new_task', label: $text('reminder.panel.mode_new_task') },
     ]);
 
     // ─── Submission ────────────────────────────────────────────────────────────
@@ -128,9 +121,13 @@
         isSubmitting = true;
 
         try {
-            const prompt = responseType === 'full' && actionPrompt.trim()
+            // Map single toggle to backend fields
+            const isNewTask = reminderMode === 'new_task';
+            const targetType = isNewTask ? 'new_chat' : 'existing_chat';
+            const responseType = isNewTask ? 'full' : 'simple';
+            const prompt = isNewTask && actionPrompt.trim()
                 ? actionPrompt.trim()
-                : (note.trim() || $text('reminder.panel.note_placeholder'));
+                : $text('reminder.panel.auto_prompt');
 
             const body: Record<string, unknown> = {
                 prompt,
@@ -182,9 +179,8 @@
             successMessage = $text('reminder.settings.success');
             date = '';
             time = '';
-            note = '';
             actionPrompt = '';
-            responseType = 'simple';
+            reminderMode = hasActiveChat ? 'this_chat' : 'new_task';
             repeatType = 'none';
             customInterval = '1';
             customUnit = 'days';
@@ -214,19 +210,17 @@
         </div>
     {/if}
 
-    <!-- Target type: this chat vs new chat -->
-    {#if hasActiveChat}
-        <SettingsItem
-            type="heading"
-            icon="chat"
-            title={$text('reminder.settings.target_heading')}
-        />
-        <SettingsDropdown
-            bind:value={targetType}
-            options={targetTypeOptions}
-            ariaLabel={$text('reminder.settings.target_heading')}
-        />
-    {/if}
+    <!-- Reminder mode: this chat notification vs new task -->
+    <SettingsItem
+        type="heading"
+        icon="reminder"
+        title={$text('reminder.settings.target_heading')}
+    />
+    <SettingsDropdown
+        bind:value={reminderMode}
+        options={reminderModeOptions}
+        ariaLabel={$text('reminder.settings.target_heading')}
+    />
 
     <!-- Date -->
     <SettingsItem
@@ -259,31 +253,8 @@
         />
     </div>
 
-    <!-- Response type -->
-    <SettingsItem
-        type="heading"
-        icon="reminder"
-        title={$text('reminder.panel.type_notification')}
-    />
-    <SettingsDropdown
-        bind:value={responseType}
-        options={responseTypeOptions}
-        ariaLabel={$text('reminder.panel.type_notification')}
-    />
-
-    <!-- Note or action prompt -->
-    {#if responseType === 'simple'}
-        <SettingsItem
-            type="heading"
-            icon="text"
-            title={$text('reminder.panel.note')}
-        />
-        <SettingsInput
-            bind:value={note}
-            placeholder={$text('reminder.panel.note_placeholder')}
-            ariaLabel={$text('reminder.panel.note')}
-        />
-    {:else}
+    <!-- Action prompt (only for new task mode) -->
+    {#if reminderMode === 'new_task'}
         <SettingsItem
             type="heading"
             icon="text"
@@ -363,7 +334,7 @@
     <SettingsButton
         variant="primary"
         loading={isSubmitting}
-        disabled={!date || !time}
+        disabled={!date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
         onClick={handleSubmit}
     >
         {isSubmitting ? $text('reminder.panel.setting') : $text('reminder.panel.submit')}
