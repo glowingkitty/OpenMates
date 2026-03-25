@@ -158,13 +158,19 @@
 
   /**
    * Limit visible columns in the preview so no column is squeezed unreadable.
-   * The preview card is ~260px wide (300px card - padding/border).
+   * Standard preview card is ~260px wide (300px card - padding/border).
+   * In large preview mode, we measure the actual container width to show more columns.
    * We greedily include columns whose cumulative width fits, then show "+N cols".
-   * This way a wide table shows 2–3 readable columns instead of 8 truncated ones.
    */
-  const PREVIEW_CARD_WIDTH = 260;
+  const PREVIEW_CARD_WIDTH_STANDARD = 260;
+  let measuredContainerWidth = $state(0);
+  let columnBudget = $derived(
+    isLargePreview && measuredContainerWidth > 0
+      ? measuredContainerWidth - 20
+      : PREVIEW_CARD_WIDTH_STANDARD
+  );
   let visibleColCount = $derived.by(() => {
-    let budget = PREVIEW_CARD_WIDTH;
+    let budget = columnBudget;
     let count = 0;
     for (const w of colWidths) {
       if (budget - w < 0 && count > 0) break;
@@ -231,7 +237,7 @@
 >
   {#snippet details({ isMobile: isMobileSnippet, isLarge: isLargeSnippet })}
     {(isLargePreview = isLargeSnippet, undefined)}
-    <div class="sheet-preview" class:mobile={isMobileSnippet}>
+    <div class="sheet-preview" class:mobile={isMobileSnippet} bind:clientWidth={measuredContainerWidth}>
       {#if status === 'processing'}
         <!-- Skeleton loading -->
         <div class="skeleton-table">
