@@ -11,7 +11,7 @@ from typing import Optional, Any
 logger = logging.getLogger(__name__)
 
 
-def create_payment(
+async def create_payment(
     service_instance: Any,
     client_id: str,
     amount: float,
@@ -65,7 +65,7 @@ def create_payment(
         payload["transaction_reference"] = transaction_reference
 
     logger.debug(f"Payment payload: {payload}")
-    response_data = service_instance.make_api_request('POST', '/payments', data=payload)
+    response_data = await service_instance.make_api_request('POST', '/payments', data=payload)
 
     if response_data is not None and 'data' in response_data:
         new_payment = response_data['data']
@@ -81,7 +81,7 @@ def create_payment(
         return None
 
 
-def find_payment_by_invoice(
+async def find_payment_by_invoice(
     service_instance: Any,
     invoice_id: str,
     client_id: Optional[str] = None
@@ -113,8 +113,8 @@ def find_payment_by_invoice(
     if client_id:
         search_params["client_id"] = client_id
     
-    response_data = service_instance.make_api_request('GET', '/payments', params=search_params)
-    
+    response_data = await service_instance.make_api_request('GET', '/payments', params=search_params)
+
     if response_data and 'data' in response_data:
         payments = response_data['data']
         if payments and len(payments) > 0:
@@ -135,7 +135,7 @@ def find_payment_by_invoice(
     return None
 
 
-def find_payment_by_transaction_reference(
+async def find_payment_by_transaction_reference(
     service_instance: Any,
     transaction_reference: str,
     client_id: Optional[str] = None
@@ -167,8 +167,8 @@ def find_payment_by_transaction_reference(
     if client_id:
         search_params["client_id"] = client_id
     
-    response_data = service_instance.make_api_request('GET', '/payments', params=search_params)
-    
+    response_data = await service_instance.make_api_request('GET', '/payments', params=search_params)
+
     if response_data and 'data' in response_data:
         payments = response_data['data']
         if payments and len(payments) > 0:
@@ -188,7 +188,7 @@ def find_payment_by_transaction_reference(
     return None
 
 
-def find_payment_by_invoice_and_transaction_reference(
+async def find_payment_by_invoice_and_transaction_reference(
     service_instance: Any,
     invoice_id: str,
     transaction_reference: str,
@@ -220,8 +220,8 @@ def find_payment_by_invoice_and_transaction_reference(
     if client_id:
         search_params["client_id"] = client_id
     
-    response_data = service_instance.make_api_request('GET', '/payments', params=search_params)
-    
+    response_data = await service_instance.make_api_request('GET', '/payments', params=search_params)
+
     if response_data and 'data' in response_data:
         payments = response_data['data']
         if payments:
@@ -245,7 +245,7 @@ def find_payment_by_invoice_and_transaction_reference(
     return None
 
 
-def refund_payment(
+async def refund_payment(
     service_instance: Any,
     payment_id: str,
     refund_amount: float,
@@ -279,7 +279,7 @@ def refund_payment(
     if payment_invoice_id:
         logger.info(f"Using payment_invoice_id: {payment_invoice_id} for refund.")
     else:
-        logger.warning(f"No payment_invoice_id provided for refund. Using empty string for 'id' field in invoices array (may fail).")
+        logger.warning("No payment_invoice_id provided for refund. Using empty string for 'id' field in invoices array (may fail).")
     
     # Invoice Ninja refund endpoint: POST /api/v1/payments/refund
     # The payment ID and invoice details go in the request body
@@ -309,7 +309,7 @@ def refund_payment(
     if not email_receipt:
         query_params["email_receipt"] = "false"
     
-    response_data = service_instance.make_api_request('POST', '/payments/refund', params=query_params, data=payload)
+    response_data = await service_instance.make_api_request('POST', '/payments/refund', params=query_params, data=payload)
     
     if response_data is not None:
         # The refund endpoint returns details of the refund
@@ -320,7 +320,7 @@ def refund_payment(
         return False
 
 
-def create_credit_payment(
+async def create_credit_payment(
     service_instance: Any,
     client_id: str,
     amount: float,
@@ -395,7 +395,7 @@ def create_credit_payment(
     logger.debug(f"Credit payment payload (applied to credit): {payload}")
     # Use email_receipt=false query parameter to prevent Invoice Ninja from sending payment receipt email
     query_params = {"email_receipt": False}
-    response_data = service_instance.make_api_request('POST', '/payments', params=query_params, data=payload)
+    response_data = await service_instance.make_api_request('POST', '/payments', params=query_params, data=payload)
 
     if response_data is not None and 'data' in response_data:
         new_payment = response_data['data']

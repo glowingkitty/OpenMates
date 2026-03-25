@@ -9,7 +9,7 @@ from typing import Optional, Any
 logger = logging.getLogger(__name__)
 
 
-def create_bank_transaction(
+async def create_bank_transaction(
         service_instance: Any,
         processor_bank_account_id: str,
         bank_integration_id: int,
@@ -50,7 +50,7 @@ def create_bank_transaction(
         "currency_code": currency_code
     }
 
-    response_data = service_instance.make_api_request('POST', '/bank_transactions', data=payload)
+    response_data = await service_instance.make_api_request('POST', '/bank_transactions', data=payload)
 
     if response_data is not None and 'data' in response_data:
         new_transaction = response_data['data']
@@ -65,7 +65,7 @@ def create_bank_transaction(
         logger.error("Failed to create bank transaction.")
         return None
         
-def match_transaction_to_payment(service_instance: Any, transaction_id: str, payment_id: str) -> bool:
+async def match_transaction_to_payment(service_instance: Any, transaction_id: str, payment_id: str) -> bool:
     """
     Matches a bank transaction to an existing payment in Invoice Ninja.
 
@@ -90,7 +90,7 @@ def match_transaction_to_payment(service_instance: Any, transaction_id: str, pay
         ]
     }
 
-    response_data = service_instance.make_api_request('POST', endpoint, data=payload)
+    response_data = await service_instance.make_api_request('POST', endpoint, data=payload)
 
     # The match endpoint might return 200 OK with data or just 200/204 on success without specific data
     if response_data is not None:

@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 
-def find_client_by_hash(service_instance: Any, user_hash: str) -> Optional[str]:
+async def find_client_by_hash(service_instance: Any, user_hash: str) -> Optional[str]:
     """
     Searches for an existing client using the hash in the custom field.
 
@@ -21,18 +21,18 @@ def find_client_by_hash(service_instance: Any, user_hash: str) -> Optional[str]:
     Returns:
         The client ID if found, otherwise None.
     """
-    logger.info(f"Searching for client...")
+    logger.info("Searching for client...")
     params = {
         'filter': user_hash,  # Use the broad filter for searching by hash
         'status': 'active'  # Add filter to only search for active clients
     }
-    response_data = service_instance.make_api_request('GET', '/clients', params=params)
+    response_data = await service_instance.make_api_request('GET', '/clients', params=params)
 
     if response_data is not None and 'data' in response_data:
         clients = response_data['data']
         if len(clients) > 0:
             client_id = clients[0]['id']
-            logger.info(f"Found existing client'")
+            logger.info("Found existing client")
             return client_id
         else:
             logger.info("Client not found with this hash.")
@@ -42,7 +42,7 @@ def find_client_by_hash(service_instance: Any, user_hash: str) -> Optional[str]:
         return None
 
 
-def create_client(service_instance: Any, user_hash: str, external_order_id: str, client_details: Dict[str, Any]) -> Optional[str]:
+async def create_client(service_instance: Any, user_hash: str, external_order_id: str, client_details: Dict[str, Any]) -> Optional[str]:
     """
     Creates a new client, storing the hash and order ID in custom fields.
 
@@ -81,7 +81,7 @@ def create_client(service_instance: Any, user_hash: str, external_order_id: str,
         del payload["country_id"]
         logger.warning(f"country_id not provided for client hash {user_hash}. It's a required field.")
 
-    response_data = service_instance.make_api_request('POST', '/clients', data=payload)
+    response_data = await service_instance.make_api_request('POST', '/clients', data=payload)
 
     if response_data is not None and 'data' in response_data:
         new_client = response_data['data']
