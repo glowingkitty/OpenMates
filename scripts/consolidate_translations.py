@@ -678,7 +678,7 @@ def main():
         consolidatable = [c for c in consolidatable if c["en_text"] == args.value]
         if not consolidatable:
             print(f"No consolidatable entries found for en: \"{args.value}\"", file=sys.stderr)
-            print(f"Try: --min-occurrences 2 or --max-length 50", file=sys.stderr)
+            print("Try: --min-occurrences 2 or --max-length 50", file=sys.stderr)
             sys.exit(1)
 
     if args.dry_run or args.plan:
@@ -716,9 +716,9 @@ def main():
         print(f"  New common.yml keys: {total_summary['keys_added_to_common']}")
         print(f"  Keys removed from source files: {total_summary['keys_removed']}")
         print(f"  Component files updated: {total_summary['component_files_updated']}")
-        print(f"\nNext steps:")
-        print(f"  1. cd frontend/packages/ui && npm run build:translations")
-        print(f"  2. node frontend/packages/ui/scripts/validate-locales.js")
+        print("\nNext steps:")
+        print("  1. cd frontend/packages/ui && npm run build:translations")
+        print("  2. node frontend/packages/ui/scripts/validate-locales.js")
         print(f"{'=' * 70}")
 
 

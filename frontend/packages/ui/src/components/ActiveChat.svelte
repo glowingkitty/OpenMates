@@ -93,6 +93,7 @@
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { reminderContext } from '../stores/reminderContextStore'; // For passing chat context to reminder settings
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
@@ -3119,7 +3120,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function startProcessingStepProgression(isNewChat: boolean) {
         // Set the initial spinner text immediately
         const initialText = isNewChat
-            ? $text('enter_message.status.generating_title')
+            ? $text('common.processing')
             : $text('enter_message.status.analyzing_message');
 
         // Record when the overlay first became visible so we can enforce a minimum
@@ -9189,7 +9190,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
                     {#if showWelcome && !hideWelcomeForKeyboard}
-                        <div class="daily-inspiration-area">
+                        <div class="daily-inspiration-area" out:fade={{ duration: 200 }}>
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
@@ -9211,13 +9212,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <button
                                         class="new-chat-cta-button"
                                         data-action="new-chat"
-                                        aria-label={$text('chat.new_chat')}
+                                        aria-label={$text('common.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}
                                         use:tooltip
                                     >
                                         <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                        <span class="new-chat-cta-label">{$text('chat.new_chat')}</span>
+                                        <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
                                     </button>
                                 </div>
                             {/if}
@@ -9323,6 +9324,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div
                             class="center-content"
                             bind:this={welcomeContentEl}
+                            out:fade={{ duration: 200 }}
                         >
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
@@ -9487,7 +9489,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                     {#if meta.summary}
                                                         <p class="resume-large-summary">{meta.summary}</p>
                                                     {/if}
@@ -9510,7 +9512,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
-                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
                                                     <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
@@ -9582,7 +9584,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                     {#if meta.summary}
                                                         <p class="resume-large-summary">{meta.summary}</p>
                                                     {/if}
@@ -9605,7 +9607,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
-                                                    <span class="resume-chat-title">{meta.title || $text('chat.untitled_chat')}</span>
+                                                    <span class="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
                                                     <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
@@ -9696,10 +9698,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
                          {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                             <NewChatSuggestions
-                                 messageInputContent={liveInputText}
-                                 onSuggestionClick={handleSuggestionClick}
-                             />
+                             <div in:fade={{ duration: 200, delay: 200 }} out:fade={{ duration: 200 }}>
+                                 <NewChatSuggestions
+                                     messageInputContent={liveInputText}
+                                     onSuggestionClick={handleSuggestionClick}
+                                 />
+                             </div>
                          {/if}
 
 
