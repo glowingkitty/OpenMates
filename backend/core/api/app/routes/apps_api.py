@@ -2922,6 +2922,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             
             if should_expose_get:
                 get_handler = create_get_skill_handler(app_id, skill, app_metadata)
+                get_unique_name = f"get_skill_{app_id}_{skill.id}"
+                get_handler.__name__ = get_unique_name
+                get_handler.__qualname__ = get_unique_name
                 app.add_api_route(
                     path=f"/v1/apps/{app_id}/skills/{skill.id}",
                     endpoint=limiter.limit("60/minute")(get_handler),
@@ -2951,7 +2954,13 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 continue
 
             post_handler = create_post_skill_handler(app_id, skill, app_metadata)
-            
+            # Give each handler a unique name so slowapi registers separate rate
+            # limit counters per skill (closures share the same __name__ by default,
+            # causing all skills to collide in slowapi's _route_limits registry).
+            unique_name = f"post_skill_{app_id}_{skill.id}"
+            post_handler.__name__ = unique_name
+            post_handler.__qualname__ = unique_name
+
             # Determine response model - check if handler uses a custom response model
             # by inspecting its return type annotation
             import inspect
