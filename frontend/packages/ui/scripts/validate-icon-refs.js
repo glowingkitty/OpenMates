@@ -1,19 +1,19 @@
 // frontend/packages/ui/scripts/validate-icon-refs.js
 //
 // Build-time validation: ensures every icon name referenced in SettingsItem
-// components resolves to a valid --icon-url-{name} CSS variable.
+// and AppDetailsHeader components resolves to a valid --icon-url-{name} CSS variable.
 //
 // Catches mismatches like icon="mates" → --icon-url-mates (doesn't exist;
 // the SVG is mate.svg → --icon-url-mate). Runs as part of the build pipeline
 // after generate-icon-urls.js so the generated CSS file is already up to date.
 //
 // Validates two things:
-//   1. ICON_NAME_MAP values in SettingsItem.svelte point to real SVG files
-//   2. Icon names used in SettingsItem resolve (via ICON_NAME_MAP or directly)
+//   1. ICON_NAME_MAP values in iconNameResolver.ts point to real SVG files
+//   2. Icon names used in components resolve (via ICON_NAME_MAP or directly)
 //      to an existing --icon-url-{name} CSS variable
 //
 // Architecture: docs/architecture/settings-ui.md
-// Related: scripts/generate-icon-urls.js
+// Related: scripts/generate-icon-urls.js, src/utils/iconNameResolver.ts
 
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { resolve, dirname, basename } from "path";
@@ -24,13 +24,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const ICONS_DIR = resolve(__dirname, "../static/icons");
-const SETTINGS_ITEM = resolve(
-  __dirname,
-  "../src/components/SettingsItem.svelte",
-);
+const ICON_RESOLVER = resolve(__dirname, "../src/utils/iconNameResolver.ts");
 const ICON_SVELTE = resolve(__dirname, "../src/components/Icon.svelte");
 
-// Only scan directories that contain SettingsItem usage
+// Directories to scan for icon usage
 const SCAN_DIRS = [
   resolve(__dirname, "../src"),
   resolve(__dirname, "../../web_app/src"),
@@ -59,17 +56,17 @@ function getAvailableIconNames() {
 }
 
 /**
- * Parse ICON_NAME_MAP from SettingsItem.svelte source.
+ * Parse ICON_NAME_MAP from the shared iconNameResolver.ts.
  */
 function parseIconNameMap() {
-  const content = readFileSync(SETTINGS_ITEM, "utf-8");
+  const content = readFileSync(ICON_RESOLVER, "utf-8");
 
   const mapMatch = content.match(
-    /const\s+ICON_NAME_MAP[^{]*\{([^}]+)\}/s,
+    /export\s+const\s+ICON_NAME_MAP[^{]*\{([^}]+)\}/s,
   );
   if (!mapMatch) {
     console.error(
-      "[validate-icon-refs] Could not parse ICON_NAME_MAP from SettingsItem.svelte",
+      "[validate-icon-refs] Could not parse ICON_NAME_MAP from iconNameResolver.ts",
     );
     process.exit(1);
   }
@@ -84,7 +81,7 @@ function parseIconNameMap() {
 }
 
 /**
- * Mirror SettingsItem's resolveIconName() logic:
+ * Mirror iconNameResolver's resolveIconName() logic:
  * strip "subsetting_icon " prefix, then map through ICON_NAME_MAP.
  */
 function resolveIconName(name, iconNameMap) {
@@ -95,11 +92,10 @@ function resolveIconName(name, iconNameMap) {
 }
 
 /**
- * Find icon="..." and icon: '...' usages in .svelte files that import or
- * use SettingsItem. We focus on .svelte files in settings/ paths and the
- * SettingsItem prop itself.
+ * Find icon="..." and icon: '...' usages in .svelte files that use SettingsItem
+ * or AppDetailsHeader (both resolve icons via ICON_NAME_MAP).
  */
-function findSettingsItemIconUsages() {
+function findSettingsIconUsages() {
   const usages = [];
 
   for (const dir of SCAN_DIRS) {
@@ -121,10 +117,12 @@ function findSettingsItemIconUsages() {
     for (const file of files) {
       const content = readFileSync(file, "utf-8");
 
-      // Only check files that actually use SettingsItem
+      // Only check files that use SettingsItem or AppDetailsHeader
       if (
         !content.includes("SettingsItem") &&
-        !content.includes("settingsItem")
+        !content.includes("settingsItem") &&
+        !content.includes("AppDetailsHeader") &&
+        !content.includes("settingsPage")
       ) {
         continue;
       }
@@ -144,7 +142,7 @@ function findSettingsItemIconUsages() {
         });
       }
 
-      // Pattern 2: icon: 'value' (JS object dispatched to SettingsItem)
+      // Pattern 2: icon: 'value' (JS object dispatched to SettingsItem/AppDetailsHeader)
       const objRe = /\bicon\s*:\s*['"]([^'"]+)['"]/g;
       while ((m = objRe.exec(content)) !== null) {
         const val = m[1];
@@ -165,7 +163,7 @@ function findSettingsItemIconUsages() {
 function validate() {
   const availableNames = getAvailableIconNames();
   const iconNameMap = parseIconNameMap();
-  const usages = findSettingsItemIconUsages();
+  const usages = findSettingsIconUsages();
   const errors = [];
 
   // 1. Validate ICON_NAME_MAP values point to real SVG names
@@ -205,7 +203,7 @@ function validate() {
       console.error(`  • ${err}`);
     }
     console.error(
-      "\nFix: add a mapping in ICON_NAME_MAP (SettingsItem.svelte) or add the SVG to static/icons/.\n",
+      "\nFix: add a mapping in ICON_NAME_MAP (src/utils/iconNameResolver.ts) or add the SVG to static/icons/.\n",
     );
     process.exit(1);
   }

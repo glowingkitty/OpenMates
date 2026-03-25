@@ -82,6 +82,7 @@
 
 import asyncio
 import hashlib
+import json
 import logging
 import time
 from datetime import datetime, timezone
@@ -89,6 +90,10 @@ from typing import Any, Dict, List, Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.user.device_management import (
+    DEVICE_EXPIRY_DAYS,
+    _normalize_device_list,
+)
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -96,6 +101,9 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # ─── Rate-limit constants ─────────────────────────────────────────────────────
+
+# Maximum number of users to process per device-expiry daily run.
+MAX_DEVICE_EXPIRY_USERS_PER_RUN: int = 500
 
 # Maximum number of chats to schedule for deletion per user per daily run.
 # If a user has more stale chats they will be handled over subsequent runs.
@@ -828,6 +836,143 @@ def auto_delete_old_usage(self) -> Dict[str, Any]:
     except Exception as e:
         logger.error(
             f"[UsageAutoDelete] Task failed. task_id={task_id}: {e}", exc_info=True
+        )
+        raise self.retry(exc=e)
+    finally:
+        if loop:
+            loop.close()
+
+
+# ─── Task 4: auto_expire_stale_devices ─────────────────────────────────────────
+# Removes stale device fingerprints from all users' connected_devices lists.
+#
+# How it works:
+#   - Each device record now stores {hash, first_seen, last_seen} timestamps.
+#   - This task queries all users who have a non-empty connected_devices field.
+#   - For each user, it removes device entries whose last_seen is older than
+#     DEVICE_EXPIRY_DAYS (90 days). Legacy entries with last_seen=0 (migrated
+#     from the old plain-string format) are also treated as expired.
+#   - Updates both Directus and cache when stale devices are removed.
+#
+# GDPR rationale:
+#   - Data minimization (Article 5(1)(c)): device fingerprints should not be
+#     stored indefinitely. 90 days is sufficient for new-device detection.
+#   - Users returning after 90+ days will see a "new device" security prompt,
+#     which is correct security behavior.
+#
+# Schedule: every day at 04:00 UTC (staggered from other auto-delete tasks).
+
+
+async def _async_auto_expire_stale_devices() -> Dict[str, Any]:
+    """Remove device entries not seen within DEVICE_EXPIRY_DAYS from all users."""
+    from backend.core.api.app.services.cache import CacheService
+
+    cache_service = CacheService()
+    encryption_service = EncryptionService()
+    directus_service = DirectusService(
+        cache_service=cache_service,
+        encryption_service=encryption_service,
+    )
+
+    cutoff = int(time.time()) - (DEVICE_EXPIRY_DAYS * 86400)
+    users_processed = 0
+    users_cleaned = 0
+    devices_removed = 0
+
+    try:
+        # Fetch users with non-null connected_devices
+        users = await directus_service.get_items(
+            "directus_users",
+            params={
+                "filter[connected_devices][_nnull]": True,
+                "fields": "id,connected_devices",
+                "limit": MAX_DEVICE_EXPIRY_USERS_PER_RUN,
+            },
+        )
+
+        if not users or not isinstance(users, list):
+            logger.info("[DeviceExpiry] No users with connected_devices found.")
+            return {"users_processed": 0, "users_cleaned": 0, "devices_removed": 0}
+
+        logger.info(f"[DeviceExpiry] Found {len(users)} user(s) with connected_devices.")
+
+        for user_record in users:
+            user_id = user_record.get("id")
+            if not user_id:
+                continue
+
+            users_processed += 1
+            raw = user_record.get("connected_devices")
+            devices = _normalize_device_list(raw)
+
+            if not devices:
+                continue
+
+            # Partition: keep devices seen after cutoff, remove the rest
+            kept = [d for d in devices if d.get("last_seen", 0) > cutoff]
+            removed_count = len(devices) - len(kept)
+
+            if removed_count == 0:
+                continue
+
+            users_cleaned += 1
+            devices_removed += removed_count
+            logger.info(
+                f"[DeviceExpiry] User {user_id[:6]}...: removing {removed_count} stale device(s), "
+                f"keeping {len(kept)}"
+            )
+
+            serialized = json.dumps(kept)
+            try:
+                # Update Directus
+                user_url = f"{directus_service.base_url}/users/{user_id}"
+                await directus_service._make_api_request(
+                    "PATCH", user_url, json={"connected_devices": serialized}
+                )
+                # Update cache
+                await cache_service.update_user(user_id, {"connected_devices": serialized})
+            except Exception as e:
+                logger.error(
+                    f"[DeviceExpiry] Failed to update devices for user {user_id[:6]}...: {e}",
+                    exc_info=True,
+                )
+
+        summary = {
+            "users_processed": users_processed,
+            "users_cleaned": users_cleaned,
+            "devices_removed": devices_removed,
+        }
+        logger.info(f"[DeviceExpiry] Completed. {summary}")
+        return summary
+
+    except Exception as e:
+        logger.error(f"[DeviceExpiry] Fatal error: {e}", exc_info=True)
+        raise
+    finally:
+        await directus_service.close()
+
+
+@app.task(
+    name="app.tasks.auto_delete_tasks.auto_expire_stale_devices",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=300,
+)
+def auto_expire_stale_devices(self) -> Dict[str, Any]:
+    """Celery task wrapper: remove device entries older than DEVICE_EXPIRY_DAYS."""
+    task_id = self.request.id
+    logger.info(f"[DeviceExpiry] Task started. task_id={task_id}")
+
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_async_auto_expire_stale_devices())
+        logger.info(f"[DeviceExpiry] Task completed. Summary: {result}")
+        return result
+    except Exception as e:
+        logger.error(
+            f"[DeviceExpiry] Task failed. task_id={task_id}: {e}", exc_info=True
         )
         raise self.retry(exc=e)
     finally:
