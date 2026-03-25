@@ -71,7 +71,7 @@
     <div class="pricing-tier" class:recommended={tier.recommended}>
         <div class="tier-main">
             <span class="tier-credits">
-                {formatCredits(tier.credits)} {$text('settings.billing.credits')}
+                {formatCredits(tier.credits)} {$text('common.credits')}
             </span>
             {#if tier.recommended}
                 <span class="tier-badge">{$text('settings.pricing.recommended')}</span>

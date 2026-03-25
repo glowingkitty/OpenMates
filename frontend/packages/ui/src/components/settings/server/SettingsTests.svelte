@@ -263,7 +263,7 @@
             </div>
             {#if lastRun}
                 <div class="schedule-item">
-                    <span class="schedule-label">{$text('settings.server.tests.duration')}</span>
+                    <span class="schedule-label">{$text('common.duration')}</span>
                     <span class="schedule-value">{durationDisplay}</span>
                 </div>
             {/if}

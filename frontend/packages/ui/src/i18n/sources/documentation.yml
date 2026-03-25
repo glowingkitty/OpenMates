@@ -286,30 +286,6 @@ back_to_chats:
   sv: Tillbaka till chattar
   he: חזרה לצ'אטים
   verified_by_human: []
-tabs.docs:
-  context: Tab label for the documentation tab in the header navigation toggle
-  en: Docs
-  de: Docs
-  zh: 文档
-  es: Docs
-  fr: Docs
-  pt: Docs
-  ru: Документы
-  ja: ドキュメント
-  ko: 문서
-  it: Docs
-  tr: Belgeler
-  vi: Tài liệu
-  id: Dokumen
-  pl: Dokumenty
-  nl: Docs
-  ar: المستندات
-  hi: दस्तावेज़
-  th: เอกสาร
-  cs: Dokumentace
-  sv: Dokumentation
-  he: תיעוד
-  verified_by_human: []
 actions.share:
   context: Tooltip for the share button on docs pages - copies the page URL to clipboard
   en: Share page
@@ -429,28 +405,4 @@ actions.ask_question:
   cs: Zeptejte se na tuto dokumentaci...
   sv: Fråga om den här dokumentationen...
   he: שאל על התיעוד הזה...
-  verified_by_human: []
-tabs.chat:
-  context: Tab label for the chat tab in the header navigation toggle
-  en: Chat
-  de: Chat
-  zh: 聊天
-  es: Chat
-  fr: Chat
-  pt: Chat
-  ru: Чат
-  ja: チャット
-  ko: 채팅
-  it: Chat
-  tr: Sohbet
-  vi: Trò chuyện
-  id: Obrolan
-  pl: Czat
-  nl: Chat
-  ar: دردشة
-  hi: चैट
-  th: แชท
-  cs: Chat
-  sv: Chatt
-  he: צ'אט
   verified_by_human: []

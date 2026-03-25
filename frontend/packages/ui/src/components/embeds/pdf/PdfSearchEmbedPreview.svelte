@@ -67,7 +67,7 @@
    * i18n skill name shown in the BasicInfosBar header line (e.g. "Search" / "Suche").
    * This is always the skill name — never the filename — per the embed card convention.
    */
-  let skillName = $derived($text('app_skills.pdf.search.skill_name'));
+  let skillName = $derived($text('common.search'));
 
   /**
    * Truncated filename or generic "PDF" fallback — shown in the card body details area.
@@ -105,7 +105,7 @@
         const truncStr = truncated ? ' (first 50 shown)' : '';
         return query ? `"${query}" \u2014 ${matchStr}${truncStr}` : `${matchStr}${truncStr}`;
       }
-      return $text('app_skills.pdf.search');
+      return $text('common.search');
     }
     return '';
   });

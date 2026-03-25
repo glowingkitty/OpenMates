@@ -403,7 +403,7 @@
                 {#if chatTotalCredits !== null && chatTotalCredits > 0}
                     <div class="chat-credits">
                         <div class="clickable-icon icon_coins"></div>
-                        {formatCredits(chatTotalCredits)} {$text('chats.context_menu.credits')}
+                        {formatCredits(chatTotalCredits)} {$text('common.credits')}
                     </div>
                 {/if}
             </div>
@@ -484,7 +484,7 @@
                 >
                     <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
                     <span class:shimmer={downloading}>
-                        {downloading ? $text('chats.context_menu.downloading') : $text('chats.context_menu.download')}
+                        {downloading ? $text('chats.context_menu.downloading') : $text('common.download')}
                     </span>
                 </button>
             {/if}
@@ -495,7 +495,7 @@
                     onclick={(event) => handleButtonClick('copy', event)}
                 >
                     <div class="clickable-icon icon_copy"></div>
-                    {$text('chats.context_menu.copy')}
+                    {$text('common.copy')}
                 </button>
             {/if}
 
@@ -511,7 +511,7 @@
                     }}
                 >
                     <div class="clickable-icon icon_share"></div>
-                    {$text('chats.context_menu.share')}
+                    {$text('common.share')}
                 </button>
             {/if}
 
@@ -606,7 +606,7 @@
                     onclick={(event) => handleButtonClick('delete', event)}
                 >
                     <div class="clickable-icon icon_delete"></div>
-                    {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete')}
+                    {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('common.delete')}
                 </button>
             {/if}
 

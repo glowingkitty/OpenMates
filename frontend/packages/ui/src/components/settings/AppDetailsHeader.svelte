@@ -43,6 +43,7 @@
     appStoreNavigateNext,
   } from '../../stores/appStoreNavigationStore';
   import { getLucideIcon } from '../../utils/categoryUtils';
+  import { resolveIconName } from '../../utils/iconNameResolver';
 
   // ─── Props ────────────────────────────────────────────────────────────────
 
@@ -219,8 +220,8 @@
   /** Display name for settingsPage mode */
   let settingsPageTitle = $derived(settingsPage?.title ?? '');
 
-  /** Icon name for settingsPage mode (used as CSS class `icon_{name}`) */
-  let settingsPageIcon = $derived(settingsPage?.icon ?? '');
+  /** Icon name for settingsPage mode — resolved via ICON_NAME_MAP to match SVG filename */
+  let settingsPageIcon = $derived(settingsPage?.icon ? resolveIconName(settingsPage.icon) : '');
 
   /** Description for settingsPage mode */
   let settingsPageDescription = $derived(settingsPage?.description ?? '');
@@ -257,7 +258,7 @@
   <button
     class="nav-row"
     onclick={onBack}
-    aria-label={$text('settings.back')}
+    aria-label={$text('common.back')}
     type="button"
     title={fullBreadcrumbLabel || breadcrumbLabel}
   >

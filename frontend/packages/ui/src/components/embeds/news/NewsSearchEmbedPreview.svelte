@@ -253,7 +253,7 @@
   }
   
   // Get skill name from translations
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
   
   // Map skillId to icon name - this is skill-specific logic
   const skillIconName = 'search';
@@ -443,7 +443,7 @@
         <div class="search-results-info">
           {#if faviconResults.length === 0 && remainingCount === 0 && isLoadingChildren}
             <!-- Child embeds are being fetched — show loading instead of empty state -->
-            <span class="loading-text">{$text('embeds.loading')}</span>
+            <span class="loading-text">{$text('common.loading')}</span>
           {:else if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}

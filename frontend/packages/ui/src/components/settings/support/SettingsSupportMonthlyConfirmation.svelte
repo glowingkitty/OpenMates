@@ -52,7 +52,7 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
 <!-- Action Button -->
 <div class="action-section">
     <button class="done-button" onclick={goBackToSupport}>
-        {$text('settings.support.done')}
+        {$text('common.done')}
     </button>
 </div>
 

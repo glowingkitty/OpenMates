@@ -187,7 +187,7 @@
                         <Icon name="search" type="skill" />
                     </div>
                     <div class="icons-text">
-                        {$text('highlight.ui.events')} | <mark>{@html $text('highlight.ui.search')}</mark>
+                        {$text('highlight.ui.events')} | <mark>{@html $text('common.search')}</mark>
                     </div>
                 </div>
                 <div class="highlight-content-container-2">

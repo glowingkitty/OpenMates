@@ -218,7 +218,7 @@
             onclick={(event) => handleButtonClick('delete', event)}
         >
             <div class="clickable-icon icon_delete"></div>
-            {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete')}
+            {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('common.delete')}
         </button>
     </div>
 {/if}

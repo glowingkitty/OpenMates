@@ -70,30 +70,6 @@ mattermost:
   sv: Mattermost
   he: Mattermost
   verified_by_human: []
-discord:
-  context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
-  en: Discord
-  de: Discord
-  zh: Discord
-  es: Discord
-  fr: Discord
-  pt: Discord
-  ru: Discord
-  ja: Discord
-  ko: Discord
-  it: Discord
-  tr: Discord
-  vi: Discord
-  id: Discord
-  pl: Discord
-  nl: Discord
-  ar: Discord
-  hi: Discord
-  th: Discord
-  cs: Discord
-  sv: Discord
-  he: Discord
-  verified_by_human: []
 and_more:
   context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
   en: '& more'

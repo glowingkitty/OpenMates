@@ -84,9 +84,9 @@
         return model.input_types.map(type => {
             switch (type) {
                 case 'text': return $text('settings.ai_ask.ai_ask_model_details.input_type_text');
-                case 'image': return $text('settings.ai_ask.ai_ask_model_details.input_type_image');
+                case 'image': return $text('common.images');
                 case 'video': return $text('settings.ai_ask.ai_ask_model_details.input_type_video');
-                case 'audio': return $text('settings.ai_ask.ai_ask_model_details.input_type_audio');
+                case 'audio': return $text('common.audio');
                 default: return type;
             }
         }).join(', ');
@@ -98,7 +98,7 @@
         return model.output_types.map(type => {
             switch (type) {
                 case 'text': return $text('settings.ai_ask.ai_ask_model_details.output_type_text');
-                case 'image': return $text('settings.ai_ask.ai_ask_model_details.output_type_image');
+                case 'image': return $text('common.images');
                 default: return type;
             }
         }).join(', ');
@@ -235,7 +235,7 @@
             <SettingsItem 
                 type="heading"
                 icon="insight"
-                title={$text('settings.ai_ask.ai_ask_model_details.model_info')}
+                title={$text('common.details')}
             />
             <div class="info-content">
                 <!-- Origin -->
@@ -293,7 +293,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="coins"
-                    title={$text('settings.ai_ask.ai_ask_model_details.pricing')}
+                    title={$text('common.pricing')}
                 />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
@@ -324,7 +324,7 @@
                 <SettingsItem 
                     type="heading"
                     icon="server"
-                    title={$text('settings.ai_ask.ai_ask_model_details.provider')}
+                    title={$text('common.provider')}
                 />
                 
                 <div class="provider-list">

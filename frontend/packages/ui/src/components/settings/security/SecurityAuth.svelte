@@ -571,7 +571,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     <SettingsInput
                         type="password"
                         bind:value={password}
-                        placeholder={$text('settings.security.password_placeholder')}
+                        placeholder={$text('common.password')}
                         disabled={isPasswordLoading}
                         onKeydown={handlePasswordKeydown}
                     />

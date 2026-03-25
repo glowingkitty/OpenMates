@@ -209,7 +209,7 @@ Usage Settings - View usage statistics and export usage data
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
 
-            if (diffMins < 1) return $text('settings.usage.just_now');
+            if (diffMins < 1) return $text('common.just_now');
             if (diffMins < 60) return `${diffMins} ${$text('settings.usage.minutes_ago')}`;
             if (diffHours < 24) return `${diffHours} ${$text('settings.usage.hours_ago')}`;
             if (diffDays < 30) return `${diffDays} ${$text('settings.usage.days_ago')}`;
@@ -648,10 +648,10 @@ Usage Settings - View usage statistics and export usage data
             yesterday.setDate(yesterday.getDate() - 1);
             
             if (date.getTime() === today.getTime()) {
-                return $text('settings.usage.today');
+                return $text('common.today');
             }
             if (date.getTime() === yesterday.getTime()) {
-                return $text('settings.usage.yesterday');
+                return $text('common.yesterday');
             }
             
             // Format as localized date
@@ -1523,7 +1523,7 @@ Usage Settings - View usage statistics and export usage data
         <SettingsItem
             type="quickaction"
             icon="subsetting_icon reload"
-            title={$text('login.retry')}
+            title={$text('common.retry')}
             onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
         />
 {:else if activeTab === 'overview'}
@@ -1552,7 +1552,7 @@ Usage Settings - View usage statistics and export usage data
                     onclick={() => overviewSelectedEntry = null}
                 >
                     <div class="clickable-icon icon_back"></div>
-                    <span>{$text('settings.usage.back')}</span>
+                    <span>{$text('common.back')}</span>
                 </button>
                 
                 <div class="detail-header">
@@ -1598,7 +1598,7 @@ Usage Settings - View usage statistics and export usage data
                         {#each [selEntry.model_used.includes('/') ? selEntry.model_used.split('/')[0] : null] as providerPrefix}
                             {#if providerPrefix}
                                 <div class="entry-detail-row">
-                                    <span class="entry-detail-label">{$text('settings.usage.provider_label')}</span>
+                                    <span class="entry-detail-label">{$text('common.provider')}</span>
                                     <span class="entry-detail-value">{providerPrefix.charAt(0).toUpperCase() + providerPrefix.slice(1)}</span>
                                 </div>
                             {/if}
@@ -1702,7 +1702,7 @@ Usage Settings - View usage statistics and export usage data
                 }}
             >
                 <div class="clickable-icon icon_back"></div>
-                <span>{$text('settings.usage.back')}</span>
+                <span>{$text('common.back')}</span>
             </button>
             
             <div class="detail-header">
@@ -1863,7 +1863,7 @@ Usage Settings - View usage statistics and export usage data
             onclick={() => selectedChatId = null}
         >
             <div class="clickable-icon icon_back"></div>
-            <span>{$text('settings.usage.back')}</span>
+            <span>{$text('common.back')}</span>
         </button>
         
         {#if selectedChatId}
@@ -1969,7 +1969,7 @@ Usage Settings - View usage statistics and export usage data
                 }}
             >
                 <div class="clickable-icon icon_back"></div>
-                <span>{$text('settings.usage.back')}</span>
+                <span>{$text('common.back')}</span>
             </button>
             
             {#if selectedApiKeyHash && selectedApiKeyMonth}
@@ -2050,7 +2050,7 @@ Usage Settings - View usage statistics and export usage data
                 }}
             >
                 <div class="clickable-icon icon_back"></div>
-                <span>{$text('settings.usage.back')}</span>
+                <span>{$text('common.back')}</span>
             </button>
             
             {#if selectedAppId}

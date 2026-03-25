@@ -1,27 +1,3 @@
-search_products:
-  context: Skill name for shopping search products
-  en: Search
-  de: Suchen
-  zh: 搜索
-  es: Buscar
-  fr: Rechercher
-  pt: Pesquisar
-  ru: Поиск
-  ja: 検索
-  ko: 검색
-  it: Cerca
-  tr: Ara
-  vi: Tìm kiếm
-  id: Cari
-  pl: Szukaj
-  nl: Zoeken
-  ar: بحث
-  hi: खोजें
-  th: ค้นหา
-  cs: Hledat
-  sv: Sök
-  he: חיפוש
-  verified_by_human: [en, de]
 search_products.description:
   context: Description for shopping search products skill
   en: Search for products in online shops & online supermarkets.

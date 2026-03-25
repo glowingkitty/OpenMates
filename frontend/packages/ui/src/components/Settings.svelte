@@ -314,7 +314,7 @@ changes to the documentation (to keep the documentation up to date).
     // Optional human-readable title override for the cameFrom path, used in breadcrumb display.
     // When set, replaces the auto-derived label for the cameFrom path segment.
     let cameFromTitleOverride = $state<string | null>(null);
-    let breadcrumbLabel = $state($text('settings.settings'));
+    let breadcrumbLabel = $state($text('common.settings'));
     let fullBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
     let currentPageInstance: CurrentSettingsPage | null = $state(null); // Reference to child component instance
@@ -541,7 +541,7 @@ changes to the documentation (to keep the documentation up to date).
     // Function to update breadcrumb label based on navigation path
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
-            breadcrumbLabel = $text('settings.settings');
+            breadcrumbLabel = $text('common.settings');
             fullBreadcrumbLabel = breadcrumbLabel;
             return;
         }
@@ -550,7 +550,7 @@ changes to the documentation (to keep the documentation up to date).
         const pathLabels = [];
         
         // Always start with "Settings"
-        pathLabels.push($text('settings.settings'));
+        pathLabels.push($text('common.settings'));
         
         // Track if we've already added the app name for app_store routes
         // This prevents duplicate app names when navigating to app_store/{appId}
@@ -881,7 +881,7 @@ changes to the documentation (to keep the documentation up to date).
             return {
                 appId,
                 itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
-                itemTypeLabel: $text('settings.app_store.skill'),
+                itemTypeLabel: $text('common.skill'),
                 description: skill.description_translation_key
                     ? $text(skill.description_translation_key)
                     : '',
@@ -925,7 +925,7 @@ changes to the documentation (to keep the documentation up to date).
                 // Create entry sub-page: show "Add entry" title with category context
                 return {
                     appId,
-                    itemName: $text('settings.app_settings_memories.add_entry'),
+                    itemName: $text('common.add_entry'),
                     itemTypeLabel: categoryName,
                     description: cat.description_translation_key
                         ? $text(cat.description_translation_key)
@@ -1340,7 +1340,7 @@ changes to the documentation (to keep the documentation up to date).
             updateBreadcrumbLabel();
         } else {
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings');
+            breadcrumbLabel = $text('common.settings');
         }
 
         // Reset submenu info visibility
@@ -1402,7 +1402,7 @@ changes to the documentation (to keep the documentation up to date).
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings');
+                breadcrumbLabel = $text('common.settings');
                 // currentHelpLink = baseHelpLink; // Help button disabled
                 
                 if (profileContainer) {
@@ -1468,7 +1468,7 @@ changes to the documentation (to keep the documentation up to date).
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings');
+                breadcrumbLabel = $text('common.settings');
                 if (profileContainer) {
                     profileContainer.classList.remove('submenu-active');
                 }
@@ -1609,7 +1609,7 @@ changes to the documentation (to keep the documentation up to date).
             showSubmenuInfo = false;
             navButtonLeft = false;
             navigationPath = [];
-            breadcrumbLabel = $text('settings.settings');
+            breadcrumbLabel = $text('common.settings');
             
             if (profileContainer) {
                 profileContainer.classList.remove('submenu-active');
@@ -1654,7 +1654,7 @@ changes to the documentation (to keep the documentation up to date).
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
         	navigationPath = [];
-        	breadcrumbLabel = $text('settings.settings');
+        	breadcrumbLabel = $text('common.settings');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
@@ -1800,7 +1800,7 @@ changes to the documentation (to keep the documentation up to date).
                 // Reset to main settings page — mirrors toggleMenu() close logic
                 activeSettingsView = 'main';
                 navigationPath = [];
-                breadcrumbLabel = $text('settings.settings');
+                breadcrumbLabel = $text('common.settings');
                 showSubmenuInfo = false;
                 navButtonLeft = false;
                 hideNavButton = false;
@@ -2264,7 +2264,7 @@ changes to the documentation (to keep the documentation up to date).
     		// Mirrors the reset logic in toggleMenu() when the menu is closed.
     		activeSettingsView = 'main';
     		navigationPath = [];
-    		breadcrumbLabel = $text('settings.settings');
+    		breadcrumbLabel = $text('common.settings');
     		showSubmenuInfo = false;
     		navButtonLeft = false;
     		hideNavButton = false;

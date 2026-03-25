@@ -388,7 +388,7 @@
         <SettingsItem 
             type="heading"
             icon="coins"
-            title={$text('settings.ai_ask.ai_ask_settings.pricing')}
+            title={$text('common.pricing')}
         />
         <div class="pricing-content">
             <p class="pricing-label">{$text('settings.ai_ask.ai_ask_settings.pricing_starting_at')}</p>

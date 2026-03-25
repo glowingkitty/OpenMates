@@ -158,30 +158,6 @@ type_labels.mate:
   sv: Mate
   he: Mate
   verified_by_human: []
-type_labels.skill:
-  context: Label for app skill type in mention dropdown
-  en: Skill
-  de: Skill
-  zh: 技能
-  es: Habilidad
-  fr: Compétence
-  pt: Habilidade
-  ru: Навык
-  ja: スキル
-  ko: 스킬
-  it: Abilità
-  tr: Beceri
-  vi: Kỹ năng
-  id: Keterampilan
-  pl: Umiejętność
-  nl: Vaardigheid
-  ar: مهارة
-  hi: कौशल
-  th: ทักษะ
-  cs: Dovednost
-  sv: Färdighet
-  he: מיומנות
-  verified_by_human: []
 type_labels.focus_mode:
   context: Label for focus mode type in mention dropdown
   en: Focus mode

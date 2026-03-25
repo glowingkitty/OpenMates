@@ -245,7 +245,7 @@
     return provider;
   });
 
-  let headerTitle = $derived(query || $text('app_skills.shopping.search_products'));
+  let headerTitle = $derived(query || $text('common.search'));
   let headerSubtitle = $derived(`${$text('embeds.via')} ${providerLabel}`);
 </script>
 

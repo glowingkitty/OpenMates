@@ -497,3 +497,1653 @@ not_found.url_copied:
   sv: Kopierat!
   he: הועתק!
   verified_by_human: []
+
+search:
+  context: "Generic UI text: Search"
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: []
+
+processing:
+  context: "Generic UI text: Processing..."
+  en: Processing...
+  de: Verarbeitung...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रोसेस हो रहा है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
+  verified_by_human: []
+
+delete:
+  context: "Generic UI text: Delete"
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Ta bort
+  he: מחיקה
+  verified_by_human: []
+
+email:
+  context: "Generic UI text: Email"
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: E-mail
+  ru: Эл. почта
+  ja: メール
+  ko: 이메일
+  it: E-mail
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
+  ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
+  he: אימייל
+  verified_by_human: []
+
+credits:
+  context: "Generic UI text: credits"
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  he: קרדיטים
+  verified_by_human: []
+
+download:
+  context: "Generic UI text: Download"
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Загрузить
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ned
+  he: הורדה
+  verified_by_human: []
+
+loading:
+  context: "Generic UI text: Loading..."
+  en: Loading...
+  de: Lade...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로드 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: []
+
+chat:
+  context: "Generic UI text: Chat"
+  en: Chat
+  de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Chat
+  pt: Chat
+  ru: Чат
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
+  ar: دردشة
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
+  he: "צ'אט"
+  verified_by_human: []
+
+chats:
+  context: "Generic UI text: Chats"
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Cuộc trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
+  ar: المحادثات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+  he: "צ'אטים"
+  verified_by_human: []
+
+docs:
+  context: "Generic UI text: Docs"
+  en: Docs
+  de: Dokumente
+  zh: 文档
+  es: Documentos
+  fr: Documents
+  pt: Documentos
+  ru: Документы
+  ja: ドキュメント
+  ko: 문서
+  it: Documenti
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Documenten
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumenty
+  sv: Dokument
+  he: מסמכים
+  verified_by_human: []
+
+password:
+  context: "Generic UI text: Password"
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  he: סיסמה
+  verified_by_human: []
+
+pricing:
+  context: "Generic UI text: Pricing"
+  en: Pricing
+  de: Preise
+  zh: 定价
+  es: Precios
+  fr: Tarifs
+  pt: Preços
+  ru: Цены
+  ja: 料金
+  ko: 가격
+  it: Prezzi
+  tr: Fiyatlandırma
+  vi: Giá cả
+  id: Harga
+  pl: Cennik
+  nl: Prijzen
+  ar: التسعير
+  hi: मूल्य निर्धारण
+  th: การกำหนดราคา
+  cs: Ceny
+  sv: Priser
+  he: תמחור
+  verified_by_human: []
+
+retry:
+  context: "Generic UI text: Retry"
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Tekrar dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองใหม่
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
+  verified_by_human: []
+
+share:
+  context: "Generic UI text: Share"
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+
+summary:
+  context: "Generic UI text: Summary"
+  en: Summary
+  de: Zusammenfassung
+  zh: 摘要
+  es: Resumen
+  fr: Résumé
+  pt: Resumo
+  ru: Резюме
+  ja: 概要
+  ko: 요약
+  it: Riepilogo
+  tr: Özet
+  vi: Tóm tắt
+  id: Ringkasan
+  pl: Podsumowanie
+  nl: Samenvatting
+  ar: ملخص
+  hi: सारांश
+  th: สรุป
+  cs: Shrnutí
+  sv: Sammanfattning
+  he: סיכום
+  verified_by_human: []
+
+today:
+  context: "Generic UI text: Today"
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: "Aujourd'hui"
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  he: היום
+  verified_by_human: []
+
+apps:
+  context: "Generic UI text: Apps"
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Apps
+  fr: Applications
+  pt: Apps
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
+
+ask:
+  context: "Generic UI text: Ask"
+  en: Ask
+  de: Fragen
+  zh: 提问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問する
+  ko: 질문하기
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  he: שאל
+  verified_by_human: []
+
+buy_credits:
+  context: "Generic UI text: Buy Credits"
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar créditos
+  fr: Acheter des crédits
+  pt: Comprar créditos
+  ru: Купить кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista crediti
+  tr: Kredi satın al
+  vi: Mua tín dụng
+  id: Beli kredit
+  pl: Kup kredyty
+  nl: Credits kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit kredity
+  sv: Köp krediter
+  he: קניית קרדיטים
+  verified_by_human: []
+
+contact:
+  context: "Generic UI text: Contact"
+  en: Contact
+  de: Kontakt
+  zh: 联系方式
+  es: Contacto
+  fr: Contact
+  pt: Contato
+  ru: Контакты
+  ja: お問い合わせ
+  ko: 연락처
+  it: Contatto
+  tr: İletişim
+  vi: Liên hệ
+  id: Kontak
+  pl: Kontakt
+  nl: Contact
+  ar: اتصل بنا
+  hi: संपर्क
+  th: ติดต่อ
+  cs: Kontakt
+  sv: Kontakt
+  he: צור קשר
+  verified_by_human: []
+
+date:
+  context: "Generic UI text: Date"
+  en: Date
+  de: Datum
+  zh: 日期
+  es: Fecha
+  fr: Date
+  pt: Data
+  ru: Дата
+  ja: 日付
+  ko: 날짜
+  it: Data
+  tr: Tarih
+  vi: Ngày
+  id: Tanggal
+  pl: Data
+  nl: Datum
+  ar: التاريخ
+  hi: तारीख
+  th: วันที่
+  cs: Datum
+  sv: Datum
+  he: תאריך
+  verified_by_human: []
+
+discord:
+  context: "Generic UI text: Discord"
+  en: Discord
+  de: Discord
+  zh: Discord
+  es: Discord
+  fr: Discord
+  pt: Discord
+  ru: Discord
+  ja: Discord
+  ko: Discord
+  it: Discord
+  tr: Discord
+  vi: Discord
+  id: Discord
+  pl: Discord
+  nl: Discord
+  ar: Discord
+  hi: Discord
+  th: Discord
+  cs: Discord
+  sv: Discord
+  he: Discord
+  verified_by_human: []
+
+duration:
+  context: "Generic UI text: Duration"
+  en: Duration
+  de: Dauer
+  zh: 持续时间
+  es: Duración
+  fr: Durée
+  pt: Duração
+  ru: Продолжительность
+  ja: 所要時間
+  ko: 소요 시간
+  it: Durata
+  tr: Süre
+  vi: Thời gian
+  id: Durasi
+  pl: Czas trwania
+  nl: Duur
+  ar: المدة
+  hi: अवधि
+  th: ระยะเวลา
+  cs: Délka
+  sv: Längd
+  he: משך זמן
+  verified_by_human: []
+
+generate:
+  context: "Generic UI text: Generate"
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Hasilkan
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: उत्पन्न करें
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  he: יצירה
+  verified_by_human: []
+
+images:
+  context: "Generic UI text: Images"
+  en: Images
+  de: Bilder
+  zh: 图片
+  es: Imágenes
+  fr: Images
+  pt: Imagens
+  ru: Изображения
+  ja: 画像
+  ko: 이미지
+  it: Immagini
+  tr: Görüntüler
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obrazy
+  nl: Afbeeldingen
+  ar: الصور
+  hi: छवियां
+  th: รูปภาพ
+  cs: Obrázky
+  sv: Bilder
+  he: תמונות
+  verified_by_human: []
+
+just_now:
+  context: "Generic UI text: Just now"
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: "À l'instant"
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: الآن
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
+  verified_by_human: []
+
+monthly:
+  context: "Generic UI text: Monthly"
+  en: Monthly
+  de: Monatlich
+  zh: 每月
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 毎月
+  ko: 매월
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Co miesiąc
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  he: חודשי
+  verified_by_human: []
+
+new_chat:
+  context: "Generic UI text: New chat"
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Chat mới
+  id: Chat baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नया चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: "צ'אט חדש"
+  verified_by_human: []
+
+privacy:
+  context: "Generic UI text: Privacy"
+  en: Privacy
+  de: Datenschutz
+  zh: 隐私政策
+  es: Privacidad
+  fr: Confidentialité
+  pt: Privacidade
+  ru: Конфиденциальность
+  ja: プライバシー
+  ko: 개인정보 보호
+  it: Privacy
+  tr: Gizlilik
+  vi: Quyền riêng tư
+  id: Privasi
+  pl: Prywatność
+  nl: Privacy
+  ar: الخصوصية
+  hi: गोपनीयता
+  th: ความเป็นส่วนตัว
+  cs: Soukromí
+  sv: Integritet
+  he: פרטיות
+  verified_by_human: []
+
+read:
+  context: "Generic UI text: Read"
+  en: Read
+  de: Lesen
+  zh: 读取
+  es: Leer
+  fr: Lire
+  pt: Ler
+  ru: Читать
+  ja: 読む
+  ko: 읽기
+  it: Leggi
+  tr: Oku
+  vi: Đọc
+  id: Baca
+  pl: Czytaj
+  nl: Lezen
+  ar: قراءة
+  hi: पढ़ें
+  th: อ่าน
+  cs: Číst
+  sv: Läs
+  he: קריאה
+  verified_by_human: []
+
+save:
+  context: "Generic UI text: Save"
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  he: שמור
+  verified_by_human: []
+
+settings:
+  context: "Generic UI text: Settings"
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Configuración
+  fr: Paramètres
+  pt: Configurações
+  ru: Настройки
+  ja: 設定
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
+  ar: الإعدادات
+  hi: सेटिंग
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
+  he: הגדרות
+  verified_by_human: []
+
+upload_failed:
+  context: "Generic UI text: Upload failed"
+  en: Upload failed
+  de: Hochladen fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: Envoi échoué
+  pt: Falha no envio
+  ru: Ошибка загрузки
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: Yükleme başarısız
+  vi: Tải lên thất bại
+  id: Gagal mengunggah
+  pl: Przesyłanie nie powiodło się
+  nl: Uploaden mislukt
+  ar: فشل الرفع
+  hi: अपलोड विफल
+  th: อัปโหลดไม่สำเร็จ
+  cs: Nahrávání se nezdařilo
+  sv: Uppladdning misslyckades
+  he: העלאה נכשלה
+  verified_by_human: []
+
+view:
+  context: "Generic UI text: View"
+  en: View
+  de: Ansicht
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Visualizar
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Widok
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  he: צפייה
+  verified_by_human: []
+
+add_entry:
+  context: "Generic UI text: Add Entry"
+  en: Add Entry
+  de: Eintrag hinzufügen
+  zh: 添加条目
+  es: Agregar entrada
+  fr: Ajouter une entrée
+  pt: Adicionar entrada
+  ru: Добавить запись
+  ja: エントリを追加
+  ko: 항목 추가
+  it: Aggiungi voce
+  tr: Giriş ekle
+  vi: Thêm mục
+  id: Tambah entri
+  pl: Dodaj wpis
+  nl: Item toevoegen
+  ar: إضافة إدخال
+  hi: प्रविष्टि जोड़ें
+  th: เพิ่มรายการ
+  cs: Přidat položku
+  sv: Lägg till post
+  he: הוספת רשומה
+  verified_by_human: []
+
+add_password:
+  context: "Generic UI text: Add Password"
+  en: Add Password
+  de: Passwort hinzufügen
+  zh: 添加密码
+  es: Agregar contraseña
+  fr: Ajouter un mot de passe
+  pt: Adicionar senha
+  ru: Добавить пароль
+  ja: パスワードを追加
+  ko: 비밀번호 추가
+  it: Aggiungi password
+  tr: Şifre ekle
+  vi: Thêm mật khẩu
+  id: Tambahkan kata sandi
+  pl: Dodaj hasło
+  nl: Wachtwoord toevoegen
+  ar: إضافة كلمة المرور
+  hi: पासवर्ड जोड़ें
+  th: เพิ่มรหัสผ่าน
+  cs: Přidat heslo
+  sv: Lägg till lösenord
+  he: הוספת סיסמה
+  verified_by_human: []
+
+audio:
+  context: "Generic UI text: Audio"
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: 音声
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: صوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  he: אודיו
+  verified_by_human: []
+
+back:
+  context: "Generic UI text: Back"
+  en: Back
+  de: Zurück
+  zh: 返回
+  es: Atrás
+  fr: Retour
+  pt: Voltar
+  ru: Назад
+  ja: 戻る
+  ko: 뒤로
+  it: Indietro
+  tr: Geri
+  vi: Quay lại
+  id: Kembali
+  pl: Wstecz
+  nl: Terug
+  ar: رجوع
+  hi: वापस
+  th: ย้อนกลับ
+  cs: Zpět
+  sv: Tillbaka
+  he: חזרה
+  verified_by_human: []
+
+change_password:
+  context: "Generic UI text: Change Password"
+  en: Change Password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar contraseña
+  fr: Changer le mot de passe
+  pt: Alterar senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia password
+  tr: Şifreyi değiştir
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  he: שינוי סיסמה
+  verified_by_human: []
+
+custom:
+  context: "Generic UI text: Custom"
+  en: Custom
+  de: Benutzerdefiniert
+  zh: 自定义
+  es: Personalizado
+  fr: Personnalisé
+  pt: Personalizado
+  ru: Пользовательский
+  ja: カスタム
+  ko: 사용자 지정
+  it: Personalizzato
+  tr: Özel
+  vi: Tùy chỉnh
+  id: Kustom
+  pl: Niestandardowy
+  nl: Aangepast
+  ar: مخصص
+  hi: कस्टम
+  th: กำหนดเอง
+  cs: Vlastní
+  sv: Anpassad
+  he: מותאם אישית
+  verified_by_human: []
+
+details:
+  context: "Generic UI text: Details"
+  en: Details
+  de: Details
+  zh: 详情
+  es: Detalles
+  fr: Détails
+  pt: Detalhes
+  ru: Подробности
+  ja: 詳細
+  ko: 상세정보
+  it: Dettagli
+  tr: Ayrıntılar
+  vi: Chi tiết
+  id: Detail
+  pl: Szczegóły
+  nl: Details
+  ar: تفاصيل
+  hi: विवरण
+  th: รายละเอียด
+  cs: Podrobnosti
+  sv: Detaljer
+  he: פרטים
+  verified_by_human: []
+
+devices:
+  context: "Generic UI text: Devices"
+  en: Devices
+  de: Geräte
+  zh: 设备
+  es: Dispositivos
+  fr: Appareils
+  pt: Dispositivos
+  ru: Устройства
+  ja: デバイス
+  ko: 기기
+  it: Dispositivi
+  tr: Cihazlar
+  vi: Thiết bị
+  id: Perangkat
+  pl: Urządzenia
+  nl: Apparaten
+  ar: الأجهزة
+  hi: उपकरण
+  th: อุปกรณ์
+  cs: Zařízení
+  sv: Enheter
+  he: מכשירים
+  verified_by_human: []
+
+disabled:
+  context: "Generic UI text: Disabled"
+  en: Disabled
+  de: Deaktiviert
+  zh: 已禁用
+  es: Desactivado
+  fr: Désactivé
+  pt: Desativado
+  ru: Отключено
+  ja: 無効
+  ko: 비활성화됨
+  it: Disabilitato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Wyłączone
+  nl: Uitgeschakeld
+  ar: معطّل
+  hi: अक्षम
+  th: ปิดใช้งาน
+  cs: Zakázáno
+  sv: Inaktiverat
+  he: מושבת
+  verified_by_human: []
+
+enabled:
+  context: "Generic UI text: Enabled"
+  en: Enabled
+  de: Aktiviert
+  zh: 已启用
+  es: Activado
+  fr: Activé
+  pt: Ativado
+  ru: Включено
+  ja: 有効
+  ko: 활성화됨
+  it: Abilitato
+  tr: Etkin
+  vi: Đã bật
+  id: Diaktifkan
+  pl: Włączone
+  nl: Ingeschakeld
+  ar: مفعّل
+  hi: सक्षम
+  th: เปิดใช้งาน
+  cs: Povoleno
+  sv: Aktiverat
+  he: פעיל
+  verified_by_human: []
+
+gift_cards:
+  context: "Generic UI text: Gift Cards"
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de regalo
+  fr: Cartes cadeaux
+  pt: Cartões-presente
+  ru: Подарочные карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Carte regalo
+  tr: Hediye kartları
+  vi: Thẻ quà tặng
+  id: Kartu hadiah
+  pl: Karty podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové karty
+  sv: Presentkort
+  he: כרטיסי מתנה
+  verified_by_human: []
+
+github:
+  context: "Generic UI text: GitHub"
+  en: GitHub
+  de: GitHub
+  zh: GitHub
+  es: GitHub
+  fr: GitHub
+  pt: GitHub
+  ru: GitHub
+  ja: GitHub
+  ko: GitHub
+  it: GitHub
+  tr: GitHub
+  vi: GitHub
+  id: GitHub
+  pl: GitHub
+  nl: GitHub
+  ar: GitHub
+  hi: GitHub
+  th: GitHub
+  cs: GitHub
+  sv: GitHub
+  he: GitHub
+  verified_by_human: []
+
+imprint:
+  context: "Generic UI text: Imprint"
+  en: Imprint
+  de: Impressum
+  zh: 版本说明
+  es: Aviso legal
+  fr: Mentions légales
+  pt: Impressum
+  ru: Выходные данные
+  ja: インプリント
+  ko: 임프린트
+  it: Impronta
+  tr: Künye
+  vi: Thông tin pháp lý
+  id: Imprint
+  pl: Stopka redakcyjna
+  nl: Impressum
+  ar: بيانات الناشر
+  hi: इंप्रिंट
+  th: ข้อมูลผู้จัดพิมพ์
+  cs: Impressum
+  sv: Impressum
+  he: פרטי העסק
+  verified_by_human: []
+
+invoices:
+  context: "Generic UI text: Invoices"
+  en: Invoices
+  de: Rechnungen
+  zh: 发票
+  es: Facturas
+  fr: Factures
+  pt: Faturas
+  ru: Счета
+  ja: 請求書
+  ko: 청구서
+  it: Fatture
+  tr: Faturalar
+  vi: Hóa đơn
+  id: Faktur
+  pl: Faktury
+  nl: Facturen
+  ar: الفواتير
+  hi: चालान
+  th: ใบแจ้งหนี้
+  cs: Faktury
+  sv: Fakturor
+  he: חשבוניות
+  verified_by_human: []
+
+language:
+  context: "Generic UI text: Language"
+  en: Language
+  de: Sprache
+  zh: 语言
+  es: Idioma
+  fr: Langue
+  pt: Idioma
+  ru: Язык
+  ja: 言語
+  ko: 언어
+  it: Lingua
+  tr: Dil
+  vi: Ngôn ngữ
+  id: Bahasa
+  pl: Język
+  nl: Taal
+  ar: اللغة
+  hi: भाषा
+  th: ภาษา
+  cs: Jazyk
+  sv: Språk
+  he: שפה
+  verified_by_human: []
+
+last_updated:
+  context: "Generic UI text: Last Updated"
+  en: Last Updated
+  de: Zuletzt aktualisiert
+  zh: 最后更新
+  es: Última actualización
+  fr: Dernière mise à jour
+  pt: Última atualização
+  ru: Последнее обновление
+  ja: 最終更新日
+  ko: 마지막 업데이트
+  it: Ultimo aggiornamento
+  tr: Son güncelleme
+  vi: Cập nhật lần cuối
+  id: Terakhir diperbarui
+  pl: Ostatnia aktualizacja
+  nl: Laatst bijgewerkt
+  ar: آخر تحديث
+  hi: अंतिम अपडेट
+  th: อัปเดตล่าสุด
+  cs: Naposledy aktualizováno
+  sv: Senast uppdaterad
+  he: עודכן לאחרונה
+  verified_by_human: []
+
+legal:
+  context: "Generic UI text: Legal"
+  en: Legal
+  de: Rechtliches
+  zh: 法律声明
+  es: Legal
+  fr: Juridique
+  pt: Legal
+  ru: Правовая информация
+  ja: 法的情報
+  ko: 법적 정보
+  it: Legale
+  tr: Yasal
+  vi: Pháp lý
+  id: Hukum
+  pl: Informacje prawne
+  nl: Juridisch
+  ar: القانونية
+  hi: कानूनी
+  th: กฎหมาย
+  cs: Právní informace
+  sv: Juridiskt
+  he: משפטי
+  verified_by_human: []
+
+location:
+  context: "Generic UI text: Location"
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Emplacement
+  pt: Localização
+  ru: Местоположение
+  ja: 場所
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Vị trí
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ตำแหน่ง
+  cs: Poloha
+  sv: Plats
+  he: מיקום
+  verified_by_human: []
+
+newsletter:
+  context: "Generic UI text: Newsletter"
+  en: Newsletter
+  de: Newsletter
+  zh: 新闻通讯
+  es: Boletín
+  fr: Newsletter
+  pt: Boletim informativo
+  ru: Рассылка
+  ja: ニュースレター
+  ko: 뉴스레터
+  it: Newsletter
+  tr: Bülten
+  vi: Bản tin
+  id: Newsletter
+  pl: Newsletter
+  nl: Nieuwsbrief
+  ar: النشرة الإخبارية
+  hi: न्यूज़लेटर
+  th: จดหมายข่าว
+  cs: Newsletter
+  sv: Nyhetsbrev
+  he: ניוזלטר
+  verified_by_human: []
+
+other:
+  context: "Generic UI text: Other"
+  en: Other
+  de: Andere
+  zh: 其他
+  es: Otro
+  fr: Autre
+  pt: Outro
+  ru: Другое
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overig
+  ar: أخرى
+  hi: अन्य
+  th: อื่นๆ
+  cs: Ostatní
+  sv: Övrigt
+  he: אחר
+  verified_by_human: []
+
+pdf:
+  context: "Generic UI text: PDF"
+  en: PDF
+  de: PDF
+  zh: PDF
+  es: PDF
+  fr: PDF
+  pt: PDF
+  ru: PDF
+  ja: PDF
+  ko: PDF
+  it: PDF
+  tr: PDF
+  vi: PDF
+  id: PDF
+  pl: PDF
+  nl: PDF
+  ar: PDF
+  hi: PDF
+  th: PDF
+  cs: PDF
+  sv: PDF
+  he: PDF
+  verified_by_human: []
+
+provider:
+  context: "Generic UI text: Provider"
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공자
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Provider
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  he: ספק
+  verified_by_human: []
+
+recovery_key:
+  context: "Generic UI text: Recovery Key"
+  en: Recovery Key
+  de: Wiederherstellungsschlüssel
+  zh: 恢复密钥
+  es: Clave de recuperación
+  fr: Clé de récupération
+  pt: Chave de recuperação
+  ru: Ключ восстановления
+  ja: 復元キー
+  ko: 복구 키
+  it: Chiave di recupero
+  tr: Kurtarma anahtarı
+  vi: Khóa khôi phục
+  id: Kunci pemulihan
+  pl: Klucz odzyskiwania
+  nl: Herstelsleutel
+  ar: مفتاح الاسترداد
+  hi: रिकवरी कुंजी
+  th: คีย์กู้คืน
+  cs: Obnovovací klíč
+  sv: Återställningsnyckel
+  he: מפתח שחזור
+  verified_by_human: []
+
+select_all:
+  context: "Generic UI text: Select all"
+  en: Select all
+  de: Alle auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Tümünü seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
+  verified_by_human: []
+
+show_less:
+  context: "Generic UI text: Show less"
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示较少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Показать меньше
+  ja: 少なく表示
+  ko: 더 적게 보기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Hiển thị ít hơn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder weergeven
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  he: הצג פחות
+  verified_by_human: []
+
+skill:
+  context: "Generic UI text: Skill"
+  en: Skill
+  de: Skill
+  zh: 技能
+  es: Habilidad
+  fr: Compétence
+  pt: Habilidade
+  ru: Навык
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceri
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętność
+  nl: Vaardigheid
+  ar: مهارة
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednost
+  sv: Färdighet
+  he: מיומנות
+  verified_by_human: []
+
+status:
+  context: "Generic UI text: Status"
+  en: Status
+  de: Status
+  zh: 状态
+  es: Estado
+  fr: Statut
+  pt: Status
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  he: סטטוס
+  verified_by_human: []
+
+stop:
+  context: "Generic UI text: Stop"
+  en: Stop
+  de: Stopp
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Berhenti
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצירה
+  verified_by_human: []
+
+storage:
+  context: "Generic UI text: Storage"
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
+
+terms_and_conditions:
+  context: "Generic UI text: Terms and conditions"
+  en: Terms and conditions
+  de: AGB
+  zh: 条款和条件
+  es: Términos y condiciones
+  fr: Conditions générales
+  pt: Termos e condições
+  ru: Условия использования
+  ja: 利用規約
+  ko: 이용 약관
+  it: Termini e condizioni
+  tr: Şartlar ve koşullar
+  vi: Điều khoản và điều kiện
+  id: Syarat dan ketentuan
+  pl: Regulamin
+  nl: Algemene voorwaarden
+  ar: الشروط والأحكام
+  hi: नियम और शर्तें
+  th: ข้อกำหนดและเงื่อนไข
+  cs: Obchodní podmínky
+  sv: Användarvillkor
+  he: תנאי שימוש
+  verified_by_human: []
+
+untitled_chat:
+  context: "Generic UI text: Untitled chat"
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 未标题的聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Bate-papo sem título
+  ru: Чат без названия
+  ja: タイトルなしのチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Trò chuyện chưa đặt tên
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Naamloze chat
+  ar: محادثة بدون عنوان
+  hi: बिना शीर्षक की चैट
+  th: แชทที่ไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Namnlös chatt
+  he: "צ'אט ללא כותרת"
+  verified_by_human: []
+
+yesterday:
+  context: "Generic UI text: Yesterday"
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  he: אתמול
+  verified_by_human: []

@@ -127,7 +127,7 @@ All values are client-side encrypted before storage.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 

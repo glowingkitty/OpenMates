@@ -22,30 +22,6 @@ close:
   sv: Stäng skiss
   he: סגור סקיצה
   verified_by_human: []
-done:
-  context: Button text to confirm and attach the sketch as an image
-  en: Done
-  de: Fertig
-  zh: 完成
-  es: Listo
-  fr: Terminé
-  pt: Pronto
-  ru: Готово
-  ja: 完了
-  ko: 완료
-  it: Fatto
-  tr: Bitti
-  vi: Xong
-  id: Selesai
-  pl: Gotowe
-  nl: Klaar
-  ar: تم
-  hi: हो गया
-  th: เสร็จ
-  cs: Hotovo
-  sv: Klar
-  he: סיום
-  verified_by_human: []
 pen:
   context: Tooltip for the pen / pencil drawing tool in the sketch overlay
   en: Pen

@@ -152,7 +152,7 @@
       <Bell size={16} />
       <span class="panel-title">{$text('reminder.panel.title')}</span>
     </div>
-    <button class="close-btn" type="button" onclick={onClose} aria-label={$text('reminder.panel.cancel')}>
+    <button class="close-btn" type="button" onclick={onClose} aria-label={$text('common.cancel')}>
       <X size={16} />
     </button>
   </div>
@@ -161,7 +161,7 @@
     <!-- Date + Time -->
     <div class="field-row">
       <div class="field">
-        <label class="field-label" for="rsp-date">{$text('reminder.panel.date')}</label>
+        <label class="field-label" for="rsp-date">{$text('common.date')}</label>
         <input
           id="rsp-date"
           class="field-input"
@@ -200,7 +200,7 @@
           class:active={targetType === 'new_chat'}
           onclick={() => (targetType = 'new_chat')}
         >
-          {$text('reminder.panel.target_new_chat')}
+          {$text('common.new_chat')}
         </button>
       </div>
     </div>
@@ -259,8 +259,8 @@
         <option value="none">{$text('reminder.panel.repeat_none')}</option>
         <option value="daily">{$text('reminder.panel.repeat_daily')}</option>
         <option value="weekly">{$text('reminder.panel.repeat_weekly')}</option>
-        <option value="monthly">{$text('reminder.panel.repeat_monthly')}</option>
-        <option value="custom">{$text('reminder.panel.repeat_custom')}</option>
+        <option value="monthly">{$text('common.monthly')}</option>
+        <option value="custom">{$text('common.custom')}</option>
       </select>
     </div>
 
@@ -308,7 +308,7 @@
     <!-- Actions -->
     <div class="actions-row">
       <button type="button" class="btn-cancel" onclick={onClose}>
-        {$text('reminder.panel.cancel')}
+        {$text('common.cancel')}
       </button>
       <button
         type="submit"

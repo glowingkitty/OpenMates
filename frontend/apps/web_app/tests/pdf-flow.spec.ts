@@ -88,6 +88,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 // ─── Log buckets ─────────────────────────────────────────────────────────────
 const consoleLogs: string[] = [];
@@ -363,9 +364,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// Full lifecycle: send + wait for AI + reload + logout + relogin — allow 8 minutes
 	test.setTimeout(480000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	test.skip(!fs.existsSync(SAMPLE_PDF), `PDF fixture not found: ${SAMPLE_PDF}`);
 
 	const log = createSignupLogger('PDF_FLOW');

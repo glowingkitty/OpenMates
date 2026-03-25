@@ -65,7 +65,7 @@
     onFullscreen
   }: Props = $props();
 
-  let skillName = $derived($text('embeds.maps_location'));
+  let skillName = $derived($text('common.location'));
 
   /** Format rating to 1 decimal, capped to avoid floating point noise */
   let ratingText = $derived(
@@ -92,11 +92,11 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="place-card" class:mobile={isMobileLayout} class:selected={isSelected}>
       {#if proxiedImageUrl}
-        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('embeds.maps_location')} loading="lazy" />
+        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
       {/if}
 
       <!-- Place name -->
-      <div class="place-name">{displayName || $text('embeds.maps_location')}</div>
+      <div class="place-name">{displayName || $text('common.location')}</div>
 
       <!-- Rating row -->
       {#if ratingText != null}

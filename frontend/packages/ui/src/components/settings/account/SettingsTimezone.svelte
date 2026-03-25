@@ -226,7 +226,7 @@
         <!-- Show current timezone if not in predefined list -->
         {#if currentTimezone && !isKnownTimezone(currentTimezone)}
             <div class="timezone-group">
-                <h3 class="region-header">{$text('settings.account.timezone_other')}</h3>
+                <h3 class="region-header">{$text('common.other')}</h3>
                 <div class="timezone-list">
                     <SettingsItem 
                         type="quickaction"

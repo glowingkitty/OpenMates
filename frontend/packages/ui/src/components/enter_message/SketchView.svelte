@@ -555,10 +555,10 @@
                 class="done-btn {hasStrokes ? '' : 'disabled'}"
                 onclick={done}
                 disabled={!hasStrokes}
-                aria-label={$text('sketchview.done')}
+                aria-label={$text('common.done')}
                 use:tooltip
             >
-                {$text('sketchview.done')}
+                {$text('common.done')}
             </button>
         </div>
     </div>

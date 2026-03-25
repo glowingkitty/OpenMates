@@ -340,7 +340,7 @@
 	        <!-- Processing state -->
 	        <div class="processing-placeholder">
           <span class="processing-dot"></span>
-          <span class="processing-text">{$text('embeds.processing')}</span>
+          <span class="processing-text">{$text('common.processing')}</span>
         </div>
       {:else}
         <!-- Error/empty state -->

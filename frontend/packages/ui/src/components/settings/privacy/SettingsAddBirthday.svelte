@@ -96,7 +96,7 @@ All values are client-side encrypted before storage.
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.form.date')}
+    title={$text('common.date')}
 />
 
 <SettingsInput
@@ -120,7 +120,7 @@ All values are client-side encrypted before storage.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 

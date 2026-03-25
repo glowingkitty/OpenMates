@@ -32,7 +32,7 @@ Reuses the existing GiftCardRedeem component
             settingsPath: 'billing/gift-cards',
             direction: 'backward',
             icon: 'coins',
-            title: $text('settings.gift_cards')
+            title: $text('common.gift_cards')
         });
     }
 </script>

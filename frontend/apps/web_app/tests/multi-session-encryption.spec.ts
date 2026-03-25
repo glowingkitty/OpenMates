@@ -26,6 +26,7 @@
 export {};
 
 const { test, expect, chromium } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
 	createSignupLogger,
@@ -301,9 +302,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 	// 4 chats × ~60s AI response + login + sync time = budget 10 minutes
 	test.setTimeout(600000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const logA = createSignupLogger('MULTI_SESSION_A');
 	const logB = createSignupLogger('MULTI_SESSION_B');

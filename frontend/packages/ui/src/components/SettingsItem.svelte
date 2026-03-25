@@ -23,6 +23,7 @@
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
     import type { Snippet, Component } from 'svelte';
+    import { resolveIconName } from '../utils/iconNameResolver';
 
     /** Supported SettingsItem display types */
     type SettingsItemType = 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested';
@@ -38,72 +39,6 @@
     interface AppIconEntry {
         name: string;
         type?: 'app' | 'provider';
-    }
-
-    /**
-     * Maps logical icon names (used by callers) to SVG filenames (in static/icons/).
-     * Only entries where the name differs from the filename need to be listed here.
-     * Names that match their SVG filename exactly (e.g. "chat" → chat.svg) are resolved
-     * automatically via --icon-url-{name} CSS variables.
-     */
-    const ICON_NAME_MAP: Record<string, string> = {
-        // Settings section names → SVG filenames
-        'account': 'user',
-        'apps': 'app',
-        'app_store': 'app',
-        'developers': 'coding',
-        'gift_cards': 'gift',
-        'incognito': 'anonym',
-        'interface': 'language',
-        'mates': 'mate',
-        'messengers': 'chat',
-        'newsletter': 'mail',
-        'notifications': 'announcement',
-        'passkeys': 'passkey',
-        'pricing': 'coins',
-        'privacy': 'lock',
-        'recovery_key': 'warning',
-        'report_issue': 'bug',
-        'security': 'lock',
-        'settings_memories': 'heart',
-        'shared': 'share',
-        'storage': 'files',
-        'support': 'volunteering',
-        'tfa': '2fa',
-        'users': 'team',
-        // Subsetting aliases
-        'clock': 'time',
-        'devices': 'desktop',
-        'document': 'pdf',
-        'email': 'mail',
-        'icon_gift': 'gift',
-        'icon_info': 'question',
-        'info': 'question',
-        'key': 'security_key',
-        'low_balance': 'coins',
-        'secrets': 'lock',
-        // Icon names that don't match SVG filenames
-        'api-keys': 'coding',
-        'app-ai': 'ai',
-        'dark_mode': 'darkmode',
-        'focus': 'search',
-        'light_mode': 'darkmode',
-        'link': 'web',
-        'notification': 'announcement',
-        'profile-picture': 'user',
-        'shield': 'lock',
-        'username': 'user',
-    };
-
-    /**
-     * Resolves an icon name to the CSS variable name for its SVG URL.
-     * Strips the legacy "subsetting_icon " prefix if present, then maps through ICON_NAME_MAP.
-     */
-    function resolveIconName(name: string): string {
-        // Strip legacy "subsetting_icon " prefix (backward compat)
-        let clean = name.startsWith('subsetting_icon ') ? name.slice('subsetting_icon '.length) : name;
-        // Map to SVG filename if different
-        return ICON_NAME_MAP[clean] || clean;
     }
 
     // Props using Svelte 5 runes

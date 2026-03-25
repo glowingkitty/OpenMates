@@ -20,6 +20,7 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -162,9 +163,7 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	test.slow();
 	test.setTimeout(600000); // 10 min
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
 
 	const mailosaurServerId = getMailosaurServerId(TEST_EMAIL ?? '', MAILOSAUR_SERVER_ID_ENV);

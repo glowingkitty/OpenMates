@@ -26,10 +26,10 @@
     let emailEnabled = $derived($userProfile.email_notifications_enabled ?? false);
     let chatNotificationStatus = $derived(
         pushEnabled || emailEnabled
-            ? $text('settings.chat.notifications.enabled')
+            ? $text('common.enabled')
             : $pushNotificationStore.permission === 'denied'
                 ? $text('settings.chat.notifications.blocked')
-                : $text('settings.chat.notifications.disabled')
+                : $text('common.disabled')
     );
 
     // --- Backup reminder status ---
@@ -42,7 +42,7 @@
     let backupReminderStatus = $derived(
         backupReminderEnabled
             ? $text('settings.notifications.backup.interval_days', { values: { count: backupReminderInterval } })
-            : $text('settings.notifications.backup.disabled')
+            : $text('common.disabled')
     );
 
     function navigateToChatNotifications() {

@@ -281,7 +281,7 @@
                 <form onsubmit={handleSubmit}>
                     <div class="input-group">
                         <label for="password-input">
-                            {$text('chats.hidden_chats.password_label')}
+                            {$text('common.password')}
                         </label>
                         <input
                             id="password-input"
@@ -336,7 +336,7 @@
                             onclick={handleClose}
                             disabled={isLoading}
                         >
-                            {$text('chats.hidden_chats.cancel')}
+                            {$text('common.cancel')}
                         </button>
                         <button
                             type="submit"

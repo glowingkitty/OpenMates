@@ -992,7 +992,7 @@
     {:else if currentStep === 'password'}
         <div class="step-content" transition:slide>
             <button class="back-button" onclick={backToMethodSelection}>
-                ← {$text('login.back')}
+                ← {$text('common.back')}
             </button>
             
             <p class="info-text">
@@ -1040,7 +1040,7 @@
                     <span class="loading-spinner"></span>
                 {:else if !userHas2FA}
                     <!-- User needs to set up 2FA next -->
-                    {$text('login.continue')}
+                    {$text('common.continue')}
                 {:else}
                     {$text('login.complete_reset')}
                 {/if}
@@ -1051,7 +1051,7 @@
         <!-- 2FA Setup Step - Required for password users without existing 2FA -->
         <div class="step-content" transition:slide>
             <button class="back-button" onclick={() => currentStep = 'password'}>
-                ← {$text('login.back')}
+                ← {$text('common.back')}
             </button>
             
             <div class="tfa-setup-header">

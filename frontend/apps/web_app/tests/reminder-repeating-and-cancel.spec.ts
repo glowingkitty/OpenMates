@@ -25,6 +25,7 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -141,9 +142,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	test.slow();
 	test.setTimeout(1800000); // 30 min (3 occurrences × 3 min + 2 min cancel wait + overhead)
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('REMINDER_REPEATING');
 	const screenshot = createStepScreenshotter(log);

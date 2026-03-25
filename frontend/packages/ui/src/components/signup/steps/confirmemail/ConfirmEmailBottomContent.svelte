@@ -110,7 +110,7 @@
                     class:fade-out={isVerifying}
                 />
                 <div class="loading-text color-grey-80" class:fade-in={isVerifying}>
-                    {$text('login.loading')}
+                    {$text('common.loading')}
                 </div>
             </div>
         </div>

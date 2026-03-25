@@ -1118,7 +1118,7 @@
         confirmBtn.addEventListener('click', (e) => { e.stopPropagation(); _confirmPick(); });
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = $text('settings.report_issue.element_picker_cancel');
+        cancelBtn.textContent = $text('common.cancel');
         Object.assign(cancelBtn.style, {
             padding: '8px 16px',
             background: 'rgba(255,255,255,0.15)',
@@ -1705,7 +1705,7 @@
                             disabled={isSubmitting || isCopyingElementHtml}
                         >
                             {copyElementHtmlSuccess
-                                ? $text('settings.report_issue.element_picker_copied')
+                                ? $text('common.not_found.url_copied')
                                 : $text('settings.report_issue.element_picker_copy')}
                         </button>
                         <button
@@ -1869,7 +1869,7 @@
                     {#if isCopyingDebugInfo}
                         {$text('settings.report_issue.copy_debug_info_copying')}
                     {:else if copyDebugInfoSuccess}
-                        {$text('settings.report_issue.copy_debug_info_copied')}
+                        {$text('common.not_found.url_copied')}
                     {:else}
                         {$text('settings.report_issue.copy_debug_info_button')}
                     {/if}

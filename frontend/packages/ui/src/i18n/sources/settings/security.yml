@@ -148,30 +148,6 @@ enter_password:
   sv: Ange ditt nuvarande lösenord
   he: הזן את הסיסמה הנוכחית שלך
   verified_by_human: []
-password_placeholder:
-  context: Placeholder for password input
-  en: Password
-  de: Passwort
-  zh: 密码
-  es: Contraseña
-  fr: Mot de passe
-  pt: Senha
-  ru: Пароль
-  ja: パスワード
-  ko: 비밀번호
-  it: Password
-  tr: Şifre
-  vi: Mật khẩu
-  id: Kata sandi
-  pl: Hasło
-  nl: Wachtwoord
-  ar: كلمة المرور
-  hi: पासवर्ड
-  th: รหัสผ่าน
-  cs: Heslo
-  sv: Lösenord
-  he: סיסמה
-  verified_by_human: []
 verify_password:
   context: Button to verify password
   en: Verify Password
@@ -443,78 +419,6 @@ resend_code:
   verified_by_human: []
 
 # --- SettingsPassword Component ---
-loading:
-  context: Loading message
-  en: Loading...
-  de: Wird geladen...
-  zh: 加载中...
-  es: Cargando...
-  fr: Chargement...
-  pt: Carregando...
-  ru: Загрузка...
-  ja: 読み込み中...
-  ko: 로딩 중...
-  it: Caricamento...
-  tr: Yükleniyor...
-  vi: Đang tải...
-  id: Memuat...
-  pl: Ładowanie...
-  nl: Laden...
-  ar: جاري التحميل...
-  hi: लोड हो रहा है...
-  th: กำลังโหลด...
-  cs: Načítání...
-  sv: Laddar...
-  he: טוען...
-  verified_by_human: []
-change_password:
-  context: Title for change password page
-  en: Change Password
-  de: Passwort ändern
-  zh: 更改密码
-  es: Cambiar contraseña
-  fr: Changer le mot de passe
-  pt: Alterar senha
-  ru: Изменить пароль
-  ja: パスワードを変更
-  ko: 비밀번호 변경
-  it: Cambia password
-  tr: Şifreyi değiştir
-  vi: Đổi mật khẩu
-  id: Ubah kata sandi
-  pl: Zmień hasło
-  nl: Wachtwoord wijzigen
-  ar: تغيير كلمة المرور
-  hi: पासवर्ड बदलें
-  th: เปลี่ยนรหัสผ่าน
-  cs: Změnit heslo
-  sv: Ändra lösenord
-  he: שינוי סיסמה
-  verified_by_human: []
-add_password:
-  context: Title for add password page
-  en: Add Password
-  de: Passwort hinzufügen
-  zh: 添加密码
-  es: Agregar contraseña
-  fr: Ajouter un mot de passe
-  pt: Adicionar senha
-  ru: Добавить пароль
-  ja: パスワードを追加
-  ko: 비밀번호 추가
-  it: Aggiungi password
-  tr: Şifre ekle
-  vi: Thêm mật khẩu
-  id: Tambahkan kata sandi
-  pl: Dodaj hasło
-  nl: Wachtwoord toevoegen
-  ar: إضافة كلمة المرور
-  hi: पासवर्ड जोड़ें
-  th: เพิ่มรหัสผ่าน
-  cs: Přidat heslo
-  sv: Lägg till lösenord
-  he: הוספת סיסמה
-  verified_by_human: []
 change_password_description:
   context: Description for change password page
   en: Change your password to a new one. You'll need to verify your identity first.
@@ -851,54 +755,6 @@ password_strength_warning:
   sv: Överväg att lägga till specialtecken för ett starkare lösenord
   he: כדאי להוסיף תווים מיוחדים כדי ליצור סיסמה חזקה יותר
   verified_by_human: []
-change_password_button:
-  context: Button to submit password change
-  en: Change Password
-  de: Passwort ändern
-  zh: 更改密码
-  es: Cambiar contraseña
-  fr: Changer le mot de passe
-  pt: Alterar senha
-  ru: Изменить пароль
-  ja: パスワードを変更
-  ko: 비밀번호 변경
-  it: Cambia password
-  tr: Şifreyi değiştir
-  vi: Đổi mật khẩu
-  id: Ubah kata sandi
-  pl: Zmień hasło
-  nl: Wachtwoord wijzigen
-  ar: تغيير كلمة المرور
-  hi: पासवर्ड बदलें
-  th: เปลี่ยนรหัสผ่าน
-  cs: Změnit heslo
-  sv: Ändra lösenord
-  he: שינוי סיסמה
-  verified_by_human: []
-add_password_button:
-  context: Button to submit new password
-  en: Add Password
-  de: Passwort hinzufügen
-  zh: 添加密码
-  es: Agregar contraseña
-  fr: Ajouter un mot de passe
-  pt: Adicionar senha
-  ru: Добавить пароль
-  ja: パスワードを追加
-  ko: 비밀번호 추가
-  it: Aggiungi password
-  tr: Şifre ekle
-  vi: Thêm mật khẩu
-  id: Tambahkan kata sandi
-  pl: Dodaj hasło
-  nl: Wachtwoord toevoegen
-  ar: إضافة كلمة المرور
-  hi: पासवर्ड जोड़ें
-  th: เพิ่มรหัสผ่าน
-  cs: Přidat heslo
-  sv: Lägg till lösenord
-  he: הוספת סיסמה
-  verified_by_human: []
 password_updated:
   context: Title after successful password update
   en: Password Updated
@@ -1044,30 +900,6 @@ tfa_enabled:
   cs: 2FA povoleno
   sv: 2FA aktiverat
   he: אימות דו-שלבי מופעל
-  verified_by_human: []
-tfa_enabled_short:
-  context: Short status when 2FA is enabled
-  en: Enabled
-  de: Aktiviert
-  zh: 已启用
-  es: Habilitado
-  fr: Activé
-  pt: Ativado
-  ru: Включена
-  ja: 有効
-  ko: 활성화됨
-  it: Abilitato
-  tr: Etkin
-  vi: Đã bật
-  id: Diaktifkan
-  pl: Włączone
-  nl: Ingeschakeld
-  ar: مفعل
-  hi: सक्षम
-  th: เปิดใช้งาน
-  cs: Povoleno
-  sv: Aktiverat
-  he: מופעל
   verified_by_human: []
 tfa_disabled:
   context: Status when 2FA is disabled
@@ -2177,30 +2009,6 @@ tfa_reset_codes_error:
   verified_by_human: []
 
 # --- Recovery Key Settings ---
-recovery_key_title:
-  context: Title for recovery key settings submenu
-  en: Recovery Key
-  de: Wiederherstellungsschlüssel
-  zh: 恢复密钥
-  es: Clave de recuperación
-  fr: Clé de récupération
-  pt: Chave de recuperação
-  ru: Ключ восстановления
-  ja: 回復キー
-  ko: 복구 키
-  it: Chiave di recupero
-  tr: Kurtarma Anahtarı
-  vi: Khóa khôi phục
-  id: Kunci Pemulihan
-  pl: Klucz odzyskiwania
-  nl: Herstelsleutel
-  ar: مفتاح الاسترداد
-  hi: पुनर्प्राप्ति कुंजी
-  th: คีย์กู้คืน
-  cs: Klíč pro obnovení
-  sv: Återställningsnyckel
-  he: מפתח שחזור
-  verified_by_human: []
 recovery_key_set:
   context: Subtitle when recovery key is configured
   en: Configured
@@ -2272,54 +2080,6 @@ recovery_key_description:
   cs: Klíč pro obnovení je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uchovávejte jej bezpečně offline, například ve správci hesel nebo vytištěné kopii.
   sv: Din återställningsnyckel är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den säkert offline, till exempel i en lösenordshanterare eller utskriven kopia.
   he: מפתח השחזור שלך הוא הדרך היחידה לשחזר את החשבון שלך אם תאבד את הגישה לכל שיטות ההתחברות שלך. יש לשמור אותו במקום בטוח במצב לא מקוון, למשל במנהל סיסמאות או כעותק מודפס.
-  verified_by_human: []
-recovery_key_status:
-  context: Label for recovery key status
-  en: Status
-  de: Status
-  zh: 状态
-  es: Estado
-  fr: Statut
-  pt: Status
-  ru: Статус
-  ja: ステータス
-  ko: 상태
-  it: Stato
-  tr: Durum
-  vi: Trạng thái
-  id: Status
-  pl: Status
-  nl: Status
-  ar: الحالة
-  hi: स्थिति
-  th: สถานะ
-  cs: Stav
-  sv: Status
-  he: סטטוס
-  verified_by_human: []
-recovery_key_last_updated:
-  context: Label for when recovery key was last updated
-  en: Last Updated
-  de: Zuletzt aktualisiert
-  zh: 上次更新
-  es: Última actualización
-  fr: Dernière mise à jour
-  pt: Última atualização
-  ru: Последнее обновление
-  ja: 最終更新
-  ko: 마지막 업데이트
-  it: Ultimo aggiornamento
-  tr: Son güncelleme
-  vi: Cập nhật lần cuối
-  id: Terakhir diperbarui
-  pl: Ostatnia aktualizacja
-  nl: Laatst bijgewerkt
-  ar: آخر تحديث
-  hi: अंतिम अपडेट
-  th: อัปเดตล่าสุด
-  cs: Naposledy aktualizováno
-  sv: Senast uppdaterad
-  he: עדכון אחרון
   verified_by_human: []
 recovery_key_regenerate_button:
   context: Button to regenerate recovery key

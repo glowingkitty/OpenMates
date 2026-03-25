@@ -452,7 +452,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 <SettingsItem
     type="heading"
     icon="create"
-    title={$text('settings.privacy.custom')}
+    title={$text('common.custom')}
 />
 
 {#each customEntries as entry (entry.id)}

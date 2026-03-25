@@ -1,28 +1,3 @@
-ask:
-  context: Skill name for AI ask skill
-  en: Ask
-  de: Fragen
-  zh: 提问
-  es: Preguntar
-  fr: Demander
-  pt: Perguntar
-  ru: Спросить
-  ja: 質問する
-  ko: 질문하기
-  it: Chiedi
-  tr: Sor
-  vi: Hỏi
-  id: Tanya
-  pl: Zapytaj
-  nl: Vragen
-  ar: اسأل
-  hi: पूछें
-  th: ถาม
-  cs: Zeptat se
-  sv: Fråga
-  he: שאל
-  verified_by_human: [en, de]
-
 ask.description:
   context: Description for AI ask skill
   en: Ask using text, images, and other media.

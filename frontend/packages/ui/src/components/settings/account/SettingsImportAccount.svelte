@@ -182,7 +182,7 @@
             <ul class="results-list">
                 {#each importResults as result}
                     <li class="result-item">
-                        <div class="result-title">{result.title || $text('settings.account.import_untitled')}</div>
+                        <div class="result-title">{result.title || $text('common.untitled_chat')}</div>
                         <div class="result-stats">
                             <span>{result.messages_imported} {$text('settings.account.import_messages_imported')}</span>
                             {#if result.messages_blocked > 0}
@@ -246,7 +246,7 @@
                     <h3>{$text('settings.account.import_select_chats')}</h3>
                     <div class="select-all-controls">
                         <button class="btn-link" onclick={selectAll} type="button">
-                            {$text('settings.account.import_select_all')}
+                            {$text('common.select_all')}
                         </button>
                         <span class="separator">·</span>
                         <button class="btn-link" onclick={deselectAll} type="button">
@@ -266,7 +266,7 @@
                                     onchange={() => toggleChat(i)}
                                 />
                                 <div class="chat-info">
-                                    <span class="chat-title">{chat.title || $text('settings.account.import_untitled')}</span>
+                                    <span class="chat-title">{chat.title || $text('common.untitled_chat')}</span>
                                     <span class="chat-meta">
                                         {chat.messages.length} {$text('settings.account.import_messages_count')}
                                     </span>
@@ -283,7 +283,7 @@
                     <div class="icon icon_credits"></div>
                     <div class="cost-text">
                         <span class="cost-label">{$text('settings.account.import_estimated_cost')}</span>
-                        <strong class="cost-value">~{costEstimate.estimatedCredits} {$text('settings.account.import_credits')}</strong>
+                        <strong class="cost-value">~{costEstimate.estimatedCredits} {$text('common.credits')}</strong>
                         <span class="cost-detail">
                             ({costEstimate.chatCount} {$text('settings.account.import_chats_selected')},
                             {costEstimate.messageCount} {$text('settings.account.import_messages_count')})

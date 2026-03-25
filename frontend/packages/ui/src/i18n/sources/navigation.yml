@@ -46,54 +46,6 @@ for_developers:
   sv: För Utvecklare
   he: למפתחים
   verified_by_human: []
-docs:
-  context: Navigation item for documentation
-  en: Docs
-  de: Dokumentation
-  zh: 文档
-  es: Documentación
-  fr: Documentation
-  pt: Documentação
-  ru: Документация
-  ja: ドキュメント
-  ko: 문서
-  it: Documentazione
-  tr: Belgeler
-  vi: Tài liệu
-  id: Dokumentasi
-  pl: Dokumentacja
-  nl: Documentatie
-  ar: التوثيق
-  hi: दस्तावेज़
-  th: เอกสาร
-  cs: Dokumentace
-  sv: Dokumentation
-  he: תיעוד
-  verified_by_human: []
-chat:
-  context: Navigation item for chat feature
-  en: Chat
-  de: Chat
-  zh: 聊天
-  es: Chat
-  fr: Chat
-  pt: Chat
-  ru: Чат
-  ja: チャット
-  ko: 채팅
-  it: Chat
-  tr: Sohbet
-  vi: Trò chuyện
-  id: Obrolan
-  pl: Czat
-  nl: Chat
-  ar: دردشة
-  hi: चैट
-  th: แชท
-  cs: Chat
-  sv: Chatt
-  he: "צ'אט"
-  verified_by_human: []
 projects:
   context: Navigation item for projects section
   en: Projects

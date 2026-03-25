@@ -500,7 +500,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
             }
             dispatch('done');
         }}>
-            {$text('settings.sessions.pair_confirm_cancel')}
+            {$text('common.cancel')}
         </button>
 
     {:else if pageStatus === 'denied'}

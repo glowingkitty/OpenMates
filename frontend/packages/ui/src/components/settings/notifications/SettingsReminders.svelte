@@ -89,8 +89,8 @@
         { value: 'none', label: $text('reminder.panel.repeat_none') },
         { value: 'daily', label: $text('reminder.panel.repeat_daily') },
         { value: 'weekly', label: $text('reminder.panel.repeat_weekly') },
-        { value: 'monthly', label: $text('reminder.panel.repeat_monthly') },
-        { value: 'custom', label: $text('reminder.panel.repeat_custom') },
+        { value: 'monthly', label: $text('common.monthly') },
+        { value: 'custom', label: $text('common.custom') },
     ]);
 
     let customUnitOptions = $derived([
@@ -108,7 +108,7 @@
         ...(hasActiveChat
             ? [{ value: 'existing_chat', label: $text('reminder.panel.target_this_chat') }]
             : []),
-        { value: 'new_chat', label: $text('reminder.panel.target_new_chat') },
+        { value: 'new_chat', label: $text('common.new_chat') },
     ]);
 
     /** Description text that changes based on target type */
@@ -245,7 +245,7 @@
     <SettingsItem
         type="heading"
         icon="calendar"
-        title={$text('reminder.panel.date')}
+        title={$text('common.date')}
     />
     <div class="native-input-wrapper">
         <input

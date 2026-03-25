@@ -86,7 +86,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="anonym"
-    subtitleTop={$text('settings.privacy.hide_personal_data.chats')}
+    subtitleTop={$text('common.chats')}
     title={$text('settings.privacy.hide_personal_data')}
     hasToggle={true}
     checked={hidePersonalDataEnabled}
@@ -115,7 +115,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="chat"
-    subtitleTop={$text('settings.privacy.auto_deletion.chats')}
+    subtitleTop={$text('common.chats')}
     title={$text('settings.privacy.auto_deletion.chats.value')}
     hasModifyButton={true}
     onModifyClick={() => navigateToAutoDeletion('chats')}
@@ -153,7 +153,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <SettingsItem
     type="subsubmenu"
     icon="billing"
-    subtitleTop={$text('settings.privacy.auto_deletion.invoices')}
+    subtitleTop={$text('common.invoices')}
     title={$text('settings.privacy.auto_deletion.invoices.value')}
 />
 

@@ -248,7 +248,7 @@ visual-only for now.
                 settingsPath: 'privacy',
                 direction: 'backward',
                 icon: 'privacy',
-                title: $text('settings.privacy')
+                title: $text('common.privacy')
             });
         }, 200);
     }

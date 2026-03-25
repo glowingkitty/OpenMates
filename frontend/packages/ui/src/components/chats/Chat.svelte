@@ -788,7 +788,7 @@
       // only in the ActiveChat centered overlay — the sidebar keeps it simple.
       // CRITICAL: Use extractDisplayTextFromMarkdown to strip ```json embed blocks (images, code, etc.)
       // so the sidebar shows "[Image]" instead of raw JSON like "```json\n{\"type\": \"image\"...".
-      displayLabel = $text('enter_message.processing');
+      displayLabel = $text('common.processing');
       displayText = typeof lastMessage.content === 'string'
         ? extractDisplayTextFromMarkdown(lastMessage.content)
         : extractTextFromTiptap(lastMessage.content);
@@ -2094,11 +2094,11 @@
                 <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
-                <span class="chat-title processing-title">{$text('enter_message.processing')}</span>
+                <span class="chat-title processing-title">{$text('common.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html $text('chat.untitled_chat')}</span>
+                <span class="chat-title">{@html $text('common.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
                 <span class="pin-indicator">

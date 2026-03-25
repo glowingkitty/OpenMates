@@ -22,30 +22,6 @@ description:
   sv: Lös in eller köp presentkort för OpenMates-krediter
   he: ממש או רכוש כרטיסי מתנה עבור קרדיטים של OpenMates
   verified_by_human: []
-gift_cards:
-  context: Gift cards settings menu item
-  en: Gift Cards
-  de: Geschenkkarten
-  zh: 礼品卡
-  es: Tarjetas de Regalo
-  fr: Cartes Cadeaux
-  pt: Cartões Presente
-  ru: Подарочные Карты
-  ja: ギフトカード
-  ko: 기프트 카드
-  it: Buoni Regalo
-  tr: Hediye Kartları
-  vi: Thẻ Quà Tặng
-  id: Kartu Hadiah
-  pl: Karty Podarunkowe
-  nl: Cadeaukaarten
-  ar: بطاقات الهدايا
-  hi: उपहार कार्ड
-  th: บัตรของขวัญ
-  cs: Dárkové Karty
-  sv: Presentkort
-  he: כרטיסי מתנה
-  verified_by_human: []
 redeem:
   context: Redeem gift card menu item
   en: Redeem
@@ -166,30 +142,6 @@ buy.confirmation:
   sv: Bekräftelse av Presentkortsköp
   he: אישור רכישת כרטיס מתנה
   verified_by_human: []
-credits:
-  context: Credits label for gift cards
-  en: credits
-  de: Credits
-  zh: 积分
-  es: créditos
-  fr: crédits
-  pt: créditos
-  ru: кредиты
-  ja: クレジット
-  ko: 크레딧
-  it: crediti
-  tr: krediler
-  vi: tín dụng
-  id: kredit
-  pl: kredyty
-  nl: credits
-  ar: اعتمادات
-  hi: क्रेडिट
-  th: เครดิต
-  cs: kredity
-  sv: krediter
-  he: קרדיטים
-  verified_by_human: []
 code:
   context: Gift card code label
   en: Gift Card Code
@@ -285,30 +237,6 @@ download:
   cs: Stáhnout Kód Dárkové Karty
   sv: Ladda ner Presentkortskod
   he: הורד קוד כרטיס מתנה
-  verified_by_human: []
-done:
-  context: Done button after viewing gift card
-  en: Done
-  de: Fertig
-  zh: 完成
-  es: Hecho
-  fr: Terminé
-  pt: Concluído
-  ru: Готово
-  ja: 完了
-  ko: 완료
-  it: Fatto
-  tr: Tamamlandı
-  vi: Hoàn tất
-  id: Selesai
-  pl: Gotowe
-  nl: Klaar
-  ar: تم
-  hi: पूर्ण
-  th: เสร็จสิ้น
-  cs: Hotovo
-  sv: Klar
-  he: בוצע
   verified_by_human: []
 purchase_successful:
   context: Success message after purchasing gift card
@@ -453,30 +381,6 @@ redeemed_empty:
   cs: Ještě jste nevyměnili žádnou dárkovou kartu.
   sv: Du har inte löst in några presentkort ännu.
   he: עדיין לא מימשת אף כרטיס מתנה.
-  verified_by_human: []
-loading:
-  context: Loading message while fetching gift cards
-  en: Loading...
-  de: Laden...
-  zh: 加载中...
-  es: Cargando...
-  fr: Chargement...
-  pt: Carregando...
-  ru: Загрузка...
-  ja: 読み込み中...
-  ko: 로딩 중...
-  it: Caricamento...
-  tr: Yükleniyor...
-  vi: Đang tải...
-  id: Memuat...
-  pl: Ładowanie...
-  nl: Laden...
-  ar: جاري التحميل...
-  hi: लोड हो रहा है...
-  th: กำลังโหลด...
-  cs: Načítání...
-  sv: Laddar...
-  he: טוען...
   verified_by_human: []
 retry:
   context: Retry button text

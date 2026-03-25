@@ -20,6 +20,7 @@ title:
   th: ประกาศทางกฎหมาย (Imprint)
   cs: Právní oznámení (Imprint)
   sv: Juridiskt meddelande (Impressum)
+  he: הודעה משפטית (אימפרינט)
   verified_by_human: []
 information_tmg:
   context: Legal information section header
@@ -43,52 +44,7 @@ information_tmg:
   th: ข้อมูลตาม § 5 TMG
   cs: Informace dle § 5 TMG
   sv: Information enligt § 5 TMG
-  verified_by_human: []
-contact:
-  context: Contact section header in imprint
-  en: Contact
-  de: Kontakt
-  zh: 联系方式
-  es: Contacto
-  fr: Contact
-  pt: Contato
-  ru: Контакт
-  ja: お問い合わせ
-  ko: 연락처
-  it: Contatto
-  tr: İletişim
-  vi: Liên hệ
-  id: Kontak
-  pl: Kontakt
-  nl: Contact
-  ar: اتصل بنا
-  hi: संपर्क
-  th: ติดต่อ
-  cs: Kontakt
-  sv: Kontakt
-  verified_by_human: []
-email:
-  context: Email label in contact section
-  en: Email
-  de: E-Mail
-  zh: 电子邮件
-  es: Correo electrónico
-  fr: E-mail
-  pt: E-mail
-  ru: Электронная почта
-  ja: メール
-  ko: 이메일
-  it: E-mail
-  tr: E-posta
-  vi: Email
-  id: Email
-  pl: E-mail
-  nl: E-mail
-  ar: البريد الإلكتروني
-  hi: ईमेल
-  th: อีเมล
-  cs: E-mail
-  sv: E-post
+  he: מידע לפי § 5 TMG
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion for imprint
@@ -112,6 +68,7 @@ follow_up_1:
   th: ทำไมกฎหมายเยอรมันถึงกำหนดให้มี Imprint?
   cs: Proč německý zákon vyžaduje Imprint?
   sv: Varför kräver tysk lag ett Impressum?
+  he: מדוע החוק הגרמני מחייב אימפרינט?
   verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion for imprint
@@ -135,6 +92,7 @@ follow_up_2:
   th: ฉันจะติดต่อทีมกฎหมายของคุณได้อย่างไร?
   cs: Jak mohu kontaktovat váš právní tým?
   sv: Hur kan jag kontakta ert juridiska team?
+  he: כיצד אוכל ליצור קשר עם צוות המשפטים שלכם?
   verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion for imprint
@@ -158,6 +116,7 @@ follow_up_3:
   th: คุณใช้ใบอนุญาตโอเพ่นซอร์สใดบ้าง?
   cs: Jaké open source licence používáte?
   sv: Vilka öppen källkodslicenser använder ni?
+  he: אילו רישיונות קוד פתוח אתם משתמשים בהם?
   verified_by_human: []
 follow_up_4:
   context: Follow-up suggestion for imprint
@@ -181,6 +140,7 @@ follow_up_4:
   th: บริษัทของคุณจดทะเบียนที่ไหน?
   cs: Kde je vaše společnost registrována?
   sv: Var är ert företag registrerat?
+  he: היכן רשומה החברה שלכם?
   verified_by_human: []
 follow_up_5:
   context: Follow-up suggestion for imprint
@@ -204,4 +164,5 @@ follow_up_5:
   th: ใครคือตัวแทนทางกฎหมาย?
   cs: Kdo je zákonným zástupcem?
   sv: Vem är den juridiska representanten?
+  he: מי הוא הנציג המשפטי?
   verified_by_human: []

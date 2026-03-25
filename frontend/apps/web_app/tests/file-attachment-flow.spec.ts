@@ -74,6 +74,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 // ─── Log buckets ─────────────────────────────────────────────────────────────
 // All console messages captured for failure diagnostics.
@@ -225,9 +226,7 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	test.slow();
 	test.setTimeout(240000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('FILE_ATTACH_IMAGE');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-image' });
@@ -336,9 +335,7 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 	test.slow();
 	test.setTimeout(240000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('FILE_ATTACH_CODE');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-code' });
@@ -447,9 +444,7 @@ test('attaches multiple files at once and shows image embed and code reference i
 	test.slow();
 	test.setTimeout(240000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('FILE_ATTACH_MULTIPLE');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-multi' });
@@ -640,9 +635,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// Full lifecycle: send + reload + logout + relogin + delete — allow 5 minutes
 	test.setTimeout(300000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('FILE_ATTACH_FINANCE');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-finance' });

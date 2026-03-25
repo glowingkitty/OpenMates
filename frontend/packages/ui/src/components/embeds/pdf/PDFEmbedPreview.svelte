@@ -294,7 +294,7 @@
     const pc = localPageCount;
     if (isBeingViewed) return $text('app_skills.pdf.view.viewing');
     if (status === 'uploading') return $text('app_skills.pdf.view.uploading');
-    if (status === 'error') return uploadError || $text('app_skills.pdf.view.upload_failed');
+    if (status === 'error') return uploadError || $text('common.upload_failed');
     if (status === 'processing') {
       if (pc && pc > 0) {
         return $text('app_skills.pdf.view.processing_pages', { values: { count: pc } });
@@ -305,7 +305,7 @@
       if (pc && pc > 0) {
         return pc === 1 ? '1 page' : `${pc} pages`;
       }
-      return $text('app_skills.pdf.view');
+      return $text('common.pdf');
     }
     return '';
   });

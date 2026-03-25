@@ -128,7 +128,7 @@
   /**
    * i18n skill name shown in the BasicInfosBar header line (e.g. "Read" / "Lesen").
    */
-  let skillName = $derived($text('app_skills.pdf.read.skill_name'));
+  let skillName = $derived($text('common.read'));
 
   /**
    * Strip common markdown symbols for clean plain-text preview.

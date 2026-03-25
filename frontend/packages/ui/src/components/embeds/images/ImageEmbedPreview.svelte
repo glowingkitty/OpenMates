@@ -326,7 +326,7 @@
     // When the AI is actively viewing this image, show "Viewing…" regardless of upload status
     if (isBeingViewed) return $text('app_skills.images.view.viewing');
     if (status === 'uploading') return $text('app_skills.images.view.uploading');
-    if (status === 'error') return uploadError || $text('app_skills.images.view.upload_failed');
+    if (status === 'error') return uploadError || $text('common.upload_failed');
     if (imageError) return imageError;
     if (status === 'finished') {
       // Unauthenticated users: prompt to sign up for actual upload

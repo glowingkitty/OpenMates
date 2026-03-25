@@ -225,7 +225,7 @@
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size password"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.password')}</h2>
+        <h2 class="signup-menu-title">{@html $text('common.password')}</h2>
     </div>
 
     <h3 class="advice-title">{@html $text('signup.advice')}</h3>

@@ -477,30 +477,6 @@ categories.most_used:
   sv: Mest använd
   he: הנפוצים ביותר
   verified_by_human: []
-categories.other:
-  context: Category name for other apps
-  en: Other
-  de: Sonstiges
-  zh: 其他
-  es: Otros
-  fr: Autres
-  pt: Outros
-  ru: Другое
-  ja: その他
-  ko: 기타
-  it: Altro
-  tr: Diğer
-  vi: Khác
-  id: Lainnya
-  pl: Inne
-  nl: Overige
-  ar: أخرى
-  hi: अन्य
-  th: อื่น ๆ
-  cs: Ostatní
-  sv: Övrigt
-  he: אחר
-  verified_by_human: []
 skills.title:
   context: Section title for skills in app details
   en: Skills
@@ -669,30 +645,6 @@ skills.providers:
   sv: Leverantörer
   he: ספקים
   verified_by_human: []
-skills.pricing:
-  context: Label for skill pricing
-  en: Pricing
-  de: Preisgestaltung
-  zh: 定价
-  es: Precios
-  fr: Tarification
-  pt: Preços
-  ru: Ценообразование
-  ja: 価格設定
-  ko: 가격 책정
-  it: Prezzi
-  tr: Fiyatlandırma
-  vi: Định giá
-  id: Harga
-  pl: Cennik
-  nl: Prijzen
-  ar: التسعير
-  hi: मूल्य निर्धारण
-  th: การกำหนดราคา
-  cs: Ceny
-  sv: Prissättning
-  he: תמחור
-  verified_by_human: []
 skills.pricing.free:
   context: Free pricing label
   en: Free
@@ -716,30 +668,6 @@ skills.pricing.free:
   cs: Zdarma
   sv: Gratis
   he: חינם
-  verified_by_human: []
-skills.pricing.credits:
-  context: Credits currency label
-  en: credits
-  de: Credits
-  zh: 积分
-  es: créditos
-  fr: crédits
-  pt: créditos
-  ru: кредиты
-  ja: クレジット
-  ko: 크레딧
-  it: crediti
-  tr: kredi
-  vi: tín dụng
-  id: kredit
-  pl: kredyty
-  nl: credits
-  ar: رصيد
-  hi: क्रेडिट
-  th: หน่วยเครดิต
-  cs: kredity
-  sv: krediter
-  he: קרדיטים
   verified_by_human: []
 skills.pricing.unit:
   context: Generic unit label
@@ -1077,30 +1005,6 @@ focus_modes.show_full_instruction:
   sv: Visa fullständig instruktion
   he: הצג הוראה מלאה
   verified_by_human: []
-focus_modes.show_less:
-  context: Button to collapse expanded instructions
-  en: Show less
-  de: Weniger anzeigen
-  zh: 显示更少
-  es: Mostrar menos
-  fr: Afficher moins
-  pt: Mostrar menos
-  ru: Показать меньше
-  ja: 少なく表示
-  ko: 간략히 보기
-  it: Mostra meno
-  tr: Daha az göster
-  vi: Hiển thị ít hơn
-  id: Tampilkan lebih sedikit
-  pl: Pokaż mniej
-  nl: Minder tonen
-  ar: عرض أقل
-  hi: कम दिखाएं
-  th: แสดงน้อยลง
-  cs: Zobrazit méně
-  sv: Visa mindre
-  he: הצג פחות
-  verified_by_human: []
 focus_modes.summary:
   context: Section heading for the bullet-point process summary on the focus mode settings detail page. Shows what steps the AI takes when this focus mode is active.
   en: What this focus mode does
@@ -1365,54 +1269,6 @@ settings_memories.no_entries:
   sv: "Inga poster i {category} ännu."
   he: "אין עדיין רשומות ב-{category}."
   verified_by_human: []
-settings_memories.add_entry:
-  context: Button text to add a new entry
-  en: Add Entry
-  de: Eintrag hinzufügen
-  zh: 添加条目
-  es: Agregar entrada
-  fr: Ajouter une entrée
-  pt: Adicionar entrada
-  ru: Добавить запись
-  ja: エントリを追加
-  ko: 항목 추가
-  it: Aggiungi voce
-  tr: Giriş ekle
-  vi: Thêm mục
-  id: Tambah entri
-  pl: Dodaj wpis
-  nl: Item toevoegen
-  ar: إضافة إدخال
-  hi: प्रविष्टि जोड़ें
-  th: เพิ่มรายการ
-  cs: Přidat položku
-  sv: Lägg till post
-  he: הוספת רשומה
-  verified_by_human: []
-settings_memories.delete:
-  context: Button text to delete an entry
-  en: Delete
-  de: Löschen
-  zh: 删除
-  es: Eliminar
-  fr: Supprimer
-  pt: Excluir
-  ru: Удалить
-  ja: 削除
-  ko: 삭제
-  it: Elimina
-  tr: Sil
-  vi: Xóa
-  id: Hapus
-  pl: Usuń
-  nl: Verwijderen
-  ar: حذف
-  hi: हटाएं
-  th: ลบ
-  cs: Smazat
-  sv: Ta bort
-  he: מחיקה
-  verified_by_human: []
 settings_memories.pending:
   context: Badge text for pending entries
   en: Pending
@@ -1556,30 +1412,6 @@ settings_memories.item_value:
   cs: Hodnota položky
   sv: Ingångsvärde
   he: ערך רשומה
-  verified_by_human: []
-settings_memories.cancel:
-  context: Cancel button text
-  en: Cancel
-  de: Abbrechen
-  zh: 取消
-  es: Cancelar
-  fr: Annuler
-  pt: Cancelar
-  ru: Отмена
-  ja: キャンセル
-  ko: 취소
-  it: Annulla
-  tr: İptal
-  vi: Hủy
-  id: Batal
-  pl: Anuluj
-  nl: Annuleren
-  ar: إلغاء
-  hi: रद्द करें
-  th: ยกเลิก
-  cs: Zrušit
-  sv: Avbryt
-  he: ביטול
   verified_by_human: []
 settings_memories.creating:
   context: Button text while creating entry
@@ -1773,30 +1605,6 @@ app_settings_memories.no_settings:
   sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
   he: טרם סונכרנו הגדרות או זיכרונות. הם יופיעו כאן ברגע שיהיו זמינים.
   verified_by_human: []
-app_settings_memories.add_entry:
-  context: Button text to add a new entry
-  en: Add Entry
-  de: Eintrag hinzufügen
-  zh: 添加条目
-  es: Agregar entrada
-  fr: Ajouter une entrée
-  pt: Adicionar entrada
-  ru: Добавить запись
-  ja: エントリを追加
-  ko: 항목 추加
-  it: Aggiungi voce
-  tr: Giriş ekle
-  vi: Thêm mục
-  id: Tambah entri
-  pl: Dodaj wpis
-  nl: Item toevoegen
-  ar: إضافة إدخال
-  hi: प्रविष्टि जोड़ें
-  th: เพิ่มรายการ
-  cs: Přidat položku
-  sv: Lägg till post
-  he: הוספת רשומה
-  verified_by_human: []
 plus_n_more:
   context: Shows remaining count in scrollable app/skill/focus mode/settings lists (e.g. "+ 5 more")
   en: "+ {count} more"
@@ -1844,30 +1652,6 @@ skills.models:
   cs: Modely
   sv: Modeller
   he: מודלים
-  verified_by_human: []
-skills.model_detail.model_info:
-  context: Section heading for model details on the skill model detail page
-  en: Details
-  de: Details
-  zh: 详情
-  es: Detalles
-  fr: Détails
-  pt: Detalhes
-  ru: Подробности
-  ja: 詳細
-  ko: 세부 정보
-  it: Dettagli
-  tr: Ayrıntılar
-  vi: Chi tiết
-  id: Detail
-  pl: Szczegóły
-  nl: Details
-  ar: التفاصيل
-  hi: विवरण
-  th: รายละเอียด
-  cs: Podrobnosti
-  sv: Detaljer
-  he: פרטים
   verified_by_human: []
 skills.model_detail.origin:
   context: Label for model origin/provider country on skill model detail page
@@ -2060,54 +1844,6 @@ skills.model_detail.output_types:
   cs: Výstupy
   sv: Utdata
   he: פלט
-  verified_by_human: []
-skills.model_detail.pricing:
-  context: Section heading for pricing on skill model detail page
-  en: Pricing
-  de: Preise
-  zh: 定价
-  es: Precios
-  fr: Tarification
-  pt: Preços
-  ru: Цены
-  ja: 価格
-  ko: 가격
-  it: Prezzi
-  tr: Fiyatlandırma
-  vi: Định giá
-  id: Harga
-  pl: Ceny
-  nl: Prijzen
-  ar: التسعير
-  hi: मूल्य निर्धारण
-  th: ราคา
-  cs: Ceny
-  sv: Prissättning
-  he: תמחור
-  verified_by_human: []
-skills.model_detail.provider:
-  context: Section heading for provider/server info on skill model detail page
-  en: Provider
-  de: Anbieter
-  zh: 提供商
-  es: Proveedor
-  fr: Fournisseur
-  pt: Provedor
-  ru: Провайдер
-  ja: プロバイダー
-  ko: 제공자
-  it: Fornitore
-  tr: Sağlayıcı
-  vi: Nhà cung cấp
-  id: Penyedia
-  pl: Dostawca
-  nl: Provider
-  ar: المزود
-  hi: प्रदाता
-  th: ผู้ให้บริการ
-  cs: Poskytovatel
-  sv: Leverantör
-  he: ספק
   verified_by_human: []
 skills.model_detail.model_not_found:
   context: Error message when skill model is not found on detail page
@@ -2605,31 +2341,6 @@ ai.skill.ask.model.zai_glm_4.7:
   cs: GLM 4.7
   sv: GLM 4.7
   he: GLM 4.7
-  verified_by_human: []
-
-skill:
-  context: Type label shown in the gradient banner header on a skill detail sub-page (e.g. displayed as "Skill" below the skill name)
-  en: Skill
-  de: Skill
-  zh: 技能
-  es: Habilidad
-  fr: Compétence
-  pt: Habilidade
-  ru: Навык
-  ja: スキル
-  ko: 스킬
-  it: Abilità
-  tr: Beceri
-  vi: Kỹ năng
-  id: Keahlian
-  pl: Umiejętność
-  nl: Vaardigheid
-  ar: مهارة
-  hi: कौशल
-  th: ทักษะ
-  cs: Dovednost
-  sv: Färdighet
-  he: מיומנות
   verified_by_human: []
 
 focus_mode:

@@ -151,7 +151,7 @@
   }
 
   // Skill display info
-  let skillName = $derived($text('app_skills.shopping.search_products'));
+  let skillName = $derived($text('common.search'));
   const skillIconName = 'search';
   let providerLabel = $derived.by(() => {
     const normalized = provider.trim().toUpperCase();
@@ -247,7 +247,7 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="shopping-search-details" class:mobile={isMobileLayout}>
       <!-- Search query (e.g., "bio joghurt") -->
-      <div class="search-query">{query || $text('app_skills.shopping.search_products')}</div>
+      <div class="search-query">{query || $text('common.search')}</div>
 
       <!-- Provider subtitle (e.g., "via REWE") -->
       <div class="search-provider">{viaProvider}</div>

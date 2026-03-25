@@ -179,7 +179,7 @@
         {#if !isAuthenticated}
             <div class="email-field-container">
                 <div class="email-field-label">
-                    {$text('settings.support.email_label')}
+                    {$text('common.email')}
                 </div>
                 <SettingsInput
                     bind:value={email}
@@ -207,7 +207,7 @@
         {#if !isAuthenticated}
             <div class="button-group">
                 <button class="primary-button" onclick={continueToPayment} disabled={!canContinue}>
-                    {$text('signup.continue')}
+                    {$text('common.continue')}
                 </button>
                 {#if paymentStarted}
                     <button class="secondary-button" onclick={changeEmail}>

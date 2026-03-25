@@ -1,27 +1,3 @@
-delete:
-  context: Menu option to delete an attachment
-  en: Delete
-  de: Löschen
-  zh: 删除
-  es: Eliminar
-  fr: Supprimer
-  pt: Excluir
-  ru: Удалить
-  ja: 削除
-  ko: 삭제
-  it: Elimina
-  tr: Sil
-  vi: Xóa
-  id: Hapus
-  pl: Usuń
-  nl: Verwijderen
-  ar: حذف
-  hi: हटाएं
-  th: ลบ
-  cs: Smazat
-  sv: "Ta bort"
-  he: מחיקה
-  verified_by_human: []
 copy_link:
   context: Menu option to copy web link
   en: Copy link
@@ -45,54 +21,6 @@ copy_link:
   cs: Kopírovat odkaz
   sv: "Kopiera länk"
   he: העתקת קישור
-  verified_by_human: []
-download:
-  context: Menu option to download an attachment
-  en: Download
-  de: Herunterladen
-  zh: 下载
-  es: Descargar
-  fr: Télécharger
-  pt: Baixar
-  ru: Скачать
-  ja: ダウンロード
-  ko: 다운로드
-  it: Scarica
-  tr: İndir
-  vi: Tải xuống
-  id: Unduh
-  pl: Pobierz
-  nl: Downloaden
-  ar: تنزيل
-  hi: डाउनलोड करें
-  th: ดาวน์โหลด
-  cs: Stáhnout
-  sv: "Ladda ner"
-  he: הורדה
-  verified_by_human: []
-view:
-  context: Menu option to view attachment in full screen
-  en: View
-  de: Ansehen
-  zh: 查看
-  es: Ver
-  fr: Voir
-  pt: Visualizar
-  ru: Просмотреть
-  ja: 表示
-  ko: 보기
-  it: Visualizza
-  tr: Görüntüle
-  vi: Xem
-  id: Lihat
-  pl: Zobacz
-  nl: Bekijken
-  ar: عرض
-  hi: देखें
-  th: ดู
-  cs: Zobrazit
-  sv: "Visa"
-  he: צפייה
   verified_by_human: []
 paste_as_text:
   context: Menu option to replace an embed (text, website, video URL, audio recording) with its plain text content in the message input

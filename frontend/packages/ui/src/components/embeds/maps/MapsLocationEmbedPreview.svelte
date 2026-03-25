@@ -125,7 +125,7 @@
   }
 
   // Skill name from translations
-  let skillName = $derived($text('embeds.maps_location'));
+  let skillName = $derived($text('common.location'));
 
   // Icon shown inline in the content area next to the place name.
   // Transit/transport types use the travel icon; everything else uses the maps/pin icon.
@@ -168,7 +168,7 @@
       <div class="map-image-wrapper">
         <img
           src={mapImageUrl}
-          alt={name || $text('embeds.maps_location')}
+          alt={name || $text('common.location')}
           class="map-preview-image"
           class:mobile={isMobileLayout}
           loading="lazy"

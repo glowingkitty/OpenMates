@@ -112,7 +112,7 @@ Architecture: docs/architecture/device-sessions.md
         const now = Date.now() / 1000;
         const diff = now - timestamp;
 
-        if (diff < 60) return $text('settings.sessions.just_now');
+        if (diff < 60) return $text('common.just_now');
         if (diff < 3600) {
             const mins = Math.floor(diff / 60);
             return mins === 1
@@ -463,7 +463,7 @@ Architecture: docs/architecture/device-sessions.md
                     disabled={processingAll}
                 >
                     {processingAll
-                        ? $text('settings.sessions.processing')
+                        ? $text('common.processing')
                         : $text('settings.sessions.logout_all_others')}
                 </button>
             </div>
@@ -476,7 +476,7 @@ Architecture: docs/architecture/device-sessions.md
                 disabled={processingAll}
             >
                 {processingAll
-                    ? $text('settings.sessions.processing')
+                    ? $text('common.processing')
                     : $text('settings.sessions.logout_all_devices')}
             </button>
             <p class="destructive-hint">{$text('settings.sessions.logout_all_hint')}</p>

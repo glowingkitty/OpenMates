@@ -46,31 +46,6 @@ interface:
   sv: Gränssnitt
   he: ממשק
   verified_by_human: []
-language:
-  context: Language settings menu item in interface section
-  en: Language
-  de: Sprache
-  zh: 语言
-  es: Idioma
-  fr: Langue
-  pt: Idioma
-  ru: Язык
-  ja: 言語
-  ko: 언어
-  it: Lingua
-  tr: Dil
-  vi: Ngôn ngữ
-  id: Bahasa
-  pl: Język
-  nl: Taal
-  ar: اللغة
-  hi: भाषा
-  th: ภาษา
-  cs: Jazyk
-  sv: Språk
-  he: שפה
-  verified_by_human: []
-
 dark_mode:
   context: Dark mode settings menu item in interface section — shown as the row title on the sub-page entry
   en: Dark mode

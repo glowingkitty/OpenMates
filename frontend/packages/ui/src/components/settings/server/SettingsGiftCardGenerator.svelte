@@ -377,7 +377,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
             {#if isGenerating}
                 {$text('settings.server.gift_cards.generating')}
             {:else}
-                {$text('settings.server.gift_cards.generate')}
+                {$text('common.generate')}
             {/if}
         </button>
 
@@ -527,7 +527,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
             </div>
             <p class="qr-fullscreen-hint">{$text('settings.server.gift_cards.qr_code_hint')}</p>
             <button class="qr-fullscreen-close" onclick={closeQR}>
-                {$text('settings.server.gift_cards.close')}
+                {$text('common.close')}
             </button>
         </div>
     </div>

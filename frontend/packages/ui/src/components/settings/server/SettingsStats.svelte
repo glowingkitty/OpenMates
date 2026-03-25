@@ -694,7 +694,7 @@
         <!-- Devices -->
         <div class="chart-section">
             <div class="chart-header">
-                <h3>{$text('settings.server_stats.devices')}</h3>
+                <h3>{$text('common.devices')}</h3>
             </div>
             {#if deviceData.length === 0}
                 <p class="no-data">{$text('settings.server_stats.no_data')}</p>

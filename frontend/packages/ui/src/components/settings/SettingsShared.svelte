@@ -321,7 +321,7 @@
                                 icon="chat"
                                 iconBackground={metadata?.category ? 'none' : 'primary'}
                                 iconColor={getCategoryIconColor(metadata?.category)}
-                                title={metadata?.title || chat.title || $text('settings.share.untitled_chat')}
+                                title={metadata?.title || chat.title || $text('common.untitled_chat')}
                                 onClick={() => navigateToShare(chat.chat_id)}
                             />
                             <button
@@ -359,7 +359,7 @@
                             icon="chat"
                             iconBackground={metadata?.category ? 'none' : 'primary'}
                             iconColor={getCategoryIconColor(metadata?.category)}
-                            title={metadata?.title || chat.title || $text('settings.share.untitled_chat')}
+                            title={metadata?.title || chat.title || $text('common.untitled_chat')}
                             onClick={() => {
                                 // Navigate to the chat
                                 activeChatStore.setActiveChat(chat.chat_id);

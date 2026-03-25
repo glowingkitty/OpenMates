@@ -49,7 +49,7 @@
     let websiteNavItems = $derived([
         { href: routes.home, text: $text('navigation.for_all') },
         { href: routes.developers, text: $text('navigation.for_developers') },
-        { href: routes.docs.main, text: $text('navigation.docs') }
+        { href: routes.docs.main, text: $text('common.docs') }
     ].filter(item => item.href && isPageVisible(item.href)));
 
     interface _NavItem {
@@ -346,8 +346,8 @@
                 <!-- Center section: docs mode shows Docs/Chat tab toggle -->
                 {#if docsMode}
                     <div class="docs-tabs">
-                        <a href="/docs" class="docs-tab active">{$text('documentation.tabs.docs')}</a>
-                        <a href="/" class="docs-tab">{$text('documentation.tabs.chat')}</a>
+                        <a href="/docs" class="docs-tab active">{$text('common.docs')}</a>
+                        <a href="/" class="docs-tab">{$text('common.chat')}</a>
                     </div>
                 {/if}
 

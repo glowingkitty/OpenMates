@@ -158,7 +158,7 @@
   {onClose}
   currentEmbedId={embedId}
   skillIconName="pin"
-  embedHeaderTitle={displayName || $text('embeds.maps_location')}
+  embedHeaderTitle={displayName || $text('common.location')}
   {showShare}
   onCopy={osmUrl ? handleCopyOsmUrl : undefined}
   {hasPreviousEmbed}
@@ -174,7 +174,7 @@
 >
   {#snippet detailContent(_ctx)}
     {#if proxiedImageUrl}
-      <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('embeds.maps_location')} loading="lazy" />
+      <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
     {/if}
 
     {#if displayName}

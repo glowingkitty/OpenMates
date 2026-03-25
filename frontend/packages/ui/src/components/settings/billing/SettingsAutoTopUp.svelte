@@ -100,17 +100,17 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     icon="subsetting_icon low_balance"
     title={$text('settings.billing.on_low_balance')}
     subtitle={lowBalanceEnabled 
-        ? `${$text('settings.enabled')} - ${$text('settings.billing.threshold')}: ${formatCredits(lowBalanceThreshold)}`
-        : $text('settings.disabled')}
+        ? `${$text('common.enabled')} - ${$text('settings.billing.threshold')}: ${formatCredits(lowBalanceThreshold)}`
+        : $text('common.disabled')}
     onClick={() => navigateToSubview('low-balance')}
 />
 
 <!-- Monthly Subscription Menu Item -->
 <SettingsItem
     icon="subsetting_icon calendar"
-    title={$text('settings.billing.monthly')}
+    title={$text('common.monthly')}
     subtitle={hasActiveSubscription && subscriptionDetails
-        ? `${$text('settings.active')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge')}: ${nextChargeDate.toLocaleDateString()}` : ''}`
+        ? `${$text('settings.active')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('common.credits')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge')}: ${nextChargeDate.toLocaleDateString()}` : ''}`
         : $text('settings.billing.no_subscription')}
     onClick={() => navigateToSubview('monthly')}
 />

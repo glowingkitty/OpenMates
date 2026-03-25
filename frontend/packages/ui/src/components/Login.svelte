@@ -2262,7 +2262,7 @@
                                 </div>
                             {:else if $isCheckingAuth && !serverConnectionError}
                                 <div class="checking-auth" in:fade={{ duration: 200 }}>
-                                    <p>{@html $text('login.loading')}</p>
+                                    <p>{@html $text('common.loading')}</p>
                                 </div>
                             {:else if serverConnectionError}
                                 <div class="connection-error" in:fade={{ duration: 200 }}>
@@ -2275,7 +2275,7 @@
                                             checkAuth();
                                         }}
                                     >
-                                        {$text('login.retry')}
+                                        {$text('common.retry')}
                                     </button>
                                 </div>
                             {:else}

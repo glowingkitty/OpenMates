@@ -258,7 +258,7 @@
         {#if messageCredits !== null && messageCredits > 0}
             <div class="message-credits">
                 <div class="clickable-icon icon_coins"></div>
-                {formatCredits(messageCredits)} {$text('chats.context_menu.credits')}
+                {formatCredits(messageCredits)} {$text('common.credits')}
             </div>
         {/if}
         
@@ -267,7 +267,7 @@
             onclick={(event) => handleAction('copy', event)}
         >
             <div class="clickable-icon icon_copy"></div>
-            {$text('chats.context_menu.copy')}
+            {$text('common.copy')}
         </button>
 
         {#if isTouchDevice}
@@ -314,7 +314,7 @@
                 {$text('chats.context_menu.confirm')}
             {/if}
             {#if !confirmingDelete}
-                {$text('chats.context_menu.delete_message')}
+                {$text('common.delete')}
             {/if}
         </button>
 

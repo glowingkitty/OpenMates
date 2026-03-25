@@ -127,7 +127,7 @@
   // Derived display values
   // ---------------------------------------------------------------------------
 
-  let skillName = $derived($text('app_skills.pdf.search.skill_name') || 'Search');
+  let skillName = $derived($text('common.search') || 'Search');
 
   let displayFilename = $derived.by(() => {
     const fn = localFilename;

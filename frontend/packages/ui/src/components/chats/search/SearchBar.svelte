@@ -145,7 +145,7 @@
   />
   <button
     class="search-close-button clickable-icon icon_close"
-    aria-label={$text('activity.close')}
+    aria-label={$text('common.close')}
     onclick={() => handleClose('button')}
   ></button>
 </div>

@@ -302,7 +302,7 @@ Allows creating new subscriptions if user has a saved payment method
         <!-- Subscription View -->
         <div class="subscription-info">
             <div class="info-row">
-                <span class="info-label">{$text('settings.billing.status')}:</span>
+                <span class="info-label">{$text('common.status')}:</span>
                 <span class="status-badge {hasActiveSubscription ? 'active' : 'inactive'}">
                     {subscriptionDetails.status || 'unknown'}
                 </span>

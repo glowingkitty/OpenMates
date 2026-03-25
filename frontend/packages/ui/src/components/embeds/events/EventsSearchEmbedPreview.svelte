@@ -198,7 +198,7 @@
   }
 
   // Get skill name from translations (reuse embeds.search key — "Search")
-  let skillName = $derived($text('embeds.search'));
+  let skillName = $derived($text('common.search'));
 
   // Use "search" icon (magnifying glass) matching WebSearch and TravelSearch conventions.
   // The app-level icon is "event" (calendar), but the search *skill* uses "search".
@@ -266,7 +266,7 @@
               {$text('embeds.more_results').replace('{count}', String(eventCount))}
             </span>
           {:else if isLoadingChildren}
-            <span class="loading-text">{$text('embeds.loading')}</span>
+            <span class="loading-text">{$text('common.loading')}</span>
           {/if}
         </div>
       {/if}

@@ -121,7 +121,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 

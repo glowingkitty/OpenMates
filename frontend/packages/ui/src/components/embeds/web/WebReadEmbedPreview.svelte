@@ -204,7 +204,7 @@
   let displayTitle = $derived(
     firstResult?.title || 
     hostname || 
-    $text('embeds.web_read')
+    $text('common.read')
   );
   
   // Favicon URL for display - ALWAYS use preview server for privacy and caching
@@ -247,7 +247,7 @@
   const skillIconName = 'text';
   
   // Skill display name from translations
-  let skillName = $derived($text('embeds.web_read'));
+  let skillName = $derived($text('common.read'));
   
   // Debug logging to help trace data flow issues
   $effect(() => {

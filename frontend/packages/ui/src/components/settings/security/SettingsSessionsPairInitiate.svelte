@@ -451,7 +451,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
                 <span class="url-text">{pairUrl}</span>
                 <button class="btn btn-copy" onclick={copyLink}>
                     {copied
-                        ? $text('settings.sessions.pair_copied')
+                        ? $text('common.not_found.url_copied')
                         : $text('settings.sessions.pair_copy_link')}
                 </button>
             </div>

@@ -397,7 +397,7 @@
                 {#if isLoading}
                     <span class="loading-spinner"></span>
                 {:else}
-                    {$text('signup.continue')}
+                    {$text('common.continue')}
                 {/if}
             </button>
         </form>

@@ -103,7 +103,7 @@
   // Get target type display text
   let targetTypeText = $derived.by(() => {
     if (targetType === 'new_chat') {
-      return $text('embeds.reminder.new_chat');
+      return $text('common.new_chat');
     }
     if (targetType === 'existing_chat') {
       return $text('embeds.reminder.existing_chat');

@@ -166,30 +166,6 @@ doctors.specialty:
   sv: Kardiolog
   he: קרדיולוג
   verified_by_human: []
-calendar.today:
-  context: Calendar reference to current day
-  en: Today
-  de: Heute
-  zh: 今天
-  es: Hoy
-  fr: Aujourd'hui
-  pt: Hoje
-  ru: Сегодня
-  ja: 今日
-  ko: 오늘
-  it: Oggi
-  tr: Bugün
-  vi: Hôm nay
-  id: Hari ini
-  pl: Dzisiaj
-  nl: Vandaag
-  ar: اليوم
-  hi: आज
-  th: วันนี้
-  cs: Dnes
-  sv: Idag
-  he: היום
-  verified_by_human: []
 calendar.wed:
   context: Calendar date
   en: Wed, Dec 12

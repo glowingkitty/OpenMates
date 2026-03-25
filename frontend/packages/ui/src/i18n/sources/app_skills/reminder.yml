@@ -397,31 +397,6 @@ panel.title:
   he: הגדרת תזכורת
   verified_by_human: [en, de]
 
-panel.date:
-  context: Label for the date input field in the reminder setter panel
-  en: Date
-  de: Datum
-  zh: 日期
-  es: Fecha
-  fr: Date
-  pt: Data
-  ru: Дата
-  ja: 日付
-  ko: 날짜
-  it: Data
-  tr: Tarih
-  vi: Ngày
-  id: Tanggal
-  pl: Data
-  nl: Datum
-  ar: التاريخ
-  hi: तारीख
-  th: วันที่
-  cs: Datum
-  sv: Datum
-  he: תאריך
-  verified_by_human: [en, de]
-
 panel.time:
   context: Label for the time input field in the reminder setter panel
   en: Time
@@ -520,31 +495,6 @@ panel.target_this_chat:
   cs: V tomto chatu
   sv: I den här chatten
   he: בצ'אט הזה
-  verified_by_human: [en, de]
-
-panel.target_new_chat:
-  context: Option label — reminder opens a new chat when it fires
-  en: New chat
-  de: Neuer Chat
-  zh: 新聊天
-  es: Nuevo chat
-  fr: Nouveau chat
-  pt: Novo chat
-  ru: Новый чат
-  ja: 新しいチャット
-  ko: 새 채팅
-  it: Nuova chat
-  tr: Yeni sohbet
-  vi: Chat mới
-  id: Chat baru
-  pl: Nowy czat
-  nl: Nieuwe chat
-  ar: محادثة جديدة
-  hi: नया चैट
-  th: แชทใหม่
-  cs: Nový chat
-  sv: Ny chatt
-  he: צ'אט חדש
   verified_by_human: [en, de]
 
 panel.type_notification:
@@ -747,56 +697,6 @@ panel.repeat_weekly:
   he: שבועי
   verified_by_human: [en, de]
 
-panel.repeat_monthly:
-  context: Option — repeat monthly
-  en: Monthly
-  de: Monatlich
-  zh: 每月
-  es: Mensual
-  fr: Mensuel
-  pt: Mensal
-  ru: Ежемесячно
-  ja: 毎月
-  ko: 매월
-  it: Mensile
-  tr: Aylık
-  vi: Hàng tháng
-  id: Bulanan
-  pl: Co miesiąc
-  nl: Maandelijks
-  ar: شهرياً
-  hi: मासिक
-  th: รายเดือน
-  cs: Měsíčně
-  sv: Månadsvis
-  he: חודשי
-  verified_by_human: [en, de]
-
-panel.repeat_custom:
-  context: Option — custom repeat interval (every N days/weeks/months)
-  en: Custom
-  de: Benutzerdefiniert
-  zh: 自定义
-  es: Personalizado
-  fr: Personnalisé
-  pt: Personalizado
-  ru: Пользовательский
-  ja: カスタム
-  ko: 사용자 지정
-  it: Personalizzato
-  tr: Özel
-  vi: Tùy chỉnh
-  id: Kustom
-  pl: Niestandardowy
-  nl: Aangepast
-  ar: مخصص
-  hi: कस्टम
-  th: กำหนดเอง
-  cs: Vlastní
-  sv: Anpassad
-  he: מותאם אישית
-  verified_by_human: [en, de]
-
 panel.repeat_every:
   context: Label prefix for custom repeat interval, e.g. "Every 3 days"
   en: Every
@@ -945,31 +845,6 @@ panel.submit:
   cs: Nastavit připomínku
   sv: Ställ in påminnelse
   he: הגדרת תזכורת
-  verified_by_human: [en, de]
-
-panel.cancel:
-  context: Cancel/dismiss button label in the reminder setter panel
-  en: Cancel
-  de: Abbrechen
-  zh: 取消
-  es: Cancelar
-  fr: Annuler
-  pt: Cancelar
-  ru: Отмена
-  ja: キャンセル
-  ko: 취소
-  it: Annulla
-  tr: İptal
-  vi: Hủy
-  id: Batal
-  pl: Anuluj
-  nl: Annuleren
-  ar: إلغاء
-  hi: रद्द करें
-  th: ยกเลิก
-  cs: Zrušit
-  sv: Avbryt
-  he: ביטול
   verified_by_human: [en, de]
 
 panel.error_past:

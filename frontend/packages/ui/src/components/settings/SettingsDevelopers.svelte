@@ -41,7 +41,7 @@ Developers Settings - API keys management and developer tools
             settingsPath: 'developers/devices',
             direction: 'forward',
             icon: 'devices',
-            title: $text('settings.developers_devices_text')
+            title: $text('common.devices')
         });
     }
 
@@ -77,7 +77,7 @@ Developers Settings - API keys management and developer tools
     <SettingsItem
         type="submenu"
         icon="subsetting_icon devices"
-        title={$text('settings.developers_devices_text')}
+        title={$text('common.devices')}
         subtitleTop={$text('settings.developers_devices_description')}
         onClick={navigateToDevices}
     />

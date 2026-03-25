@@ -264,7 +264,7 @@
   // Derived display state
   // ---------------------------------------------------------------------------
 
-  let skillName = $derived($text('app_skills.pdf.view.skill_name'));
+  let skillName = $derived($text('common.view'));
 
   let statusText = $derived.by(() => {
     if (localStatus === 'processing') return $text('app_skills.pdf.view.viewing') || 'Viewing\u2026';
@@ -280,7 +280,7 @@
           : `Pages ${sorted[0]}\u2013${sorted[sorted.length - 1]}`;
         return pcStr ? `${pagesStr} \u00B7 ${pcStr}` : pagesStr;
       }
-      return pcStr || $text('app_skills.pdf.view');
+      return pcStr || $text('common.pdf');
     }
     return '';
   });

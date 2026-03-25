@@ -59,6 +59,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -132,9 +133,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 
 	// ─── Skip guards ─────────────────────────────────────────────────────────────
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	// Skip if Polar is not configured in Vault on this environment.
 	const polarReady = await isPolarConfigured(PLAYWRIGHT_TEST_BASE_URL);

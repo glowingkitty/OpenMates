@@ -37,6 +37,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
  * Model override test via MentionDropdown autocomplete.
@@ -253,9 +254,7 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_QWEN');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'qwen' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -344,9 +343,7 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_GPT');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'gpt' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -430,9 +427,7 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_SWITCH');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'switch' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 
@@ -549,9 +544,7 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 	const logCheckpoint = createSignupLogger('MODEL_MENTION_KIMI');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'kimi' });
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logCheckpoint);
 

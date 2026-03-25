@@ -76,7 +76,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     <div class="balance-display">
         <span class="coin-icon"></span>
         <span class="balance-amount">{formatCredits(currentCredits)}</span>
-        <span class="balance-label">{$text('settings.billing.credits')}</span>
+        <span class="balance-label">{$text('common.credits')}</span>
     </div>
 </div>
 
@@ -84,7 +84,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon coins"
-    title={$text('settings.billing.buy_credits')}
+    title={$text('common.buy_credits')}
     onClick={() => navigateToSubview('buy-credits')}
 />
 
@@ -100,7 +100,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon document"
-    title={$text('settings.billing.invoices')}
+    title={$text('common.invoices')}
     onClick={() => navigateToSubview('invoices')}
 />
 
@@ -108,12 +108,12 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <SettingsItem
     type="submenu"
     icon="subsetting_icon icon_gift"
-    title={$text('settings.gift_cards')}
+    title={$text('common.gift_cards')}
     onClick={() => dispatch('openSettings', {
         settingsPath: 'billing/gift-cards',
         direction: 'forward',
         icon: 'icon_gift',
-        title: $text('settings.gift_cards')
+        title: $text('common.gift_cards')
     })}
 />
 

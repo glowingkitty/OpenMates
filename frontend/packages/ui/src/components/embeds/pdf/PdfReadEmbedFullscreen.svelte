@@ -130,7 +130,7 @@
   // Derived display values
   // ---------------------------------------------------------------------------
 
-  let skillName = $derived($text('app_skills.pdf.read.skill_name') || 'Read');
+  let skillName = $derived($text('common.read') || 'Read');
 
   /**
    * Display filename — truncated with ellipsis if very long.

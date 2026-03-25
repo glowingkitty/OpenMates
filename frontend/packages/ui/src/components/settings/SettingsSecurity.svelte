@@ -103,7 +103,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
         if (has2FA) {
             return tfaAppName 
                 ? tfaAppName 
-                : $text('settings.security.tfa_enabled_short');
+                : $text('common.enabled');
         }
         return $text('settings.security.tfa_disabled_short');
     });
@@ -141,8 +141,8 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
      */
     function navigateToPassword() {
         const title = hasPassword 
-            ? $text('settings.account.change_password')
-            : $text('settings.account.add_password');
+            ? $text('common.change_password')
+            : $text('common.add_password');
         
         dispatch('openSettings', {
             settingsPath: 'account/security/password',
@@ -174,7 +174,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
             settingsPath: 'account/security/recovery-key',
             direction: 'forward',
             icon: 'recovery_key',
-            title: $text('settings.security.recovery_key_title')
+            title: $text('common.recovery_key')
         });
     }
 
@@ -206,7 +206,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     <SettingsItem
         type="submenu"
         icon="password"
-        title={$text('settings.account.password')}
+        title={$text('common.password')}
         subtitle={passwordSubtitle}
         onClick={navigateToPassword}
     />
@@ -224,7 +224,7 @@ Security Settings - Menu for security-related settings including Passkeys, Passw
     <SettingsItem
         type="submenu"
         icon="recovery_key"
-        title={$text('settings.security.recovery_key_title')}
+        title={$text('common.recovery_key')}
         subtitle={recoveryKeySubtitle}
         onClick={navigateToRecoveryKey}
     />

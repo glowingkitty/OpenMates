@@ -27,6 +27,7 @@ export {};
  */
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
 	createSignupLogger,
@@ -179,9 +180,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	test.slow(); // triples timeout → 360s
 	test.setTimeout(120000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const log = createSignupLogger('LANG_SETTINGS');
 	const takeScreenshot = createStepScreenshotter(log);

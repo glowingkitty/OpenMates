@@ -181,7 +181,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         <div class="form-group">
             <label for="threshold">{$text('settings.billing.threshold')}</label>
             <div class="fixed-value-display">
-                {formatCredits(lowBalanceThreshold)} {$text('settings.billing.credits')}
+                {formatCredits(lowBalanceThreshold)} {$text('common.credits')}
             </div>
             <p class="help-text">Auto top-up triggers when balance falls to or below {formatCredits(lowBalanceThreshold)} credits (fixed value)</p>
         </div>
@@ -226,7 +226,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         onclick={saveLowBalanceSettings}
         disabled={isLoading || (lowBalanceEnabled && !hasPaymentMethod)}
     >
-        {isLoading ? 'Saving...' : $text('settings.save')}
+        {isLoading ? 'Saving...' : $text('common.save')}
     </button>
 
     {#if errorMessage}

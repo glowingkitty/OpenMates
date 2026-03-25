@@ -39,6 +39,19 @@
 	let loaded = $state(false);
 	let { children } = $props();
 
+	function applyBrowserChromeTheme(themeName: string) {
+		if (!browser) return;
+
+		const backgroundColor = themeName === 'dark' ? '#171717' : '#ffffff';
+		const rootElement = document.documentElement;
+		const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+
+		rootElement.style.backgroundColor = backgroundColor;
+		rootElement.style.colorScheme = themeName;
+		document.body.style.backgroundColor = backgroundColor;
+		themeColorMeta?.setAttribute('content', backgroundColor);
+	}
+
 	/**
 	 * Track if we've already shown the update notification.
 	 * Prevents showing multiple notifications for the same update.
@@ -121,6 +134,7 @@
 		await loadMetaTags();
 
 		initializeTheme();
+		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		// Initialize server status early to prevent UI flashing
 		// (e.g., legal chats briefly appearing on self-hosted instances)
@@ -204,6 +218,7 @@
 	$effect(() => {
 		if (browser) {
 			document.documentElement.setAttribute('data-theme', $theme);
+			applyBrowserChromeTheme($theme);
 		}
 	});
 
@@ -279,7 +294,9 @@
 
 <style>
 	/* Apply background color to the body */
+	:global(html),
 	:global(body) {
 		background-color: var(--color-grey-0);
+		min-height: 100%;
 	}
 </style>

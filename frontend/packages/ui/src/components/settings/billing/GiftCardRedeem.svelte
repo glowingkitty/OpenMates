@@ -171,7 +171,7 @@ Tests: (none yet)
                 onclick={handleCancel}
                 disabled={isRedeeming}
             >
-                {@html $text('settings.billing.gift_card.cancel')}
+                {@html $text('common.cancel')}
             </button>
             
             <button

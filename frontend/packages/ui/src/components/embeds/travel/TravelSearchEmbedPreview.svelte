@@ -341,7 +341,7 @@
               {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
             </span>
           {:else if isLoadingChildren}
-            <span class="loading-text">{$text('embeds.loading')}</span>
+            <span class="loading-text">{$text('common.loading')}</span>
           {/if}
 
           {#if priceInfo}

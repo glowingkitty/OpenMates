@@ -420,7 +420,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     {:else if errorMessage}
         <div class="error-message">{errorMessage}</div>
         <button class="retry-button" onclick={fetchPreview}>
-            {$text('settings.account.delete_account_retry')}
+            {$text('common.retry')}
         </button>
     {/if}
 </div>

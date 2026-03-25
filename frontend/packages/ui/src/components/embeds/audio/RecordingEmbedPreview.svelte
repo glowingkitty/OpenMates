@@ -264,7 +264,7 @@
    */
   let statusText = $derived.by(() => {
     if (status === 'uploading') {
-      return $text('app_skills.audio.transcribe.processing');
+      return $text('common.processing');
     }
     if (status === 'transcribing') {
       if (model) {
@@ -273,10 +273,10 @@
           getModelDisplayName(model),
         );
       }
-      return $text('app_skills.audio.transcribe.processing');
+      return $text('common.processing');
     }
     if (status === 'error') {
-      return uploadError || $text('app_skills.audio.transcribe.upload_failed');
+      return uploadError || $text('common.upload_failed');
     }
     if (status === 'finished') {
       if (!isAuthenticated) return $text('app_skills.audio.transcribe.signup_to_upload');
@@ -400,7 +400,7 @@
         <!-- Error state: error icon + message + optional retry button -->
         <div class="error-state">
           <span class="error-icon">!</span>
-          <span class="error-text">{uploadError || $text('app_skills.audio.transcribe.upload_failed')}</span>
+          <span class="error-text">{uploadError || $text('common.upload_failed')}</span>
           {#if onRetry}
             <!--
               Retry button: shown only when upload succeeded and s3Files is present,
@@ -408,7 +408,7 @@
               Fires 'retryrecordingtranscription' CustomEvent via RecordingRenderer.ts.
             -->
             <button class="retry-btn" type="button" onclick={onRetry}>
-              {$text('app_skills.audio.transcribe.retry')}
+              {$text('common.retry')}
             </button>
           {/if}
         </div>

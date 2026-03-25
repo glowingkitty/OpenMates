@@ -201,7 +201,7 @@
   let skillName = $derived(
     skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
-      : $text('embeds.image_generate')
+      : $text('common.generate')
   );
   
   

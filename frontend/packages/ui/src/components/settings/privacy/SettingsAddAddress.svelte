@@ -157,7 +157,7 @@ Based on Figma design for addresses section in hide personal data.
         disabled={!isValid || isSaving}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 

@@ -4430,8 +4430,8 @@
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 onclick={handleCancelAITask}
                 use:tooltip
-                title={$text('enter_message.stop')}
-                aria-label={$text('enter_message.stop')}
+                title={$text('common.stop')}
+                aria-label={$text('common.stop')}
                 transition:fade={{ duration: 300 }}
             >
                 <span class="clickable-icon icon_stop_processing"></span>

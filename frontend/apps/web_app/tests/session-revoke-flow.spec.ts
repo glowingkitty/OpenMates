@@ -27,6 +27,7 @@ export {};
  */
 
 const { test, expect, chromium } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -125,9 +126,7 @@ test('session revoke: revoking session B from session A does not log out session
 	// Login × 2 + OTP window wait + settings navigation + revoke + assertions
 	test.setTimeout(300000);
 
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	const logA = createSignupLogger('SESSION_REVOKE_A');
 	const logB = createSignupLogger('SESSION_REVOKE_B');

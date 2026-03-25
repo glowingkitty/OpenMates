@@ -1060,30 +1060,6 @@ cant_connect_to_server:
     לא ניתן להתחבר לשרת.
     אנא בדוק את חיבור האינטרנט שלך.
   verified_by_human: []
-retry:
-  context: Button text for retrying server connection
-  en: Retry
-  de: Erneut versuchen
-  zh: 重试
-  es: Reintentar
-  fr: Réessayer
-  pt: Tentar novamente
-  ru: Повторить
-  ja: 再試行
-  ko: 다시 시도
-  it: Riprova
-  tr: Yeniden dene
-  vi: Thử lại
-  id: Coba lagi
-  pl: Spróbuj ponownie
-  nl: Opnieuw proberen
-  ar: إعادة المحاولة
-  hi: पुनः प्रयास करें
-  th: ลองอีกครั้ง
-  cs: Zkusit znovu
-  sv: Försök igen
-  he: נסה שוב
-  verified_by_human: []
 login_with_security_key:
   context: Button text for logging in with a security key
   en: Login with security key
@@ -1285,30 +1261,6 @@ login_button:
   cs: Přihlásit se
   sv: Logga in
   he: התחברות
-  verified_by_human: []
-loading:
-  context: Text shown when checking authentication
-  en: Loading...
-  de: Lade...
-  zh: 正在加载...
-  es: Cargando...
-  fr: Chargement...
-  pt: Carregando...
-  ru: Загрузка...
-  ja: 読み込み中...
-  ko: 로딩 중...
-  it: Caricamento...
-  tr: Yükleniyor...
-  vi: Đang tải...
-  id: Memuat...
-  pl: Ładowanie...
-  nl: Laden...
-  ar: جاري التحميل...
-  hi: लोड हो रहा है...
-  th: กำลังโหลด...
-  cs: Načítání...
-  sv: Laddar...
-  he: טוען...
   verified_by_human: []
 login_failed:
   context: Error message shown when login fails
@@ -1838,30 +1790,6 @@ go_to_login:
   sv: Gå till inloggning
   he: מעבר להתחברות
   verified_by_human: []
-continue:
-  context: Button text to continue to next step
-  en: Continue
-  de: Weiter
-  zh: 继续
-  es: Continuar
-  fr: Continuer
-  pt: Continuar
-  ru: Продолжить
-  ja: 続ける
-  ko: 계속
-  it: Continua
-  tr: Devam et
-  vi: Tiếp tục
-  id: Lanjutkan
-  pl: Kontynuuj
-  nl: Doorgaan
-  ar: استمر
-  hi: जारी रखें
-  th: ดำเนินการต่อ
-  cs: Pokračovat
-  sv: Fortsätt
-  he: המשך
-  verified_by_human: []
 complete_reset:
   context: Button text to complete account reset with new password
   en: Complete reset
@@ -2053,30 +1981,6 @@ try_another_method:
   cs: Zkusit jinou metodu
   sv: Prova en annan metod
   he: ניסיון בשיטה אחרת
-  verified_by_human: []
-back:
-  context: Button text to go back to previous step
-  en: Back
-  de: Zurück
-  zh: 返回
-  es: Atrás
-  fr: Retour
-  pt: Voltar
-  ru: Назад
-  ja: 戻る
-  ko: 뒤로
-  it: Indietro
-  tr: Geri
-  vi: Quay lại
-  id: Kembali
-  pl: Wstecz
-  nl: Terug
-  ar: رجوع
-  hi: वापस
-  th: ย้อนกลับ
-  cs: Zpět
-  sv: Tillbaka
-  he: חזרה
   verified_by_human: []
 enter_backup_code_description:
   context: Description text above backup code input form explaining how backup codes work

@@ -195,7 +195,7 @@
         <!-- Current tip amount display -->
         <div class="tip-amount-display">
             <span class="tip-amount-value">{formatCredits(tipAmount)}</span>
-            <span class="tip-amount-label">{$text('settings.tip.credits')}</span>
+            <span class="tip-amount-label">{$text('common.credits')}</span>
         </div>
     </div>
     
@@ -204,7 +204,7 @@
         <div class="info-icon">💰</div>
         <p>
             {$text('settings.tip.current_balance')}: 
-            <strong>{formatCredits(currentCredits)}</strong> {$text('settings.tip.credits')}
+            <strong>{formatCredits(currentCredits)}</strong> {$text('common.credits')}
         </p>
     </div>
     

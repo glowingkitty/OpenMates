@@ -118,7 +118,7 @@
           <span class="small-icon icon_mattermost"></span>
         </span>
         <span class="platform-wrapper">
-          <span class="visually-hidden">{@html $text('platforms.discord')}</span>
+          <span class="visually-hidden">{@html $text('common.discord')}</span>
           <span class="small-icon icon_discord"></span>
         </span>
         {$text('platforms.and_more')}

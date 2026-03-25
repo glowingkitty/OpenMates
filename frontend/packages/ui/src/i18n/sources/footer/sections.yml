@@ -94,30 +94,6 @@ webapp:
   sv: Webbapp
   he: אפליקציית ווב
   verified_by_human: []
-docs:
-  context: Footer section title for documentation
-  en: Docs
-  de: Docs
-  zh: 文档
-  es: Documentación
-  fr: Docs
-  pt: Documentação
-  ru: Документация
-  ja: ドキュメント
-  ko: 문서
-  it: Documentazione
-  tr: Belgeler
-  vi: Tài liệu
-  id: Dokumentasi
-  pl: Dokumentacja
-  nl: Docs
-  ar: التوثيق
-  hi: दस्तावेज़
-  th: เอกสาร
-  cs: Dokumentace
-  sv: Dokumentation
-  he: תיעוד
-  verified_by_human: []
 user_guide:
   context: Footer link text for user guide
   en: User guide
@@ -214,102 +190,6 @@ design_guidelines:
   sv: Designriktlinjer
   he: הנחיות עיצוב
   verified_by_human: []
-legal:
-  context: Legal section header
-  en: Legal
-  de: Rechtliches
-  zh: 法律声明
-  es: Legal
-  fr: Juridique
-  pt: Jurídico
-  ru: Правовая информация
-  ja: 法的情報
-  ko: 법률
-  it: Legale
-  tr: Yasal
-  vi: Pháp lý
-  id: Hukum
-  pl: Informacje prawne
-  nl: Juridisch
-  ar: قانوني
-  hi: कानूनी
-  th: กฎหมาย
-  cs: Právní informace
-  sv: Juridiskt
-  he: משפטי
-  verified_by_human: []
-contact:
-  context: Contact section header
-  en: Contact
-  de: Kontakt
-  zh: 联系方式
-  es: Contacto
-  fr: Contact
-  pt: Contato
-  ru: Контакты
-  ja: お問い合わせ
-  ko: 연락처
-  it: Contatti
-  tr: İletişim
-  vi: Liên hệ
-  id: Kontak
-  pl: Kontakt
-  nl: Contact
-  ar: اتصل بنا
-  hi: संपर्क
-  th: ติดต่อ
-  cs: Kontakt
-  sv: Kontakt
-  he: צור קשר
-  verified_by_human: []
-imprint:
-  context: Legal imprint link
-  en: Imprint
-  de: Impressum
-  zh: 版本说明
-  es: Aviso legal
-  fr: Mentions légales
-  pt: Aviso legal
-  ru: Импрессум
-  ja: インプリント
-  ko: 법적 고지
-  it: Note legali
-  tr: Künye
-  vi: Thông tin pháp lý
-  id: Imprint
-  pl: Stopka redakcyjna
-  nl: Colofon
-  ar: بيانات النشر
-  hi: इम्प्रिंट
-  th: ข้อมูลผู้เผยแพร่
-  cs: Impressum
-  sv: Impressum
-  he: פרטי העסק
-  verified_by_human: []
-privacy:
-  context: Privacy policy link
-  en: Privacy
-  de: Datenschutz
-  zh: 隐私政策
-  es: Privacidad
-  fr: Confidentialité
-  pt: Privacidade
-  ru: Конфиденциальность
-  ja: プライバシー
-  ko: 개인정보 보호
-  it: Privacy
-  tr: Gizlilik
-  vi: Quyền riêng tư
-  id: Privasi
-  pl: Prywatność
-  nl: Privacy
-  ar: الخصوصية
-  hi: गोपनीयता
-  th: ความเป็นส่วนตัว
-  cs: Ochrana soukromí
-  sv: Integritet
-  he: פרטיות
-  verified_by_human: []
 terms_and_conditions:
   context: Terms and conditions link
   en: Terms and conditions
@@ -333,54 +213,6 @@ terms_and_conditions:
   cs: Podmínky použití
   sv: Villkor
   he: תנאי שימוש
-  verified_by_human: []
-discord:
-  context: Discord contact link
-  en: Discord
-  de: Discord
-  zh: Discord
-  es: Discord
-  fr: Discord
-  pt: Discord
-  ru: Discord
-  ja: Discord
-  ko: Discord
-  it: Discord
-  tr: Discord
-  vi: Discord
-  id: Discord
-  pl: Discord
-  nl: Discord
-  ar: Discord
-  hi: Discord
-  th: Discord
-  cs: Discord
-  sv: Discord
-  he: Discord
-  verified_by_human: []
-email:
-  context: Email contact link
-  en: Email
-  de: E-Mail
-  zh: 电子邮件
-  es: Correo electrónico
-  fr: E-mail
-  pt: E-mail
-  ru: Электронная почта
-  ja: メール
-  ko: 이메일
-  it: Email
-  tr: E-posta
-  vi: Email
-  id: Email
-  pl: E-mail
-  nl: E-mail
-  ar: البريد الإلكتروني
-  hi: ईमेल
-  th: อีเมล
-  cs: E-mail
-  sv: E-post
-  he: אימייל
   verified_by_human: []
 instagram:
   context: Instagram link in footer

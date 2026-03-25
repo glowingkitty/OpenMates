@@ -1,29 +1,3 @@
-search:
-  context: Skill name for web search
-  en: Search
-  de: Suchen
-  zh: 搜索
-  es: Buscar
-  fr: Rechercher
-  pt: Pesquisar
-  ru: Поиск
-  ja: 検索
-  ko: 검색
-  it: Cerca
-  tr: Ara
-  vi: Tìm kiếm
-  id: Cari
-  pl: Szukaj
-  nl: Zoeken
-  ar: ابحث
-  hi: खोज
-  th: ค้นหา
-  cs: Hledat
-  sv: Sök
-  he: חיפוש
-  verified_by_human:
-    - en
-    - de
 search.description:
   context: Description for web search skill
   en: Search the web.
@@ -126,32 +100,6 @@ search.how_to_use.3:
   he: "**חפש** רעיונות להכנת ארוחות בריאות למתחילים"
   verified_by_human: [en, de]
 
-read:
-  context: Skill name for web read
-  en: Read
-  de: Lesen
-  zh: 阅读
-  es: Leer
-  fr: Lire
-  pt: Ler
-  ru: Читать
-  ja: 読む
-  ko: 읽기
-  it: Leggere
-  tr: Oku
-  vi: Đọc
-  id: Baca
-  pl: Czytaj
-  nl: Lezen
-  ar: اقرأ
-  hi: पढ़ें
-  th: อ่าน
-  cs: Číst
-  sv: Läsa
-  he: קריאה
-  verified_by_human:
-    - en
-    - de
 read.description:
   context: Description for web read skill
   en: Browse websites, research topics & more.

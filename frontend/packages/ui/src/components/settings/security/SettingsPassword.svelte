@@ -96,8 +96,8 @@ This ensures users can never have a password without 2FA enabled.
     /** Page title based on whether user has password */
     let pageTitle = $derived(
         hasPassword 
-            ? $text('settings.security.change_password')
-            : $text('settings.security.add_password')
+            ? $text('common.change_password')
+            : $text('common.add_password')
     );
     
     /** Page description based on whether user has password */
@@ -421,7 +421,7 @@ This ensures users can never have a password without 2FA enabled.
         <!-- Loading State -->
         <div class="loading-container">
             <div class="loading-spinner"></div>
-            <p>{$text('settings.security.loading')}</p>
+            <p>{$text('common.loading')}</p>
         </div>
     {:else if currentStep === 'auth'}
         <!-- Authentication Step -->
@@ -525,8 +525,8 @@ This ensures users can never have a password without 2FA enabled.
                         <span class="loading-spinner-small"></span>
                     {/if}
                     {hasPassword 
-                        ? $text('settings.security.change_password_button')
-                        : $text('settings.security.add_password_button')}
+                        ? $text('common.change_password')
+                        : $text('common.add_password')}
                 </button>
             </div>
         </div>

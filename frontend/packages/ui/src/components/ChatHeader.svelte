@@ -248,7 +248,7 @@
 
     // Less than 1 minute ago
     if (diffMinutes < 1) {
-      return $text('chat.header.just_now');
+      return $text('common.just_now');
     }
 
     // 1–10 minutes ago: relative

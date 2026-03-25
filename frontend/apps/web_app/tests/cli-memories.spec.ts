@@ -27,6 +27,7 @@ const { test, expect } = require('@playwright/test');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -256,9 +257,7 @@ test.describe('CLI Memories', () => {
 	}: {
 		page: any;
 	}) => {
-		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL required.');
-		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD required.');
-		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY required.');
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		const logCheckpoint = createSignupLogger('CLI_MEMORIES');
 		const takeScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -510,9 +509,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 	}: {
 		page: any;
 	}) => {
-		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL required.');
-		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD required.');
-		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY required.');
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		const logCheckpoint = createSignupLogger('CLI_MEMORIES_TRAVEL');
 		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
@@ -657,9 +654,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 	}: {
 		page: any;
 	}) => {
-		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL required.');
-		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD required.');
-		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY required.');
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		const logCheckpoint = createSignupLogger('CLI_MEMORIES_AI');
 		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';

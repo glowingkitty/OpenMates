@@ -303,8 +303,8 @@
       const diffMs = now.getTime() - date.getTime();
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       
-      if (diffDays < 1) return $text('embeds.date_today');
-      if (diffDays === 1) return $text('embeds.date_yesterday');
+      if (diffDays < 1) return $text('common.today');
+      if (diffDays === 1) return $text('common.yesterday');
       if (diffDays < 7) return $text('embeds.date_days_ago', { values: { count: diffDays } });
       if (diffDays < 30) return $text('embeds.date_weeks_ago', { values: { count: Math.floor(diffDays / 7) } });
       if (diffDays < 365) return $text('embeds.date_months_ago', { values: { count: Math.floor(diffDays / 30) } });

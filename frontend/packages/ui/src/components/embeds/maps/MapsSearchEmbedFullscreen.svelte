@@ -253,7 +253,7 @@
 
     {#if ctx.isLoadingChildren}
       <div class="loading-state">
-        <p>{$text('embeds.loading')}</p>
+        <p>{$text('common.loading')}</p>
       </div>
     {:else if places.length === 0}
       <div class="no-results">

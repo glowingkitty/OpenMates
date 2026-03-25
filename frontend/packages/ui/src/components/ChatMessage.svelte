@@ -2086,7 +2086,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             class="compression-summary-toggle"
             onclick={() => { compressionExpanded = !compressionExpanded; }}
           >
-            {compressionExpanded ? $text('chat.compression.show_less') : $text('chat.compression.show_more')}
+            {compressionExpanded ? $text('common.show_less') : $text('chat.compression.show_more')}
           </button>
         {/if}
       </div>
@@ -2116,7 +2116,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               panelState.openSettings();
             }}
           >
-            {$text('chat.insufficient_credits_buy')}
+            {$text('common.buy_credits')}
           </button>
         {/if}
       {/if}
@@ -2222,7 +2222,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 disabled={isLoadingFullContent}
               >
                 {#if isLoadingFullContent}
-                  {$text('chat.loading')}
+                  {$text('common.loading')}
                 {:else}
                   {$text('chat.show_full_message')}
                 {/if}
@@ -2232,7 +2232,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 class="hide-full-message-btn"
                 onclick={handleHideFullMessage}
               >
-                {$text('chat.hide_full_message')}
+                {$text('common.show_less')}
               </button>
             {/if}
           </div>
@@ -2354,9 +2354,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             {:else if embedProg.status === 'transcribing'}
               <span class="upload-progress-text">{$text('enter_message.upload_progress.transcribing')}</span>
             {:else if embedProg.status === 'processing'}
-              <span class="upload-progress-text">{$text('enter_message.upload_progress.processing')}</span>
+              <span class="upload-progress-text">{$text('common.processing')}</span>
             {:else if embedProg.status === 'error'}
-              <span class="upload-progress-text upload-progress-error">{$text('enter_message.upload_progress.error')}</span>
+              <span class="upload-progress-text upload-progress-error">{$text('common.upload_failed')}</span>
             {/if}
           </div>
         {/each}

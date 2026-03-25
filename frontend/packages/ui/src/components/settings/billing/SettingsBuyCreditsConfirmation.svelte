@@ -56,7 +56,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
     <div class="purchased-credits-section">
         <div class="purchased-credits-badge">
             <span class="purchased-amount">+{formatCredits(purchasedCredits)}</span>
-            <span class="purchased-label">{$text('settings.billing.credits')}</span>
+            <span class="purchased-label">{$text('common.credits')}</span>
         </div>
     </div>
 {/if}
@@ -73,7 +73,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
 <!-- Action Button -->
 <div class="action-section">
     <button class="done-button" onclick={goBackToBilling}>
-        {$text('settings.billing.done')}
+        {$text('common.done')}
     </button>
 </div>
 

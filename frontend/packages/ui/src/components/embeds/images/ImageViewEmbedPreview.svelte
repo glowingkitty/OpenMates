@@ -138,7 +138,7 @@
    * The filename is shown elsewhere (fullscreen title). Keeping the skill name
    * consistent matches the pattern of ImageGenerateEmbedPreview ("Generate").
    */
-  let skillName = $derived($text('app_skills.images.view.skill_title'));
+  let skillName = $derived($text('common.view'));
 
   /**
    * Card subtitle (customStatusText):

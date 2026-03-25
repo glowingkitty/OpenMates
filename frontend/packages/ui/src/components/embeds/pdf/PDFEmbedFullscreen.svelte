@@ -293,7 +293,7 @@
     if (pageCount && pageCount > 0) {
       return pageCount === 1 ? '1 page' : `${pageCount} pages`;
     }
-    return $text('app_skills.pdf.view');
+    return $text('common.pdf');
   });
 </script>
 

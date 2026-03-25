@@ -635,14 +635,14 @@
 
             <div class="form-footer">
                 <button class="cancel-btn" onclick={handleCancel} disabled={isCreating}>
-                    {$text('settings.app_settings_memories.cancel')}
+                    {$text('common.cancel')}
                 </button>
                 <button
                     class="create-btn"
                     onclick={handleCreateEntry}
                     disabled={isCreating}
                 >
-                    {isCreating ? $text('settings.app_settings_memories.creating') : $text('settings.app_settings_memories.add_entry')}
+                    {isCreating ? $text('settings.app_settings_memories.creating') : $text('common.add_entry')}
                 </button>
             </div>
             <!-- Encrypted notice: entry data is zero-knowledge encrypted on-device -->

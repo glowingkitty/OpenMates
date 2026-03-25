@@ -1,27 +1,3 @@
-privacy:
-  context: Privacy settings menu item
-  en: Privacy
-  de: Datenschutz
-  zh: 隐私
-  es: Privacidad
-  fr: Confidentialité
-  pt: Privacidade
-  ru: Конфиденциальность
-  ja: プライバシー
-  ko: 개인정보
-  it: Privacy
-  tr: Gizlilik
-  vi: Quyền riêng tư
-  id: Privasi
-  pl: Prywatność
-  nl: Privacy
-  ar: الخصوصية
-  hi: गोपनीयता
-  th: ความเป็นส่วนตัว
-  cs: Soukromí
-  sv: Integritet
-  he: פרטיות
-  verified_by_human: []
 description:
   context: Description text on privacy settings page explaining data processing
   en: If you want to learn more about how OpenMates is processing your data, check the privacy policy.
@@ -117,30 +93,6 @@ hide_personal_data:
   cs: Skrýt osobní údaje
   sv: Dölj personuppgifter
   he: הסתרת נתונים אישיים
-  verified_by_human: []
-hide_personal_data.chats:
-  context: Subtitle for the hide personal data toggle
-  en: Chats
-  de: Chats
-  zh: 聊天
-  es: Chats
-  fr: Chats
-  pt: Chats
-  ru: Чаты
-  ja: チャット
-  ko: 채팅
-  it: Chat
-  tr: Sohbetler
-  vi: Trò chuyện
-  id: Obrolan
-  pl: Czaty
-  nl: Chats
-  ar: المحادثات
-  hi: चैट
-  th: แชท
-  cs: Chaty
-  sv: Chattar
-  he: "צ'אטים"
   verified_by_human: []
 hide_personal_data.description:
   context: Description text explaining the hide personal data feature
@@ -286,30 +238,6 @@ camera:
   sv: Kamera
   he: מצלמה
   verified_by_human: []
-location:
-  context: Toggle label for location permission
-  en: Location
-  de: Standort
-  zh: 位置
-  es: Ubicación
-  fr: Localisation
-  pt: Localização
-  ru: Местоположение
-  ja: 位置情報
-  ko: 위치
-  it: Posizione
-  tr: Konum
-  vi: Vị trí
-  id: Lokasi
-  pl: Lokalizacja
-  nl: Locatie
-  ar: الموقع
-  hi: स्थान
-  th: ตำแหน่ง
-  cs: Poloha
-  sv: Plats
-  he: מיקום
-  verified_by_human: []
 auto_deletion:
   context: Section heading for auto deletion settings
   en: Auto deletion
@@ -333,30 +261,6 @@ auto_deletion:
   cs: Automatické mazání
   sv: Automatisk radering
   he: מחיקה אוטומטית
-  verified_by_human: []
-auto_deletion.chats:
-  context: Label for chat auto deletion setting
-  en: Chats
-  de: Chats
-  zh: 聊天
-  es: Chats
-  fr: Chats
-  pt: Chats
-  ru: Чаты
-  ja: チャット
-  ko: 채팅
-  it: Chat
-  tr: Sohbetler
-  vi: Trò chuyện
-  id: Obrolan
-  pl: Czaty
-  nl: Chats
-  ar: المحادثات
-  hi: चैट
-  th: แชท
-  cs: Chaty
-  sv: Chattar
-  he: "צ'אטים"
   verified_by_human: []
 auto_deletion.chats.value:
   context: Default value for chat auto deletion
@@ -525,30 +429,6 @@ auto_deletion.compliance_logs.value:
   cs: 1 rok a starší
   sv: 1 år & äldre
   he: שנה ומעלה
-  verified_by_human: []
-auto_deletion.invoices:
-  context: Label for invoices auto deletion setting
-  en: Invoices
-  de: Rechnungen
-  zh: 发票
-  es: Facturas
-  fr: Factures
-  pt: Faturas
-  ru: Счета
-  ja: 請求書
-  ko: 청구서
-  it: Fatture
-  tr: Faturalar
-  vi: Hóa đơn
-  id: Faktur
-  pl: Faktury
-  nl: Facturen
-  ar: الفواتير
-  hi: चालान
-  th: ใบแจ้งหนี้
-  cs: Faktury
-  sv: Fakturor
-  he: חשבוניות
   verified_by_human: []
 auto_deletion.invoices.value:
   context: Default value for invoices auto deletion
@@ -1510,30 +1390,6 @@ home_folder:
   sv: Hemkatalog
   he: תיקיית בית
   verified_by_human: []
-custom:
-  context: Section heading for custom PII entries
-  en: Custom
-  de: Benutzerdefiniert
-  zh: 自定义
-  es: Personalizado
-  fr: Personnalisé
-  pt: Personalizado
-  ru: Пользовательский
-  ja: カスタム
-  ko: 사용자 정의
-  it: Personalizzato
-  tr: Özel
-  vi: Tùy chỉnh
-  id: Kustom
-  pl: Niestandardowy
-  nl: Aangepast
-  ar: مخصص
-  hi: कस्टम
-  th: กำหนดเอง
-  cs: Vlastní
-  sv: Anpassad
-  he: מותאם אישית
-  verified_by_human: []
 add_custom_entry:
   context: Button text to add a custom PII entry
   en: Add custom entry
@@ -1966,30 +1822,6 @@ form.replace_with.placeholder_custom:
   sv: "exempel: 'MITT_FÖRETAG'"
   he: "לדוגמה: 'MY_COMPANY'"
   verified_by_human: []
-form.date:
-  context: Form field label for birthday date
-  en: Date
-  de: Datum
-  zh: 日期
-  es: Fecha
-  fr: Date
-  pt: Data
-  ru: Дата
-  ja: 日付
-  ko: 날짜
-  it: Data
-  tr: Tarih
-  vi: Ngày
-  id: Tanggal
-  pl: Data
-  nl: Datum
-  ar: التاريخ
-  hi: तारीख
-  th: วันที่
-  cs: Datum
-  sv: Datum
-  he: תאריך
-  verified_by_human: []
 form.date.placeholder:
   context: Placeholder for birthday date input
   en: "example: '15.03.1990'"
@@ -2277,30 +2109,6 @@ form.save:
   cs: Uložit
   sv: Spara
   he: שמירה
-  verified_by_human: []
-form.delete:
-  context: Delete button text for personal data entry
-  en: Delete
-  de: Löschen
-  zh: 删除
-  es: Eliminar
-  fr: Supprimer
-  pt: Excluir
-  ru: Удалить
-  ja: 削除
-  ko: 삭제
-  it: Elimina
-  tr: Sil
-  vi: Xóa
-  id: Hapus
-  pl: Usuń
-  nl: Verwijderen
-  ar: حذف
-  hi: हटाएं
-  th: ลบ
-  cs: Smazat
-  sv: Radera
-  he: מחיקה
   verified_by_human: []
 encryption_note:
   context: Note explaining that personal data entries are client-side encrypted

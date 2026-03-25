@@ -32,6 +32,7 @@ export {};
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 // ─── Log buckets ────────────────────────────────────────────────────────────
 // All console messages captured for failure diagnostics.
@@ -392,9 +393,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const takeStepScreenshot = createStepScreenshotter(logChatCheckpoint);
 
 	// Pre-test skip checks
-	test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-	test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-	test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	await archiveExistingScreenshots(logChatCheckpoint);
 	logChatCheckpoint('Starting chat flow test.', { email: TEST_EMAIL });

@@ -443,7 +443,7 @@ Users should store them securely (offline, in a safe place).
                         onclick={handleDownload}
                     >
                         <div class="clickable-icon icon_download" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.download')}</span>
+                        <span>{$text('common.download')}</span>
                         {#if hasDownloaded}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -456,7 +456,7 @@ Users should store them securely (offline, in a safe place).
                         onclick={handleCopy}
                     >
                         <div class="clickable-icon icon_copy" style="width: 24px; height: 24px"></div>
-                        <span>{$text('signup.copy')}</span>
+                        <span>{$text('common.copy')}</span>
                         {#if hasCopied}
                             <span class="check-mark">✓</span>
                         {/if}
@@ -534,7 +534,7 @@ Users should store them securely (offline, in a safe place).
             {:else}
                 <div class="status-section">
                     <div class="status-row">
-                        <span class="status-label">{$text('settings.security.recovery_key_status')}</span>
+                        <span class="status-label">{$text('common.status')}</span>
                         <span class="status-value" class:has-key={hasRecoveryKey}>
                             {#if hasRecoveryKey}
                                 <div class="status-icon checkmark-icon"></div>
@@ -548,7 +548,7 @@ Users should store them securely (offline, in a safe place).
 
                     {#if hasRecoveryKey && formattedTimestamp()}
                         <div class="status-row">
-                            <span class="status-label">{$text('settings.security.recovery_key_last_updated')}</span>
+                            <span class="status-label">{$text('common.last_updated')}</span>
                             <span class="status-value">{formattedTimestamp()}</span>
                         </div>
                     {/if}

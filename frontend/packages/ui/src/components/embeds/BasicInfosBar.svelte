@@ -86,7 +86,7 @@
     
     // Otherwise use default status text based on current status
     if (status === 'processing') {
-      return $text('embeds.processing');
+      return $text('common.processing');
     } else if (status === 'finished') {
       return $text('embeds.completed');
     } else if (status === 'cancelled') {
@@ -141,8 +141,8 @@
       <button 
         class="stop-button"
         onclick={handleStopClick}
-        aria-label={$text('embeds.stop')}
-        title={$text('embeds.stop')}
+        aria-label={$text('common.stop')}
+        title={$text('common.stop')}
       >
         <span class="clickable-icon icon_stop_processing"></span>
       </button>
@@ -195,8 +195,8 @@
       <button 
         class="stop-button"
         onclick={handleStopClick}
-        aria-label={$text('embeds.stop')}
-        title={$text('embeds.stop')}
+        aria-label={$text('common.stop')}
+        title={$text('common.stop')}
       >
         <span class="clickable-icon icon_stop_processing"></span>
       </button>

@@ -87,7 +87,7 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'server/gift-cards',
             direction: 'forward',
             icon: 'gift_cards',
-            title: $text('settings.server.gift_cards'),
+            title: $text('common.gift_cards'),
             translationKey: 'settings.server.gift_cards'
         });
 
@@ -153,7 +153,7 @@ changes to the documentation (to keep the documentation up to date).
     />
     <SettingsItem
         icon="gift_cards"
-        title={$text('settings.server.gift_cards')}
+        title={$text('common.gift_cards')}
         subtitleTop={$text('settings.server.gift_cards.subtitle')}
         onClick={() => showGiftCardGenerator()}
     />

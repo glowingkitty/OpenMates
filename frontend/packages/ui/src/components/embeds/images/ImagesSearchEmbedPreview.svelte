@@ -87,7 +87,7 @@
   let taskId    = $derived(localTaskId);
 
   const skillIconName = 'search';
-  let skillName = $derived($text('app_skills.images.search'));
+  let skillName = $derived($text('common.search'));
 
   // Min image width at 30px strip height — images are landscape-ish (avg ~4:3 ratio).
   // At 30px height a 4:3 image is ~40px wide. Container ~300px wide → ~7 fit.
@@ -270,7 +270,7 @@
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
           {#if isLoadingChildren}
-            <span class="loading-text">{$text('embeds.loading')}</span>
+            <span class="loading-text">{$text('common.loading')}</span>
           {/if}
         </div>
       {:else}

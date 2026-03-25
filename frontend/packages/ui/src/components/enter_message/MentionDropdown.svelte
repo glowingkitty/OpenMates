@@ -380,7 +380,7 @@
             </span>
             <button 
                 class="settings-button" 
-                aria-label={$text('settings.settings')}
+                aria-label={$text('common.settings')}
                 onclick={handleHeaderSettingsClick}
             >
                 <span class="clickable-icon icon_settings"></span>
@@ -462,7 +462,7 @@
                     <button 
                         class="row-settings-button" 
                         tabindex="-1"
-                        aria-label={$text('settings.settings')}
+                        aria-label={$text('common.settings')}
                         onclick={(e) => handleSettingsNavigation(result, e)}
                     >
                         <span class="clickable-icon icon_settings"></span>

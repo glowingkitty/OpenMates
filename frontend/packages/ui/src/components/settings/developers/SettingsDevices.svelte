@@ -224,7 +224,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 </script>
 
 <div class="devices-container">
-    <h2 class="page-title">{$text('settings.developers_devices_text')}</h2>
+    <h2 class="page-title">{$text('common.devices')}</h2>
     <p class="page-description">{$text('settings.developers_devices_description')}</p>
 
     {#if error}
@@ -258,14 +258,14 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                             onclick={() => saveRename(device.id)}
                                             disabled={processingDeviceId === device.id}
                                         >
-                                            {processingDeviceId === device.id ? $text('settings.developers_devices_processing') : $text('settings.developers_devices_save')}
+                                            {processingDeviceId === device.id ? $text('common.processing') : $text('common.save')}
                                         </button>
                                         <button
                                             class="btn btn-cancel"
                                             onclick={() => cancelEdit()}
                                             disabled={processingDeviceId === device.id}
                                         >
-                                            {$text('settings.developers_devices_cancel')}
+                                            {$text('common.cancel')}
                                         </button>
                                     </div>
                                 </div>
@@ -316,7 +316,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                     onclick={() => approveDevice(device.id)}
                                     disabled={processingDeviceId === device.id}
                                 >
-                                    {processingDeviceId === device.id ? $text('settings.developers_devices_processing') : $text('settings.developers_devices_approve')}
+                                    {processingDeviceId === device.id ? $text('common.processing') : $text('settings.developers_devices_approve')}
                                 </button>
                             {/if}
                             <button
@@ -324,7 +324,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                                 onclick={() => revokeDevice(device.id)}
                                 disabled={processingDeviceId === device.id}
                             >
-                                {processingDeviceId === device.id ? $text('settings.developers_devices_processing') : $text('settings.developers_devices_revoke')}
+                                {processingDeviceId === device.id ? $text('common.processing') : $text('settings.developers_devices_revoke')}
                             </button>
                         {/if}
                     </div>

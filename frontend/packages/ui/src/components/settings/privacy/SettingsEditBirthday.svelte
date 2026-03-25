@@ -162,7 +162,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
 <SettingsItem
     type="heading"
     icon="text"
-    title={$text('settings.privacy.form.date')}
+    title={$text('common.date')}
 />
 
 <SettingsInput
@@ -186,7 +186,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
         disabled={!isValid || isSaving || isDeleting}
         onclick={handleSave}
     >
-        {$text('settings.privacy.form.save')}
+        {$text('common.save')}
     </button>
 </div>
 
@@ -198,7 +198,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
         disabled={isDeleting || isSaving}
         onclick={handleDelete}
     >
-        {$text('settings.privacy.form.delete')}
+        {$text('common.delete')}
     </button>
 </div>
 

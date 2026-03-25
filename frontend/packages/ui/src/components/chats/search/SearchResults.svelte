@@ -509,7 +509,7 @@
   <!-- Settings Results Section -->
   {#if settingsByType.regularSettings.length > 0}
     <div class="search-section">
-      <h3 class="search-section-title">{$text('chats.search.settings')}</h3>
+      <h3 class="search-section-title">{$text('common.settings')}</h3>
       {#each settingsByType.regularSettings as settingResult}
         {@const itemId = settingResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
@@ -580,7 +580,7 @@
   <!-- App Catalog Results Sections -->
   {#if appsByType && appsByType.apps.length > 0}
     <div class="search-section">
-      <h3 class="search-section-title">{$text('chats.search.apps_only')}</h3>
+      <h3 class="search-section-title">{$text('common.apps')}</h3>
       {#each appsByType.apps as appResult}
         {@const itemId = appResult.entry.path}
         {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
@@ -823,7 +823,7 @@
                 {#if metaSnippet.matchSource === 'tags'}
                   <span class="metadata-source-label">{$text('chats.search.tag_match')}</span>
                 {:else}
-                  <span class="metadata-source-label">{$text('chats.search.summary_match')}</span>
+                  <span class="metadata-source-label">{$text('common.summary')}</span>
                 {/if}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html highlightText(metaSnippet.snippet, query)}

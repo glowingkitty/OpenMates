@@ -13,6 +13,7 @@
 export {};
 
 const { test, expect } = require('@playwright/test');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	getTestAccount,
 	generateTotp,
@@ -199,9 +200,7 @@ test.describe('Modal ARIA — authenticated', () => {
 
 	test('settings modal has correct ARIA attributes and focus trap', async ({ page }: { page: any }) => {
 		test.setTimeout(120000);
-		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		await loginAndWait(page);
 
@@ -244,9 +243,7 @@ test.describe('Modal ARIA — authenticated', () => {
 
 	test('overlay has role="presentation" (not role="button")', async ({ page }: { page: any }) => {
 		test.setTimeout(120000);
-		test.skip(!TEST_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
-		test.skip(!TEST_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
-		test.skip(!TEST_OTP_KEY, 'OPENMATES_TEST_ACCOUNT_OTP_KEY is required.');
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 		await loginAndWait(page);
 
