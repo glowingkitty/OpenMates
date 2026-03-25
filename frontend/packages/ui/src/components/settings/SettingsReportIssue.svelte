@@ -3,8 +3,8 @@
     
     This component allows users (including non-authenticated users) to report issues.
     The form includes:
-    - Issue title (required)
-    - Issue description (optional)
+    - Short description (required, multi-line)
+    - Structured description fields (optional)
     - Toggle to share chat/embed with the report (optional)
     - Reminder about Signal group for discussion/screenshots
 -->
@@ -45,9 +45,9 @@
     }
     
     // Form state
-    let issueTitle = $state('');
-    // Structured description fields — replace the old single freeform textarea.
-    // All three are optional. On submit they are composed into a formatted description
+    let issueTitle = $state('');  // "Short description" — multi-line, mandatory
+    // Structured description fields — all three are optional.
+    // On submit they are composed into a formatted description
     // string sent to the backend's existing `description` field.
     let userFlow = $state('');
     let expectedBehaviour = $state('');
@@ -71,7 +71,7 @@
     let includeEmailToggle = $state(true);
 
     /**
-     * Admin-only: whether to submit this report to the opencode agent for an
+     * Admin-only: whether to submit this report to the Claude Code agent for an
      * automatic plan-mode investigation session. Only shown when isAdminUser is true.
      * Defaults to true so the admin gets an investigation started immediately.
      */
@@ -93,7 +93,6 @@
     });
     
     // Input references for warnings
-    let titleInput = $state<HTMLInputElement>();
     let userFlowInput = $state<HTMLTextAreaElement>();
     let emailInput = $state<HTMLInputElement>();
     
@@ -121,7 +120,7 @@
     
     /**
      * Validate form fields.
-     * Only the title is required. All three structured description fields and email are optional.
+     * Only the short description is required. All three structured description fields and email are optional.
      */
     function validateForm(): boolean {
         let isValid = true;
@@ -475,8 +474,8 @@
         // Validate form
         if (!validateForm()) {
             // Focus first invalid field
-            if (titleError && titleInput) {
-                titleInput.focus();
+            if (titleError) {
+                document.getElementById('issue-title')?.focus();
             } else if (emailError && emailInput) {
                 emailInput.focus();
             }
@@ -573,7 +572,7 @@
                     // outerHTML of the DOM element the user picked via the element picker overlay.
                     // Null if the user did not pick an element.
                     picked_element_html: pickedElementHtml ?? null,
-                    // Admin-only: trigger opencode plan-mode investigation.
+                    // Admin-only: trigger Claude Code plan-mode investigation.
                     // Only honoured server-side when reporter is a verified admin.
                     submit_to_agent: isAdminUser && submitToAgent
                 }),
@@ -692,9 +691,7 @@
                             titleError = fieldErrorMessage;
                             showTitleWarning = true;
                             hasFieldErrors = true;
-                            if (titleInput) {
-                                titleInput.focus();
-                            }
+                            document.getElementById('issue-title')?.focus();
                         } else if (fieldName === 'contact_email') {
                             emailError = fieldErrorMessage;
                             showEmailWarning = true;
@@ -743,20 +740,8 @@
     }
     
     /**
-     * Handle Enter key press in title input — move focus to the first structured field
-     */
-    function handleTitleKeyPress(event: KeyboardEvent) {
-        if (event.key === 'Enter' && !isSubmitting) {
-            event.preventDefault();
-            if (userFlowInput) {
-                userFlowInput.focus();
-            }
-        }
-    }
-    
-    /**
      * Check if form is valid.
-     * Only title is required (min 3 chars). All description fields are optional (no minimum).
+     * Only the short description is required (min 3 chars). All other description fields are optional (no minimum).
      * Email is optional but must be valid if provided (guest only).
      */
     let isFormValid = $derived(
@@ -1534,18 +1519,16 @@
             </button>
         </div>
 
-        <!-- Title Input -->
+        <!-- Short Description (required, multi-line) -->
         <div class="input-group">
             <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
-            <SettingsInput
+            <SettingsTextarea
                 bind:value={issueTitle}
-                bind:inputRef={titleInput}
                 id="issue-title"
                 placeholder={$text('settings.report_issue.title_placeholder')}
                 disabled={isSubmitting}
-                hasError={!!titleError}
                 ariaLabel={$text('settings.report_issue.title_label')}
-                onKeydown={handleTitleKeyPress}
+                rows={3}
             />
             {#if showTitleWarning && titleError}
                 <InputWarning
@@ -1658,7 +1641,7 @@
         {/if}
 
         <!-- Submit to Agent toggle — admin only -->
-        <!-- Triggers an opencode plan-mode investigation session for this issue. -->
+        <!-- Triggers a Claude Code plan-mode investigation session for this issue. -->
         {#if isAdminUser}
             <div class="toggle-group">
                 <div class="toggle-row">
