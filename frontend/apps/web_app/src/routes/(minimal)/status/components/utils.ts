@@ -1,175 +1,51 @@
-// Status page helper functions.
-// Shared across all status page components.
-// Architecture: docs/architecture/infrastructure/status-page.md
-
-import type { TimelineEntry } from './types';
-
-/** Convert a string to a kebab-case test ID. */
-export function tid(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-|-$/g, '');
-}
-
-/** Map a service status to its color. */
-export function sc(s: string): string {
-	return s === 'operational'
-		? '#22c55e'
-		: s === 'degraded'
-			? '#f59e0b'
-			: s === 'down'
-				? '#ef4444'
-				: 'var(--color-grey-50)';
-}
-
-/** Compute an RGB color from a pass rate (0–100). Green at 100, red at 0. */
-export function rc(rate: number): string {
-	const r = Math.round(34 + (239 - 34) * (1 - rate / 100));
-	const g = Math.round(197 + (68 - 197) * (1 - rate / 100));
-	const b = Math.round(94 + (68 - 94) * (1 - rate / 100));
-	return `rgb(${r},${g},${b})`;
-}
-
-/** Format an ISO date string to short form (e.g. "Mar 22"). */
-export function fd(iso: string): string {
-	try {
-		return new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
-			month: 'short',
-			day: 'numeric'
-		});
-	} catch {
-		return iso;
-	}
-}
-
-/** Format an ISO datetime string to HH:MM. */
-export function ft(iso: string): string {
-	try {
-		return new Date(iso).toLocaleTimeString([], {
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: false
-		});
-	} catch {
-		return iso;
-	}
-}
-
-/** Format an ISO datetime string to full date-time. */
-export function fdt(iso: string): string {
-	try {
-		return new Date(iso).toLocaleString(undefined, {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: false
-		});
-	} catch {
-		return iso;
-	}
-}
-
-/** Determine the color for a timeline entry. */
-export function timelineColor(entry: TimelineEntry): string {
-	if (entry.status) {
-		return entry.status === 'passed'
-			? '#22c55e'
-			: entry.status === 'failed'
-				? '#ef4444'
-				: entry.status === 'not_run'
-					? 'var(--color-grey-40)'
-					: sc(entry.status);
-	}
-	if (entry.has_run === false) {
-		return 'var(--color-grey-40)';
-	}
-	return rc(entry.tone ?? entry.pass_rate ?? 0);
-}
-
-/** Generate tooltip text for a timeline entry. */
-export function timelineTitle(entry: TimelineEntry): string {
-	if (entry.status) {
-		if (entry.status === 'not_run') {
-			return `${fd(entry.date)}: No run`;
-		}
-		return entry.run_at
-			? `${fdt(entry.run_at)}: ${entry.status}`
-			: `${fd(entry.date)}: ${entry.status}`;
-	}
-	if (entry.has_run === false) {
-		return `${fd(entry.date)}: No run`;
-	}
-
-	const parts = [`${fd(entry.date)}`];
-	if (entry.run_at) {
-		parts.push(fdt(entry.run_at));
-	}
-	if (
-		typeof entry.passed === 'number' ||
-		typeof entry.failed === 'number' ||
-		typeof entry.not_run === 'number'
-	) {
-		parts.push(`${entry.passed ?? 0} passed`);
-		parts.push(`${entry.failed ?? 0} failed`);
-		if ((entry.not_run ?? 0) > 0) {
-			parts.push(`${entry.not_run ?? 0} not run`);
-		}
-	} else if (typeof entry.pass_rate === 'number') {
-		parts.push(`${entry.pass_rate}%`);
-	}
-	return parts.join(' · ');
-}
-
 /**
- * Compute uptime percentage from a 30-day timeline.
- * For service timelines: counts days with "operational" status.
- * For test timelines: counts days with "passed" status or pass_rate === 100.
- * Days with no data or "unknown" status are excluded from the denominator.
+ * Status page utility functions (v3).
+ * Architecture: docs/architecture/infrastructure/status-page.md
  */
-export function uptimePct(timeline: TimelineEntry[]): number | null {
-	if (!timeline?.length) return null;
 
-	let up = 0;
-	let total = 0;
+import type { ServiceStatus } from './types';
 
-	for (const entry of timeline) {
-		const s = entry.status;
-		// Skip days with no meaningful data
-		if (s === 'unknown' || s === 'not_run') continue;
-		if (!s && entry.has_run === false) continue;
-
-		total++;
-		if (s === 'operational' || s === 'passed') {
-			up++;
-		} else if (!s && typeof entry.pass_rate === 'number' && entry.pass_rate === 100) {
-			up++;
-		}
+export function statusColor(status: ServiceStatus | string): string {
+	switch (status) {
+		case 'operational': return 'var(--color-success, #22c55e)';
+		case 'degraded': return 'var(--color-warning, #eab308)';
+		case 'down': return 'var(--color-error, #ef4444)';
+		default: return 'var(--color-grey-50, #9ca3af)';
 	}
-
-	if (total === 0) return null;
-	return Math.round((up / total) * 1000) / 10; // one decimal place
 }
 
-/** Format uptime percentage for display (e.g. "99.7%"). */
-export function fmtUptime(pct: number | null): string {
-	if (pct === null) return '';
-	return pct === 100 ? '100%' : `${pct.toFixed(1)}%`;
+export function statusLabel(status: ServiceStatus | string): string {
+	switch (status) {
+		case 'operational': return 'Operational';
+		case 'degraded': return 'Degraded';
+		case 'down': return 'Down';
+		default: return 'Unknown';
+	}
 }
 
-/** Suite display name mapping. */
-export const SUITE_NAMES: Record<string, string> = {
-	playwright: 'End to End Tests',
-	vitest: 'Unit Tests (Frontend)',
-	pytest_unit: 'Unit Tests (Backend)'
-};
+export function overallStatusLabel(status: ServiceStatus | string): string {
+	switch (status) {
+		case 'operational': return 'All Systems Operational';
+		case 'degraded': return 'Partial Degradation';
+		case 'down': return 'Major Outage';
+		default: return 'Status Unknown';
+	}
+}
 
-/** Overall status label mapping. */
-export const STATUS_LABELS: Record<string, string> = {
-	operational: 'All Systems Operational',
-	degraded: 'Partial Degradation',
-	down: 'Major Outage',
-	unknown: 'Status Unknown'
-};
+export function timeAgo(isoString: string): string {
+	const diff = Date.now() - new Date(isoString).getTime();
+	const minutes = Math.floor(diff / 60000);
+	if (minutes < 1) return 'just now';
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	return `${Math.floor(hours / 24)}d ago`;
+}
+
+export function formatDuration(minutes: number | null): string {
+	if (minutes === null) return 'ongoing';
+	if (minutes < 60) return `${minutes}min`;
+	const h = Math.floor(minutes / 60);
+	const m = minutes % 60;
+	return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
