@@ -482,6 +482,54 @@ logout_all_hint:
   sv: Detta rensar också alla betrodda enheter. Varje framtida inloggning kräver fullständig omautentisering.
   he: פעולה זו תמחק גם את כל המכשירים המהימנים. כל כניסה עתידית תדרוש אימות מחדש מלא.
 
+processing:
+  context: Button text while a bulk logout operation is in progress
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione in corso...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جارٍ المعالجة...
+  hi: प्रसंस्करण हो रहा है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
+
+just_now:
+  context: Relative time label for events that happened less than a minute ago
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Justo ahora
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Przed chwilą
+  nl: Zojuist
+  ar: للتو
+  hi: अभी-अभी
+  th: เมื่อกี้
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
+
 minute_ago:
   context: Relative time label for exactly 1 minute ago
   en: 1 minute ago
@@ -1014,6 +1062,30 @@ pair_copy_link:
   sv: Kopiera länk
   he: העתק קישור
 
+pair_copied:
+  context: Brief confirmation after the link was copied
+  en: Copied!
+  de: Kopiert!
+  zh: 已复制！
+  es: ¡Copiado!
+  fr: Copié !
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी किया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
+  he: הועתק!
+
 # ---------------------------------------------------------------------------
 # Magic Pair Login — Authorizing device (SettingsSessionsConfirmPair)
 # ---------------------------------------------------------------------------
@@ -1281,6 +1353,30 @@ pair_confirm_error:
   cs: Autorizace se nezdařila. Zkuste to prosím znovu.
   sv: Auktoriseringen misslyckades. Försök igen.
   he: האישור נכשל. אנא נסה שוב.
+
+pair_confirm_cancel:
+  context: Cancel button shown on PIN display page to go back without waiting for completion
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
 
 pair_complete_success:
   context: Success notification shown after device pairing completes

@@ -1,3 +1,51 @@
+storage:
+  context: Storage submenu item under Account settings
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
+storage_title:
+  context: Title for the storage overview settings page
+  en: Storage
+  de: Speichernutzung
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
 storage_loading:
   context: Loading state message while fetching storage usage data
   en: Loading storage usage…
@@ -238,6 +286,30 @@ storage_last_billed:
   sv: Senast fakturerat
   he: חיוב אחרון
   verified_by_human: []
+storage_category_images:
+  context: Storage category label for image files
+  en: Images
+  de: Bilder
+  zh: 图片
+  es: Imágenes
+  fr: Images
+  pt: Imagens
+  ru: Изображения
+  ja: 画像
+  ko: 이미지
+  it: Immagini
+  tr: Görseller
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obrazy
+  nl: Afbeeldingen
+  ar: الصور
+  hi: छवियाँ
+  th: รูปภาพ
+  cs: Obrázky
+  sv: Bilder
+  he: תמונות
+  verified_by_human: []
 storage_category_videos:
   context: Storage category label for video files
   en: Videos
@@ -261,6 +333,54 @@ storage_category_videos:
   cs: Videa
   sv: Videor
   he: סרטונים
+  verified_by_human: []
+storage_category_audio:
+  context: Storage category label for audio files
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: オーディオ
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: الصوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  he: אודיו
+  verified_by_human: []
+storage_category_pdf:
+  context: Storage category label for PDF files
+  en: PDF
+  de: PDF
+  zh: PDF
+  es: PDF
+  fr: PDF
+  pt: PDF
+  ru: PDF
+  ja: PDF
+  ko: PDF
+  it: PDF
+  tr: PDF
+  vi: PDF
+  id: PDF
+  pl: PDF
+  nl: PDF
+  ar: PDF
+  hi: PDF
+  th: PDF
+  cs: PDF
+  sv: PDF
+  he: PDF
   verified_by_human: []
 storage_category_code:
   context: Storage category label for code and text files
@@ -357,6 +477,30 @@ storage_category_archives:
   cs: Archivy
   sv: Arkiv
   he: ארכיונים
+  verified_by_human: []
+storage_category_other:
+  context: Storage category label for other/uncategorized files
+  en: Other
+  de: Sonstige
+  zh: 其他
+  es: Otros
+  fr: Autres
+  pt: Outros
+  ru: Прочее
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overige
+  ar: أخرى
+  hi: अन्य
+  th: อื่นๆ
+  cs: Ostatní
+  sv: Övrigt
+  he: אחר
   verified_by_human: []
 storage_files_count:
   context: Number of files in a storage category (e.g. "3 files"). {count} is a number.

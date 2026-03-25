@@ -29,6 +29,30 @@ description:
   verified_by_human: []
 
 # Settings > Chat menu item (becomes settings.chat.text)
+chat:
+  context: Chat settings menu title
+  en: Chat
+  de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Chat
+  pt: Chat
+  ru: Чат
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbet
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czat
+  nl: Chat
+  ar: الدردشة
+  hi: चैट
+  th: แชท
+  cs: Chat
+  sv: Chatt
+  # Notifications submenu (becomes settings.chat.notifications.text)
+  he: "צ'אט"
 notifications:
   context: Notifications submenu title
   en: Notifications
@@ -98,6 +122,52 @@ ai_app_settings_info:
   cs: Najděte další předvolby chatu v nastavení aplikace AI
   sv: Hitta fler chattinställningar i AI-appinställningar
   he: אפשר למצוא העדפות צ'אט נוספות בהגדרות אפליקציית ה-AI
+notifications.enabled:
+  context: Status text when notifications are enabled
+  en: Enabled
+  de: Aktiviert
+  zh: 已启用
+  es: Activado
+  fr: Activé
+  pt: Ativado
+  ru: Включено
+  ja: 有効
+  ko: 활성화됨
+  it: Abilitato
+  tr: Etkin
+  vi: Đã bật
+  id: Diaktifkan
+  pl: Włączone
+  nl: Ingeschakeld
+  ar: مفعّل
+  hi: सक्षम
+  th: เปิดใช้งาน
+  cs: Povoleno
+  sv: Aktiverat
+  he: פעיל
+notifications.disabled:
+  context: Status text when notifications are disabled
+  en: Disabled
+  de: Deaktiviert
+  zh: 已禁用
+  es: Desactivado
+  fr: Désactivé
+  pt: Desativado
+  ru: Отключено
+  ja: 無効
+  ko: 비활성화됨
+  it: Disabilitato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Wyłączone
+  nl: Uitgeschakeld
+  ar: معطّل
+  hi: अक्षम
+  th: ปิดใช้งาน
+  cs: Zakázáno
+  sv: Inaktiverat
+  he: מושבת
 notifications.blocked:
   context: Status text when notifications are blocked by browser
   en: Blocked by browser

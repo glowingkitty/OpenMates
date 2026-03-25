@@ -99,6 +99,31 @@ transcribe.transcribing:
   he: מתמלל…
   verified_by_human: []
 
+transcribe.upload_failed:
+  context: Error status on voice recording embed card when upload fails
+  en: Upload failed
+  de: Hochladen fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: Envoi échoué
+  pt: Falha no envio
+  ru: Ошибка загрузки
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: Yükleme başarısız
+  vi: Tải lên thất bại
+  id: Gagal mengunggah
+  pl: Przesyłanie nie powiodło się
+  nl: Uploaden mislukt
+  ar: فشل الرفع
+  hi: अपलोड विफल
+  th: อัปโหลดไม่สำเร็จ
+  cs: Nahrávání se nezdařilo
+  sv: Uppladdning misslyckades
+  he: העלאה נכשלה
+  verified_by_human: []
+
 transcribe.transcription_failed:
   context: Error status on voice recording embed card when transcription fails
   en: Transcription failed
@@ -147,6 +172,31 @@ transcribe.no_credits:
   cs: Vyčerpali jste kredity. Zakupte další pro pokračování v přepisu hlasových poznámek.
   sv: Du har slut på krediter. Köp mer för att fortsätta transkribera röstanteckningar.
   he: נגמרו לך הקרדיטים. רכוש עוד כדי להמשיך לתמלל הודעות קוליות.
+  verified_by_human: []
+
+transcribe.retry:
+  context: Button label on the voice recording error card to retry a failed transcription
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Tekrar dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองใหม่
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
   verified_by_human: []
 
 transcribe.no_transcript:
@@ -322,6 +372,31 @@ transcribe.transcribed_by:
   cs: "Přepsáno {model}:"
   sv: "Transkriberat av {model}:"
   he: "תומלל על ידי {model}:"
+  verified_by_human: []
+
+transcribe.processing:
+  context: Subtitle shown on recording embed while audio is being uploaded or transcribed
+  en: Processing...
+  de: Verarbeitung...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रोसेस हो रहा है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 
 transcribe.how_to_use.1:

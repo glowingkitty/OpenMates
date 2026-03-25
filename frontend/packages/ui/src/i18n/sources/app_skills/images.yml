@@ -25,6 +25,32 @@ view:
     - en
     - de
 
+view.skill_title:
+  context: Skill title shown on the images/view skill-use embed card (the AI's "View" action result, not the original upload)
+  en: View
+  de: Ansicht
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Visualizar
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Widok
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  he: צפייה
+  verified_by_human:
+    - en
+
 view.description:
   context: Description shown below the skill name on uploaded image embed card
   en: Uploaded image
@@ -75,6 +101,32 @@ view.uploading:
   cs: "Nahr\u00e1v\u00e1n\u00ed\u2026"
   sv: "Laddar upp\u2026"
   he: מעלה...
+  verified_by_human:
+    - en
+
+view.upload_failed:
+  context: Status text shown on image embed card when the upload has failed
+  en: Upload failed
+  de: Upload fehlgeschlagen
+  zh: 上传失败
+  es: Error al subir
+  fr: "Erreur d'envoi"
+  pt: Falha no envio
+  ru: "Ошибка загрузки"
+  ja: アップロード失敗
+  ko: 업로드 실패
+  it: Caricamento fallito
+  tr: "Y\u00fckleme ba\u015far\u0131s\u0131z"
+  vi: "T\u1ea3i l\u00ean th\u1ea5t b\u1ea1i"
+  id: Gagal mengunggah
+  pl: "B\u0142\u0105d przesy\u0142ania"
+  nl: Uploaden mislukt
+  ar: "\u0641\u0634\u0644 \u0627\u0644\u062a\u062d\u0645\u064a\u0644"
+  hi: "\u0905\u092a\u0932\u094b\u0921 \u0935\u093f\u092b\u0932"
+  th: "\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e25\u0e49\u0e21\u0e40\u0e2b\u0e25\u0e27"
+  cs: "Nahr\u00e1v\u00e1n\u00ed selhalo"
+  sv: Uppladdning misslyckades
+  he: העלאה נכשלה
   verified_by_human:
     - en
 
@@ -156,6 +208,32 @@ view.signup_to_upload:
   verified_by_human:
     - en
 
+generate:
+  context: Skill name for image generation
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Hasilkan
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: उत्पन्न करें
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  he: יצירה
+  verified_by_human:
+    - en
+    - de
 generate.description:
   context: Description for image generation skill
   en: Create images from a prompt and/or images.
@@ -513,6 +591,33 @@ vectorize.how_to_use.3:
   sv: Konvertera den här PNG-ikonen till SVG så att den ser skarp ut i alla storlekar
   he: המר את אייקון ה-PNG הזה ל-SVG כדי שייראה חד בכל גודל
   verified_by_human: [en, de]
+
+search:
+  context: Skill name for image search
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human:
+    - en
+    - de
 
 search.description:
   context: Description for image search skill

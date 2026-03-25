@@ -94,6 +94,30 @@ current_balance:
   sv: Nuvarande Saldo
   he: יתרה נוכחית
   verified_by_human: []
+credits:
+  context: Credits label
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: krediler
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: اعتمادات
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  he: קרדיטים
+  verified_by_human: []
 buy_more_credits:
   context: Button to purchase additional credits
   en: Buy More Credits
@@ -141,6 +165,30 @@ monthly_subscription:
   cs: Měsíční Předplatné Automatického Dobití
   sv: Månadsvis Automatisk Påfyllningsprenumeration
   he: מנוי טעינה אוטומטית חודשי
+  verified_by_human: []
+status:
+  context: Subscription status label
+  en: Status
+  de: Status
+  zh: 状态
+  es: Estado
+  fr: Statut
+  pt: Status
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  he: סטטוס
   verified_by_human: []
 amount:
   context: Credits amount label
@@ -406,6 +454,30 @@ configure:
   sv: Konfigurera
   he: הגדרה
   verified_by_human: []
+buy_credits:
+  context: Buy credits page title
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar Créditos
+  fr: Acheter des Crédits
+  pt: Comprar Créditos
+  ru: Купить Кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista Crediti
+  tr: Kredi Satın Al
+  vi: Mua tín dụng
+  id: Beli Kredit
+  pl: Kup Kredyty
+  nl: Credits Kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit Kredity
+  sv: Köp Krediter
+  he: קניית קרדיטים
+  verified_by_human: []
 buy_credits.payment:
   context: Payment page title for buying credits
   en: Payment
@@ -526,6 +598,30 @@ auto_topup.low_balance:
   sv: Vid Lågt Saldo
   he: ביתרה נמוכה
   verified_by_human: []
+auto_topup.monthly:
+  context: Monthly subscription submenu text
+  en: Monthly
+  de: Monatlich
+  zh: 月度
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 月次
+  ko: 월간
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Miesięcznie
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  he: חודשי
+  verified_by_human: []
 auto_topup_description:
   context: Auto top-up menu item description
   en: Automatically maintain your credit balance
@@ -573,6 +669,30 @@ on_low_balance:
   cs: Při Nízkém Zůstatku
   sv: Vid Lågt Saldo
   he: ביתרה נמוכה
+  verified_by_human: []
+monthly:
+  context: Monthly subscription menu item
+  en: Monthly
+  de: Monatlich
+  zh: 月度
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 月次
+  ko: 월간
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Miesięcznie
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  he: חודשי
   verified_by_human: []
 manage_subscription:
   context: Manage subscription page title
@@ -862,6 +982,30 @@ buy_now:
   sv: Köp Nu
   he: קנה עכשיו
   verified_by_human: []
+processing:
+  context: Processing payment state
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रसंस्करण...
+  th: กำลังดำเนินการ...
+  cs: Zpracovávání...
+  sv: Bearbetar...
+  he: מעבד...
+  verified_by_human: []
 loading_payment_methods:
   context: Loading payment methods state
   en: Loading payment methods...
@@ -1126,6 +1270,30 @@ gift_card.redeem:
   sv: Lösa in kod
   he: מימוש קוד
   verified_by_human: []
+gift_card.cancel:
+  context: Button to cancel gift card redemption and return to credit selection
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
 gift_card.success:
   context: Success message after redeeming gift card
   en: Gift card redeemed successfully
@@ -1222,6 +1390,54 @@ credits_total:
   sv: krediter totalt
   he: "סה\"כ קרדיטים"
   verified_by_human: []
+done:
+  context: Button to close confirmation and return to billing
+  en: Done
+  de: Fertig
+  zh: 完成
+  es: Hecho
+  fr: Terminé
+  pt: Concluído
+  ru: Готово
+  ja: 完了
+  ko: 완료
+  it: Fatto
+  tr: Tamamlandı
+  vi: Hoàn tất
+  id: Selesai
+  pl: Gotowe
+  nl: Klaar
+  ar: تم
+  hi: पूर्ण
+  th: เสร็จสิ้น
+  cs: Hotovo
+  sv: Klar
+  he: סיום
+  verified_by_human: []
+invoices:
+  context: Invoices menu item
+  en: Invoices
+  de: Rechnungen
+  zh: 发票
+  es: Facturas
+  fr: Factures
+  pt: Faturas
+  ru: Счета
+  ja: 請求書
+  ko: 청구서
+  it: Fatture
+  tr: Faturalar
+  vi: Hóa đơn
+  id: Faktur
+  pl: Faktury
+  nl: Facturen
+  ar: الفواتير
+  hi: चालान
+  th: ใบแจ้งหนี้
+  cs: Faktury
+  sv: Fakturor
+  he: חשבוניות
+  verified_by_human: []
 invoices_description:
   context: Invoices page description
   en: View and download your payment invoices
@@ -1245,6 +1461,30 @@ invoices_description:
   cs: Zobrazit a stáhnout vaše platební faktury
   sv: Visa och ladda ner dina betalningsfakturor
   he: צפה והורד את חשבוניות התשלום שלך
+  verified_by_human: []
+invoices_download:
+  context: Invoices download button text
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  he: הורדה
   verified_by_human: []
 invoices_loading:
   context: Loading message for invoices
@@ -1653,6 +1893,30 @@ invoices.no_invoices_description:
   cs: Vaše faktury se zde zobrazí po prvním nákupu.
   sv: Dina fakturor kommer att visas här efter ditt första köp.
   he: החשבוניות שלך יופיעו כאן לאחר ביצוע הרכישה הראשונה.
+  verified_by_human: []
+invoices.download:
+  context: Download invoice button text
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  he: הורדה
   verified_by_human: []
 invoices.download_invoice:
   context: Download invoice button tooltip

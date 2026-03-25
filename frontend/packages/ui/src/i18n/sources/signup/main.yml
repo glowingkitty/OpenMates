@@ -1807,6 +1807,30 @@ how_to_login:
   sv: "Hur vill du logga in?"
   he: "איך ברצונך להתחבר?"
   verified_by_human: []
+password:
+  context: password
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: "Lösenord"
+  he: סיסמה
+  verified_by_human: []
 passkey:
   context: passkey
   en: Passkey
@@ -3441,6 +3465,30 @@ i_stored_backup_codes:
   sv: Jag har förvarat säkerhetskopieringskoderna på en säker plats.
   he: שמרתי את קודי הגיבוי במקום בטוח.
   verified_by_human: []
+recovery_key:
+  context: Title for recovery key section
+  en: Recovery Key
+  de: Wiederherstellungsschlüssel
+  zh: 恢复密钥
+  es: Llave de recuperación
+  fr: Clé de récupération
+  pt: Chave de recuperação
+  ru: Ключ восстановления
+  ja: 回復キー
+  ko: 복구 키
+  it: Chiave di ripristino
+  tr: Kurtarma anahtarı
+  vi: Khóa khôi phục
+  id: Kunci pemulihan
+  pl: Klucz odzyskiwania
+  nl: Herstelsleutel
+  ar: مفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी
+  th: คีย์กู้คืน
+  cs: Obnovovací klíč
+  sv: Återställningsnyckel
+  he: מפתח שחזור
+  verified_by_human: []
 create_recovery_key:
   context: Button text for creating a recovery key
   en: Create Recovery Key
@@ -4174,6 +4222,54 @@ separate_2fa_app:
   cs: Vždy používejte samostatnou aplikaci 2FA a <mark>neukládejte kódy 2FA do správce hesel.</mark> Pouze tehdy může 2FA chránit váš účet.
   sv: Använd alltid en separat 2FA-app och <mark>spara inte 2FA-koder i din lösenordshanterare.</mark> Endast då kan 2FA skydda ditt konto.
   he: "השתמש תמיד באפליקציית 2FA נפרדת ו<mark>אל תשמור קודי 2FA במנהל הסיסמאות שלך.</mark> רק כך 2FA יכול להגן על החשבון שלך."
+  verified_by_human: []
+continue:
+  context: Button text for continuing after entering the 2FA app name
+  en: Continue
+  de: Weiter
+  zh: 继续
+  es: Continuar
+  fr: Continuer
+  pt: Continuar
+  ru: Продолжить
+  ja: 続行
+  ko: 계속
+  it: Continua
+  tr: Devam et
+  vi: Tiếp tục
+  id: Lanjutkan
+  pl: Kontynuuj
+  nl: Doorgaan
+  ar: متابعة
+  hi: जारी रखें
+  th: ดำเนินการต่อ
+  cs: Pokračovat
+  sv: Fortsätt
+  he: המשך
+  verified_by_human: []
+settings:
+  context: Heading for the settings section during the signup process
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Configuración
+  fr: Paramètres
+  pt: Configurações
+  ru: Настройки
+  ja: 設定
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
+  ar: الإعدادات
+  hi: सेटिंग्स
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
+  he: הגדרות
   verified_by_human: []
 default_settings_balance:
   context: explaining the default settings during signup
@@ -5538,6 +5634,30 @@ finish_setup:
   sv: Slutför installation
   he: סיום הגדרה
   verified_by_human: []
+processing:
+  context: Text shown when processing subscription activation
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: "प्रसंस्करण..."
+  th: กำลังประมวลผล...
+  cs: Zpracovávání...
+  sv: Bearbetar...
+  he: מעבד...
+  verified_by_human: []
 pay_with_card:
   context: Header text for paying with card
   en: Pay with card
@@ -6593,6 +6713,54 @@ recovery_key_error_generic:
   cs: Při generování klíče pro obnovení došlo k chybě. Zkuste to prosím znovu.
   sv: Ett fel uppstod när din återställningsnyckel genererades. Försök igen.
   he: אירעה שגיאה בעת יצירת מפתח השחזור שלך. אנא נסה שוב.
+  verified_by_human: []
+download:
+  context: Button text to download the recovery key file
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تنزيل
+  hi: डाउनलोड
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  he: הורד
+  verified_by_human: []
+copy:
+  context: Button text to copy recovery key to clipboard
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  he: העתק
   verified_by_human: []
 print:
   context: Button text to print recovery key

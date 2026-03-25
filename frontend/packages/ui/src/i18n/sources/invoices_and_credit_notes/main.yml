@@ -5,22 +5,21 @@ invoice:
   zh: 发票
   es: Factura
   fr: Facture
-  pt: Fatura
-  ru: Счёт
+  pt: ""
+  ru: ""
   ja: 請求書
-  ko: 청구서
-  it: Fattura
-  tr: Fatura
-  vi: Hóa đơn
-  id: Faktur
-  pl: Faktura
-  nl: Factuur
-  ar: فاتورة
-  hi: चालान
-  th: ใบแจ้งหนี้
-  cs: Faktura
-  sv: Faktura
-  he: חשבונית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 payment_confirmation:
   context: Payment confirmation document title (used for Polar purchases where Polar as MoR issues the real tax invoice)
@@ -29,22 +28,21 @@ payment_confirmation:
   zh: 付款确认
   es: Confirmación de pago
   fr: Confirmation de paiement
-  pt: Confirmação de Pagamento
-  ru: Подтверждение оплаты
+  pt: ""
+  ru: ""
   ja: お支払い確認
-  ko: 결제 확인
-  it: Conferma di Pagamento
-  tr: Ödeme Onayı
-  vi: Xác nhận Thanh toán
-  id: Konfirmasi Pembayaran
-  pl: Potwierdzenie Płatności
-  nl: Betalingsbevestiging
-  ar: تأكيد الدفع
-  hi: भुगतान पुष्टि
-  th: การยืนยันการชำระเงิน
-  cs: Potvrzení Platby
-  sv: Betalningsbekräftelse
-  he: אישור תשלום
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 polar_mor_note:
   context: Footer note in payment confirmation PDF explaining that Polar issued the official tax invoice (legally required)
@@ -53,22 +51,21 @@ polar_mor_note:
   zh: "您的官方税务发票由 Polar（polar.sh）作为销售方（Merchant of Record）开具。"
   es: "Tu factura fiscal oficial fue emitida por Polar (polar.sh) como Merchant of Record."
   fr: "Votre facture fiscale officielle a été émise par Polar (polar.sh) en tant que Merchant of Record."
-  pt: "Sua fatura fiscal oficial foi emitida pela Polar (polar.sh) como Merchant of Record."
-  ru: "Ваш официальный налоговый счёт был выставлен компанией Polar (polar.sh) в качестве Merchant of Record."
+  pt: ""
+  ru: ""
   ja: "公式の税務請求書は、Merchant of Recordとして Polar（polar.sh）により発行されました。"
-  ko: "귀하의 공식 세금 계산서는 Polar(polar.sh)가 Merchant of Record로서 발행했습니다."
-  it: "La tua fattura fiscale ufficiale è stata emessa da Polar (polar.sh) in qualità di Merchant of Record."
-  tr: "Resmi vergi faturanız, Merchant of Record olarak Polar (polar.sh) tarafından düzenlenmiştir."
-  vi: "Hóa đơn thuế chính thức của bạn được Polar (polar.sh) phát hành với tư cách là Merchant of Record."
-  id: "Faktur pajak resmi Anda diterbitkan oleh Polar (polar.sh) sebagai Merchant of Record."
-  pl: "Twoja oficjalna faktura podatkowa została wystawiona przez Polar (polar.sh) jako Merchant of Record."
-  nl: "Uw officiële belastingfactuur werd uitgegeven door Polar (polar.sh) als Merchant of Record."
-  ar: "تم إصدار فاتورتك الضريبية الرسمية من قِبل Polar (polar.sh) بصفتها Merchant of Record."
-  hi: "आपका आधिकारिक कर चालान Polar (polar.sh) द्वारा Merchant of Record के रूप में जारी किया गया था।"
-  th: "ใบกำกับภาษีอย่างเป็นทางการของคุณออกโดย Polar (polar.sh) ในฐานะ Merchant of Record"
-  cs: "Vaše oficiální daňová faktura byla vystavena společností Polar (polar.sh) jako Merchant of Record."
-  sv: "Din officiella skattefaktura utfärdades av Polar (polar.sh) som Merchant of Record."
-  he: החשבונית המס הרשמית שלך הוצאה על ידי Polar (polar.sh) בתור Merchant of Record.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 polar_paid_via:
   context: "Payment method line in PDF for Polar orders where card details are not available. {provider} is replaced with the provider name (e.g. 'Polar')."
@@ -77,22 +74,21 @@ polar_paid_via:
   zh: "通过 {provider} 支付"
   es: "Pagado a través de {provider}"
   fr: "Payé via {provider}"
-  pt: "Pago via {provider}"
-  ru: "Оплачено через {provider}"
+  pt: ""
+  ru: ""
   ja: "{provider}で支払い"
-  ko: "{provider}(으)로 결제됨"
-  it: "Pagato tramite {provider}"
-  tr: "{provider} aracılığıyla ödendi"
-  vi: "Đã thanh toán qua {provider}"
-  id: "Dibayar melalui {provider}"
-  pl: "Zapłacono przez {provider}"
-  nl: "Betaald via {provider}"
-  ar: "تم الدفع عبر {provider}"
-  hi: "{provider} के माध्यम से भुगतान किया"
-  th: "ชำระเงินผ่าน {provider}"
-  cs: "Zaplaceno přes {provider}"
-  sv: "Betalt via {provider}"
-  he: "שולם דרך {provider}"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 polar_refunded_via:
   context: "Refund method line in refund confirmation PDF for Polar orders where card details are not available. {provider} is replaced with the provider name (e.g. 'Polar')."
@@ -101,22 +97,21 @@ polar_refunded_via:
   zh: "通过 {provider} 退款"
   es: "Reembolsado a través de {provider}"
   fr: "Remboursé via {provider}"
-  pt: "Reembolsado via {provider}"
-  ru: "Возврат через {provider}"
+  pt: ""
+  ru: ""
   ja: "{provider}で払い戻し"
-  ko: "{provider}(을)를 통해 환불됨"
-  it: "Rimborsato tramite {provider}"
-  tr: "{provider} aracılığıyla iade edildi"
-  vi: "Đã hoàn tiền qua {provider}"
-  id: "Dikembalikan melalui {provider}"
-  pl: "Zwrot przez {provider}"
-  nl: "Terugbetaald via {provider}"
-  ar: "تم الاسترداد عبر {provider}"
-  hi: "{provider} के माध्यम से वापस किया गया"
-  th: "คืนเงินผ่าน {provider}"
-  cs: "Vráceno přes {provider}"
-  sv: "Återbetalat via {provider}"
-  he: "הוחזר דרך {provider}"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 polar_mor_note_refund:
   context: "Footer note in refund confirmation PDF explaining that Polar issued the official credit note (legally required when Polar is Merchant of Record)."
@@ -125,22 +120,21 @@ polar_mor_note_refund:
   zh: "您的官方贷项通知单由 Polar（polar.sh）作为销售方（Merchant of Record）开具。"
   es: "Tu nota de crédito oficial fue emitida por Polar (polar.sh) como Merchant of Record."
   fr: "Votre note de crédit officielle a été émise par Polar (polar.sh) en tant que Merchant of Record."
-  pt: "Sua nota de crédito oficial foi emitida pela Polar (polar.sh) como Merchant of Record."
-  ru: "Ваш официальный кредитный документ был выставлен компанией Polar (polar.sh) в качестве Merchant of Record."
+  pt: ""
+  ru: ""
   ja: "公式のクレジットノートは、Merchant of Recordとして Polar（polar.sh）により発行されました。"
-  ko: "귀하의 공식 신용 메모는 Polar(polar.sh)가 Merchant of Record로서 발행했습니다."
-  it: "La tua nota di credito ufficiale è stata emessa da Polar (polar.sh) in qualità di Merchant of Record."
-  tr: "Resmi kredi notunuz, Merchant of Record olarak Polar (polar.sh) tarafından düzenlenmiştir."
-  vi: "Ghi chú tín dụng chính thức của bạn được Polar (polar.sh) phát hành với tư cách là Merchant of Record."
-  id: "Nota kredit resmi Anda diterbitkan oleh Polar (polar.sh) sebagai Merchant of Record."
-  pl: "Twoja oficjalna nota kredytowa została wystawiona przez Polar (polar.sh) jako Merchant of Record."
-  nl: "Uw officiële creditnota werd uitgegeven door Polar (polar.sh) als Merchant of Record."
-  ar: "تم إصدار إشعار الائتمان الرسمي الخاص بك من قِبل Polar (polar.sh) بصفتها Merchant of Record."
-  hi: "आपकी आधिकारिक क्रेडिट नोट Polar (polar.sh) द्वारा Merchant of Record के रूप में जारी की गई थी।"
-  th: "บันทึกเครดิตอย่างเป็นทางการของคุณออกโดย Polar (polar.sh) ในฐานะ Merchant of Record"
-  cs: "Vaše oficiální dobropis byl vydán společností Polar (polar.sh) jako Merchant of Record."
-  sv: "Din officiella kreditnota utfärdades av Polar (polar.sh) som Merchant of Record."
-  he: הזיכוי הרשמי שלך הוצא על ידי Polar (polar.sh) בתור Merchant of Record.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 invoice_number:
   context: Invoice number label
@@ -149,22 +143,21 @@ invoice_number:
   zh: 发票号码
   es: Número de factura
   fr: Numéro de facture
-  pt: Número da fatura
-  ru: Номер счёта
+  pt: ""
+  ru: ""
   ja: 請求書番号
-  ko: 청구서 번호
-  it: Numero fattura
-  tr: Fatura numarası
-  vi: Số hóa đơn
-  id: Nomor faktur
-  pl: Numer faktury
-  nl: Factuurnummer
-  ar: رقم الفاتورة
-  hi: चालान संख्या
-  th: เลขที่ใบแจ้งหนี้
-  cs: Číslo faktury
-  sv: Fakturanummer
-  he: מספר חשבונית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 confirmation_number:
   context: Confirmation number label — used on Polar (non-EU) payment confirmation PDFs instead of "Invoice number"
@@ -173,22 +166,21 @@ confirmation_number:
   zh: 确认编号
   es: Número de confirmación
   fr: Numéro de confirmation
-  pt: Número de confirmação
-  ru: Номер подтверждения
+  pt: ""
+  ru: ""
   ja: 確認番号
-  ko: 확인 번호
-  it: Numero di conferma
-  tr: Onay numarası
-  vi: Số xác nhận
-  id: Nomor konfirmasi
-  pl: Numer potwierdzenia
-  nl: Bevestigingsnummer
-  ar: رقم التأكيد
-  hi: पुष्टि संख्या
-  th: หมายเลขยืนยัน
-  cs: Číslo potvrzení
-  sv: Bekräftelsenummer
-  he: מספר אישור
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 date_of_issue:
   context: Date of issue label
@@ -197,22 +189,21 @@ date_of_issue:
   zh: 开具日期
   es: Fecha de emisión
   fr: Date d'émission
-  pt: Data de emissão
-  ru: Дата выдачи
+  pt: ""
+  ru: ""
   ja: 発行日
-  ko: 발행일
-  it: Data di emissione
-  tr: Düzenlenme tarihi
-  vi: Ngày phát hành
-  id: Tanggal penerbitan
-  pl: Data wystawienia
-  nl: Datum van uitgifte
-  ar: تاريخ الإصدار
-  hi: जारी करने की तारीख
-  th: วันที่ออก
-  cs: Datum vystavení
-  sv: Utfärdandedatum
-  he: תאריך הנפקה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 date_due:
   context: Date due label
@@ -221,22 +212,21 @@ date_due:
   zh: 截止日期
   es: Fecha de vencimiento
   fr: Date d'échéance
-  pt: Data de vencimento
-  ru: Срок оплаты
+  pt: ""
+  ru: ""
   ja: 支払期限
-  ko: 납부 기한
-  it: Data di scadenza
-  tr: Vade tarihi
-  vi: Ngày đến hạn
-  id: Tanggal jatuh tempo
-  pl: Data płatności
-  nl: Vervaldatum
-  ar: تاريخ الاستحقاق
-  hi: नियत तारीख
-  th: วันครบกำหนด
-  cs: Datum splatnosti
-  sv: Förfallodatum
-  he: תאריך פירעון
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mmmm_dd_yyyy:
   context: Date format
@@ -245,22 +235,21 @@ mmmm_dd_yyyy:
   zh: "{YYYY}年{MM}月{DD}日"
   es: "{DD} de {MMMM} de {YYYY}"
   fr: "{DD} {MMMM} {YYYY}"
-  pt: "{DD} de {MMMM} de {YYYY}"
-  ru: "{DD} {MMMM} {YYYY} г."
+  pt: ""
+  ru: ""
   ja: "{YYYY}年{MMMM}{DD}日"
-  ko: "{YYYY}년 {MM}월 {DD}일"
-  it: "{DD} {MMMM} {YYYY}"
-  tr: "{DD} {MMMM} {YYYY}"
-  vi: "Ngày {DD} tháng {MMMM} năm {YYYY}"
-  id: "{DD} {MMMM} {YYYY}"
-  pl: "{DD} {MMMM} {YYYY}"
-  nl: "{DD} {MMMM} {YYYY}"
-  ar: "{DD} {MMMM} {YYYY}"
-  hi: "{DD} {MMMM} {YYYY}"
-  th: "{DD} {MMMM} {YYYY}"
-  cs: "{DD}. {MMMM} {YYYY}"
-  sv: "{DD} {MMMM} {YYYY}"
-  he: "{DD} ב{MMMM} {YYYY}"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 vat:
   context: VAT number label
@@ -269,22 +258,21 @@ vat:
   zh: 增值税
   es: IVA
   fr: TVA
-  pt: IVA
-  ru: НДС
+  pt: ""
+  ru: ""
   ja: 消費税
-  ko: 부가가치세
-  it: IVA
-  tr: KDV
-  vi: Thuế GTGT
-  id: PPN
-  pl: VAT
-  nl: BTW
-  ar: ضريبة القيمة المضافة
-  hi: वैट
-  th: ภาษีมูลค่าเพิ่ม
-  cs: DPH
-  sv: Moms
-  he: מע"מ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 receiver:
   context: Receiver label
@@ -293,22 +281,21 @@ receiver:
   zh: 接收者
   es: "Destinatario:"
   fr: "Destinataire :"
-  pt: "Destinatário:"
-  ru: "Получатель:"
+  pt: ""
+  ru: ""
   ja: "受取人:"
-  ko: "수신자:"
-  it: "Destinatario:"
-  tr: "Alıcı:"
-  vi: "Người nhận:"
-  id: "Penerima:"
-  pl: "Odbiorca:"
-  nl: "Ontvanger:"
-  ar: "المستلم:"
-  hi: "प्राप्तकर्ता:"
-  th: "ผู้รับ:"
-  cs: "Příjemce:"
-  sv: "Mottagare:"
-  he: "נמען:"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 view_usage:
   context: View usage label
@@ -317,22 +304,21 @@ view_usage:
   zh: 查看使用情况
   es: Ver uso
   fr: Voir l'utilisation
-  pt: Ver uso
-  ru: Посмотреть использование
+  pt: ""
+  ru: ""
   ja: 利用状況を表示
-  ko: 사용량 보기
-  it: Visualizza utilizzo
-  tr: Kullanımı görüntüle
-  vi: Xem mức sử dụng
-  id: Lihat penggunaan
-  pl: Zobacz użycie
-  nl: Gebruik bekijken
-  ar: عرض الاستخدام
-  hi: उपयोग देखें
-  th: ดูการใช้งาน
-  cs: Zobrazit využití
-  sv: Visa användning
-  he: צפה בשימוש
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 description:
   context: Description label
@@ -341,22 +327,21 @@ description:
   zh: 描述
   es: Descripción
   fr: Description
-  pt: Descrição
-  ru: Описание
+  pt: ""
+  ru: ""
   ja: 説明
-  ko: 설명
-  it: Descrizione
-  tr: Açıklama
-  vi: Mô tả
-  id: Deskripsi
-  pl: Opis
-  nl: Beschrijving
-  ar: الوصف
-  hi: विवरण
-  th: คำอธิบาย
-  cs: Popis
-  sv: Beskrivning
-  he: תיאור
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credits_item:
   context: Used in '1000 credits'
@@ -365,22 +350,21 @@ credits_item:
   zh: "{amount} 点数"
   es: "{amount} créditos"
   fr: "{amount} crédits"
-  pt: "{amount} créditos"
-  ru: "{amount} кредитов"
+  pt: ""
+  ru: ""
   ja: "{amount}クレジット"
-  ko: "{amount} 크레딧"
-  it: "{amount} crediti"
-  tr: "{amount} kredi"
-  vi: "{amount} tín dụng"
-  id: "{amount} kredit"
-  pl: "{amount} kredytów"
-  nl: "{amount} credits"
-  ar: "{amount} رصيد"
-  hi: "{amount} क्रेडिट"
-  th: "{amount} เครดิต"
-  cs: "{amount} kreditů"
-  sv: "{amount} krediter"
-  he: "{amount} קרדיטים"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 quantity:
   context: Quantity label
@@ -389,22 +373,21 @@ quantity:
   zh: 数量
   es: Cantidad
   fr: Quantité
-  pt: Quantidade
-  ru: Количество
+  pt: ""
+  ru: ""
   ja: 数量
-  ko: 수량
-  it: Quantità
-  tr: Miktar
-  vi: Số lượng
-  id: Jumlah
-  pl: Ilość
-  nl: Hoeveelheid
-  ar: الكمية
-  hi: मात्रा
-  th: จำนวน
-  cs: Množství
-  sv: Antal
-  he: כמות
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 unit_price_no_tax:
   context: Unit price label
@@ -433,84 +416,25 @@ unit_price_no_tax:
     (hors taxes)
 
     "
-  pt: "Preço unitário
-
-    (excl. imposto)
-
-    "
-  ru: "Цена за единицу
-
-    (без НДС)
-
-    "
+  pt: ""
+  ru: ""
   ja: "単価
 
     (税抜)
 
     "
-  ko: "단가
-
-    (세금 제외)
-
-    "
-  it: "Prezzo unitario
-
-    (IVA esclusa)
-
-    "
-  tr: "Birim fiyat
-
-    (KDV hariç)
-
-    "
-  vi: "Đơn giá
-
-    (chưa thuế)
-
-    "
-  id: "Harga satuan
-
-    (belum pajak)
-
-    "
-  pl: "Cena jednostkowa
-
-    (bez VAT)
-
-    "
-  nl: "Stuksprijs
-
-    (excl. btw)
-
-    "
-  ar: "سعر الوحدة
-
-    (باستثناء الضريبة)
-
-    "
-  hi: "प्रति इकाई मूल्य
-
-    (कर को छोड़कर)
-
-    "
-  th: "ราคาต่อหน่วย
-
-    (ยังไม่รวมภาษี)
-
-    "
-  cs: "Cena za kus
-
-    (bez DPH)
-
-    "
-  sv: "Enhetspris
-
-    (exkl. moms)
-
-    "
-  he: |
-    מחיר יחידה
-    (ללא מס)
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 total_price_no_tax:
   context: Total price label
@@ -539,84 +463,25 @@ total_price_no_tax:
     (hors taxes)
 
     "
-  pt: "Preço total
-
-    (excl. imposto)
-
-    "
-  ru: "Итоговая цена
-
-    (без НДС)
-
-    "
+  pt: ""
+  ru: ""
   ja: "合計金額
 
     (税抜)
 
     "
-  ko: "총 가격
-
-    (세금 제외)
-
-    "
-  it: "Prezzo totale
-
-    (IVA esclusa)
-
-    "
-  tr: "Toplam fiyat
-
-    (KDV hariç)
-
-    "
-  vi: "Tổng giá
-
-    (chưa thuế)
-
-    "
-  id: "Harga total
-
-    (belum pajak)
-
-    "
-  pl: "Cena całkowita
-
-    (bez VAT)
-
-    "
-  nl: "Totaalprijs
-
-    (excl. btw)
-
-    "
-  ar: "السعر الإجمالي
-
-    (باستثناء الضريبة)
-
-    "
-  hi: "कुल मूल्य
-
-    (कर को छोड़कर)
-
-    "
-  th: "ราคารวม
-
-    (ยังไม่รวมภาษี)
-
-    "
-  cs: "Celková cena
-
-    (bez DPH)
-
-    "
-  sv: "Totalpris
-
-    (exkl. moms)
-
-    "
-  he: |
-    מחיר כולל
-    (ללא מס)
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 total_excl_tax:
   context: Total excl. tax label
@@ -625,22 +490,21 @@ total_excl_tax:
   zh: 总额（不含税）
   es: Total (sin impuestos)
   fr: Total (hors taxes)
-  pt: Total (excl. imposto)
-  ru: Итого (без НДС)
+  pt: ""
+  ru: ""
   ja: 合計（税抜）
-  ko: 합계 (세금 제외)
-  it: Totale (IVA esclusa)
-  tr: Toplam (KDV hariç)
-  vi: Tổng cộng (chưa thuế)
-  id: Total (tidak termasuk pajak)
-  pl: Łącznie (bez VAT)
-  nl: Totaal (excl. btw)
-  ar: الإجمالي (باستثناء الضريبة)
-  hi: कुल (कर को छोड़कर)
-  th: รวม (ไม่รวมภาษี)
-  cs: Celkem (bez DPH)
-  sv: Totalt (exkl. moms)
-  he: סה"כ (ללא מס)
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 vat_rate:
   context: VAT rate
@@ -649,22 +513,21 @@ vat_rate:
   zh: 增值税 (0%)
   es: IVA (0%)
   fr: TVA (0%)
-  pt: "IVA (0%)"
-  ru: "НДС (0%)"
+  pt: ""
+  ru: ""
   ja: 消費税 (0%)
-  ko: "부가가치세 (0%)"
-  it: "IVA (0%)"
-  tr: "KDV (0%)"
-  vi: "Thuế GTGT (0%)"
-  id: "PPN (0%)"
-  pl: "VAT (0%)"
-  nl: "BTW (0%)"
-  ar: "ضريبة القيمة المضافة (0%)"
-  hi: "वैट (0%)"
-  th: "ภาษีมูลค่าเพิ่ม (0%)"
-  cs: "DPH (0%)"
-  sv: "Moms (0%)"
-  he: "מע\"מ (0%)"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 total_paid:
   context: Total paid label
@@ -673,22 +536,21 @@ total_paid:
   zh: 已付总额(含增值税)
   es: Total pagado (incl. IVA)
   fr: Total payé (TVA incluse)
-  pt: Total pago (incl. IVA)
-  ru: Итого оплачено (с НДС)
+  pt: ""
+  ru: ""
   ja: 支払総額 (税込)
-  ko: 총 결제 금액 (부가세 포함)
-  it: Totale pagato (IVA inclusa)
-  tr: Toplam ödenen (KDV dahil)
-  vi: Tổng đã thanh toán (bao gồm thuế)
-  id: Total dibayar (termasuk PPN)
-  pl: Suma zapłacona (z VAT)
-  nl: Totaal betaald (incl. btw)
-  ar: المبلغ المدفوع (شامل الضريبة)
-  hi: कुल भुगतान (वैट सहित)
-  th: ยอดชำระทั้งหมด (รวมภาษี)
-  cs: Celkem zaplaceno (vč. DPH)
-  sv: Totalt betalt (inkl. moms)
-  he: סה"כ ששולם (כולל מע"מ)
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 paid_with:
   context: Paid with label
@@ -717,84 +579,25 @@ paid_with:
     Carte {card_provider} se terminant par {last_four_digits}
 
     "
-  pt: "Pago com:
-
-    Cartão {card_provider} terminando em {last_four_digits}
-
-    "
-  ru: "Оплачено:
-
-    Карта {card_provider} оканчивающаяся на {last_four_digits}
-
-    "
+  pt: ""
+  ru: ""
   ja: "支払方法:
 
     末尾が{last_four_digits}の{card_provider}カード
 
     "
-  ko: "결제 수단:
-
-    끝 번호 {last_four_digits}인 {card_provider} 카드
-
-    "
-  it: "Pagato con:
-
-    Carta {card_provider} che termina con {last_four_digits}
-
-    "
-  tr: "Şu kartla ödendi:
-
-    Son dört hanesi {last_four_digits} olan {card_provider} kartı
-
-    "
-  vi: "Thanh toán bằng:
-
-    Thẻ {card_provider} kết thúc bằng {last_four_digits}
-
-    "
-  id: "Dibayar dengan:
-
-    Kartu {card_provider} berakhir dengan {last_four_digits}
-
-    "
-  pl: "Zapłacono kartą:
-
-    {card_provider} kończącą się na {last_four_digits}
-
-    "
-  nl: "Betaald met:
-
-    {card_provider}-kaart eindigend op {last_four_digits}
-
-    "
-  ar: "تم الدفع بواسطة:
-
-    بطاقة {card_provider} المنتهية بـ {last_four_digits}
-
-    "
-  hi: "इसके द्वारा भुगतान किया:
-
-    {card_provider} कार्ड जो {last_four_digits} से समाप्त होता है
-
-    "
-  th: "ชำระด้วย:
-
-    บัตร {card_provider} ที่ลงท้ายด้วย {last_four_digits}
-
-    "
-  cs: "Zaplaceno pomocí:
-
-    Kartou {card_provider} končící na {last_four_digits}
-
-    "
-  sv: "Betalat med:
-
-    {card_provider}-kort slutar på {last_four_digits}
-
-    "
-  he: |
-    שולם עם:
-    כרטיס {card_provider} המסתיים ב-{last_four_digits}
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credits_explainer:
   context: Credits explainer
@@ -828,85 +631,26 @@ credits_explainer:
     Les crédits ne peuvent pas être versés et un remboursement n'est possible que dans les 14 premiers jours suivant l'achat, et uniquement pour les crédits restants sur votre compte utilisateur.
 
     "
-  pt: "Créditos no OpenMates são usados para conversar com seus companheiros de equipe digitais e usar aplicativos no OpenMates.
-
-    Créditos não podem ser reembolsados em dinheiro e um reembolso é possível apenas nos primeiros 14 dias após a compra, e apenas para os créditos restantes em sua conta de usuário.
-
-    "
-  ru: "Кредиты на OpenMates используются для общения с вашими цифровыми коллегами и использования приложений на OpenMates.
-
-    Кредиты не могут быть выплачены наличными, и возврат возможен только в течение первых 14 дней после покупки, и только для оставшихся кредитов в вашем аккаунте.
-
-    "
+  pt: ""
+  ru: ""
   ja:
     "OpenMatesのクレジットは、デジタルチームメイトとチャットしたり、OpenMatesのアプリを使用するために使用されます。
 
     クレジットは現金化できず、返金は購入後14日以内かつユーザーアカウントに残っているクレジットに対してのみ可能です。
 
     "
-  ko: "OpenMates의 크레딧은 디지털 팀원들과 채팅하고 OpenMates의 앱을 사용하는 데 사용됩니다.
-
-    크레딧은 현금으로 출금할 수 없으며, 환불은 구매 후 첫 14일 이내에만 가능하고, 사용자 계정의 남은 크레딧에 대해서만 가능합니다.
-
-    "
-  it: "I crediti su OpenMates vengono utilizzati per chattare con i tuoi colleghi digitali e usare le app su OpenMates.
-
-    I crediti non possono essere convertiti in denaro e un rimborso è possibile solo entro i primi 14 giorni dall'acquisto, e solo per i crediti rimanenti nel tuo account utente.
-
-    "
-  tr: "OpenMates'teki krediler, dijital ekip arkadaşlarınızla sohbet etmek ve OpenMates'teki uygulamaları kullanmak için kullanılır.
-
-    Krediler nakit olarak ödenemez ve geri ödeme yalnızca satın alma tarihinden itibaren ilk 14 gün içinde ve yalnızca kullanıcı hesabınızdaki kalan krediler için mümkündür.
-
-    "
-  vi: "Tín dụng trên OpenMates được sử dụng để trò chuyện với các đồng đội kỹ thuật số và sử dụng các ứng dụng trên OpenMates.
-
-    Tín dụng không thể được rút ra thành tiền mặt và việc hoàn tiền chỉ có thể thực hiện trong 14 ngày đầu tiên sau khi mua, và chỉ cho các tín dụng còn lại trong tài khoản người dùng của bạn.
-
-    "
-  id: "Kredit di OpenMates digunakan untuk mengobrol dengan rekan tim digital Anda dan menggunakan aplikasi di OpenMates.
-
-    Kredit tidak dapat dicairkan dan pengembalian dana hanya mungkin dalam 14 hari pertama setelah pembelian, dan hanya untuk kredit yang tersisa di akun pengguna Anda.
-
-    "
-  pl: "Kredyty w OpenMates służą do chatowania z cyfrowymi współpracownikami i korzystania z aplikacji w OpenMates.
-
-    Kredytów nie można wypłacić w gotówce, a zwrot jest możliwy tylko w ciągu pierwszych 14 dni od zakupu i tylko dla pozostałych kredytów na koncie użytkownika.
-
-    "
-  nl: "Credits op OpenMates worden gebruikt om te chatten met uw digitale teamgenoten en apps op OpenMates te gebruiken.
-
-    Credits kunnen niet worden uitbetaald en een terugbetaling is alleen mogelijk binnen de eerste 14 dagen na aankoop, en alleen voor de resterende credits in uw gebruikersaccount.
-
-    "
-  ar: "تُستخدم الأرصدة في OpenMates للدردشة مع أعضاء فريقك الرقميين واستخدام التطبيقات في OpenMates.
-
-    لا يمكن صرف الأرصدة نقداً، ولا يمكن الاسترداد إلا خلال أول 14 يوماً من الشراء، وفقط للأرصدة المتبقية في حساب المستخدم.
-
-    "
-  hi: "OpenMates पर क्रेडिट का उपयोग आपके डिजिटल टीम मेट्स के साथ चैट करने और OpenMates पर ऐप्स का उपयोग करने के लिए किया जाता है।
-
-    क्रेडिट का भुगतान नहीं किया जा सकता है और वापसी केवल खरीद के पहले 14 दिनों के भीतर संभव है, और केवल आपके उपयोगकर्ता खाते में शेष क्रेडिट के लिए।
-
-    "
-  th: "เครดิตบน OpenMates ใช้เพื่อแชทกับเพื่อนร่วมทีมดิจิทัลของคุณ และใช้แอปบน OpenMates
-
-    เครดิตไม่สามารถถอนเป็นเงินสดได้ และการคืนเงินเป็นไปได้เฉพาะในช่วง 14 วันแรกหลังการซื้อ และสำหรับเครดิตที่เหลืออยู่ในบัญชีผู้ใช้ของคุณเท่านั้น
-
-    "
-  cs: "Kredity na OpenMates se používají k chatování s vašimi digitálními spolupracovníky a k používání aplikací na OpenMates.
-
-    Kredity nelze vyplatit v hotovosti a vrácení je možné pouze do 14 dnů od nákupu a pouze pro zbývající kredity v uživatelském účtu.
-
-    "
-  sv: "Credits på OpenMates används för att chatta med dina digitala teamkollegor och för att använda appar på OpenMates.
-
-    Credits kan inte betalas ut och en återbetalning är bara möjlig inom de första 14 dagarna efter köpet, och endast för de återstående credits i ditt användarkonto.
-
-    "
-  he: |
-    קרדיטים ב-OpenMates משמשים לצ'אט עם חברי הצוות הדיגיטליים שלך ולשימוש באפליקציות ב-OpenMates.
-    קרדיטים לא ניתן לפדות ולהחזר כספי ניתן רק תוך 14 הימים הראשונים מהרכישה, ורק עבור הקרדיטים הנותרים בחשבון המשתמש שלך.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 vat_disclaimer:
   context: VAT disclaimer
@@ -915,22 +659,21 @@ vat_disclaimer:
   zh: 根据德国法律 §19 UStG，卖方为小型企业，不显示增值税。
   es: Según §19 UStG, no se muestra IVA ya que el vendedor es una pequeña empresa según la ley alemana.
   fr: Conformément au §19 UStG, aucune TVA n'est indiquée car le vendeur est une petite entreprise selon la loi allemande.
-  pt: De acordo com o §19 UStG, nenhum IVA é mostrado pois o vendedor é uma pequena empresa segundo a lei alemã.
-  ru: В соответствии с §19 UStG НДС не указывается, так как продавец является малым предприятием по немецкому законодательству.
+  pt: ""
+  ru: ""
   ja: ドイツ法に基づく小規模事業者であるため、§19 UStGにより消費税は表示されません。
-  ko: §19 UStG에 따라 판매자는 독일 법상 소규모 사업자이므로 부가세가 표시되지 않습니다.
-  it: In base al §19 UStG, l'IVA non è indicata in quanto il venditore è una piccola impresa ai sensi della legge tedesca.
-  tr: §19 UStG uyarınca, satıcının Alman hukukuna göre küçük işletme olması nedeniyle KDV gösterilmemektedir.
-  vi: Theo §19 UStG, không hiển thị thuế GTGT vì người bán là doanh nghiệp nhỏ theo luật Đức.
-  id: Menurut §19 UStG, tidak ada PPN yang ditampilkan karena penjual adalah usaha kecil menurut hukum Jerman.
-  pl: Zgodnie z §19 UStG, nie nalicza się podatku VAT, ponieważ sprzedawca jest małym przedsiębiorcą według prawa niemieckiego.
-  nl: Overeenkomstig §19 UStG wordt geen btw vermeld omdat de verkoper een kleine ondernemer is onder het Duitse recht.
-  ar: وفقاً للمادة §19 UStG، لا يُظهَر ضريبة القيمة المضافة لأن البائع شركة صغيرة بموجب القانون الألماني.
-  hi: §19 UStG के अनुसार, कोई वैट नहीं दिखाया जाता क्योंकि विक्रेता जर्मन कानून के तहत एक लघु व्यवसाय है।
-  th: ตาม §19 UStG ไม่มีการแสดง VAT เนื่องจากผู้ขายเป็นธุรกิจขนาดเล็กภายใต้กฎหมายเยอรมัน
-  cs: Podle §19 UStG se DPH nezobrazuje, protože prodejce je malým podnikem dle německého práva.
-  sv: Enligt §19 UStG visas ingen moms eftersom säljaren är ett litet företag enligt tysk lag.
-  he: לפי §19 UStG, לא מוצג מע"מ מכיוון שהמוכר הוא עסק קטן לפי החוק הגרמני.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 withdrawal_waiver_notice:
   context: Legal notice about withdrawal waiver in invoice PDF (required for EU/German consumer law compliance)
@@ -939,22 +682,21 @@ withdrawal_waiver_notice:
   zh: "您已明确要求我们在撤回期结束之前开始提供数字服务。您承认一旦开始使用该服务，您的撤回权即告失效。购买的礼品卡被排除在外，使用后无法退款。"
   es: "Ha solicitado expresamente que comencemos a prestar el servicio digital antes de que finalice el período de desistimiento. Reconoce que su derecho de desistimiento expira una vez que comience a utilizar el servicio. Las tarjetas de regalo compradas están excluidas y no pueden reembolsarse una vez utilizadas."
   fr: "Vous avez expressément demandé que nous commencions à fournir le service numérique avant la fin de la période de rétractation. Vous reconnaissez que votre droit de rétractation expire une fois que vous commencez à utiliser le service. Les cartes cadeaux achetées sont exclues et ne peuvent pas être remboursées une fois utilisées."
-  pt: "Você solicitou expressamente que começássemos a fornecer o serviço digital antes do término do período de desistência. Você reconhece que o seu direito de desistência expira assim que começar a utilizar o serviço. Os cartões-presente comprados estão excluídos e não podem ser reembolsados depois de usados."
-  ru: "Вы явно запросили начало предоставления цифровой услуги до окончания периода отказа. Вы подтверждаете, что ваше право на отказ истекает после начала использования услуги. Приобретённые подарочные карты не возвращаются и не подлежат возврату после использования."
+  pt: ""
+  ru: ""
   ja: "お客様は、撤回期間が終了する前にデジタルサービスの提供を開始するよう明示的に要求されました。サービスの使用を開始すると撤回権が失効することを承認されます。購入したギフトカードは除外され、使用後は返金できません。"
-  ko: "귀하는 철회 기간이 끝나기 전에 디지털 서비스 제공을 시작해 달라고 명시적으로 요청했습니다. 귀하는 서비스 사용을 시작하면 철회 권리가 만료됨을 인정합니다. 구매한 상품권은 제외되며 사용 후 환불할 수 없습니다."
-  it: "Ha espressamente richiesto che iniziassimo a fornire il servizio digitale prima della fine del periodo di recesso. Riconosce che il suo diritto di recesso scade una volta iniziato l'utilizzo del servizio. Le carte regalo acquistate sono escluse e non possono essere rimborsate una volta utilizzate."
-  tr: "Dijital hizmetin sağlanmasına geri çekilme süresi dolmadan başlamamızı açıkça talep ettiniz. Hizmeti kullanmaya başladığınızda geri çekilme hakkınızın sona ereceğini kabul edersiniz. Satın alınan hediye kartları hariç tutulmakta olup kullanıldıktan sonra iade edilemez."
-  vi: "Bạn đã yêu cầu rõ ràng rằng chúng tôi bắt đầu cung cấp dịch vụ kỹ thuật số trước khi kết thúc thời gian rút tiền. Bạn xác nhận rằng quyền rút tiền của bạn hết hạn ngay khi bạn bắt đầu sử dụng dịch vụ. Thẻ quà tặng đã mua bị loại trừ và không thể hoàn tiền sau khi sử dụng."
-  id: "Anda telah secara tegas meminta kami mulai menyediakan layanan digital sebelum berakhirnya masa penarikan. Anda mengakui bahwa hak penarikan Anda berakhir setelah Anda mulai menggunakan layanan. Kartu hadiah yang dibeli dikecualikan dan tidak dapat dikembalikan setelah digunakan."
-  pl: "Wyraźnie zażądałeś, abyśmy zaczęli świadczyć usługę cyfrową przed upływem okresu odstąpienia. Potwierdzasz, że Twoje prawo do odstąpienia wygasa z chwilą rozpoczęcia korzystania z usługi. Kupione karty podarunkowe są wyłączone i nie podlegają zwrotowi po ich użyciu."
-  nl: "U heeft uitdrukkelijk verzocht dat wij beginnen met het leveren van de digitale dienst voordat de herroepingstermijn afloopt. U erkent dat uw herroepingsrecht vervalt zodra u de dienst begint te gebruiken. Gekochte cadeaukaarten zijn uitgesloten en kunnen niet worden terugbetaald zodra ze zijn gebruikt."
-  ar: "لقد طلبت صراحةً أن نبدأ في تقديم الخدمة الرقمية قبل انتهاء فترة الانسحاب. تُقرّ بأن حق الانسحاب الخاص بك ينتهي بمجرد أن تبدأ في استخدام الخدمة. بطاقات الهدايا المشتراة مستثناة ولا يمكن استرداد قيمتها بعد استخدامها."
-  hi: "आपने स्पष्ट रूप से अनुरोध किया था कि हम निकासी अवधि समाप्त होने से पहले डिजिटल सेवा प्रदान करना शुरू करें। आप स्वीकार करते हैं कि एक बार सेवा का उपयोग शुरू करने पर आपका निकासी अधिकार समाप्त हो जाता है। खरीदे गए गिफ्ट कार्ड बाहर हैं और एक बार उपयोग किए जाने के बाद वापस नहीं किए जा सकते।"
-  th: "คุณร้องขออย่างชัดแจ้งให้เราเริ่มให้บริการดิจิทัลก่อนที่ระยะเวลาการถอนตัวจะสิ้นสุดลง คุณยอมรับว่าสิทธิ์การถอนตัวของคุณจะหมดอายุเมื่อคุณเริ่มใช้บริการ บัตรของขวัญที่ซื้อไม่รวมอยู่และไม่สามารถคืนเงินได้หลังจากใช้งานแล้ว"
-  cs: "Výslovně jste požádali, abychom zahájili poskytování digitální služby před uplynutím lhůty pro odstoupení. Berete na vědomí, že vaše právo na odstoupení zaniká, jakmile začnete používat službu. Zakoupené dárkové karty jsou vyloučeny a nelze je vrátit po jejich použití."
-  sv: "Du har uttryckligen begärt att vi ska börja tillhandahålla den digitala tjänsten innan ångerperioden löper ut. Du bekräftar att din ångerrätt upphör när du börjar använda tjänsten. Köpta presentkort är undantagna och kan inte återbetalas efter att de har använts."
-  he: ביקשת במפורש שנתחיל לספק את השירות הדיגיטלי לפני תום תקופת הביטול. אתה מאשר שזכות הביטול שלך פוקעת ברגע שתתחיל להשתמש בשירות. כרטיסי מתנה שנרכשו אינם נכללים ולא ניתן להחזירם לאחר שנוצלו.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 click_here_for_refund:
   context: Refund instructions text in invoice PDF
@@ -963,22 +705,21 @@ click_here_for_refund:
   zh: "想要退款？{click_here_link}在购买后14天内申请未使用点数的退款。"
   es: "¿Quieres un reembolso? {click_here_link} para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra."
   fr: "Vous souhaitez un remboursement ? {click_here_link} pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l'achat."
-  pt: "Quer um reembolso? {click_here_link} para solicitar reembolso de créditos não utilizados dentro de 14 dias após a compra."
-  ru: "Хотите возврат? {click_here_link}, чтобы запросить возврат неиспользованных кредитов в течение 14 дней после покупки."
+  pt: ""
+  ru: ""
   ja: "返金をご希望ですか？{click_here_link}購入後14日以内の未使用クレジットの返金をリクエストするには。"
-  ko: "환불을 원하시나요? {click_here_link}으로 구매 후 14일 이내에 미사용 크레딧 환불을 요청하세요."
-  it: "Vuoi un rimborso? {click_here_link} per richiedere un rimborso per i crediti inutilizzati entro 14 giorni dall'acquisto."
-  tr: "Geri ödeme mi istiyorsunuz? Satın almadan sonra 14 gün içinde kullanılmayan kredileri iade etmek için {click_here_link}."
-  vi: "Muốn hoàn tiền? {click_here_link} để yêu cầu hoàn tiền cho tín dụng chưa sử dụng trong vòng 14 ngày sau khi mua."
-  id: "Ingin pengembalian dana? {click_here_link} untuk meminta pengembalian dana kredit yang tidak digunakan dalam 14 hari setelah pembelian."
-  pl: "Chcesz zwrot? {click_here_link}, aby zażądać zwrotu za nieużyte kredyty w ciągu 14 dni od zakupu."
-  nl: "Wilt u een terugbetaling? {click_here_link} om een terugbetaling aan te vragen voor ongebruikte credits binnen 14 dagen na aankoop."
-  ar: "هل تريد استرداداً؟ {click_here_link} لطلب استرداد الأرصدة غير المستخدمة في غضون 14 يوماً بعد الشراء."
-  hi: "वापसी चाहते हैं? {click_here_link} खरीद के 14 दिनों के भीतर अप्रयुक्त क्रेडिट के लिए वापसी का अनुरोध करने के लिए।"
-  th: "ต้องการเงินคืน? {click_here_link} เพื่อขอเงินคืนสำหรับเครดิตที่ยังไม่ได้ใช้ภายใน 14 วันหลังการซื้อ"
-  cs: "Chcete vrácení peněz? {click_here_link} pro žádost o vrácení peněz za nevyužité kredity do 14 dnů od nákupu."
-  sv: "Vill du ha en återbetalning? {click_here_link} för att begära återbetalning för oanvända credits inom 14 dagar efter köpet."
-  he: "רוצה החזר כספי? {click_here_link} לבקשת החזר עבור קרדיטים שלא נוצלו תוך 14 יום מהרכישה."
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 if_you_have_questions:
   context: first line in questions helper
@@ -987,22 +728,21 @@ if_you_have_questions:
   zh: 如有任何疑问：
   es: "Si tienes preguntas:"
   fr: "Si vous avez des questions :"
-  pt: "Se tiver alguma dúvida:"
-  ru: "Если у вас есть вопросы:"
+  pt: ""
+  ru: ""
   ja: "ご質問がある場合:"
-  ko: "질문이 있으시면:"
-  it: "In caso di domande:"
-  tr: "Sorularınız varsa:"
-  vi: "Nếu bạn có câu hỏi:"
-  id: "Jika Anda memiliki pertanyaan:"
-  pl: "Jeśli masz pytania:"
-  nl: "Als u vragen heeft:"
-  ar: "إذا كانت لديك أسئلة:"
-  hi: "यदि आपके कोई प्रश्न हैं:"
-  th: "หากคุณมีคำถาม:"
-  cs: "Máte-li dotazy:"
-  sv: "Om du har frågor:"
-  he: "אם יש לך שאלות:"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ask_team_mates:
   context: second line in questions helper
@@ -1011,22 +751,21 @@ ask_team_mates:
   zh: 询问 <a href='{start_chat_with_help_mate_link}'>@Helena</a>（帮助与支持），您的数字团队伙伴（通过 <a href='https://openmates.org'>openmates.org</a>）
   es: Pregunta a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ayuda y soporte), tu compañero digital (via <a href='https://openmates.org'>openmates.org</a>)
   fr: Demandez à <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Aide & Support), votre collègue numérique (via <a href='https://openmates.org'>openmates.org</a>)
-  pt: "Pergunte a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ajuda e Suporte), sua colega digital (via <a href='https://openmates.org'>openmates.org</a>)"
-  ru: "Спросите <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Помощь и поддержка), вашего цифрового коллегу (через <a href='https://openmates.org'>openmates.org</a>)"
+  pt: ""
+  ru: ""
   ja: <a href='{start_chat_with_help_mate_link}'>@ヘレナ</a>（ヘルプ＆サポート）、あなたのデジタルチームメイトに質問してください（<a href='https://openmates.org'>openmates.org</a>経由）
-  ko: "<a href='{start_chat_with_help_mate_link}'>@Helena</a>(도움말 및 지원)에게 문의하세요, 귀하의 디지털 팀원 (<a href='https://openmates.org'>openmates.org</a>을 통해)"
-  it: "Chiedi a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Aiuto e Supporto), la tua collega digitale (tramite <a href='https://openmates.org'>openmates.org</a>)"
-  tr: "<a href='{start_chat_with_help_mate_link}'>@Helena</a>'ya (Yardım ve Destek) sorun, dijital ekip arkadaşınız (<a href='https://openmates.org'>openmates.org</a> üzerinden)"
-  vi: "Hỏi <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Trợ giúp & Hỗ trợ), đồng nghiệp kỹ thuật số của bạn (qua <a href='https://openmates.org'>openmates.org</a>)"
-  id: "Tanyakan kepada <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Bantuan & Dukungan), rekan tim digital Anda (melalui <a href='https://openmates.org'>openmates.org</a>)"
-  pl: "Zapytaj <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Pomoc i wsparcie), Twojego cyfrowego współpracownika (przez <a href='https://openmates.org'>openmates.org</a>)"
-  nl: "Vraag het aan <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hulp en ondersteuning), uw digitale collega (via <a href='https://openmates.org'>openmates.org</a>)"
-  ar: "اسأل <a href='{start_chat_with_help_mate_link}'>@Helena</a> (المساعدة والدعم)، زميلتك الرقمية (عبر <a href='https://openmates.org'>openmates.org</a>)"
-  hi: "<a href='{start_chat_with_help_mate_link}'>@Helena</a> (सहायता और समर्थन) से पूछें, आपके डिजिटल टीम मेट (<a href='https://openmates.org'>openmates.org</a> के माध्यम से)"
-  th: "ถาม <a href='{start_chat_with_help_mate_link}'>@Helena</a> (ความช่วยเหลือและการสนับสนุน) เพื่อนร่วมทีมดิจิทัลของคุณ (ผ่าน <a href='https://openmates.org'>openmates.org</a>)"
-  cs: "Zeptejte se <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Pomoc a podpora), vašeho digitálního kolegy (přes <a href='https://openmates.org'>openmates.org</a>)"
-  sv: "Fråga <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hjälp och support), din digitala kollega (via <a href='https://openmates.org'>openmates.org</a>)"
-  he: "שאל <a href='{start_chat_with_help_mate_link}'>@Helena</a> (עזרה ותמיכה), חבר הצוות הדיגיטלי שלך (דרך <a href='https://openmates.org'>openmates.org</a>)"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 check_the_documentation:
   context: third line in questions helper
@@ -1035,22 +774,21 @@ check_the_documentation:
   zh: 查看文档（通过 <a href='https://openmates.org/docs'>openmates.org/docs</a>）
   es: Consulta la documentación (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)
   fr: Consultez la documentation (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)
-  pt: "Verifique a documentação (via <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  ru: "Ознакомьтесь с документацией (через <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
+  pt: ""
+  ru: ""
   ja: ドキュメントを確認してください（<a href='https://openmates.org/docs'>openmates.org/docs</a>経由）
-  ko: "문서를 확인하세요 (<a href='https://docs.openmates.org'>docs.openmates.org</a>를 통해)"
-  it: "Consulta la documentazione (tramite <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  tr: "Belgeleri kontrol edin (<a href='https://docs.openmates.org'>docs.openmates.org</a> üzerinden)"
-  vi: "Kiểm tra tài liệu (qua <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  id: "Periksa dokumentasi (melalui <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  pl: "Sprawdź dokumentację (przez <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  nl: "Bekijk de documentatie (via <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  ar: "تحقق من الوثائق (عبر <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  hi: "दस्तावेज़ देखें (<a href='https://docs.openmates.org'>docs.openmates.org</a> के माध्यम से)"
-  th: "ตรวจสอบเอกสาร (ผ่าน <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  cs: "Prohlédněte si dokumentaci (přes <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  sv: "Se dokumentationen (via <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
-  he: "עיין בתיעוד (דרך <a href='https://docs.openmates.org'>docs.openmates.org</a>)"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ask_in_discord:
   context: fourth line in questions helper
@@ -1059,22 +797,21 @@ ask_in_discord:
   zh: 在我们的 Discord 中询问一般账单问题（通过 <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a> 加入）
   es: Pregunta en nuestro Discord para consultas generales sobre facturación (únete via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)
   fr: Posez vos questions sur notre Discord pour les questions générales de facturation (rejoignez via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)
-  pt: "Pergunte no nosso Discord para perguntas gerais sobre cobrança (entre via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  ru: "Задайте вопрос в нашем Discord по общим вопросам выставления счётов (присоединяйтесь через <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
+  pt: ""
+  ru: ""
   ja: 一般的な請求に関する質問は、Discordでお問い合わせください（<a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>から参加）
-  ko: "일반 결제 관련 문의는 Discord에서 질문하세요 (<a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>로 참여)"
-  it: "Chiedi nel nostro Discord per domande generali sulla fatturazione (unisciti tramite <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  tr: "Genel fatura soruları için Discord'umuza sorun (şu adresten katılın: <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  vi: "Hỏi trong Discord của chúng tôi cho các câu hỏi thanh toán chung (tham gia qua <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  id: "Tanyakan di Discord kami untuk pertanyaan penagihan umum (bergabung melalui <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  pl: "Zapytaj na naszym Discordzie w sprawie ogólnych pytań dotyczących rozliczeń (dołącz przez <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  nl: "Stel vragen over facturering in onze Discord (meld je aan via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  ar: "اطرح أسئلتك في Discord الخاص بنا للأسئلة العامة المتعلقة بالفوترة (انضم عبر <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  hi: "सामान्य बिलिंग प्रश्नों के लिए हमारे Discord में पूछें (<a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a> के माध्यम से शामिल हों)"
-  th: "ถามใน Discord ของเราสำหรับคำถามการเรียกเก็บเงินทั่วไป (เข้าร่วมผ่าน <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  cs: "Zeptejte se na našem Discordu pro obecné dotazy ohledně fakturace (přidejte se přes <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  sv: "Fråga i vår Discord för allmänna faktureringsfrågor (gå med via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
-  he: "שאל ב-Discord שלנו לשאלות כלליות על חיוב (הצטרף דרך <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 contact_via_email:
   context: fifth line in questions helper
@@ -1083,22 +820,21 @@ contact_via_email:
   zh: 如果这些选项无法解决您的问题，请通过电子邮件联系我们（<a href='mailto:{email_address}'>{email_address}</a>）
   es: Contáctanos por correo electrónico si estas opciones no resuelven tu problema (<a href='mailto:{email_address}'>{email_address}</a>)
   fr: Contactez-nous par e-mail si ces options ne résolvent pas votre problème (<a href='mailto:{email_address}'>{email_address}</a>)
-  pt: "Entre em contato por e-mail se essas opções não resolverem seu problema (<a href='mailto:{email_address}'>{email_address}</a>)"
-  ru: "Свяжитесь с нами по электронной почте, если эти варианты не решат вашу проблему (<a href='mailto:{email_address}'>{email_address}</a>)"
+  pt: ""
+  ru: ""
   ja: これらのオプションで問題が解決しない場合は、メールでお問い合わせください（<a href='mailto:{email_address}'>{email_address}</a>）
-  ko: "이 옵션들로 문제가 해결되지 않으면 이메일로 문의하세요 (<a href='mailto:{email_address}'>{email_address}</a>)"
-  it: "Contattaci via e-mail se queste opzioni non risolvono il tuo problema (<a href='mailto:{email_address}'>{email_address}</a>)"
-  tr: "Bu seçenekler sorununuzu çözmezse e-posta ile iletişime geçin (<a href='mailto:{email_address}'>{email_address}</a>)"
-  vi: "Liên hệ với chúng tôi qua email nếu các tùy chọn này không giải quyết được vấn đề của bạn (<a href='mailto:{email_address}'>{email_address}</a>)"
-  id: "Hubungi kami melalui e-mail jika opsi ini tidak memecahkan masalah Anda (<a href='mailto:{email_address}'>{email_address}</a>)"
-  pl: "Skontaktuj się z nami przez e-mail, jeśli te opcje nie rozwiązują Twojego problemu (<a href='mailto:{email_address}'>{email_address}</a>)"
-  nl: "Neem contact op via e-mail als deze opties uw probleem niet oplossen (<a href='mailto:{email_address}'>{email_address}</a>)"
-  ar: "تواصل معنا عبر البريد الإلكتروني إذا لم تحل هذه الخيارات مشكلتك (<a href='mailto:{email_address}'>{email_address}</a>)"
-  hi: "यदि ये विकल्प आपकी समस्या का समाधान नहीं करते हैं तो ई-मेल के माध्यम से हमसे संपर्क करें (<a href='mailto:{email_address}'>{email_address}</a>)"
-  th: "ติดต่อเราทางอีเมลหากตัวเลือกเหล่านี้ไม่แก้ปัญหาของคุณ (<a href='mailto:{email_address}'>{email_address}</a>)"
-  cs: "Kontaktujte nás e-mailem, pokud tyto možnosti váš problém nevyřeší (<a href='mailto:{email_address}'>{email_address}</a>)"
-  sv: "Kontakta oss via e-post om dessa alternativ inte löser ditt problem (<a href='mailto:{email_address}'>{email_address}</a>)"
-  he: "צור איתנו קשר במייל אם אפשרויות אלה אינן פותרות את הבעיה שלך (<a href='mailto:{email_address}'>{email_address}</a>)"
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 this_invoice_is_a_translation:
   context: translation disclaimer
@@ -1127,84 +863,25 @@ this_invoice_is_a_translation:
     La version anglaise reste le document juridiquement contraignant à des fins fiscales.
 
     "
-  pt: "Esta fatura é uma tradução da fatura original em inglês.
-
-    A versão em inglês permanece como o documento juridicamente vinculativo para fins fiscais.
-
-    "
-  ru: "Этот счёт является переводом оригинального счёта на английском языке.
-
-    Английская версия остаётся юридически обязывающим документом для налоговых целей.
-
-    "
+  pt: ""
+  ru: ""
   ja: "この請求書は英語の原本を翻訳したものです。
 
     税務目的においては英語版が法的拘束力のある文書となります。
 
     "
-  ko: "이 청구서는 원본 영어 청구서의 번역본입니다.
-
-    영문 버전은 세금 목적의 법적 구속력 있는 문서로 남아 있습니다.
-
-    "
-  it: "Questa fattura è una traduzione della fattura originale in inglese.
-
-    La versione in inglese rimane il documento legalmente vincolante per scopi fiscali.
-
-    "
-  tr: "Bu fatura, orijinal İngilizce faturanın bir çevirisidir.
-
-    İngilizce sürüm, vergi amaçları için yasal olarak bağlayıcı belge olarak kalmaktadır.
-
-    "
-  vi: "Hóa đơn này là bản dịch của hóa đơn gốc bằng tiếng Anh.
-
-    Phiên bản tiếng Anh vẫn là tài liệu ràng buộc pháp lý cho mục đích thuế.
-
-    "
-  id: "Faktur ini adalah terjemahan dari faktur asli dalam bahasa Inggris.
-
-    Versi bahasa Inggris tetap menjadi dokumen yang mengikat secara hukum untuk tujuan pajak.
-
-    "
-  pl: "Ta faktura jest tłumaczeniem oryginalnej faktury w języku angielskim.
-
-    Wersja angielska pozostaje dokumentem prawnie wiążącym dla celów podatkowych.
-
-    "
-  nl: "Deze factuur is een vertaling van de originele factuur in het Engels.
-
-    De Engelse versie blijft het juridisch bindende document voor belastingdoeleinden.
-
-    "
-  ar: "هذه الفاتورة ترجمة للفاتورة الأصلية باللغة الإنجليزية.
-
-    النسخة الإنجليزية تظل الوثيقة الملزمة قانونياً لأغراض ضريبية.
-
-    "
-  hi: "यह चालान अंग्रेजी में मूल चालान का अनुवाद है।
-
-    अंग्रेजी संस्करण कर उद्देश्यों के लिए कानूनी रूप से बाध्यकारी दस्तावेज़ बना रहता है।
-
-    "
-  th: "ใบแจ้งหนี้นี้เป็นการแปลจากใบแจ้งหนี้ต้นฉบับเป็นภาษาอังกฤษ
-
-    เวอร์ชันภาษาอังกฤษยังคงเป็นเอกสารที่มีผลผูกพันทางกฎหมายสำหรับวัตถุประสงค์ทางภาษี
-
-    "
-  cs: "Tato faktura je překladem originální faktury v angličtině.
-
-    Anglická verze zůstává právně závazným dokumentem pro daňové účely.
-
-    "
-  sv: "Den här fakturan är en översättning av originalfakturan på engelska.
-
-    Den engelska versionen är fortfarande det rättsligt bindande dokumentet för skatteändamål.
-
-    "
-  he: |
-    חשבונית זו היא תרגום של החשבונית המקורית באנגלית.
-    הגרסה האנגלית נשארת המסמך המחייב חוקית למטרות מס.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credit_note:
   context: Credit note title
@@ -1213,22 +890,21 @@ credit_note:
   zh: 退款单
   es: Nota de crédito
   fr: Note de crédit
-  pt: Nota de crédito
-  ru: Кредитный документ
+  pt: ""
+  ru: ""
   ja: クレジットノート
-  ko: 신용 메모
-  it: Nota di credito
-  tr: Kredi notu
-  vi: Ghi chú tín dụng
-  id: Nota kredit
-  pl: Nota kredytowa
-  nl: Creditnota
-  ar: إشعار الائتمان
-  hi: क्रेडिट नोट
-  th: ใบลดหนี้
-  cs: Dobropis
-  sv: Kreditnota
-  he: הודעת זיכוי
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refund_confirmation_title:
   context: PDF document title for Polar refund confirmations (Polar is Merchant of Record so we cannot issue a credit note, only a refund confirmation)
@@ -1237,22 +913,21 @@ refund_confirmation_title:
   zh: 退款确认
   es: Confirmación de reembolso
   fr: Confirmation de remboursement
-  pt: Confirmação de Reembolso
-  ru: Подтверждение возврата
+  pt: ""
+  ru: ""
   ja: 返金確認
-  ko: 환불 확인
-  it: Conferma di Rimborso
-  tr: İade Onayı
-  vi: Xác nhận Hoàn tiền
-  id: Konfirmasi Pengembalian Dana
-  pl: Potwierdzenie Zwrotu
-  nl: Betalingsterugboeking
-  ar: تأكيد الاسترداد
-  hi: वापसी पुष्टि
-  th: การยืนยันการคืนเงิน
-  cs: Potvrzení vrácení platby
-  sv: Återbetalningsbekräftelse
-  he: אישור החזר כספי
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 credit_note_number:
   context: Credit note number label
@@ -1261,22 +936,21 @@ credit_note_number:
   zh: 退款单号码
   es: Número de nota de crédito
   fr: Numéro de note de crédit
-  pt: Número da nota de crédito
-  ru: Номер кредитного документа
+  pt: ""
+  ru: ""
   ja: クレジットノート番号
-  ko: 신용 메모 번호
-  it: Numero nota di credito
-  tr: Kredi notu numarası
-  vi: Số ghi chú tín dụng
-  id: Nomor nota kredit
-  pl: Numer noty kredytowej
-  nl: Creditnotanummer
-  ar: رقم إشعار الائتمان
-  hi: क्रेडिट नोट संख्या
-  th: เลขที่ใบลดหนี้
-  cs: Číslo dobropisu
-  sv: Kreditnotanummer
-  he: מספר הודעת זיכוי
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 referenced_invoice:
   context: Referenced invoice label
@@ -1285,22 +959,21 @@ referenced_invoice:
   zh: 参考发票
   es: Factura referenciada
   fr: Facture référencée
-  pt: Fatura referenciada
-  ru: Упомянутый счёт
+  pt: ""
+  ru: ""
   ja: 参照請求書
-  ko: 참조 청구서
-  it: Fattura di riferimento
-  tr: Referans fatura
-  vi: Hóa đơn tham chiếu
-  id: Faktur yang dirujuk
-  pl: Faktura referencyjna
-  nl: Gerefereerde factuur
-  ar: الفاتورة المرجعية
-  hi: संदर्भित चालान
-  th: ใบแจ้งหนี้อ้างอิง
-  cs: Odkazovaná faktura
-  sv: Refererad faktura
-  he: חשבונית מוזכרת
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refunded_credits_item:
   context: Used in '200 unused credits refunded of 1000 credits'
@@ -1329,84 +1002,25 @@ refunded_credits_item:
     sur {amount_total_credits} crédits
 
     "
-  pt: "{amount_unused_credits} créditos não utilizados reembolsados
-
-    de {amount_total_credits} créditos
-
-    "
-  ru: "{amount_unused_credits} неиспользованных кредитов возвращено
-
-    из {amount_total_credits} кредитов
-
-    "
+  pt: ""
+  ru: ""
   ja: "{amount_total_credits}クレジットのうち
 
     {amount_unused_credits}未使用クレジットが返金されました
 
     "
-  ko: "{amount_total_credits} 크레딧 중
-
-    {amount_unused_credits} 미사용 크레딧 환불
-
-    "
-  it: "{amount_unused_credits} crediti non utilizzati rimborsati
-
-    su {amount_total_credits} crediti
-
-    "
-  tr: "{amount_unused_credits} kullanılmayan kredi iade edildi
-
-    toplam {amount_total_credits} krediden
-
-    "
-  vi: "{amount_unused_credits} tín dụng chưa sử dụng được hoàn trả
-
-    trong tổng số {amount_total_credits} tín dụng
-
-    "
-  id: "{amount_unused_credits} kredit yang tidak digunakan dikembalikan
-
-    dari {amount_total_credits} kredit
-
-    "
-  pl: "{amount_unused_credits} nieużytych kredytów zwrócono
-
-    z {amount_total_credits} kredytów
-
-    "
-  nl: "{amount_unused_credits} ongebruikte credits terugbetaald
-
-    van {amount_total_credits} credits
-
-    "
-  ar: "{amount_unused_credits} رصيد غير مستخدم مُسترد
-
-    من {amount_total_credits} رصيد
-
-    "
-  hi: "{amount_unused_credits} अप्रयुक्त क्रेडिट वापस किए
-
-    {amount_total_credits} क्रेडिट में से
-
-    "
-  th: "{amount_unused_credits} เครดิตที่ยังไม่ได้ใช้ถูกคืน
-
-    จาก {amount_total_credits} เครดิต
-
-    "
-  cs: "{amount_unused_credits} nevyužitých kreditů vráceno
-
-    z {amount_total_credits} kreditů
-
-    "
-  sv: "{amount_unused_credits} oanvända credits återbetalade
-
-    av {amount_total_credits} credits
-
-    "
-  he: |
-    {amount_unused_credits} קרדיטים שלא נוצלו הוחזרו
-    מתוך {amount_total_credits} קרדיטים
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 total_refunded:
   context: Total refunded label
@@ -1415,22 +1029,21 @@ total_refunded:
   zh: 退款总额（含增值税）
   es: Total reembolsado (incl. IVA)
   fr: Total remboursé (TVA incluse)
-  pt: Total reembolsado (incl. IVA)
-  ru: Итого возвращено (с НДС)
+  pt: ""
+  ru: ""
   ja: 返金総額 (税込)
-  ko: 총 환불 금액 (부가세 포함)
-  it: Totale rimborsato (IVA inclusa)
-  tr: Toplam iade (KDV dahil)
-  vi: Tổng hoàn tiền (bao gồm thuế)
-  id: Total dikembalikan (termasuk PPN)
-  pl: Suma zwrócona (z VAT)
-  nl: Totaal terugbetaald (incl. btw)
-  ar: إجمالي المبلغ المسترد (شامل الضريبة)
-  hi: कुल वापसी (वैट सहित)
-  th: ยอดคืนเงินทั้งหมด (รวมภาษี)
-  cs: Celkem vráceno (vč. DPH)
-  sv: Totalt återbetalat (inkl. moms)
-  he: סה"כ הוחזר (כולל מע"מ)
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 refunded_to:
   context: Refunded to label
@@ -1459,84 +1072,25 @@ refunded_to:
     Carte {card_provider} se terminant par {last_four_digits}
 
     "
-  pt: "Reembolsado ao método de pagamento original:
-
-    Cartão {card_provider} terminando em {last_four_digits}
-
-    "
-  ru: "Возвращено на исходный способ оплаты:
-
-    Карта {card_provider} оканчивающаяся на {last_four_digits}
-
-    "
+  pt: ""
+  ru: ""
   ja: "元の支払方法に返金されました:
 
     末尾が{last_four_digits}の{card_provider}カード
 
     "
-  ko: "원래 결제 수단으로 환불:
-
-    끝 번호 {last_four_digits}인 {card_provider} 카드
-
-    "
-  it: "Rimborsato al metodo di pagamento originale:
-
-    Carta {card_provider} che termina con {last_four_digits}
-
-    "
-  tr: "Orijinal ödeme yöntemine iade edildi:
-
-    Son dört hanesi {last_four_digits} olan {card_provider} kartı
-
-    "
-  vi: "Hoàn tiền về phương thức thanh toán gốc:
-
-    Thẻ {card_provider} kết thúc bằng {last_four_digits}
-
-    "
-  id: "Dikembalikan ke metode pembayaran asli:
-
-    Kartu {card_provider} berakhir dengan {last_four_digits}
-
-    "
-  pl: "Zwrócono na oryginalną metodę płatności:
-
-    Karta {card_provider} kończąca się na {last_four_digits}
-
-    "
-  nl: "Terugbetaald naar de originele betaalmethode:
-
-    {card_provider}-kaart eindigend op {last_four_digits}
-
-    "
-  ar: "تم الاسترداد إلى وسيلة الدفع الأصلية:
-
-    بطاقة {card_provider} المنتهية بـ {last_four_digits}
-
-    "
-  hi: "मूल भुगतान विधि पर वापस किया:
-
-    {card_provider} कार्ड जो {last_four_digits} से समाप्त होता है
-
-    "
-  th: "คืนเงินไปยังวิธีการชำระเงินเดิม:
-
-    บัตร {card_provider} ที่ลงท้ายด้วย {last_four_digits}
-
-    "
-  cs: "Vráceno na původní platební metodu:
-
-    Karta {card_provider} končící na {last_four_digits}
-
-    "
-  sv: "Återbetalat till ursprunglig betalningsmetod:
-
-    {card_provider}-kort slutar på {last_four_digits}
-
-    "
-  he: |
-    הוחזר לאמצעי תשלום המקורי:
-    כרטיס {card_provider} המסתיים ב-{last_four_digits}
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 this_credit_note_is_a_translation:
   context: translation disclaimer
@@ -1568,84 +1122,25 @@ this_credit_note_is_a_translation:
     La version anglaise reste le document juridiquement contraignant à des fins fiscales.
 
     "
-  pt: "Esta nota de crédito é uma tradução da nota de crédito original em inglês.
-
-    A versão em inglês permanece como o documento juridicamente vinculativo para fins fiscais.
-
-    "
-  ru: "Этот кредитный документ является переводом оригинала на английском языке.
-
-    Английская версия остаётся юридически обязывающим документом для налоговых целей.
-
-    "
+  pt: ""
+  ru: ""
   ja: "このクレジットノートは英語の原本を翻訳したものです。
 
     税務目的においては英語版が法的拘束力のある文書となります。
 
     "
-  ko: "이 신용 메모는 원본 영어 신용 메모의 번역본입니다.
-
-    영문 버전은 세금 목적의 법적 구속력 있는 문서로 남아 있습니다.
-
-    "
-  it: "Questa nota di credito è una traduzione della nota di credito originale in inglese.
-
-    La versione in inglese rimane il documento legalmente vincolante per scopi fiscali.
-
-    "
-  tr: "Bu kredi notu, orijinal İngilizce kredi notunun bir çevirisidir.
-
-    İngilizce sürüm, vergi amaçları için yasal olarak bağlayıcı belge olarak kalmaktadır.
-
-    "
-  vi: "Ghi chú tín dụng này là bản dịch của ghi chú tín dụng gốc bằng tiếng Anh.
-
-    Phiên bản tiếng Anh vẫn là tài liệu ràng buộc pháp lý cho mục đích thuế.
-
-    "
-  id: "Nota kredit ini adalah terjemahan dari nota kredit asli dalam bahasa Inggris.
-
-    Versi bahasa Inggris tetap menjadi dokumen yang mengikat secara hukum untuk tujuan pajak.
-
-    "
-  pl: "Ta nota kredytowa jest tłumaczeniem oryginalnej noty kredytowej w języku angielskim.
-
-    Wersja angielska pozostaje dokumentem prawnie wiążącym dla celów podatkowych.
-
-    "
-  nl: "Deze creditnota is een vertaling van de originele creditnota in het Engels.
-
-    De Engelse versie blijft het juridisch bindende document voor belastingdoeleinden.
-
-    "
-  ar: "هذا الإشعار الائتماني ترجمة لإشعار الائتمان الأصلي باللغة الإنجليزية.
-
-    النسخة الإنجليزية تظل الوثيقة الملزمة قانونياً لأغراض ضريبية.
-
-    "
-  hi: "यह क्रेडिट नोट अंग्रेजी में मूल क्रेडिट नोट का अनुवाद है।
-
-    अंग्रेजी संस्करण कर उद्देश्यों के लिए कानूनी रूप से बाध्यकारी दस्तावेज़ बना रहता है।
-
-    "
-  th: "ใบลดหนี้นี้เป็นการแปลจากใบลดหนี้ต้นฉบับเป็นภาษาอังกฤษ
-
-    เวอร์ชันภาษาอังกฤษยังคงเป็นเอกสารที่มีผลผูกพันทางกฎหมายสำหรับวัตถุประสงค์ทางภาษี
-
-    "
-  cs: "Tato dobropisová nota je překladem originální dobropisové noty v angličtině.
-
-    Anglická verze zůstává právně závazným dokumentem pro daňové účely.
-
-    "
-  sv: "Den här kreditnotan är en översättning av originalkreditnotan på engelska.
-
-    Den engelska versionen är fortfarande det rättsligt bindande dokumentet för skatteändamål.
-
-    "
-  he: |
-    הודעת זיכוי זו היא תרגום של הודעת הזיכוי המקורית באנגלית.
-    הגרסה האנגלית נשארת המסמך המחייב חוקית למטרות מס.
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 germany:
   context: Sender or recipient country
@@ -1654,22 +1149,21 @@ germany:
   zh: 德国
   es: Alemania
   fr: Allemagne
-  pt: Alemanha
-  ru: Германия
+  pt: ""
+  ru: ""
   ja: ドイツ
-  ko: 독일
-  it: Germania
-  tr: Almanya
-  vi: Đức
-  id: Jerman
-  pl: Niemcy
-  nl: Duitsland
-  ar: ألمانيا
-  hi: जर्मनी
-  th: เยอรมนี
-  cs: Německo
-  sv: Tyskland
-  he: גרמניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 united_states:
   context: Sender or recipient country
@@ -1678,22 +1172,21 @@ united_states:
   zh: 美国
   es: Estados Unidos
   fr: États-Unis
-  pt: Estados Unidos
-  ru: США
+  pt: ""
+  ru: ""
   ja: アメリカ合衆国
-  ko: 미국
-  it: Stati Uniti
-  tr: Amerika Birleşik Devletleri
-  vi: Hoa Kỳ
-  id: Amerika Serikat
-  pl: Stany Zjednoczone
-  nl: Verenigde Staten
-  ar: الولايات المتحدة الأمريكية
-  hi: संयुक्त राज्य अमेरिका
-  th: สหรัฐอเมริกา
-  cs: Spojené státy americké
-  sv: USA
-  he: ארצות הברית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 united_kingdom:
   context: Sender or recipient country
@@ -1702,22 +1195,21 @@ united_kingdom:
   zh: 英国
   es: Reino Unido
   fr: Royaume-Uni
-  pt: Reino Unido
-  ru: Великобритания
+  pt: ""
+  ru: ""
   ja: イギリス
-  ko: 영국
-  it: Regno Unito
-  tr: Birleşik Krallık
-  vi: Vương quốc Anh
-  id: Britania Raya
-  pl: Wielka Brytania
-  nl: Verenigd Koninkrijk
-  ar: المملكة المتحدة
-  hi: यूनाइटेड किंगडम
-  th: สหราชอาณาจักร
-  cs: Spojené království
-  sv: Storbritannien
-  he: הממלכה המאוחדת
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 france:
   context: Sender or recipient country
@@ -1726,22 +1218,21 @@ france:
   zh: 法国
   es: Francia
   fr: France
-  pt: França
-  ru: Франция
+  pt: ""
+  ru: ""
   ja: フランス
-  ko: 프랑스
-  it: Francia
-  tr: Fransa
-  vi: Pháp
-  id: Prancis
-  pl: Francja
-  nl: Frankrijk
-  ar: فرنسا
-  hi: फ्रांस
-  th: ฝรั่งเศส
-  cs: Francie
-  sv: Frankrike
-  he: צרפת
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 spain:
   context: Sender or recipient country
@@ -1750,22 +1241,21 @@ spain:
   zh: 西班牙
   es: España
   fr: Espagne
-  pt: Espanha
-  ru: Испания
+  pt: ""
+  ru: ""
   ja: スペイン
-  ko: 스페인
-  it: Spagna
-  tr: İspanya
-  vi: Tây Ban Nha
-  id: Spanyol
-  pl: Hiszpania
-  nl: Spanje
-  ar: إسبانيا
-  hi: स्पेन
-  th: สเปน
-  cs: Španělsko
-  sv: Spanien
-  he: ספרד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 italy:
   context: Sender or recipient country
@@ -1774,22 +1264,21 @@ italy:
   zh: 意大利
   es: Italia
   fr: Italie
-  pt: Itália
-  ru: Италия
+  pt: ""
+  ru: ""
   ja: イタリア
-  ko: 이탈리아
-  it: Italia
-  tr: İtalya
-  vi: Ý
-  id: Italia
-  pl: Włochy
-  nl: Italië
-  ar: إيطاليا
-  hi: इटली
-  th: อิตาลี
-  cs: Itálie
-  sv: Italien
-  he: איטליה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 netherlands:
   context: Sender or recipient country
@@ -1798,22 +1287,21 @@ netherlands:
   zh: 荷兰
   es: Países Bajos
   fr: Pays-Bas
-  pt: Países Baixos
-  ru: Нидерланды
+  pt: ""
+  ru: ""
   ja: オランダ
-  ko: 네덜란드
-  it: Paesi Bassi
-  tr: Hollanda
-  vi: Hà Lan
-  id: Belanda
-  pl: Holandia
-  nl: Nederland
-  ar: هولندا
-  hi: नीदरलैंड
-  th: เนเธอร์แลนด์
-  cs: Nizozemsko
-  sv: Nederländerna
-  he: הולנד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 belgium:
   context: Sender or recipient country
@@ -1822,22 +1310,21 @@ belgium:
   zh: 比利时
   es: Bélgica
   fr: Belgique
-  pt: Bélgica
-  ru: Бельгия
+  pt: ""
+  ru: ""
   ja: ベルギー
-  ko: 벨기에
-  it: Belgio
-  tr: Belçika
-  vi: Bỉ
-  id: Belgia
-  pl: Belgia
-  nl: België
-  ar: بلجيكا
-  hi: बेल्जियम
-  th: เบลเยียม
-  cs: Belgie
-  sv: Belgien
-  he: בלגיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 sweden:
   context: Sender or recipient country
@@ -1846,22 +1333,21 @@ sweden:
   zh: 瑞典
   es: Suecia
   fr: Suède
-  pt: Suécia
-  ru: Швеция
+  pt: ""
+  ru: ""
   ja: スウェーデン
-  ko: 스웨덴
-  it: Svezia
-  tr: İsveç
-  vi: Thụy Điển
-  id: Swedia
-  pl: Szwecja
-  nl: Zweden
-  ar: السويد
-  hi: स्वीडन
-  th: สวีเดน
-  cs: Švédsko
-  sv: Sverige
-  he: שוודיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 norway:
   context: Sender or recipient country
@@ -1870,22 +1356,21 @@ norway:
   zh: 挪威
   es: Noruega
   fr: Norvège
-  pt: Noruega
-  ru: Норвегия
+  pt: ""
+  ru: ""
   ja: ノルウェー
-  ko: 노르웨이
-  it: Norvegia
-  tr: Norveç
-  vi: Na Uy
-  id: Norwegia
-  pl: Norwegia
-  nl: Noorwegen
-  ar: النرويج
-  hi: नॉर्वे
-  th: นอร์เวย์
-  cs: Norsko
-  sv: Norge
-  he: נורווגיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 denmark:
   context: Sender or recipient country
@@ -1894,22 +1379,21 @@ denmark:
   zh: 丹麦
   es: Dinamarca
   fr: Danemark
-  pt: Dinamarca
-  ru: Дания
+  pt: ""
+  ru: ""
   ja: デンマーク
-  ko: 덴마크
-  it: Danimarca
-  tr: Danimarka
-  vi: Đan Mạch
-  id: Denmark
-  pl: Dania
-  nl: Denemarken
-  ar: الدنمارك
-  hi: डेनमार्क
-  th: เดนมาร์ก
-  cs: Dánsko
-  sv: Danmark
-  he: דנמרק
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 finland:
   context: Sender or recipient country
@@ -1918,22 +1402,21 @@ finland:
   zh: 芬兰
   es: Finlandia
   fr: Finlande
-  pt: Finlândia
-  ru: Финляндия
+  pt: ""
+  ru: ""
   ja: フィンランド
-  ko: 핀란드
-  it: Finlandia
-  tr: Finlandiya
-  vi: Phần Lan
-  id: Finlandia
-  pl: Finlandia
-  nl: Finland
-  ar: فنلندا
-  hi: फ़िनलैंड
-  th: ฟินแลนด์
-  cs: Finsko
-  sv: Finland
-  he: פינלנד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 poland:
   context: Sender or recipient country
@@ -1942,22 +1425,21 @@ poland:
   zh: 波兰
   es: Polonia
   fr: Pologne
-  pt: Polónia
-  ru: Польша
+  pt: ""
+  ru: ""
   ja: ポーランド
-  ko: 폴란드
-  it: Polonia
-  tr: Polonya
-  vi: Ba Lan
-  id: Polandia
-  pl: Polska
-  nl: Polen
-  ar: بولندا
-  hi: पोलैंड
-  th: โปแลนด์
-  cs: Polsko
-  sv: Polen
-  he: פולין
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 austria:
   context: Sender or recipient country
@@ -1966,22 +1448,21 @@ austria:
   zh: 奥地利
   es: Austria
   fr: Autriche
-  pt: Áustria
-  ru: Австрия
+  pt: ""
+  ru: ""
   ja: オーストリア
-  ko: 오스트리아
-  it: Austria
-  tr: Avusturya
-  vi: Áo
-  id: Austria
-  pl: Austria
-  nl: Oostenrijk
-  ar: النمسا
-  hi: ऑस्ट्रिया
-  th: ออสเตรีย
-  cs: Rakousko
-  sv: Österrike
-  he: אוסטריה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 switzerland:
   context: Sender or recipient country
@@ -1990,22 +1471,21 @@ switzerland:
   zh: 瑞士
   es: Suiza
   fr: Suisse
-  pt: Suíça
-  ru: Швейцария
+  pt: ""
+  ru: ""
   ja: スイス
-  ko: 스위스
-  it: Svizzera
-  tr: İsviçre
-  vi: Thụy Sĩ
-  id: Swiss
-  pl: Szwajcaria
-  nl: Zwitserland
-  ar: سويسرا
-  hi: स्विट्जरलैंड
-  th: สวิตเซอร์แลนด์
-  cs: Švýcarsko
-  sv: Schweiz
-  he: שווייץ
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ireland:
   context: Sender or recipient country
@@ -2014,22 +1494,21 @@ ireland:
   zh: 爱尔兰
   es: Irlanda
   fr: Irlande
-  pt: Irlanda
-  ru: Ирландия
+  pt: ""
+  ru: ""
   ja: アイルランド
-  ko: 아일랜드
-  it: Irlanda
-  tr: İrlanda
-  vi: Ireland
-  id: Irlandia
-  pl: Irlandia
-  nl: Ierland
-  ar: أيرلندا
-  hi: आयरलैंड
-  th: ไอร์แลนด์
-  cs: Irsko
-  sv: Irland
-  he: אירלנד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 portugal:
   context: Sender or recipient country
@@ -2038,22 +1517,21 @@ portugal:
   zh: 葡萄牙
   es: Portugal
   fr: Portugal
-  pt: Portugal
-  ru: Португалия
+  pt: ""
+  ru: ""
   ja: ポルトガル
-  ko: 포르투갈
-  it: Portogallo
-  tr: Portekiz
-  vi: Bồ Đào Nha
-  id: Portugal
-  pl: Portugalia
-  nl: Portugal
-  ar: البرتغال
-  hi: पुर्तगाल
-  th: โปรตุเกส
-  cs: Portugalsko
-  sv: Portugal
-  he: פורטוגל
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 canada:
   context: Sender or recipient country
@@ -2062,22 +1540,21 @@ canada:
   zh: 加拿大
   es: Canadá
   fr: Canada
-  pt: Canadá
-  ru: Канада
+  pt: ""
+  ru: ""
   ja: カナダ
-  ko: 캐나다
-  it: Canada
-  tr: Kanada
-  vi: Canada
-  id: Kanada
-  pl: Kanada
-  nl: Canada
-  ar: كندا
-  hi: कनाडा
-  th: แคนาดา
-  cs: Kanada
-  sv: Kanada
-  he: קנדה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 australia:
   context: Sender or recipient country
@@ -2086,22 +1563,21 @@ australia:
   zh: 澳大利亚
   es: Australia
   fr: Australie
-  pt: Austrália
-  ru: Австралия
+  pt: ""
+  ru: ""
   ja: オーストラリア
-  ko: 호주
-  it: Australia
-  tr: Avustralya
-  vi: Úc
-  id: Australia
-  pl: Australia
-  nl: Australië
-  ar: أستراليا
-  hi: ऑस्ट्रेलिया
-  th: ออสเตรเลีย
-  cs: Austrálie
-  sv: Australien
-  he: אוסטרליה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 japan:
   context: Sender or recipient country
@@ -2110,22 +1586,21 @@ japan:
   zh: 日本
   es: Japón
   fr: Japon
-  pt: Japão
-  ru: Япония
+  pt: ""
+  ru: ""
   ja: 日本
-  ko: 일본
-  it: Giappone
-  tr: Japonya
-  vi: Nhật Bản
-  id: Jepang
-  pl: Japonia
-  nl: Japan
-  ar: اليابان
-  hi: जापान
-  th: ญี่ปุ่น
-  cs: Japonsko
-  sv: Japan
-  he: יפן
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 china:
   context: Sender or recipient country
@@ -2134,22 +1609,21 @@ china:
   zh: 中国
   es: China
   fr: Chine
-  pt: China
-  ru: Китай
+  pt: ""
+  ru: ""
   ja: 中国
-  ko: 중국
-  it: Cina
-  tr: Çin
-  vi: Trung Quốc
-  id: Tiongkok
-  pl: Chiny
-  nl: China
-  ar: الصين
-  hi: चीन
-  th: จีน
-  cs: Čína
-  sv: Kina
-  he: סין
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 india:
   context: Sender or recipient country
@@ -2158,22 +1632,21 @@ india:
   zh: 印度
   es: India
   fr: Inde
-  pt: Índia
-  ru: Индия
+  pt: ""
+  ru: ""
   ja: インド
-  ko: 인도
-  it: India
-  tr: Hindistan
-  vi: Ấn Độ
-  id: India
-  pl: Indie
-  nl: India
-  ar: الهند
-  hi: भारत
-  th: อินเดีย
-  cs: Indie
-  sv: Indien
-  he: הודו
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 brazil:
   context: Sender or recipient country
@@ -2182,22 +1655,21 @@ brazil:
   zh: 巴西
   es: Brasil
   fr: Brésil
-  pt: Brasil
-  ru: Бразилия
+  pt: ""
+  ru: ""
   ja: ブラジル
-  ko: 브라질
-  it: Brasile
-  tr: Brezilya
-  vi: Brazil
-  id: Brasil
-  pl: Brazylia
-  nl: Brazilië
-  ar: البرازيل
-  hi: ब्राज़ील
-  th: บราซิล
-  cs: Brazílie
-  sv: Brasilien
-  he: ברזיל
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 south_africa:
   context: Sender or recipient country
@@ -2206,22 +1678,21 @@ south_africa:
   zh: 南非
   es: Sudáfrica
   fr: Afrique du Sud
-  pt: África do Sul
-  ru: Южная Африка
+  pt: ""
+  ru: ""
   ja: 南アフリカ
-  ko: 남아프리카
-  it: Sudafrica
-  tr: Güney Afrika
-  vi: Nam Phi
-  id: Afrika Selatan
-  pl: Republika Południowej Afryki
-  nl: "Zuid-Afrika"
-  ar: جنوب أفريقيا
-  hi: दक्षिण अफ्रीका
-  th: แอฟริกาใต้
-  cs: Jihoafrická republika
-  sv: Sydafrika
-  he: דרום אפריקה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mexico:
   context: Sender or recipient country
@@ -2230,22 +1701,21 @@ mexico:
   zh: 墨西哥
   es: México
   fr: Mexique
-  pt: México
-  ru: Мексика
+  pt: ""
+  ru: ""
   ja: メキシコ
-  ko: 멕시코
-  it: Messico
-  tr: Meksika
-  vi: Mexico
-  id: Meksiko
-  pl: Meksyk
-  nl: Mexico
-  ar: المكسيك
-  hi: मेक्सिको
-  th: เม็กซิโก
-  cs: Mexiko
-  sv: Mexiko
-  he: מקסיקו
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 argentina:
   context: Sender or recipient country
@@ -2254,22 +1724,21 @@ argentina:
   zh: 阿根廷
   es: Argentina
   fr: Argentine
-  pt: Argentina
-  ru: Аргентина
+  pt: ""
+  ru: ""
   ja: アルゼンチン
-  ko: 아르헨티나
-  it: Argentina
-  tr: Arjantin
-  vi: Argentina
-  id: Argentina
-  pl: Argentyna
-  nl: Argentinië
-  ar: الأرجنتين
-  hi: अर्जेंटीना
-  th: อาร์เจนตินา
-  cs: Argentina
-  sv: Argentina
-  he: ארגנטינה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 chile:
   context: Sender or recipient country
@@ -2278,22 +1747,21 @@ chile:
   zh: 智利
   es: Chile
   fr: Chili
-  pt: Chile
-  ru: Чили
+  pt: ""
+  ru: ""
   ja: チリ
-  ko: 칠레
-  it: Cile
-  tr: Şili
-  vi: Chile
-  id: Chili
-  pl: Chile
-  nl: Chili
-  ar: تشيلي
-  hi: चिली
-  th: ชิลี
-  cs: Chile
-  sv: Chile
-  he: צ'ילה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 colombia:
   context: Sender or recipient country
@@ -2302,22 +1770,21 @@ colombia:
   zh: 哥伦比亚
   es: Colombia
   fr: Colombie
-  pt: Colômbia
-  ru: Колумбия
+  pt: ""
+  ru: ""
   ja: コロンビア
-  ko: 콜롬비아
-  it: Colombia
-  tr: Kolombiya
-  vi: Colombia
-  id: Kolombia
-  pl: Kolumbia
-  nl: Colombia
-  ar: كولومبيا
-  hi: कोलंबिया
-  th: โคลอมเบีย
-  cs: Kolumbie
-  sv: Colombia
-  he: קולומביה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 peru:
   context: Sender or recipient country
@@ -2326,22 +1793,21 @@ peru:
   zh: 秘鲁
   es: Perú
   fr: Pérou
-  pt: Peru
-  ru: Перу
+  pt: ""
+  ru: ""
   ja: ペルー
-  ko: 페루
-  it: Perù
-  tr: Peru
-  vi: Peru
-  id: Peru
-  pl: Peru
-  nl: Peru
-  ar: بيرو
-  hi: पेरू
-  th: เปรู
-  cs: Peru
-  sv: Peru
-  he: פרו
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 new_zealand:
   context: Sender or recipient country
@@ -2350,22 +1816,21 @@ new_zealand:
   zh: 新西兰
   es: Nueva Zelanda
   fr: Nouvelle-Zélande
-  pt: Nova Zelândia
-  ru: Новая Зеландия
+  pt: ""
+  ru: ""
   ja: ニュージーランド
-  ko: 뉴질랜드
-  it: Nuova Zelanda
-  tr: Yeni Zelanda
-  vi: New Zealand
-  id: Selandia Baru
-  pl: Nowa Zelandia
-  nl: "Nieuw-Zeeland"
-  ar: نيوزيلندا
-  hi: न्यूजीलैंड
-  th: นิวซีแลนด์
-  cs: Nový Zéland
-  sv: Nya Zeeland
-  he: ניו זילנד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 singapore:
   context: Sender or recipient country
@@ -2374,22 +1839,21 @@ singapore:
   zh: 新加坡
   es: Singapur
   fr: Singapour
-  pt: Singapura
-  ru: Сингапур
+  pt: ""
+  ru: ""
   ja: シンガポール
-  ko: 싱가포르
-  it: Singapore
-  tr: Singapur
-  vi: Singapore
-  id: Singapura
-  pl: Singapur
-  nl: Singapore
-  ar: سنغافورة
-  hi: सिंगापुर
-  th: สิงคโปร์
-  cs: Singapur
-  sv: Singapore
-  he: סינגפור
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 malaysia:
   context: Sender or recipient country
@@ -2398,22 +1862,21 @@ malaysia:
   zh: 马来西亚
   es: Malasia
   fr: Malaisie
-  pt: Malásia
-  ru: Малайзия
+  pt: ""
+  ru: ""
   ja: マレーシア
-  ko: 말레이시아
-  it: Malaysia
-  tr: Malezya
-  vi: Malaysia
-  id: Malaysia
-  pl: Malezja
-  nl: Maleisië
-  ar: ماليزيا
-  hi: मलेशिया
-  th: มาเลเซีย
-  cs: Malajsie
-  sv: Malaysia
-  he: מלזיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 thailand:
   context: Sender or recipient country
@@ -2422,22 +1885,21 @@ thailand:
   zh: 泰国
   es: Tailandia
   fr: Thaïlande
-  pt: Tailândia
-  ru: Таиланд
+  pt: ""
+  ru: ""
   ja: タイ
-  ko: 태국
-  it: Thailandia
-  tr: Tayland
-  vi: Thái Lan
-  id: Thailand
-  pl: Tajlandia
-  nl: Thailand
-  ar: تايلاند
-  hi: थाईलैंड
-  th: ไทย
-  cs: Thajsko
-  sv: Thailand
-  he: תאילנד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 indonesia:
   context: Sender or recipient country
@@ -2446,22 +1908,21 @@ indonesia:
   zh: 印度尼西亚
   es: Indonesia
   fr: Indonésie
-  pt: Indonésia
-  ru: Индонезия
+  pt: ""
+  ru: ""
   ja: インドネシア
-  ko: 인도네시아
-  it: Indonesia
-  tr: Endonezya
-  vi: Indonesia
-  id: Indonesia
-  pl: Indonezja
-  nl: Indonesië
-  ar: إندونيسيا
-  hi: इंडोनेशिया
-  th: อินโดนีเซีย
-  cs: Indonésie
-  sv: Indonesien
-  he: אינדונזיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 philippines:
   context: Sender or recipient country
@@ -2470,22 +1931,21 @@ philippines:
   zh: 菲律宾
   es: Filipinas
   fr: Philippines
-  pt: Filipinas
-  ru: Филиппины
+  pt: ""
+  ru: ""
   ja: フィリピン
-  ko: 필리핀
-  it: Filippine
-  tr: Filipinler
-  vi: Philippines
-  id: Filipina
-  pl: Filipiny
-  nl: Filipijnen
-  ar: الفلبين
-  hi: फिलीपींस
-  th: ฟิลิปปินส์
-  cs: Filipíny
-  sv: Filippinerna
-  he: פיליפינים
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 vietnam:
   context: Sender or recipient country
@@ -2494,22 +1954,21 @@ vietnam:
   zh: 越南
   es: Vietnam
   fr: Vietnam
-  pt: Vietname
-  ru: Вьетнам
+  pt: ""
+  ru: ""
   ja: ベトナム
-  ko: 베트남
-  it: Vietnam
-  tr: Vietnam
-  vi: Việt Nam
-  id: Vietnam
-  pl: Wietnam
-  nl: Vietnam
-  ar: فيتنام
-  hi: वियतनाम
-  th: เวียดนาม
-  cs: Vietnam
-  sv: Vietnam
-  he: וייטנאם
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 south_korea:
   context: Sender or recipient country
@@ -2518,22 +1977,21 @@ south_korea:
   zh: 韩国
   es: Corea del Sur
   fr: Corée du Sud
-  pt: Coreia do Sul
-  ru: Южная Корея
+  pt: ""
+  ru: ""
   ja: 韓国
-  ko: 대한민국
-  it: Corea del Sud
-  tr: Güney Kore
-  vi: Hàn Quốc
-  id: Korea Selatan
-  pl: Korea Południowa
-  nl: "Zuid-Korea"
-  ar: كوريا الجنوبية
-  hi: दक्षिण कोरिया
-  th: เกาหลีใต้
-  cs: Jižní Korea
-  sv: Sydkorea
-  he: קוריאה הדרומית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 russia:
   context: Sender or recipient country
@@ -2542,22 +2000,21 @@ russia:
   zh: 俄罗斯
   es: Rusia
   fr: Russie
-  pt: Rússia
-  ru: Россия
+  pt: ""
+  ru: ""
   ja: ロシア
-  ko: 러시아
-  it: Russia
-  tr: Rusya
-  vi: Nga
-  id: Rusia
-  pl: Rosja
-  nl: Rusland
-  ar: روسيا
-  hi: रूस
-  th: รัสเซีย
-  cs: Rusko
-  sv: Ryssland
-  he: רוסיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 turkey:
   context: Sender or recipient country
@@ -2566,22 +2023,21 @@ turkey:
   zh: 土耳其
   es: Turquía
   fr: Turquie
-  pt: Turquia
-  ru: Турция
+  pt: ""
+  ru: ""
   ja: トルコ
-  ko: 터키
-  it: Turchia
-  tr: Türkiye
-  vi: Thổ Nhĩ Kỳ
-  id: Turki
-  pl: Turcja
-  nl: Turkije
-  ar: تركيا
-  hi: तुर्की
-  th: ตุรกี
-  cs: Turecko
-  sv: Turkiet
-  he: טורקיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 greece:
   context: Sender or recipient country
@@ -2590,22 +2046,21 @@ greece:
   zh: 希腊
   es: Grecia
   fr: Grèce
-  pt: Grécia
-  ru: Греция
+  pt: ""
+  ru: ""
   ja: ギリシャ
-  ko: 그리스
-  it: Grecia
-  tr: Yunanistan
-  vi: Hy Lạp
-  id: Yunani
-  pl: Grecja
-  nl: Griekenland
-  ar: اليونان
-  hi: ग्रीस
-  th: กรีซ
-  cs: Řecko
-  sv: Grekland
-  he: יוון
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 czech_republic:
   context: Sender or recipient country
@@ -2614,22 +2069,21 @@ czech_republic:
   zh: 捷克共和国
   es: República Checa
   fr: République tchèque
-  pt: República Checa
-  ru: Чешская Республика
+  pt: ""
+  ru: ""
   ja: チェコ共和国
-  ko: 체코 공화국
-  it: Repubblica Ceca
-  tr: Çek Cumhuriyeti
-  vi: Cộng hòa Séc
-  id: Republik Ceko
-  pl: Republika Czeska
-  nl: Tsjechische Republiek
-  ar: جمهورية التشيك
-  hi: चेक गणराज्य
-  th: สาธารณรัฐเช็ก
-  cs: Česká republika
-  sv: Tjeckien
-  he: הרפובליקה הצ'כית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 hungary:
   context: Sender or recipient country
@@ -2638,22 +2092,21 @@ hungary:
   zh: 匈牙利
   es: Hungría
   fr: Hongrie
-  pt: Hungria
-  ru: Венгрия
+  pt: ""
+  ru: ""
   ja: ハンガリー
-  ko: 헝가리
-  it: Ungheria
-  tr: Macaristan
-  vi: Hungary
-  id: Hungaria
-  pl: Węgry
-  nl: Hongarije
-  ar: المجر
-  hi: हंगरी
-  th: ฮังการี
-  cs: Maďarsko
-  sv: Ungern
-  he: הונגריה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 romania:
   context: Sender or recipient country
@@ -2662,22 +2115,21 @@ romania:
   zh: 罗马尼亚
   es: Rumanía
   fr: Roumanie
-  pt: Roménia
-  ru: Румыния
+  pt: ""
+  ru: ""
   ja: ルーマニア
-  ko: 루마니아
-  it: Romania
-  tr: Romanya
-  vi: Romania
-  id: Rumania
-  pl: Rumunia
-  nl: Roemenië
-  ar: رومانيا
-  hi: रोमानिया
-  th: โรมาเนีย
-  cs: Rumunsko
-  sv: Rumänien
-  he: רומניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 bulgaria:
   context: Sender or recipient country
@@ -2686,22 +2138,21 @@ bulgaria:
   zh: 保加利亚
   es: Bulgaria
   fr: Bulgarie
-  pt: Bulgária
-  ru: Болгария
+  pt: ""
+  ru: ""
   ja: ブルガリア
-  ko: 불가리아
-  it: Bulgaria
-  tr: Bulgaristan
-  vi: Bulgaria
-  id: Bulgaria
-  pl: Bułgaria
-  nl: Bulgarije
-  ar: بلغاريا
-  hi: बुल्गारिया
-  th: บัลแกเรีย
-  cs: Bulharsko
-  sv: Bulgarien
-  he: בולגריה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 croatia:
   context: Sender or recipient country
@@ -2710,22 +2161,21 @@ croatia:
   zh: 克罗地亚
   es: Croacia
   fr: Croatie
-  pt: Croácia
-  ru: Хорватия
+  pt: ""
+  ru: ""
   ja: クロアチア
-  ko: 크로아티아
-  it: Croazia
-  tr: Hırvatistan
-  vi: Croatia
-  id: Kroasia
-  pl: Chorwacja
-  nl: Kroatië
-  ar: كرواتيا
-  hi: क्रोएशिया
-  th: โครเอเชีย
-  cs: Chorvatsko
-  sv: Kroatien
-  he: קרואטיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 slovakia:
   context: Sender or recipient country
@@ -2734,22 +2184,21 @@ slovakia:
   zh: 斯洛伐克
   es: Eslovaquia
   fr: Slovaquie
-  pt: Eslováquia
-  ru: Словакия
+  pt: ""
+  ru: ""
   ja: スロバキア
-  ko: 슬로바키아
-  it: Slovacchia
-  tr: Slovakya
-  vi: Slovakia
-  id: Slowakia
-  pl: Słowacja
-  nl: Slowakije
-  ar: سلوفاكيا
-  hi: स्लोवाकिया
-  th: สโลวาเกีย
-  cs: Slovensko
-  sv: Slovakien
-  he: סלובקיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 slovenia:
   context: Sender or recipient country
@@ -2758,22 +2207,21 @@ slovenia:
   zh: 斯洛文尼亚
   es: Eslovenia
   fr: Slovénie
-  pt: Eslovénia
-  ru: Словения
+  pt: ""
+  ru: ""
   ja: スロベニア
-  ko: 슬로베니아
-  it: Slovenia
-  tr: Slovenya
-  vi: Slovenia
-  id: Slovenia
-  pl: Słowenia
-  nl: Slovenië
-  ar: سلوفينيا
-  hi: स्लोवेनिया
-  th: สโลวีเนีย
-  cs: Slovinsko
-  sv: Slovenien
-  he: סלובניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 luxembourg:
   context: Sender or recipient country
@@ -2782,22 +2230,21 @@ luxembourg:
   zh: 卢森堡
   es: Luxemburgo
   fr: Luxembourg
-  pt: Luxemburgo
-  ru: Люксембург
+  pt: ""
+  ru: ""
   ja: ルクセンブルク
-  ko: 룩셈부르크
-  it: Lussemburgo
-  tr: Lüksemburg
-  vi: Luxembourg
-  id: Luksemburg
-  pl: Luksemburg
-  nl: Luxemburg
-  ar: لوكسمبورغ
-  hi: लक्जमबर्ग
-  th: ลักเซมเบิร์ก
-  cs: Lucembursko
-  sv: Luxemburg
-  he: לוקסמבורג
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 estonia:
   context: Sender or recipient country
@@ -2806,22 +2253,21 @@ estonia:
   zh: 爱沙尼亚
   es: Estonia
   fr: Estonie
-  pt: Estónia
-  ru: Эстония
+  pt: ""
+  ru: ""
   ja: エストニア
-  ko: 에스토니아
-  it: Estonia
-  tr: Estonya
-  vi: Estonia
-  id: Estonia
-  pl: Estonia
-  nl: Estland
-  ar: إستونيا
-  hi: एस्टोनिया
-  th: เอสโตเนีย
-  cs: Estonsko
-  sv: Estland
-  he: אסטוניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 latvia:
   context: Sender or recipient country
@@ -2830,22 +2276,21 @@ latvia:
   zh: 拉脱维亚
   es: Letonia
   fr: Lettonie
-  pt: Letónia
-  ru: Латвия
+  pt: ""
+  ru: ""
   ja: ラトビア
-  ko: 라트비아
-  it: Lettonia
-  tr: Letonya
-  vi: Latvia
-  id: Latvia
-  pl: Łotwa
-  nl: Letland
-  ar: لاتفيا
-  hi: लातविया
-  th: ลัตเวีย
-  cs: Lotyšsko
-  sv: Lettland
-  he: לטביה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 lithuania:
   context: Sender or recipient country
@@ -2854,22 +2299,21 @@ lithuania:
   zh: 立陶宛
   es: Lituania
   fr: Lituanie
-  pt: Lituânia
-  ru: Литва
+  pt: ""
+  ru: ""
   ja: リトアニア
-  ko: 리투아니아
-  it: Lituania
-  tr: Litvanya
-  vi: Litva
-  id: Lituania
-  pl: Litwa
-  nl: Litouwen
-  ar: ليتوانيا
-  hi: लिथुआनिया
-  th: ลิทัวเนีย
-  cs: Litva
-  sv: Litauen
-  he: ליטא
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ukraine:
   context: Sender or recipient country
@@ -2878,22 +2322,21 @@ ukraine:
   zh: 乌克兰
   es: Ucrania
   fr: Ukraine
-  pt: Ucrânia
-  ru: Украина
+  pt: ""
+  ru: ""
   ja: ウクライナ
-  ko: 우크라이나
-  it: Ucraina
-  tr: Ukrayna
-  vi: Ukraine
-  id: Ukraina
-  pl: Ukraina
-  nl: Oekraïne
-  ar: أوكرانيا
-  hi: यूक्रेन
-  th: ยูเครน
-  cs: Ukrajina
-  sv: Ukraina
-  he: אוקראינה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 belarus:
   context: Sender or recipient country
@@ -2902,22 +2345,21 @@ belarus:
   zh: 白俄罗斯
   es: Bielorrusia
   fr: Biélorussie
-  pt: Bielorrússia
-  ru: Беларусь
+  pt: ""
+  ru: ""
   ja: ベラルーシ
-  ko: 벨라루스
-  it: Bielorussia
-  tr: Beyaz Rusya
-  vi: Belarus
-  id: Belarus
-  pl: Białoruś
-  nl: "Wit-Rusland"
-  ar: بيلاروسيا
-  hi: बेलारूस
-  th: เบลารุส
-  cs: Bělorusko
-  sv: Belarus
-  he: בלארוס
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 moldova:
   context: Sender or recipient country
@@ -2926,22 +2368,21 @@ moldova:
   zh: 摩尔多瓦
   es: Moldavia
   fr: Moldavie
-  pt: Moldávia
-  ru: Молдова
+  pt: ""
+  ru: ""
   ja: モルドバ
-  ko: 몰도바
-  it: Moldova
-  tr: Moldova
-  vi: Moldova
-  id: Moldova
-  pl: Mołdawia
-  nl: Moldavië
-  ar: مولدوفا
-  hi: मोल्दोवा
-  th: มอลโดวา
-  cs: Moldavsko
-  sv: Moldavien
-  he: מולדובה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 iceland:
   context: Sender or recipient country
@@ -2950,22 +2391,21 @@ iceland:
   zh: 冰岛
   es: Islandia
   fr: Islande
-  pt: Islândia
-  ru: Исландия
+  pt: ""
+  ru: ""
   ja: アイスランド
-  ko: 아이슬란드
-  it: Islanda
-  tr: İzlanda
-  vi: Iceland
-  id: Islandia
-  pl: Islandia
-  nl: IJsland
-  ar: آيسلندا
-  hi: आइसलैंड
-  th: ไอซ์แลนด์
-  cs: Island
-  sv: Island
-  he: איסלנד
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 malta:
   context: Sender or recipient country
@@ -2974,22 +2414,21 @@ malta:
   zh: 马耳他
   es: Malta
   fr: Malte
-  pt: Malta
-  ru: Мальта
+  pt: ""
+  ru: ""
   ja: マルタ
-  ko: 몰타
-  it: Malta
-  tr: Malta
-  vi: Malta
-  id: Malta
-  pl: Malta
-  nl: Malta
-  ar: مالطا
-  hi: माल्टा
-  th: มอลตา
-  cs: Malta
-  sv: Malta
-  he: מלטה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 cyprus:
   context: Sender or recipient country
@@ -2998,22 +2437,21 @@ cyprus:
   zh: 塞浦路斯
   es: Chipre
   fr: Chypre
-  pt: Chipre
-  ru: Кипр
+  pt: ""
+  ru: ""
   ja: キプロス
-  ko: 키프로스
-  it: Cipro
-  tr: Kıbrıs
-  vi: Síp
-  id: Siprus
-  pl: Cypr
-  nl: Cyprus
-  ar: قبرص
-  hi: साइप्रस
-  th: ไซปรัส
-  cs: Kypr
-  sv: Cypern
-  he: קפריסין
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 united_arab_emirates:
   context: Sender or recipient country
@@ -3022,22 +2460,21 @@ united_arab_emirates:
   zh: 阿拉伯联合酋长国
   es: Emiratos Árabes Unidos
   fr: Émirats arabes unis
-  pt: Emirados Árabes Unidos
-  ru: Объединённые Арабские Эмираты
+  pt: ""
+  ru: ""
   ja: アラブ首長国連邦
-  ko: 아랍에미리트
-  it: Emirati Arabi Uniti
-  tr: Birleşik Arap Emirlikleri
-  vi: Các Tiểu vương quốc Ả Rập Thống nhất
-  id: Uni Emirat Arab
-  pl: Zjednoczone Emiraty Arabskie
-  nl: Verenigde Arabische Emiraten
-  ar: الإمارات العربية المتحدة
-  hi: संयुक्त अरब अमीरात
-  th: สหรัฐอาหรับเอมิเรตส์
-  cs: Spojené arabské emiráty
-  sv: Förenade arabemiraten
-  he: איחוד האמירויות הערביות
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 saudi_arabia:
   context: Sender or recipient country
@@ -3046,22 +2483,21 @@ saudi_arabia:
   zh: 沙特阿拉伯
   es: Arabia Saudita
   fr: Arabie saoudite
-  pt: Arábia Saudita
-  ru: Саудовская Аравия
+  pt: ""
+  ru: ""
   ja: サウジアラビア
-  ko: 사우디아라비아
-  it: Arabia Saudita
-  tr: Suudi Arabistan
-  vi: Ả Rập Xê-út
-  id: Arab Saudi
-  pl: Arabia Saudyjska
-  nl: Saoedi-Arabië
-  ar: المملكة العربية السعودية
-  hi: सऊदी अरब
-  th: ซาอุดีอาระเบีย
-  cs: Saúdská Arábie
-  sv: Saudiarabien
-  he: ערב הסעודית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 israel:
   context: Sender or recipient country
@@ -3070,22 +2506,21 @@ israel:
   zh: 以色列
   es: Israel
   fr: Israël
-  pt: Israel
-  ru: Израиль
+  pt: ""
+  ru: ""
   ja: イスラエル
-  ko: 이스라엘
-  it: Israele
-  tr: İsrail
-  vi: Israel
-  id: Israel
-  pl: Izrael
-  nl: Israël
-  ar: إسرائيل
-  hi: इज़राइल
-  th: อิสราเอล
-  cs: Izrael
-  sv: Israel
-  he: ישראל
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 egypt:
   context: Sender or recipient country
@@ -3094,22 +2529,21 @@ egypt:
   zh: 埃及
   es: Egipto
   fr: Égypte
-  pt: Egito
-  ru: Египет
+  pt: ""
+  ru: ""
   ja: エジプト
-  ko: 이집트
-  it: Egitto
-  tr: Mısır
-  vi: Ai Cập
-  id: Mesir
-  pl: Egipt
-  nl: Egypte
-  ar: مصر
-  hi: मिस्र
-  th: อียิปต์
-  cs: Egypt
-  sv: Egypten
-  he: מצרים
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 morocco:
   context: Sender or recipient country
@@ -3118,22 +2552,21 @@ morocco:
   zh: 摩洛哥
   es: Marruecos
   fr: Maroc
-  pt: Marrocos
-  ru: Марокко
+  pt: ""
+  ru: ""
   ja: モロッコ
-  ko: 모로코
-  it: Marocco
-  tr: Fas
-  vi: Maroc
-  id: Maroko
-  pl: Maroko
-  nl: Marokko
-  ar: المغرب
-  hi: मोरक्को
-  th: โมร็อกโก
-  cs: Maroko
-  sv: Marocko
-  he: מרוקו
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 nigeria:
   context: Sender or recipient country
@@ -3142,22 +2575,21 @@ nigeria:
   zh: 尼日利亚
   es: Nigeria
   fr: Nigeria
-  pt: Nigéria
-  ru: Нигерия
+  pt: ""
+  ru: ""
   ja: ナイジェリア
-  ko: 나이지리아
-  it: Nigeria
-  tr: Nijerya
-  vi: Nigeria
-  id: Nigeria
-  pl: Nigeria
-  nl: Nigeria
-  ar: نيجيريا
-  hi: नाइजीरिया
-  th: ไนจีเรีย
-  cs: Nigérie
-  sv: Nigeria
-  he: ניגריה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 kenya:
   context: Sender or recipient country
@@ -3166,22 +2598,21 @@ kenya:
   zh: 肯尼亚
   es: Kenia
   fr: Kenya
-  pt: Quênia
-  ru: Кения
+  pt: ""
+  ru: ""
   ja: ケニア
-  ko: 케냐
-  it: Kenya
-  tr: Kenya
-  vi: Kenya
-  id: Kenya
-  pl: Kenia
-  nl: Kenia
-  ar: كينيا
-  hi: केन्या
-  th: เคนยา
-  cs: Keňa
-  sv: Kenya
-  he: קניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ghana:
   context: Sender or recipient country
@@ -3190,22 +2621,21 @@ ghana:
   zh: 加纳
   es: Ghana
   fr: Ghana
-  pt: Gana
-  ru: Гана
+  pt: ""
+  ru: ""
   ja: ガーナ
-  ko: 가나
-  it: Ghana
-  tr: Gana
-  vi: Ghana
-  id: Ghana
-  pl: Ghana
-  nl: Ghana
-  ar: غانا
-  hi: घाना
-  th: กานา
-  cs: Ghana
-  sv: Ghana
-  he: גאנה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 tanzania:
   context: Sender or recipient country
@@ -3214,22 +2644,21 @@ tanzania:
   zh: 坦桑尼亚
   es: Tanzania
   fr: Tanzanie
-  pt: Tanzânia
-  ru: Танзания
+  pt: ""
+  ru: ""
   ja: タンザニア
-  ko: 탄자니아
-  it: Tanzania
-  tr: Tanzanya
-  vi: Tanzania
-  id: Tanzania
-  pl: Tanzania
-  nl: Tanzania
-  ar: تنزانيا
-  hi: तंजानिया
-  th: แทนซาเนีย
-  cs: Tanzanie
-  sv: Tanzania
-  he: טנזניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ethiopia:
   context: Sender or recipient country
@@ -3238,22 +2667,21 @@ ethiopia:
   zh: 埃塞俄比亚
   es: Etiopía
   fr: Éthiopie
-  pt: Etiópia
-  ru: Эфиопия
+  pt: ""
+  ru: ""
   ja: エチオピア
-  ko: 에티오피아
-  it: Etiopia
-  tr: Etiyopya
-  vi: Ethiopia
-  id: Etiopia
-  pl: Etiopia
-  nl: Ethiopië
-  ar: إثيوبيا
-  hi: इथियोपिया
-  th: เอธิโอเปีย
-  cs: Etiopie
-  sv: Etiopien
-  he: אתיופיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 pakistan:
   context: Sender or recipient country
@@ -3262,22 +2690,21 @@ pakistan:
   zh: 巴基斯坦
   es: Pakistán
   fr: Pakistan
-  pt: Paquistão
-  ru: Пакистан
+  pt: ""
+  ru: ""
   ja: パキスタン
-  ko: 파키스탄
-  it: Pakistan
-  tr: Pakistan
-  vi: Pakistan
-  id: Pakistan
-  pl: Pakistan
-  nl: Pakistan
-  ar: باكستان
-  hi: पाकिस्तान
-  th: ปากีสถาน
-  cs: Pákistán
-  sv: Pakistan
-  he: פקיסטן
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 bangladesh:
   context: Sender or recipient country
@@ -3286,22 +2713,21 @@ bangladesh:
   zh: 孟加拉国
   es: Bangladesh
   fr: Bangladesh
-  pt: Bangladesh
-  ru: Бангладеш
+  pt: ""
+  ru: ""
   ja: バングラデシュ
-  ko: 방글라데시
-  it: Bangladesh
-  tr: Bangladeş
-  vi: Bangladesh
-  id: Bangladesh
-  pl: Bangladesz
-  nl: Bangladesh
-  ar: بنغلاديش
-  hi: बांग्लादेश
-  th: บังกลาเทศ
-  cs: Bangladéš
-  sv: Bangladesh
-  he: בנגלדש
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 sri_lanka:
   context: Sender or recipient country
@@ -3310,22 +2736,21 @@ sri_lanka:
   zh: 斯里兰卡
   es: Sri Lanka
   fr: Sri Lanka
-  pt: Sri Lanka
-  ru: Шри-Ланка
+  pt: ""
+  ru: ""
   ja: スリランカ
-  ko: 스리랑카
-  it: Sri Lanka
-  tr: Sri Lanka
-  vi: Sri Lanka
-  id: Sri Lanka
-  pl: Sri Lanka
-  nl: Sri Lanka
-  ar: سريلانكا
-  hi: श्री लंका
-  th: ศรีลังกา
-  cs: Srí Lanka
-  sv: Sri Lanka
-  he: סרי לנקה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 nepal:
   context: Sender or recipient country
@@ -3334,22 +2759,21 @@ nepal:
   zh: 尼泊尔
   es: Nepal
   fr: Népal
-  pt: Nepal
-  ru: Непал
+  pt: ""
+  ru: ""
   ja: ネパール
-  ko: 네팔
-  it: Nepal
-  tr: Nepal
-  vi: Nepal
-  id: Nepal
-  pl: Nepal
-  nl: Nepal
-  ar: نيبال
-  hi: नेपाल
-  th: เนปาล
-  cs: Nepál
-  sv: Nepal
-  he: נפאל
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 kazakhstan:
   context: Sender or recipient country
@@ -3358,22 +2782,21 @@ kazakhstan:
   zh: 哈萨克斯坦
   es: Kazajistán
   fr: Kazakhstan
-  pt: Cazaquistão
-  ru: Казахстан
+  pt: ""
+  ru: ""
   ja: カザフスタン
-  ko: 카자흐스탄
-  it: Kazakhstan
-  tr: Kazakistan
-  vi: Kazakhstan
-  id: Kazakhstan
-  pl: Kazachstan
-  nl: Kazachstan
-  ar: كازاخستان
-  hi: कजाकिस्तान
-  th: คาซัคสถาน
-  cs: Kazachstán
-  sv: Kazakstan
-  he: קזחסטן
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 mongolia:
   context: Sender or recipient country
@@ -3382,22 +2805,21 @@ mongolia:
   zh: 蒙古
   es: Mongolia
   fr: Mongolie
-  pt: Mongólia
-  ru: Монголия
+  pt: ""
+  ru: ""
   ja: モンゴル
-  ko: 몽골
-  it: Mongolia
-  tr: Moğolistan
-  vi: Mông Cổ
-  id: Mongolia
-  pl: Mongolia
-  nl: Mongolië
-  ar: منغوليا
-  hi: मंगोलिया
-  th: มองโกเลีย
-  cs: Mongolsko
-  sv: Mongoliet
-  he: מונגוליה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 hong_kong:
   context: Sender or recipient country
@@ -3406,22 +2828,21 @@ hong_kong:
   zh: 香港
   es: Hong Kong
   fr: Hong Kong
-  pt: Hong Kong
-  ru: Гонконг
+  pt: ""
+  ru: ""
   ja: 香港
-  ko: 홍콩
-  it: Hong Kong
-  tr: Hong Kong
-  vi: Hồng Kông
-  id: Hong Kong
-  pl: Hongkong
-  nl: Hongkong
-  ar: هونغ كونغ
-  hi: हांगकांग
-  th: ฮ่องกง
-  cs: Hongkong
-  sv: Hongkong
-  he: הונג קונג
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 taiwan:
   context: Sender or recipient country
@@ -3430,22 +2851,21 @@ taiwan:
   zh: 台湾
   es: Taiwán
   fr: Taïwan
-  pt: Taiwan
-  ru: Тайвань
+  pt: ""
+  ru: ""
   ja: 台湾
-  ko: 대만
-  it: Taiwan
-  tr: Tayvan
-  vi: Đài Loan
-  id: Taiwan
-  pl: Tajwan
-  nl: Taiwan
-  ar: تايوان
-  hi: ताइवान
-  th: ไต้หวัน
-  cs: Tchaj-wan
-  sv: Taiwan
-  he: טאיוואן
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 qatar:
   context: Sender or recipient country
@@ -3454,22 +2874,21 @@ qatar:
   zh: 卡塔尔
   es: Catar
   fr: Qatar
-  pt: Qatar
-  ru: Катар
+  pt: ""
+  ru: ""
   ja: カタール
-  ko: 카타르
-  it: Qatar
-  tr: Katar
-  vi: Qatar
-  id: Qatar
-  pl: Katar
-  nl: Qatar
-  ar: قطر
-  hi: कतर
-  th: กาตาร์
-  cs: Katar
-  sv: Qatar
-  he: קטאר
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 kuwait:
   context: Sender or recipient country
@@ -3478,22 +2897,21 @@ kuwait:
   zh: 科威特
   es: Kuwait
   fr: Koweït
-  pt: Kuwait
-  ru: Кувейт
+  pt: ""
+  ru: ""
   ja: クウェート
-  ko: 쿠웨이트
-  it: Kuwait
-  tr: Kuveyt
-  vi: Kuwait
-  id: Kuwait
-  pl: Kuwejt
-  nl: Koeweit
-  ar: الكويت
-  hi: कुवैत
-  th: คูเวต
-  cs: Kuvajt
-  sv: Kuwait
-  he: כווית
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 bahrain:
   context: Sender or recipient country
@@ -3502,22 +2920,21 @@ bahrain:
   zh: 巴林
   es: Baréin
   fr: Bahreïn
-  pt: Barém
-  ru: Бахрейн
+  pt: ""
+  ru: ""
   ja: バーレーン
-  ko: 바레인
-  it: Bahrein
-  tr: Bahreyn
-  vi: Bahrain
-  id: Bahrain
-  pl: Bahrajn
-  nl: Bahrein
-  ar: البحرين
-  hi: बहरीन
-  th: บาห์เรน
-  cs: Bahrajn
-  sv: Bahrain
-  he: בחריין
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 oman:
   context: Sender or recipient country
@@ -3526,22 +2943,21 @@ oman:
   zh: 阿曼
   es: Omán
   fr: Oman
-  pt: Omã
-  ru: Оман
+  pt: ""
+  ru: ""
   ja: オマーン
-  ko: 오만
-  it: Oman
-  tr: Umman
-  vi: Oman
-  id: Oman
-  pl: Oman
-  nl: Oman
-  ar: عُمان
-  hi: ओमान
-  th: โอมาน
-  cs: Omán
-  sv: Oman
-  he: עומאן
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 myanmar:
   context: Sender or recipient country
@@ -3550,22 +2966,21 @@ myanmar:
   zh: 缅甸
   es: Myanmar
   fr: Myanmar
-  pt: Myanmar
-  ru: Мьянма
+  pt: ""
+  ru: ""
   ja: ミャンマー
-  ko: 미얀마
-  it: Myanmar
-  tr: Myanmar
-  vi: Myanmar
-  id: Myanmar
-  pl: Mjanma
-  nl: Myanmar
-  ar: ميانمار
-  hi: म्यांमार
-  th: เมียนมาร์
-  cs: Myanmar
-  sv: Myanmar
-  he: מיאנמר
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 venezuela:
   context: Sender or recipient country
@@ -3574,22 +2989,21 @@ venezuela:
   zh: 委内瑞拉
   es: Venezuela
   fr: Venezuela
-  pt: Venezuela
-  ru: Венесуэла
+  pt: ""
+  ru: ""
   ja: ベネズエラ
-  ko: 베네수엘라
-  it: Venezuela
-  tr: Venezuela
-  vi: Venezuela
-  id: Venezuela
-  pl: Wenezuela
-  nl: Venezuela
-  ar: فنزويلا
-  hi: वेनेजुएला
-  th: เวเนซุเอลา
-  cs: Venezuela
-  sv: Venezuela
-  he: ונצואלה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 panama:
   context: Sender or recipient country
@@ -3598,22 +3012,21 @@ panama:
   zh: 巴拿马
   es: Panamá
   fr: Panama
-  pt: Panamá
-  ru: Панама
+  pt: ""
+  ru: ""
   ja: パナマ
-  ko: 파나마
-  it: Panama
-  tr: Panama
-  vi: Panama
-  id: Panama
-  pl: Panama
-  nl: Panama
-  ar: بنما
-  hi: पनामा
-  th: ปานามา
-  cs: Panama
-  sv: Panama
-  he: פנמה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 costa_rica:
   context: Sender or recipient country
@@ -3622,22 +3035,21 @@ costa_rica:
   zh: 哥斯达黎加
   es: Costa Rica
   fr: Costa Rica
-  pt: Costa Rica
-  ru: Коста-Рика
+  pt: ""
+  ru: ""
   ja: コスタリカ
-  ko: 코스타리카
-  it: Costa Rica
-  tr: Kosta Rika
-  vi: Costa Rica
-  id: Kosta Rika
-  pl: Kostaryka
-  nl: Costa Rica
-  ar: كوستاريكا
-  hi: कोस्टा रिका
-  th: คอสตาริกา
-  cs: Kostarika
-  sv: Costa Rica
-  he: קוסטה ריקה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 algeria:
   context: Sender or recipient country
@@ -3646,22 +3058,21 @@ algeria:
   zh: 阿尔及利亚
   es: Argelia
   fr: Algérie
-  pt: Argélia
-  ru: Алжир
+  pt: ""
+  ru: ""
   ja: アルジェリア
-  ko: 알제리
-  it: Algeria
-  tr: Cezayir
-  vi: Algeria
-  id: Aljazair
-  pl: Algieria
-  nl: Algerije
-  ar: الجزائر
-  hi: अल्जीरिया
-  th: แอลจีเรีย
-  cs: Alžírsko
-  sv: Algeriet
-  he: אלג'יריה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 tunisia:
   context: Sender or recipient country
@@ -3670,22 +3081,21 @@ tunisia:
   zh: 突尼斯
   es: Túnez
   fr: Tunisie
-  pt: Tunísia
-  ru: Тунис
+  pt: ""
+  ru: ""
   ja: チュニジア
-  ko: 튀니지
-  it: Tunisia
-  tr: Tunus
-  vi: Tunisia
-  id: Tunisia
-  pl: Tunezja
-  nl: Tunesië
-  ar: تونس
-  hi: ट्यूनीशिया
-  th: ตูนิเซีย
-  cs: Tunisko
-  sv: Tunisien
-  he: תוניסיה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 senegal:
   context: Sender or recipient country
@@ -3694,22 +3104,21 @@ senegal:
   zh: 塞内加尔
   es: Senegal
   fr: Sénégal
-  pt: Senegal
-  ru: Сенегал
+  pt: ""
+  ru: ""
   ja: セネガル
-  ko: 세네갈
-  it: Senegal
-  tr: Senegal
-  vi: Senegal
-  id: Senegal
-  pl: Senegal
-  nl: Senegal
-  ar: السنغال
-  hi: सेनेगल
-  th: เซเนกัล
-  cs: Senegal
-  sv: Senegal
-  he: סנגל
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 ivory_coast:
   context: Sender or recipient country
@@ -3718,22 +3127,21 @@ ivory_coast:
   zh: 科特迪瓦
   es: Costa de Marfil
   fr: Côte d'Ivoire
-  pt: Costa do Marfim
-  ru: "Кот-д'Ивуар"
+  pt: ""
+  ru: ""
   ja: コートジボワール
-  ko: 코트디부아르
-  it: "Costa d'Avorio"
-  tr: Fildişi Sahili
-  vi: Bờ Biển Ngà
-  id: Pantai Gading
-  pl: Wybrzeże Kości Słoniowej
-  nl: Ivoorkust
-  ar: ساحل العاج
-  hi: आइवरी कोस्ट
-  th: ไอวอรีโคสต์
-  cs: Pobřeží slonoviny
-  sv: Elfenbenskusten
-  he: חוף השנהב
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 serbia:
   context: Sender or recipient country
@@ -3742,22 +3150,21 @@ serbia:
   zh: 塞尔维亚
   es: Serbia
   fr: Serbie
-  pt: Sérvia
-  ru: Сербия
+  pt: ""
+  ru: ""
   ja: セルビア
-  ko: 세르비아
-  it: Serbia
-  tr: Sırbistan
-  vi: Serbia
-  id: Serbia
-  pl: Serbia
-  nl: Servië
-  ar: صربيا
-  hi: सर्बिया
-  th: เซอร์เบีย
-  cs: Srbsko
-  sv: Serbien
-  he: סרביה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 north_macedonia:
   context: Sender or recipient country
@@ -3766,22 +3173,21 @@ north_macedonia:
   zh: 北马其顿
   es: Macedonia del Norte
   fr: Macédoine du Nord
-  pt: Macedônia do Norte
-  ru: Северная Македония
+  pt: ""
+  ru: ""
   ja: 北マケドニア
-  ko: 북마케도니아
-  it: Macedonia del Nord
-  tr: Kuzey Makedonya
-  vi: Bắc Macedonia
-  id: Makedonia Utara
-  pl: Macedonia Północna
-  nl: Noord-Macedonië
-  ar: مقدونيا الشمالية
-  hi: उत्तर मैसेडोनिया
-  th: มาซิโดเนียเหนือ
-  cs: Severní Makedonie
-  sv: Nordmakedonien
-  he: צפון מקדוניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 albania:
   context: Sender or recipient country
@@ -3790,22 +3196,21 @@ albania:
   zh: 阿尔巴尼亚
   es: Albania
   fr: Albanie
-  pt: Albânia
-  ru: Албания
+  pt: ""
+  ru: ""
   ja: アルバニア
-  ko: 알바니아
-  it: Albania
-  tr: Arnavutluk
-  vi: Albania
-  id: Albania
-  pl: Albania
-  nl: Albanië
-  ar: ألبانيا
-  hi: अल्बानिया
-  th: แอลเบเนีย
-  cs: Albánie
-  sv: Albanien
-  he: אלבניה
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []
 montenegro:
   context: Sender or recipient country
@@ -3814,20 +3219,19 @@ montenegro:
   zh: 黑山
   es: Montenegro
   fr: Monténégro
-  pt: Montenegro
-  ru: Черногория
+  pt: ""
+  ru: ""
   ja: モンテネグロ
-  ko: 몬테네그로
-  it: Montenegro
-  tr: Karadağ
-  vi: Montenegro
-  id: Montenegro
-  pl: Czarnogóra
-  nl: Montenegro
-  ar: الجبل الأسود
-  hi: मोंटेनेग्रो
-  th: มอนเตเนโกร
-  cs: Černá Hora
-  sv: Montenegro
-  he: מונטנגרו
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
   verified_by_human: []

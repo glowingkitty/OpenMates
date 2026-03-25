@@ -1,3 +1,27 @@
+search:
+  context: Search skill label
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: []
 transcript:
   context: Transcript skill label
   en: Transcript
@@ -21,6 +45,30 @@ transcript:
   cs: Přepis
   sv: Transkription
   he: תמלול
+  verified_by_human: []
+processing:
+  context: Status text when skill is processing
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione in corso...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerking...
+  ar: جاري المعالجة...
+  hi: प्रक्रिया जारी है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  he: מעבד...
   verified_by_human: []
 completed:
   context: Status text when skill execution is completed
@@ -141,6 +189,54 @@ open_search_results:
   cs: Otevřít výsledky hledání
   sv: Öppna sökresultat
   he: פתיחת תוצאות חיפוש
+  verified_by_human: []
+stop:
+  context: Button label to stop skill execution
+  en: Stop
+  de: Stopp
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Berhenti
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצירה
+  verified_by_human: []
+share:
+  context: Button label to share skill results
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
   verified_by_human: []
 exit_fullscreen:
   context: Button label to exit fullscreen view
@@ -550,6 +646,30 @@ video_transcript:
   sv: Transkription
   he: תמלול
   verified_by_human: []
+web_read:
+  context: Web Read skill label
+  en: Read
+  de: Lesen
+  zh: 阅读
+  es: Leer
+  fr: Lire
+  pt: Ler
+  ru: Чтение
+  ja: 読む
+  ko: 읽기
+  it: Leggi
+  tr: Oku
+  vi: Đọc
+  id: Baca
+  pl: Czytaj
+  nl: Lezen
+  ar: قراءة
+  hi: पढ़ें
+  th: อ่าน
+  cs: Přečíst
+  sv: Läs
+  he: קריאה
+  verified_by_human: []
 web_read_full_view:
   context: Label above the open website button in web read fullscreen
   en: "Full viewing experience:"
@@ -693,6 +813,54 @@ video_likes:
   cs: "{count} líbí se mi"
   sv: "{count} gillar"
   he: "{count} לייקים"
+  verified_by_human: []
+date_today:
+  context: Relative date for today
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  he: היום
+  verified_by_human: []
+date_yesterday:
+  context: Relative date for yesterday
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  he: אתמול
   verified_by_human: []
 date_days_ago:
   context: Relative date for N days ago
@@ -1015,6 +1183,30 @@ reminder.error:
   cs: Chyba
   sv: Fel
   he: שגיאה
+  verified_by_human: [en, de]
+reminder.new_chat:
+  context: Badge text for reminder targeting a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Chat nuevo
+  fr: Nouvelle conversation
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Cuộc trò chuyện mới
+  id: Obrolan baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नई चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: "צ'אט חדש"
   verified_by_human: [en, de]
 reminder.existing_chat:
   context: Badge text for reminder targeting the existing chat
@@ -1472,6 +1664,30 @@ search_failed:
   sv: Sökningen misslyckades
   he: החיפוש נכשל
   verified_by_human: [en, de]
+loading:
+  context: Loading state text while results are being fetched
+  en: Loading...
+  de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: [en, de]
 no_results:
   context: Message when no results were found
   en: No connections found.
@@ -1616,6 +1832,30 @@ download_itinerary:
   sv: Ladda ner resplan
   he: הורדת מסלול הטיול
   verified_by_human: [en, de]
+image_generate:
+  context: Image generate skill label shown in BasicInfosBar - shows the skill name "Generate"
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерация
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: बनाएं
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  he: יצירה
+  verified_by_human: []
 image_generate_draft:
   context: Image generate draft skill label shown in BasicInfosBar - shows the skill name "Generate Draft"
   en: Generate Draft
@@ -1880,6 +2120,102 @@ image_generate.open_full_size:
   sv: Öppna bild i full storlek
   he: פתיחת תמונה בגודל מלא
   verified_by_human: []
+context_menu.view:
+  context: Context menu action to open embed in fullscreen view
+  en: View
+  de: Anzeigen
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: Ver
+  ru: Просмотр
+  ja: 表示
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Wyświetl
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: Visa
+  he: תצוגה
+  verified_by_human: []
+context_menu.share:
+  context: Context menu action to share an embed
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+context_menu.copy:
+  context: Context menu action to copy embed content
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  he: העתקה
+  verified_by_human: []
+context_menu.download:
+  context: Context menu action to download embed content
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  he: הורדה
+  verified_by_human: []
 context_menu.deactivate:
   context: Context menu action to deactivate a focus mode
   en: Deactivate
@@ -1903,6 +2239,30 @@ context_menu.deactivate:
   cs: Deaktivovat
   sv: Inaktivera
   he: השבתה
+  verified_by_human: []
+context_menu.details:
+  context: Context menu action to view focus mode details in app store
+  en: Details
+  de: Details
+  zh: 详情
+  es: Detalles
+  fr: Détails
+  pt: Detalhes
+  ru: Подробности
+  ja: 詳細
+  ko: 상세정보
+  it: Dettagli
+  tr: Ayrıntılar
+  vi: Chi tiết
+  id: Detail
+  pl: Szczegóły
+  nl: Details
+  ar: تفاصيل
+  hi: विवरण
+  th: รายละเอียด
+  cs: Podrobnosti
+  sv: Detaljer
+  he: פרטים
   verified_by_human: []
 focus_mode.active_banner:
   context: Fixed header banner text shown in ActiveChat when a focus mode is active for the current chat. Short label indicating an active focus session.
@@ -2554,6 +2914,54 @@ view_on_meetup:
   sv: Visa på Meetup
   he: צפייה ב-Meetup
   verified_by_human: []
+focus_mode.context_menu.stop:
+  context: Context menu button to stop an activated focus mode session
+  en: Stop
+  de: Stoppen
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Hentikan
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  he: עצירה
+  verified_by_human: []
+focus_mode.context_menu.cancel:
+  context: Context menu button to cancel a focus mode that hasn't been activated
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
 loading_map:
   context: Loading placeholder text while map is being initialized
   en: Loading map...
@@ -2745,6 +3153,31 @@ pii_show:
   cs: Zobrazit citlivá data
   sv: Visa känsliga uppgifter
   he: הצגת נתונים רגישים
+maps_location:
+  context: Maps Location skill label shown in BasicInfosBar
+  en: Location
+  de: Standort
+  zh: 位置
+  es: Ubicación
+  fr: Emplacement
+  pt: Localização
+  ru: Местоположение
+  ja: 場所
+  ko: 위치
+  it: Posizione
+  tr: Konum
+  vi: Vị trí
+  id: Lokasi
+  pl: Lokalizacja
+  nl: Locatie
+  ar: الموقع
+  hi: स्थान
+  th: ตำแหน่ง
+  cs: Poloha
+  sv: Plats
+  he: מיקום
+  verified_by_human: []
+
 maps_location.open_in_google_maps:
   context: Button label to open a selected location in Google Maps
   en: Open in Google Maps
@@ -3339,6 +3772,31 @@ shopping.no_results:
   sv: Inga produkter hittades.
   he: לא נמצאו מוצרים.
   verified_by_human: [en, de]
+shopping.search_products:
+  context: Shopping search products skill label shown in BasicInfosBar
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: [en, de]
+
 math.calculate:
   context: Math Calculate skill label shown in BasicInfosBar
   en: Calculate

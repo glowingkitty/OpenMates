@@ -46,6 +46,30 @@ ai.description:
   sv: Ställ frågor, brainstorma idéer och mer.
   he: שאל שאלות, העלה רעיונות ועוד.
   verified_by_human: [en, de]
+ai.skills.ask:
+  context: Skill name for AI ask skill
+  en: Ask
+  de: Fragen
+  zh: 提问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問する
+  ko: 질문하기
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  he: שאל
+  verified_by_human: [en, de]
 ai.skills.ask.description:
   context: Description for AI ask skill
   en: Ask using text, images, and other media.
@@ -117,6 +141,30 @@ web.description:
   cs: Procházejte weby, zkoumejte témata.
   sv: Bläddra på webbplatser, forska ämnen.
   he: גלוש באתרים, חקור נושאים ועוד.
+  verified_by_human: [en, de]
+web.skills.search:
+  context: Skill name for web search
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חפש
   verified_by_human: [en, de]
 web.skills.search.description:
   context: Description for web search skill
@@ -238,6 +286,30 @@ life_coaching.description:
   sv: Planera dina nästa steg i livet.
   he: תכנן את הצעדים הבאים שלך בחיים.
   verified_by_human: [en, de]
+audio:
+  context: App name for the Audio app (voice notes with AI transcription)
+  en: Audio
+  de: Audio
+  zh: 音频
+  es: Audio
+  fr: Audio
+  pt: Áudio
+  ru: Аудио
+  ja: 音声
+  ko: 오디오
+  it: Audio
+  tr: Ses
+  vi: Âm thanh
+  id: Audio
+  pl: Audio
+  nl: Audio
+  ar: صوت
+  hi: ऑडियो
+  th: เสียง
+  cs: Zvuk
+  sv: Ljud
+  he: אודיו
+  verified_by_human: []
 audio.description:
   context: Description for the Audio app (voice note recording + AI transcription)
   en: Record voice notes and get transcripts.
@@ -598,6 +670,30 @@ nutrition.description:
   sv: Följ måltider, hitta recept och ät hälsosammare.
   he: עקוב אחר ארוחות, מצא מתכונים ואכול בריא יותר.
   verified_by_human: [en, de]
+images:
+  context: App name for the Images app
+  en: Images
+  de: Bilder
+  zh: 图片
+  es: Imágenes
+  fr: Images
+  pt: Imagens
+  ru: Изображения
+  ja: 画像
+  ko: 이미지
+  it: Immagini
+  tr: Görüntüler
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obrazy
+  nl: Afbeeldingen
+  ar: الصور
+  hi: छवियां
+  th: รูปภาพ
+  cs: Obrázky
+  sv: Bilder
+  he: תמונות
+  verified_by_human: [en, de]
 images.description:
   context: Description for the Images app
   en: Generate images from text descriptions.
@@ -621,6 +717,30 @@ images.description:
   cs: Generujte obrázky z textových popisů.
   sv: Generera bilder från textbeskrivningar.
   he: צור תמונות מתיאורי טקסט.
+  verified_by_human: [en, de]
+images.skills.generate:
+  context: Skill name for image generation
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Hasilkan
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: उत्पन्न करें
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  he: יצירה
   verified_by_human: [en, de]
 images.skills.generate.description:
   context: Description for image generation skill
@@ -886,6 +1006,30 @@ code.description:
   sv: Kodningshjälp, docs och projektråd.
   he: קבלת עזרה בתכנות, תיעוד וייעוץ לפרויקטים.
   verified_by_human: [en, de]
+docs:
+  context: App name for the Docs app
+  en: Docs
+  de: Dokumente
+  zh: 文档
+  es: Documentos
+  fr: Documents
+  pt: Documentos
+  ru: Документы
+  ja: ドキュメント
+  ko: 문서
+  it: Documenti
+  tr: Belgeler
+  vi: Tài liệu
+  id: Dokumen
+  pl: Dokumenty
+  nl: Documenten
+  ar: المستندات
+  hi: दस्तावेज़
+  th: เอกสาร
+  cs: Dokumenty
+  sv: Dokument
+  he: מסמכים
+  verified_by_human: []
 docs.description:
   context: Description for the Docs app
   en: Create documents, reports, articles & more.
@@ -1054,6 +1198,30 @@ maps.favorite_places.description:
   sv: Dina sparade favoritplatser.
   he: המקומות המועדפים ששמרת לגישה מהירה.
   verified_by_human: [en, de]
+maps.search:
+  context: Skill name for search in Maps app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: [en, de]
 maps.search.description:
   context: Description for search skill in Maps app
   en: Search places, businesses, and locations.
@@ -1125,6 +1293,30 @@ news.description:
   cs: Zůstaňte informováni s nejnovějšími zprávami.
   sv: Håll dig informerad med de senaste nyheterna.
   he: להישאר מעודכנים בחדשות האחרונות.
+  verified_by_human: [en, de]
+news.search:
+  context: Skill name for search in News app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 news.search.description:
   context: Description for search skill in News app
@@ -1245,6 +1437,30 @@ events.description:
   cs: Objevujte meetupy, konference a místní události.
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: גלה מיטאפים, כנסים ואירועים מקומיים.
+  verified_by_human: [en, de]
+events.search:
+  context: Skill name for search in Events app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 events.search.description:
   context: Description for search skill in Events app

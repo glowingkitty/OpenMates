@@ -791,6 +791,54 @@ profile_picture.wrong_format:
   sv: Välj en JPEG- eller PNG-bild.
   he: יש לבחור תמונה בפורמט JPEG או PNG.
   verified_by_human: []
+storage:
+  context: Storage overview submenu under Account settings (header title shown when navigating into account/storage)
+  en: Storage
+  de: Speicher
+  zh: 存储
+  es: Almacenamiento
+  fr: Stockage
+  pt: Armazenamento
+  ru: Хранилище
+  ja: ストレージ
+  ko: 저장소
+  it: Archiviazione
+  tr: Depolama
+  vi: Lưu trữ
+  id: Penyimpanan
+  pl: Przechowywanie
+  nl: Opslag
+  ar: التخزين
+  hi: संग्रहण
+  th: การจัดเก็บ
+  cs: Úložiště
+  sv: Lagring
+  he: אחסון
+  verified_by_human: []
+delete:
+  context: Delete Account submenu under Account settings
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
+  he: מחיקה
+  verified_by_human: []
 delete_account_title:
   context: Title for delete account page
   en: Delete Your Account
@@ -1030,6 +1078,30 @@ delete_account_auto_refund_eligible_invoices:
   cs: Oprávněné faktury
   sv: Berättigade fakturor
   he: חשבוניות זכאיות
+  verified_by_human: []
+delete_account_auto_refund_gift_cards:
+  context: Label for gift cards
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de regalo
+  fr: Cartes cadeaux
+  pt: Cartões-presente
+  ru: Подарочные карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Carte regalo
+  tr: Hediye kartları
+  vi: Thẻ quà tặng
+  id: Kartu hadiah
+  pl: Karty podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové karty
+  sv: Presentkort
+  he: כרטיסי מתנה
   verified_by_human: []
 delete_account_auto_refund_gift_cards_note:
   context: Note about gift cards
@@ -1319,6 +1391,30 @@ delete_account_deleting:
   sv: Tar bort konto...
   he: מוחק את החשבון...
   verified_by_human: []
+delete_account_retry:
+  context: Retry button text
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: ניסיון חוזר
+  verified_by_human: []
 delete_account_no_auth_method:
   context: Error message when user has no authentication method (no passkey and no 2FA) for account deletion
   en: Authentication required. Please set up a passkey or 2FA in Security settings first.
@@ -1414,6 +1510,30 @@ delete_account_2fa_description:
   cs: Zadejte prosím 6místný kód z vaší autentizační aplikace pro potvrzení smazání účtu.
   sv: Ange den 6-siffriga koden från din autentiseringsapp för att bekräfta kontoborttagningen.
   he: אנא הזן את הקוד בן 6 הספרות מאפליקציית האימות שלך כדי לאשר את מחיקת החשבון.
+  verified_by_human: []
+delete_account_2fa_cancel:
+  context: Cancel button text in 2FA input section
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
   verified_by_human: []
 delete_account_2fa_invalid:
   context: Error message when 2FA code is invalid
@@ -1971,6 +2091,30 @@ export_login_required:
   verified_by_human: []
 
 # --- Password Settings ---
+password:
+  context: Password submenu under Security settings
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  he: סיסמה
+  verified_by_human: []
 password_add:
   context: Subtitle when user needs to add password
   en: Add password login
@@ -2019,6 +2163,55 @@ password_change:
   sv: Ändra lösenord
   he: שינוי הסיסמה שלך
   verified_by_human: []
+add_password:
+  context: Title for add password page
+  en: Add Password
+  de: Passwort hinzufügen
+  zh: 添加密码
+  es: Agregar contraseña
+  fr: Ajouter un mot de passe
+  pt: Adicionar senha
+  ru: Добавить пароль
+  ja: パスワードを追加
+  ko: 비밀번호 추가
+  it: Aggiungi password
+  tr: Şifre ekle
+  vi: Thêm mật khẩu
+  id: Tambahkan kata sandi
+  pl: Dodaj hasło
+  nl: Wachtwoord toevoegen
+  ar: إضافة كلمة المرور
+  hi: पासवर्ड जोड़ें
+  th: เพิ่มรหัสผ่าน
+  cs: Přidat heslo
+  sv: Lägg till lösenord
+  he: הוספת סיסמה
+  verified_by_human: []
+change_password:
+  context: Title for change password page
+  en: Change Password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar contraseña
+  fr: Changer le mot de passe
+  pt: Alterar senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia password
+  tr: Şifreyi değiştir
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  he: שינוי סיסמה
+  verified_by_human: []
+
 delete_account_uncompleted_title:
   context: Title for uncompleted account deletion
   en: Delete uncompleted account
@@ -2261,6 +2454,30 @@ timezone_loading:
   sv: Laddar tidszonsinställningar...
   he: טוען הגדרות אזור זמן...
   verified_by_human: []
+timezone_other:
+  context: Header for other/custom timezones not in predefined list
+  en: Other
+  de: Andere
+  zh: 其他
+  es: Otro
+  fr: Autre
+  pt: Outro
+  ru: Другое
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overig
+  ar: أخرى
+  hi: अन्य
+  th: อื่นๆ
+  cs: Ostatní
+  sv: Övrigt
+  he: אחר
+  verified_by_human: []
 timezone_info:
   context: Info text explaining timezone usage
   en: Your timezone is used for scheduling reminders and displaying times. It was automatically detected from your browser but you can change it here.
@@ -2286,6 +2503,30 @@ timezone_info:
   he: אזור הזמן שלך משמש לתזמון תזכורות ולהצגת זמנים. הוא זוהה אוטומטית מהדפדפן שלך, אך ניתן לשנות אותו כאן.
   verified_by_human: []
 
+chats:
+  context: Chats submenu item label in Account settings — also used as the page title
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Cuộc trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
+  ar: المحادثات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+  he: צ'אטים
+  verified_by_human: []
 chats.description:
   context: Short description shown in the Chats settings page header
   en: Manage and review your chat history
@@ -2334,6 +2575,30 @@ chats.total_count:
   sv: "{count} chattar"
   he: "{count} צ'אטים"
   verified_by_human: []
+chats.loading:
+  context: Loading state text while chat stats are being fetched
+  en: Loading...
+  de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جارٍ التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: []
 chats.error:
   context: Error message when chat stats fail to load
   en: Failed to load chat statistics
@@ -2357,6 +2622,30 @@ chats.error:
   cs: Načtení statistik chatu se nezdařilo
   sv: Det gick inte att ladda chattstatistik
   he: טעינת נתוני הצ'אט נכשלה
+  verified_by_human: []
+chats.retry:
+  context: Button label to retry loading chat stats after error
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
   verified_by_human: []
 chats.timeline_title:
   context: Section heading above the chat creation timeline graph
@@ -2694,6 +2983,54 @@ chats.delete_confirm_desc:
   sv: "Det här tar permanent bort alla chattar äldre än {days} dagar. Den här åtgärden kan inte ångras."
   he: "פעולה זו תמחק לצמיתות את כל הצ'אטים הישנים מ-{days} ימים. לא ניתן לבטל פעולה זו."
   verified_by_human: []
+chats.delete_confirm_button:
+  context: Confirmation button to proceed with deletion of old chats
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
+  he: מחק
+  verified_by_human: []
+chats.delete_cancel_button:
+  context: Cancel button in the delete confirmation dialog
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
 chats.delete_deleting:
   context: Status text shown while deletion is in progress
   en: Deleting...
@@ -2861,6 +3198,30 @@ chats.preview_loading:
   cs: Kontrola...
   sv: Kontrollerar...
   he: בודק...
+  verified_by_human: []
+export_select_all:
+  context: "Link to select all export categories"
+  en: Select all
+  de: Alles auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать всё
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Hepsini seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
   verified_by_human: []
 export_deselect_all:
   context: "Link to deselect all export categories"
@@ -3128,6 +3489,30 @@ import_select_chats:
   sv: Välj chattar att importera
   he: בחר שיחות לייבוא
   verified_by_human: []
+import_select_all:
+  context: Select all chats button on import page
+  en: Select all
+  de: Alle auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Hepsini seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  he: בחר הכל
+  verified_by_human: []
 import_deselect_all:
   context: Deselect all chats button on import page
   en: Deselect all
@@ -3199,6 +3584,30 @@ import_estimated_cost:
   cs: Odhadované náklady
   sv: Beräknad kostnad
   he: עלות משוערת
+  verified_by_human: []
+import_credits:
+  context: "Credits unit label (e.g. '5 credits')"
+  en: credits
+  de: Guthaben
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредитов
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredytów
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kreditů
+  sv: krediter
+  he: קרדיטים
   verified_by_human: []
 import_chats_selected:
   context: Number of chats selected label in cost estimate

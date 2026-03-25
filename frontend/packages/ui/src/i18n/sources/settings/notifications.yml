@@ -179,6 +179,31 @@ backup.interval_days:
   he: "כל {count} ימים"
   verified_by_human: []
 
+backup.disabled:
+  context: Status text shown when backup reminder emails are disabled
+  en: Disabled
+  de: Deaktiviert
+  zh: 已禁用
+  fr: Désactivé
+  es: Desactivado
+  pt: Desativado
+  ru: Отключено
+  ja: 無効
+  ko: 비활성화됨
+  it: Disabilitato
+  tr: Devre dışı
+  vi: Đã tắt
+  id: Dinonaktifkan
+  pl: Wyłączone
+  nl: Uitgeschakeld
+  ar: معطّل
+  hi: अक्षम
+  th: ปิดใช้งาน
+  cs: Zakázáno
+  sv: Inaktiverat
+  he: מושבת
+  verified_by_human: []
+
 backup.last_export:
   context: Label showing the date of the user's last account export
   en: Last export

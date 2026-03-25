@@ -860,3 +860,27 @@ credits_depleted.message:
   he: נגמרו לך הקרדיטים. רכוש עוד כדי להמשיך להשתמש ב-OpenMates.
   verified_by_human: []
 
+credits_depleted.buy_credits:
+  context: Action button label on the credits depleted notification that opens the buy credits page
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar Créditos
+  fr: Acheter des Crédits
+  pt: Comprar Créditos
+  ru: Купить Кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista Crediti
+  tr: Kredi Satın Al
+  vi: Mua tín dụng
+  id: Beli Kredit
+  pl: Kup Kredyty
+  nl: Credits Kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit Kredity
+  sv: Köp Krediter
+  he: קניית קרדיטים
+  verified_by_human: []

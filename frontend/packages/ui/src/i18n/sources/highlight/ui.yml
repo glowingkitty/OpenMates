@@ -70,3 +70,27 @@ events:
   sv: Evenemang
   he: אירועים
   verified_by_human: []
+search:
+  context: Used in 'Events | Search'
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Recherche
+  pt: Pesquisa
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: []

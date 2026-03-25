@@ -5,22 +5,44 @@ title:
   zh: 条款和条件
   es: Términos y condiciones
   fr: Conditions générales d'utilisation
-  pt: Termos e Condições
-  ru: Условия и положения
+  pt: ''
+  ru: ''
   ja: 利用規約
-  ko: 이용 약관
-  it: Termini e Condizioni
-  tr: Şartlar ve Koşullar
-  vi: Điều Khoản và Điều Kiện
-  id: Syarat dan Ketentuan
-  pl: Regulamin
-  nl: Algemene Voorwaarden
-  ar: الشروط والأحكام
-  hi: नियम और शर्तें
-  th: ข้อกำหนดและเงื่อนไข
-  cs: Obchodní podmínky
-  sv: Villkor och bestämmelser
-  he: תנאים והגבלות
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+last_updated:
+  context: Last update date label
+  en: Last Updated
+  de: Zuletzt aktualisiert
+  zh: 最后更新
+  es: Última actualización
+  fr: Dernière mise à jour
+  pt: ''
+  ru: ''
+  ja: 最終更新日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 agreement.heading:
   context: Section heading for agreement
@@ -29,22 +51,21 @@ agreement.heading:
   zh: 同意条款
   es: Acuerdo con los términos
   fr: Acceptation des conditions
-  pt: Concordância com os Termos
-  ru: Согласие с условиями
+  pt: ''
+  ru: ''
   ja: 規約への同意
-  ko: 약관 동의
-  it: Accordo con i Termini
-  tr: Koşulları Kabul
-  vi: Đồng ý với Điều Khoản
-  id: Persetujuan Ketentuan
-  pl: Akceptacja warunków
-  nl: Akkoord met de voorwaarden
-  ar: الموافقة على الشروط
-  hi: शर्तों से सहमति
-  th: การยอมรับข้อกำหนด
-  cs: Souhlas s podmínkami
-  sv: Godkännande av villkor
-  he: הסכמה לתנאים
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 agreement.description:
   context: Agreement explanation
@@ -53,22 +74,21 @@ agreement.description:
   zh: 访问和使用 OpenMates 网站（“网站”），即表示您接受并同意受这些条款和条件的约束。 如果您不同意这些条款的任何部分，则不得访问本网站。
   es: Al acceder y utilizar el sitio web de OpenMates ("Sitio web"), acepta y se compromete a cumplir estos Términos y condiciones. Si no está de acuerdo con alguna parte de estos términos, no puede acceder al Sitio web.
   fr: En accédant et en utilisant le site web OpenMates ("Site web"), vous acceptez et consentez à être lié par ces Conditions générales d'utilisation. Si vous n'êtes pas d'accord avec une partie de ces conditions, vous ne pouvez pas accéder au Site web.
-  pt: "Ao acessar e usar o site do OpenMates (\"Site\"), você aceita e concorda em ficar vinculado a estes Termos e Condições. Se você discordar de qualquer parte destes termos, não poderá acessar o Site."
-  ru: "Получая доступ к веб-сайту OpenMates (\"Веб-сайт\") и используя его, вы принимаете и соглашаетесь соблюдать настоящие Условия и положения. Если вы не согласны с какой-либо частью этих условий, вы не можете получить доступ к Веб-сайту."
+  pt: ''
+  ru: ''
   ja: OpenMatesウェブサイト（以下「ウェブサイト」）にアクセスし利用することで、あなたはこれらの利用規約に同意し、拘束されることを承諾するものとします。これらの規約の一部に同意できない場合は、ウェブサイトにアクセスすることはできません。
-  ko: OpenMates 웹사이트("웹사이트")에 접속하고 사용함으로써 귀하는 이 이용 약관에 동의하고 구속받는 것을 수락합니다. 이 약관의 어떤 부분에도 동의하지 않으면 웹사이트에 접속할 수 없습니다.
-  it: "Accedendo e utilizzando il sito web OpenMates ('Sito web'), accetti e acconsenti ad essere vincolato da questi Termini e Condizioni. Se non sei d'accordo con qualsiasi parte di questi termini, non puoi accedere al Sito web."
-  tr: "OpenMates web sitesine ('Web sitesi') erişerek ve kullanarak, bu Şartlar ve Koşulları kabul etmiş ve bunlarla bağlı olmayı onaylamış olursunuz. Bu şartların herhangi bir bölümüne katılmıyorsanız, Web sitesine erişemezsiniz."
-  vi: "Bằng cách truy cập và sử dụng trang web OpenMates (\"Trang web\"), bạn chấp nhận và đồng ý bị ràng buộc bởi các Điều Khoản và Điều Kiện này. Nếu bạn không đồng ý với bất kỳ phần nào của các điều khoản này, bạn không được truy cập Trang web."
-  id: "Dengan mengakses dan menggunakan situs web OpenMates (\"Situs web\"), Anda menerima dan setuju untuk terikat dengan Syarat dan Ketentuan ini. Jika Anda tidak setuju dengan bagian mana pun dari ketentuan ini, Anda tidak dapat mengakses Situs web."
-  pl: "Uzyskując dostęp do strony internetowej OpenMates (\"Strona\") i korzystając z niej, akceptujesz niniejszy Regulamin i zgadzasz się nim związać. Jeśli nie zgadzasz się z jakąkolwiek częścią tych warunków, nie możesz korzystać ze Strony."
-  nl: "Door de OpenMates-website (\"Website\") te bezoeken en te gebruiken, aanvaardt u deze Algemene Voorwaarden en gaat u ermee akkoord hieraan gebonden te zijn. Als u het niet eens bent met enig deel van deze voorwaarden, mag u de Website niet bezoeken."
-  ar: بالوصول إلى موقع OpenMates ("الموقع") واستخدامه، فإنك تقبل وتوافق على الالتزام بهذه الشروط والأحكام. إذا كنت لا توافق على أي جزء من هذه الشروط، فلا يمكنك الوصول إلى الموقع.
-  hi: "OpenMates वेबसाइट (\"वेबसाइट\") तक पहुंचने और उपयोग करने से, आप इन नियमों और शर्तों से बाध्य होने के लिए स्वीकार और सहमत होते हैं। यदि आप इन शर्तों के किसी भी हिस्से से असहमत हैं, तो आप वेबसाइट तक नहीं पहुंच सकते।"
-  th: โดยการเข้าถึงและใช้เว็บไซต์ OpenMates ("เว็บไซต์") คุณยอมรับและตกลงที่จะผูกพันตามข้อกำหนดและเงื่อนไขเหล่านี้ หากคุณไม่เห็นด้วยกับส่วนใดส่วนหนึ่งของข้อกำหนดเหล่านี้ คุณไม่สามารถเข้าถึงเว็บไซต์ได้
-  cs: "Přístupem na webové stránky OpenMates (\"Webové stránky\") a jejich používáním přijímáte tyto Obchodní podmínky a souhlasíte s tím, že jimi budete vázáni. Pokud nesouhlasíte s jakoukoliv částí těchto podmínek, nesmíte Webové stránky navštěvovat."
-  sv: Genom att komma åt och använda OpenMates webbplats ("Webbplats") accepterar du och samtycker till att vara bunden av dessa Villkor och bestämmelser. Om du inte håller med om någon del av dessa villkor får du inte komma åt Webbplatsen.
-  he: בגישתך לאתר OpenMates ("האתר") ובשימוש בו, אתה מקבל ומסכים להיות מחויב לתנאים והגבלות אלה. אם אינך מסכים לאיזה מחלקי תנאים אלה, אינך רשאי לגשת לאתר.
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 about.heading:
   context: Section heading about OpenMates
@@ -77,22 +97,21 @@ about.heading:
   zh: 关于 OpenMates
   es: Sobre OpenMates
   fr: À propos d'OpenMates
-  pt: Sobre o OpenMates
-  ru: О OpenMates
+  pt: ''
+  ru: ''
   ja: OpenMatesについて
-  ko: OpenMates 소개
-  it: Informazioni su OpenMates
-  tr: OpenMates Hakkında
-  vi: Giới thiệu về OpenMates
-  id: Tentang OpenMates
-  pl: O OpenMates
-  nl: Over OpenMates
-  ar: حول OpenMates
-  hi: OpenMates के बारे में
-  th: เกี่ยวกับ OpenMates
-  cs: O OpenMates
-  sv: Om OpenMates
-  he: אודות OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 about.description:
   context: About section text
@@ -101,22 +120,21 @@ about.description:
   zh: OpenMates 目前是一个处于初始开发阶段的闭源软件项目。 这种临时的闭源状态旨在确保早期开发和 beta 测试阶段的安全性和稳定性。 该项目将在完成初始 beta 测试和安全审查后过渡到开源。 本网站作为有关 OpenMates 项目及其开发进度的信息平台。
   es: OpenMates es actualmente un proyecto de software de código cerrado en su fase inicial de desarrollo. Este estado temporal de código cerrado se mantiene para garantizar la seguridad y estabilidad durante las primeras fases de desarrollo y pruebas beta. El proyecto pasará a ser de código abierto después de completar las pruebas beta iniciales y las revisiones de seguridad. Este sitio web sirve como plataforma informativa sobre el proyecto OpenMates y su progreso de desarrollo.
   fr: OpenMates est actuellement un projet de logiciel à code source fermé pendant sa phase de développement initiale. Ce statut temporaire de code source fermé est maintenu pour assurer la sécurité et la stabilité pendant les premières phases de développement et de test bêta. Le projet passera en open-source après la fin des premiers tests bêta et des examens de sécurité. Ce site web sert de plateforme d'information sur le projet OpenMates et sa progression de développement.
-  pt: "O OpenMates é uma plataforma de agentes de IA de código aberto disponível sob licença AGPL-3.0. Fornecemos um serviço hospedado na nuvem em openmates.org, uma API de desenvolvedor para integração e uma ferramenta CLI. O software também pode ser auto-hospedado - consulte nosso [repositório GitHub](https://github.com/glowingkitty/OpenMates) e [documentação](https://docs.openmates.org) para mais detalhes."
-  ru: "OpenMates — это платформа ИИ-агентов с открытым исходным кодом, доступная по лицензии AGPL-3.0. Мы предоставляем облачный сервис на openmates.org, API для разработчиков и инструмент CLI. Программное обеспечение также может быть развёрнуто самостоятельно — подробности в нашем [репозитории GitHub](https://github.com/glowingkitty/OpenMates) и [документации](https://docs.openmates.org)."
+  pt: ''
+  ru: ''
   ja: OpenMatesは現在、初期開発段階にあるクローズドソースのソフトウェアプロジェクトです。この一時的なクローズドソースの状態は、初期開発とベータテスト段階におけるセキュリティと安定性を確保するために維持されています。プロジェクトは、初期ベータテストとセキュリティレビューの完了後、オープンソースに移行する予定です。このウェブサイトは、OpenMatesプロジェクトとその開発進捗に関する情報プラットフォームとして機能します。
-  ko: "OpenMates는 AGPL-3.0 라이선스 하에 제공되는 오픈소스 AI 에이전트 플랫폼입니다. openmates.org에서 클라우드 호스팅 서비스, 통합을 위한 개발자 API 및 CLI 도구를 제공합니다. 소프트웨어는 자체 호스팅도 가능합니다 - 자세한 내용은 [GitHub 저장소](https://github.com/glowingkitty/OpenMates) 및 [문서](https://docs.openmates.org)를 참조하세요."
-  it: "OpenMates è una piattaforma di agenti AI open-source disponibile sotto licenza AGPL-3.0. Forniamo un servizio cloud-hosted su openmates.org, un'API per sviluppatori per l'integrazione e uno strumento CLI. Il software può anche essere auto-ospitato - vedere il nostro [repository GitHub](https://github.com/glowingkitty/OpenMates) e la [documentazione](https://docs.openmates.org) per i dettagli."
-  tr: "OpenMates, AGPL-3.0 lisansı altında sunulan açık kaynaklı bir AI ajanları platformudur. openmates.org'da bulut tabanlı bir hizmet, entegrasyon için geliştirici API'si ve bir CLI aracı sunuyoruz. Yazılım ayrıca kendi kendine barındırılabilir - ayrıntılar için [GitHub deposumuza](https://github.com/glowingkitty/OpenMates) ve [belgelerimize](https://docs.openmates.org) bakın."
-  vi: "OpenMates là một nền tảng tác nhân AI mã nguồn mở có sẵn theo giấy phép AGPL-3.0. Chúng tôi cung cấp dịch vụ được lưu trữ trên đám mây tại openmates.org, API dành cho nhà phát triển để tích hợp và công cụ CLI. Phần mềm cũng có thể tự lưu trữ - xem [kho lưu trữ GitHub](https://github.com/glowingkitty/OpenMates) và [tài liệu](https://docs.openmates.org) để biết chi tiết."
-  id: "OpenMates adalah platform agen AI open-source yang tersedia di bawah lisensi AGPL-3.0. Kami menyediakan layanan yang dihosting di cloud di openmates.org, API pengembang untuk integrasi, dan alat CLI. Perangkat lunak ini juga dapat di-host sendiri - lihat [repositori GitHub](https://github.com/glowingkitty/OpenMates) dan [dokumentasi](https://docs.openmates.org) kami untuk detailnya."
-  pl: "OpenMates to platforma agentów AI o otwartym kodzie źródłowym dostępna na licencji AGPL-3.0. Zapewniamy usługę hostowaną w chmurze na openmates.org, API dla deweloperów do integracji oraz narzędzie CLI. Oprogramowanie może być również self-hostowane - szczegóły znajdziesz w naszym [repozytorium GitHub](https://github.com/glowingkitty/OpenMates) i [dokumentacji](https://docs.openmates.org)."
-  nl: "OpenMates is een open-source AI-agentsplatform beschikbaar onder AGPL-3.0-licentie. We bieden een cloud-gehoste service op openmates.org, een ontwikkelaars-API voor integratie en een CLI-tool. De software kan ook zelf worden gehost - zie ons [GitHub-repository](https://github.com/glowingkitty/OpenMates) en [documentatie](https://docs.openmates.org) voor details."
-  ar: "OpenMates هي منصة عوامل ذكاء اصطناعي مفتوحة المصدر متاحة بموجب ترخيص AGPL-3.0. نحن نقدم خدمة مستضافة على السحابة على openmates.org وواجهة برمجة تطبيقات للمطورين للتكامل وأداة CLI. يمكن أيضًا استضافة البرنامج ذاتيًا - راجع [مستودع GitHub](https://github.com/glowingkitty/OpenMates) و[الوثائق](https://docs.openmates.org) للتفاصيل."
-  hi: "OpenMates एक ओपन-सोर्स AI एजेंट प्लेटफॉर्म है जो AGPL-3.0 लाइसेंस के तहत उपलब्ध है। हम openmates.org पर क्लाउड-होस्टेड सेवा, एकीकरण के लिए डेवलपर API और CLI टूल प्रदान करते हैं। सॉफ्टवेयर को स्व-होस्ट भी किया जा सकता है - विवरण के लिए हमारा [GitHub रिपॉजिटरी](https://github.com/glowingkitty/OpenMates) और [दस्तावेज़ीकरण](https://docs.openmates.org) देखें।"
-  th: "OpenMates เป็นแพลตฟอร์มตัวแทน AI โอเพ่นซอร์สที่มีให้ภายใต้ลิขสิทธิ์ AGPL-3.0 เราให้บริการที่โฮสต์บนคลาวด์ที่ openmates.org API สำหรับนักพัฒนาเพื่อการผสานรวม และเครื่องมือ CLI ซอฟต์แวร์นี้ยังสามารถโฮสต์เองได้ - ดู[ที่เก็บ GitHub](https://github.com/glowingkitty/OpenMates) และ[เอกสาร](https://docs.openmates.org) สำหรับรายละเอียด"
-  cs: "OpenMates je open-source platforma AI agentů dostupná pod licencí AGPL-3.0. Poskytujeme cloudově hostovanou službu na openmates.org, API pro vývojáře k integraci a nástroj CLI. Software může být také self-hostován - podrobnosti najdete v našem [repozitáři GitHub](https://github.com/glowingkitty/OpenMates) a [dokumentaci](https://docs.openmates.org)."
-  sv: "OpenMates är en open-source AI-agentsplattform tillgänglig under AGPL-3.0-licens. Vi erbjuder en molnbaserad tjänst på openmates.org, ett utvecklar-API för integration och ett CLI-verktyg. Programvaran kan också vara själv-hostad - se vår [GitHub-repository](https://github.com/glowingkitty/OpenMates) och [dokumentation](https://docs.openmates.org) för detaljer."
-  he: "OpenMates היא פלטפורמת סוכני AI בקוד פתוח הזמינה תחת רישיון AGPL-3.0. אנו מספקים שירות מתארח בענן בכתובת openmates.org, API לפיתוח לשילוב, וכלי CLI. ניתן גם לאחסן את התוכנה בשרת עצמי - ראה [מאגר GitHub](https://github.com/glowingkitty/OpenMates) ו[תיעוד](https://docs.openmates.org) לפרטים."
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 intellectual_property.heading:
   context: Section heading for IP rights
@@ -125,22 +143,21 @@ intellectual_property.heading:
   zh: 知识产权
   es: Derechos de propiedad intelectual
   fr: Droits de propriété intellectuelle
-  pt: Direitos de Propriedade Intelectual
-  ru: Права интеллектуальной собственности
+  pt: ''
+  ru: ''
   ja: 知的財産権
-  ko: 지식재산권
-  it: Diritti di Proprietà Intellettuale
-  tr: Fikri Mülkiyet Hakları
-  vi: Quyền Sở hữu Trí tuệ
-  id: Hak Kekayaan Intelektual
-  pl: Prawa własności intelektualnej
-  nl: Intellectuele eigendomsrechten
-  ar: حقوق الملكية الفكرية
-  hi: बौद्धिक संपदा अधिकार
-  th: สิทธิ์ทรัพย์สินทางปัญญา
-  cs: Práva duševního vlastnictví
-  sv: Immateriella rättigheter
-  he: זכויות קניין רוחני
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 intellectual_property.description:
   context: Intellectual property rights explanation
@@ -149,22 +166,21 @@ intellectual_property.description:
   zh: OpenMates 名称、徽标和本网站上的所有相关内容均为网站所有者（参见版本说明）的知识产权，并受适用的版权和商标法保护。 一旦项目过渡到开源，将通过适当的开源文档单独提供具体的许可条款。
   es: El nombre OpenMates, el logotipo y todo el contenido relacionado en este sitio web son propiedad intelectual del propietario del sitio web (ver Aviso legal) y están protegidos por las leyes de derechos de autor y marcas registradas aplicables. Una vez que el proyecto pase a ser de código abierto, se proporcionarán términos de licencia específicos por separado a través de la documentación de código abierto apropiada.
   fr: Le nom OpenMates, le logo et tout le contenu associé sur ce site web sont la propriété intellectuelle du propriétaire du site web (voir Mentions légales) et sont protégés par les lois applicables sur le droit d'auteur et les marques. Une fois que le projet sera passé en open-source, des conditions de licence spécifiques seront fournies séparément par le biais d'une documentation open-source appropriée.
-  pt: "O nome e logo do OpenMates são marcas registradas do operador do serviço (ver Impressum). O software OpenMates está disponível sob licença AGPL-3.0 - veja nosso [repositório GitHub](https://github.com/glowingkitty/OpenMates) para termos de licença completos. Não reivindicamos direitos autorais sobre quaisquer respostas geradas por IA. Você retém a propriedade de seus prompts e dados. Nunca treinamos modelos de IA com dados de usuários."
-  ru: "Название и логотип OpenMates являются торговыми марками оператора сервиса (см. Импрессум). Программное обеспечение OpenMates доступно по лицензии AGPL-3.0 — полные условия лицензии см. в нашем [репозитории GitHub](https://github.com/glowingkitty/OpenMates). Мы не претендуем на авторские права на ответы, сгенерированные ИИ. Ваши запросы и данные остаются вашей собственностью. Мы никогда не обучаем модели ИИ на данных пользователей."
+  pt: ''
+  ru: ''
   ja: OpenMatesの名称、ロゴ、およびこのウェブサイト上のすべての関連コンテンツは、ウェブサイト運営者（インプリントを参照）の知的財産であり、適用される著作権法および商標法によって保護されています。プロジェクトがオープンソースに移行した際には、具体的なライセンス条件が適切なオープンソースドキュメントを通じて別途提供されます。
-  ko: "OpenMates 이름과 로고는 서비스 운영자의 상표입니다(Imprint 참조). OpenMates 소프트웨어는 AGPL-3.0 라이선스 하에 제공됩니다 - 전체 라이선스 조건은 [GitHub 저장소](https://github.com/glowingkitty/OpenMates)를 참조하세요. AI가 생성한 답변에 대한 저작권을 주장하지 않습니다. 귀하의 프롬프트와 데이터의 소유권은 귀하에게 있습니다. 사용자 데이터로 AI 모델을 훈련하지 않습니다."
-  it: "Il nome e il logo di OpenMates sono marchi registrati dell'operatore del servizio (vedi Imprint). Il software OpenMates è disponibile sotto licenza AGPL-3.0 - vedi il nostro [repository GitHub](https://github.com/glowingkitty/OpenMates) per i termini completi della licenza. Non rivendichiamo il copyright su alcuna risposta generata dall'AI. Mantieni la proprietà dei tuoi prompt e dati. Non addestriamo mai modelli AI sui dati degli utenti."
-  tr: "OpenMates adı ve logosu, hizmet operatörünün ticari markalarıdır (bkz. Künye). OpenMates yazılımı AGPL-3.0 lisansı altında mevcuttur - tam lisans koşulları için [GitHub depomuza](https://github.com/glowingkitty/OpenMates) bakın. AI tarafından oluşturulan yanıtlar üzerinde telif hakkı talep etmiyoruz. İstemleriniz ve verilerinizin sahipliği size aittir. Kullanıcı verilerini kullanarak AI modellerini asla eğitmeyiz."
-  vi: "Tên và logo OpenMates là thương hiệu của nhà điều hành dịch vụ (xem Imprint). Phần mềm OpenMates có sẵn theo giấy phép AGPL-3.0 - xem [kho lưu trữ GitHub](https://github.com/glowingkitty/OpenMates) để biết điều khoản giấy phép đầy đủ. Chúng tôi không yêu cầu bản quyền đối với bất kỳ phản hồi nào do AI tạo ra. Bạn giữ quyền sở hữu các lời nhắc và dữ liệu của mình. Chúng tôi không bao giờ huấn luyện mô hình AI trên dữ liệu người dùng."
-  id: "Nama dan logo OpenMates adalah merek dagang dari operator layanan (lihat Imprint). Perangkat lunak OpenMates tersedia di bawah lisensi AGPL-3.0 - lihat [repositori GitHub](https://github.com/glowingkitty/OpenMates) kami untuk ketentuan lisensi lengkap. Kami tidak mengklaim hak cipta atas respons yang dihasilkan AI. Anda mempertahankan kepemilikan atas prompt dan data Anda. Kami tidak pernah melatih model AI pada data pengguna."
-  pl: "Nazwa i logo OpenMates są znakami towarowymi operatora usługi (patrz Impressum). Oprogramowanie OpenMates jest dostępne na licencji AGPL-3.0 - pełne warunki licencji znajdziesz w naszym [repozytorium GitHub](https://github.com/glowingkitty/OpenMates). Nie rościmy sobie praw autorskich do żadnych odpowiedzi generowanych przez AI. Zachowujesz własność swoich promptów i danych. Nigdy nie trenujemy modeli AI na danych użytkowników."
-  nl: "De naam en het logo van OpenMates zijn handelsmerken van de servicebeheerder (zie Impressum). De OpenMates-software is beschikbaar onder AGPL-3.0-licentie - zie ons [GitHub-repository](https://github.com/glowingkitty/OpenMates) voor volledige licentievoorwaarden. Wij claimen geen auteursrecht op door AI gegenereerde antwoorden. U behoudt de eigendom van uw prompts en gegevens. Wij trainen nooit AI-modellen op gebruikersgegevens."
-  ar: "اسم وشعار OpenMates هما علامتان تجاريتان لمشغل الخدمة (انظر Imprint). برنامج OpenMates متاح بموجب ترخيص AGPL-3.0 - راجع [مستودع GitHub](https://github.com/glowingkitty/OpenMates) لشروط الترخيص الكاملة. لا ندعي حق المؤلف على أي ردود يولدها الذكاء الاصطناعي. تحتفظ بملكية مطالباتك وبياناتك. لا ندرّب نماذج الذكاء الاصطناعي أبدًا على بيانات المستخدمين."
-  hi: "OpenMates का नाम और लोगो सेवा संचालक के ट्रेडमार्क हैं (Imprint देखें)। OpenMates सॉफ्टवेयर AGPL-3.0 लाइसेंस के तहत उपलब्ध है - पूर्ण लाइसेंस शर्तों के लिए हमारा [GitHub रिपॉजिटरी](https://github.com/glowingkitty/OpenMates) देखें। हम AI-जनित प्रतिक्रियाओं पर कोई कॉपीराइट का दावा नहीं करते। आप अपने प्रॉम्प्ट और डेटा का स्वामित्व बनाए रखते हैं। हम कभी भी उपयोगकर्ता डेटा पर AI मॉडल प्रशिक्षित नहीं करते।"
-  th: "ชื่อและโลโก้ของ OpenMates เป็นเครื่องหมายการค้าของผู้ดำเนินการบริการ (ดู Imprint) ซอฟต์แวร์ OpenMates มีให้ใช้งานภายใต้ลิขสิทธิ์ AGPL-3.0 - ดู[ที่เก็บ GitHub](https://github.com/glowingkitty/OpenMates) สำหรับเงื่อนไขลิขสิทธิ์ฉบับเต็ม เราไม่อ้างสิทธิ์ลิขสิทธิ์ใดๆ สำหรับคำตอบที่สร้างโดย AI คุณยังคงเป็นเจ้าของคำขอและข้อมูลของคุณ เราไม่เคยฝึกโมเดล AI บนข้อมูลผู้ใช้"
-  cs: "Název a logo OpenMates jsou ochranné známky provozovatele služby (viz Imprint). Software OpenMates je dostupný pod licencí AGPL-3.0 - úplné podmínky licence naleznete v našem [repozitáři GitHub](https://github.com/glowingkitty/OpenMates). Nenárokujeme si autorská práva na žádné odpovědi generované AI. Zachováváte vlastnictví svých dotazů a dat. Nikdy netrénujeme modely AI na uživatelských datech."
-  sv: "OpenMates namn och logotyp är varumärken som tillhör tjänsteleverantören (se Impressum). OpenMates-programvaran är tillgänglig under AGPL-3.0-licens - se vårt [GitHub-repository](https://github.com/glowingkitty/OpenMates) för fullständiga licensvillkor. Vi gör inga upphovsrättsanspråk på AI-genererade svar. Du behåller äganderätten till dina prompts och data. Vi tränar aldrig AI-modeller på användardata."
-  he: "שם OpenMates והלוגו הם סימנים מסחריים של מפעיל השירות (ראה אימפרינט). תוכנת OpenMates זמינה תחת רישיון AGPL-3.0 - ראה [מאגר GitHub](https://github.com/glowingkitty/OpenMates) לתנאי הרישיון המלאים. איננו תובעים זכויות יוצרים על תגובות שנוצרו על ידי AI. אתה שומר על הבעלות על ההנחיות והנתונים שלך. איננו מאמנים לעולם מודלי AI על נתוני משתמשים."
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.heading:
   context: Section heading for use license
@@ -172,23 +188,22 @@ use_license.heading:
   de: Nutzungslizenz
   zh: 使用许可
   es: Licencia de uso
-  fr: Licence d'utilisation
-  pt: Licença de Uso
-  ru: Лицензия использования
+  fr: ''
+  pt: ''
+  ru: ''
   ja: 使用ライセンス
-  ko: 사용 라이선스
-  it: Licenza d'uso
-  tr: Kullanım Lisansı
-  vi: Giấy phép Sử dụng
-  id: Lisensi Penggunaan
-  pl: Licencja użytkowania
-  nl: Gebruikslicentie
-  ar: ترخيص الاستخدام
-  hi: उपयोग लाइसेंस
-  th: ใบอนุญาตการใช้งาน
-  cs: Licence k použití
-  sv: Användningslicens
-  he: רישיון שימוש
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.description:
   context: License terms explanation
@@ -196,263 +211,252 @@ use_license.description:
   de: 'Die Erlaubnis wird erteilt, vorübergehend auf die Materialien auf unserer Website ausschließlich für persönliche, nicht-kommerzielle Informationszwecke zuzugreifen. Dies ist die Gewährung einer Lizenz, nicht die Übertragung eines Titels, und unter dieser Lizenz dürfen Sie nicht:'
   zh: 仅允许出于个人、非商业信息目的临时访问我们网站上的材料。 这是许可的授予，而不是所有权的转让，根据此许可，您不得：
   es: 'Se otorga permiso para acceder temporalmente a los materiales en nuestro sitio web únicamente con fines informativos personales y no comerciales. Esto es la concesión de una licencia, no la transferencia de un título, y bajo esta licencia no puede:'
-  fr: "Vous êtes autorisé à utiliser l'application web, l'API développeur et l'outil CLI hébergés dans le cloud d'OpenMates à toute fin légale, y compris à des fins commerciales. Cela s'applique à l'utilisation de notre service, pas au contenu du site web lui-même. Le logiciel OpenMates est disponible sous licence AGPL-3.0 - vous pouvez l'utiliser, le modifier et le distribuer selon les termes de la licence. Consultez notre [dépôt GitHub](https://github.com/glowingkitty/OpenMates) pour la licence complète."
-  pt: "Você tem permissão para usar o aplicativo web, API de desenvolvedor e ferramenta CLI hospedados na nuvem do OpenMates para qualquer finalidade lícita, incluindo fins comerciais. Isso se aplica ao uso de nosso serviço, não ao conteúdo do site em si. O software OpenMates está disponível sob licença AGPL-3.0 - você pode usá-lo, modificá-lo e distribuí-lo de acordo com os termos da licença. Veja nosso [repositório GitHub](https://github.com/glowingkitty/OpenMates) para a licença completa."
-  ru: "Вам разрешено использовать облачное веб-приложение OpenMates, API для разработчиков и инструмент CLI в любых законных целях, включая коммерческие. Это относится к использованию нашего сервиса, а не к содержимому сайта. Программное обеспечение OpenMates доступно по лицензии AGPL-3.0 — вы можете использовать, изменять и распространять его согласно условиям лицензии. Полная лицензия доступна в нашем [репозитории GitHub](https://github.com/glowingkitty/OpenMates)."
+  fr: ''
+  pt: ''
+  ru: ''
   ja: 個人的、非商業的な情報目的に限り、当ウェブサイト上の資料に一時的にアクセスすることを許可します。これはライセンスの付与であり、権原の譲渡ではありません。このライセンスの下では、以下の行為は禁止されています：
-  ko: "귀하는 상업적 목적을 포함한 모든 합법적 목적을 위해 OpenMates의 클라우드 호스팅 웹 애플리케이션, 개발자 API 및 CLI 도구를 사용할 권한이 부여됩니다. 이는 웹사이트 콘텐츠 자체가 아닌 서비스 사용에 적용됩니다. OpenMates 소프트웨어는 AGPL-3.0 라이선스 하에 제공됩니다 - 라이선스 조건에 따라 사용, 수정 및 배포할 수 있습니다. 전체 라이선스는 [GitHub 저장소](https://github.com/glowingkitty/OpenMates)를 참조하세요."
-  it: "Viene concessa l'autorizzazione di utilizzare l'applicazione web, l'API sviluppatore e lo strumento CLI ospitati nel cloud di OpenMates per qualsiasi scopo lecito, inclusi scopi commerciali. Ciò si applica all'utilizzo del nostro servizio, non al contenuto del sito web stesso. Il software OpenMates è disponibile sotto licenza AGPL-3.0 - è possibile usarlo, modificarlo e distribuirlo secondo i termini della licenza. Vedi il nostro [repository GitHub](https://github.com/glowingkitty/OpenMates) per la licenza completa."
-  tr: "Ticari amaçlar da dahil olmak üzere herhangi bir yasal amaç için OpenMates'in bulut tabanlı web uygulamasını, geliştirici API'sini ve CLI aracını kullanmanıza izin verilmektedir. Bu, web sitesi içeriğinin kendisi için değil, hizmetimizin kullanımı için geçerlidir. OpenMates yazılımı AGPL-3.0 lisansı altında mevcuttur - lisans koşullarına göre kullanabilir, değiştirebilir ve dağıtabilirsiniz. Tam lisans için [GitHub depomuza](https://github.com/glowingkitty/OpenMates) bakın."
-  vi: "Bạn được cấp phép sử dụng ứng dụng web được lưu trữ trên đám mây, API dành cho nhà phát triển và công cụ CLI của OpenMates cho bất kỳ mục đích hợp pháp nào, bao gồm mục đích thương mại. Điều này áp dụng cho việc sử dụng dịch vụ của chúng tôi, không phải nội dung trang web. Phần mềm OpenMates có sẵn theo giấy phép AGPL-3.0 - bạn có thể sử dụng, sửa đổi và phân phối theo các điều khoản của giấy phép. Xem [kho lưu trữ GitHub](https://github.com/glowingkitty/OpenMates) của chúng tôi để biết giấy phép đầy đủ."
-  id: "Anda diberikan izin untuk menggunakan aplikasi web yang dihosting di cloud, API pengembang, dan alat CLI OpenMates untuk tujuan sah apa pun, termasuk tujuan komersial. Ini berlaku untuk penggunaan layanan kami, bukan konten situs web itu sendiri. Perangkat lunak OpenMates tersedia di bawah lisensi AGPL-3.0 - Anda dapat menggunakannya, memodifikasinya, dan mendistribusikannya sesuai ketentuan lisensi. Lihat [repositori GitHub](https://github.com/glowingkitty/OpenMates) kami untuk lisensi lengkap."
-  pl: "Masz uprawnienie do korzystania z hostowanej w chmurze aplikacji internetowej OpenMates, API dla deweloperów i narzędzia CLI w dowolnym legalnym celu, w tym celach komercyjnych. Dotyczy to korzystania z naszej usługi, a nie samej zawartości strony internetowej. Oprogramowanie OpenMates jest dostępne na licencji AGPL-3.0 - możesz go używać, modyfikować i dystrybuować zgodnie z warunkami licencji. Pełna licencja dostępna jest w naszym [repozytorium GitHub](https://github.com/glowingkitty/OpenMates)."
-  nl: "U krijgt toestemming om de cloud-gehoste webapplicatie, ontwikkelaars-API en CLI-tool van OpenMates te gebruiken voor elk wettig doel, inclusief commerciële doeleinden. Dit is van toepassing op het gebruik van onze service, niet op de website-inhoud zelf. De OpenMates-software is beschikbaar onder AGPL-3.0-licentie - u kunt deze gebruiken, wijzigen en distribueren volgens de licentievoorwaarden. Zie ons [GitHub-repository](https://github.com/glowingkitty/OpenMates) voor de volledige licentie."
-  ar: "يُمنح الإذن لاستخدام تطبيق OpenMates على الويب المستضاف في السحابة وواجهة برمجة التطبيقات للمطورين وأداة CLI لأي غرض قانوني، بما في ذلك الأغراض التجارية. ينطبق هذا على استخدام خدمتنا، وليس على محتوى الموقع نفسه. برنامج OpenMates متاح بموجب ترخيص AGPL-3.0 - يمكنك استخدامه وتعديله وتوزيعه وفقًا لشروط الترخيص. راجع [مستودع GitHub](https://github.com/glowingkitty/OpenMates) للحصول على الترخيص الكامل."
-  hi: "आपको किसी भी वैध उद्देश्य के लिए, जिसमें व्यावसायिक उद्देश्य भी शामिल हैं, OpenMates के क्लाउड-होस्टेड वेब एप्लिकेशन, डेवलपर API और CLI टूल का उपयोग करने की अनुमति दी जाती है। यह हमारी सेवा के उपयोग पर लागू होता है, वेबसाइट सामग्री पर नहीं। OpenMates सॉफ्टवेयर AGPL-3.0 लाइसेंस के तहत उपलब्ध है - आप लाइसेंस शर्तों के अनुसार इसका उपयोग, संशोधन और वितरण कर सकते हैं। पूर्ण लाइसेंस के लिए हमारा [GitHub रिपॉजिटरी](https://github.com/glowingkitty/OpenMates) देखें।"
-  th: "คุณได้รับอนุญาตให้ใช้เว็บแอปพลิเคชัน API สำหรับนักพัฒนา และเครื่องมือ CLI ที่โฮสต์บนคลาวด์ของ OpenMates เพื่อวัตถุประสงค์ที่ถูกกฎหมายใดๆ รวมถึงวัตถุประสงค์เชิงพาณิชย์ นี้ใช้กับการใช้บริการของเรา ไม่ใช่เนื้อหาเว็บไซต์เอง ซอฟต์แวร์ OpenMates มีให้ใช้งานภายใต้ลิขสิทธิ์ AGPL-3.0 - คุณสามารถใช้ แก้ไข และแจกจ่ายตามเงื่อนไขของลิขสิทธิ์ ดู[ที่เก็บ GitHub](https://github.com/glowingkitty/OpenMates) สำหรับลิขสิทธิ์ฉบับเต็ม"
-  cs: "Je vám uděleno oprávnění používat cloudově hostovanou webovou aplikaci, API pro vývojáře a nástroj CLI OpenMates pro jakýkoliv zákonný účel, včetně komerčních účelů. To se vztahuje na používání naší služby, nikoli na samotný obsah webu. Software OpenMates je dostupný pod licencí AGPL-3.0 - můžete jej používat, upravovat a distribuovat v souladu s podmínkami licence. Viz náš [repozitář GitHub](https://github.com/glowingkitty/OpenMates) pro úplnou licenci."
-  sv: "Du beviljas tillstånd att använda OpenMates molnbaserade webbapplikation, utvecklar-API och CLI-verktyg för alla lagliga ändamål, inklusive kommersiella ändamål. Detta gäller för användning av vår tjänst, inte för webbplatsens innehåll i sig. OpenMates-programvaran är tillgänglig under AGPL-3.0-licens - du kan använda, ändra och distribuera den enligt licensvillkoren. Se vårt [GitHub-repository](https://github.com/glowingkitty/OpenMates) för den fullständiga licensen."
-  he: "ניתן לך אישור להשתמש ביישום האינטרנטי המתארח בענן של OpenMates, ב-API לפיתוח ובכלי CLI לכל מטרה חוקית, כולל מטרות מסחריות. הדבר חל על השימוש בשירות שלנו, לא על תוכן האתר עצמו. תוכנת OpenMates זמינה תחת רישיון AGPL-3.0 - ניתן להשתמש בה, לשנותה ולהפיצה בהתאם לתנאי הרישיון. ראה [מאגר GitHub](https://github.com/glowingkitty/OpenMates) לרישיון המלא."
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.heading:
   context: Heading for prohibited service uses
   en: Prohibited Uses of OpenMates Service
-  de: Verbotene Verwendungen des OpenMates-Dienstes
-  zh: 禁止使用 OpenMates 服务
-  es: Usos Prohibidos del Servicio OpenMates
-  fr: Utilisations Interdites du Service OpenMates
-  pt: Usos Proibidos do Serviço OpenMates
-  ru: Запрещённые виды использования сервиса OpenMates
-  ja: OpenMatesサービスの禁止利用
-  ko: OpenMates 서비스의 금지된 사용
-  it: Usi Vietati del Servizio OpenMates
-  tr: OpenMates Hizmetinin Yasaklı Kullanımları
-  vi: Các Sử dụng Bị cấm của Dịch vụ OpenMates
-  id: Penggunaan Terlarang Layanan OpenMates
-  pl: Zabronione Użycia Serwisu OpenMates
-  nl: Verboden Gebruik van de OpenMates-dienst
-  ar: الاستخدامات المحظورة لخدمة OpenMates
-  hi: OpenMates सेवा के निषिद्ध उपयोग
-  th: การใช้งานที่ต้องห้ามของบริการ OpenMates
-  cs: Zakázané použití služby OpenMates
-  sv: Förbjuden användning av OpenMates-tjänsten
-  he: שימושים אסורים בשירות OpenMates
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.description:
   context: Introduction to prohibited uses
   en: 'You may not use OpenMates for:'
-  de: "OpenMates darf nicht für folgende Zwecke verwendet werden:"
-  zh: 您不得将 OpenMates 用于：
-  es: "No puede utilizar OpenMates para:"
-  fr: "Vous ne pouvez pas utiliser OpenMates pour :"
-  pt: "Você não pode usar o OpenMates para:"
-  ru: "Вы не можете использовать OpenMates для:"
-  ja: OpenMatesを以下の目的に使用することはできません：
-  ko: "OpenMates를 다음 용도로 사용할 수 없습니다:"
-  it: "Non è possibile utilizzare OpenMates per:"
-  tr: "OpenMates'i şu amaçlarla kullanamazsınız:"
-  vi: "Bạn không được sử dụng OpenMates cho:"
-  id: "Anda tidak boleh menggunakan OpenMates untuk:"
-  pl: "Nie możesz używać OpenMates do:"
-  nl: "U mag OpenMates niet gebruiken voor:"
-  ar: "لا يمكنك استخدام OpenMates لـ:"
-  hi: "आप OpenMates का उपयोग निम्नलिखित के लिए नहीं कर सकते:"
-  th: "คุณไม่สามารถใช้ OpenMates เพื่อ:"
-  cs: "OpenMates nemůžete používat pro:"
-  sv: "Du får inte använda OpenMates för:"
-  he: "אינך רשאי להשתמש ב-OpenMates עבור:"
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.military:
   context: Restriction on military use
   en: Military applications or weapons development
-  de: Militärische Anwendungen oder Waffenentwicklung
-  zh: 军事应用或武器开发
-  es: Aplicaciones militares o desarrollo de armas
-  fr: Applications militaires ou développement d'armes
-  pt: Aplicações militares ou desenvolvimento de armas
-  ru: Военные приложения или разработка оружия
-  ja: 軍事用途または兵器開発
-  ko: 군사 응용 프로그램 또는 무기 개발
-  it: Applicazioni militari o sviluppo di armi
-  tr: Askeri uygulamalar veya silah geliştirme
-  vi: Ứng dụng quân sự hoặc phát triển vũ khí
-  id: Aplikasi militer atau pengembangan senjata
-  pl: Zastosowania wojskowe lub rozwój broni
-  nl: Militaire toepassingen of wapenontwikkeling
-  ar: التطبيقات العسكرية أو تطوير الأسلحة
-  hi: सैन्य अनुप्रयोग या हथियार विकास
-  th: การประยุกต์ใช้ทางทหารหรือการพัฒนาอาวุธ
-  cs: Vojenské aplikace nebo vývoj zbraní
-  sv: Militära tillämpningar eller vapenutveckling
-  he: יישומים צבאיים או פיתוח נשק
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.gambling:
   context: Restriction on gambling use
   en: Gambling, betting, or casino operations
-  de: "Glücksspiel, Wetten oder Kasinobetrieb"
-  zh: 赌博、投注或赌场运营
-  es: "Juegos de azar, apuestas u operaciones de casino"
-  fr: "Jeux d'argent, paris ou opérations de casino"
-  pt: "Jogos de azar, apostas ou operações de cassino"
-  ru: "Азартные игры, ставки или казино"
-  ja: ギャンブル、賭博またはカジノ運営
-  ko: "도박, 베팅 또는 카지노 운영"
-  it: "Gioco d'azzardo, scommesse o operazioni di casinò"
-  tr: "Kumar, bahis veya kumarhane işlemleri"
-  vi: "Cờ bạc, cá cược hoặc hoạt động sòng bạc"
-  id: "Perjudian, taruhan, atau operasi kasino"
-  pl: "Hazard, zakłady lub prowadzenie kasyna"
-  nl: "Gokken, weddenschappen of casinoactiviteiten"
-  ar: القمار والمراهنات أو تشغيل الكازينو
-  hi: "जुआ, सट्टेबाजी या कैसीनो संचालन"
-  th: การพนัน การเดิมพัน หรือการดำเนินงานคาสิโน
-  cs: "Hazardní hry, sázení nebo provoz kasina"
-  sv: "Hasardspel, betting eller kasinoverksamhet"
-  he: הימורים, הגרלות או פעולות בתי קזינו
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.misinformation:
   context: Restriction on misinformation
   en: Generating or distributing misinformation, disinformation, or false content intended to deceive
-  de: "Erzeugung oder Verbreitung von Fehlinformationen, Desinformationen oder falschen Inhalten mit der Absicht zu täuschen"
-  zh: 生成或传播旨在欺骗的错误信息、虚假信息或虚假内容
-  es: "Generar o distribuir información errónea, desinformación o contenido falso destinado a engañar"
-  fr: "Générer ou distribuer de la désinformation, de la mésinformation ou des faux contenus destinés à tromper"
-  pt: "Gerar ou distribuir desinformação, informação falsa ou conteúdo falso com intenção de enganar"
-  ru: "Создание или распространение дезинформации, ложного или вводящего в заблуждение контента"
-  ja: 欺くことを目的とした誤情報、偽情報、または虚偽コンテンツの生成または配布
-  ko: "속이려는 의도로 허위 정보, 오보 또는 거짓 내용을 생성하거나 배포하는 것"
-  it: "Generare o distribuire disinformazione, notizie false o contenuti falsi intesi a ingannare"
-  tr: "Aldatmaya yönelik yanlış bilgi, dezenformasyon veya sahte içerik oluşturma veya dağıtma"
-  vi: "Tạo hoặc phân phối thông tin sai lệch, thông tin giả mạo hoặc nội dung giả mạo nhằm mục đích lừa đảo"
-  id: "Menghasilkan atau mendistribusikan misinformasi, disinformasi, atau konten palsu yang dimaksudkan untuk menipu"
-  pl: "Generowanie lub dystrybucja dezinformacji, nieprawdziwych informacji lub fałszywych treści mających na celu wprowadzenie w błąd"
-  nl: "Het genereren of verspreiden van desinformatie, verkeerde informatie of valse inhoud bedoeld om te bedriegen"
-  ar: توليد أو توزيع المعلومات المضللة أو الخاطئة أو المحتوى الزائف المصمم للتضليل
-  hi: "धोखा देने के इरादे से गलत सूचना, दुष्प्रचार या झूठी सामग्री उत्पन्न करना या वितरित करना"
-  th: การสร้างหรือแจกจ่ายข้อมูลผิดพลาด ข้อมูลบิดเบือน หรือเนื้อหาเท็จที่มีเจตนาหลอกลวง
-  cs: "Generování nebo šíření dezinformací, mylných informací nebo falešného obsahu zamýšleného klamat"
-  sv: "Generera eller distribuera felinformation, desinformation eller falskt innehåll avsett att vilseleda"
-  he: יצירה או הפצה של מידע מוטעה, דיסאינפורמציה או תוכן כוזב שנועד להטעות
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.scams:
   context: Restriction on scams and fraud
   en: Fraud, scams, phishing, or any illegal or deceptive practices
-  de: "Betrug, Abzocke, Phishing oder andere illegale oder betrügerische Praktiken"
-  zh: 欺诈、诈骗、网络钓鱼或任何非法或欺骗性行为
-  es: "Fraude, estafas, phishing o cualquier práctica ilegal o engañosa"
-  fr: "Fraude, arnaques, phishing ou toute pratique illégale ou trompeuse"
-  pt: "Fraude, golpes, phishing ou quaisquer práticas ilegais ou enganosas"
-  ru: "Мошенничество, фишинг или иная незаконная или обманная деятельность"
-  ja: 詐欺、スキャム、フィッシングまたはその他の違法または欺瞞的な行為
-  ko: "사기, 스캠, 피싱 또는 불법적이거나 기만적인 관행"
-  it: "Frode, truffe, phishing o qualsiasi pratica illegale o ingannevole"
-  tr: "Dolandırıcılık, sahtecilik, kimlik avı veya herhangi bir yasadışı veya aldatıcı uygulama"
-  vi: "Gian lận, lừa đảo, phishing hoặc bất kỳ thực hành bất hợp pháp hoặc lừa đảo nào"
-  id: "Penipuan, scam, phishing, atau praktik ilegal atau menipu lainnya"
-  pl: "Oszustwa, scamy, phishing lub jakiekolwiek nielegalne lub wprowadzające w błąd praktyki"
-  nl: "Fraude, oplichting, phishing of enige andere illegale of misleidende praktijken"
-  ar: الاحتيال والنصب والتصيد الاحتيالي أو أي ممارسات غير قانونية أو مضللة
-  hi: "धोखाधड़ी, घोटाले, फ़िशिंग या कोई भी अवैध या भ्रामक प्रथाएं"
-  th: การฉ้อโกง การหลอกลวง การฟิชชิ่ง หรือการปฏิบัติที่ผิดกฎหมายหรือหลอกลวงใดๆ
-  cs: "Podvody, scamy, phishing nebo jakékoliv nezákonné nebo klamavé praktiky"
-  sv: "Bedrägeri, bedrägerier, nätfiske eller olagliga eller vilseledande metoder"
-  he: הונאה, תרמיות, פישינג, או כל פרקטיקה בלתי חוקית או מטעה אחרת
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 use_license.restrictions.service_use.illegal:
   context: Restriction on illegal activities
   en: Any illegal activities or purposes prohibited by applicable law
-  de: Jegliche illegalen Aktivitäten oder nach geltendem Recht verbotene Zwecke
-  zh: 任何违法活动或适用法律禁止的目的
-  es: Cualquier actividad ilegal o propósito prohibido por la ley aplicable
-  fr: Toute activité illégale ou tout objectif interdit par la loi applicable
-  pt: Quaisquer atividades ilegais ou propósitos proibidos pela lei aplicável
-  ru: "Любая незаконная деятельность или цели, запрещённые применимым законодательством"
-  ja: 適用される法律によって禁止されているいかなる違法活動または目的
-  ko: 적용 가능한 법률에 의해 금지된 모든 불법 활동 또는 목적
-  it: Qualsiasi attività illegale o scopo vietato dalla legge applicabile
-  tr: Geçerli mevzuat tarafından yasaklanan herhangi bir yasadışı faaliyet veya amaç
-  vi: Bất kỳ hoạt động bất hợp pháp hoặc mục đích bị luật pháp hiện hành cấm
-  id: Kegiatan ilegal atau tujuan yang dilarang oleh hukum yang berlaku
-  pl: Wszelkie nielegalne działania lub cele zakazane przez obowiązujące prawo
-  nl: Alle illegale activiteiten of doeleinden verboden door toepasselijk recht
-  ar: أي أنشطة غير قانونية أو أغراض محظورة بموجب القانون المعمول به
-  hi: कोई भी अवैध गतिविधियां या लागू कानून द्वारा प्रतिबंधित उद्देश्य
-  th: กิจกรรมที่ผิดกฎหมายใดๆ หรือวัตถุประสงค์ที่ต้องห้ามตามกฎหมายที่บังคับใช้
-  cs: Jakékoliv nezákonné aktivity nebo účely zakázané platnými zákony
-  sv: Alla olagliga aktiviteter eller syften som förbjuds av tillämplig lag
-  he: כל פעילות בלתי חוקית או מטרות האסורות על פי החוק החל
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 ai_accuracy.heading:
   context: Section heading for AI accuracy disclaimer
   en: AI Response Accuracy and Limitations
-  de: Genauigkeit und Einschränkungen von KI-Antworten
-  zh: AI回答的准确性和局限性
-  es: Precisión y Limitaciones de las Respuestas de IA
-  fr: Précision et limitations des réponses de l'IA
-  pt: Precisão e Limitações das Respostas de IA
-  ru: Точность и ограничения ответов ИИ
-  ja: AI回答の精度と制限
-  ko: AI 응답 정확도 및 한계
-  it: Accuratezza e Limitazioni delle Risposte dell'AI
-  tr: AI Yanıtlarının Doğruluğu ve Sınırlamaları
-  vi: Độ Chính xác và Hạn chế của Phản hồi AI
-  id: Keakuratan dan Keterbatasan Respons AI
-  pl: Dokładność i Ograniczenia Odpowiedzi AI
-  nl: Nauwkeurigheid en beperkingen van AI-antwoorden
-  ar: دقة ردود الذكاء الاصطناعي وقيوده
-  hi: AI प्रतिक्रिया की सटीकता और सीमाएं
-  th: ความแม่นยำและข้อจำกัดของการตอบสนอง AI
-  cs: Přesnost a omezení odpovědí AI
-  sv: AI-svarens noggrannhet och begränsningar
-  he: דיוק ומגבלות של תגובות AI
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 ai_accuracy.description:
   context: AI accuracy disclaimer
   en: OpenMates uses AI models that may generate inaccurate, incomplete, or misleading information. While we strive to minimize errors, AI responses can contain factual inaccuracies, outdated information, or hallucinations. You are responsible for verifying any critical information, especially for high-stakes situations such as medical, legal, financial, or safety-critical decisions. AI-generated responses do not replace professional advice from qualified experts such as lawyers, doctors, or financial advisors.
-  de: "OpenMates verwendet KI-Modelle, die ungenaue, unvollständige oder irreführende Informationen generieren können. Obwohl wir Fehler minimieren möchten, können KI-Antworten sachliche Ungenauigkeiten, veraltete Informationen oder Halluzinationen enthalten. Sie sind dafür verantwortlich, kritische Informationen zu überprüfen, insbesondere in wichtigen Situationen wie medizinischen, rechtlichen, finanziellen oder sicherheitskritischen Entscheidungen. KI-generierte Antworten ersetzen keine professionellen Ratschläge von qualifizierten Experten wie Anwälten, Ärzten oder Finanzberatern."
-  zh: OpenMates 使用可能生成不准确、不完整或误导性信息的 AI 模型。虽然我们努力减少错误，但 AI 回答可能包含事实错误、过时信息或幻觉。您有责任核实任何关键信息，尤其是在高风险情况下，例如医疗、法律、财务或安全关键决策。AI 生成的回答不能替代律师、医生或财务顾问等合格专家的专业建议。
-  es: "OpenMates utiliza modelos de IA que pueden generar información inexacta, incompleta o engañosa. Si bien nos esforzamos por minimizar los errores, las respuestas de IA pueden contener inexactitudes factuales, información desactualizada o alucinaciones. Usted es responsable de verificar cualquier información crítica, especialmente en situaciones de alto riesgo como decisiones médicas, legales, financieras o de seguridad crítica. Las respuestas generadas por IA no reemplazan el asesoramiento profesional de expertos calificados como abogados, médicos o asesores financieros."
-  fr: "OpenMates utilise des modèles d'IA qui peuvent générer des informations inexactes, incomplètes ou trompeuses. Bien que nous nous efforcions de minimiser les erreurs, les réponses de l'IA peuvent contenir des inexactitudes factuelles, des informations obsolètes ou des hallucinations. Vous êtes responsable de vérifier toute information critique, en particulier pour des situations à enjeux élevés telles que les décisions médicales, juridiques, financières ou critiques pour la sécurité. Les réponses générées par l'IA ne remplacent pas les conseils professionnels de spécialistes qualifiés tels que des avocats, des médecins ou des conseillers financiers."
-  pt: "O OpenMates usa modelos de IA que podem gerar informações imprecisas, incompletas ou enganosas. Embora nos esforcemos para minimizar erros, as respostas de IA podem conter imprecisões factuais, informações desatualizadas ou alucinações. Você é responsável por verificar qualquer informação crítica, especialmente em situações de alto risco, como decisões médicas, legais, financeiras ou de segurança crítica. As respostas geradas por IA não substituem o conselho profissional de especialistas qualificados, como advogados, médicos ou consultores financeiros."
-  ru: "OpenMates использует модели ИИ, которые могут генерировать неточную, неполную или вводящую в заблуждение информацию. Несмотря на то что мы стремимся минимизировать ошибки, ответы ИИ могут содержать фактические неточности, устаревшую информацию или галлюцинации. Вы несёте ответственность за проверку любой критической информации, особенно в ситуациях с высокими ставками, таких как медицинские, юридические, финансовые или критически важные для безопасности решения. Ответы, сгенерированные ИИ, не заменяют профессиональный совет квалифицированных специалистов."
-  ja: OpenMatesは不正確、不完全、または誤解を招く情報を生成する可能性のあるAIモデルを使用しています。エラーを最小化するよう努めていますが、AIの回答には事実の不正確さ、古い情報、幻覚が含まれる場合があります。特に医療、法律、財務、安全に関わる重要な状況では、重要な情報を確認する責任はあなたにあります。AI生成の回答は、弁護士、医師、財務アドバイザーなどの資格ある専門家からの専門的なアドバイスの代わりにはなりません。
-  ko: "OpenMates는 부정확하거나 불완전하거나 오해를 불러일으키는 정보를 생성할 수 있는 AI 모델을 사용합니다. 오류를 최소화하기 위해 노력하지만 AI 응답에는 사실 오류, 오래된 정보 또는 환각이 포함될 수 있습니다. 특히 의료, 법률, 재정 또는 안전에 중요한 결정과 같은 고위험 상황에서는 중요한 정보를 확인할 책임이 있습니다. AI가 생성한 응답은 변호사, 의사 또는 재정 고문과 같은 자격을 갖춘 전문가의 전문적인 조언을 대체하지 않습니다."
-  it: "OpenMates utilizza modelli AI che possono generare informazioni imprecise, incomplete o fuorvianti. Sebbene ci impegniamo a ridurre al minimo gli errori, le risposte AI possono contenere inesattezze fattuali, informazioni obsolete o allucinazioni. Sei responsabile di verificare qualsiasi informazione critica, specialmente in situazioni ad alto rischio come decisioni mediche, legali, finanziarie o critiche per la sicurezza. Le risposte generate dall'AI non sostituiscono il consiglio professionale di esperti qualificati come avvocati, medici o consulenti finanziari."
-  tr: "OpenMates, yanlış, eksik veya yanıltıcı bilgiler üretebilen AI modelleri kullanmaktadır. Hataları en aza indirmeye çalışsak da, AI yanıtları olgusal yanlışlıklar, güncel olmayan bilgiler veya halüsinasyonlar içerebilir. Özellikle tıbbi, hukuki, finansal veya güvenlik açısından kritik kararlar gibi yüksek riskli durumlarda herhangi bir kritik bilgiyi doğrulamak sizin sorumluluğunuzdadır. AI tarafından üretilen yanıtlar, avukatlar, doktorlar veya finansal danışmanlar gibi nitelikli uzmanlardan gelen profesyonel tavsiyelerin yerini tutmaz."
-  vi: "OpenMates sử dụng các mô hình AI có thể tạo ra thông tin không chính xác, không đầy đủ hoặc gây hiểu lầm. Mặc dù chúng tôi cố gắng giảm thiểu lỗi, phản hồi AI có thể chứa sự không chính xác về mặt thực tế, thông tin lỗi thời hoặc ảo giác. Bạn có trách nhiệm xác minh bất kỳ thông tin quan trọng nào, đặc biệt là trong các tình huống có rủi ro cao như quyết định y tế, pháp lý, tài chính hoặc an toàn quan trọng. Phản hồi do AI tạo ra không thay thế lời khuyên chuyên nghiệp từ các chuyên gia có trình độ."
-  id: "OpenMates menggunakan model AI yang mungkin menghasilkan informasi yang tidak akurat, tidak lengkap, atau menyesatkan. Meskipun kami berusaha meminimalkan kesalahan, respons AI dapat mengandung ketidakakuratan faktual, informasi yang sudah ketinggalan zaman, atau halusinasi. Anda bertanggung jawab untuk memverifikasi informasi penting apa pun, terutama untuk situasi berisiko tinggi seperti keputusan medis, hukum, keuangan, atau keamanan kritis. Respons yang dihasilkan AI tidak menggantikan saran profesional dari para ahli yang berkualifikasi."
-  pl: "OpenMates używa modeli AI, które mogą generować niedokładne, niekompletne lub wprowadzające w błąd informacje. Chociaż staramy się minimalizować błędy, odpowiedzi AI mogą zawierać nieścisłości faktyczne, nieaktualne informacje lub halucynacje. Jesteś odpowiedzialny za weryfikację wszelkich krytycznych informacji, zwłaszcza w sytuacjach o wysokiej stawce, takich jak decyzje medyczne, prawne, finansowe lub krytyczne dla bezpieczeństwa. Odpowiedzi generowane przez AI nie zastępują profesjonalnych porad od wykwalifikowanych ekspertów."
-  nl: "OpenMates gebruikt AI-modellen die onnauwkeurige, onvolledige of misleidende informatie kunnen genereren. Hoewel we ernaar streven fouten te minimaliseren, kunnen AI-antwoorden feitelijke onnauwkeurigheden, verouderde informatie of hallucinaties bevatten. U bent verantwoordelijk voor het verifiëren van kritieke informatie, met name in situaties met hoge inzet zoals medische, juridische, financiële of veiligheidskritische beslissingen. AI-gegenereerde antwoorden vervangen niet het professionele advies van gekwalificeerde experts."
-  ar: يستخدم OpenMates نماذج ذكاء اصطناعي قد تولد معلومات غير دقيقة أو غير مكتملة أو مضللة. بينما نسعى إلى تقليل الأخطاء، قد تحتوي ردود الذكاء الاصطناعي على معلومات خاطئة أو قديمة أو هلاوس. أنت مسؤول عن التحقق من أي معلومات حاسمة، خاصة في المواقف عالية المخاطر مثل القرارات الطبية أو القانونية أو المالية أو الحرجة للسلامة. لا تحل الردود التي يولدها الذكاء الاصطناعي محل المشورة المهنية من خبراء مؤهلين.
-  hi: "OpenMates AI मॉडल का उपयोग करता है जो गलत, अधूरी या भ्रामक जानकारी उत्पन्न कर सकते हैं। हालांकि हम त्रुटियों को कम करने का प्रयास करते हैं, AI प्रतिक्रियाओं में तथ्यात्मक असंगतियां, पुरानी जानकारी या भ्रम हो सकता है। आप किसी भी महत्वपूर्ण जानकारी को सत्यापित करने के लिए जिम्मेदार हैं, विशेष रूप से उच्च-दांव वाली स्थितियों में जैसे चिकित्सा, कानूनी, वित्तीय या सुरक्षा-महत्वपूर्ण निर्णयों में। AI-जनित प्रतिक्रियाएं योग्य विशेषज्ञों जैसे वकीलों, डॉक्टरों या वित्तीय सलाहकारों से पेशेवर सलाह की जगह नहीं लेती हैं।"
-  th: OpenMates ใช้โมเดล AI ที่อาจสร้างข้อมูลที่ไม่ถูกต้อง ไม่สมบูรณ์ หรือทำให้เข้าใจผิด แม้ว่าเราพยายามลดข้อผิดพลาด การตอบสนองของ AI อาจมีความไม่ถูกต้องเชิงข้อเท็จจริง ข้อมูลที่ล้าสมัย หรือภาพหลอน คุณมีหน้าที่รับผิดชอบในการตรวจสอบข้อมูลสำคัญใดๆ โดยเฉพาะอย่างยิ่งสำหรับสถานการณ์ที่มีความเสี่ยงสูง เช่น การตัดสินใจทางการแพทย์ กฎหมาย การเงิน หรือที่สำคัญต่อความปลอดภัย การตอบสนองที่สร้างโดย AI ไม่สามารถแทนที่คำแนะนำจากผู้เชี่ยวชาญที่มีคุณสมบัติ
-  cs: "OpenMates používá modely AI, které mohou generovat nepřesné, neúplné nebo zavádějící informace. Ačkoliv se snažíme chyby minimalizovat, odpovědi AI mohou obsahovat faktické nepřesnosti, zastaralé informace nebo halucinace. Jste odpovědní za ověření jakýchkoliv kritických informací, zejména v situacích s vysokými sázkami, jako jsou lékařská, právní, finanční nebo bezpečnostně kritická rozhodnutí. Odpovědi generované AI nenahrazují odborné poradenství od kvalifikovaných expertů."
-  sv: "OpenMates använder AI-modeller som kan generera felaktig, ofullständig eller vilseledande information. Även om vi strävar efter att minimera fel kan AI-svar innehålla faktafel, föråldrad information eller hallucinationer. Du är ansvarig för att verifiera kritisk information, särskilt i situationer med hög insats som medicinska, juridiska, finansiella eller säkerhetskritiska beslut. AI-genererade svar ersätter inte professionell rådgivning från kvalificerade experter."
-  he: OpenMates משתמשת במודלי AI שעלולים לייצר מידע לא מדויק, חלקי או מטעה. למרות שאנו שואפים למזער שגיאות, תגובות AI עלולות להכיל אי-דיוקים עובדתיים, מידע מיושן או הזיות. אתה אחראי לאמת כל מידע קריטי, במיוחד במצבים בעלי סיכון גבוה כגון החלטות רפואיות, משפטיות, פיננסיות או קריטיות לבטיחות. תגובות שנוצרו על ידי AI אינן מחליפות ייעוץ מקצועי ממומחים מוסמכים כגון עורכי דין, רופאים או יועצים פיננסיים.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 ai_accuracy_data_sharing_heading:
   context: Subsection heading for data sharing warning
   en: Data Sharing with AI Partners
-  de: Datenweitergabe an KI-Partner
-  zh: 与AI合作伙伴共享数据
-  es: Compartir Datos con Socios de IA
-  fr: Partage de Données avec les Partenaires IA
-  pt: Compartilhamento de Dados com Parceiros de IA
-  ru: Передача данных партнёрам ИИ
-  ja: AIパートナーとのデータ共有
-  ko: AI 파트너와의 데이터 공유
-  it: Condivisione dei Dati con i Partner AI
-  tr: AI Ortakları ile Veri Paylaşımı
-  vi: Chia sẻ Dữ liệu với Đối tác AI
-  id: Berbagi Data dengan Mitra AI
-  pl: Udostępnianie danych partnerom AI
-  nl: Gegevens delen met AI-partners
-  ar: مشاركة البيانات مع شركاء الذكاء الاصطناعي
-  hi: AI भागीदारों के साथ डेटा साझाकरण
-  th: การแบ่งปันข้อมูลกับพันธมิตร AI
-  cs: Sdílení dat s partnery AI
-  sv: Datadelning med AI-partners
-  he: שיתוף נתונים עם שותפי AI
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 ai_accuracy_data_sharing_text:
   context: Data sharing warning text with AI partners
@@ -476,103 +480,98 @@ ai_accuracy_data_sharing_text:
   th: เพื่อประมวลผลคำขอของคุณ OpenMates ส่งคำขอและข้อมูลของคุณไปยังผู้ให้บริการ AI ของบุคคลที่สาม (ตามที่ระบุไว้ในนโยบายความเป็นส่วนตัวของเรา) แม้ว่าผู้ให้บริการเหล่านี้จะอ้างว่าพวกเขาไม่ฝึกโมเดลด้วยข้อมูลผู้ใช้ แต่เราไม่สามารถตรวจสอบข้อเรียกร้องเหล่านี้ได้อย่างอิสระ ดังนั้นเราขอแนะนำอย่างยิ่งให้ไม่ส่งข้อมูลส่วนบุคคลทางการเงินทางการแพทย์หรือข้อมูลที่เป็นความลับที่มีความละเอียดอ่อนสูงไปยัง OpenMates โปรดพิจารณาผลที่ตามมาที่อาจเกิดขึ้นก่อนแชร์ข้อมูลที่ละเอียดอ่อน เรามุ่งมั่นในความเป็นส่วนตัวและได้ออกแบบ OpenMates โดยคำนึงถึงความเป็นส่วนตัว แต่เราไม่สามารถรับประกันได้ว่าคู่ค้าภายนอกจะประมวลผลข้อมูลของคุณอย่างไร
   cs: Pro zpracování vašich požadavků OpenMates odesílá vaše dotazy a data poskytovatelům služeb AI třetích stran (jak je podrobně popsáno v našich Zásadách ochrany osobních údajů). I když tito poskytovatelé tvrdí, že netrénují modely na uživatelských datech, nemůžeme tyto tvrzení nezávisle ověřit. Proto důrazně doporučujeme neodesílat vysoce citlivé osobní, finanční, lékařské nebo důvěrné informace do OpenMates. Před sdílením citlivých údajů zvažte možné důsledky. Jsme oddáni soukromí a navrhli jsme OpenMates s ohledem na soukromí, ale nemůžeme zaručit, jak externí partneři zpracovávají vaše data.
   sv: För att bearbeta dina förfrågningar skickar OpenMates dina prompts och data till tredjepartsleverantörer av AI-tjänster (som beskrivs i vår integritetspolicy). Även om dessa leverantörer hävdar att de inte tränar modeller på användardata kan vi inte oberoende verifiera dessa påståenden. Därför rekommenderar vi starkt att inte skicka mycket känslig personlig, finansiell, medicinsk eller konfidentiell information till OpenMates. Överväg potentiella konsekvenser innan du delar känsliga data. Vi är engagerade i integritet och har designat OpenMates med integritet i åtanke, men vi kan inte garantera hur externa partners bearbetar dina data.
-  he: לעיבוד בקשותיך, OpenMates שולחת את ההנחיות והנתונים שלך לספקי שירותי AI של צד שלישי (כמפורט במדיניות הפרטיות שלנו). בעוד שספקים אלו טוענים שאינם מאמנים מודלים על נתוני משתמשים, איננו יכולים לאמת טענות אלו באופן עצמאי. לכן, אנו ממליצים בחוזקה לא להגיש מידע אישי, פיננסי, רפואי או סודי רגיש ביותר ל-OpenMates. אנא שקול את ההשלכות האפשריות לפני שיתוף נתונים רגישים. אנו מחויבים לפרטיות ותכננו את OpenMates תוך התחשבות בפרטיות, אך איננו יכולים להבטיח כיצד שותפים חיצוניים מעבדים את הנתונים שלך.
   verified_by_human: []
 ai_accuracy.data_sharing:
   context: Data sharing warning with AI partners
   en: To process your requests, OpenMates sends your prompts and data to third-party AI service providers (as detailed in our Privacy Policy). While these providers claim they do not train models on user data, we cannot independently verify these claims. Therefore, we strongly advise against submitting highly sensitive personal, financial, medical, or confidential information to OpenMates. Please consider potential consequences before sharing sensitive data. We are committed to privacy and have designed OpenMates with privacy in mind, but we cannot guarantee how external partners process your data.
-  de: "Zur Verarbeitung Ihrer Anfragen sendet OpenMates Ihre Eingaben und Daten an Drittanbieter von KI-Diensten (wie in unserer Datenschutzerklärung beschrieben). Obwohl diese Anbieter behaupten, dass sie keine Modelle mit Benutzerdaten trainieren, können wir diese Behauptungen nicht unabhängig überprüfen. Daher raten wir dringend davon ab, hochsensible persönliche, finanzielle, medizinische oder vertrauliche Informationen an OpenMates zu übermitteln. Bitte bedenken Sie die möglichen Konsequenzen, bevor Sie sensible Daten teilen. Wir sind dem Datenschutz verpflichtet und haben OpenMates mit Fokus auf Datenschutz entwickelt, können aber nicht garantieren, wie externe Partner Ihre Daten verarbeiten."
-  zh: 为了处理您的请求，OpenMates 会将您的提示和数据发送给第三方 AI 服务提供商（如我们的隐私政策中详述）。虽然这些提供商声称他们不会使用用户数据训练模型，但我们无法独立验证这些声明。因此，我们强烈建议不要向 OpenMates 提交高度敏感的个人、财务、医疗或机密信息。在分享敏感数据之前，请考虑潜在的后果。我们致力于隐私保护，但我们无法保证外部合作伙伴如何处理您的数据。
-  es: "Para procesar sus solicitudes, OpenMates envía sus solicitudes y datos a proveedores de servicios de IA de terceros (como se detalla en nuestra Política de Privacidad). Aunque estos proveedores afirman que no entrenan modelos con datos de usuarios, no podemos verificar de forma independiente estas afirmaciones. Por lo tanto, le recomendamos encarecidamente que no envíe información personal, financiera, médica o confidencial altamente sensible a OpenMates. Por favor, considere las posibles consecuencias antes de compartir datos sensibles. Estamos comprometidos con la privacidad, pero no podemos garantizar cómo los socios externos procesan sus datos."
-  fr: "Pour traiter vos demandes, OpenMates envoie vos requêtes et données à des fournisseurs de services d'IA tiers (comme détaillé dans notre Politique de Confidentialité). Bien que ces fournisseurs prétendent qu'ils n'entraînent pas de modèles sur les données des utilisateurs, nous ne pouvons pas vérifier indépendamment ces affirmations. Par conséquent, nous vous déconseillons fortement de soumettre des informations personnelles, financières, médicales ou confidentielles hautement sensibles à OpenMates. Veuillez considérer les conséquences potentielles avant de partager des données sensibles. Nous sommes engagés en faveur de la confidentialité, mais nous ne pouvons pas garantir comment les partenaires externes traitent vos données."
-  pt: "Para processar suas solicitações, o OpenMates envia seus prompts e dados para provedores de serviços de IA de terceiros (conforme detalhado em nossa Política de Privacidade). Embora esses provedores afirmem que não treinam modelos com dados de usuários, não podemos verificar independentemente essas alegações. Portanto, recomendamos fortemente que você não envie informações pessoais, financeiras, médicas ou confidenciais altamente sensíveis ao OpenMates. Por favor, considere as possíveis consequências antes de compartilhar dados sensíveis. Estamos comprometidos com a privacidade, mas não podemos garantir como os parceiros externos processam seus dados."
-  ru: "Для обработки ваших запросов OpenMates отправляет ваши запросы и данные сторонним поставщикам услуг ИИ (как описано в нашей Политике конфиденциальности). Хотя эти поставщики заявляют, что не обучают модели на пользовательских данных, мы не можем независимо проверить эти заявления. Поэтому мы настоятельно рекомендуем не отправлять высокочувствительную личную, финансовую, медицинскую или конфиденциальную информацию в OpenMates. Пожалуйста, рассмотрите возможные последствия перед передачей конфиденциальных данных. Мы привержены конфиденциальности, но не можем гарантировать, как внешние партнеры обрабатывают ваши данные."
-  ja: リクエストを処理するため、OpenMatesはプロンプトとデータを第三者AIサービスプロバイダーに送信します（プライバシーポリシーに詳述）。これらのプロバイダーはユーザーデータでモデルを訓練しないと主張していますが、独立して検証することはできません。したがって、高度に機密性の高い個人情報、財務情報、医療情報、または機密情報をOpenMatesに送信しないことを強くお勧めします。機密データを共有する前に、潜在的な結果を考慮してください。私たちはプライバシーにコミットしていますが、外部パートナーがデータをどのように処理するかは保証できません。
-  ko: "요청을 처리하기 위해 OpenMates는 프롬프트와 데이터를 제3자 AI 서비스 제공업체에 전송합니다(개인정보 보호정책에 자세히 설명됨). 이러한 제공업체는 사용자 데이터로 모델을 훈련하지 않는다고 주장하지만, 이러한 주장을 독립적으로 검증할 수 없습니다. 따라서 매우 민감한 개인, 재무, 의료 또는 기밀 정보를 OpenMates에 제출하지 않는 것을 강력히 권장합니다. 민감한 데이터를 공유하기 전에 잠재적인 결과를 고려하십시오. 우리는 개인정보 보호에 전념하지만, 외부 파트너가 데이터를 처리하는 방식을 보장할 수 없습니다."
-  it: "Per elaborare le tue richieste, OpenMates invia i tuoi prompt e dati a fornitori di servizi di IA di terze parti (come dettagliato nella nostra Informativa sulla Privacy). Sebbene questi fornitori affermino di non addestrare modelli sui dati degli utenti, non possiamo verificarlo indipendentemente. Pertanto, ti consigliamo vivamente di non inviare informazioni personali, finanziarie, mediche o riservate altamente sensibili a OpenMates. Si prega di considerare le possibili conseguenze prima di condividere dati sensibili. Siamo impegnati nella privacy, ma non possiamo garantire come i partner esterni elaborano i tuoi dati."
-  tr: "İsteklerinizi işlemek için OpenMates, istemlerinizi ve verilerinizi üçüncü taraf AI hizmet sağlayıcılarına gönderir (Gizlilik Politikamızda ayrıntılı olarak belirtildiği gibi). Bu sağlayıcılar kullanıcı verileri üzerinde model eğitmediğini iddia etseler de, bu iddiaları bağımsız olarak doğrulayamayız. Bu nedenle, OpenMates'e yüksek hassasiyetli kişisel, finansal, tıbbi veya gizli bilgiler göndermemenizi şiddetle tavsiye ederiz. Hassas verileri paylaşmadan önce olası sonuçları değerlendirin. Gizliliğe bağlıyız, ancak dış ortakların verilerinizi nasıl işlediğini garanti edemeyiz."
-  vi: "Để xử lý yêu cầu của bạn, OpenMates gửi các lời nhắc và dữ liệu của bạn đến các nhà cung cấp dịch vụ AI bên thứ ba (như được nêu chi tiết trong Chính sách Bảo mật của chúng tôi). Mặc dù các nhà cung cấp này tuyên bố rằng họ không huấn luyện mô hình trên dữ liệu người dùng, chúng tôi không thể độc lập xác minh những tuyên bố này. Do đó, chúng tôi khuyến nghị mạnh mẽ không gửi thông tin cá nhân, tài chính, y tế hoặc bí mật có độ nhạy cảm cao đến OpenMates. Vui lòng xem xét hậu quả tiềm ẩn trước khi chia sẻ dữ liệu nhạy cảm. Chúng tôi cam kết về quyền riêng tư nhưng không thể đảm bảo cách các đối tác bên ngoài xử lý dữ liệu của bạn."
-  id: "Untuk memproses permintaan Anda, OpenMates mengirimkan prompt dan data Anda ke penyedia layanan AI pihak ketiga (seperti yang dijelaskan dalam Kebijakan Privasi kami). Meskipun penyedia ini mengklaim tidak melatih model pada data pengguna, kami tidak dapat memverifikasi klaim ini secara independen. Oleh karena itu, kami sangat menyarankan untuk tidak mengirimkan informasi pribadi, keuangan, medis, atau rahasia yang sangat sensitif ke OpenMates. Harap pertimbangkan konsekuensi potensial sebelum berbagi data sensitif. Kami berkomitmen pada privasi tetapi tidak dapat menjamin bagaimana mitra eksternal memproses data Anda."
-  pl: "Aby przetworzyć Twoje żądania, OpenMates wysyła Twoje prompty i dane do zewnętrznych dostawców usług AI (jak szczegółowo opisano w naszej Polityce Prywatności). Chociaż ci dostawcy twierdzą, że nie trenują modeli na danych użytkowników, nie możemy niezależnie zweryfikować tych twierdzeń. Dlatego zdecydowanie odradzamy przesyłanie wysoce wrażliwych danych osobowych, finansowych, medycznych lub poufnych do OpenMates. Prosimy o rozważenie potencjalnych konsekwencji przed udostępnieniem wrażliwych danych. Jesteśmy zaangażowani w prywatność, ale nie możemy zagwarantować, w jaki sposób zewnętrzni partnerzy przetwarzają Twoje dane."
-  nl: "Om uw verzoeken te verwerken, stuurt OpenMates uw prompts en gegevens naar externe AI-serviceproviders (zoals beschreven in ons Privacybeleid). Hoewel deze providers beweren dat ze geen modellen trainen op gebruikersgegevens, kunnen we deze beweringen niet onafhankelijk verifiëren. Daarom raden we u ten zeerste aan om geen zeer gevoelige persoonlijke, financiële, medische of vertrouwelijke informatie naar OpenMates te sturen. Overweeg alstublieft de mogelijke gevolgen voordat u gevoelige gegevens deelt. We zijn toegewijd aan privacy, maar we kunnen niet garanderen hoe externe partners uw gegevens verwerken."
-  ar: لمعالجة طلباتك، يرسل OpenMates مطالباتك وبياناتك إلى مزودي خدمات الذكاء الاصطناعي من الأطراف الثالثة (كما هو مفصل في سياسة الخصوصية الخاصة بنا). على الرغم من أن هؤلاء المزودين يدعون أنهم لا يدربون النماذج على بيانات المستخدمين، لا يمكننا التحقق من ذلك بشكل مستقل. لذلك، ننصح بشدة بعدم إرسال معلومات شخصية أو مالية أو طبية أو سرية حساسة إلى OpenMates. يرجى النظر في العواقب المحتملة قبل مشاركة البيانات الحساسة. نحن ملتزمون بالخصوصية لكننا لا نستطيع ضمان كيفية معالجة الشركاء الخارجيين لبياناتك.
-  hi: "आपके अनुरोधों को संसाधित करने के लिए, OpenMates आपके प्रॉम्प्ट और डेटा को तृतीय-पक्ष AI सेवा प्रदाताओं को भेजता है (जैसा कि हमारी गोपनीयता नीति में विस्तृत है)। हालांकि ये प्रदाता दावा करते हैं कि वे उपयोगकर्ता डेटा पर मॉडल प्रशिक्षित नहीं करते हैं, हम इन दावों को स्वतंत्र रूप से सत्यापित नहीं कर सकते। इसलिए, हम अत्यधिक संवेदनशील व्यक्तिगत, वित्तीय, चिकित्सा या गोपनीय जानकारी OpenMates को भेजने के खिलाफ दृढ़ता से सलाह देते हैं। संवेदनशील डेटा साझा करने से पहले संभावित परिणामों पर विचार करें। हम गोपनीयता के प्रति प्रतिबद्ध हैं लेकिन गारंटी नहीं दे सकते कि बाहरी साझेदार आपके डेटा को कैसे संसाधित करते हैं।"
-  th: เพื่อประมวลผลคำขอของคุณ OpenMates ส่งคำขอและข้อมูลของคุณไปยังผู้ให้บริการ AI ของบุคคลที่สาม (ตามที่ระบุไว้ในนโยบายความเป็นส่วนตัวของเรา) แม้ว่าผู้ให้บริการเหล่านี้จะอ้างว่าพวกเขาไม่ฝึกโมเดลด้วยข้อมูลผู้ใช้ แต่เราไม่สามารถตรวจสอบข้อเรียกร้องเหล่านี้ได้อย่างอิสระ ดังนั้นเราขอแนะนำอย่างยิ่งให้ไม่ส่งข้อมูลส่วนบุคคลทางการเงินทางการแพทย์หรือข้อมูลที่เป็นความลับที่มีความละเอียดอ่อนสูงไปยัง OpenMates โปรดพิจารณาผลที่ตามมาก่อนแชร์ข้อมูลที่ละเอียดอ่อน เรามุ่งมั่นในความเป็นส่วนตัวแต่ไม่สามารถรับประกันได้ว่าคู่ค้าภายนอกจะประมวลผลข้อมูลของคุณอย่างไร
-  cs: "Pro zpracování vašich požadavků OpenMates odesílá vaše dotazy a data poskytovatelům služeb AI třetích stran (jak je podrobně popsáno v našich Zásadách ochrany osobních údajů). I když tito poskytovatelé tvrdí, že netrénují modely na uživatelských datech, nemůžeme tyto tvrzení nezávisle ověřit. Proto důrazně doporučujeme neodesílat vysoce citlivé osobní, finanční, lékařské nebo důvěrné informace do OpenMates. Před sdílením citlivých údajů zvažte možné důsledky. Jsme oddáni soukromí, ale nemůžeme zaručit, jak externí partneři zpracovávají vaše data."
-  sv: "För att bearbeta dina förfrågningar skickar OpenMates dina prompts och data till tredjepartsleverantörer av AI-tjänster (som beskrivs i vår integritetspolicy). Även om dessa leverantörer hävdar att de inte tränar modeller på användardata kan vi inte oberoende verifiera dessa påståenden. Därför rekommenderar vi starkt att inte skicka mycket känslig personlig, finansiell, medicinsk eller konfidentiell information till OpenMates. Överväg potentiella konsekvenser innan du delar känsliga data. Vi är engagerade i integritet men kan inte garantera hur externa partners bearbetar dina data."
-  he: לעיבוד בקשותיך, OpenMates שולחת את ההנחיות והנתונים שלך לספקי שירותי AI של צד שלישי (כמפורט במדיניות הפרטיות שלנו). בעוד שספקים אלו טוענים שאינם מאמנים מודלים על נתוני משתמשים, איננו יכולים לאמת טענות אלו באופן עצמאי. לכן, אנו ממליצים בחוזקה לא להגיש מידע אישי, פיננסי, רפואי או סודי רגיש ביותר ל-OpenMates. אנא שקול את ההשלכות האפשריות לפני שיתוף נתונים רגישים. אנו מחויבים לפרטיות ותכננו את OpenMates תוך התחשבות בפרטיות, אך איננו יכולים להבטיח כיצד שותפים חיצוניים מעבדים את הנתונים שלך.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 credits.heading:
   context: Section heading for credits
   en: Credits and Payments
-  de: Credits und Zahlungen
-  zh: 积分与支付
-  es: Créditos y Pagos
-  fr: Crédits et Paiements
-  pt: Créditos e Pagamentos
-  ru: Кредиты и платежи
-  ja: クレジットと支払い
-  ko: 크레딧 및 결제
-  it: Crediti e Pagamenti
-  tr: Krediler ve Ödemeler
-  vi: Tín dụng và Thanh toán
-  id: Kredit dan Pembayaran
-  pl: Kredyty i płatności
-  nl: Credits en betalingen
-  ar: الرصيد والمدفوعات
-  hi: क्रेडिट और भुगतान
-  th: เครดิตและการชำระเงิน
-  cs: Kredity a platby
-  sv: Krediter och betalningar
-  he: קרדיטים ותשלומים
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 credits.description:
   context: Credits system explanation
   en: OpenMates uses a credit-based payment system. You purchase credit packs which are consumed when using AI services. Credits do not expire and remain in your account until used. Payment processing is handled by Stripe - see our Privacy Policy for details about payment data handling.
-  de: "OpenMates verwendet ein kreditbasiertes Zahlungssystem. Sie kaufen Kreditpakete, die beim Einsatz von KI-Diensten verbraucht werden. Credits verfallen nicht und bleiben auf Ihrem Konto, bis sie genutzt werden. Die Zahlungsabwicklung erfolgt über Stripe - Details zur Handhabung von Zahlungsdaten finden Sie in unserer Datenschutzerklärung."
-  zh: OpenMates 使用基于积分的支付系统。您购买积分包，在使用 AI 服务时消耗积分。积分不会过期，将保留在您的账户中直到使用。支付处理由 Stripe 负责 - 有关支付数据处理的详细信息，请参阅我们的隐私政策。
-  es: OpenMates utiliza un sistema de pago basado en créditos. Usted compra paquetes de créditos que se consumen al usar los servicios de IA. Los créditos no caducan y permanecen en su cuenta hasta que se usen. El procesamiento de pagos es gestionado por Stripe - consulte nuestra Política de Privacidad para obtener detalles sobre el manejo de datos de pago.
-  fr: OpenMates utilise un système de paiement basé sur des crédits. Vous achetez des packs de crédits qui sont consommés lors de l'utilisation des services d'IA. Les crédits n'expirent pas et restent dans votre compte jusqu'à leur utilisation. Le traitement des paiements est géré par Stripe - consultez notre Politique de Confidentialité pour plus de détails sur le traitement des données de paiement.
-  pt: O OpenMates usa um sistema de pagamento baseado em créditos. Você compra pacotes de créditos que são consumidos ao usar os serviços de IA. Os créditos não expiram e permanecem em sua conta até serem usados. O processamento de pagamentos é realizado pela Stripe - consulte nossa Política de Privacidade para detalhes sobre o tratamento de dados de pagamento.
-  ru: "OpenMates использует кредитную систему оплаты. Вы покупаете пакеты кредитов, которые расходуются при использовании сервисов ИИ. Кредиты не истекают и остаются на вашем счёте до их использования. Обработка платежей осуществляется через Stripe — подробности об обращении с платёжными данными см. в нашей Политике конфиденциальности."
-  ja: OpenMatesはクレジットベースの支払いシステムを使用しています。AIサービスを使用する際に消費されるクレジットパックを購入します。クレジットは期限切れにならず、使用されるまでアカウントに残ります。支払い処理はStripeが担当しています。支払いデータの取り扱いについてはプライバシーポリシーをご参照ください。
-  ko: OpenMates는 크레딧 기반 결제 시스템을 사용합니다. AI 서비스를 사용할 때 소비되는 크레딧 팩을 구입합니다. 크레딧은 만료되지 않으며 사용될 때까지 계정에 남아 있습니다. 결제 처리는 Stripe에서 처리합니다. 결제 데이터 처리에 대한 자세한 내용은 개인정보 보호정책을 참조하세요.
-  it: OpenMates utilizza un sistema di pagamento basato su crediti. Acquisti pacchetti di crediti che vengono consumati quando usi i servizi AI. I crediti non scadono e rimangono nel tuo account fino all'utilizzo. L'elaborazione dei pagamenti è gestita da Stripe - consulta la nostra Informativa sulla Privacy per i dettagli sulla gestione dei dati di pagamento.
-  tr: "OpenMates, kredi bazlı bir ödeme sistemi kullanmaktadır. AI hizmetlerini kullanırken tüketilen kredi paketleri satın alırsınız. Krediler sona ermez ve kullanılana kadar hesabınızda kalır. Ödeme işlemi Stripe tarafından yönetilmektedir - ödeme verisi işleme hakkında ayrıntılar için Gizlilik Politikamıza bakın."
-  vi: OpenMates sử dụng hệ thống thanh toán dựa trên tín dụng. Bạn mua các gói tín dụng được tiêu thụ khi sử dụng các dịch vụ AI. Tín dụng không hết hạn và vẫn trong tài khoản của bạn cho đến khi được sử dụng. Xử lý thanh toán được thực hiện bởi Stripe - xem Chính sách Bảo mật của chúng tôi để biết chi tiết về việc xử lý dữ liệu thanh toán.
-  id: OpenMates menggunakan sistem pembayaran berbasis kredit. Anda membeli paket kredit yang dikonsumsi saat menggunakan layanan AI. Kredit tidak kedaluwarsa dan tetap di akun Anda hingga digunakan. Pemrosesan pembayaran ditangani oleh Stripe - lihat Kebijakan Privasi kami untuk detail tentang penanganan data pembayaran.
-  pl: "OpenMates korzysta z systemu płatności opartego na kredytach. Kupujesz pakiety kredytów, które są zużywane podczas korzystania z usług AI. Kredyty nie wygasają i pozostają na Twoim koncie do czasu ich wykorzystania. Przetwarzanie płatności jest obsługiwane przez Stripe - szczegóły dotyczące obsługi danych płatniczych znajdziesz w naszej Polityce Prywatności."
-  nl: OpenMates gebruikt een op credits gebaseerd betalingssysteem. U koopt creditpakketten die worden verbruikt bij het gebruik van AI-diensten. Credits verlopen niet en blijven in uw account tot ze worden gebruikt. Betalingsverwerking wordt afgehandeld door Stripe - zie ons Privacybeleid voor details over het verwerken van betalingsgegevens.
-  ar: يستخدم OpenMates نظام دفع قائم على الرصيد. تشتري حزم رصيد يتم استهلاكها عند استخدام خدمات الذكاء الاصطناعي. لا تنتهي صلاحية الرصيد ويبقى في حسابك حتى استخدامه. تتم معالجة الدفع بواسطة Stripe - راجع سياسة الخصوصية الخاصة بنا للحصول على تفاصيل حول معالجة بيانات الدفع.
-  hi: OpenMates एक क्रेडिट-आधारित भुगतान प्रणाली का उपयोग करता है। आप क्रेडिट पैक खरीदते हैं जो AI सेवाओं का उपयोग करते समय उपयोग होते हैं। क्रेडिट समाप्त नहीं होते और उपयोग होने तक आपके खाते में रहते हैं। भुगतान प्रसंस्करण Stripe द्वारा संभाला जाता है - भुगतान डेटा प्रबंधन के बारे में विवरण के लिए हमारी गोपनीयता नीति देखें।
-  th: OpenMates ใช้ระบบการชำระเงินแบบเครดิต คุณซื้อแพ็คเครดิตที่ใช้เมื่อใช้บริการ AI เครดิตไม่หมดอายุและยังคงอยู่ในบัญชีของคุณจนกว่าจะถูกใช้ การประมวลผลการชำระเงินดำเนินการโดย Stripe - ดูนโยบายความเป็นส่วนตัวของเราสำหรับรายละเอียดเกี่ยวกับการจัดการข้อมูลการชำระเงิน
-  cs: "OpenMates používá kreditní platební systém. Kupujete kreditní balíčky, které se spotřebovávají při používání služeb AI. Kredity nevyprší a zůstávají na vašem účtu, dokud nejsou použity. Zpracování plateb zajišťuje Stripe - podrobnosti o zpracování platebních dat najdete v našich Zásadách ochrany osobních údajů."
-  sv: OpenMates använder ett kreditbaserat betalningssystem. Du köper kreditpaket som förbrukas när du använder AI-tjänster. Krediter löper inte ut och finns kvar på ditt konto tills de används. Betalningshantering sköts av Stripe - se vår integritetspolicy för detaljer om hantering av betalningsdata.
-  he: OpenMates משתמשת במערכת תשלומים מבוססת קרדיטים. אתה רוכש חבילות קרדיטים הנצרכות בעת שימוש בשירותי AI. הקרדיטים אינם פגים ונשארים בחשבונך עד לשימוש בהם. עיבוד התשלומים מתבצע על ידי Stripe - ראה מדיניות הפרטיות שלנו לפרטים על טיפול בנתוני תשלום.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 credits.refund:
   context: Refund policy explanation
   en: 'Refund Policy: You may request a refund for unused credits within 14 days after purchase. Your right of withdrawal expires once credits are used. See our signup process for the full refund consent details.'
-  de: "Rückgaberecht: Sie können innerhalb von 14 Tagen nach dem Kauf eine Rückerstattung für ungenutzte Credits beantragen. Ihr Widerrufsrecht erlischt, sobald Credits verbraucht sind. Weitere Details zu den Rückgabebedingungen finden Sie in unserem Anmeldeprozess."
-  zh: 退款政策：您可以在购买后14天内申请退还未使用的积分。一旦积分被使用，您的撤回权即告终止。请参阅我们的注册流程了解完整的退款同意详情。
-  es: "Política de reembolso: puede solicitar un reembolso de créditos no utilizados dentro de los 14 días posteriores a la compra. Su derecho de desistimiento expira una vez que se usan los créditos. Consulte nuestro proceso de registro para obtener los detalles completos del consentimiento de reembolso."
-  fr: "Politique de remboursement : vous pouvez demander un remboursement pour les crédits non utilisés dans les 14 jours suivant l'achat. Votre droit de rétractation expire une fois les crédits utilisés. Consultez notre processus d'inscription pour les détails complets du consentement de remboursement."
-  pt: "Política de reembolso: Você pode solicitar um reembolso por créditos não utilizados dentro de 14 dias após a compra. Seu direito de cancelamento expira uma vez que os créditos são usados. Consulte nosso processo de cadastro para os detalhes completos do consentimento de reembolso."
-  ru: "Политика возврата: вы можете запросить возврат средств за неиспользованные кредиты в течение 14 дней после покупки. Право на отзыв истекает после использования кредитов. Полные условия согласия на возврат средств см. в процессе регистрации."
-  ja: 返金ポリシー：購入後14日以内に未使用クレジットの返金を申請できます。クレジットを使用した時点で撤回権は消滅します。返金同意の詳細についてはサインアッププロセスをご参照ください。
-  ko: "환불 정책: 구매 후 14일 이내에 미사용 크레딧에 대한 환불을 요청할 수 있습니다. 크레딧이 사용되면 철회권이 만료됩니다. 전체 환불 동의 세부 사항은 가입 프로세스를 참조하세요."
-  it: "Politica di rimborso: è possibile richiedere un rimborso per i crediti inutilizzati entro 14 giorni dall'acquisto. Il diritto di recesso scade una volta che i crediti vengono utilizzati. Consulta il processo di registrazione per i dettagli completi del consenso al rimborso."
-  tr: "İade Politikası: Satın alma işleminden sonra 14 gün içinde kullanılmamış krediler için iade talep edebilirsiniz. Cayma hakkınız, krediler kullanıldığında sona erer. Tam iade onay ayrıntıları için kayıt sürecimize bakın."
-  vi: "Chính sách hoàn tiền: Bạn có thể yêu cầu hoàn tiền cho tín dụng chưa sử dụng trong vòng 14 ngày sau khi mua. Quyền rút lui của bạn hết hạn khi tín dụng được sử dụng. Xem quy trình đăng ký của chúng tôi để biết chi tiết đầy đủ về sự đồng ý hoàn tiền."
-  id: "Kebijakan Pengembalian Dana: Anda dapat meminta pengembalian dana untuk kredit yang tidak digunakan dalam 14 hari setelah pembelian. Hak penarikan Anda berakhir setelah kredit digunakan. Lihat proses pendaftaran kami untuk detail lengkap persetujuan pengembalian dana."
-  pl: "Polityka zwrotów: Możesz złożyć wniosek o zwrot pieniędzy za niewykorzystane kredyty w ciągu 14 dni od zakupu. Twoje prawo do odstąpienia wygasa po wykorzystaniu kredytów. Zobacz nasz proces rejestracji, aby uzyskać pełne szczegóły zgody na zwrot."
-  nl: "Terugbetalingsbeleid: U kunt binnen 14 dagen na aankoop een terugbetaling aanvragen voor ongebruikte credits. Uw herroepingsrecht vervalt zodra credits zijn gebruikt. Zie ons aanmeldingsproces voor de volledige details van de terugbetalingstoestemming."
-  ar: "سياسة الاسترداد: يمكنك طلب استرداد الرصيد غير المستخدم في غضون 14 يومًا من الشراء. ينتهي حق الانسحاب الخاص بك بمجرد استخدام الرصيد. انظر عملية التسجيل لدينا للحصول على تفاصيل موافقة الاسترداد الكاملة."
-  hi: "वापसी नीति: आप खरीद के 14 दिनों के भीतर अप्रयुक्त क्रेडिट के लिए धनवापसी का अनुरोध कर सकते हैं। एक बार क्रेडिट का उपयोग होने पर आपका वापसी अधिकार समाप्त हो जाता है। पूर्ण वापसी सहमति विवरण के लिए हमारी साइनअप प्रक्रिया देखें।"
-  th: "นโยบายการคืนเงิน: คุณสามารถขอคืนเงินสำหรับเครดิตที่ยังไม่ได้ใช้ภายใน 14 วันหลังการซื้อ สิทธิ์การถอนของคุณหมดอายุเมื่อมีการใช้เครดิต ดูกระบวนการลงทะเบียนของเราสำหรับรายละเอียดความยินยอมการคืนเงินฉบับเต็ม"
-  cs: "Zásady vrácení peněz: Můžete požádat o vrácení peněz za nevyužité kredity do 14 dnů od nákupu. Vaše právo na odstoupení zaniká, jakmile jsou kredity použity. Podrobnosti o souhlasu s vrácením peněz najdete v procesu registrace."
-  sv: "Återbetalningspolicy: Du kan begära återbetalning för oanvända credits inom 14 dagar efter köpet. Din ångerrätt upphör när credits används. Se vår registreringsprocess för fullständiga detaljer om återbetalningssamtycket."
-  he: "מדיניות החזרים: ניתן לבקש החזר כספי עבור קרדיטים שלא נוצלו תוך 14 יום מהרכישה. זכות הביטול שלך פוקעת לאחר שהקרדיטים נוצלו. עיין בתהליך ההרשמה שלנו לפרטים מלאים על הסכמת ההחזר."
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 disclaimer.heading:
   context: Section heading for disclaimer
@@ -581,22 +580,21 @@ disclaimer.heading:
   zh: 免责声明
   es: Descargo de responsabilidad
   fr: Clause de non-responsabilité
-  pt: Isenção de Responsabilidade
-  ru: Отказ от ответственности
+  pt: ''
+  ru: ''
   ja: 免責事項
-  ko: 면책 조항
-  it: Esclusione di responsabilità
-  tr: Sorumluluk Reddi
-  vi: Tuyên bố miễn trách nhiệm
-  id: Penafian
-  pl: Zastrzeżenie
-  nl: Disclaimer
-  ar: إخلاء المسؤولية
-  hi: अस्वीकरण
-  th: ข้อปฏิเสธความรับผิดชอบ
-  cs: Odmítnutí odpovědnosti
-  sv: Ansvarsfriskrivning
-  he: כתב ויתור
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 disclaimer.description:
   context: Disclaimer explanation
@@ -605,22 +603,21 @@ disclaimer.description:
   zh: 本网站上的材料和信息“按原样”提供，不提供任何形式的保证。 我们不保证本网站上任何信息的准确性、完整性或有用性。 您对此类信息的任何依赖均由您自行承担风险。
   es: Los materiales e información en este sitio web se proporcionan 'tal cual' y sin garantías de ningún tipo. No garantizamos la precisión, integridad o utilidad de cualquier información en este sitio web. Cualquier confianza que deposite en dicha información es estrictamente bajo su propio riesgo.
   fr: Les documents et informations sur ce site web sont fournis "tels quels" et sans garantie d'aucune sorte. Nous ne garantissons pas l'exactitude, l'exhaustivité ou l'utilité des informations présentes sur ce site web. Toute confiance que vous accordez à ces informations est strictement à vos propres risques.
-  pt: "Os materiais e informações neste Site e no serviço OpenMates são fornecidos 'como estão' e sem garantias de qualquer tipo. Não garantimos a precisão, integridade ou utilidade de qualquer informação fornecida pelo OpenMates. As respostas geradas por IA podem conter erros, imprecisões ou informações desatualizadas. Qualquer confiança que você deposite nessas informações é estritamente por sua própria conta e risco."
-  ru: "Материалы и информация на этом Веб-сайте и в сервисе OpenMates предоставляются 'как есть' без каких-либо гарантий. Мы не гарантируем точность, полноту или полезность какой-либо информации, предоставляемой OpenMates. Ответы, сгенерированные ИИ, могут содержать ошибки, неточности или устаревшую информацию. Любое доверие, которое вы оказываете такой информации, осуществляется исключительно на ваш страх и риск."
+  pt: ''
+  ru: ''
   ja: このウェブサイト上の資料および情報は「現状のまま」提供され、いかなる種類の保証もありません。当ウェブサイト上の情報の正確性、完全性、有用性について保証するものではありません。そのような情報に依拠することは、完全にご自身の責任において行ってください。
-  ko: "이 웹사이트와 OpenMates 서비스의 자료 및 정보는 '있는 그대로' 제공되며 어떠한 종류의 보증도 없습니다. OpenMates가 제공하는 어떤 정보의 정확성, 완전성 또는 유용성을 보장하지 않습니다. AI가 생성한 응답에는 오류, 부정확한 내용 또는 오래된 정보가 포함될 수 있습니다. 그러한 정보에 대한 신뢰는 전적으로 귀하의 책임입니다."
-  it: "I materiali e le informazioni su questo Sito web e nel servizio OpenMates sono forniti 'così come sono' e senza garanzie di alcun tipo. Non garantiamo l'accuratezza, la completezza o l'utilità di qualsiasi informazione fornita da OpenMates. Le risposte generate dall'AI possono contenere errori, inesattezze o informazioni obsolete. Qualsiasi affidamento che fai su tali informazioni è strettamente a tuo rischio e pericolo."
-  tr: "Bu Web sitesindeki ve OpenMates hizmetindeki materyaller ve bilgiler 'olduğu gibi' ve herhangi bir garanti olmaksızın sağlanmaktadır. OpenMates tarafından sağlanan herhangi bir bilginin doğruluğunu, eksiksizliğini veya kullanışlılığını garanti etmiyoruz. AI tarafından oluşturulan yanıtlar hatalar, yanlışlıklar veya güncel olmayan bilgiler içerebilir. Bu tür bilgilere duyduğunuz güven tamamen kendi riskinize aittir."
-  vi: "Các tài liệu và thông tin trên Trang web này và dịch vụ OpenMates được cung cấp 'nguyên trạng' và không có bảo đảm dưới bất kỳ hình thức nào. Chúng tôi không đảm bảo tính chính xác, đầy đủ hoặc hữu ích của bất kỳ thông tin nào được cung cấp bởi OpenMates. Phản hồi do AI tạo ra có thể chứa lỗi, sự không chính xác hoặc thông tin lỗi thời. Bất kỳ sự phụ thuộc nào bạn đặt vào thông tin đó là hoàn toàn chịu rủi ro của bạn."
-  id: "Materi dan informasi di Situs web ini dan layanan OpenMates disediakan 'apa adanya' dan tanpa jaminan apapun. Kami tidak menjamin keakuratan, kelengkapan, atau kegunaan informasi apapun yang disediakan oleh OpenMates. Respons yang dihasilkan AI mungkin mengandung kesalahan, ketidakakuratan, atau informasi yang sudah ketinggalan zaman. Setiap ketergantungan yang Anda tempatkan pada informasi tersebut sepenuhnya merupakan risiko Anda sendiri."
-  pl: "Materiały i informacje na tej Stronie internetowej oraz w serwisie OpenMates są udostępniane 'w takim stanie, w jakim są' i bez żadnych gwarancji. Nie gwarantujemy dokładności, kompletności ani przydatności jakichkolwiek informacji dostarczanych przez OpenMates. Odpowiedzi generowane przez AI mogą zawierać błędy, nieścisłości lub przestarzałe informacje. Wszelkie zaufanie pokładane w takich informacjach odbywa się wyłącznie na Twoje własne ryzyko."
-  nl: "De materialen en informatie op deze Website en de OpenMates-dienst worden geleverd 'zoals ze zijn' en zonder enige garantie. Wij garanderen niet de nauwkeurigheid, volledigheid of bruikbaarheid van enige informatie die door OpenMates wordt verstrekt. AI-gegenereerde antwoorden kunnen fouten, onnauwkeurigheden of verouderde informatie bevatten. Elk vertrouwen dat u in dergelijke informatie stelt, is strikt op eigen risico."
-  ar: المواد والمعلومات الموجودة على هذا الموقع وخدمة OpenMates مقدمة 'كما هي' وبدون أي ضمانات. لا نضمن دقة أو اكتمال أو فائدة أي معلومات يقدمها OpenMates. قد تحتوي الردود التي يولدها الذكاء الاصطناعي على أخطاء أو معلومات غير دقيقة أو قديمة. أي اعتماد تضعه على هذه المعلومات يكون على مسؤوليتك الخاصة.
-  hi: "इस वेबसाइट और OpenMates सेवा पर सामग्री और जानकारी 'जैसी है' प्रदान की जाती है और किसी भी प्रकार की वारंटी के बिना। हम OpenMates द्वारा प्रदान की गई किसी भी जानकारी की सटीकता, पूर्णता या उपयोगिता की गारंटी नहीं देते हैं। AI-जनित प्रतिक्रियाओं में त्रुटियां, असंगतियां या पुरानी जानकारी हो सकती है। ऐसी जानकारी पर आप जो भी भरोसा करते हैं वह पूरी तरह से आपके अपने जोखिम पर है।"
-  th: วัสดุและข้อมูลบนเว็บไซต์นี้และบริการ OpenMates ถูกจัดให้ 'ตามสภาพ' และไม่มีการรับประกันใดๆ เราไม่รับประกันความถูกต้อง ความสมบูรณ์ หรือความเป็นประโยชน์ของข้อมูลใดๆ ที่ OpenMates ให้ การตอบสนองที่สร้างโดย AI อาจมีข้อผิดพลาด ความไม่ถูกต้อง หรือข้อมูลที่ล้าสมัย การพึ่งพาข้อมูลดังกล่าวถือเป็นความเสี่ยงของคุณเอง
-  cs: "Materiály a informace na této Webové stránce a ve službě OpenMates jsou poskytovány 'tak jak jsou' a bez jakýchkoli záruk. Nezaručujeme přesnost, úplnost ani užitečnost jakýchkoliv informací poskytovaných OpenMates. Odpovědi generované AI mohou obsahovat chyby, nepřesnosti nebo zastaralé informace. Veškerá důvěra, kterou v takovéto informace vkládáte, je přísně na vaše vlastní riziko."
-  sv: "Materialet och informationen på denna Webbplats och OpenMates-tjänsten tillhandahålls 'i befintligt skick' och utan garantier av något slag. Vi garanterar inte noggrannheten, fullständigheten eller användbarheten av information som tillhandahålls av OpenMates. AI-genererade svar kan innehålla fel, felaktigheter eller föråldrad information. Alla förlitanden du gör på sådan information sker strikt på egen risk."
-  he: "החומרים והמידע באתר זה ובשירות OpenMates ניתנים 'כפי שהם' וללא אחריות מכל סוג שהוא. איננו מבטיחים את הדיוק, השלמות או השימושיות של כל מידע שסופק על ידי OpenMates. תגובות שנוצרו על ידי AI עלולות להכיל שגיאות, אי-דיוקים או מידע מיושן. כל הסתמכות שתציב על מידע כזה היא על אחריותך בלבד."
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.heading:
   context: Section heading for limitations
@@ -629,22 +626,21 @@ limitations.heading:
   zh: 责任限制
   es: Limitaciones
   fr: Limitations
-  pt: Limitações
-  ru: Ограничения
+  pt: ''
+  ru: ''
   ja: 責任の制限
-  ko: 책임 한계
-  it: Limitazioni
-  tr: Sınırlamalar
-  vi: Giới hạn
-  id: Batasan
-  pl: Ograniczenia
-  nl: Beperkingen
-  ar: القيود
-  hi: सीमाएं
-  th: ข้อจำกัด
-  cs: Omezení
-  sv: Begränsningar
-  he: הגבלות
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.description:
   context: Limitations introduction
@@ -653,22 +649,21 @@ limitations.description:
   zh: 在法律允许的最大范围内，网站所有者不对因以下原因引起或以任何方式与之相关的任何直接、间接、偶然、后果性或特殊损害承担责任：
   es: 'En la máxima medida permitida por la ley, el propietario del sitio web no será responsable de ningún daño directo, indirecto, incidental, consecuente o especial que surja de o esté relacionado de alguna manera con:'
   fr: 'Dans toute la mesure permise par la loi, le propriétaire du site web ne sera pas responsable des dommages directs, indirects, accessoires, consécutifs ou spéciaux découlant de ou liés de quelque manière que ce soit à :'
-  pt: "Na extensão máxima permitida por lei, o proprietário do site não será responsável por quaisquer danos diretos, indiretos, incidentais, consequenciais ou especiais decorrentes de ou de qualquer forma relacionados com:"
-  ru: "В максимальной степени, допустимой законом, владелец веб-сайта не несёт ответственности за какие-либо прямые, косвенные, случайные, последующие или особые убытки, возникающие из или каким-либо образом связанные с:"
+  pt: ''
+  ru: ''
   ja: 法律で認められる最大限の範囲において、ウェブサイト運営者は以下に起因または関連するいかなる直接的、間接的、偶発的、結果的、または特別な損害についても責任を負いません：
-  ko: "법이 허용하는 최대 범위 내에서 웹사이트 소유자는 다음과 관련하여 발생하는 직접적, 간접적, 우발적, 결과적 또는 특별 손해에 대해 책임을 지지 않습니다:"
-  it: "Nella misura massima consentita dalla legge, il proprietario del sito web non sarà responsabile per eventuali danni diretti, indiretti, incidentali, conseguenti o speciali derivanti da o in qualsiasi modo connessi con:"
-  tr: "Kanunun izin verdiği azami ölçüde, web sitesi sahibi aşağıdakilerden kaynaklanan veya herhangi bir şekilde bunlarla bağlantılı olan doğrudan, dolaylı, arızi, sonuçsal veya özel zararlardan sorumlu olmayacaktır:"
-  vi: "Trong phạm vi tối đa được luật pháp cho phép, chủ sở hữu trang web sẽ không chịu trách nhiệm về bất kỳ thiệt hại trực tiếp, gián tiếp, ngẫu nhiên, hậu quả hoặc đặc biệt nào phát sinh từ hoặc liên quan đến:"
-  id: "Sejauh diizinkan oleh hukum, pemilik situs web tidak akan bertanggung jawab atas kerugian langsung, tidak langsung, insidental, konsekuensial, atau khusus yang timbul dari atau dengan cara apapun terkait dengan:"
-  pl: "W maksymalnym zakresie dozwolonym przez prawo, właściciel strony internetowej nie ponosi odpowiedzialności za jakiekolwiek bezpośrednie, pośrednie, przypadkowe, wynikowe lub szczególne szkody wynikające z lub w jakikolwiek sposób związane z:"
-  nl: "Voor zover maximaal toegestaan door de wet, is de website-eigenaar niet aansprakelijk voor enige directe, indirecte, incidentele, gevolgschade of bijzondere schade die voortvloeit uit of op enige manier verband houdt met:"
-  ar: "في أقصى حد يسمح به القانون، لن يكون مالك الموقع مسؤولاً عن أي أضرار مباشرة أو غير مباشرة أو عرضية أو تبعية أو خاصة ناشئة عن أو بأي شكل من الأشكال مرتبطة بـ:"
-  hi: "कानून द्वारा अनुमत अधिकतम सीमा तक, वेबसाइट के मालिक किसी भी प्रत्यक्ष, अप्रत्यक्ष, आकस्मिक, परिणामी या विशेष क्षति के लिए उत्तरदायी नहीं होंगे जो निम्नलिखित से उत्पन्न या किसी भी तरह से जुड़ी हो:"
-  th: "ในขอบเขตสูงสุดที่กฎหมายอนุญาต เจ้าของเว็บไซต์จะไม่รับผิดชอบต่อความเสียหายโดยตรง ทางอ้อม บังเอิญ ที่ตามมา หรือพิเศษใดๆ ที่เกิดจากหรือเกี่ยวข้องกับ:"
-  cs: "V maximální míře povolené zákonem nebude vlastník webových stránek odpovědný za žádné přímé, nepřímé, náhodné, následné ani zvláštní škody vzniklé z nebo jakýmkoli způsobem spojené s:"
-  sv: "I den maximala utsträckning som tillåts av lag ska webbplatsägaren inte vara ansvarig för direkta, indirekta, tillfälliga, följdskador eller speciella skador som uppstår ur eller på något sätt är kopplade till:"
-  he: "במידה המרבית המותרת על פי החוק, בעל האתר לא יהיה אחראי לכל נזק ישיר, עקיף, מקרי, תוצאתי או מיוחד הנובע מ- או בכל דרך שהיא קשור ל:"
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.list.website_use:
   context: Limitation regarding service use
@@ -677,46 +672,44 @@ limitations.list.website_use:
   zh: 使用或无法使用本网站
   es: El uso o la imposibilidad de usar este sitio web
   fr: L'utilisation ou l'impossibilité d'utiliser ce site web
-  pt: O uso ou incapacidade de usar o serviço OpenMates
-  ru: Использование или невозможность использования сервиса OpenMates
+  pt: ''
+  ru: ''
   ja: このウェブサイトの使用または使用不能
-  ko: OpenMates 서비스의 사용 또는 사용 불가
-  it: L'uso o l'impossibilità di utilizzare il servizio OpenMates
-  tr: OpenMates hizmetinin kullanımı veya kullanılamaması
-  vi: Việc sử dụng hoặc không thể sử dụng dịch vụ OpenMates
-  id: Penggunaan atau ketidakmampuan menggunakan layanan OpenMates
-  pl: Korzystanie lub niemożność korzystania z usługi OpenMates
-  nl: Het gebruik of het niet kunnen gebruiken van de OpenMates-dienst
-  ar: استخدام أو عدم القدرة على استخدام خدمة OpenMates
-  hi: OpenMates सेवा का उपयोग या उपयोग करने में असमर्थता
-  th: การใช้หรือไม่สามารถใช้บริการ OpenMates
-  cs: Použití nebo neschopnost používat službu OpenMates
-  sv: Användningen av eller oförmågan att använda OpenMates-tjänsten
-  he: השימוש בשירות OpenMates או חוסר היכולת להשתמש בו
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.list.ai_responses:
   context: Limitation regarding AI response liability
   en: Incorrect, inaccurate, or harmful AI-generated responses or content
-  de: "Falsche, ungenaue oder schädliche KI-generierte Antworten oder Inhalte"
-  zh: 不正确、不准确或有害的AI生成的回答或内容
-  es: "Respuestas o contenido generados por IA incorrectos, inexactos o dañinos"
-  fr: "Réponses ou contenus générés par l'IA incorrects, inexacts ou nuisibles"
-  pt: "Respostas ou conteúdo gerados por IA incorretos, imprecisos ou prejudiciais"
-  ru: "Неправильные, неточные или вредоносные ответы или контент, сгенерированные ИИ"
-  ja: 不正確、不精確またはAI生成の有害な回答またはコンテンツ
-  ko: 부정확하거나 잘못되거나 유해한 AI 생성 응답 또는 콘텐츠
-  it: "Risposte o contenuti generati dall'AI errati, inaccurati o dannosi"
-  tr: "Yanlış, hatalı veya zararlı AI tarafından oluşturulan yanıtlar veya içerik"
-  vi: "Phản hồi hoặc nội dung do AI tạo ra không chính xác, sai lệch hoặc có hại"
-  id: "Respons atau konten yang dihasilkan AI yang salah, tidak akurat, atau berbahaya"
-  pl: "Nieprawidłowe, niedokładne lub szkodliwe odpowiedzi lub treści generowane przez AI"
-  nl: "Onjuiste, onnauwkeurige of schadelijke door AI gegenereerde antwoorden of inhoud"
-  ar: الردود أو المحتوى الخاطئ أو الغير دقيق أو الضار الذي يولده الذكاء الاصطناعي
-  hi: "गलत, असंगत या हानिकारक AI-जनित प्रतिक्रियाएं या सामग्री"
-  th: การตอบสนองหรือเนื้อหาที่สร้างโดย AI ที่ไม่ถูกต้อง ไม่แม่นยำ หรือเป็นอันตราย
-  cs: "Nesprávné, nepřesné nebo škodlivé odpovědi nebo obsah generovaný AI"
-  sv: "Felaktiga, oriktiga eller skadliga AI-genererade svar eller innehåll"
-  he: תגובות או תוכן שגוי, לא מדויק או מזיק שנוצר על ידי AI
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.list.information:
   context: Limitation regarding information
@@ -725,22 +718,21 @@ limitations.list.information:
   zh: 本网站上提供的信息
   es: La información proporcionada en este sitio web
   fr: Les informations fournies sur ce site web
-  pt: "As informações fornecidas pelo OpenMates, incluindo conteúdo gerado por IA"
-  ru: "Информация, предоставляемая OpenMates, включая контент, сгенерированный ИИ"
+  pt: ''
+  ru: ''
   ja: このウェブサイトで提供される情報
-  ko: AI 생성 콘텐츠를 포함하여 OpenMates가 제공하는 정보
-  it: "Le informazioni fornite da OpenMates, inclusi i contenuti generati dall'AI"
-  tr: AI tarafından oluşturulan içerik dahil olmak üzere OpenMates tarafından sağlanan bilgiler
-  vi: "Thông tin được cung cấp bởi OpenMates, bao gồm nội dung do AI tạo ra"
-  id: "Informasi yang disediakan oleh OpenMates, termasuk konten yang dihasilkan AI"
-  pl: "Informacje dostarczone przez OpenMates, w tym treści generowane przez AI"
-  nl: "De informatie verstrekt door OpenMates, inclusief door AI gegenereerde inhoud"
-  ar: المعلومات التي يقدمها OpenMates بما في ذلك المحتوى الذي يولده الذكاء الاصطناعي
-  hi: "OpenMates द्वारा प्रदान की गई जानकारी, AI-जनित सामग्री सहित"
-  th: ข้อมูลที่ OpenMates ให้รวมถึงเนื้อหาที่สร้างโดย AI
-  cs: "Informace poskytnuté OpenMates, včetně obsahu generovaného AI"
-  sv: "Information som tillhandahålls av OpenMates, inklusive AI-genererat innehåll"
-  he: המידע שסופק על ידי OpenMates, כולל תוכן שנוצר על ידי AI
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.list.technical:
   context: Limitation regarding technical issues
@@ -749,46 +741,44 @@ limitations.list.technical:
   zh: 任何技术问题或中断
   es: Cualquier problema técnico o interrupciones
   fr: Tout problème technique ou interruption
-  pt: "Quaisquer problemas técnicos, interrupções ou indisponibilidade do serviço"
-  ru: "Любые технические проблемы, перебои или недоступность сервиса"
+  pt: ''
+  ru: ''
   ja: 技術的な問題または中断
-  ko: "모든 기술적 문제, 중단 또는 서비스 이용 불가"
-  it: "Qualsiasi problema tecnico, interruzione o indisponibilità del servizio"
-  tr: "Herhangi bir teknik sorun, kesinti veya hizmet kullanılamazlığı"
-  vi: "Bất kỳ vấn đề kỹ thuật, gián đoạn hoặc dịch vụ không khả dụng"
-  id: "Masalah teknis, gangguan, atau ketidaktersediaan layanan"
-  pl: "Wszelkie problemy techniczne, przerwy lub niedostępność usługi"
-  nl: "Technische problemen, onderbrekingen of onbeschikbaarheid van de dienst"
-  ar: أي مشاكل تقنية أو انقطاعات أو عدم توفر الخدمة
-  hi: "कोई भी तकनीकी समस्याएं, रुकावटें या सेवा अनुपलब्धता"
-  th: ปัญหาทางเทคนิค การหยุดชะงัก หรือการไม่สามารถใช้งานบริการ
-  cs: "Jakékoliv technické problémy, přerušení nebo nedostupnost služby"
-  sv: "Tekniska problem, avbrott eller tjänstens otillgänglighet"
-  he: כל בעיות טכניות, הפרעות או אי-זמינות של השירות
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 limitations.list.data_loss:
   context: Limitation regarding data loss
   en: Loss of data due to system failures, despite our backup measures
-  de: "Datenverlust aufgrund von Systemausfällen, trotz unserer Sicherungsmaßnahmen"
-  zh: 尽管我们有备份措施，但由于系统故障导致的数据丢失
-  es: "Pérdida de datos debida a fallos del sistema, a pesar de nuestras medidas de respaldo"
-  fr: "Perte de données due à des défaillances du système, malgré nos mesures de sauvegarde"
-  pt: "Perda de dados devido a falhas no sistema, apesar de nossas medidas de backup"
-  ru: "Потеря данных из-за сбоев системы, несмотря на наши меры резервного копирования"
-  ja: バックアップ措置にもかかわらず、システム障害によるデータ損失
-  ko: 백업 조치에도 불구하고 시스템 오류로 인한 데이터 손실
-  it: "Perdita di dati dovuta a guasti di sistema, nonostante le nostre misure di backup"
-  tr: Yedekleme önlemlerimize rağmen sistem arızaları nedeniyle veri kaybı
-  vi: "Mất dữ liệu do lỗi hệ thống, mặc dù có các biện pháp sao lưu của chúng tôi"
-  id: "Kehilangan data akibat kegagalan sistem, meskipun ada langkah-langkah pencadangan kami"
-  pl: "Utrata danych spowodowana awariami systemu, pomimo naszych środków tworzenia kopii zapasowych"
-  nl: "Gegevensverlies als gevolg van systeemfouten, ondanks onze back-upmaatregelen"
-  ar: فقدان البيانات بسبب أعطال النظام على الرغم من إجراءات النسخ الاحتياطي لدينا
-  hi: हमारे बैकअप उपायों के बावजूद सिस्टम विफलताओं के कारण डेटा हानि
-  th: การสูญหายของข้อมูลเนื่องจากความล้มเหลวของระบบ แม้จะมีมาตรการสำรองข้อมูลของเรา
-  cs: Ztráta dat v důsledku selhání systému i přes naše záložní opatření
-  sv: "Dataförlust på grund av systemfel, trots våra säkerhetskopieringsåtgärder"
-  he: אובדן נתונים עקב כשלי מערכת, למרות אמצעי הגיבוי שלנו
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 governing_law.heading:
   context: Section heading for governing law
@@ -797,22 +787,21 @@ governing_law.heading:
   zh: 适用法律
   es: Ley aplicable
   fr: Droit applicable
-  pt: Lei Aplicável
-  ru: Применимое право
+  pt: ''
+  ru: ''
   ja: 準拠法
-  ko: 준거법
-  it: Legge Applicabile
-  tr: Geçerli Hukuk
-  vi: Luật Điều chỉnh
-  id: Hukum yang Berlaku
-  pl: Prawo właściwe
-  nl: Toepasselijk recht
-  ar: القانون الحاكم
-  hi: शासी कानून
-  th: กฎหมายที่ใช้บังคับ
-  cs: Rozhodné právo
-  sv: Tillämplig lag
-  he: הדין החל
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 governing_law.explanation:
   context: Governing law explanation
@@ -821,118 +810,113 @@ governing_law.explanation:
   zh: 这些条款和条件受德意志联邦共和国法律管辖并据其解释。 有关负责管辖权和联系信息的详细信息，请参阅我们的版本说明。
   es: Estos términos y condiciones se rigen e interpretan de acuerdo con las leyes de la República Federal de Alemania. Para obtener detalles sobre la jurisdicción responsable e información de contacto, consulte nuestro Aviso legal.
   fr: Ces conditions générales sont régies et interprétées conformément aux lois de la République fédérale d'Allemagne. Pour plus de détails sur la juridiction responsable et les informations de contact, veuillez vous référer à nos Mentions légales.
-  pt: "Estes termos e condições são regidos e interpretados de acordo com as leis da República Federal da Alemanha. Para obter detalhes sobre a jurisdição responsável e informações de contato, consulte nosso Impressum."
-  ru: Настоящие условия и положения регулируются и толкуются в соответствии с законодательством Федеративной Республики Германия. За подробностями о компетентной юрисдикции и контактными данными обращайтесь к нашему Импрессуму.
+  pt: ''
+  ru: ''
   ja: これらの利用規約はドイツ連邦共和国の法律に準拠し、同法に従って解釈されます。管轄裁判所および連絡先情報については、インプリントをご参照ください。
-  ko: 이 이용 약관은 독일 연방 공화국의 법률에 따라 규율되고 해석됩니다. 관할 법원 및 연락처 정보에 대한 자세한 내용은 Imprint를 참조하세요.
-  it: "I presenti termini e condizioni sono regolati e interpretati in conformità con le leggi della Repubblica Federale di Germania. Per i dettagli sulla giurisdizione responsabile e le informazioni di contatto, fare riferimento al nostro Imprint."
-  tr: "Bu şartlar ve koşullar, Almanya Federal Cumhuriyeti kanunlarına göre yönetilmekte ve yorumlanmaktadır. Sorumlu yargı yetkisi ve iletişim bilgileri hakkında ayrıntılar için lütfen Künyemize bakın."
-  vi: "Các điều khoản và điều kiện này được điều chỉnh và giải thích theo luật pháp của Cộng hòa Liên bang Đức. Để biết chi tiết về thẩm quyền có trách nhiệm và thông tin liên lạc, vui lòng tham khảo Imprint của chúng tôi."
-  id: "Syarat dan ketentuan ini diatur dan ditafsirkan sesuai dengan hukum Republik Federal Jerman. Untuk detail tentang yurisdiksi yang bertanggung jawab dan informasi kontak, silakan merujuk ke Imprint kami."
-  pl: Niniejszy regulamin podlega prawu Republiki Federalnej Niemiec i jest zgodnie z nim interpretowany. Szczegółowe informacje dotyczące właściwej jurysdykcji i danych kontaktowych znajdziesz w naszym Impressum.
-  nl: Deze algemene voorwaarden worden beheerst door en uitgelegd in overeenstemming met de wetten van de Bondsrepubliek Duitsland. Raadpleeg ons Impressum voor details over de bevoegde jurisdictie en contactgegevens.
-  ar: تخضع هذه الشروط والأحكام وتُفسَّر وفقًا لقوانين جمهورية ألمانيا الاتحادية. للحصول على تفاصيل حول الولاية القضائية المسؤولة ومعلومات الاتصال، يرجى الرجوع إلى بيانات الناشر (Imprint) الخاصة بنا.
-  hi: "ये नियम और शर्तें संघीय गणराज्य जर्मनी के कानूनों द्वारा शासित और उनके अनुसार व्याख्या की जाती हैं। जिम्मेदार क्षेत्राधिकार और संपर्क जानकारी के विवरण के लिए, कृपया हमारे Impressum का संदर्भ लें।"
-  th: ข้อกำหนดและเงื่อนไขเหล่านี้ถูกควบคุมและตีความตามกฎหมายของสาธารณรัฐสหพันธ์เยอรมนี สำหรับรายละเอียดเกี่ยวกับเขตอำนาจศาลที่รับผิดชอบและข้อมูลการติดต่อ โปรดดู Imprint ของเรา
-  cs: Tyto obchodní podmínky se řídí zákony Spolkové republiky Německo a jsou v souladu s nimi vykládány. Podrobnosti o příslušné jurisdikci a kontaktní informace naleznete v našem Imprint.
-  sv: "Dessa villkor och bestämmelser styrs av och tolkas i enlighet med lagarna i Förbundsrepubliken Tyskland. För detaljer om ansvarig jurisdiktion och kontaktuppgifter, se vårt Impressum."
-  he: תנאים והגבלות אלה נשלטים ומפורשים בהתאם לחוקי הרפובליקה הפדרלית של גרמניה. לפרטים על הסמכות השיפוטית האחראית ומידע ליצירת קשר, אנא עיין באימפרינט שלנו.
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 encryption_keys.heading:
   context: Section heading for encryption key warnings
   en: Encryption Keys and Account Recovery
-  de: Verschlüsselungsschlüssel und Kontowiederherstellung
-  zh: 加密密钥和账户恢复
-  es: Claves de Cifrado y Recuperación de Cuenta
-  fr: Clés de Chiffrement et Récupération de Compte
-  pt: Chaves de Criptografia e Recuperação de Conta
-  ru: Ключи шифрования и восстановление аккаунта
-  ja: 暗号化キーとアカウント回復
-  ko: 암호화 키 및 계정 복구
-  it: Chiavi di Crittografia e Recupero Account
-  tr: Şifreleme Anahtarları ve Hesap Kurtarma
-  vi: Khóa Mã hóa và Khôi phục Tài khoản
-  id: Kunci Enkripsi dan Pemulihan Akun
-  pl: Klucze szyfrowania i odzyskiwanie konta
-  nl: Versleutelingssleutels en accountherstel
-  ar: مفاتيح التشفير واسترداد الحساب
-  hi: एन्क्रिप्शन कुंजी और खाता पुनर्प्राप्ति
-  th: คีย์เข้ารหัสและการกู้คืนบัญชี
-  cs: Šifrovací klíče a obnova účtu
-  sv: Krypteringsnycklar och kontoåterställning
-  he: מפתחות הצפנה ושחזור חשבון
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 encryption_keys.description:
   context: Encryption key and recovery warning
   en: OpenMates uses client-side encryption to protect your long-term stored chats. Chats are encrypted with keys generated on your device that only your devices can decrypt - our servers cannot decrypt your stored chats. However, when you send messages for AI processing, decrypted content is temporarily sent to our servers for inference. Only chats saved for long-term storage are encrypted. If you lose access to all your login methods (password, passkey, recovery key, security key), we cannot restore access to your encrypted data. This is a security feature - we cannot decrypt your stored chats without your encryption keys. Please keep your login credentials and recovery keys secure and backed up.
-  de: "OpenMates verwendet clientseitige Verschlüsselung, um Ihre dauerhaft gespeicherten Chats zu schützen. Chats werden mit Schlüsseln verschlüsselt, die auf Ihrem Gerät generiert werden und nur Ihre Geräte entschlüsseln können – unsere Server können Ihre gespeicherten Chats nicht entschlüsseln. Wenn Sie jedoch Nachrichten zur KI-Verarbeitung senden, wird der entschlüsselte Inhalt vorübergehend für die Inferenz an unsere Server gesendet. Nur Chats, die für die Langzeitspeicherung gespeichert werden, werden verschlüsselt. Wenn Sie den Zugang zu all Ihren Anmeldemethoden (Passwort, Passkey, Wiederherstellungsschlüssel, Sicherheitsschlüssel) verlieren, können wir den Zugang zu Ihren verschlüsselten Daten nicht wiederherstellen. Dies ist ein Sicherheitsmerkmal – wir können Ihre gespeicherten Chats ohne Ihre Verschlüsselungsschlüssel nicht entschlüsseln. Bitte halten Sie Ihre Anmeldedaten und Wiederherstellungsschlüssel sicher und sichern Sie diese."
-  zh: OpenMates 使用客户端加密来保护您长期存储的聊天记录。聊天记录使用在您设备上生成的密钥加密，只有您的设备才能解密 - 我们的服务器无法解密您存储的聊天记录。但是，当您发送消息进行 AI 处理时，解密的内容会临时发送到我们的服务器进行推理。只有保存用于长期存储的聊天记录才会被加密。如果您失去了所有登录方式（密码、通行密钥、恢复密钥、安全密钥）的访问权限，我们无法恢复您加密数据的访问权限。这是一项安全功能 - 我们无法在没有您的加密密钥的情况下解密您存储的聊天记录。请确保您的登录凭证和恢复密钥安全且有备份。
-  es: "OpenMates utiliza cifrado del lado del cliente para proteger sus chats almacenados a largo plazo. Los chats se cifran con claves generadas en su dispositivo que solo sus dispositivos pueden descifrar: nuestros servidores no pueden descifrar sus chats almacenados. Sin embargo, cuando envía mensajes para procesamiento de IA, el contenido descifrado se envía temporalmente a nuestros servidores para inferencia. Solo los chats guardados para almacenamiento a largo plazo se cifran. Si pierde el acceso a todos sus métodos de inicio de sesión (contraseña, clave de acceso, clave de recuperación, clave de seguridad), no podemos restaurar el acceso a sus datos cifrados. Esta es una función de seguridad: no podemos descifrar sus chats almacenados sin sus claves de cifrado. Mantenga sus credenciales de inicio de sesión y claves de recuperación seguras y con copia de seguridad."
-  fr: "OpenMates utilise un chiffrement côté client pour protéger vos chats stockés à long terme. Les chats sont chiffrés avec des clés générées sur votre appareil que seuls vos appareils peuvent déchiffrer - nos serveurs ne peuvent pas déchiffrer vos chats stockés. Cependant, lorsque vous envoyez des messages pour le traitement IA, le contenu déchiffré est temporairement envoyé à nos serveurs pour l'inférence. Seuls les chats sauvegardés pour un stockage à long terme sont chiffrés. Si vous perdez l'accès à toutes vos méthodes de connexion (mot de passe, passkey, clé de récupération, clé de sécurité), nous ne pouvons pas restaurer l'accès à vos données chiffrées. C'est une fonctionnalité de sécurité - nous ne pouvons pas déchiffrer vos chats stockés sans vos clés de chiffrement. Veuillez garder vos identifiants de connexion et vos clés de récupération en sécurité et sauvegardés."
-  pt: "O OpenMates usa criptografia do lado do cliente para proteger seus chats armazenados a longo prazo. Os chats são criptografados com chaves geradas no seu dispositivo que apenas seus dispositivos podem descriptografar - nossos servidores não podem descriptografar seus chats armazenados. No entanto, quando você envia mensagens para processamento de IA, o conteúdo descriptografado é temporariamente enviado aos nossos servidores para inferência. Apenas chats salvos para armazenamento a longo prazo são criptografados. Se você perder acesso a todos os seus métodos de login (senha, chave de acesso, chave de recuperação, chave de segurança), não podemos restaurar o acesso aos seus dados criptografados. Este é um recurso de segurança - não podemos descriptografar seus chats armazenados sem suas chaves de criptografia. Mantenha suas credenciais de login e chaves de recuperação seguras e com backup."
-  ru: "OpenMates использует шифрование на стороне клиента для защиты ваших чатов, хранящихся долгосрочно. Чаты шифруются ключами, генерируемыми на вашем устройстве, которые может расшифровать только ваше устройство — наши серверы не могут расшифровать ваши сохранённые чаты. Однако при отправке сообщений для обработки ИИ расшифрованный контент временно отправляется на наши серверы для вывода. Шифруются только чаты, сохранённые для долгосрочного хранения. Если вы потеряете доступ ко всем методам входа (пароль, passkey, ключ восстановления, ключ безопасности), мы не сможем восстановить доступ к вашим зашифрованным данным. Это функция безопасности — мы не можем расшифровать ваши сохранённые чаты без ваших ключей шифрования. Пожалуйста, храните свои учётные данные и ключи восстановления в надёжном месте и делайте резервные копии."
-  ja: OpenMatesはクライアントサイドの暗号化を使用して、長期保存されたチャットを保護します。チャットはデバイスで生成されたキーで暗号化され、あなたのデバイスのみが復号化できます。私たちのサーバーは保存されたチャットを復号化できません。ただし、AI処理のためにメッセージを送信すると、復号化されたコンテンツが推論のために一時的にサーバーに送信されます。長期保存のために保存されたチャットのみが暗号化されます。すべてのログイン方法（パスワード、パスキー、回復キー、セキュリティキー）へのアクセスを失った場合、暗号化されたデータへのアクセスを回復できません。これはセキュリティ機能です。暗号化キーなしでは保存されたチャットを復号化できません。ログイン認証情報と回復キーを安全に保ち、バックアップしてください。
-  ko: "OpenMates는 클라이언트 측 암호화를 사용하여 장기 저장된 채팅을 보호합니다. 채팅은 기기에서 생성된 키로 암호화되어 기기만이 복호화할 수 있습니다. 서버는 저장된 채팅을 복호화할 수 없습니다. 그러나 AI 처리를 위해 메시지를 보낼 때 복호화된 내용이 추론을 위해 서버에 일시적으로 전송됩니다. 장기 저장을 위해 저장된 채팅만 암호화됩니다. 모든 로그인 방법(비밀번호, 패스키, 복구 키, 보안 키)에 대한 접근을 잃으면 암호화된 데이터에 대한 접근을 복원할 수 없습니다. 이는 보안 기능입니다 - 암호화 키 없이는 저장된 채팅을 복호화할 수 없습니다. 로그인 자격증명과 복구 키를 안전하게 보관하고 백업하세요."
-  it: "OpenMates utilizza la crittografia lato client per proteggere le chat archiviate a lungo termine. Le chat vengono crittografate con chiavi generate sul tuo dispositivo che solo i tuoi dispositivi possono decrittografare: i nostri server non possono decrittografare le chat archiviate. Tuttavia, quando invii messaggi per l'elaborazione AI, il contenuto decrittografato viene temporaneamente inviato ai nostri server per l'inferenza. Solo le chat salvate per l'archiviazione a lungo termine vengono crittografate. Se perdi l'accesso a tutti i tuoi metodi di accesso (password, passkey, chiave di recupero, chiave di sicurezza), non possiamo ripristinare l'accesso ai tuoi dati crittografati. Questa è una funzionalità di sicurezza: non possiamo decrittografare le chat archiviate senza le tue chiavi di crittografia. Mantieni le credenziali di accesso e le chiavi di recupero al sicuro e conserva un backup."
-  tr: "OpenMates, uzun vadeli olarak depolanan sohbetlerinizi korumak için istemci taraflı şifreleme kullanmaktadır. Sohbetler, yalnızca cihazlarınızın şifresini çözebileceği cihazınızda oluşturulan anahtarlarla şifrelenir; sunucularımız depolanan sohbetlerinizi şifreleyemez. Ancak AI işleme için mesaj gönderdiğinizde, şifresi çözülmüş içerik çıkarım için geçici olarak sunucularımıza gönderilir. Yalnızca uzun vadeli depolama için kaydedilen sohbetler şifrelenir. Tüm oturum açma yöntemlerinize erişimi kaybederseniz (şifre, parola anahtarı, kurtarma anahtarı, güvenlik anahtarı), şifrelenmiş verilerinize erişimi geri yükleyemeyiz. Bu bir güvenlik özelliğidir - şifreleme anahtarlarınız olmadan depolanan sohbetlerinizin şifresini çözemeyiz. Lütfen oturum açma kimlik bilgilerinizi ve kurtarma anahtarlarınızı güvende tutun ve yedekleyin."
-  vi: "OpenMates sử dụng mã hóa phía máy khách để bảo vệ các cuộc trò chuyện được lưu trữ lâu dài của bạn. Các cuộc trò chuyện được mã hóa bằng các khóa được tạo trên thiết bị của bạn mà chỉ thiết bị của bạn mới có thể giải mã - máy chủ của chúng tôi không thể giải mã các cuộc trò chuyện được lưu trữ của bạn. Tuy nhiên, khi bạn gửi tin nhắn để xử lý AI, nội dung đã giải mã được gửi tạm thời đến máy chủ của chúng tôi để suy luận. Chỉ các cuộc trò chuyện được lưu để lưu trữ lâu dài mới được mã hóa. Nếu bạn mất quyền truy cập vào tất cả các phương thức đăng nhập (mật khẩu, passkey, khóa khôi phục, khóa bảo mật), chúng tôi không thể khôi phục quyền truy cập vào dữ liệu được mã hóa của bạn. Đây là tính năng bảo mật - chúng tôi không thể giải mã các cuộc trò chuyện được lưu trữ của bạn nếu không có khóa mã hóa. Vui lòng giữ thông tin đăng nhập và khóa khôi phục an toàn và sao lưu chúng."
-  id: "OpenMates menggunakan enkripsi sisi klien untuk melindungi obrolan yang disimpan jangka panjang Anda. Obrolan dienkripsi dengan kunci yang dibuat di perangkat Anda yang hanya perangkat Anda yang dapat mendekripsi - server kami tidak dapat mendekripsi obrolan yang disimpan. Namun, ketika Anda mengirim pesan untuk pemrosesan AI, konten yang didekripsi sementara dikirim ke server kami untuk inferensi. Hanya obrolan yang disimpan untuk penyimpanan jangka panjang yang dienkripsi. Jika Anda kehilangan akses ke semua metode login Anda (kata sandi, passkey, kunci pemulihan, kunci keamanan), kami tidak dapat memulihkan akses ke data terenkripsi Anda. Ini adalah fitur keamanan - kami tidak dapat mendekripsi obrolan yang disimpan tanpa kunci enkripsi Anda. Harap simpan kredensial login dan kunci pemulihan Anda dengan aman dan cadangkan."
-  pl: "OpenMates używa szyfrowania po stronie klienta, aby chronić długoterminowo przechowywane czaty. Czaty są szyfrowane kluczami generowanymi na Twoim urządzeniu, które tylko Twoje urządzenia mogą odszyfrować - nasze serwery nie mogą odszyfrować przechowywanych czatów. Jednak gdy wysyłasz wiadomości do przetwarzania AI, odszyfrowana treść jest tymczasowo wysyłana do naszych serwerów do wnioskowania. Tylko czaty zapisane do długoterminowego przechowywania są szyfrowane. Jeśli utracisz dostęp do wszystkich metod logowania (hasło, passkey, klucz odzyskiwania, klucz bezpieczeństwa), nie możemy przywrócić dostępu do zaszyfrowanych danych. Jest to funkcja bezpieczeństwa - nie możemy odszyfrować przechowywanych czatów bez Twoich kluczy szyfrowania. Przechowuj swoje dane logowania i klucze odzyskiwania bezpiecznie i twórz ich kopie zapasowe."
-  nl: "OpenMates gebruikt client-side versleuteling om uw langdurig opgeslagen chats te beschermen. Chats worden versleuteld met sleutels die op uw apparaat worden gegenereerd en die alleen uw apparaten kunnen ontcijferen - onze servers kunnen uw opgeslagen chats niet ontcijferen. Wanneer u echter berichten verstuurt voor AI-verwerking, wordt de ontcijferde inhoud tijdelijk naar onze servers verzonden voor inferentie. Alleen chats die zijn opgeslagen voor langdurige opslag, worden versleuteld. Als u de toegang tot al uw inlogmethoden verliest (wachtwoord, passkey, herstelsleutel, beveiligingssleutel), kunnen we de toegang tot uw versleutelde gegevens niet herstellen. Dit is een beveiligingsfunctie - we kunnen uw opgeslagen chats niet ontcijferen zonder uw versleutelingssleutels. Houd uw inloggegevens en herstelsleutels veilig en maak er back-ups van."
-  ar: يستخدم OpenMates التشفير من جانب العميل لحماية المحادثات المخزنة طويل الأمد. يتم تشفير المحادثات بمفاتيح تُنشأ على جهازك ولا يمكن لأجهزتك وحدها فكّ تشفيرها - لا يمكن لخوادمنا فك تشفير محادثاتك المخزنة. ومع ذلك، عند إرسال رسائل لمعالجة الذكاء الاصطناعي، يُرسل المحتوى المفكوك تشفيره مؤقتًا إلى خوادمنا للاستدلال. يتم تشفير المحادثات المحفوظة للتخزين طويل الأمد فقط. إذا فقدت الوصول إلى جميع طرق تسجيل الدخول (كلمة المرور، مفتاح المرور، مفتاح الاسترداد، مفتاح الأمان)، فلا يمكننا استعادة الوصول إلى بياناتك المشفرة. هذه ميزة أمنية - لا يمكننا فك تشفير محادثاتك المخزنة بدون مفاتيح التشفير الخاصة بك. يرجى الحفاظ على أمان بيانات اعتماد تسجيل الدخول ومفاتيح الاسترداد والاحتفاظ بنسخ احتياطية منها.
-  hi: "OpenMates आपके दीर्घकालिक संग्रहीत चैट की सुरक्षा के लिए क्लाइंट-साइड एन्क्रिप्शन का उपयोग करता है। चैट आपके डिवाइस पर उत्पन्न कुंजियों से एन्क्रिप्ट की जाती हैं जिन्हें केवल आपके डिवाइस ही डिक्रिप्ट कर सकते हैं - हमारे सर्वर आपके संग्रहीत चैट को डिक्रिप्ट नहीं कर सकते। हालांकि, जब आप AI प्रसंस्करण के लिए संदेश भेजते हैं, तो डिक्रिप्टेड सामग्री अनुमान के लिए अस्थायी रूप से हमारे सर्वर पर भेजी जाती है। केवल दीर्घकालिक संग्रहण के लिए सहेजे गए चैट एन्क्रिप्ट किए जाते हैं। यदि आप अपने सभी लॉगिन तरीकों (पासवर्ड, पासकी, रिकवरी कुंजी, सुरक्षा कुंजी) तक पहुंच खो देते हैं, तो हम आपके एन्क्रिप्टेड डेटा तक पहुंच को पुनर्स्थापित नहीं कर सकते। यह एक सुरक्षा विशेषता है - आपकी एन्क्रिप्शन कुंजियों के बिना हम आपके संग्रहीत चैट को डिक्रिप्ट नहीं कर सकते। कृपया अपने लॉगिन क्रेडेंशियल और रिकवरी कुंजियों को सुरक्षित रखें और बैकअप लें।"
-  th: OpenMates ใช้การเข้ารหัสฝั่งไคลเอนต์เพื่อปกป้องการแชทที่จัดเก็บระยะยาวของคุณ การแชทได้รับการเข้ารหัสด้วยคีย์ที่สร้างขึ้นบนอุปกรณ์ของคุณซึ่งเฉพาะอุปกรณ์ของคุณเท่านั้นที่สามารถถอดรหัสได้ - เซิร์ฟเวอร์ของเราไม่สามารถถอดรหัสการแชทที่จัดเก็บของคุณได้ อย่างไรก็ตาม เมื่อคุณส่งข้อความเพื่อประมวลผล AI เนื้อหาที่ถอดรหัสแล้วจะถูกส่งไปยังเซิร์ฟเวอร์ของเราชั่วคราวสำหรับการอนุมาน เฉพาะการแชทที่บันทึกสำหรับการจัดเก็บระยะยาวเท่านั้นที่จะถูกเข้ารหัส หากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมดของคุณ (รหัสผ่าน พาสคีย์ คีย์การกู้คืน คีย์ความปลอดภัย) เราไม่สามารถกู้คืนการเข้าถึงข้อมูลที่เข้ารหัสของคุณได้ นี่คือคุณสมบัติด้านความปลอดภัย - เราไม่สามารถถอดรหัสการแชทที่จัดเก็บของคุณได้โดยไม่มีคีย์เข้ารหัสของคุณ โปรดเก็บรักษาข้อมูลรับรองการเข้าสู่ระบบและคีย์การกู้คืนของคุณอย่างปลอดภัยและสำรองข้อมูลไว้
-  cs: "OpenMates používá klientské šifrování k ochraně vašich dlouhodobě uložených chatů. Chaty jsou zašifrované klíči vygenerovanými na vašem zařízení, které mohou dešifrovat pouze vaše zařízení - naše servery nemohou dešifrovat vaše uložené chaty. Nicméně při odesílání zpráv ke zpracování AI je dešifrovaný obsah dočasně odeslán na naše servery pro inferenci. Šifrují se pouze chaty uložené pro dlouhodobé uchovávání. Pokud ztratíte přístup ke všem svým metodám přihlášení (heslo, passkey, obnovovací klíč, bezpečnostní klíč), nemůžeme obnovit přístup k vašim zašifrovaným datům. Toto je bezpečnostní funkce - bez vašich šifrovacích klíčů nemůžeme dešifrovat vaše uložené chaty. Prosím uchovávejte přihlašovací údaje a obnovovací klíče v bezpečí a zálohujte je."
-  sv: "OpenMates använder klientsidig kryptering för att skydda dina långtidslagrade chattar. Chattar krypteras med nycklar som genereras på din enhet och som bara dina enheter kan dekryptera - våra servrar kan inte dekryptera dina lagrade chattar. När du dock skickar meddelanden för AI-bearbetning skickas det dekrypterade innehållet tillfälligt till våra servrar för inferens. Endast chattar som sparas för långtidslagring krypteras. Om du förlorar åtkomst till alla dina inloggningsmetoder (lösenord, passkey, återställningsnyckel, säkerhetsnyckel) kan vi inte återställa åtkomsten till din krypterade data. Detta är en säkerhetsfunktion - vi kan inte dekryptera dina lagrade chattar utan dina krypteringsnycklar. Håll dina inloggningsuppgifter och återställningsnycklar säkra och säkerhetskopierade."
-  he: "OpenMates משתמשת בהצפנה בצד הלקוח להגנה על הצ'אטים השמורים לטווח ארוך שלך. הצ'אטים מוצפנים עם מפתחות שנוצרו במכשיר שלך אשר רק המכשירים שלך יכולים לפענח - השרתים שלנו אינם יכולים לפענח את הצ'אטים השמורים שלך. עם זאת, כאשר אתה שולח הודעות לעיבוד AI, התוכן המפוענח נשלח זמנית לשרתים שלנו לצורך הסקה. רק צ'אטים השמורים לאחסון ארוך טווח מוצפנים. אם תאבד גישה לכל שיטות ההתחברות שלך (סיסמה, מפתח גישה, מפתח שחזור, מפתח אבטחה), לא נוכל לשחזר גישה לנתונים המוצפנים שלך. זהו תכונת אבטחה - איננו יכולים לפענח את הצ'אטים השמורים שלך ללא מפתחות ההצפנה שלך. אנא שמור על פרטי ההתחברות ומפתחות השחזור שלך בצורה מאובטחת ומגובה."
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 service_availability.heading:
   context: Section heading for service availability
   en: Service Availability
-  de: Dienstverfügbarkeit
-  zh: 服务可用性
-  es: Disponibilidad del Servicio
-  fr: Disponibilité du Service
-  pt: Disponibilidade do Serviço
-  ru: Доступность сервиса
-  ja: サービスの可用性
-  ko: 서비스 가용성
-  it: Disponibilità del Servizio
-  tr: Hizmet Kullanılabilirliği
-  vi: Tính Sẵn sàng của Dịch vụ
-  id: Ketersediaan Layanan
-  pl: Dostępność usługi
-  nl: Beschikbaarheid van de dienst
-  ar: توفر الخدمة
-  hi: सेवा उपलब्धता
-  th: ความพร้อมใช้งานของบริการ
-  cs: Dostupnost služby
-  sv: Tjänstens tillgänglighet
-  he: זמינות השירות
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 service_availability.description:
   context: Service availability explanation
   en: We aim to provide reliable and fast access to OpenMates. However, we do not guarantee specific uptime percentages. Our focus is on scaling sustainably to serve all users effectively. The service may experience interruptions for maintenance, updates, or due to technical issues beyond our control.
-  de: "Wir streben danach, einen zuverlässigen und schnellen Zugang zu OpenMates zu bieten. Wir garantieren jedoch keine bestimmten Uptime-Prozentsätze. Unser Fokus liegt auf nachhaltigem Wachstum, um alle Nutzer effektiv zu bedienen. Der Dienst kann für Wartungsarbeiten, Updates oder aufgrund technischer Probleme außerhalb unserer Kontrolle unterbrochen werden."
-  zh: 我们旨在提供可靠且快速的 OpenMates 访问。但是，我们不保证特定的正常运行时间百分比。我们的重点是可持续扩展，以有效服务所有用户。该服务可能因维护、更新或超出我们控制范围的技术问题而中断。
-  es: "Nuestro objetivo es proporcionar acceso confiable y rápido a OpenMates. Sin embargo, no garantizamos porcentajes específicos de tiempo de actividad. Nuestro enfoque está en escalar de forma sostenible para servir a todos los usuarios de manera efectiva. El servicio puede experimentar interrupciones por mantenimiento, actualizaciones o debido a problemas técnicos fuera de nuestro control."
-  fr: "Nous visons à fournir un accès fiable et rapide à OpenMates. Cependant, nous ne garantissons pas des pourcentages de disponibilité spécifiques. Notre objectif est de nous développer de manière durable pour servir efficacement tous les utilisateurs. Le service peut connaître des interruptions pour maintenance, mises à jour ou en raison de problèmes techniques indépendants de notre volonté."
-  pt: "Nosso objetivo é fornecer acesso confiável e rápido ao OpenMates. No entanto, não garantimos porcentagens específicas de tempo de atividade. Nosso foco é escalar de forma sustentável para atender a todos os usuários de forma eficaz. O serviço pode sofrer interrupções para manutenção, atualizações ou devido a problemas técnicos fora do nosso controle."
-  ru: "Мы стремимся обеспечить надёжный и быстрый доступ к OpenMates. Однако мы не гарантируем конкретных показателей доступности. Мы ориентированы на устойчивое масштабирование для эффективного обслуживания всех пользователей. Сервис может испытывать перебои в работе из-за технического обслуживания, обновлений или технических проблем, находящихся вне нашего контроля."
-  ja: OpenMatesへの信頼性が高く高速なアクセスを提供することを目指しています。ただし、特定のアップタイムパーセンテージを保証するものではありません。私たちは、すべてのユーザーを効果的にサービスするために持続可能なスケーリングに注力しています。サービスは、メンテナンス、アップデート、または私たちのコントロール外の技術的問題により中断される場合があります。
-  ko: "OpenMates에 대한 안정적이고 빠른 접근을 제공하는 것을 목표로 합니다. 그러나 특정 가동 시간 비율을 보장하지 않습니다. 모든 사용자를 효과적으로 서비스하기 위해 지속 가능하게 확장하는 것이 우리의 초점입니다. 서비스는 유지 관리, 업데이트 또는 우리의 통제 범위를 벗어난 기술적 문제로 인해 중단될 수 있습니다."
-  it: "Il nostro obiettivo è fornire un accesso affidabile e veloce a OpenMates. Tuttavia, non garantiamo percentuali specifiche di disponibilità. Il nostro obiettivo è scalare in modo sostenibile per servire efficacemente tutti gli utenti. Il servizio potrebbe subire interruzioni per manutenzione, aggiornamenti o a causa di problemi tecnici al di fuori del nostro controllo."
-  tr: "OpenMates'e güvenilir ve hızlı erişim sağlamayı hedefliyoruz. Ancak belirli çalışma süresi yüzdelerini garanti etmiyoruz. Odak noktamız, tüm kullanıcılara etkin bir şekilde hizmet vermek için sürdürülebilir bir şekilde ölçeklendirmektir. Hizmet, bakım, güncellemeler veya kontrolümüz dışındaki teknik sorunlar nedeniyle kesintiler yaşayabilir."
-  vi: "Chúng tôi nhằm cung cấp quyền truy cập đáng tin cậy và nhanh chóng vào OpenMates. Tuy nhiên, chúng tôi không đảm bảo tỷ lệ thời gian hoạt động cụ thể. Trọng tâm của chúng tôi là mở rộng bền vững để phục vụ tất cả người dùng hiệu quả. Dịch vụ có thể bị gián đoạn để bảo trì, cập nhật hoặc do các vấn đề kỹ thuật ngoài tầm kiểm soát của chúng tôi."
-  id: "Kami bertujuan untuk menyediakan akses yang andal dan cepat ke OpenMates. Namun, kami tidak menjamin persentase waktu aktif tertentu. Fokus kami adalah pada penskalaan yang berkelanjutan untuk melayani semua pengguna secara efektif. Layanan dapat mengalami gangguan untuk pemeliharaan, pembaruan, atau karena masalah teknis di luar kendali kami."
-  pl: "Staramy się zapewnić niezawodny i szybki dostęp do OpenMates. Nie gwarantujemy jednak konkretnych procentów czasu pracy. Skupiamy się na zrównoważonym skalowaniu, aby skutecznie obsługiwać wszystkich użytkowników. Usługa może ulec przerwaniom ze względu na konserwację, aktualizacje lub problemy techniczne poza naszą kontrolą."
-  nl: "We streven ernaar betrouwbare en snelle toegang tot OpenMates te bieden. We garanderen echter geen specifieke uptime-percentages. Onze focus ligt op duurzame schaalbaarheid om alle gebruikers effectief te bedienen. De dienst kan onderbrekingen ondervinden voor onderhoud, updates of vanwege technische problemen buiten onze controle."
-  ar: نهدف إلى توفير وصول موثوق وسريع إلى OpenMates. ومع ذلك، لا نضمن نسب توفر خدمة محددة. تركيزنا على التوسع المستدام لخدمة جميع المستخدمين بفعالية. قد تتعرض الخدمة لانقطاعات للصيانة أو التحديثات أو بسبب مشاكل تقنية خارجة عن سيطرتنا.
-  hi: "हम OpenMates तक विश्वसनीय और तेज़ पहुंच प्रदान करने का लक्ष्य रखते हैं। हालांकि, हम विशिष्ट अपटाइम प्रतिशत की गारंटी नहीं देते हैं। हमारा ध्यान सभी उपयोगकर्ताओं को प्रभावी ढंग से सेवा देने के लिए टिकाऊ तरीके से स्केल करने पर है। सेवा रखरखाव, अपडेट या हमारे नियंत्रण से परे तकनीकी समस्याओं के कारण बाधाओं का अनुभव कर सकती है।"
-  th: เรามุ่งมั่นที่จะให้การเข้าถึง OpenMates ที่เชื่อถือได้และรวดเร็ว อย่างไรก็ตาม เราไม่รับประกันเปอร์เซ็นต์เวลาการทำงานที่ระบุ จุดเน้นของเราคือการขยายขนาดอย่างยั่งยืนเพื่อให้บริการผู้ใช้ทุกคนอย่างมีประสิทธิภาพ บริการอาจประสบการหยุดชะงักเพื่อการบำรุงรักษา การอัปเดต หรือเนื่องจากปัญหาทางเทคนิคที่อยู่นอกเหนือการควบคุมของเรา
-  cs: "Snažíme se poskytovat spolehlivý a rychlý přístup k OpenMates. Nezaručujeme však konkrétní procenta dostupnosti. Zaměřujeme se na udržitelné škálování pro efektivní obsluhu všech uživatelů. Služba může zaznamenat přerušení kvůli údržbě, aktualizacím nebo z důvodu technických problémů mimo naši kontrolu."
-  sv: "Vi strävar efter att tillhandahålla tillförlitlig och snabb åtkomst till OpenMates. Vi garanterar dock inte specifika drifttidsprocentandelar. Vår fokus är på hållbar skalning för att betjäna alla användare effektivt. Tjänsten kan uppleva avbrott för underhåll, uppdateringar eller på grund av tekniska problem utanför vår kontroll."
-  he: אנו שואפים לספק גישה אמינה ומהירה ל-OpenMates. עם זאת, איננו מבטיחים אחוזי זמינות ספציפיים. המיקוד שלנו הוא על הרחבה ברת-קיימא לשרת את כל המשתמשים ביעילות. השירות עשוי לחוות הפרעות לתחזוקה, עדכונים, או עקב בעיות טכניות מחוץ לשליטתנו.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 contact.heading:
   context: Section heading for contact information
@@ -940,23 +924,22 @@ contact.heading:
   de: Kontaktinformationen
   zh: 联系信息
   es: Información de contacto
-  fr: Informations de contact
-  pt: Informações de Contato
-  ru: Контактная информация
+  fr: ''
+  pt: ''
+  ru: ''
   ja: お問い合わせ情報
-  ko: 연락처 정보
-  it: Informazioni di Contatto
-  tr: İletişim Bilgileri
-  vi: Thông tin Liên hệ
-  id: Informasi Kontak
-  pl: Informacje kontaktowe
-  nl: Contactinformatie
-  ar: معلومات الاتصال
-  hi: संपर्क जानकारी
-  th: ข้อมูลการติดต่อ
-  cs: Kontaktní informace
-  sv: Kontaktinformation
-  he: פרטי יצירת קשר
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 contact.intro:
   context: Contact section introduction
@@ -964,23 +947,45 @@ contact.intro:
   de: 'Bei Fragen zu diesen AGB:'
   zh: 有关这些条款的问题：
   es: 'Para preguntas sobre estos Términos:'
-  fr: "Pour les questions concernant ces conditions :"
-  pt: "Para perguntas sobre estes Termos:"
-  ru: "По вопросам об этих условиях:"
+  fr: ''
+  pt: ''
+  ru: ''
   ja: 利用規約に関するお問い合わせ：
-  ko: "이 약관에 관한 질문은:"
-  it: "Per domande su questi Termini:"
-  tr: "Bu Şartlar hakkında sorular için:"
-  vi: "Đối với các câu hỏi về Điều khoản này:"
-  id: "Untuk pertanyaan tentang Ketentuan ini:"
-  pl: "W przypadku pytań dotyczących niniejszych Warunków:"
-  nl: "Voor vragen over deze Voorwaarden:"
-  ar: "لأي أسئلة حول هذه الشروط:"
-  hi: "इन शर्तों के बारे में प्रश्नों के लिए:"
-  th: "สำหรับคำถามเกี่ยวกับข้อกำหนดเหล่านี้:"
-  cs: "Pro dotazy k těmto podmínkám:"
-  sv: "För frågor om dessa villkor:"
-  he: "לשאלות בנוגע לתנאים אלה:"
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.email_label:
+  context: Email label
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: メール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion for terms of use
@@ -988,23 +993,22 @@ follow_up_1:
   de: Was passiert, wenn ich meine Verschlüsselungsschlüssel verliere?
   zh: 如果我丢失了加密密钥会怎样？
   es: ¿Qué pasa si pierdo mis claves de cifrado?
-  fr: Que se passe-t-il si je perds mes clés de chiffrement ?
-  pt: O que acontece se eu perder minhas chaves de criptografia?
-  ru: Что произойдёт, если я потеряю ключи шифрования?
+  fr: ''
+  pt: ''
+  ru: ''
   ja: 暗号化キーを失くした場合はどうなりますか？
-  ko: 암호화 키를 잃어버리면 어떻게 되나요?
-  it: Cosa succede se perdo le mie chiavi di crittografia?
-  tr: Şifreleme anahtarlarımı kaybedersem ne olur?
-  vi: Điều gì xảy ra nếu tôi mất khóa mã hóa?
-  id: Apa yang terjadi jika saya kehilangan kunci enkripsi?
-  pl: Co się stanie, jeśli stracę klucze szyfrowania?
-  nl: Wat gebeurt er als ik mijn versleutelingssleutels verlies?
-  ar: ماذا يحدث إذا فقدت مفاتيح التشفير الخاصة بي؟
-  hi: यदि मैं अपनी एन्क्रिप्शन कुंजियाँ खो दूं तो क्या होगा?
-  th: จะเกิดอะไรขึ้นถ้าฉันทำกุญแจเข้ารหัสหาย?
-  cs: Co se stane, když ztratím své šifrovací klíče?
-  sv: Vad händer om jag förlorar mina krypteringsnycklar?
-  he: מה קורה אם אאבד את מפתחות ההצפנה שלי?
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion for terms of use
@@ -1012,23 +1016,22 @@ follow_up_2:
   de: Wie funktionieren Credits?
   zh: 积分是如何工作的？
   es: ¿Cómo funcionan los créditos?
-  fr: Comment fonctionnent les crédits ?
-  pt: Como os créditos funcionam?
-  ru: Как работают кредиты?
+  fr: ''
+  pt: ''
+  ru: ''
   ja: クレジットはどのように機能しますか？
-  ko: 크레딧은 어떻게 작동하나요?
-  it: Come funzionano i crediti?
-  tr: Krediler nasıl çalışır?
-  vi: Tín dụng hoạt động như thế nào?
-  id: Bagaimana cara kerja kredit?
-  pl: Jak działają kredyty?
-  nl: Hoe werken credits?
-  ar: كيف تعمل الأرصدة؟
-  hi: क्रेडिट कैसे काम करते हैं?
-  th: เครดิตทำงานอย่างไร?
-  cs: Jak fungují kredity?
-  sv: Hur fungerar krediter?
-  he: כיצד קרדיטים עובדים?
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion for terms of use
@@ -1036,23 +1039,22 @@ follow_up_3:
   de: Kann ich ungenutzte Credits zurückerstatten lassen?
   zh: 我可以退还未使用的积分吗？
   es: ¿Puedo obtener un reembolso de créditos no utilizados?
-  fr: Puis-je obtenir un remboursement sur les crédits non utilisés ?
-  pt: Posso obter reembolso por créditos não utilizados?
-  ru: Могу ли я получить возврат за неиспользованные кредиты?
+  fr: ''
+  pt: ''
+  ru: ''
   ja: 未使用のクレジットの返金は可能ですか？
-  ko: 미사용 크레딧에 대해 환불을 받을 수 있나요?
-  it: Posso ottenere un rimborso per i crediti non utilizzati?
-  tr: Kullanılmayan krediler için para iadesi alabilir miyim?
-  vi: Tôi có thể được hoàn tiền cho các tín dụng chưa sử dụng không?
-  id: Bisakah saya mendapatkan pengembalian dana untuk kredit yang tidak digunakan?
-  pl: Czy mogę otrzymać zwrot za niewykorzystane kredyty?
-  nl: Kan ik een terugbetaling krijgen voor ongebruikte credits?
-  ar: هل يمكنني الحصول على استرداد للأرصدة غير المستخدمة؟
-  hi: क्या मैं अप्रयुक्त क्रेडिट पर वापसी प्राप्त कर सकता हूं?
-  th: ฉันสามารถขอคืนเงินสำหรับเครดิตที่ยังไม่ได้ใช้ได้หรือไม่?
-  cs: Mohu získat refundaci za nevyužité kredity?
-  sv: Kan jag få en återbetalning på oanvända krediter?
-  he: האם אוכל לקבל החזר כספי על קרדיטים שלא נוצלו?
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 follow_up_4:
   context: Follow-up suggestion for terms of use
@@ -1060,23 +1062,22 @@ follow_up_4:
   de: Welche Einschränkungen gibt es bei der Nutzung?
   zh: 使用服务有哪些限制？
   es: ¿Cuáles son las restricciones al usar el servicio?
-  fr: "Quelles sont les restrictions d'utilisation du service ?"
-  pt: Quais são as restrições de uso do serviço?
-  ru: Каковы ограничения использования сервиса?
+  fr: ''
+  pt: ''
+  ru: ''
   ja: サービスの使用にどのような制限がありますか？
-  ko: 서비스 사용에 어떤 제한이 있나요?
-  it: "Quali sono le restrizioni sull'uso del servizio?"
-  tr: Hizmetin kullanımına ilişkin kısıtlamalar nelerdir?
-  vi: Các hạn chế khi sử dụng dịch vụ là gì?
-  id: Apa saja batasan penggunaan layanan?
-  pl: Jakie są ograniczenia korzystania z usługi?
-  nl: Wat zijn de beperkingen voor het gebruik van de dienst?
-  ar: ما هي قيود استخدام الخدمة؟
-  hi: सेवा उपयोग पर क्या प्रतिबंध हैं?
-  th: มีข้อจำกัดอะไรบ้างในการใช้บริการ?
-  cs: Jaká jsou omezení pro používání služby?
-  sv: Vilka är begränsningarna för att använda tjänsten?
-  he: מהם ההגבלות על השימוש בשירות?
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 follow_up_5:
   context: Follow-up suggestion for terms of use
@@ -1084,23 +1085,22 @@ follow_up_5:
   de: Wie kann ich mein Konto schließen?
   zh: 如何关闭我的账户？
   es: ¿Cómo puedo cerrar mi cuenta?
-  fr: Comment puis-je fermer mon compte ?
-  pt: Como posso fechar minha conta?
-  ru: Как закрыть мой аккаунт?
+  fr: ''
+  pt: ''
+  ru: ''
   ja: アカウントを閉鎖する方法は？
-  ko: 계정을 어떻게 닫을 수 있나요?
-  it: Come posso chiudere il mio account?
-  tr: Hesabımı nasıl kapatabilirim?
-  vi: Làm thế nào để đóng tài khoản của tôi?
-  id: Bagaimana cara menutup akun saya?
-  pl: Jak mogę zamknąć moje konto?
-  nl: Hoe kan ik mijn account sluiten?
-  ar: كيف يمكنني إغلاق حسابي؟
-  hi: मैं अपना खाता कैसे बंद कर सकता हूं?
-  th: ฉันจะปิดบัญชีของฉันได้อย่างไร?
-  cs: Jak mohu uzavřít svůj účet?
-  sv: Hur kan jag stänga mitt konto?
-  he: כיצד אוכל לסגור את החשבון שלי?
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []
 follow_up_6:
   context: Follow-up suggestion for terms of use
@@ -1108,21 +1108,20 @@ follow_up_6:
   de: Welche Daten werden mit KI-Anbietern geteilt?
   zh: 与AI提供商共享哪些数据？
   es: ¿Qué datos se comparten con proveedores de IA?
-  fr: "Quelles données sont partagées avec les fournisseurs d'IA ?"
-  pt: Quais dados são compartilhados com provedores de IA?
-  ru: Какие данные передаются провайдерам ИИ?
+  fr: ''
+  pt: ''
+  ru: ''
   ja: AIプロバイダーとどのようなデータを共有しますか？
-  ko: AI 제공업체와 어떤 데이터가 공유되나요?
-  it: Quali dati vengono condivisi con i provider AI?
-  tr: AI sağlayıcılarıyla hangi veriler paylaşılıyor?
-  vi: Dữ liệu nào được chia sẻ với các nhà cung cấp AI?
-  id: Data apa yang dibagikan dengan penyedia AI?
-  pl: Jakie dane są udostępniane dostawcom AI?
-  nl: Welke gegevens worden gedeeld met AI-providers?
-  ar: ما البيانات التي تُشارَك مع مزودي الذكاء الاصطناعي؟
-  hi: AI प्रदाताओं के साथ कौन से डेटा साझा किए जाते हैं?
-  th: ข้อมูลใดถูกแบ่งปันกับผู้ให้บริการ AI?
-  cs: Jaká data jsou sdílena s poskytovateli AI?
-  sv: Vilken data delas med AI-leverantörer?
-  he: אילו נתונים משותפים עם ספקי AI?
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
   verified_by_human: []

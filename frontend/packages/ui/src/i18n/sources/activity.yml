@@ -1,3 +1,27 @@
+search:
+  context: Used in search input placeholder
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human: []
 filter:
   context: Button text for filtering options
   en: Filter
@@ -21,6 +45,78 @@ filter:
   cs: Filtr
   sv: Filtrera
   he: סינון
+  verified_by_human: []
+close:
+  context: Modal close button
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: Fechar
+  ru: Закрыть
+  ja: 閉じる
+  ko: 닫기
+  it: Chiudi
+  tr: Kapat
+  vi: Đóng
+  id: Tutup
+  pl: Zamknij
+  nl: Sluiten
+  ar: إغلاق
+  hi: बंद करें
+  th: ปิด
+  cs: Zavřít
+  sv: Stäng
+  he: סגירה
+  verified_by_human: []
+today:
+  context: Chats from today
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  he: היום
+  verified_by_human: []
+yesterday:
+  context: Chats from yesterday
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  he: אתמול
   verified_by_human: []
 previous_7_days:
   context: Chats from the last 7 days

@@ -70,6 +70,54 @@ description:
   sv: Översikt över senaste aktiviteter där krediter har spenderats
   he: סקירה של הפעילויות האחרונות שבהן נוצלו קרדיטים
   verified_by_human: []
+tab_chats:
+  context: Chats tab label
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Discussions
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Gesprekken
+  ar: الدردشات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+  he: "צ'אטים"
+  verified_by_human: []
+tab_apps:
+  context: Apps tab label
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Aplicaciones
+  fr: Applications
+  pt: Aplicativos
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
 tab_api:
   context: API tab label
   en: API
@@ -382,6 +430,30 @@ pdf_coming_soon:
   sv: PDF-export kommer snart
   he: ייצוא ל-PDF בקרוב
   verified_by_human: []
+back:
+  context: Back button label
+  en: Back
+  de: Zurück
+  zh: 返回
+  es: Atrás
+  fr: Retour
+  pt: Voltar
+  ru: Назад
+  ja: 戻る
+  ko: 뒤로
+  it: Indietro
+  tr: Geri
+  vi: Quay lại
+  id: Kembali
+  pl: Wstecz
+  nl: Terug
+  ar: رجوع
+  hi: वापस
+  th: กลับ
+  cs: Zpět
+  sv: Tillbaka
+  he: חזרה
+  verified_by_human: []
 api_key_details:
   context: API key details header
   en: API Key
@@ -478,6 +550,30 @@ activity_ai:
   sv: AI
   he: AI
   verified_by_human: []
+activity_ask:
+  context: Ask activity sublabel
+  en: Ask
+  de: Fragen
+  zh: 询问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問
+  ko: 질문
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  he: שאלה
+  verified_by_human: []
 unknown_activity:
   context: Unknown activity label
   en: Unknown activity
@@ -501,6 +597,30 @@ unknown_activity:
   cs: Neznámá aktivita
   sv: Okänd aktivitet
   he: פעילות לא ידועה
+  verified_by_human: []
+just_now:
+  context: Just now time label
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: للتو
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
   verified_by_human: []
 minutes_ago:
   context: Minutes ago label
@@ -718,6 +838,54 @@ tab_overview:
   sv: Översikt
   he: סקירה כללית
   verified_by_human: []
+today:
+  context: Label for today's date in the daily usage overview
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: "Aujourd'hui"
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  he: היום
+  verified_by_human: []
+yesterday:
+  context: Label for yesterday's date in the daily usage overview
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  he: אתמול
+  verified_by_human: []
 no_usage_on_day:
   context: Shown when there is no usage data for a specific day
   en: No usage on this day
@@ -765,6 +933,30 @@ load_more_days:
   cs: Načíst více dní
   sv: Ladda fler dagar
   he: טעינת ימים נוספים
+  verified_by_human: []
+credits_label:
+  context: Label shown next to credit amounts in daily overview
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредитов
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredytów
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kreditů
+  sv: krediter
+  he: קרדיטים
   verified_by_human: []
 api_key_label:
   context: Label for API key items in the daily usage overview
@@ -909,6 +1101,30 @@ entry_detail_title:
   cs: Podrobnosti použití
   sv: Användningsdetaljer
   he: פרטי שימוש
+  verified_by_human: []
+provider_label:
+  context: Label for the AI provider (e.g., Google, Anthropic, OpenAI) in usage entry detail view
+  en: Provider
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공업체
+  it: Fornitore
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Aanbieder
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  he: ספק
   verified_by_human: []
 server_provider_label:
   context: Label for the server provider name (e.g., AWS Bedrock, Google Vertex AI) in usage entry detail view

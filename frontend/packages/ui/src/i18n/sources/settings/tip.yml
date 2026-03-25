@@ -73,6 +73,31 @@ amount:
   he: סכום
   verified_by_human: []
 
+credits:
+  context: Label appended after amount values (e.g. "50 credits")
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: krediler
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  he: קרדיטים
+  verified_by_human: []
+
 current_balance:
   context: Label preceding the user's credit balance
   en: Current balance

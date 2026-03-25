@@ -1,6 +1,31 @@
 # Share chat settings translations
 # These translations are used for the share chat feature in the settings menu
 
+share:
+  context: Share settings menu item (main entry point for sharing the current chat)
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  he: שיתוף
+  verified_by_human: []
+
 share_public:
   context: Button/option to share chat publicly
   en: Share publicly
@@ -625,6 +650,31 @@ no_shared_with_me_chats:
   cs: Zatím žádné chaty s vámi nesdíleny
   sv: Inga chattar delade med dig ännu
   he: "אין עדיין צ'אטים ששותפו איתך"
+  verified_by_human: []
+
+untitled_chat:
+  context: Default title for chats without a title
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 未命名聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Chat sem título
+  ru: Безымянный чат
+  ja: 無題のチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Cuộc trò chuyện chưa có tiêu đề
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Chat zonder titel
+  ar: محادثة بدون عنوان
+  hi: अनामित चैट
+  th: แชทไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Chatt utan titel
+  he: "צ'אט ללא כותרת"
   verified_by_human: []
 
 unshare:

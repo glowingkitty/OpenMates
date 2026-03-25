@@ -1,3 +1,27 @@
+new_chat:
+  context: Button label for creating a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Trò chuyện mới
+  id: Obrolan baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नई चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  he: "צ'אט חדש"
+  verified_by_human: []
 share:
   context: Button label for sharing a chat
   en: Share chat
@@ -118,6 +142,30 @@ an_error_occured:
   sv: Jag beklagar, något gick fel när jag försökte bearbeta ditt meddelande. Detta kan hända av många anledningar. Men var säker på att OpenMates-teamet kommer att informeras och åtgärdar det så snart som möjligt. Men om du vill hjälpa, låt oss veta på Discord vad du höll på med när det här felet inträffade (men kom ihåg att du inte bör inkludera personlig/känslig information).
   he: מצטערים, משהו השתבש בזמן הניסיון לעבד את ההודעה שלך. זה יכול לקרות מסיבות רבות. אך היו בטוחים שצוות OpenMates יעודכן ויתקן זאת בהקדם האפשרי. אבל אם ברצונך לעזור, נשמח אם תעדכן אותנו ב-Discord מה עשית כשהשגיאה הזו התרחשה (אך שים לב שאין לכלול פרטים אישיים או רגישים).
   verified_by_human: []
+untitled_chat:
+  context: Default title for a new chat
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 未标题的聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Bate-papo sem título
+  ru: Чат без названия
+  ja: タイトルなしのチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Trò chuyện chưa đặt tên
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Naamloze chat
+  ar: محادثة بدون عنوان
+  hi: बिना शीर्षक की चैट
+  th: แชทที่ไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Namnlös chatt
+  he: "צ'אט ללא כותרת"
+  verified_by_human: []
 show_full_message:
   context: Button text for showing the full content of a truncated message
   en: Show full message
@@ -142,6 +190,56 @@ show_full_message:
   sv: Visa fullständigt meddelande
   he: הצגת ההודעה המלאה
   verified_by_human: []
+hide_full_message:
+  context: Button text for hiding the full content and showing truncated version
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示较少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Показать меньше
+  ja: 少なく表示
+  ko: 더 적게 보기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Hiển thị ít hơn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder weergeven
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  he: הצג פחות
+  verified_by_human: []
+loading:
+  context: Text shown while loading full message content
+  en: Loading...
+  de: Lade...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로드 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: []
+
+# App Settings & Memories Permission Dialog
 permissions.title:
   context: Header for the permissions dialog requesting app settings/memories access
   en: Permissions
@@ -647,6 +745,30 @@ credits_needed:
   sv: Krediter behövs...
   he: נדרשים קרדיטים...
   verified_by_human: []
+insufficient_credits_buy:
+  context: Button text in system message prompting user to buy credits when they don't have enough
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar créditos
+  fr: Acheter des crédits
+  pt: Comprar créditos
+  ru: Купить кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista crediti
+  tr: Kredi satın al
+  vi: Mua tín dụng
+  id: Beli kredit
+  pl: Kup kredyty
+  nl: Credits kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit kredity
+  sv: Köp krediter
+  he: קניית קרדיטים
+  verified_by_human: []
 credits_restored_message:
   context: Message shown in the credits-error system notice when the user has topped up credits and can now continue
   en: You have credits again to continue using OpenMates!
@@ -839,6 +961,31 @@ header.minutes_ago:
   sv: "{count} min sedan"
   he: "לפני {count} דק'"
   verified_by_human: []
+header.just_now:
+  context: Relative time shown in chat header banner when chat was created less than 1 minute ago
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: الآن
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  he: ממש עכשיו
+  verified_by_human: []
+
 header.previous_chat:
   context: Accessible label for the "previous chat" navigation arrow button shown in the chat header banner
   en: Previous chat

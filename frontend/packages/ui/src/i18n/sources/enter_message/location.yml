@@ -46,6 +46,30 @@ toggle_precise:
   sv: "Växla exakt"
   he: שינוי דיוק המיקום
   verified_by_human: []
+close:
+  context: Button text for closing location selection
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: Fechar
+  ru: Закрыть
+  ja: 閉じる
+  ko: 닫기
+  it: Chiudi
+  tr: Kapat
+  vi: Đóng
+  id: Tutup
+  pl: Zamknij
+  nl: Sluiten
+  ar: إغلاق
+  hi: बंद करें
+  th: ปิด
+  cs: Zavřít
+  sv: "Stäng"
+  he: סגירה
+  verified_by_human: []
 select:
   context: Button text for selecting location
   en: Select
@@ -261,6 +285,30 @@ search_placeholder:
   cs: Hledat polohu...
   sv: "Sök plats..."
   he: חיפוש מיקום...
+  verified_by_human: []
+search_button:
+  context: Text for search button
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: "Sök"
+  he: חיפוש
   verified_by_human: []
 location_permission_denied:
   context: Error message shown when the user denies browser location permission

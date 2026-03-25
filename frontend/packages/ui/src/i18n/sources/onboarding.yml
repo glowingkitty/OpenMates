@@ -2,153 +2,45 @@ chat_title:
   context: Title shown in the sidebar for the onboarding chat with Suki. Short and welcoming.
   en: "Getting Started"
   de: "Erste Schritte"
-  zh: "开始使用"
-  es: "Primeros pasos"
-  fr: "Premiers pas"
-  pt: "Primeiros passos"
-  ru: "Начало работы"
-  ja: "はじめに"
-  ko: "시작하기"
-  it: "Per iniziare"
-  tr: "Başlarken"
-  vi: "Bắt đầu"
-  id: "Memulai"
-  pl: "Pierwsze kroki"
-  nl: "Aan de slag"
-  ar: "البدء"
-  hi: "शुरुआत करें"
-  th: "เริ่มต้น"
-  cs: "Začínáme"
-  sv: "Kom igång"
   he: מתחילים
   verified_by_human: []
 welcome_message:
   context: Welcome message from Suki in the onboarding chat after signup. Should be warm, engaging, and ask the user about their interests so Suki can recommend apps, skills, and settings.
   en: "Hey there! 👋 I'm Suki, your personal assistant on OpenMates.\n\nI'm here to help you discover the right tools and get the most out of the platform — from AI mates for writing, research, and coding, to apps for travel, health, news, and more.\n\nTo point you in the right direction, I'd love to learn a bit about you:\n\n• **What kinds of tasks** do you want help with? (e.g. writing, research, coding, planning, learning…)\n• **What topics or skills** are you interested in exploring or getting better at?\n\nThe more you share, the better I can tailor your experience — recommending the right mates, apps, and settings for you. 🚀"
   de: "Hey! 👋 Ich bin Suki, dein persönlicher Assistent auf OpenMates.\n\nIch helfe dir dabei, die richtigen Tools zu entdecken und das Beste aus der Plattform herauszuholen – von KI-Mates für Schreiben, Recherche und Coding bis hin zu Apps für Reisen, Gesundheit, News und vieles mehr.\n\nUm dich in die richtige Richtung zu lenken, würde ich gerne ein bisschen mehr über dich erfahren:\n\n• **Bei welchen Aufgaben** möchtest du Hilfe? (z. B. Schreiben, Recherche, Coding, Planung, Lernen…)\n• **Welche Themen oder Fähigkeiten** interessieren dich oder möchtest du vertiefen?\n\nJe mehr du erzählst, desto besser kann ich deine Erfahrung anpassen – mit den richtigen Mates, Apps und Einstellungen für dich. 🚀"
-  zh: "你好！👋 我是Suki，你在OpenMates上的个人助手。\n\n我在这里帮助你发现合适的工具，充分利用这个平台——从用于写作、研究和编程的AI伙伴，到旅行、健康、新闻等应用程序。\n\n为了给你指引正确的方向，我很想了解你一些情况：\n\n• **你需要什么样的任务**帮助？（例如写作、研究、编程、规划、学习……）\n• **你对哪些主题或技能**感兴趣，想要探索或提升？\n\n你分享得越多，我就越能为你量身定制体验——推荐适合你的伙伴、应用和设置。🚀"
-  es: "¡Hola! 👋 Soy Suki, tu asistente personal en OpenMates.\n\nEstoy aquí para ayudarte a descubrir las herramientas adecuadas y sacar el máximo partido de la plataforma — desde mates de IA para escribir, investigar y programar, hasta aplicaciones para viajes, salud, noticias y más.\n\nPara orientarte en la dirección correcta, me encantaría saber un poco sobre ti:\n\n• **¿Con qué tipo de tareas** quieres ayuda? (p. ej. escritura, investigación, programación, planificación, aprendizaje…)\n• **¿Qué temas o habilidades** te interesan explorar o mejorar?\n\nCuanto más compartas, mejor podré personalizar tu experiencia — recomendando los mates, aplicaciones y configuraciones adecuados para ti. 🚀"
-  fr: "Salut ! 👋 Je suis Suki, votre assistante personnelle sur OpenMates.\n\nJe suis là pour vous aider à découvrir les bons outils et tirer le meilleur parti de la plateforme — des mates IA pour l'écriture, la recherche et le codage, aux applications pour les voyages, la santé, les actualités et plus encore.\n\nPour vous orienter dans la bonne direction, j'aimerais en apprendre un peu plus sur vous :\n\n• **Quel type de tâches** souhaitez-vous effectuer ? (ex. écriture, recherche, codage, planification, apprentissage…)\n• **Quels sujets ou compétences** vous intéressent ou souhaitez-vous améliorer ?\n\nPlus vous partagez, mieux je pourrai personnaliser votre expérience — en recommandant les bons mates, applications et paramètres pour vous. 🚀"
-  pt: "Olá! 👋 Sou Suki, sua assistente pessoal no OpenMates.\n\nEstou aqui para ajudá-lo a descobrir as ferramentas certas e aproveitar ao máximo a plataforma — de mates de IA para escrita, pesquisa e programação, a aplicativos para viagens, saúde, notícias e muito mais.\n\nPara apontá-lo na direção certa, adoraria aprender um pouco sobre você:\n\n• **Que tipos de tarefas** você quer ajuda? (ex. escrita, pesquisa, programação, planejamento, aprendizado…)\n• **Que tópicos ou habilidades** você tem interesse em explorar ou melhorar?\n\nQuanto mais você compartilhar, melhor poderei personalizar sua experiência — recomendando os mates, aplicativos e configurações certos para você. 🚀"
-  ru: "Привет! 👋 Я Suki, ваш личный помощник на OpenMates.\n\nЯ здесь, чтобы помочь вам найти нужные инструменты и получить максимум от платформы — от AI-помощников для написания текстов, исследований и программирования до приложений для путешествий, здоровья, новостей и многого другого.\n\nЧтобы направить вас в правильном направлении, я бы хотела узнать немного о вас:\n\n• **С какими задачами** вы хотите получить помощь? (например, написание текстов, исследования, программирование, планирование, обучение…)\n• **Какие темы или навыки** вас интересуют или вы хотите развить?\n\nЧем больше вы поделитесь, тем лучше я смогу адаптировать ваш опыт — рекомендуя правильных помощников, приложения и настройки для вас. 🚀"
-  ja: "こんにちは！👋 OpenMatesのあなたのパーソナルアシスタント、Sukiです。\n\n適切なツールを見つけ、プラットフォームを最大限に活用するお手伝いをします — ライティング、リサーチ、コーディング用のAIメイトから、旅行、健康、ニュースなどのアプリまで。\n\n正しい方向に導くために、あなたについて少し教えていただけますか：\n\n• **どのような種類のタスク**で助けが必要ですか？（例：ライティング、リサーチ、コーディング、計画、学習…）\n• **どのようなトピックやスキル**に興味がありますか、または向上させたいですか？\n\n共有していただくほど、あなたに最適なメイト、アプリ、設定をおすすめする体験をカスタマイズできます。🚀"
-  ko: "안녕하세요! 👋 저는 Suki, OpenMates의 개인 어시스턴트입니다.\n\n적합한 도구를 발견하고 플랫폼을 최대한 활용할 수 있도록 도와드리겠습니다 — 글쓰기, 리서치, 코딩을 위한 AI 메이트부터 여행, 건강, 뉴스 등을 위한 앱까지.\n\n올바른 방향으로 안내해 드리기 위해 여러분에 대해 조금 알고 싶습니다:\n\n• **어떤 종류의 작업**에서 도움이 필요하신가요? (예: 글쓰기, 리서치, 코딩, 계획, 학습…)\n• **어떤 주제나 기술**에 관심이 있거나 더 나아지고 싶으신가요?\n\n더 많이 공유할수록, 여러분에게 맞는 메이트, 앱, 설정을 추천해 드리며 경험을 더 잘 맞춤화할 수 있습니다. 🚀"
-  it: "Ciao! 👋 Sono Suki, la tua assistente personale su OpenMates.\n\nSono qui per aiutarti a scoprire gli strumenti giusti e sfruttare al massimo la piattaforma — dai mates AI per scrivere, fare ricerca e programmare, alle app per viaggi, salute, notizie e altro ancora.\n\nPer guidarti nella giusta direzione, mi piacerebbe sapere un po' di te:\n\n• **Che tipo di attività** vuoi fare con il mio aiuto? (es. scrittura, ricerca, programmazione, pianificazione, apprendimento…)\n• **Quali argomenti o competenze** ti interessano o vuoi migliorare?\n\nPiù condividi, meglio potrò personalizzare la tua esperienza — consigliando i mates, le app e le impostazioni giuste per te. 🚀"
-  tr: "Merhaba! 👋 Ben Suki, OpenMates'teki kişisel asistanınızım.\n\nDoğru araçları keşfetmenize ve platformdan en iyi şekilde yararlanmanıza yardımcı olmak için buradayım — yazma, araştırma ve kodlama için AI matelere, seyahat, sağlık, haberler ve daha fazlası için uygulamalara kadar.\n\nSizi doğru yöne yönlendirmek için hakkınızda biraz bilgi edinmek isterim:\n\n• **Hangi tür görevler**de yardım istiyorsunuz? (örn. yazma, araştırma, kodlama, planlama, öğrenme…)\n• **Hangi konular veya beceriler** ilginizi çekiyor veya geliştirmek istiyorsunuz?\n\nNe kadar çok paylaşırsanız, deneyiminizi o kadar iyi kişiselleştirebilirim — size doğru mateleri, uygulamaları ve ayarları önerebilirim. 🚀"
-  vi: "Xin chào! 👋 Tôi là Suki, trợ lý cá nhân của bạn trên OpenMates.\n\nTôi ở đây để giúp bạn khám phá những công cụ phù hợp và tận dụng tối đa nền tảng — từ các AI mates cho viết lách, nghiên cứu và lập trình, đến các ứng dụng cho du lịch, sức khỏe, tin tức và nhiều hơn nữa.\n\nĐể chỉ dẫn bạn đúng hướng, tôi rất muốn tìm hiểu một chút về bạn:\n\n• **Bạn muốn được giúp đỡ với những loại nhiệm vụ** nào? (ví dụ: viết lách, nghiên cứu, lập trình, lập kế hoạch, học tập…)\n• **Bạn quan tâm đến những chủ đề hoặc kỹ năng** nào để khám phá hoặc cải thiện?\n\nBạn chia sẻ càng nhiều, tôi càng có thể điều chỉnh trải nghiệm của bạn tốt hơn — đề xuất đúng mates, ứng dụng và cài đặt cho bạn. 🚀"
-  id: "Halo! 👋 Saya Suki, asisten pribadi Anda di OpenMates.\n\nSaya di sini untuk membantu Anda menemukan alat yang tepat dan mendapatkan hasil maksimal dari platform — dari mate AI untuk menulis, penelitian, dan coding, hingga aplikasi untuk perjalanan, kesehatan, berita, dan lainnya.\n\nUntuk mengarahkan Anda ke arah yang benar, saya ingin mengetahui sedikit tentang Anda:\n\n• **Jenis tugas apa** yang Anda inginkan bantuannya? (mis. menulis, penelitian, coding, perencanaan, belajar…)\n• **Topik atau keterampilan apa** yang Anda minati untuk dijelajahi atau ditingkatkan?\n\nSemakin banyak yang Anda bagikan, semakin baik saya dapat menyesuaikan pengalaman Anda — merekomendasikan mate, aplikasi, dan pengaturan yang tepat untuk Anda. 🚀"
-  pl: "Cześć! 👋 Jestem Suki, Twoim osobistym asystentem na OpenMates.\n\nJestem tutaj, aby pomóc Ci odkryć właściwe narzędzia i w pełni wykorzystać platformę — od AI mates do pisania, badań i kodowania, po aplikacje do podróży, zdrowia, wiadomości i wiele więcej.\n\nAby wskazać Ci właściwy kierunek, chciałabym dowiedzieć się trochę o Tobie:\n\n• **Z jakimi rodzajami zadań** chcesz się zmierzyć z pomocą? (np. pisanie, badania, kodowanie, planowanie, nauka…)\n• **Jakie tematy lub umiejętności** chcesz eksplorować lub doskonalić?\n\nIm więcej się podzielisz, tym lepiej mogę dostosować Twoje doświadczenie — polecając odpowiednich mates, aplikacje i ustawienia dla Ciebie. 🚀"
-  nl: "Hallo! 👋 Ik ben Suki, jouw persoonlijke assistent op OpenMates.\n\nIk ben hier om je te helpen de juiste tools te ontdekken en het meeste uit het platform te halen — van AI-mates voor schrijven, onderzoek en coderen, tot apps voor reizen, gezondheid, nieuws en meer.\n\nOm je in de juiste richting te wijzen, zou ik graag een beetje over jou willen weten:\n\n• **Welke soorten taken** wil je hulp bij? (bijv. schrijven, onderzoek, coderen, plannen, leren…)\n• **Welke onderwerpen of vaardigheden** wil je verkennen of verbeteren?\n\nHoe meer je deelt, hoe beter ik je ervaring kan afstemmen — door de juiste mates, apps en instellingen voor jou aan te bevelen. 🚀"
-  ar: "مرحباً! 👋 أنا سوكي، مساعدتك الشخصية على OpenMates.\n\nأنا هنا لمساعدتك على اكتشاف الأدوات المناسبة والاستفادة القصوى من المنصة — من رفاق الذكاء الاصطناعي للكتابة والبحث والبرمجة، إلى تطبيقات السفر والصحة والأخبار والمزيد.\n\nلأوجهك في الاتجاه الصحيح، أودّ أن أتعرف عليك قليلاً:\n\n• **ما أنواع المهام** التي تريد المساعدة فيها؟ (مثلاً: الكتابة، البحث، البرمجة، التخطيط، التعلم…)\n• **ما المواضيع أو المهارات** التي تهتم باستكشافها أو تحسينها؟\n\nكلما شاركت أكثر، كلما تمكنت من تخصيص تجربتك بشكل أفضل — بتوصية الرفاق والتطبيقات والإعدادات المناسبة لك. 🚀"
-  hi: "नमस्ते! 👋 मैं Suki हूं, OpenMates पर आपकी व्यक्तिगत सहायक।\n\nमैं यहां आपको सही टूल खोजने और प्लेटफ़ॉर्म का अधिकतम लाभ उठाने में मदद करने के लिए हूं — लेखन, शोध और कोडिंग के लिए AI mates से लेकर यात्रा, स्वास्थ्य, समाचार और बहुत कुछ के लिए ऐप्स तक।\n\nआपको सही दिशा में इंगित करने के लिए, मैं आपके बारे में थोड़ा जानना चाहूंगी:\n\n• **आप किस तरह के कार्यों** में मदद चाहते हैं? (उदाहरण के लिए लेखन, शोध, कोडिंग, योजना बनाना, सीखना…)\n• **आप किन विषयों या कौशलों** में रुचि रखते हैं या बेहतर बनना चाहते हैं?\n\nआप जितना अधिक साझा करेंगे, मैं उतना ही बेहतर आपका अनुभव तैयार कर सकती हूं — आपके लिए सही mates, ऐप्स और सेटिंग्स की सिफारिश करते हुए। 🚀"
-  th: "สวัสดี! 👋 ฉันคือ Suki ผู้ช่วยส่วนตัวของคุณบน OpenMates\n\nฉันอยู่ที่นี่เพื่อช่วยคุณค้นพบเครื่องมือที่เหมาะสมและได้รับประโยชน์สูงสุดจากแพลตฟอร์ม — ตั้งแต่ AI mates สำหรับการเขียน การวิจัย และการเขียนโค้ด ไปจนถึงแอปสำหรับการท่องเที่ยว สุขภาพ ข่าวสาร และอื่นๆ อีกมากมาย\n\nเพื่อชี้แนะคุณในทิศทางที่ถูกต้อง ฉันอยากเรียนรู้เกี่ยวกับคุณสักเล็กน้อย:\n\n• **งานประเภทใด** ที่คุณต้องการความช่วยเหลือ? (เช่น การเขียน การวิจัย การเขียนโค้ด การวางแผน การเรียนรู้…)\n• **หัวข้อหรือทักษะใด** ที่คุณสนใจสำรวจหรือพัฒนา?\n\nยิ่งคุณแบ่งปันมาก ฉันก็ยิ่งสามารถปรับแต่งประสบการณ์ของคุณได้ดีขึ้น — โดยแนะนำ mates แอป และการตั้งค่าที่เหมาะสมสำหรับคุณ 🚀"
-  cs: "Ahoj! 👋 Jsem Suki, váš osobní asistent na OpenMates.\n\nJsem tu, abych vám pomohla objevit správné nástroje a vytěžit maximum z platformy — od AI mates pro psaní, výzkum a kódování, po aplikace pro cestování, zdraví, zprávy a další.\n\nAbych vás nasměrovala správným směrem, ráda bych se o vás dozvěděla trochu více:\n\n• **S jakými typy úkolů** chcete pomoci? (např. psaní, výzkum, kódování, plánování, učení…)\n• **Jaká témata nebo dovednosti** vás zajímají nebo chcete zlepšit?\n\nČím více sdílíte, tím lépe mohu přizpůsobit váš zážitek — doporučovat správné mates, aplikace a nastavení pro vás. 🚀"
-  sv: "Hej! 👋 Jag är Suki, din personliga assistent på OpenMates.\n\nJag är här för att hjälpa dig att hitta rätt verktyg och få ut det mesta av plattformen — från AI-mates för skrivande, forskning och kodning, till appar för resor, hälsa, nyheter och mer.\n\nFör att peka dig i rätt riktning skulle jag gärna lära mig lite om dig:\n\n• **Vilka typer av uppgifter** vill du ha hjälp med? (t.ex. skrivande, forskning, kodning, planering, lärande…)\n• **Vilka ämnen eller färdigheter** är du intresserad av att utforska eller bli bättre på?\n\nJu mer du delar, desto bättre kan jag anpassa din upplevelse — rekommendera rätt mates, appar och inställningar för dig. 🚀"
   he: |
     היי! 👋 אני סוקי, העוזרת האישית שלך ב-OpenMates.
-
+    
     אני כאן כדי לעזור לך לגלות את הכלים הנכונים ולהפיק את המרב מהפלטפורמה — החל מ-AI mates לכתיבה, מחקר ותכנות, ועד לאפליקציות לנסיעות, בריאות, חדשות ועוד.
-
+    
     כדי לכוון אותך למקום הנכון, אשמח ללמוד קצת עליך:
-
+    
     • **באילו סוגי משימות** תרצה עזרה? (למשל: כתיבה, מחקר, תכנות, תכנון, למידה...)
     • **באילו נושאים או מיומנויות** מעניין אותך לחקור או להשתפר בהם?
-
+    
     ככל שתשתף יותר, כך אוכל להתאים לך את החוויה בצורה טובה יותר — ולהמליץ על ה-mates, האפליקציות וההגדרות הנכונים עבורך. 🚀
   verified_by_human: []
 follow_up_1:
   context: First suggestion chip shown below the onboarding welcome message
   en: "What can you help me with?"
   de: "Wobei kannst du mir helfen?"
-  zh: "你能帮我做什么？"
-  es: "¿Con qué puedes ayudarme?"
-  fr: "Avec quoi peux-tu m'aider ?"
-  pt: "Com o que você pode me ajudar?"
-  ru: "Чем ты можешь мне помочь?"
-  ja: "何を手伝ってくれますか？"
-  ko: "무엇을 도와줄 수 있나요?"
-  it: "Con cosa puoi aiutarmi?"
-  tr: "Bana neyle yardımcı olabilirsin?"
-  vi: "Bạn có thể giúp tôi điều gì?"
-  id: "Apa yang bisa kamu bantu?"
-  pl: "W czym możesz mi pomóc?"
-  nl: "Waarmee kun jij mij helpen?"
-  ar: "بماذا يمكنك مساعدتي؟"
-  hi: "आप मेरी क्या मदद कर सकते हैं?"
-  th: "คุณช่วยฉันได้อะไรบ้าง?"
-  cs: "S čím mi můžeš pomoci?"
-  sv: "Vad kan du hjälpa mig med?"
   he: "במה את יכולה לעזור לי?"
   verified_by_human: []
 follow_up_2:
   context: Second suggestion chip shown below the onboarding welcome message
   en: "How does OpenMates work?"
   de: "Wie funktioniert OpenMates?"
-  zh: "OpenMates是如何运作的？"
-  es: "¿Cómo funciona OpenMates?"
-  fr: "Comment fonctionne OpenMates ?"
-  pt: "Como o OpenMates funciona?"
-  ru: "Как работает OpenMates?"
-  ja: "OpenMatesはどのように機能しますか？"
-  ko: "OpenMates는 어떻게 작동하나요?"
-  it: "Come funziona OpenMates?"
-  tr: "OpenMates nasıl çalışır?"
-  vi: "OpenMates hoạt động như thế nào?"
-  id: "Bagaimana cara kerja OpenMates?"
-  pl: "Jak działa OpenMates?"
-  nl: "Hoe werkt OpenMates?"
-  ar: "كيف يعمل OpenMates؟"
-  hi: "OpenMates कैसे काम करता है?"
-  th: "OpenMates ทำงานอย่างไร?"
-  cs: "Jak funguje OpenMates?"
-  sv: "Hur fungerar OpenMates?"
   he: "איך OpenMates עובד?"
   verified_by_human: []
 follow_up_3:
   context: Third suggestion chip shown below the onboarding welcome message
   en: "What makes OpenMates different?"
   de: "Was macht OpenMates besonders?"
-  zh: "OpenMates有什么特别之处？"
-  es: "¿Qué hace diferente a OpenMates?"
-  fr: "Qu'est-ce qui rend OpenMates différent ?"
-  pt: "O que torna o OpenMates diferente?"
-  ru: "Чем OpenMates отличается?"
-  ja: "OpenMatesは何が違うのですか？"
-  ko: "OpenMates는 무엇이 다른가요?"
-  it: "Cosa rende OpenMates diverso?"
-  tr: "OpenMates'i farklı kılan nedir?"
-  vi: "Điều gì làm OpenMates khác biệt?"
-  id: "Apa yang membuat OpenMates berbeda?"
-  pl: "Co wyróżnia OpenMates?"
-  nl: "Wat maakt OpenMates anders?"
-  ar: "ما الذي يميز OpenMates؟"
-  hi: "OpenMates को क्या अलग बनाता है?"
-  th: "อะไรทำให้ OpenMates แตกต่าง?"
-  cs: "Co dělá OpenMates jiným?"
-  sv: "Vad gör OpenMates annorlunda?"
   he: "מה מייחד את OpenMates?"
   verified_by_human: []
 follow_up_4:
   context: Fourth suggestion chip shown below the onboarding welcome message
   en: "Show me what you can do"
   de: "Zeig mir, was du kannst"
-  zh: "展示一下你能做什么"
-  es: "Muéstrame lo que puedes hacer"
-  fr: "Montre-moi ce que tu sais faire"
-  pt: "Mostre-me o que você pode fazer"
-  ru: "Покажи мне, что ты умеешь"
-  ja: "あなたができることを見せてください"
-  ko: "당신이 할 수 있는 것을 보여주세요"
-  it: "Mostrami cosa sai fare"
-  tr: "Neler yapabildiğini göster"
-  vi: "Cho tôi xem bạn có thể làm gì"
-  id: "Tunjukkan apa yang bisa kamu lakukan"
-  pl: "Pokaż mi, co potrafisz"
-  nl: "Laat me zien wat je kunt"
-  ar: "أرني ما يمكنك فعله"
-  hi: "मुझे दिखाएं आप क्या कर सकते हैं"
-  th: "แสดงให้ฉันเห็นว่าคุณทำอะไรได้บ้าง"
-  cs: "Ukaž mi, co umíš"
-  sv: "Visa mig vad du kan göra"
   he: תראי לי מה את יודעת לעשות
   verified_by_human: []
