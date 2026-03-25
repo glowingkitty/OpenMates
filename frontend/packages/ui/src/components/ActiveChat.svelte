@@ -3395,7 +3395,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 
     // Cache the last measured welcome content height so that when the welcome
-    // block is hidden (hideWelcomeForKeyboard removes it from DOM), we can still
+    // block is hidden (hideWelcomeForKeyboard fades it to invisible), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
     // causes welcomeHeight=0 → no overlap → show welcome → overlap again → hide
     // → infinite flicker loop.
@@ -3428,7 +3428,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Height of the welcome content block (greeting + resume card).
         // When the element is visible, measure it and cache the value.
-        // When hidden (e.g. hideWelcomeForKeyboard removed it from DOM), use the
+        // When hidden (e.g. showWelcome=false removed it from DOM), use the
         // cached height so the overlap calculation remains stable — otherwise the
         // cycle hide→welcomeHeight=0→noOverlap→show→overlap→hide causes flicker.
         const measuredWelcomeHeight = welcomeContentEl ? welcomeContentEl.getBoundingClientRect().height : 0;
@@ -9190,11 +9190,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
                     <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
-                    <!-- Hidden while keyboard is open (same rule as welcome greeting) -->
+                    <!-- Faded out via CSS opacity transition when keyboard is open (same rule as welcome greeting) -->
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
-                        <div class="daily-inspiration-area">
+                    {#if showWelcome}
+                        <div class="daily-inspiration-area" class:welcome-hiding={hideWelcomeForKeyboard}>
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
@@ -9323,10 +9323,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
-                    <!-- Also hide on mobile when keyboard is open to free up vertical space -->
-                    {#if showWelcome && !hideWelcomeForKeyboard}
+                    <!-- Faded out via CSS opacity transition when keyboard is open to free up visual space -->
+                    {#if showWelcome}
                         <div
                             class="center-content"
+                            class:welcome-hiding={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
                         >
                             <div class="team-profile">
@@ -12064,6 +12065,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .daily-inspiration-area {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /* Welcome content fade transition: on short viewports, the daily inspiration
+       and welcome greeting fade out via CSS opacity when the message input is
+       focused, instead of being removed from DOM.  This avoids ResizeObserver
+       churn that caused an infinite recalculation loop with {#if} DOM toggles.
+       visibility:hidden is delayed by 200ms so it kicks in AFTER opacity reaches
+       0, preventing interaction with invisible content.  On fade-in (class
+       removed), visibility:visible applies immediately via the base 0s delay. */
+    .daily-inspiration-area,
+    .center-content {
+        transition: opacity 200ms ease, visibility 0s 0s;
+    }
+
+    .daily-inspiration-area.welcome-hiding,
+    .center-content.welcome-hiding {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 200ms ease, visibility 0s 200ms;
     }
 
     /* Add styles for left and right button containers */
