@@ -683,6 +683,42 @@ async def invoke_google_ai_studio_chat_completions(
                         output_buffer += chunk.text
                         yield chunk.text
 
+            # Check finish_reason and prompt_feedback for blocked/truncated responses.
+            # Gemini can silently stop generating due to safety filters, recitation detection,
+            # or max_tokens — without raising any exception. Detecting this here ensures the user
+            # sees a clear notice instead of an incomplete message with no explanation.
+            try:
+                response = getattr(stream_iterator, 'response', None)
+                if response:
+                    # Check prompt-level blocking (entire prompt rejected)
+                    prompt_feedback = getattr(response, 'prompt_feedback', None)
+                    if prompt_feedback:
+                        block_reason = getattr(prompt_feedback, 'block_reason', None)
+                        if block_reason and str(block_reason) != "BLOCK_REASON_UNSPECIFIED":
+                            logger.warning(f"{log_prefix} Prompt was blocked by content filter: {block_reason}")
+                            yield "\n\n---\n*Your message was blocked by the model's content filter. Try rephrasing or using a different model.*"
+
+                    # Check candidate-level finish_reason (response truncated/blocked mid-stream)
+                    if response.candidates:
+                        finish_reason = getattr(response.candidates[0], 'finish_reason', None)
+                        finish_reason_str = str(finish_reason) if finish_reason else None
+
+                        if finish_reason_str and "STOP" not in finish_reason_str:
+                            logger.warning(
+                                f"{log_prefix} Response ended with finish_reason={finish_reason_str}. "
+                                f"Output may be incomplete or blocked."
+                            )
+                            if "SAFETY" in finish_reason_str:
+                                yield "\n\n---\n*This response was blocked by the model's safety filter. Try rephrasing your request or using a different model.*"
+                            elif "MAX_TOKENS" in finish_reason_str:
+                                yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                            elif "RECITATION" in finish_reason_str:
+                                yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
+                            else:
+                                yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
+            except Exception as e:
+                logger.warning(f"{log_prefix} Could not check finish_reason after stream: {e}")
+
             try:
                 usage_metadata_obj = getattr(getattr(stream_iterator, "response", None), "usage_metadata", None)
                 if usage_metadata_obj:
@@ -1021,18 +1057,52 @@ async def invoke_google_chat_completions(
                         output_buffer += chunk.text
                         yield chunk.text
             
+            # Check finish_reason and prompt_feedback for blocked/truncated responses.
+            # Gemini can silently stop generating due to safety filters, recitation detection,
+            # or max_tokens — without raising any exception. Detecting this here ensures the user
+            # sees a clear notice instead of an incomplete message with no explanation.
+            try:
+                response = getattr(stream_iterator, 'response', None) if stream_iterator else None
+                if response:
+                    prompt_feedback = getattr(response, 'prompt_feedback', None)
+                    if prompt_feedback:
+                        block_reason = getattr(prompt_feedback, 'block_reason', None)
+                        if block_reason and str(block_reason) != "BLOCK_REASON_UNSPECIFIED":
+                            logger.warning(f"{log_prefix} Prompt was blocked by content filter: {block_reason}")
+                            yield "\n\n---\n*Your message was blocked by the model's content filter. Try rephrasing or using a different model.*"
+
+                    if response.candidates:
+                        finish_reason = getattr(response.candidates[0], 'finish_reason', None)
+                        finish_reason_str = str(finish_reason) if finish_reason else None
+
+                        if finish_reason_str and "STOP" not in finish_reason_str:
+                            logger.warning(
+                                f"{log_prefix} Response ended with finish_reason={finish_reason_str}. "
+                                f"Output may be incomplete or blocked."
+                            )
+                            if "SAFETY" in finish_reason_str:
+                                yield "\n\n---\n*This response was blocked by the model's safety filter. Try rephrasing your request or using a different model.*"
+                            elif "MAX_TOKENS" in finish_reason_str:
+                                yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                            elif "RECITATION" in finish_reason_str:
+                                yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
+                            else:
+                                yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
+            except Exception as e:
+                logger.warning(f"{log_prefix} Could not check finish_reason after stream: {e}")
+
             # After the stream is done, the response object on the iterator has usage metadata
             try:
                 if stream_iterator and stream_iterator.response and stream_iterator.response.usage_metadata:
                     usage_dict = stream_iterator.response.usage_metadata.to_dict()
-                    
+
                     # Manually add system prompt tokens if they are not included by the API.
                     # This ensures consistent and accurate billing.
                     if system_prompt:
                         try:
                             encoding = tiktoken.get_encoding("cl100k_base")
                             system_prompt_tokens = len(encoding.encode(system_prompt))
-                            
+
                             # Add system prompt tokens to the counts from the API
                             usage_dict['prompt_token_count'] += system_prompt_tokens
                             usage_dict['total_token_count'] += system_prompt_tokens

@@ -256,6 +256,15 @@ async def invoke_mistral_chat_completions(
                                         parsing_error=err_msg
                                     )
                                     current_tool_function_name, current_tool_function_args_buffer, current_tool_call_id = None, "", None
+
+                                # Detect truncation or content filtering
+                                finish_reason_val = choice.get("finish_reason")
+                                if finish_reason_val == "length":
+                                    logger.warning(f"{log_prefix} Response truncated: finish_reason='length' (max_tokens reached)")
+                                    yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                                elif finish_reason_val == "content_filter":
+                                    logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
+                                    yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
                         except json.JSONDecodeError:
                             logger.warning(f"{log_prefix} Failed to decode JSON from stream line: {data_json}")
         except (httpx.ReadTimeout, httpx.ConnectError, httpx.RemoteProtocolError) as e:

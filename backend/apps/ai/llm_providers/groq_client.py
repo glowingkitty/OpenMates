@@ -271,7 +271,16 @@ async def _invoke_groq_direct_api(
                                 current_tool_call_id = None
                                 current_tool_function_name = None
                                 current_tool_function_args_buffer = ""
-                        
+
+                        # Detect truncation or content filtering
+                        finish_reason_val = getattr(choice, 'finish_reason', None) if hasattr(choice, 'finish_reason') else None
+                        if finish_reason_val == "length":
+                            logger.warning(f"{log_prefix} Response truncated: finish_reason='length' (max_tokens reached)")
+                            yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                        elif finish_reason_val == "content_filter":
+                            logger.warning(f"{log_prefix} Response blocked: finish_reason='content_filter'")
+                            yield "\n\n---\n*This response was blocked by the model's content filter. Try rephrasing your request or using a different model.*"
+
                         # Handle usage metadata (usually in final chunk)
                         if hasattr(chunk, 'usage') and chunk.usage:
                             # Calculate token breakdown from input messages (estimate)
