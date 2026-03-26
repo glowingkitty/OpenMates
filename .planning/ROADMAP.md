@@ -79,7 +79,12 @@ Plans:
   3. A foreground device receiving a streaming AI response decrypts each chunk correctly in real-time without errors
   4. A background device brought to the foreground correctly decrypts all chat updates that arrived while it was inactive
   5. A device that reconnects after being offline successfully syncs and decrypts all missed chat updates
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md -- Split chatSyncServiceSenders.ts (2851 lines) into 5 focused domain modules with barrel re-export
+- [ ] 04-02-PLAN.md -- WebSocket key delivery acknowledgment protocol (frontend + backend) + BroadcastChannel verification
+- [ ] 04-03-PLAN.md -- Convert all sync handler encrypt/decrypt imports from cryptoService to encryptor modules + import audit test
 
 ### Phase 5: Testing & Documentation
 **Goal**: The rebuild is validated by automated multi-tab and multi-device tests, performance is confirmed acceptable, the architecture is documented end-to-end, and a file-size monitoring script prevents future god-files
@@ -102,5 +107,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Audit & Discovery | 0/3 | Planning complete | - |
 | 2. Foundation Layer Extraction | 2/2 | Complete |  |
 | 3. Key Management Hardening | 0/3 | Planning complete | - |
-| 4. Sync Handler Rewire | 0/? | Not started | - |
+| 4. Sync Handler Rewire | 0/3 | Planning complete | - |
 | 5. Testing & Documentation | 0/? | Not started | - |
