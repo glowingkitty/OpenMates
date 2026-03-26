@@ -46,8 +46,8 @@ Requirements for the rebuild. Each maps to roadmap phases.
 - [ ] **TEST-01**: Playwright test: two tabs open the same chat, send messages, both tabs decrypt correctly
 - [ ] **TEST-02**: Playwright test: create a chat in tab A, open it in tab B — content decrypts correctly
 - [ ] **TEST-03**: Test fixture validation: all historical encrypted formats decrypt successfully with current code
-- [ ] **TEST-04**: Performance test: encryption/decryption of a 100-message chat completes within acceptable bounds (no sync timeout)
-- [ ] **TEST-05**: File-size monitoring script that flags files over a configurable line threshold and suggests splits
+- [x] **TEST-04**: Performance test: encryption/decryption of a 100-message chat completes within acceptable bounds (no sync timeout)
+- [x] **TEST-05**: File-size monitoring script that flags files over a configurable line threshold and suggests splits
 
 ## v2 Requirements
 
@@ -106,8 +106,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-01 | Phase 5 | Pending |
 | TEST-02 | Phase 5 | Pending |
 | TEST-03 | Phase 5 | Pending |
-| TEST-04 | Phase 5 | Pending |
-| TEST-05 | Phase 5 | Pending |
+| TEST-04 | Phase 5 | Complete |
+| TEST-05 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 27 total
