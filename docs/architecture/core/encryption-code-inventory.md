@@ -1,12 +1,17 @@
 # Encryption Code Path Inventory
 
+> **Post-Rebuild Status:** This inventory was created during Phase 1 (audit) and updated after Phase 4 completion. All module references reflect the post-rebuild architecture. Direct `cryptoService.ts` calls for chat-key encrypt/decrypt have been replaced with imports from `MessageEncryptor.ts` and `MetadataEncryptor.ts`. All bypass paths identified in the original audit have been resolved -- ChatKeyManager is now the sole key authority.
+>
+> See: [Encryption Architecture](./encryption-architecture.md) for the high-level overview.
+
 > Complete inventory of every encrypt/decrypt/key-gen/key-sync code path in the OpenMates
 > frontend codebase. Each call site is cataloged with file path, line number, function name,
 > whether it routes through ChatKeyManager, and the triggering context. The bypass analysis
 > section (AUDT-06) classifies every non-ChatKeyManager crypto import for Phase 4 rewiring.
 >
 > Generated: 2026-03-26 via systematic grep of `frontend/packages/ui/src/services/`.
-> Related: [Encryption Root Causes](./encryption-root-causes.md) |
+> Related: [Encryption Architecture](./encryption-architecture.md) |
+> [Encryption Root Causes](./encryption-root-causes.md) |
 > [Chat Encryption Implementation](./chat-encryption-implementation.md)
 
 ## Summary Statistics
@@ -433,6 +438,24 @@ graph TB
 
 ---
 
+## Post-Rebuild Module Changes
+
+The following module changes were made during Phases 2-4:
+
+| Pre-Rebuild | Post-Rebuild | Phase |
+|-------------|-------------|-------|
+| All encrypt/decrypt in `cryptoService.ts` | Chat-key ops in `encryption/MessageEncryptor.ts`; master-key ops in `encryption/MetadataEncryptor.ts` | Phase 2 |
+| Direct `generateChatKey()` calls from 4 bypass paths | All key generation through `ChatKeyManager.createKeyForNewChat()` / `createAndPersistKey()` | Phase 3 |
+| `chatSyncServiceSenders.ts` (2100+ lines monolith) | Decomposed into `sendersChatMessages.ts`, `sendersChatManagement.ts`, `sendersDrafts.ts`, `sendersEmbeds.ts`, `sendersSync.ts` | Phase 4 |
+| Dynamic `import('../cryptoService')` in sync handlers | Static imports from `../encryption/MessageEncryptor` and `../encryption/MetadataEncryptor` | Phase 4 |
+
+All sync handler crypto imports now route through the encryptor modules (zero direct `cryptoService` imports for encrypt/decrypt). This is enforced by `import-audit.test.ts`.
+
+---
+
 *Code path inventory: 2026-03-26*
+*Post-rebuild update: 2026-03-26*
 *Source: Systematic grep of `frontend/packages/ui/src/services/**/*.ts`*
 *Grep patterns: encryptWithChatKey, decryptWithChatKey, encryptWithMasterKey, decryptWithMasterKey, _generateChatKeyInternal, generateChatKey, createKeyForNewChat, encryptChatKeyWithMasterKey, decryptChatKeyWithMasterKey, receiveKeyFromServer, bulkInject, injectKey, deriveEmbedKeyFromChatKey, generateExtractableMasterKey, saveKeyToSession, getKeyFromStorage*
+
+*Last updated: 2026-03-26 (post-Phase-4 rebuild)*
