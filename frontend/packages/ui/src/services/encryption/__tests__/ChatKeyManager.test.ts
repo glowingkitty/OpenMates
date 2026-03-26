@@ -719,3 +719,143 @@ describe("ChatKeyManager — deadlock prevention", () => {
     mgr.releaseCriticalOp();
   });
 });
+
+// ---------------------------------------------------------------------------
+// BroadcastChannel keyLoaded (KEYS-06 cross-tab)
+// Tests that keyLoaded messages warm the receiving tab's key cache for chats
+// with pending operations, and that broadcastKeyLoaded fires after key
+// creation and server receive.
+// ---------------------------------------------------------------------------
+
+// Capture BroadcastChannel messages for assertion
+const broadcastMessages: Array<{ type: string; chatId?: string; encryptedChatKey?: string }> = [];
+
+// Mock BroadcastChannel so we can observe postMessage calls
+vi.stubGlobal(
+  "BroadcastChannel",
+  class MockBroadcastChannel {
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    postMessage(data: any) {
+      broadcastMessages.push(data);
+    }
+    close() {}
+  },
+);
+
+describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(async () => {
+    _rvCounter = 1;
+    resetLockMock();
+    broadcastMessages.length = 0;
+    mgr = new ChatKeyManager();
+    mgr.setEncryptedChatKeyPersister(async () => {});
+    // Mock encrypt to return a deterministic value
+    const { encryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    vi.mocked(encryptChatKeyWithMasterKey).mockResolvedValue("encrypted-dummy");
+  });
+
+  it("keyLoaded message for a chat with pending ops triggers receiveKeyFromServer and flushes the queue", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(77);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    // Queue a pending operation for chat-1
+    let flushed = false;
+    const opPromise = mgr.queueOperation("chat-1", "test-op", async (key) => {
+      flushed = true;
+      expect(key).toEqual(expectedKey);
+    });
+
+    // Simulate keyLoaded message from another tab
+    // Access the BroadcastChannel's onmessage handler via the manager's constructor
+    // The manager registers onmessage in the constructor, so we trigger it via the channel
+    const bc = (mgr as any).broadcastChannel;
+    expect(bc).not.toBeNull();
+    bc.onmessage!({ data: { type: "keyLoaded", chatId: "chat-1", encryptedChatKey: "encrypted-from-other-tab" } } as MessageEvent);
+
+    // Wait for the async receiveKeyFromServer to complete
+    await new Promise((r) => setTimeout(r, 10));
+    await opPromise;
+
+    expect(flushed).toBe(true);
+    expect(mgr.getKeySync("chat-1")).toEqual(expectedKey);
+  });
+
+  it("keyLoaded message for a chat with NO pending ops is ignored (Pitfall 4)", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(makeKey(88));
+
+    // No pending ops for chat-1 — keyLoaded should be a no-op
+    const bc = (mgr as any).broadcastChannel;
+    bc.onmessage!({ data: { type: "keyLoaded", chatId: "chat-1", encryptedChatKey: "encrypted-from-other-tab" } } as MessageEvent);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Key should NOT be loaded (lazy load — no reason to warm cache without pending work)
+    expect(mgr.getKeySync("chat-1")).toBeNull();
+  });
+
+  it("keyLoaded message for a chat where key already exists in memory is ignored", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(makeKey(99));
+
+    // Pre-inject a key
+    mgr.injectKey("chat-1", makeKey(42), "master_key");
+
+    const bc = (mgr as any).broadcastChannel;
+    bc.onmessage!({ data: { type: "keyLoaded", chatId: "chat-1", encryptedChatKey: "encrypted-from-other-tab" } } as MessageEvent);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Original key must survive (not replaced)
+    expect(mgr.getKeySync("chat-1")).toEqual(makeKey(42));
+  });
+
+  it("after createAndPersistKey, broadcastKeyLoaded is called with chatId and encryptedChatKey", async () => {
+    broadcastMessages.length = 0;
+    await mgr.createAndPersistKey("chat-new");
+
+    // Should have broadcast a keyLoaded message
+    const keyLoadedMsgs = broadcastMessages.filter((m) => m.type === "keyLoaded");
+    expect(keyLoadedMsgs.length).toBe(1);
+    expect(keyLoadedMsgs[0].chatId).toBe("chat-new");
+    expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-dummy");
+  });
+
+  it("after receiveKeyFromServer succeeds, broadcastKeyLoaded is called", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(makeKey(55));
+
+    broadcastMessages.length = 0;
+    await mgr.receiveKeyFromServer("chat-1", "encrypted-from-server");
+
+    const keyLoadedMsgs = broadcastMessages.filter((m) => m.type === "keyLoaded");
+    expect(keyLoadedMsgs.length).toBe(1);
+    expect(keyLoadedMsgs[0].chatId).toBe("chat-1");
+    expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-from-server");
+  });
+
+  it("broadcastKeyLoaded is a no-op when broadcastChannel is null (SSR)", async () => {
+    // Create a manager without BroadcastChannel
+    const origBC = globalThis.BroadcastChannel;
+    vi.stubGlobal("BroadcastChannel", undefined);
+
+    const ssrMgr = new ChatKeyManager();
+    ssrMgr.setEncryptedChatKeyPersister(async () => {});
+
+    const { encryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    vi.mocked(encryptChatKeyWithMasterKey).mockResolvedValue("encrypted-ssr");
+
+    broadcastMessages.length = 0;
+    await ssrMgr.createAndPersistKey("chat-ssr");
+
+    // No broadcast should have occurred
+    const keyLoadedMsgs = broadcastMessages.filter((m) => m.type === "keyLoaded");
+    expect(keyLoadedMsgs.length).toBe(0);
+
+    // Restore
+    vi.stubGlobal("BroadcastChannel", origBC);
+  });
+});
