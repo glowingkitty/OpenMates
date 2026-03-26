@@ -15,6 +15,16 @@ import { webSocketService } from "./websocketService";
 import { notificationStore } from "../stores/notificationStore";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncryptor";
+import {
+	decryptChatKeyWithMasterKey,
+	encryptChatKeyWithMasterKey,
+	generateEmbedKey,
+	deriveEmbedKeyFromChatKey,
+	encryptWithEmbedKey,
+	wrapEmbedKeyWithMasterKey,
+	wrapEmbedKeyWithChatKey
+} from "./encryption/MetadataEncryptor";
 import type { Chat, Message } from "../types/chat";
 
 export async function sendNewMessageImpl(
@@ -695,7 +705,6 @@ export async function sendNewMessageImpl(
 		try {
 			const chatKey = await chatKeyManager.getKey(message.chat_id);
 			if (chatKey) {
-				const { decryptWithChatKey } = await import("./cryptoService");
 				const activeFocusId = await decryptWithChatKey(
 					chat.encrypted_active_focus_id,
 					chatKey
@@ -776,17 +785,8 @@ export async function sendNewMessageImpl(
 		// Skip for incognito chats (no persistence).
 		if (!isIncognitoChat) {
 			try {
-				const cryptoService = await import("./cryptoService");
 				const { computeSHA256 } = await import("../message_parsing/utils");
 				const { embedStore } = await import("./embedStore");
-
-				const {
-					generateEmbedKey,
-					deriveEmbedKeyFromChatKey,
-					encryptWithEmbedKey,
-					wrapEmbedKeyWithMasterKey,
-					wrapEmbedKeyWithChatKey
-				} = cryptoService;
 
 				// Hash IDs for zero-knowledge storage
 				const hashedChatId = await computeSHA256(message.chat_id);
@@ -1320,7 +1320,6 @@ export async function sendEncryptedStoragePackage(
 			console.log(
 				`[ChatSyncService:Senders] encrypted_chat_key found for ${chat_id}, decrypting to ensure key consistency...`
 			);
-			const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
 			const decryptedKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
 
 			if (decryptedKey) {
@@ -1386,7 +1385,6 @@ export async function sendEncryptedStoragePackage(
 				);
 				encryptedChatKey = freshEncKey;
 				if (!chatKey) {
-					const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
 					chatKey = await decryptChatKeyWithMasterKey(freshEncKey);
 					if (chatKey) {
 						chatDB.setChatKey(chat_id, chatKey);
@@ -1424,7 +1422,6 @@ export async function sendEncryptedStoragePackage(
 				}
 			} else {
 				// Key found in memory but not persisted — encrypt and save
-				const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
 				encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 				if (encryptedChatKey) {
 					chat.encrypted_chat_key = encryptedChatKey;
@@ -1452,15 +1449,12 @@ export async function sendEncryptedStoragePackage(
 		);
 
 		// Import encryption functions
-		const { encryptWithChatKey } = await import("./cryptoService");
-
 		// CRITICAL FIX: Ensure user message has content before encrypting
 		// If content is missing, try to get it from encrypted_content (shouldn't happen, but defensive)
 		if (!user_message.content && user_message.encrypted_content) {
 			console.warn(
 				`[ChatSyncService:Senders] User message ${user_message.message_id} missing content field, attempting to decrypt from encrypted_content`
 			);
-			const { decryptWithChatKey } = await import("./cryptoService");
 			try {
 				const decrypted = await decryptWithChatKey(
 					user_message.encrypted_content,

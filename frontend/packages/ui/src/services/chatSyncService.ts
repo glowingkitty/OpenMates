@@ -622,8 +622,8 @@ export class ChatSynchronizationService extends EventTarget {
               let displayIcon = chat.icon || null;
 
               try {
-                const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
-                  await import("./cryptoService");
+                const { decryptWithChatKey } = await import("./encryption/MessageEncryptor");
+                const { decryptChatKeyWithMasterKey } = await import("./encryption/MetadataEncryptor");
                 let chatKey = await chatKeyManager.getKey(chat_id);
                 if (!chatKey && chat.encrypted_chat_key) {
                   chatKey = await decryptChatKeyWithMasterKey(
@@ -792,7 +792,7 @@ export class ChatSynchronizationService extends EventTarget {
         if (chat) {
           const chatKey = await chatKeyManager.getKey(chatId);
           if (chatKey) {
-            const { encryptWithChatKey } = await import("./cryptoService");
+            const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
             const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
             chat.encrypted_active_focus_id = encryptedFocusId;
             await chatDB.updateChat(chat);

@@ -14,6 +14,7 @@ import { webSocketService } from "./websocketService";
 import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import type {
 	UpdateTitlePayload,
 	DeleteChatPayload,
@@ -38,9 +39,6 @@ export async function sendUpdateTitleImpl(
 		notificationStore.error("Failed to encrypt title - chat key not available");
 		return;
 	}
-
-	// Import chat-specific encryption function
-	const { encryptWithChatKey } = await import("./cryptoService");
 
 	// Encrypt title with chat-specific key for server storage/syncing
 	const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
