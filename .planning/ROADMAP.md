@@ -82,7 +82,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Split chatSyncServiceSenders.ts (2851 lines) into 5 focused domain modules with barrel re-export
+- [x] 04-01-PLAN.md -- Split chatSyncServiceSenders.ts (2851 lines) into 5 focused domain modules with barrel re-export
 - [x] 04-02-PLAN.md -- WebSocket key delivery acknowledgment protocol (frontend + backend) + BroadcastChannel verification
 - [ ] 04-03-PLAN.md -- Convert all sync handler encrypt/decrypt imports from cryptoService to encryptor modules + import audit test
 
