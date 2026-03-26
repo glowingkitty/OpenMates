@@ -47,6 +47,7 @@ from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspi
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
 from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
+from .handlers.websocket_handlers.key_received_handler import handle_key_received  # Handler for key delivery acknowledgment (SYNC-01)
 
 logger = logging.getLogger(__name__)
 
@@ -2575,6 +2576,17 @@ async def websocket_endpoint(
                         f"Received update_chat with no recognized fields from "
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
+
+            elif message_type == "key_received":
+                # Client ACKs that it received and decrypted a chat encryption key.
+                # Relay to other devices as key_delivery_confirmed (SYNC-01).
+                logger.debug(f"Handling key_received ACK from device {device_fingerprint_hash[:8]}...")
+                await handle_key_received(
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
 
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
