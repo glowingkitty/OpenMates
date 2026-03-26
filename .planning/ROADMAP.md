@@ -96,6 +96,12 @@ Plans:
   3. All historical encrypted format test fixtures decrypt successfully with the final rebuilt code
   4. Encryption/decryption of a 100-message chat completes within acceptable performance bounds (no sync timeout)
   5. Architecture documentation in docs/architecture/ explains the full encryption flow end-to-end with module boundaries and data flow diagrams
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md -- Multi-tab E2E Playwright tests (TEST-01, TEST-02) + regression fixture validation (TEST-03)
+- [ ] 05-02-PLAN.md -- Performance benchmark (TEST-04) + file-size monitoring script with grandfathering (TEST-05)
+- [ ] 05-03-PLAN.md -- End-to-end encryption architecture documentation (ARCH-05) + Phase 1 doc updates
 
 ## Progress
 
@@ -108,4 +114,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Foundation Layer Extraction | 2/2 | Complete |  |
 | 3. Key Management Hardening | 0/3 | Planning complete | - |
 | 4. Sync Handler Rewire | 0/3 | Planning complete | - |
-| 5. Testing & Documentation | 0/? | Not started | - |
+| 5. Testing & Documentation | 0/3 | Planning complete | - |
