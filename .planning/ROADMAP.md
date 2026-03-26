@@ -67,7 +67,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md -- Web Locks mutex for key generation + state machine retry transition + test infrastructure
 - [x] 03-02-PLAN.md -- BroadcastChannel keyLoaded completion + hidden chat bypass resolution + cross-device formalization
-- [ ] 03-03-PLAN.md -- Key-before-content buffering in sync handlers (getKeySync to withKey conversion) + integration tests
+- [x] 03-03-PLAN.md -- Key-before-content buffering in sync handlers (getKeySync to withKey conversion) + integration tests
 
 ### Phase 4: Sync Handler Rewire
 **Goal**: All sync handlers route crypto operations exclusively through ChatKeyManager and the encryptor modules -- the sync layer has zero direct crypto calls and handles all real-world scenarios (streaming, background sync, reconnection)
