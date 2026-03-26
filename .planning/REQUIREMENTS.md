@@ -29,9 +29,9 @@ Requirements for the rebuild. Each maps to roadmap phases.
 
 - [x] **SYNC-01**: WebSocket key delivery includes acknowledgment — sender knows the recipient device received the key
 - [x] **SYNC-02**: Cross-tab key propagation via BroadcastChannel — key loaded in one tab is immediately available in all tabs
-- [ ] **SYNC-03**: Foreground devices receive streaming AI responses and decrypt them correctly in real-time
-- [ ] **SYNC-04**: Background devices receive synced chat updates and decrypt them correctly when brought to foreground
-- [ ] **SYNC-05**: Chat sync works correctly when a device comes online after being offline (reconnection scenario)
+- [x] **SYNC-03**: Foreground devices receive streaming AI responses and decrypt them correctly in real-time
+- [x] **SYNC-04**: Background devices receive synced chat updates and decrypt them correctly when brought to foreground
+- [x] **SYNC-05**: Chat sync works correctly when a device comes online after being offline (reconnection scenario)
 
 ### Code Architecture
 
@@ -95,9 +95,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | KEYS-06 | Phase 3 | Complete |
 | SYNC-01 | Phase 4 | Complete |
 | SYNC-02 | Phase 4 | Complete |
-| SYNC-03 | Phase 4 | Pending |
-| SYNC-04 | Phase 4 | Pending |
-| SYNC-05 | Phase 4 | Pending |
+| SYNC-03 | Phase 4 | Complete |
+| SYNC-04 | Phase 4 | Complete |
+| SYNC-05 | Phase 4 | Complete |
 | ARCH-01 | Phase 2 | Complete |
 | ARCH-02 | Phase 2 | Complete |
 | ARCH-03 | Phase 4 | Complete |
