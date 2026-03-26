@@ -188,6 +188,9 @@ export class ChatKeyManager {
   /** If clearAll() was requested while locked, it runs when the lock drops to 0 */
   private deferredClearAll = false;
 
+  /** Flag to prevent broadcast loops: set true while processing a cross-tab keyLoaded message */
+  private _receivingFromBroadcast = false;
+
   /** Callback to fetch encrypted_chat_key from IndexedDB for a given chatId */
   private fetchEncryptedChatKey:
     | ((chatId: string) => Promise<string | null>)
@@ -238,9 +241,50 @@ export class ChatKeyManager {
       // op running, the clear will be deferred until the op finishes.
       this.clearAll({ broadcast: false });
     }
-    // keyLoaded: another tab loaded a key — we could warm our cache here,
-    // but decrypting the encrypted key requires the master key (async).
-    // Instead we rely on the existing lazy-load path (getKey/loadKeyFromDB).
+    if (msg.type === "keyLoaded") {
+      // Cross-tab key notification: warm our cache only if this chat has
+      // pending operations waiting for a key. If no pending work exists,
+      // skip the async decrypt — the lazy-load path (getKey/loadKeyFromDB)
+      // will handle it when needed. This prevents Pitfall 4: unnecessary
+      // async work for every keyLoaded broadcast.
+      if (this.keys.has(msg.chatId)) {
+        // Already have this key in memory — no action needed
+        return;
+      }
+      const pending = this.pendingOps.get(msg.chatId);
+      if (!pending || pending.length === 0) {
+        // No pending operations — lazy-load when needed
+        return;
+      }
+      // Pending ops exist — warm the cache by processing the encrypted key
+      this._receivingFromBroadcast = true;
+      this.receiveKeyFromServer(msg.chatId, msg.encryptedChatKey)
+        .catch((err) => {
+          console.warn(
+            `[ChatKeyManager] Failed to process cross-tab keyLoaded for ${msg.chatId}:`,
+            err,
+          );
+        })
+        .finally(() => {
+          this._receivingFromBroadcast = false;
+        });
+    }
+  }
+
+  /**
+   * Broadcast a keyLoaded message to other tabs so they can warm their cache
+   * if they have pending operations for this chat.
+   * No-op when BroadcastChannel is unavailable (SSR) or when the key was
+   * received via cross-tab broadcast (prevents infinite loops).
+   */
+  private broadcastKeyLoaded(chatId: string, encryptedChatKey: string): void {
+    if (!this.broadcastChannel) return;
+    if (this._receivingFromBroadcast) return;
+    this.broadcastChannel.postMessage({
+      type: "keyLoaded",
+      chatId,
+      encryptedChatKey,
+    } satisfies CrossTabMessage);
   }
 
   // ---- Initialization ----
@@ -395,6 +439,9 @@ export class ChatKeyManager {
         `[ChatKeyManager] Key created for ${chatId} but no persister registered — encrypted_chat_key not saved to IDB`,
       );
     }
+
+    // Broadcast to other tabs so they can warm cache if needed
+    this.broadcastKeyLoaded(chatId, encryptedChatKey);
 
     return { chatKey, encryptedChatKey };
   }
@@ -629,6 +676,8 @@ export class ChatKeyManager {
           `[ChatKeyManager] Received and cached key from server for chat ${chatId}`,
         );
         this.flushPendingOps(chatId, chatKey);
+        // Broadcast to other tabs (loop-guarded by _receivingFromBroadcast)
+        this.broadcastKeyLoaded(chatId, encryptedChatKey);
         return chatKey;
       }
 
