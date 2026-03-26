@@ -46,7 +46,7 @@ Plans:
   2. A `MetadataEncryptor` module exists that handles title, embed metadata, and other non-message encrypted fields as a stateless operation
   3. Every encryption-related module is under 500 lines with a single clear responsibility
   4. All Phase 1 regression test fixtures pass after every extraction step
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans executed
 
 Plans:
 - [x] 02-01-PLAN.md -- Extract MessageEncryptor (chat-key encrypt/decrypt) with re-export barrel in cryptoService.ts
@@ -62,7 +62,12 @@ Plans:
   3. Encrypted content is never delivered to a device that does not yet have the corresponding decryption key (atomic key-before-content guarantee)
   4. ChatKeyManager correctly handles all state transitions (unloaded to loading to ready, loading to failed, retry) without deadlocks or lost keys
   5. A new device can decrypt all existing chats via the formally designed and implemented master key cross-device mechanism
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md -- Web Locks mutex for key generation + state machine retry transition + test infrastructure
+- [ ] 03-02-PLAN.md -- BroadcastChannel keyLoaded completion + hidden chat bypass resolution + cross-device formalization
+- [ ] 03-03-PLAN.md -- Key-before-content buffering in sync handlers (getKeySync to withKey conversion) + integration tests
 
 ### Phase 4: Sync Handler Rewire
 **Goal**: All sync handlers route crypto operations exclusively through ChatKeyManager and the encryptor modules -- the sync layer has zero direct crypto calls and handles all real-world scenarios (streaming, background sync, reconnection)
@@ -95,7 +100,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Audit & Discovery | 0/3 | Planning complete | - |
-| 2. Foundation Layer Extraction | 1/2 | In Progress|  |
-| 3. Key Management Hardening | 0/? | Not started | - |
+| 2. Foundation Layer Extraction | 2/2 | Complete |  |
+| 3. Key Management Hardening | 0/3 | Planning complete | - |
 | 4. Sync Handler Rewire | 0/? | Not started | - |
 | 5. Testing & Documentation | 0/? | Not started | - |
