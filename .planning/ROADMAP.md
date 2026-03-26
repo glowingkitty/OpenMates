@@ -30,7 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A regression test suite of 10+ real encrypted message fixtures passes, covering all known format generations
   4. The full master key derivation path (credential to PBKDF2 to wrapping key to chat key) and cross-device distribution mechanism are documented and the architectural gap is explained
   5. Every sync handler that bypasses ChatKeyManager by calling cryptoService.ts directly is identified and listed
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md -- Root cause tracing of 3 bug reports + complete code path inventory with bypass classification
+- [ ] 01-02-PLAN.md -- Byte-level ciphertext format documentation + master key lifecycle and cross-device gap analysis
+- [ ] 01-03-PLAN.md -- Regression test fixtures covering all format generations with 17+ test cases
 
 ### Phase 2: Foundation Layer Extraction
 **Goal**: Stateless encryption modules exist with clean single-responsibility boundaries, and all existing chats still decrypt correctly after extraction
@@ -85,7 +90,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Audit & Discovery | 0/? | Not started | - |
+| 1. Audit & Discovery | 0/3 | Planning complete | - |
 | 2. Foundation Layer Extraction | 0/? | Not started | - |
 | 3. Key Management Hardening | 0/? | Not started | - |
 | 4. Sync Handler Rewire | 0/? | Not started | - |
