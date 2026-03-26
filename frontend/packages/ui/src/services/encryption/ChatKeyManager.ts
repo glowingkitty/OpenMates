@@ -287,6 +287,32 @@ export class ChatKeyManager {
     } satisfies CrossTabMessage);
   }
 
+  /**
+   * SYNC-01: Send key_received acknowledgment to the server via WebSocket.
+   * This is fire-and-forget — ack failure is non-critical and must never
+   * prevent key injection from succeeding. The server relays this as
+   * key_delivery_confirmed to the originating sender device.
+   */
+  private sendKeyReceivedAck(chatId: string): void {
+    import("../websocketService")
+      .then(({ webSocketService }) => {
+        webSocketService
+          .sendMessage("key_received", { chat_id: chatId })
+          .catch((ackError: unknown) => {
+            console.warn(
+              "[ChatKeyManager] Failed to send key_received ack:",
+              ackError,
+            );
+          });
+      })
+      .catch((importError: unknown) => {
+        console.warn(
+          "[ChatKeyManager] Failed to import websocketService for ack:",
+          importError,
+        );
+      });
+  }
+
   // ---- Initialization ----
 
   /**
@@ -678,6 +704,8 @@ export class ChatKeyManager {
         this.flushPendingOps(chatId, chatKey);
         // Broadcast to other tabs (loop-guarded by _receivingFromBroadcast)
         this.broadcastKeyLoaded(chatId, encryptedChatKey);
+        // SYNC-01: Send key_received acknowledgment to server (non-blocking)
+        this.sendKeyReceivedAck(chatId);
         return chatKey;
       }
 

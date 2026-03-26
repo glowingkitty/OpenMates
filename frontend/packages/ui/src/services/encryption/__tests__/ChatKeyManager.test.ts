@@ -22,6 +22,15 @@ vi.mock("../../cryptoService", async (importOriginal) => {
   };
 });
 
+// Mock websocketService for SYNC-01 key_received ack tests.
+// ChatKeyManager uses dynamic import("../websocketService") so we mock the module.
+const mockSendMessage = vi.fn().mockResolvedValue(undefined);
+vi.mock("../../websocketService", () => ({
+  webSocketService: {
+    sendMessage: mockSendMessage,
+  },
+}));
+
 import { ChatKeyManager } from "../ChatKeyManager";
 
 // ---------------------------------------------------------------------------
@@ -1103,5 +1112,157 @@ describe("ChatKeyManager -- state machine comprehensive (KEYS-05)", () => {
     // Both should resolve with the same key
     expect(key1).toEqual(expectedKey);
     expect(key2).toEqual(expectedKey);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SYNC-01: key_received acknowledgment (key delivery ack protocol)
+// ---------------------------------------------------------------------------
+
+describe("SYNC-01: key_received acknowledgment", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(() => {
+    _rvCounter = 1;
+    resetLockMock();
+    mgr = new ChatKeyManager();
+    mockSendMessage.mockClear();
+    mockSendMessage.mockResolvedValue(undefined);
+  });
+
+  it("sends key_received ack after successful receiveKeyFromServer", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(99);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    await mgr.receiveKeyFromServer("chat-ack-1", "encrypted-key-data");
+
+    // The ack is fire-and-forget via dynamic import — give the microtask queue
+    // time to resolve the import() promise chain.
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(mockSendMessage).toHaveBeenCalledWith("key_received", {
+      chat_id: "chat-ack-1",
+    });
+  });
+
+  it("does not throw if ack send fails", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(98);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    // Make sendMessage reject — this should NOT cause receiveKeyFromServer to fail
+    mockSendMessage.mockRejectedValue(new Error("WebSocket not connected"));
+
+    const result = await mgr.receiveKeyFromServer(
+      "chat-ack-2",
+      "encrypted-key-data",
+    );
+
+    // Key injection should succeed despite ack failure
+    expect(result).toEqual(expectedKey);
+    expect(mgr.getKeySync("chat-ack-2")).toEqual(expectedKey);
+
+    // Wait for the async ack attempt to complete
+    await new Promise((r) => setTimeout(r, 20));
+  });
+
+  it("does not send ack when key already exists (duplicate receive)", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const existingKey = makeKey(97);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(existingKey);
+
+    // First: inject a key directly
+    mgr.injectKey("chat-ack-3", existingKey, "server_sync");
+    mockSendMessage.mockClear();
+
+    // Second: receive the same key from server — should skip ack
+    await mgr.receiveKeyFromServer("chat-ack-3", "encrypted-key-data");
+    await new Promise((r) => setTimeout(r, 20));
+
+    // No ack sent because the key was already cached (early return path)
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SYNC-02: BroadcastChannel cross-tab key propagation
+// ---------------------------------------------------------------------------
+
+describe("SYNC-02: BroadcastChannel cross-tab key propagation", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(async () => {
+    _rvCounter = 1;
+    resetLockMock();
+    mgr = new ChatKeyManager();
+
+    const { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } =
+      await import("../../cryptoService");
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(makeKey(50));
+    vi.mocked(encryptChatKeyWithMasterKey).mockResolvedValue("encrypted-dummy");
+  });
+
+  it("key loaded in one tab is available via getKeySync after BroadcastChannel message (with pending ops)", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(50);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    // Queue a pending operation for this chat — BroadcastChannel keyLoaded
+    // only triggers receiveKeyFromServer when pending ops exist (Pitfall 4
+    // optimization: skip async decrypt when no work is waiting).
+    let opResolved = false;
+    mgr.queueOperation("cross-tab-chat", "decrypt-waiting", async () => {
+      opResolved = true;
+    });
+
+    // Access the BroadcastChannel created by ChatKeyManager
+    const bc = (mgr as any).broadcastChannel as BroadcastChannel | null;
+    expect(bc).not.toBeNull();
+
+    // Simulate receiving a keyLoaded message from another tab
+    bc!.onmessage!({
+      data: {
+        type: "keyLoaded",
+        chatId: "cross-tab-chat",
+        encryptedChatKey: "encrypted-from-other-tab",
+      },
+    } as MessageEvent);
+
+    // Wait for the async receiveKeyFromServer + flush to complete
+    await new Promise((r) => setTimeout(r, 30));
+
+    // The key should now be in the local cache
+    const localKey = mgr.getKeySync("cross-tab-chat");
+    expect(localKey).toEqual(expectedKey);
+
+    // The pending operation should have been flushed
+    expect(opResolved).toBe(true);
+  });
+
+  it("BroadcastChannel propagation works for encrypt path (createAndPersistKey broadcasts)", async () => {
+    const { encryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    vi.mocked(encryptChatKeyWithMasterKey).mockResolvedValue(
+      "encrypted-new-key",
+    );
+
+    // Collect BroadcastChannel messages
+    const messages: any[] = [];
+    const bc = (mgr as any).broadcastChannel as BroadcastChannel | null;
+    if (bc) {
+      const origPost = bc.postMessage.bind(bc);
+      bc.postMessage = (msg: any) => {
+        messages.push(msg);
+        origPost(msg);
+      };
+    }
+
+    // Create a key (encrypt path) — should broadcast keyLoaded
+    await mgr.createAndPersistKey("encrypt-chat");
+
+    const keyLoadedMsgs = messages.filter((m) => m.type === "keyLoaded");
+    expect(keyLoadedMsgs.length).toBe(1);
+    expect(keyLoadedMsgs[0].chatId).toBe("encrypt-chat");
+    expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-new-key");
   });
 });

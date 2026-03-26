@@ -552,6 +552,19 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
+    // SYNC-01: Key delivery confirmation from server.
+    // When another device ACKs key receipt, the server relays key_delivery_confirmed
+    // to all other devices. This is purely observational — no action needed.
+    webSocketService.on("key_delivery_confirmed", (payload) => {
+      const { chat_id, device_hash } = payload as {
+        chat_id: string;
+        device_hash: string;
+      };
+      console.info(
+        `[KeyDelivery] Device ${device_hash?.slice(0, 8)} confirmed key for chat ${chat_id}`,
+      );
+    });
+
     // Handle real-time last_opened_updated broadcast from another device.
     // When the user opens a chat on Device A, the server broadcasts this event to all
     // other connected devices (Device B, C...) so they can update their resume card
