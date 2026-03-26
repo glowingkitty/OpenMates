@@ -46,11 +46,7 @@ Plans:
   2. A `MetadataEncryptor` module exists that handles title, embed metadata, and other non-message encrypted fields as a stateless operation
   3. Every encryption-related module is under 500 lines with a single clear responsibility
   4. All Phase 1 regression test fixtures pass after every extraction step
-**Plans:** 2/2 plans executed
-
-Plans:
-- [x] 02-01-PLAN.md -- Extract MessageEncryptor (chat-key encrypt/decrypt) with re-export barrel in cryptoService.ts
-- [x] 02-02-PLAN.md -- Extract MetadataEncryptor (master-key + embed-key operations) and validate all module line counts
+**Plans**: TBD
 
 ### Phase 3: Key Management Hardening
 **Goal**: ChatKeyManager is the single, race-condition-free authority for all key operations -- no duplicate keys can be generated, no content arrives without its key, and keys propagate correctly across tabs and devices
@@ -62,12 +58,7 @@ Plans:
   3. Encrypted content is never delivered to a device that does not yet have the corresponding decryption key (atomic key-before-content guarantee)
   4. ChatKeyManager correctly handles all state transitions (unloaded to loading to ready, loading to failed, retry) without deadlocks or lost keys
   5. A new device can decrypt all existing chats via the formally designed and implemented master key cross-device mechanism
-**Plans:** 3 plans
-
-Plans:
-- [x] 03-01-PLAN.md -- Web Locks mutex for key generation + state machine retry transition + test infrastructure
-- [x] 03-02-PLAN.md -- BroadcastChannel keyLoaded completion + hidden chat bypass resolution + cross-device formalization
-- [x] 03-03-PLAN.md -- Key-before-content buffering in sync handlers (getKeySync to withKey conversion) + integration tests
+**Plans**: TBD
 
 ### Phase 4: Sync Handler Rewire
 **Goal**: All sync handlers route crypto operations exclusively through ChatKeyManager and the encryptor modules -- the sync layer has zero direct crypto calls and handles all real-world scenarios (streaming, background sync, reconnection)
@@ -79,12 +70,7 @@ Plans:
   3. A foreground device receiving a streaming AI response decrypts each chunk correctly in real-time without errors
   4. A background device brought to the foreground correctly decrypts all chat updates that arrived while it was inactive
   5. A device that reconnects after being offline successfully syncs and decrypts all missed chat updates
-**Plans:** 3 plans
-
-Plans:
-- [x] 04-01-PLAN.md -- Split chatSyncServiceSenders.ts (2851 lines) into 5 focused domain modules with barrel re-export
-- [x] 04-02-PLAN.md -- WebSocket key delivery acknowledgment protocol (frontend + backend) + BroadcastChannel verification
-- [x] 04-03-PLAN.md -- Convert all sync handler encrypt/decrypt imports from cryptoService to encryptor modules + import audit test
+**Plans**: TBD
 
 ### Phase 5: Testing & Documentation
 **Goal**: The rebuild is validated by automated multi-tab and multi-device tests, performance is confirmed acceptable, the architecture is documented end-to-end, and a file-size monitoring script prevents future god-files
@@ -96,12 +82,6 @@ Plans:
   3. All historical encrypted format test fixtures decrypt successfully with the final rebuilt code
   4. Encryption/decryption of a 100-message chat completes within acceptable performance bounds (no sync timeout)
   5. Architecture documentation in docs/architecture/ explains the full encryption flow end-to-end with module boundaries and data flow diagrams
-**Plans:** 3 plans
-
-Plans:
-- [ ] 05-01-PLAN.md -- Multi-tab E2E Playwright tests (TEST-01, TEST-02) + regression fixture validation (TEST-03)
-- [ ] 05-02-PLAN.md -- Performance benchmark (TEST-04) + file-size monitoring script with grandfathering (TEST-05)
-- [ ] 05-03-PLAN.md -- End-to-end encryption architecture documentation (ARCH-05) + Phase 1 doc updates
 
 ## Progress
 
@@ -111,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Audit & Discovery | 0/3 | Planning complete | - |
-| 2. Foundation Layer Extraction | 2/2 | Complete |  |
-| 3. Key Management Hardening | 0/3 | Planning complete | - |
-| 4. Sync Handler Rewire | 0/3 | Planning complete | - |
-| 5. Testing & Documentation | 0/3 | Planning complete | - |
+| 2. Foundation Layer Extraction | 0/? | Not started | - |
+| 3. Key Management Hardening | 0/? | Not started | - |
+| 4. Sync Handler Rewire | 0/? | Not started | - |
+| 5. Testing & Documentation | 1/3 | Executing | - |

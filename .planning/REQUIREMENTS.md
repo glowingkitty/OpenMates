@@ -39,13 +39,13 @@ Requirements for the rebuild. Each maps to roadmap phases.
 - [ ] **ARCH-02**: Extract `MetadataEncryptor` as a stateless module — handles title, embed metadata, and other non-message encrypted fields
 - [ ] **ARCH-03**: All sync handlers (`chatSyncServiceSenders.ts`, `chatSyncServiceReceivers.ts`, related files) route crypto through encryptor modules — no inline encrypt/decrypt
 - [ ] **ARCH-04**: Each encryption-related module is under 500 lines with a single clear responsibility
-- [x] **ARCH-05**: Architecture documentation in `docs/architecture/` explains the full encryption flow end-to-end with diagrams
+- [ ] **ARCH-05**: Architecture documentation in `docs/architecture/` explains the full encryption flow end-to-end with diagrams
 
 ### Observability & Testing
 
-- [ ] **TEST-01**: Playwright test: two tabs open the same chat, send messages, both tabs decrypt correctly
-- [ ] **TEST-02**: Playwright test: create a chat in tab A, open it in tab B — content decrypts correctly
-- [ ] **TEST-03**: Test fixture validation: all historical encrypted formats decrypt successfully with current code
+- [x] **TEST-01**: Playwright test: two tabs open the same chat, send messages, both tabs decrypt correctly
+- [x] **TEST-02**: Playwright test: create a chat in tab A, open it in tab B — content decrypts correctly
+- [x] **TEST-03**: Test fixture validation: all historical encrypted formats decrypt successfully with current code
 - [ ] **TEST-04**: Performance test: encryption/decryption of a 100-message chat completes within acceptable bounds (no sync timeout)
 - [ ] **TEST-05**: File-size monitoring script that flags files over a configurable line threshold and suggests splits
 
@@ -102,10 +102,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ARCH-02 | Phase 2 | Pending |
 | ARCH-03 | Phase 4 | Pending |
 | ARCH-04 | Phase 2 | Pending |
-| ARCH-05 | Phase 5 | Complete |
-| TEST-01 | Phase 5 | Pending |
-| TEST-02 | Phase 5 | Pending |
-| TEST-03 | Phase 5 | Pending |
+| ARCH-05 | Phase 5 | Pending |
+| TEST-01 | Phase 5 | Complete |
+| TEST-02 | Phase 5 | Complete |
+| TEST-03 | Phase 5 | Complete |
 | TEST-04 | Phase 5 | Pending |
 | TEST-05 | Phase 5 | Pending |
 

@@ -117,7 +117,8 @@ process_trigger() {
     # Post investigation results back to Linear (if this was a Linear-triggered issue)
     if [[ -n "$linear_issue_id" && -n "$session_id" ]]; then
         log "[agent-watcher] Updating Linear issue $linear_issue_id with session $session_id"
-        docker exec api python3 /app/scripts/linear-update-issue.py \
+        LINEAR_API_KEY="$(grep '^LINEAR_API_KEY=' "$PROJECT_ROOT/.env" 2>/dev/null | cut -d= -f2-)" \
+        python3 "$PROJECT_ROOT/scripts/linear-update-issue.py" \
             --issue-id "$linear_issue_id" \
             --session-id "$session_id" \
             2>&1 | while read -r line; do log "[linear-update] $line"; done || {
