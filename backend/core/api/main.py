@@ -737,15 +737,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring inspiration cache from disk: {e}", exc_info=True)
 
-    # --- Restore web analytics counters from disk backup ---
-    # Web analytics Redis counters are dumped to disk on graceful shutdown so no
-    # data is lost if the container is restarted mid-flush-cycle.
-    if hasattr(app.state, 'web_analytics_service'):
-        try:
-            await app.state.web_analytics_service.restore_from_disk()
-            logger.info("Web analytics counters restored from disk backup (if any)")
-        except Exception as e:
-            logger.error(f"Error restoring web analytics counters from disk: {e}", exc_info=True)
+    # --- Web analytics restore moved to post-Vault section (needs encryption_service) ---
+    # See the restore block after encryption_service initialization below.
 
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
@@ -1016,8 +1009,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
         # Depending on the severity, might want to raise exception to stop startup
-        # raise e 
-    
+        # raise e
+
+    # --- Restore web analytics counters from Vault-encrypted disk backup ---
+    # Must run AFTER encryption_service initialization (above) so Vault transit
+    # decryption is available. Legacy cleartext backups are detected and deleted.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            restored_days = await app.state.web_analytics_service.restore_from_disk(
+                encryption_service=app.state.encryption_service,
+            )
+            if restored_days > 0:
+                logger.info(f"Restored web analytics for {restored_days} day(s) from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring web analytics from disk: {e}", exc_info=True)
+
     # --- Other startup logic ---
     logger.info("Invoice Ninja service initialized successfully.")
     logger.info("Preloading invite codes into cache...")
@@ -1309,8 +1315,12 @@ async def lifespan(app: FastAPI):
     # data is lost if the container shuts down between two Celery flush cycles.
     if hasattr(app.state, 'web_analytics_service'):
         try:
-            await app.state.web_analytics_service.dump_to_disk()
-            logger.info("Web analytics counters persisted to disk for recovery after restart")
+            encryption_svc = getattr(app.state, 'encryption_service', None)
+            days_dumped = await app.state.web_analytics_service.dump_to_disk(
+                encryption_service=encryption_svc,
+            )
+            if days_dumped > 0:
+                logger.info(f"Persisted web analytics for {days_dumped} day(s) to disk (Vault-encrypted)")
         except Exception as e:
             logger.error(f"Error persisting web analytics counters to disk during shutdown: {e}", exc_info=True)
 
