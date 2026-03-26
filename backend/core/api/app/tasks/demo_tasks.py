@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import json
+import re
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -289,14 +290,29 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         content_hash = hashlib.sha256(hash_content.encode('utf-8')).hexdigest()
         logger.info(f"Generated content hash for demo chat {demo_chat_id}: {content_hash[:16]}...")
         
-        # 9. Update status to published
+        # 9. Generate slug if not already set (ensures slug-based lookup works from day one)
+        # Uses the same slugify logic as demo_chat.py routes — demo- prefix + lowercase hyphenated title.
+        existing_slug = demo_chat.get("slug") or ""
+        if not existing_slug and title:
+            raw = title.lower().strip()
+            raw = re.sub(r'[^a-z0-9\s-]', '', raw)
+            raw = re.sub(r'[\s_-]+', '-', raw).strip('-')
+            generated_slug = f"demo-{raw}"
+            logger.info(f"Generated slug '{generated_slug}' for demo chat {demo_chat_id}")
+        else:
+            generated_slug = existing_slug
+
+        # 10. Update status to published (with slug)
         if demo_chat and demo_chat.get("id"):
             from datetime import datetime, timezone
-            await task.directus_service.update_item("demo_chats", demo_chat["id"], {
+            publish_update = {
                 "status": "published",
                 "approved_at": datetime.now(timezone.utc).isoformat(),
                 "content_hash": content_hash
-            }, admin_required=True)
+            }
+            if generated_slug and not existing_slug:
+                publish_update["slug"] = generated_slug
+            await task.directus_service.update_item("demo_chats", demo_chat["id"], publish_update, admin_required=True)
             
             # Notify admin via WebSocket if provided
             if admin_user_id:
@@ -308,7 +324,7 @@ async def _async_translate_demo_chat(task: BaseServiceTask, demo_chat_id: str, t
         else:
             logger.warning(f"Could not find demo chat {demo_chat_id} to update status to published")
         
-        # 10. Clear demo cache after publishing
+        # 11. Clear demo cache after publishing
         # IMPORTANT: This must happen AFTER all database updates are complete to ensure
         # the next cache population (on-demand or at API startup) fetches the complete data.
         # The cache will be re-populated on the next request with fresh data from the database.
