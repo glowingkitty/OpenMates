@@ -1072,8 +1072,25 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
-    # Health check tasks removed — now handled by the independent status service
-    # (backend/status/) which runs its own async scheduler. See commit 07fb748.
+    # --- Health checks that feed /v1/health (used by the App Store) ---
+    # NOTE: The independent status service (backend/status/) handles the status PAGE,
+    # but the core API's /v1/health endpoint reads from these Redis cache keys.
+    # Removing these breaks app availability in the frontend App Store.
+    'health-check-all-providers': {
+        'task': 'health_check.check_all_providers',
+        'schedule': timedelta(seconds=300),  # 5 minutes
+        'options': {'queue': 'health_check'},
+    },
+    'health-check-all-apps': {
+        'task': 'health_check.check_all_apps',
+        'schedule': timedelta(seconds=300),  # 5 minutes
+        'options': {'queue': 'health_check'},
+    },
+    'health-check-external-services': {
+        'task': 'health_check.check_external_services',
+        'schedule': timedelta(seconds=300),  # 5 minutes
+        'options': {'queue': 'health_check'},
+    },
     'archive-old-usage-entries': {
         'task': 'usage.archive_old_entries',
         'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC

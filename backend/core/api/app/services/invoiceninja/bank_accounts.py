@@ -9,7 +9,7 @@ from typing import Optional, Any, List, Dict
 logger = logging.getLogger(__name__)
 
 
-def get_bank_integrations(service_instance: Any, params: Optional[Dict[str, Any]] = None) -> Optional[List[Dict[str, Any]]]:
+async def get_bank_integrations(service_instance: Any, params: Optional[Dict[str, Any]] = None) -> Optional[List[Dict[str, Any]]]:
     """
     Retrieves a list of bank integrations from Invoice Ninja.
 
@@ -45,7 +45,7 @@ def get_bank_integrations(service_instance: Any, params: Optional[Dict[str, Any]
         The full response also includes a 'meta' object with pagination details.
     """
     logger.info("Attempting to retrieve bank integrations...")
-    response_data = service_instance.make_api_request('GET', '/bank_integrations', params=params)
+    response_data = await service_instance.make_api_request('GET', '/bank_integrations', params=params)
 
     if response_data is not None and 'data' in response_data:
         integrations = response_data['data']

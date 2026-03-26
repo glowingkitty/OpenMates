@@ -1,14 +1,12 @@
 """
 S3 upload service for handling file uploads and storage.
 """
+import asyncio
 import boto3
 import logging
 import os
-import time
 from io import BytesIO
 from fastapi import HTTPException
-# os import might still be needed for SERVER_ENVIRONMENT
-import os
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
 # Import ClientError and timeout exceptions for exception handling
@@ -378,7 +376,7 @@ class S3UploadService:
                     # Otherwise, wait and retry with exponential backoff
                     wait_time = retry_delay * (2 ** attempt)
                     logger.info(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
+                    await asyncio.sleep(wait_time)
                     
                     # Reset the file position to the beginning for the next attempt
                     file_obj.seek(0)
@@ -417,12 +415,12 @@ class S3UploadService:
                     
                     wait_time = retry_delay * (2 ** attempt)
                     logger.info(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
+                    await asyncio.sleep(wait_time)
                     
                     # Reset the file position to the beginning for the next attempt
                     file_obj.seek(0)
             
-            logger.info(f"Upload successful")
+            logger.info("Upload successful")
             
             # Generate S3 URL
             s3_url = self.get_s3_url(bucket_name, file_key)

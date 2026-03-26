@@ -768,7 +768,7 @@ async def reprocess_invoice(
         credits_purchased_encrypted = invoice.get("encrypted_credits_purchased")
         credits_purchased = await encryption_service.decrypt_with_user_key(credits_purchased_encrypted, vault_key_id)
 
-        invoice_ninja_service.process_income_transaction(
+        await invoice_ninja_service.process_income_transaction(
             user_hash=user_id_hash,
             external_order_id=order_id,
             customer_firstname=customer_firstname,

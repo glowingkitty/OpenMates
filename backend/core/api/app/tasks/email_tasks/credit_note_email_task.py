@@ -456,7 +456,7 @@ async def _async_process_credit_note_and_send_email(
                 refund_amount_decimal = float(refund_amount_cents) / 100 if currency.lower() in ['eur', 'usd', 'gbp'] else float(refund_amount_cents)
 
                 # Process refund transaction in Invoice Ninja
-                invoice_ninja_service.process_refund_transaction(
+                await invoice_ninja_service.process_refund_transaction(
                     user_hash=user_id_hash,
                     external_order_id=order_id,
                     invoice_id=invoice_id,

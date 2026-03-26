@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Any, Tuple
 logger = logging.getLogger(__name__)
 
 
-def create_invoice(
+async def create_invoice(
         service_instance: Any, 
         client_id: str, 
         invoice_items: List[Dict[str, Any]],
@@ -71,7 +71,7 @@ def create_invoice(
     # Mark as sent during creation using query parameter.
     query_params = {"mark_sent": mark_sent}
 
-    response_data = service_instance.make_api_request('POST', '/invoices', params=query_params, data=payload)
+    response_data = await service_instance.make_api_request('POST', '/invoices', params=query_params, data=payload)
 
     if response_data is not None and 'data' in response_data:
         new_invoice = response_data['data']
@@ -90,7 +90,7 @@ def create_invoice(
         return None, None
 
 
-def upload_invoice_document(service_instance: Any, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
+async def upload_invoice_document(service_instance: Any, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
     """
     Uploads a custom PDF document (from bytes) to an existing invoice.
 
@@ -111,7 +111,7 @@ def upload_invoice_document(service_instance: Any, invoice_id: str, pdf_data: by
     # This allows the service to handle headers and multipart logic correctly.
     # The service method should return True/False based on success.
     # We pass the endpoint, byte data, and filename.
-    success = service_instance._make_file_upload_request(endpoint, pdf_data, filename)
+    success = await service_instance._make_file_upload_request(endpoint, pdf_data, filename)
 
     if success:
         logger.info(f"Successfully uploaded document to invoice ID {invoice_id}.")

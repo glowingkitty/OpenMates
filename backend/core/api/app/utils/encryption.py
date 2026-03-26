@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import os
 import httpx
@@ -210,7 +211,7 @@ class EncryptionService:
                     return True
             
             logger.debug(f"No valid token found (attempt {attempt+1}/{max_attempts}), waiting {delay}s...")
-            time.sleep(delay)
+            await asyncio.sleep(delay)
         
         logger.error(f"Failed to find valid token after {max_attempts} attempts")
         return False

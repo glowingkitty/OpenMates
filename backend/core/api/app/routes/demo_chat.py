@@ -223,6 +223,40 @@ async def get_demo_chat(
             demo_chat_uuid = slug_results[0]["id"]
             resolved_slug = identifier
             logger.debug(f"Resolved '{identifier}' via slug field → UUID {demo_chat_uuid}")
+        elif not slug_results and identifier.startswith("demo-"):
+            # Fallback: slug field may be empty in DB — match by title-generated slug.
+            # This handles demo chats created before the slug field was introduced or
+            # when the slug wasn't populated during approval. The list endpoint generates
+            # these slugs on-the-fly from titles via slugify(), so we replicate that here.
+            all_active = await directus_service.get_items("demo_chats", {
+                "filter": {
+                    "status": {"_eq": "published"},
+                    "is_active": {"_eq": True}
+                },
+                "fields": ["id", "title", "slug"]
+            })
+            for demo in all_active:
+                if demo.get("slug"):
+                    continue  # Already has a stored slug, skip
+                title = demo.get("title") or ""
+                if not title:
+                    continue
+                generated = slugify(title)
+                if generated == identifier:
+                    demo_chat_uuid = demo["id"]
+                    resolved_slug = identifier
+                    logger.debug(f"Resolved '{identifier}' via title-generated slug → UUID {demo_chat_uuid}")
+                    # Self-healing: write the slug back to DB so future lookups are direct
+                    try:
+                        await directus_service.update_item("demo_chats", demo["id"], {"slug": identifier})
+                        logger.info(f"Auto-populated slug '{identifier}' for demo chat {demo['id']}")
+                    except Exception as e:
+                        logger.warning(f"Failed to auto-populate slug for {demo['id']}: {e}")
+                    break
+
+            if not demo_chat_uuid:
+                logger.warning(f"Could not resolve demo chat identifier: '{identifier}' (slug not found in DB or by title)")
+                raise HTTPException(status_code=404, detail="Demo chat not found")
         else:
             # Fall back to UUID lookup (handles admin/internal usage)
             # A UUID looks like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx

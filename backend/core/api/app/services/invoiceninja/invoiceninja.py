@@ -1,8 +1,8 @@
 # backend/core/api/app/services/invoiceninja/invoiceninja.py
-import requests
+import httpx
 import json
 import logging
-import os # Added for environment variable check
+import os
 from typing import Optional, Dict, Any, List, Tuple
 
 # Assuming SecretsManager is accessible via this relative path
@@ -54,6 +54,9 @@ class InvoiceNinjaService:
         self._stripe_bank_account_id: Optional[str] = None
         self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
 
+        # Async HTTP client (initialized in _async_init, closed via close())
+        self._http_client: Optional[httpx.AsyncClient] = None
+
         # Initialization requiring secrets is deferred to _async_init
 
     async def _async_init(self):
@@ -85,10 +88,13 @@ class InvoiceNinjaService:
             'X-Requested-With': 'XMLHttpRequest',
         }
 
-        # Now load bank details which requires API access (and thus headers)
-        # Note: _load_bank_integration_details uses synchronous requests.
-        # This might block the event loop. Consider making it async in the future.
-        self._load_bank_integration_details()
+        # Create async HTTP client for all API calls
+        self._http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=15.0, read=15.0, write=15.0, pool=15.0)
+        )
+
+        # Load bank details (now async via httpx)
+        await self._load_bank_integration_details()
         logger.info("Async initialization for InvoiceNinjaService complete.")
 
 
@@ -107,17 +113,15 @@ class InvoiceNinjaService:
         await instance._async_init()
         return instance
 
-    def _load_bank_integration_details(self):
+    async def _load_bank_integration_details(self):
         """Fetches bank integrations and stores IDs for configured account names."""
         # Ensure headers are set before making API calls
         if not self.headers:
             logger.error("Cannot load bank integration details: Headers not initialized.")
-            # Or raise an exception, depending on desired behavior
-            # raise RuntimeError("Headers not initialized before loading bank details.")
             return
 
         logger.info("Attempting to load bank integration details from Invoice Ninja...")
-        integrations = self.get_bank_integrations()
+        integrations = await self.get_bank_integrations()
 
         if integrations is None:
             logger.error("Failed to retrieve bank integrations. Cannot determine bank account/integration IDs.")
@@ -174,46 +178,40 @@ class InvoiceNinjaService:
         if not found_stripe:
             logger.warning(f"Could not find a valid bank integration matching name '{self.STRIPE_BANK_ACCOUNT_NAME}' with all required IDs. Stripe transactions cannot be processed.")
 
-    def make_api_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        """Makes a standard JSON API request and handles common errors."""
+    async def make_api_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        """Makes an async JSON API request via httpx and handles common errors."""
         url = f"{self.INVOICE_NINJA_URL}/api/v1{endpoint}"
         try:
-            if method.upper() == 'GET':
-                response = requests.get(url, headers=self.headers, params=params, timeout=15)
-            elif method.upper() == 'POST':
-                response = requests.post(url, headers=self.headers, params=params, data=json.dumps(data), timeout=15)
-            elif method.upper() == 'PUT':
-                 response = requests.put(url, headers=self.headers, params=params, data=json.dumps(data), timeout=15)
-            else:
-                logger.error(f"Unsupported HTTP method for JSON request: {method}")
-                return None
+            response = await self._http_client.request(
+                method=method.upper(),
+                url=url,
+                headers=self.headers,
+                params=params,
+                content=json.dumps(data) if data else None,
+            )
 
             response.raise_for_status()
-            # Handle potentially empty successful responses (e.g., 204 No Content)
             if response.status_code == 204 or not response.content:
-                 return {} # Return empty dict for successful no-content responses
+                 return {}
             return response.json()
 
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             logger.error(f"Error: Request timed out for {method} {url}")
-        except requests.exceptions.HTTPError as http_err:
+        except httpx.HTTPStatusError as http_err:
             logger.error(f"HTTP error occurred: {http_err} - Status Code: {http_err.response.status_code}")
             try:
                 error_details = http_err.response.json()
                 logger.error(f"Error Details: {json.dumps(error_details, indent=2)}")
-                # Specific check for the upload error mentioned
                 if endpoint.endswith('/upload') and http_err.response.status_code == 404:
                      if "message" in error_details and "Method not supported" in error_details["message"]:
                           logger.error("Detected 'Method not supported' error on upload. Check API version/endpoint or if uploads require PUT.")
                      else:
                           logger.error("404 error on upload. Check invoice ID and endpoint path.")
-
             except json.JSONDecodeError:
                 logger.error(f"Raw Error Response: {http_err.response.text}")
-        except requests.exceptions.RequestException as req_err:
+        except httpx.RequestError as req_err:
             logger.error(f"Other request error occurred: {req_err}")
         except json.JSONDecodeError:
-            # This block might be less likely if raise_for_status catches errors first
             if 'response' in locals() and response and response.text:
                 logger.error(f"Error: Failed to decode JSON response from {method} {url}")
                 logger.error(f"Raw Response: {response.text}")
@@ -224,78 +222,58 @@ class InvoiceNinjaService:
 
         return None
 
-    def _make_file_upload_request(self, endpoint: str, file_data: bytes, filename: str) -> bool:
-        """Handles file uploads using multipart/form-data from byte data."""
+    async def _make_file_upload_request(self, endpoint: str, file_data: bytes, filename: str) -> bool:
+        """Handles async file uploads using multipart/form-data from byte data."""
         url = f"{self.INVOICE_NINJA_URL}/api/v1{endpoint}"
-        files = None
-        data = None
-        upload_headers = None
         try:
-            # Use multipart/form-data for file uploads from bytes
-            # API docs suggest 'documents[0]' as the key for the file part
-            # and '_method': 'PUT' as a separate form field.
-            files = {'documents[0]': (filename, file_data, 'application/pdf')}
-            data = {'_method': 'PUT'} # Send _method=PUT in the data payload
-
-            # Create headers for upload, removing Content-Type for requests lib to set it
+            # Create headers for upload, removing Content-Type (httpx sets it for multipart)
             upload_headers = self.headers.copy()
             if 'Content-Type' in upload_headers:
-                del upload_headers['Content-Type'] # requests sets multipart/form-data header automatically
+                del upload_headers['Content-Type']
 
-            # --- Added Logging ---
             logger.info(f"Attempting file upload to URL: {url}")
-            logger.debug(f"Upload Headers: {json.dumps(upload_headers)}")
-            # Note: Logging 'files' directly can be verbose/problematic if file_data is large.
-            # Log file metadata instead.
             logger.debug(f"Upload Files key: 'documents[0]', filename: '{filename}', content_type: 'application/pdf'")
-            logger.debug(f"Upload Data: {json.dumps(data)}")
-            # --- End Added Logging ---
 
-            # Use POST, include _method=PUT in the data payload, and provide files
-            response = requests.post(url, headers=upload_headers, files=files, data=data, timeout=30) # Longer timeout for uploads
+            # Use POST with _method=PUT in form data and file as multipart
+            response = await self._http_client.post(
+                url,
+                headers=upload_headers,
+                files={'documents[0]': (filename, file_data, 'application/pdf')},
+                data={'_method': 'PUT'},
+                timeout=30.0,
+            )
             logger.info(f"Upload request completed with status code: {response.status_code}")
             response.raise_for_status()
-            # Assuming success if no exception is raised
             logger.info(f"Successfully uploaded document '{filename}' to {url}")
             return True
-        except requests.exceptions.HTTPError as http_err:
-            # Log details within this specific context
+        except httpx.HTTPStatusError as http_err:
             logger.error(f"HTTP error occurred uploading document: {http_err} - Status Code: {http_err.response.status_code}")
             try:
                 error_details = http_err.response.json()
                 logger.error(f"Upload Error Details: {json.dumps(error_details, indent=2)}")
-                # Specific check for the 404 error
                 if http_err.response.status_code == 404:
                      if "message" in error_details and "Method not supported" in error_details["message"]:
                           logger.error("Detected 'Method not supported' error on upload. Check API version/endpoint or if uploads require PUT.")
                      else:
                           logger.error("404 error on upload. Check invoice ID and endpoint path: %s", url)
-
             except json.JSONDecodeError:
                 logger.error(f"Raw Upload Error Response: {http_err.response.text}")
             return False
         except Exception as e:
             logger.exception(f"An unexpected error occurred uploading document: {e}")
             return False
-        finally:
-            # Ensure the file handle is closed
-            if files and 'file' in files and files['file'][1]:
-                try:
-                    files['file'][1].close()
-                except Exception as e_close:
-                    logger.error(f"Error closing file handle: {e_close}")
 
 
     # --- Client Operations ---
-    def find_client_by_hash(self, user_hash: str) -> Optional[str]:
-        return clients.find_client_by_hash(self, user_hash)
+    async def find_client_by_hash(self, user_hash: str) -> Optional[str]:
+        return await clients.find_client_by_hash(self, user_hash)
 
-    def create_client(self, user_hash: str, external_order_id: str, client_details: Dict[str, Any]) -> Optional[str]:
-        return clients.create_client(self, user_hash, external_order_id, client_details)
+    async def create_client(self, user_hash: str, external_order_id: str, client_details: Dict[str, Any]) -> Optional[str]:
+        return await clients.create_client(self, user_hash, external_order_id, client_details)
 
     # --- Invoice Operations ---
-    def create_invoice(self, 
-                       client_id: str, 
+    async def create_invoice(self,
+                       client_id: str,
                        invoice_items: List[Dict[str, Any]],
                        invoice_date: str,
                        due_date: str,
@@ -304,8 +282,8 @@ class InvoiceNinjaService:
                        custom_invoice_number: str,
                        mark_sent: bool
                        ) -> Tuple[Optional[str], Optional[str]]:
-        return invoices.create_invoice(self,
-                                       client_id = client_id, 
+        return await invoices.create_invoice(self,
+                                       client_id = client_id,
                                        invoice_items = invoice_items,
                                        invoice_date = invoice_date,
                                        due_date = due_date,
@@ -317,12 +295,12 @@ class InvoiceNinjaService:
 
     # Removed mark_invoice_sent method definition as it's no longer needed.
 
-    def upload_invoice_document(self, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
+    async def upload_invoice_document(self, invoice_id: str, pdf_data: bytes, filename: str) -> bool:
         # Uses the dedicated _make_file_upload_request method
         # Assuming invoices.upload_invoice_document is updated to accept bytes and filename
-        return invoices.upload_invoice_document(self, invoice_id, pdf_data, filename)
+        return await invoices.upload_invoice_document(self, invoice_id, pdf_data, filename)
 
-    def upload_credit_document(self, credit_id: str, pdf_data: bytes, filename: str) -> bool:
+    async def upload_credit_document(self, credit_id: str, pdf_data: bytes, filename: str) -> bool:
         """
         Uploads a custom PDF document to an existing credit note.
         
@@ -339,8 +317,8 @@ class InvoiceNinjaService:
         endpoint = f'/credits/{credit_id}/upload'
         
         # Use the same file upload mechanism as invoices
-        success = self._make_file_upload_request(endpoint, pdf_data, filename)
-        
+        success = await self._make_file_upload_request(endpoint, pdf_data, filename)
+
         if success:
             logger.info(f"Successfully uploaded document to credit note ID {credit_id}.")
         else:
@@ -350,7 +328,7 @@ class InvoiceNinjaService:
 
     # --- Payment Operations ---
     # Corrected signature to match payments.create_payment structure
-    def create_payment(self,
+    async def create_payment(self,
                        client_id: str,
                        amount: float,
                        payment_date_str: str,
@@ -359,7 +337,7 @@ class InvoiceNinjaService:
                        payment_type: Optional[str] = None
                        ) -> Optional[str]:
         # Call the actual implementation with correctly mapped arguments
-        return payments.create_payment(
+        return await payments.create_payment(
             service_instance=self,
             client_id=client_id,
             amount=amount,
@@ -369,49 +347,49 @@ class InvoiceNinjaService:
             transaction_reference=external_order_id
         )
 
-    def find_payment_by_invoice(self, invoice_id: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def find_payment_by_invoice(self, invoice_id: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Finds a payment in Invoice Ninja by invoice ID.
-        
+
         Args:
             invoice_id: The hashed ID of the invoice to find the payment for.
             client_id: Optional client ID to narrow the search.
-            
+
         Returns:
             The payment object if found, None otherwise.
         """
-        return payments.find_payment_by_invoice(self, invoice_id, client_id)
+        return await payments.find_payment_by_invoice(self, invoice_id, client_id)
 
-    def find_payment_by_transaction_reference(self, transaction_reference: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def find_payment_by_transaction_reference(self, transaction_reference: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Finds a payment in Invoice Ninja by transaction reference (external_order_id).
-        
+
         Args:
             transaction_reference: The external order ID (transaction reference) to search for.
             client_id: Optional client ID to narrow the search.
-            
+
         Returns:
             The payment object if found, None otherwise.
         """
-        return payments.find_payment_by_transaction_reference(self, transaction_reference, client_id)
+        return await payments.find_payment_by_transaction_reference(self, transaction_reference, client_id)
 
-    def find_payment_by_invoice_and_transaction_reference(self, invoice_id: str, transaction_reference: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def find_payment_by_invoice_and_transaction_reference(self, invoice_id: str, transaction_reference: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Finds a payment in Invoice Ninja by both invoice ID and transaction reference.
-        
+
         This is the most reliable way to find the specific payment created for an invoice.
-        
+
         Args:
             invoice_id: The hashed ID of the invoice.
             transaction_reference: The external order ID (transaction reference) to search for.
             client_id: Optional client ID to narrow the search.
-            
+
         Returns:
             The payment object if found, None otherwise.
         """
-        return payments.find_payment_by_invoice_and_transaction_reference(self, invoice_id, transaction_reference, client_id)
+        return await payments.find_payment_by_invoice_and_transaction_reference(self, invoice_id, transaction_reference, client_id)
 
-    def refund_payment(self, payment_id: str, refund_amount: float, refund_date: str, invoice_id: str, payment_invoice_id: Optional[str] = None, email_receipt: bool = False) -> bool:
+    async def refund_payment(self, payment_id: str, refund_amount: float, refund_date: str, invoice_id: str, payment_invoice_id: Optional[str] = None, email_receipt: bool = False) -> bool:
         """
         Refunds a payment in Invoice Ninja using the /payments/refund endpoint.
         
@@ -429,9 +407,9 @@ class InvoiceNinjaService:
         Returns:
             True if successful, False otherwise.
         """
-        return payments.refund_payment(self, payment_id, refund_amount, refund_date, invoice_id, payment_invoice_id, email_receipt)
+        return await payments.refund_payment(self, payment_id, refund_amount, refund_date, invoice_id, payment_invoice_id, email_receipt)
 
-    def create_credit_payment(self,
+    async def create_credit_payment(self,
                               client_id: str,
                               amount: float,
                               payment_date_str: str,
@@ -459,7 +437,7 @@ class InvoiceNinjaService:
             The payment ID if successful, None otherwise
         """
         # Call the actual implementation with correctly mapped arguments
-        return payments.create_credit_payment(
+        return await payments.create_credit_payment(
             service_instance=self,
             client_id=client_id,
             amount=amount,
@@ -471,7 +449,7 @@ class InvoiceNinjaService:
         )
 
     # --- Bank Account Operations ---
-    def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: float, date_str: str, invoice_number: str, external_order_id: str, base_type: str, currency_code: str) -> Optional[str]:
+    async def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: float, date_str: str, invoice_number: str, external_order_id: str, base_type: str, currency_code: str) -> Optional[str]:
         """
         Creates a bank transaction in Invoice Ninja.
 
@@ -488,7 +466,7 @@ class InvoiceNinjaService:
         Returns:
             The HASHED ID of the created bank transaction, or None on failure.
         """
-        return transactions.create_bank_transaction(self,
+        return await transactions.create_bank_transaction(self,
                                                     processor_bank_account_id = processor_bank_account_id,
                                                     bank_integration_id = bank_integration_id,
                                                     amount = amount,
@@ -499,18 +477,18 @@ class InvoiceNinjaService:
                                                     currency_code = currency_code
                                                     )
 
-    def match_bank_transaction_to_payment(self, transaction_id: str, payment_id: str) -> bool:
+    async def match_bank_transaction_to_payment(self, transaction_id: str, payment_id: str) -> bool:
         """Matches a bank transaction to a payment."""
         # Calls the updated function from the transactions module now
-        return transactions.match_transaction_to_payment(self, transaction_id, payment_id)
+        return await transactions.match_transaction_to_payment(self, transaction_id, payment_id)
 
-    def get_bank_integrations(self, params: Optional[Dict[str, Any]] = None) -> Optional[List[Dict[str, Any]]]:
+    async def get_bank_integrations(self, params: Optional[Dict[str, Any]] = None) -> Optional[List[Dict[str, Any]]]:
         """Retrieves bank integrations."""
         # Calls the function from the bank_accounts module now
-        return bank_accounts.get_bank_integrations(self, params)
+        return await bank_accounts.get_bank_integrations(self, params)
 
     # --- Main Process Orchestration ---
-    def process_income_transaction(
+    async def process_income_transaction(
         self,
         user_hash: str,
         external_order_id: str,
@@ -571,7 +549,7 @@ class InvoiceNinjaService:
             return None
 
         # --- Find or Create Client ---
-        ninja_client_id = self.find_client_by_hash(user_hash)
+        ninja_client_id = await self.find_client_by_hash(user_hash)
         country_id = countries.get_country_id(customer_country_code) # Use imported function
         if not ninja_client_id:
             client_details = {
@@ -583,7 +561,7 @@ class InvoiceNinjaService:
                 "custom_value2": external_order_id
             }
             logger.info(f"Client not found by hash '{user_hash}'. Creating new client...")
-            ninja_client_id = self.create_client(user_hash, external_order_id, client_details)
+            ninja_client_id = await self.create_client(user_hash, external_order_id, client_details)
 
         if not ninja_client_id:
             logger.critical("Could not find or create client. Aborting.")
@@ -627,7 +605,7 @@ class InvoiceNinjaService:
 
         # --- Create Invoice ---
         logger.info(f"Creating invoice for Client ID: {ninja_client_id} with items: {invoice_item_data}")
-        ninja_invoice_id, ninja_invoice_number = self.create_invoice(
+        ninja_invoice_id, ninja_invoice_number = await self.create_invoice(
             client_id = ninja_client_id,
             invoice_items = invoice_item_data,
             invoice_date = invoice_date, # Use passed invoice_date
@@ -659,7 +637,7 @@ class InvoiceNinjaService:
         payment_type_default = "Debit"
         payment_type = payment_types[card_brand_lower] if card_brand_lower in payment_types else payment_type_default
         
-        ninja_payment_id = self.create_payment(
+        ninja_payment_id = await self.create_payment(
             client_id=ninja_client_id,
             amount=payment_amount,
             payment_date_str=payment_date_str,
@@ -680,7 +658,7 @@ class InvoiceNinjaService:
         if custom_pdf_data:
             pdf_filename = f"{external_order_id}_invoice.pdf"
             logger.info(f"Attempting to upload custom PDF data as '{pdf_filename}' for Invoice ID: {ninja_invoice_id}...")
-            pdf_upload_success = self.upload_invoice_document(ninja_invoice_id, custom_pdf_data, pdf_filename)
+            pdf_upload_success = await self.upload_invoice_document(ninja_invoice_id, custom_pdf_data, pdf_filename)
             if not pdf_upload_success:
                 logger.warning("Failed to upload custom PDF document.")
             else:
@@ -693,7 +671,7 @@ class InvoiceNinjaService:
         # Payment is now created explicitly above.
         # We still need the bank transaction for reconciliation.
         logger.info(f"Creating bank transaction for Invoice: {ninja_invoice_number}, Amount: {payment_amount}, Date: {payment_date_str}")
-        ninja_bank_transaction_id = self.create_bank_transaction(
+        ninja_bank_transaction_id = await self.create_bank_transaction(
             processor_bank_account_id=target_processor_bank_id,
             bank_integration_id=target_bank_integration_id,
             amount=payment_amount, # Use the provided price
@@ -710,7 +688,7 @@ class InvoiceNinjaService:
              logger.info(f"Bank transaction created: ID={ninja_bank_transaction_id}")
              # --- Match Bank Transaction to Payment ---
              logger.info(f"Attempting to match bank transaction {ninja_bank_transaction_id} to payment {ninja_payment_id}...")
-             transaction_match_success = self.match_bank_transaction_to_payment(
+             transaction_match_success = await self.match_bank_transaction_to_payment(
                  transaction_id=ninja_bank_transaction_id,
                  payment_id=ninja_payment_id # Use payment_id now
              )
@@ -723,7 +701,7 @@ class InvoiceNinjaService:
         # --- Success ---
         logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")
 
-    def create_credit_note(
+    async def create_credit_note(
         self,
         client_id: str,
         invoice_id: str,
@@ -788,7 +766,7 @@ class InvoiceNinjaService:
             # Create credit note via API
             # Credit notes are created in "Draft" status and must be marked as sent separately
             logger.info(f"Creating credit note in Invoice Ninja: {credit_number}, Amount: {credit_amount} {currency_code}")
-            response = self.make_api_request('POST', '/credits', data=credit_data)
+            response = await self.make_api_request('POST', '/credits', data=credit_data)
             
             if response and 'data' in response:
                 credit_id = response['data'].get('id')
@@ -803,7 +781,7 @@ class InvoiceNinjaService:
                         "action": "mark_sent",
                         "ids": [credit_id]
                     }
-                    mark_sent_response = self.make_api_request('POST', '/credits/bulk', data=bulk_mark_sent_data)
+                    mark_sent_response = await self.make_api_request('POST', '/credits/bulk', data=bulk_mark_sent_data)
                     
                     if mark_sent_response:
                         logger.info(f"Credit note {credit_id} marked as sent successfully")
@@ -822,7 +800,7 @@ class InvoiceNinjaService:
         
         return None
 
-    def process_refund_transaction(
+    async def process_refund_transaction(
         self,
         user_hash: str,
         external_order_id: str,
@@ -853,7 +831,7 @@ class InvoiceNinjaService:
         logger.info(f"Searching for invoice with external_order_id: {external_order_id}")
         
         # Find or Create Client (same as income transaction)
-        ninja_client_id = self.find_client_by_hash(user_hash)
+        ninja_client_id = await self.find_client_by_hash(user_hash)
         country_id = countries.get_country_id(customer_country_code)
         if not ninja_client_id:
             client_details = {
@@ -865,7 +843,7 @@ class InvoiceNinjaService:
                 "custom_value2": external_order_id
             }
             logger.info(f"Client not found by hash '{user_hash}'. Creating new client...")
-            ninja_client_id = self.create_client(user_hash, external_order_id, client_details)
+            ninja_client_id = await self.create_client(user_hash, external_order_id, client_details)
 
         if not ninja_client_id:
             logger.critical("Could not find or create client. Aborting.")
@@ -880,7 +858,7 @@ class InvoiceNinjaService:
             "custom_value2": external_order_id
         }
         
-        invoice_search_result = self.make_api_request('GET', '/invoices', params=search_params)
+        invoice_search_result = await self.make_api_request('GET', '/invoices', params=search_params)
         
         ninja_invoice_id = None
         if invoice_search_result and 'data' in invoice_search_result:
@@ -898,7 +876,7 @@ class InvoiceNinjaService:
         ninja_credit_id = None
         if ninja_invoice_id:
             logger.info(f"Creating credit note in Invoice Ninja for invoice ID: {ninja_invoice_id}")
-            ninja_credit_id = self.create_credit_note(
+            ninja_credit_id = await self.create_credit_note(
                 client_id=ninja_client_id,
                 invoice_id=ninja_invoice_id,
                 credit_amount=refund_amount_value,
@@ -920,7 +898,7 @@ class InvoiceNinjaService:
         if ninja_credit_id and custom_pdf_data:
             pdf_filename = f"{external_order_id}_credit_note_{custom_credit_note_number}.pdf"
             logger.info(f"Attempting to upload credit note PDF '{pdf_filename}' to Credit Note ID: {ninja_credit_id}...")
-            pdf_upload_success = self.upload_credit_document(ninja_credit_id, custom_pdf_data, pdf_filename)
+            pdf_upload_success = await self.upload_credit_document(ninja_credit_id, custom_pdf_data, pdf_filename)
             if not pdf_upload_success:
                 logger.warning("Failed to upload credit note PDF document to Invoice Ninja.")
             else:
@@ -944,7 +922,7 @@ class InvoiceNinjaService:
             # CRITICAL: Use both invoice_id AND transaction_reference to find the specific payment
             # This ensures we get the payment created during payment confirmation for this order,
             # not an older payment that might also be associated with the invoice
-            payment_obj = self.find_payment_by_invoice_and_transaction_reference(
+            payment_obj = await self.find_payment_by_invoice_and_transaction_reference(
                 ninja_invoice_id, 
                 external_order_id, 
                 ninja_client_id
@@ -953,12 +931,12 @@ class InvoiceNinjaService:
             # If not found by both criteria, try transaction_reference alone (should be unique)
             if not payment_obj:
                 logger.info(f"Payment not found by invoice_id + transaction_reference, trying transaction_reference alone: {external_order_id}")
-                payment_obj = self.find_payment_by_transaction_reference(external_order_id, ninja_client_id)
+                payment_obj = await self.find_payment_by_transaction_reference(external_order_id, ninja_client_id)
             
             # Last resort: try invoice_id alone (may return wrong payment if multiple exist)
             if not payment_obj:
                 logger.warning(f"Payment not found by transaction_reference: {external_order_id}, trying invoice_id alone (may return wrong payment)")
-                payment_obj = self.find_payment_by_invoice(ninja_invoice_id, ninja_client_id)
+                payment_obj = await self.find_payment_by_invoice(ninja_invoice_id, ninja_client_id)
             
             if payment_obj:
                 original_payment_id = payment_obj.get('id')
@@ -995,7 +973,7 @@ class InvoiceNinjaService:
                 # Refund the payment - this actually returns money to the client
                 # The credit note is created separately for documentation purposes
                 # Use the actual invoice ID from the payment object, not the one we found separately
-                refund_success = self.refund_payment(
+                refund_success = await self.refund_payment(
                     payment_id=original_payment_id,
                     refund_amount=refund_amount_value,
                     refund_date=refund_date,
@@ -1033,7 +1011,7 @@ class InvoiceNinjaService:
             invoice_number_for_transaction = referenced_invoice_number if referenced_invoice_number else custom_credit_note_number
             
             logger.info(f"Creating bank transaction for refund: Amount: {refund_amount_value}, Date: {refund_date}")
-            ninja_bank_transaction_id = self.create_bank_transaction(
+            ninja_bank_transaction_id = await self.create_bank_transaction(
                 processor_bank_account_id=target_processor_bank_id,
                 bank_integration_id=target_bank_integration_id,
                 amount=refund_amount_value,
@@ -1054,8 +1032,7 @@ class InvoiceNinjaService:
         logger.info(f"Refund Process Completed for {processor_type.upper()} Order: {external_order_id}")
 
     async def close(self):
-        """
-        Performs any necessary cleanup for the Invoice Ninja service.
-        Currently, there are no explicit client connections to close for requests.
-        """
-        logger.info("Closing Invoice Ninja service (no explicit client connections to close).")
+        """Close the httpx client."""
+        if self._http_client:
+            await self._http_client.aclose()
+            self._http_client = None
