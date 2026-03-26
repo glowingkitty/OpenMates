@@ -50,7 +50,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md -- Extract MessageEncryptor (chat-key encrypt/decrypt) with re-export barrel in cryptoService.ts
-- [ ] 02-02-PLAN.md -- Extract MetadataEncryptor (master-key + embed-key operations) and validate all module line counts
+- [x] 02-02-PLAN.md -- Extract MetadataEncryptor (master-key + embed-key operations) and validate all module line counts
 
 ### Phase 3: Key Management Hardening
 **Goal**: ChatKeyManager is the single, race-condition-free authority for all key operations -- no duplicate keys can be generated, no content arrives without its key, and keys propagate correctly across tabs and devices
