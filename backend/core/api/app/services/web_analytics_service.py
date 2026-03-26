@@ -37,6 +37,7 @@ import user_agents  # Already in requirements.txt (user-agents==2.2.0)
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
@@ -467,15 +468,31 @@ class WebAnalyticsService:
 
         return result
 
-    async def dump_to_disk(self) -> int:
+    async def dump_to_disk(self, encryption_service: Optional["EncryptionService"] = None) -> int:
         """
         Persists all in-memory analytics counters to disk before shutdown.
 
         This ensures no data is lost when the API container is restarted.
         The backup file is restored on next startup by restore_from_disk().
 
-        Returns the number of days whose counters were saved.
+        All data is encrypted via Vault transit before writing to disk.
+        If encryption_service is not available, the dump is skipped entirely
+        to prevent cleartext analytics data from being written to disk.
+
+        Args:
+            encryption_service: Vault transit encryption service. Required — if None,
+                the dump is refused to prevent cleartext writes.
+
+        Returns:
+            Number of days whose counters were saved (0 if encryption unavailable).
         """
+        if not encryption_service:
+            logger.warning(
+                "WebAnalyticsService: Cannot dump to disk: no encryption_service provided "
+                "(refusing to write cleartext analytics data to disk)"
+            )
+            return 0
+
         client = await self.cache.client
         if not client:
             return 0
@@ -512,27 +529,55 @@ class WebAnalyticsService:
                 count = await client.pfcount(key)
                 backup_data["unique_visits"][day] = count
 
-            # Write to disk
+            # Encrypt via Vault transit before writing to disk
+            plaintext_json = json.dumps(backup_data)
+            try:
+                ciphertext, _key_version = await encryption_service.encrypt(
+                    plaintext_json, key_name="user_data"
+                )
+            except Exception as enc_err:
+                logger.error(
+                    f"WebAnalyticsService: Failed to encrypt analytics backup — "
+                    f"refusing to write cleartext to disk: {enc_err}",
+                    exc_info=True,
+                )
+                return 0
+
+            encrypted_wrapper = {
+                "encrypted": ciphertext,
+                "version": 1,
+            }
+
             os.makedirs(os.path.dirname(WEB_ANALYTICS_BACKUP_PATH), exist_ok=True)
             with open(WEB_ANALYTICS_BACKUP_PATH, "w") as f:
-                json.dump(backup_data, f)
+                json.dump(encrypted_wrapper, f)
 
             days_saved = len(backup_data["daily"])
-            logger.info(f"WebAnalyticsService: Saved analytics for {days_saved} day(s) to {WEB_ANALYTICS_BACKUP_PATH}")
+            logger.info(f"WebAnalyticsService: Saved analytics for {days_saved} day(s) to {WEB_ANALYTICS_BACKUP_PATH} (Vault-encrypted)")
             return days_saved
 
         except Exception as e:
             logger.error(f"WebAnalyticsService: Failed to dump analytics to disk: {e}", exc_info=True)
             return 0
 
-    async def restore_from_disk(self) -> int:
+    async def restore_from_disk(self, encryption_service: Optional["EncryptionService"] = None) -> int:
         """
         Restores analytics counters from disk backup after a restart.
 
-        Called during API startup (lifespan). Reads the backup file, increments
-        all Redis counters from the backup, then deletes the backup file.
+        Called during API startup (lifespan), AFTER Vault is initialized.
+        Handles three backup formats:
+        - Vault-encrypted (version 1+): decrypts via encryption_service, then restores
+        - Legacy cleartext (has "daily" key at top level): deletes without restoring
+        - Unrecognized format: deletes the file
 
-        Returns the number of days restored.
+        Args:
+            encryption_service: Vault transit encryption service. Required for
+                decrypting encrypted backups. If None and backup is encrypted,
+                the file is kept for the next startup attempt.
+
+        Returns:
+            Number of days restored (0 if file missing, encrypted without service,
+            or legacy cleartext detected).
         """
         if not os.path.exists(WEB_ANALYTICS_BACKUP_PATH):
             return 0
@@ -544,6 +589,45 @@ class WebAnalyticsService:
         try:
             with open(WEB_ANALYTICS_BACKUP_PATH, "r") as f:
                 backup_data = json.load(f)
+
+            # Detect format: encrypted (version 1+) vs legacy cleartext
+            if "encrypted" in backup_data and "version" in backup_data:
+                # Vault-encrypted backup — decrypt before processing
+                if not encryption_service:
+                    logger.warning(
+                        "WebAnalyticsService: Analytics backup is encrypted but no encryption_service "
+                        "provided — cannot restore. File kept for next attempt."
+                    )
+                    return 0
+                ciphertext = backup_data["encrypted"]
+                try:
+                    decrypted_json = await encryption_service.decrypt(
+                        ciphertext, key_name="user_data"
+                    )
+                    if not decrypted_json:
+                        logger.error("WebAnalyticsService: Vault decryption returned empty result for analytics backup")
+                        os.remove(WEB_ANALYTICS_BACKUP_PATH)
+                        return 0
+                    backup_data = json.loads(decrypted_json)
+                except Exception as dec_err:
+                    logger.error(
+                        f"WebAnalyticsService: Failed to decrypt analytics backup: {dec_err}",
+                        exc_info=True,
+                    )
+                    os.remove(WEB_ANALYTICS_BACKUP_PATH)
+                    return 0
+            elif "daily" in backup_data:
+                # Legacy cleartext backup — delete without restoring
+                logger.warning(
+                    "WebAnalyticsService: Found legacy cleartext analytics backup — "
+                    "deleting without restoring (cleartext should not be on disk)"
+                )
+                os.remove(WEB_ANALYTICS_BACKUP_PATH)
+                return 0
+            else:
+                logger.error("WebAnalyticsService: Unrecognized analytics backup format — deleting")
+                os.remove(WEB_ANALYTICS_BACKUP_PATH)
+                return 0
 
             daily_data = backup_data.get("daily", {})
             days_restored = 0
