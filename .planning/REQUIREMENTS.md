@@ -18,11 +18,11 @@ Requirements for the rebuild. Each maps to roadmap phases.
 
 ### Key Management
 
-- [ ] **KEYS-01**: Cross-tab mutex via Web Locks API prevents two tabs from generating different keys for the same chat simultaneously
-- [ ] **KEYS-02**: Key generation is blocked when a valid key already exists for a chat — no overwrite, no duplicate
+- [x] **KEYS-01**: Cross-tab mutex via Web Locks API prevents two tabs from generating different keys for the same chat simultaneously
+- [x] **KEYS-02**: Key generation is blocked when a valid key already exists for a chat — no overwrite, no duplicate
 - [ ] **KEYS-03**: All encrypt/decrypt operations receive keys exclusively from `ChatKeyManager.withKey()` — zero bypass paths
 - [ ] **KEYS-04**: Atomic key-before-content guarantee: encrypted content is never delivered to a device that doesn't yet have the decryption key
-- [ ] **KEYS-05**: `ChatKeyManager` state machine correctly handles all transitions (`unloaded → loading → ready`, `loading → failed`, retry paths)
+- [x] **KEYS-05**: `ChatKeyManager` state machine correctly handles all transitions (`unloaded → loading → ready`, `loading → failed`, retry paths)
 - [ ] **KEYS-06**: Master key cross-device mechanism is formally designed and implemented — new devices can decrypt all existing chats
 
 ### Sync & Cross-Device
@@ -87,11 +87,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUDT-04 | Phase 1 | Complete |
 | AUDT-05 | Phase 1 | Complete |
 | AUDT-06 | Phase 1 | Complete |
-| KEYS-01 | Phase 3 | Pending |
-| KEYS-02 | Phase 3 | Pending |
+| KEYS-01 | Phase 3 | Complete |
+| KEYS-02 | Phase 3 | Complete |
 | KEYS-03 | Phase 3 | Pending |
 | KEYS-04 | Phase 3 | Pending |
-| KEYS-05 | Phase 3 | Pending |
+| KEYS-05 | Phase 3 | Complete |
 | KEYS-06 | Phase 3 | Pending |
 | SYNC-01 | Phase 4 | Pending |
 | SYNC-02 | Phase 4 | Pending |
