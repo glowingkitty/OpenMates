@@ -39,7 +39,7 @@ Requirements for the rebuild. Each maps to roadmap phases.
 - [ ] **ARCH-02**: Extract `MetadataEncryptor` as a stateless module — handles title, embed metadata, and other non-message encrypted fields
 - [ ] **ARCH-03**: All sync handlers (`chatSyncServiceSenders.ts`, `chatSyncServiceReceivers.ts`, related files) route crypto through encryptor modules — no inline encrypt/decrypt
 - [ ] **ARCH-04**: Each encryption-related module is under 500 lines with a single clear responsibility
-- [ ] **ARCH-05**: Architecture documentation in `docs/architecture/` explains the full encryption flow end-to-end with diagrams
+- [x] **ARCH-05**: Architecture documentation in `docs/architecture/` explains the full encryption flow end-to-end with diagrams
 
 ### Observability & Testing
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ARCH-02 | Phase 2 | Pending |
 | ARCH-03 | Phase 4 | Pending |
 | ARCH-04 | Phase 2 | Pending |
-| ARCH-05 | Phase 5 | Pending |
+| ARCH-05 | Phase 5 | Complete |
 | TEST-01 | Phase 5 | Pending |
 | TEST-02 | Phase 5 | Pending |
 | TEST-03 | Phase 5 | Pending |
