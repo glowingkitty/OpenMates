@@ -859,3 +859,37 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
     vi.stubGlobal("BroadcastChannel", origBC);
   });
 });
+
+// ---------------------------------------------------------------------------
+// rewrapKey (KEYS-03 bypass closure)
+// Tests that rewrapKey returns re-wrapped key when in memory, null otherwise.
+// ---------------------------------------------------------------------------
+
+describe("ChatKeyManager — rewrapKey (KEYS-03)", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(() => {
+    mgr = new ChatKeyManager();
+  });
+
+  it("rewrapKey with key in memory returns re-wrapped form", async () => {
+    const rawKey = makeKey(42);
+    mgr.injectKey("chat-1", rawKey, "master_key");
+
+    const result = await mgr.rewrapKey("chat-1", async (key) => {
+      // Verify we receive the correct raw key
+      expect(key).toEqual(rawKey);
+      return "re-wrapped-with-new-key";
+    });
+
+    expect(result).toBe("re-wrapped-with-new-key");
+  });
+
+  it("rewrapKey with no key in memory returns null", async () => {
+    const result = await mgr.rewrapKey("nonexistent", async () => {
+      throw new Error("Should not be called");
+    });
+
+    expect(result).toBeNull();
+  });
+});

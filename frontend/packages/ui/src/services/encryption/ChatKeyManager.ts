@@ -971,6 +971,43 @@ export class ChatKeyManager {
     }
   }
 
+  // ---- Key Re-wrapping ----
+
+  /**
+   * Re-wrap a chat key using caller-provided encrypt/decrypt functions.
+   *
+   * This allows hide/unhide flows to re-wrap keys through ChatKeyManager
+   * instead of directly importing crypto primitives. ChatKeyManager stays
+   * unaware of hidden chat specifics — it just provides the raw key for
+   * re-wrapping via the provided functions.
+   *
+   * @param chatId - Chat whose key to re-wrap
+   * @param encryptWithNewKey - Encrypt raw key bytes with the new wrapping key
+   * @returns The re-wrapped encrypted key, or null if key is not in memory
+   */
+  async rewrapKey(
+    chatId: string,
+    encryptWithNewKey: (key: Uint8Array) => Promise<string>,
+  ): Promise<string | null> {
+    const currentKey = this.keys.get(chatId);
+    if (!currentKey) {
+      console.warn(
+        `[ChatKeyManager] rewrapKey: no key in memory for ${chatId} — caller must ensure key is loaded`,
+      );
+      return null;
+    }
+
+    const newEncrypted = await encryptWithNewKey(currentKey);
+
+    // Update provenance timestamp (source stays the same, key didn't change)
+    const prov = this.provenances.get(chatId);
+    if (prov) {
+      prov.timestamp = Date.now();
+    }
+
+    return newEncrypted;
+  }
+
   // ---- Cleanup ----
 
   /**

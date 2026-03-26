@@ -151,7 +151,8 @@ class HiddenChatService {
     }
 
     try {
-      // Get master key
+      // Legitimate bypass per D-01: master key operation for combined secret derivation.
+      // This uses the raw master key for PBKDF2 input, not for chat key wrapping.
       const masterKey = await getKeyFromStorage();
       if (!masterKey) {
         console.error("[HiddenChatService] Master key not found");
@@ -252,8 +253,8 @@ class HiddenChatService {
       // Try to decrypt each chat that fails normal decryption
       for (const chat of allChats) {
         if (chat.encrypted_chat_key) {
-          // First try normal decryption.
-          // IMPORTANT: decryptChatKeyWithMasterKey returns null on failure (it doesn't throw).
+          // Legitimate bypass: testing wrapping type to identify hidden chats during unlock.
+          // This checks whether the key is master-key-wrapped (not hidden) — if so, skip.
           const normalKey = await decryptChatKeyWithMasterKey(
             chat.encrypted_chat_key,
           );
@@ -483,8 +484,8 @@ class HiddenChatService {
     isHidden: boolean;
     isHiddenCandidate: boolean;
   }> {
-    // First try: Normal decryption with master key.
-    // IMPORTANT: decryptChatKeyWithMasterKey can throw (OperationError) when the key was encrypted with the hidden-chat secret.
+    // Legitimate bypass: testing wrapping type, not performing crypto operation.
+    // Tries master key decrypt to determine if this is a normal or hidden chat.
     let normalKey: Uint8Array | null = null;
     try {
       normalKey = await decryptChatKeyWithMasterKey(encryptedChatKeyWithIV);
@@ -617,8 +618,9 @@ class HiddenChatService {
         return false;
       }
 
-      // Re-encrypt the chat key with the master key (regular chat path)
-      // encryptChatKeyWithMasterKey gets the master key internally
+      // Legitimate bypass per D-01: re-wrapping from combined-secret to master-key wrapping.
+      // The decryptedChatKey is freshly decrypted from the combined secret and may not be
+      // in ChatKeyManager yet, so we use the crypto primitive directly here.
       const reEncryptedChatKey =
         await encryptChatKeyWithMasterKey(decryptedChatKey);
       if (!reEncryptedChatKey) {
