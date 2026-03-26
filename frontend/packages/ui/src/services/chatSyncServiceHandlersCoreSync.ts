@@ -2,6 +2,8 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { decryptWithChatKey } from "./encryption/MessageEncryptor";
+import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 import { userDB } from "./userDB";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -53,8 +55,6 @@ async function populateResumeChatDataFromPhase1(
     let displayIcon: string | null = null;
 
     try {
-      const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
-        await import("./cryptoService");
       let chatKey = await chatKeyManager.getKey(chatId);
       if (!chatKey && chat.encrypted_chat_key) {
         chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
@@ -162,8 +162,6 @@ export async function handleInitialSyncResponseImpl(
               `${serverChat.encrypted_chat_key.substring(0, 20)}... (length: ${serverChat.encrypted_chat_key.length})`,
           );
           // First, decrypt the chat key from encrypted_chat_key using master key
-          const { decryptChatKeyWithMasterKey } =
-            await import("./cryptoService");
           const chatKey = await decryptChatKeyWithMasterKey(
             serverChat.encrypted_chat_key,
           );
@@ -177,7 +175,6 @@ export async function handleInitialSyncResponseImpl(
             );
 
             // Now decrypt the title with the chat key
-            const { decryptWithChatKey } = await import("./cryptoService");
             cleartextTitle = await decryptWithChatKey(
               serverChat.encrypted_title,
               chatKey,

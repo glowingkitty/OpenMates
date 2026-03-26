@@ -15,6 +15,22 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import {
+  encryptWithChatKey,
+  decryptWithChatKey,
+  encryptArrayWithChatKey,
+  decryptArrayWithChatKey,
+} from "./encryption/MessageEncryptor";
+import {
+  encryptChatKeyWithMasterKey,
+  decryptChatKeyWithMasterKey,
+  encryptWithMasterKey,
+  generateEmbedKey,
+  deriveEmbedKeyFromChatKey,
+  encryptWithEmbedKey,
+  wrapEmbedKeyWithMasterKey,
+  wrapEmbedKeyWithChatKey,
+} from "./encryption/MetadataEncryptor";
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
 let toonDecode:
@@ -645,8 +661,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
           payload.chat_id,
           "decrypt-ai-category",
           async (chatKey) => {
-            const { decryptWithChatKey } = await import("./cryptoService");
-            category =
+                        category =
               (await decryptWithChatKey(chat.encrypted_category!, chatKey)) ||
               undefined;
             console.info(
@@ -832,8 +847,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
             payload.chat_id,
             "decrypt-ai-notification-title",
             async (chatKey) => {
-              const { decryptWithChatKey } = await import("./cryptoService");
-              const decryptedTitle = await decryptWithChatKey(
+                            const decryptedTitle = await decryptWithChatKey(
                 chat.encrypted_title!,
                 chatKey,
               );
@@ -1047,8 +1061,6 @@ export async function handleAITypingStartedImpl( // Changed to async
         !chatKeyManager.getKeySync(payload.chat_id)
       ) {
         try {
-          const { decryptChatKeyWithMasterKey } =
-            await import("./cryptoService");
           const decryptedKey = await decryptChatKeyWithMasterKey(
             payloadWithKey.encrypted_chat_key,
           );
@@ -1122,8 +1134,7 @@ export async function handleAITypingStartedImpl( // Changed to async
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
       await flushPendingMessagesForChat(payload.chat_id);
       await flushPendingSystemMessagesForChat(payload.chat_id);
-      const { encryptWithChatKey } = await import("./cryptoService");
-
+      
       // Encrypt title if payload has one (only for new chats on first message)
       if (payload.title) {
         encryptedTitle = await encryptWithChatKey(payload.title, chatKey);
@@ -1264,9 +1275,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             // Skip storing encrypted_chat_key rather than generating a wrong one
           }
           const encryptedChatKey = chatKey
-            ? await import("./cryptoService").then((m) =>
-                m.encryptChatKeyWithMasterKey(chatKey),
-              )
+            ? await encryptChatKeyWithMasterKey(chatKey)
             : null;
           if (encryptedChatKey) {
             chatToUpdate.encrypted_chat_key = encryptedChatKey;
@@ -1443,8 +1452,7 @@ export async function handleAITypingStartedImpl( // Changed to async
           payload.chat_id,
           "decrypt-ai-message-content",
           async (chatKey) => {
-            const { decryptWithChatKey } = await import("./cryptoService");
-            const decrypted = await decryptWithChatKey(
+                        const decrypted = await decryptWithChatKey(
               userMessage.encrypted_content!,
               chatKey,
             );
@@ -1843,12 +1851,6 @@ export async function handlePostProcessingCompletedImpl(
     }
     if (!postProcessingKey) return; // Safety — should not happen after withKey resolves
     const chatKey: Uint8Array = postProcessingKey;
-    const {
-      encryptWithChatKey,
-      encryptArrayWithChatKey,
-      encryptWithMasterKey,
-    } = await import("./cryptoService");
-
     // Encrypt and save follow-up suggestions to chat record (last 18)
     // CRITICAL FIX: await encryption operation since encryptArrayWithChatKey is async
     if (
@@ -2023,7 +2025,6 @@ async function aggregateAndUpdateTopRecommendedApps(
 ): Promise<void> {
   try {
     const { chatDB } = await import("./db");
-    const { decryptArrayWithChatKey } = await import("./cryptoService");
 
     // Get last 20 chats sorted by last_edited_overall_timestamp
     const allChats = await chatDB.getAllChats();
@@ -2109,7 +2110,6 @@ async function aggregateAndUpdateTopRecommendedApps(
  */
 async function syncTopRecommendedAppsToServer(appIds: string[]): Promise<void> {
   try {
-    const { encryptWithMasterKey } = await import("./cryptoService");
 
     if (appIds.length === 0) {
       return; // Don't sync empty arrays
@@ -2205,8 +2205,7 @@ export async function handleRequestChatHistoryImpl(
       try {
         const chatKey = await chatKeyManager.getKey(payload.chat_id);
         if (chatKey) {
-          const { decryptWithChatKey } = await import("./cryptoService");
-          activeFocusId = await decryptWithChatKey(
+                    activeFocusId = await decryptWithChatKey(
             chat.encrypted_active_focus_id,
             chatKey,
           );
@@ -2405,13 +2404,6 @@ export async function handleEmbedUpdateImpl(
         try {
           // Import crypto utilities
           const { computeSHA256 } = await import("../message_parsing/utils");
-          const {
-            generateEmbedKey,
-            encryptWithEmbedKey,
-            wrapEmbedKeyWithMasterKey,
-            wrapEmbedKeyWithChatKey,
-          } = await import("./cryptoService");
-
           // Get chat_id from payload or existing embed
           const chatId = payload.chat_id || existingEmbed.chat_id;
           // Get user_id from payload (user_id_uuid) or existing embed
@@ -2952,7 +2944,6 @@ export async function handleSendEmbedDataImpl(
       // and they need the parent's key to encrypt themselves.
       // Uses HKDF(chatKey, embedId) so every tab derives the SAME key — prevents multi-tab race.
       try {
-        const { deriveEmbedKeyFromChatKey } = await import("./cryptoService");
         const { computeSHA256 } = await import("../message_parsing/utils");
         const { embedStore } = await import("./embedStore");
         const { chatKeyManager } = await import("./encryption/ChatKeyManager");
@@ -3318,17 +3309,8 @@ export async function handleSendEmbedDataImpl(
       // Import dependencies
       const embedStoreModule = await import("./embedStore");
       const embedStore = embedStoreModule.embedStore;
-      const cryptoService = await import("./cryptoService");
       const { computeSHA256 } = await import("../message_parsing/utils");
       const { chatDB } = await import("./db");
-
-      const {
-        generateEmbedKey,
-        deriveEmbedKeyFromChatKey,
-        encryptWithEmbedKey,
-        wrapEmbedKeyWithMasterKey,
-        wrapEmbedKeyWithChatKey,
-      } = cryptoService;
 
       // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
       const hashedChatId = await computeSHA256(embedData.chat_id);
@@ -4035,19 +4017,14 @@ async function persistInspirations(
     { embedStore },
     { encode: toonEncode },
     { generateUUID, computeSHA256 },
-    cryptoService,
     sendersModule,
   ] = await Promise.all([
     import("../stores/dailyInspirationStore"),
     import("./embedStore"),
     import("@toon-format/toon"),
     import("../message_parsing/utils"),
-    import("./cryptoService"),
     import("./chatSyncServiceSenders"),
   ]);
-
-  const { generateEmbedKey, encryptWithEmbedKey, wrapEmbedKeyWithMasterKey } =
-    cryptoService;
 
   // Pre-compute hashed user ID (used for all embeds in this batch)
   const hashedUserId = await computeSHA256(userId);

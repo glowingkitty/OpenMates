@@ -18,7 +18,8 @@ import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
-import { decryptWithMasterKey } from "./cryptoService";
+import { encryptWithChatKey } from "./encryption/MessageEncryptor";
+import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { get } from "svelte/store";
 import type { Message } from "../types/chat";
@@ -1064,7 +1065,6 @@ async function saveAppSettingsMemoriesResponseMessage(
   // Import required utilities
   const { generateUUID } = await import("../message_parsing/utils");
   const { webSocketService } = await import("./websocketService");
-  const { encryptWithChatKey } = await import("./cryptoService");
 
   // Generate unique message ID (format: last 10 chars of chat_id + uuid)
   const chatIdSuffix = chatId.slice(-10);
@@ -1216,7 +1216,6 @@ async function saveAppSettingsMemoriesRequestMessage(
   // Import required utilities
   const { generateUUID } = await import("../message_parsing/utils");
   const { webSocketService } = await import("./websocketService");
-  const { encryptWithChatKey } = await import("./cryptoService");
 
   // Generate unique message ID (format: last 10 chars of chat_id + uuid)
   const chatIdSuffix = chatId.slice(-10);
@@ -2216,8 +2215,7 @@ export async function handleReminderFiredImpl(
     // would give the system message a timestamp AFTER the AI response it triggered.
     const firedAt = payload.fired_at || Math.floor(Date.now() / 1000);
 
-    const { encryptWithChatKey } = await import("./cryptoService");
-    const { webSocketService } = await import("./websocketService");
+      const { webSocketService } = await import("./websocketService");
 
     // For existing_chat: chat must exist locally with a chat key
     // For new_chat: we need to create the chat locally first

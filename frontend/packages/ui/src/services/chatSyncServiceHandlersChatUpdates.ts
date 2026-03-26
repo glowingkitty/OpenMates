@@ -18,6 +18,8 @@ import type { EmbedType } from "../message_parsing/types";
 // so that system messages queued before the key was available get saved correctly.
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncryptor";
+import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 /**
  * Pending message queue for cross-device sync.
@@ -461,8 +463,6 @@ export async function handleNewChatMessageImpl(
         (payload.encrypted_title || payload.encrypted_category)
       ) {
         try {
-          const { decryptChatKeyWithMasterKey, decryptWithChatKey } =
-            await import("./cryptoService");
           const chatKey = await decryptChatKeyWithMasterKey(
             payload.encrypted_chat_key,
           );
@@ -520,8 +520,6 @@ export async function handleNewChatMessageImpl(
       // KEYS-04: getKeySync acceptable here -- guard prevents redundant key decryption (key establishment, not content decrypt)
       if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
         try {
-          const { decryptChatKeyWithMasterKey } =
-            await import("./cryptoService");
           const chatKey = await decryptChatKeyWithMasterKey(
             payload.encrypted_chat_key,
           );
@@ -562,7 +560,6 @@ export async function handleNewChatMessageImpl(
     ) {
       // Existing chat without cached key - try to decrypt and cache for immediate encryption
       try {
-        const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
         const chatKey = await decryptChatKeyWithMasterKey(
           payload.encrypted_chat_key,
         );
@@ -1378,9 +1375,6 @@ export async function handleChatMetadataForEncryptionImpl(
     if (!metadataKey) return; // Safety — should not happen after withKey resolves
     const chatKey: Uint8Array = metadataKey;
 
-    // Import chat-specific encryption function
-    const { encryptWithChatKey } = await import("./cryptoService");
-
     // Encrypt metadata with chat-specific key for local storage
     let encryptedTitle: string | null = null;
     if (plaintext_title) {
@@ -1535,8 +1529,6 @@ export async function handleEncryptedChatMetadataImpl(
 
       if (cachedKey) {
         try {
-          const { decryptChatKeyWithMasterKey } =
-            await import("./cryptoService");
           const incomingRawKey = await decryptChatKeyWithMasterKey(
             payload.encrypted_chat_key,
           );
@@ -1573,9 +1565,7 @@ export async function handleEncryptedChatMetadataImpl(
         // another device). Decrypt the key, cache it, and flush any messages that were
         // queued while waiting for this key to arrive.
         try {
-          const { decryptChatKeyWithMasterKey: decryptFirstTimeKey } =
-            await import("./cryptoService");
-          const rawKey = await decryptFirstTimeKey(payload.encrypted_chat_key);
+          const rawKey = await decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
           if (rawKey) {
             chatDB.setChatKey(payload.chat_id, rawKey);
             console.info(
@@ -1638,7 +1628,6 @@ export async function handleEncryptedChatMetadataImpl(
       if (incoming !== undefined && incoming !== chat[field]) {
         if (chatKey && chat[field]) {
           // We have both a key and a local value — validate the incoming field
-          const { decryptWithChatKey } = await import("./cryptoService");
           try {
             const incomingDecrypted = await decryptWithChatKey(
               incoming,
@@ -1745,7 +1734,6 @@ export async function handleEncryptedChatMetadataImpl(
     // This fixes the server-side data for all other devices.
     if (needsHeal && chatKey) {
       try {
-        const { encryptChatKeyWithMasterKey } = await import("./cryptoService");
         const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
         if (encryptedChatKey) {
           const healPayload: Record<string, unknown> = {

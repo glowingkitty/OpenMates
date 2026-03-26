@@ -23,6 +23,7 @@ import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -65,7 +66,6 @@ async function validateAndHealEncryptedMetadata(
   if (!chatKey) return false;
   if (!localChat) return false;
 
-  const { decryptWithChatKey } = await import("./cryptoService");
   let healed = false;
 
   const fields = [
