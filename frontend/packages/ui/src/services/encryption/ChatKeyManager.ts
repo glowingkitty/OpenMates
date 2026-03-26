@@ -399,6 +399,95 @@ export class ChatKeyManager {
     return { chatKey, encryptedChatKey };
   }
 
+  /**
+   * Create and persist a chat key with Web Locks mutex for cross-tab safety.
+   *
+   * Wraps createAndPersistKey() with an exclusive Web Lock per chatId so that
+   * only one tab can generate a key for a given chat at a time. This prevents
+   * the #1 bug pattern: two tabs generating different keys for the same chat
+   * (KEYS-01/KEYS-02).
+   *
+   * Inside the lock callback:
+   * 1. Re-checks in-memory cache (another tab may have created while we waited)
+   * 2. Re-checks IDB (another tab may have persisted)
+   * 3. Checks deferredClearAll (user logging out — abort key generation)
+   * 4. Only then generates a new key
+   *
+   * Fallback: If navigator.locks is unavailable (SSR/old browser) or times out
+   * (10s), falls back to the unlocked createAndPersistKey() which still has
+   * the immutability guard as a safety net.
+   *
+   * Lock naming: `om-chatkey-{chatId}` (exclusive mode, one holder at a time)
+   *
+   * @param chatId - Chat identifier to create/get key for
+   * @returns The raw key and its encrypted form for server storage
+   * @throws Error if deferredClearAll is true (logout in progress)
+   */
+  async createAndPersistKeyLocked(chatId: string): Promise<{
+    chatKey: Uint8Array;
+    encryptedChatKey: string;
+  }> {
+    // Guard: browser without Web Locks (SSR, older browsers)
+    if (typeof navigator === "undefined" || !navigator.locks) {
+      return this.createAndPersistKey(chatId);
+    }
+
+    const WEB_LOCK_TIMEOUT_MS = 10_000;
+    const LOCK_NAME = `om-chatkey-${chatId}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEB_LOCK_TIMEOUT_MS);
+
+    try {
+      return await navigator.locks.request(
+        LOCK_NAME,
+        { signal: controller.signal },
+        async () => {
+          // Re-check: another tab may have created the key while we waited
+          const existing = this.keys.get(chatId);
+          if (existing) {
+            const encryptedChatKey = await encryptChatKeyWithMasterKey(existing);
+            return {
+              chatKey: existing,
+              encryptedChatKey: encryptedChatKey!,
+            };
+          }
+
+          // Also check IDB in case another tab persisted but we haven't loaded
+          const loaded = await this.getKey(chatId);
+          if (loaded) {
+            const encryptedChatKey = await encryptChatKeyWithMasterKey(loaded);
+            return {
+              chatKey: loaded,
+              encryptedChatKey: encryptedChatKey!,
+            };
+          }
+
+          // Check deferredClearAll — if user is logging out, abort key generation
+          // (Pitfall 5: don't create keys into a cache about to be cleared)
+          if (this.deferredClearAll) {
+            throw new Error(
+              `[ChatKeyManager] Key generation aborted: clearAll pending for ${chatId}`,
+            );
+          }
+
+          // No key exists anywhere — safe to generate
+          return this.createAndPersistKey(chatId);
+        },
+      );
+    } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        console.error(
+          `[ChatKeyManager] Web Lock timeout for key creation: ${chatId} — falling back to unlocked path`,
+        );
+        // Fallback: attempt without lock (immutability guard is the safety net)
+        return this.createAndPersistKey(chatId);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   // ---- Key Loading ----
 
   /**
@@ -470,7 +559,17 @@ export class ChatKeyManager {
 
   /**
    * Force-reload a key from IndexedDB (e.g., after hidden chat unlock).
-   * Resets the state to 'unloaded' first so loadKeyFromDB runs again.
+   *
+   * Formal state machine transition: failed -> loading -> ready|failed
+   * Also supports: ready -> loading -> ready|failed (for key refresh)
+   *
+   * Re-entrancy safe: if called while a load is already in flight for this
+   * chat, the existing loading promise is discarded and a fresh load starts.
+   * This prevents deadlock when reloadKey is called from a retry path while
+   * a previous load is still pending.
+   *
+   * @param chatId - Chat identifier to reload the key for
+   * @returns The raw key if successfully loaded, null otherwise
    */
   async reloadKey(chatId: string): Promise<Uint8Array | null> {
     this.states.set(chatId, "unloaded");
