@@ -893,3 +893,215 @@ describe("ChatKeyManager — rewrapKey (KEYS-03)", () => {
     expect(result).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Key-before-content guarantee (KEYS-04)
+// Tests that withKey() buffers operations until the key arrives, ensuring
+// encrypted content is never processed without the correct decryption key.
+// Per D-03: These tests verify that the architecture prevents failures structurally.
+// ---------------------------------------------------------------------------
+
+describe("ChatKeyManager -- key-before-content guarantee (KEYS-04)", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(() => {
+    _rvCounter = 1;
+    resetLockMock();
+    mgr = new ChatKeyManager();
+  });
+
+  afterEach(() => {
+    mgr.clearAll();
+  });
+
+  it("KEYS-04: withKey buffers operation and flushes when key arrives via injectKey", async () => {
+    const callback = vi.fn().mockImplementation(async () => {});
+    const expectedKey = makeKey(42);
+
+    // Call withKey when no key exists -- should buffer
+    const opPromise = mgr.withKey("chat-1", "decrypt-test", callback);
+
+    // Callback should NOT have been called yet
+    expect(callback).not.toHaveBeenCalled();
+
+    // Inject the key -- should trigger flush
+    mgr.injectKey("chat-1", expectedKey, "server_sync");
+
+    await opPromise;
+
+    // Callback should have been called with the correct key
+    expect(callback).toHaveBeenCalledOnce();
+    expect(callback).toHaveBeenCalledWith(expectedKey);
+  });
+
+  it("KEYS-04: withKey buffers multiple operations and flushes all in order", async () => {
+    const callOrder: number[] = [];
+    const expectedKey = makeKey(77);
+
+    // Queue 3 withKey operations for the same chatId
+    const op1 = mgr.withKey("chat-1", "op-1", async () => {
+      callOrder.push(1);
+    });
+    const op2 = mgr.withKey("chat-1", "op-2", async () => {
+      callOrder.push(2);
+    });
+    const op3 = mgr.withKey("chat-1", "op-3", async () => {
+      callOrder.push(3);
+    });
+
+    // None should have fired yet
+    expect(callOrder).toEqual([]);
+
+    // Inject key -- all 3 should flush in order
+    mgr.injectKey("chat-1", expectedKey, "master_key");
+
+    await Promise.all([op1, op2, op3]);
+
+    expect(callOrder).toEqual([1, 2, 3]);
+  });
+
+  it("KEYS-04: withKey operation times out after QUEUE_TIMEOUT_MS", async () => {
+    vi.useFakeTimers();
+
+    const callback = vi.fn().mockImplementation(async () => {});
+
+    // Queue a withKey operation -- key never arrives
+    const opPromise = mgr.withKey("chat-1", "decrypt-timeout-test", callback);
+
+    // Advance time past the 30s timeout
+    await vi.advanceTimersByTimeAsync(31_000);
+
+    // The promise should reject with a timeout error
+    await expect(opPromise).rejects.toThrow(/not available.*within.*30000ms/i);
+
+    // Callback should never have been called
+    expect(callback).not.toHaveBeenCalled();
+
+    // Inject key AFTER timeout -- the expired callback should NOT be called
+    mgr.injectKey("chat-1", makeKey(99), "server_sync");
+
+    // Wait a tick for any async flush
+    await vi.advanceTimersByTimeAsync(100);
+
+    // Still not called -- the operation was removed from the queue on timeout
+    expect(callback).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("KEYS-04: withKey fast-path returns immediately when key is in memory", async () => {
+    const expectedKey = makeKey(33);
+    mgr.injectKey("chat-1", expectedKey, "master_key");
+
+    let receivedKey: Uint8Array | null = null;
+    const callbackFn = async (k: Uint8Array) => {
+      receivedKey = k;
+    };
+
+    // withKey should execute callback synchronously (within same microtask)
+    await mgr.withKey("chat-1", "fast-path-test", callbackFn);
+
+    expect(receivedKey).toEqual(expectedKey);
+  });
+
+  it("KEYS-04: withKey loads key from IDB when not in memory", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(55);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    // Set up a fetcher that returns an encrypted key
+    mgr.setEncryptedChatKeyFetcher(async () => "encrypted-key-from-idb");
+
+    let receivedKey: Uint8Array | null = null;
+    await mgr.withKey("chat-1", "idb-load-test", async (k) => {
+      receivedKey = k;
+    });
+
+    // Should have loaded from IDB and executed callback
+    expect(receivedKey).toEqual(expectedKey);
+    expect(mgr.getState("chat-1")).toBe("ready");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// State machine comprehensive (KEYS-05)
+// Tests the full lifecycle of the key state machine and concurrent loading.
+// ---------------------------------------------------------------------------
+
+describe("ChatKeyManager -- state machine comprehensive (KEYS-05)", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(() => {
+    _rvCounter = 1;
+    resetLockMock();
+    mgr = new ChatKeyManager();
+  });
+
+  afterEach(() => {
+    mgr.clearAll();
+  });
+
+  it("full lifecycle: unloaded -> loading -> ready -> removed", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(42);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    // Initial state: unloaded (no entry at all)
+    expect(mgr.getState("chat-1")).toBe("unloaded");
+
+    // Set up fetcher
+    let fetchResolveFn: (() => void) | null = null;
+    mgr.setEncryptedChatKeyFetcher(
+      () =>
+        new Promise<string | null>((resolve) => {
+          fetchResolveFn = () => resolve("encrypted-key");
+        }),
+    );
+
+    // Trigger loading via getKey (don't await yet)
+    const loadPromise = mgr.getKey("chat-1");
+
+    // State should be loading (fetch started but not completed)
+    // Wait a microtask for the state to transition
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mgr.getState("chat-1")).toBe("loading");
+
+    // Complete the fetch
+    fetchResolveFn!();
+    const key = await loadPromise;
+
+    // State should be ready
+    expect(mgr.getState("chat-1")).toBe("ready");
+    expect(key).toEqual(expectedKey);
+
+    // Remove the key
+    mgr.removeKey("chat-1");
+    expect(mgr.getState("chat-1")).toBe("unloaded");
+    expect(mgr.getKeySync("chat-1")).toBeNull();
+  });
+
+  it("concurrent getKey calls share one loading promise", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const expectedKey = makeKey(88);
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(expectedKey);
+
+    let fetchCount = 0;
+    mgr.setEncryptedChatKeyFetcher(async () => {
+      fetchCount++;
+      return "encrypted-key";
+    });
+
+    // Fire two concurrent getKey calls
+    const [key1, key2] = await Promise.all([
+      mgr.getKey("chat-1"),
+      mgr.getKey("chat-1"),
+    ]);
+
+    // Only one fetch should have been made (shared loading promise)
+    expect(fetchCount).toBe(1);
+
+    // Both should resolve with the same key
+    expect(key1).toEqual(expectedKey);
+    expect(key2).toEqual(expectedKey);
+  });
+});
