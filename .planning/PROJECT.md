@@ -21,9 +21,9 @@ Every encrypted chat must decrypt successfully on every device, every time — n
 
 ### Active
 
-- [ ] Audit current encryption/key management code and document exactly how it works today
-- [ ] Identify all code paths that encrypt, decrypt, generate keys, or sync keys
-- [ ] Identify root cause(s) of recurring "content decryption failed" errors
+- [x] Audit current encryption/key management code and document exactly how it works today — Phase 1
+- [x] Identify all code paths that encrypt, decrypt, generate keys, or sync keys — Phase 1
+- [x] Identify root cause(s) of recurring "content decryption failed" errors — Phase 1
 - [ ] Identify root cause(s) of embed decryption failures visible in console/logs
 - [ ] Design a clean encryption architecture with clear module boundaries
 - [ ] Refactor encryption code into well-separated, single-responsibility modules
@@ -87,4 +87,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after initialization*
+*Last updated: 2026-03-26 after Phase 1 completion*
