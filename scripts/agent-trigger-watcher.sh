@@ -72,6 +72,9 @@ process_trigger() {
     session_title="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['session_title'])" "$trigger_file")"
     prompt="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['prompt'])" "$trigger_file")"
 
+    # Extract Linear issue UUID (empty string for non-Linear triggers from admin sidecar)
+    linear_issue_id="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('linear_issue_id',''))" "$trigger_file" 2>/dev/null)" || true
+
     log "[agent-watcher] Starting claude investigation (issue_id=$issue_id, title=$session_title)"
 
     # Write prompt to temp file to avoid MAX_ARG_STRLEN limit
@@ -110,6 +113,17 @@ process_trigger() {
     # Move trigger file to done/
     mv "$trigger_file" "$DONE_DIR/$filename"
     log "[agent-watcher] Trigger processed and moved to done/: $filename"
+
+    # Post investigation results back to Linear (if this was a Linear-triggered issue)
+    if [[ -n "$linear_issue_id" && -n "$session_id" ]]; then
+        log "[agent-watcher] Updating Linear issue $linear_issue_id with session $session_id"
+        docker exec api python3 /app/scripts/linear-update-issue.py \
+            --issue-id "$linear_issue_id" \
+            --session-id "$session_id" \
+            2>&1 | while read -r line; do log "[linear-update] $line"; done || {
+            log "[agent-watcher] WARNING: Failed to update Linear issue $linear_issue_id"
+        }
+    fi
 }
 
 log "[agent-watcher] Starting agent trigger watcher (polling $TRIGGER_DIR every ${POLL_INTERVAL}s)"

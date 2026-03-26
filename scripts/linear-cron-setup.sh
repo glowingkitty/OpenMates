@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Linear Integration Systemd Service Installer
+#
+# Installs two systemd user services for the Linear-to-Claude investigation
+# pipeline on the DEV SERVER ONLY. NOT for production use.
+#
+# 1. linear-poller.service — Runs every 30s, polls Linear for issues with
+#    the claude-investigate label and writes trigger files.
+# 2. linear-archive.service + timer — Runs daily, archives old closed issues
+#    to stay within Linear's free plan 250-issue limit.
+#
+# Both scripts run via `docker exec api` to access Vault-injected secrets.
+#
+# Usage:
+#   bash scripts/linear-cron-setup.sh
+# =============================================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SYSTEMD_DIR="$HOME/.config/systemd/user"
+
+echo "=== Linear Integration Service Installer ==="
+echo "Project root: $PROJECT_ROOT"
+echo "Systemd dir:  $SYSTEMD_DIR"
+echo ""
+
+mkdir -p "$SYSTEMD_DIR"
+
+# --- 1. Linear Poller Service (30s loop) ---
+
+cat > "$SYSTEMD_DIR/linear-poller.service" << EOF
+[Unit]
+Description=OpenMates Linear Issue Poller (30s polling loop)
+After=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+WorkingDirectory=$PROJECT_ROOT
+ExecStart=/bin/bash -c 'while true; do flock -n /tmp/linear-poller.lock docker exec api python3 /app/scripts/linear-poller.py 2>&1 || true; sleep 30; done'
+
+[Install]
+WantedBy=default.target
+EOF
+
+echo "[OK] Created linear-poller.service"
+
+# --- 2. Linear Archive Service + Timer (daily) ---
+
+cat > "$SYSTEMD_DIR/linear-archive.service" << EOF
+[Unit]
+Description=OpenMates Linear Issue Archiver (daily sweep)
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$PROJECT_ROOT
+ExecStart=/usr/bin/docker exec api python3 /app/scripts/linear-archive-issues.py
+EOF
+
+cat > "$SYSTEMD_DIR/linear-archive.timer" << EOF
+[Unit]
+Description=Daily Linear issue archive sweep
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+echo "[OK] Created linear-archive.service + linear-archive.timer"
+
+# --- Reload and enable ---
+
+systemctl --user daemon-reload
+echo "[OK] Systemd daemon reloaded"
+
+systemctl --user enable --now linear-poller.service
+echo "[OK] linear-poller.service enabled and started"
+
+systemctl --user enable --now linear-archive.timer
+echo "[OK] linear-archive.timer enabled and started"
+
+echo ""
+echo "=== Service Status ==="
+echo ""
+echo "--- linear-poller.service ---"
+systemctl --user status linear-poller.service --no-pager || true
+echo ""
+echo "--- linear-archive.timer ---"
+systemctl --user status linear-archive.timer --no-pager || true
+echo ""
+echo "Done. Both services are running."
