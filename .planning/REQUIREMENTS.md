@@ -10,10 +10,10 @@ Requirements for the rebuild. Each maps to roadmap phases.
 ### Audit
 
 - [ ] **AUDT-01**: Complete inventory of every code path that encrypts, decrypts, generates keys, or syncs keys — with file paths and line numbers
-- [ ] **AUDT-02**: Document the exact binary/ciphertext format for every encrypted field (messages, metadata, embeds, titles)
+- [x] **AUDT-02**: Document the exact binary/ciphertext format for every encrypted field (messages, metadata, embeds, titles)
 - [ ] **AUDT-03**: Create regression test fixtures from real encrypted data covering all format generations
-- [ ] **AUDT-04**: Document the full master key derivation path (from user credential → PBKDF2 → wrapping key → chat key)
-- [ ] **AUDT-05**: Document the master key distribution mechanism across devices (how a second device gets access to keys created on the first)
+- [x] **AUDT-04**: Document the full master key derivation path (from user credential → PBKDF2 → wrapping key → chat key)
+- [x] **AUDT-05**: Document the master key distribution mechanism across devices (how a second device gets access to keys created on the first)
 - [ ] **AUDT-06**: Identify every sync handler that calls `cryptoService.ts` directly instead of going through `ChatKeyManager`
 
 ### Key Management
@@ -82,10 +82,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUDT-01 | Phase 1 | Pending |
-| AUDT-02 | Phase 1 | Pending |
+| AUDT-02 | Phase 1 | Complete |
 | AUDT-03 | Phase 1 | Pending |
-| AUDT-04 | Phase 1 | Pending |
-| AUDT-05 | Phase 1 | Pending |
+| AUDT-04 | Phase 1 | Complete |
+| AUDT-05 | Phase 1 | Complete |
 | AUDT-06 | Phase 1 | Pending |
 | KEYS-01 | Phase 3 | Pending |
 | KEYS-02 | Phase 3 | Pending |
