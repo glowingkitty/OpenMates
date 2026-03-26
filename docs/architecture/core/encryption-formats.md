@@ -5,14 +5,24 @@
   OpenMates' client-side encryption. All formats use AES-256-GCM with
   12-byte random IVs and are base64-encoded for storage/transport.
 
-  Source of truth: cryptoService.ts (frontend/packages/ui/src/services/)
-  Related: chat-encryption-implementation.md, zero-knowledge-storage.md
+  Post-Rebuild Note: These formats are unchanged from the pre-rebuild state.
+  The Phase 2-4 rebuild reorganized code modules (cryptoService.ts ->
+  MessageEncryptor.ts + MetadataEncryptor.ts) but preserved all format
+  handling exactly as documented here.
+
+  Source of truth: encryption/MessageEncryptor.ts (Format A/B),
+                   encryption/MetadataEncryptor.ts (Format C/D),
+                   cryptoService.ts (base64 utils, key derivation)
+  Related: encryption-architecture.md, chat-encryption-implementation.md,
+           zero-knowledge-storage.md
 -->
 
 ---
 status: active
 last_verified: 2026-03-26
 key_files:
+  - frontend/packages/ui/src/services/encryption/MessageEncryptor.ts
+  - frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts
   - frontend/packages/ui/src/services/cryptoService.ts
   - docs/architecture/core/chat-encryption-implementation.md
 ---
@@ -269,8 +279,24 @@ All four formats are base64-encoded for storage and transport.
 
 ---
 
+## Post-Rebuild Notes
+
+These ciphertext formats are unchanged from the pre-rebuild state. The Phase 2-4 rebuild reorganized the code that produces and consumes these formats but did not alter any byte layouts, header structures, or cryptographic parameters.
+
+Post-rebuild, the format-handling functions live in:
+- **Format A/B** (chat-key): `encryption/MessageEncryptor.ts` (`encryptWithChatKey` / `decryptWithChatKey`)
+- **Format C** (wrapped chat key): `cryptoService.ts` (`encryptChatKeyWithMasterKey` / `decryptChatKeyWithMasterKey`)
+- **Format D** (master-key data): `encryption/MetadataEncryptor.ts` (`encryptWithMasterKeyDirect` / `decryptWithMasterKeyDirect`)
+
+The base64 utilities and FNV-1a fingerprint function remain in `cryptoService.ts`.
+
 ## Related Docs
 
+- [Encryption Architecture](./encryption-architecture.md) -- high-level architecture overview
 - [Chat Encryption Implementation](./chat-encryption-implementation.md) -- which fields use which format
 - [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- key hierarchy and encryption tiers
 - [Master Key Lifecycle](./master-key-lifecycle.md) -- key derivation and cross-device distribution
+
+---
+
+*Last updated: 2026-03-26 (post-Phase-4 rebuild)*

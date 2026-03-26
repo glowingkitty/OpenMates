@@ -10,7 +10,7 @@
 # 2. linear-archive.service + timer — Runs daily, archives old closed issues
 #    to stay within Linear's free plan 250-issue limit.
 #
-# Both scripts run via `docker exec api` to access Vault-injected secrets.
+# Both scripts run on the HOST with LINEAR_API_KEY sourced from .env.
 #
 # Usage:
 #   bash scripts/linear-cron-setup.sh
@@ -40,7 +40,8 @@ Type=simple
 Restart=always
 RestartSec=10
 WorkingDirectory=$PROJECT_ROOT
-ExecStart=/bin/bash -c 'while true; do flock -n /tmp/linear-poller.lock docker exec api python3 /app/scripts/linear-poller.py 2>&1 || true; sleep 30; done'
+EnvironmentFile=$PROJECT_ROOT/.env
+ExecStart=/bin/bash -c 'while true; do flock -n /tmp/linear-poller.lock python3 $PROJECT_ROOT/scripts/linear-poller.py 2>&1 || true; sleep 30; done'
 
 [Install]
 WantedBy=default.target
@@ -58,7 +59,8 @@ After=docker.service
 [Service]
 Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
-ExecStart=/usr/bin/docker exec api python3 /app/scripts/linear-archive-issues.py
+EnvironmentFile=$PROJECT_ROOT/.env
+ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/linear-archive-issues.py
 EOF
 
 cat > "$SYSTEMD_DIR/linear-archive.timer" << EOF

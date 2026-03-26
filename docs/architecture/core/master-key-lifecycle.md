@@ -306,18 +306,15 @@ When a user changes their password, the master key must be re-wrapped with the n
 
 **This is handled** in `SettingsPassword.svelte` -- the password change flow unwraps with the old password, then re-wraps with the new one in a single transaction.
 
-### What Would Need to Change in Phase 3
+### Post-Rebuild: Phase 3-4 Resolutions
 
-The master key distribution itself does not need architectural changes. The "content decryption failed" errors are caused by:
+The master key distribution mechanism was confirmed architecturally sound during the Phase 1 audit. The "content decryption failed" errors were caused by chat key management issues, not master key distribution. Phases 3-4 resolved these:
 
-1. **Chat key management issues** (ChatKeyManager race conditions, stale keys in cache)
-2. **Sync timing issues** (new messages arriving before chat key is loaded)
-3. **Key fingerprint mismatches** (correct master key, wrong chat key selected for a chat)
-
-Phase 3 should focus on:
-- Ensuring ChatKeyManager is the single gatekeeper for all chat key access
-- Adding retry logic with re-derivation when decryption fails
-- Ensuring key loading completes before message decryption begins (sync ordering)
+1. **ChatKeyManager is now the single gatekeeper** -- All chat key access routes through `ChatKeyManager.withKey()`, which buffers operations until the key is available (Phase 3).
+2. **Web Locks mutex** prevents duplicate key generation across tabs (`om-chatkey-{chatId}`, 10s timeout) (Phase 3).
+3. **BroadcastChannel propagation** shares loaded keys across tabs without IDB roundtrips, with pending-ops guard to prevent unnecessary async work in background tabs (Phase 3).
+4. **WebSocket key delivery ack protocol** (Phase 4): sender sends wrapped key, recipient unwraps and injects, sends `key_received` ack. The ack is fire-and-forget -- failure never blocks key injection.
+5. **Key fingerprint in ciphertext** (OM header, Format A) enables fast wrong-key detection without attempting AES-GCM decryption.
 
 ---
 
@@ -339,8 +336,13 @@ Phase 3 should focus on:
 
 ## Related Docs
 
+- [Encryption Architecture](./encryption-architecture.md) -- high-level architecture overview (post-rebuild)
 - [Encryption Formats](./encryption-formats.md) -- byte-level ciphertext format documentation
 - [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- encryption tiers and key hierarchy
 - [Signup & Login](./signup-and-auth.md) -- authentication flow context
 - [Passkeys](./passkeys.md) -- PRF-based key wrapping details
 - [Chat Encryption Implementation](./chat-encryption-implementation.md) -- field-level encryption details
+
+---
+
+*Last updated: 2026-03-26 (post-Phase-4 rebuild)*

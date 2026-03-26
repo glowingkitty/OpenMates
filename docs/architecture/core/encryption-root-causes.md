@@ -6,8 +6,30 @@
 > management and sync pipeline. The fixes span 4 commits, addressing key generation races,
 > cross-device metadata corruption, sync-vs-render timing, and backwards compatibility.
 >
+> See: [Encryption Architecture](./encryption-architecture.md) for the post-rebuild overview.
+>
 > Related: [Chat Encryption Implementation](./chat-encryption-implementation.md) |
 > [Zero-Knowledge Storage](./zero-knowledge-storage.md)
+
+## Resolution Status (Post-Rebuild)
+
+All three root causes identified in the audit have been resolved through the Phase 1-4 rebuild:
+
+| Root Cause | Bug Report | Resolved In | Resolution |
+|------------|-----------|-------------|------------|
+| Bypass paths around ChatKeyManager + non-atomic key lifecycle | f305f5cf | Phase 2-3 | All bypass paths eliminated. `ChatKeyManager` is sole key authority with `createKeyForNewChat()` / `createAndPersistKey()` atomic API. Key fingerprint in ciphertext (OM header) enables fast wrong-key detection. |
+| Cross-device metadata corruption from stale cached JS | a4ca102f | Phase 3-4 | Server-side guard blocks metadata alongside key overwrites. Client-side self-heal validates incoming metadata before accepting. Service worker `SKIP_WAITING` prevents stale-code scenarios. |
+| Async key loading race (`getKeySync` before key ready) | 7d2d2efc | Phase 3 | `ChatKeyManager.withKey()` buffers operations until key is available. Web Locks mutex (`om-chatkey-{chatId}`) prevents duplicate key generation across tabs. Systematic `getKeySync` audit completed -- all critical paths converted to async `getKey()`. |
+
+### Remaining Risk Areas Status
+
+| Risk Area | Status |
+|-----------|--------|
+| `getKeySync()` usage audit | **Resolved.** Phase 3 classified all sites as (a) converted to async or (b) acceptable (sidebar render paths with async fallback). |
+| Multi-tab coordination | **Resolved.** Phase 3 added Web Locks + BroadcastChannel propagation with pending-ops guard. |
+| Phased sync ordering | **Mitigated.** Phase 4 converted all sync handler crypto imports to static encryptor imports. `withKey()` buffering ensures key-before-content. |
+| Master key unavailability | **Unchanged.** Recovery requires re-login. This is by design (not a bug). |
+| Format migration gap | **Accepted.** Dual-format reading works indefinitely. No migration path needed -- new writes use Format A, old reads auto-detect Format B. |
 
 ## Bug Report: f305f5cf
 
@@ -251,3 +273,5 @@ All 3 bug reports share these common patterns:
 *Root cause analysis: 2026-03-26*
 *Bug reports: f305f5cf, a4ca102f, 7d2d2efc*
 *Fix commits: 3d8148bc4, 33e87e0be, debbf2772, e418f49e6*
+
+*Last updated: 2026-03-26 (post-Phase-4 rebuild)*
