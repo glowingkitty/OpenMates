@@ -26,7 +26,7 @@ Every encrypted chat must decrypt successfully on every device, every time — n
 - [x] Identify root cause(s) of recurring "content decryption failed" errors — Phase 1
 - [ ] Identify root cause(s) of embed decryption failures visible in console/logs
 - [ ] Design a clean encryption architecture with clear module boundaries
-- [ ] Refactor encryption code into well-separated, single-responsibility modules
+- [x] Refactor encryption code into well-separated, single-responsibility modules — Phase 2
 - [ ] Ensure key generation only happens when no valid key exists (never overwrites)
 - [ ] Ensure cross-device key sync is atomic and race-condition-free
 - [ ] Ensure foreground devices receive streaming responses with correct decryption
@@ -87,4 +87,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after Phase 1 completion*
+*Last updated: 2026-03-26 after Phase 2 completion*
