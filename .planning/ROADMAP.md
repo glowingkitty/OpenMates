@@ -46,7 +46,11 @@ Plans:
   2. A `MetadataEncryptor` module exists that handles title, embed metadata, and other non-message encrypted fields as a stateless operation
   3. Every encryption-related module is under 500 lines with a single clear responsibility
   4. All Phase 1 regression test fixtures pass after every extraction step
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md -- Extract MessageEncryptor (chat-key encrypt/decrypt) with re-export barrel in cryptoService.ts
+- [ ] 02-02-PLAN.md -- Extract MetadataEncryptor (master-key + embed-key operations) and validate all module line counts
 
 ### Phase 3: Key Management Hardening
 **Goal**: ChatKeyManager is the single, race-condition-free authority for all key operations -- no duplicate keys can be generated, no content arrives without its key, and keys propagate correctly across tabs and devices
@@ -91,7 +95,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Audit & Discovery | 0/3 | Planning complete | - |
-| 2. Foundation Layer Extraction | 0/? | Not started | - |
+| 2. Foundation Layer Extraction | 0/2 | Planning complete | - |
 | 3. Key Management Hardening | 0/? | Not started | - |
 | 4. Sync Handler Rewire | 0/? | Not started | - |
 | 5. Testing & Documentation | 0/? | Not started | - |
