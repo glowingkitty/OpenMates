@@ -47,7 +47,21 @@ async function validateAndHealEncryptedMetadata(
   localChat: Chat | null,
   chatId: string,
 ): Promise<boolean> {
-  const chatKey = chatKeyManager.getKeySync(chatId);
+  // KEYS-04: converted from getKeySync to withKey for key-before-content guarantee.
+  // Validation decrypt buffers until key is available for proper field validation.
+  let chatKey: Uint8Array | null = null;
+  try {
+    await chatKeyManager.withKey(
+      chatId,
+      "validate-phased-sync-metadata",
+      async (key) => {
+        chatKey = key;
+      },
+    );
+  } catch {
+    // Key unavailable — cannot validate, skip healing
+    return false;
+  }
   if (!chatKey) return false;
   if (!localChat) return false;
 

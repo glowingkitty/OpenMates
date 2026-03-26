@@ -517,6 +517,7 @@ export async function handleNewChatMessageImpl(
 
       // If encrypted_chat_key is provided and we haven't already decrypted it above
       // (the title/category block already decrypts + caches the key), decrypt it now.
+      // KEYS-04: getKeySync acceptable here -- guard prevents redundant key decryption (key establishment, not content decrypt)
       if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
         try {
           const { decryptChatKeyWithMasterKey } =
@@ -554,6 +555,7 @@ export async function handleNewChatMessageImpl(
       console.info(
         `[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`,
       );
+    // KEYS-04: getKeySync acceptable here -- guard prevents redundant key decryption (key establishment, not content decrypt)
     } else if (
       payload.encrypted_chat_key &&
       !chatKeyManager.getKeySync(payload.chat_id)
@@ -618,27 +620,31 @@ export async function handleNewChatMessageImpl(
       encrypted_content: "", // Will be populated by chatDB.saveMessage()
     };
 
-    // CRITICAL: Only save via chatDB.saveMessage() if the chat key is already cached.
+    // KEYS-04: converted from getKeySync to withKey for key-before-content guarantee.
     // If the key is absent (brand-new chat where the server broadcast fired before the
-    // key was persisted), saveMessage() would call getOrGenerateChatKey() which silently
-    // generates a random throwaway key — encrypting the message with the wrong key.
-    // When the real key later arrives the ciphertext cannot be decrypted, causing
-    // "[Content decryption failed]" on this device.
-    //
-    // Instead, push the message into the pending queue and flush it in
-    // flushPendingMessagesForChat() once the correct key is available.
-    if (chatKeyManager.getKeySync(payload.chat_id)) {
-      await chatDB.saveMessage(newMessage);
-      console.debug(
-        `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
+    // key was persisted), withKey buffers the save operation and executes it when the
+    // key arrives -- eliminating the "[Content decryption failed]" error from wrong-key generation.
+    // Also maintains the _pendingMessages queue as a fallback for the flush pattern
+    // used by flushPendingMessagesForChat().
+    try {
+      await chatKeyManager.withKey(
+        payload.chat_id,
+        "save-new-chat-message",
+        async () => {
+          await chatDB.saveMessage(newMessage);
+          console.debug(
+            `[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`,
+          );
+        },
       );
-    } else {
-      // Queue the message — will be flushed when key arrives (ai_typing_started or Phase 1)
+    } catch (keyError) {
+      // withKey timed out or failed — fall back to manual queue for later flush
       const queue = _pendingMessages.get(payload.chat_id) ?? [];
       queue.push(newMessage);
       _pendingMessages.set(payload.chat_id, queue);
       console.warn(
         `[ChatSyncService:ChatUpdates] No chat key for ${payload.chat_id} — queued message ${payload.message_id} (queue length: ${queue.length}). Will save once key arrives.`,
+        keyError,
       );
     }
 
@@ -917,6 +923,7 @@ export async function handleChatMessageReceivedImpl(
       // can't be decrypted → "[Content decryption failed]".
       // If the key is missing, queue the message and wait for the key to arrive
       // (same pattern as new_chat_message handler).
+      // KEYS-04: getKeySync acceptable here -- null handled gracefully (queues message in _pendingMessages buffer)
       const existingKey = chatKeyManager.getKeySync(payload.chat_id);
       if (!existingKey) {
         console.warn(
@@ -1349,18 +1356,27 @@ export async function handleChatMetadataForEncryptionImpl(
     );
 
     // PHASE 2: Update local chat with encrypted metadata
-    // Get chat key — should be cached by the time AI response metadata arrives
-    let chatKey = chatKeyManager.getKeySync(chat_id);
-    if (!chatKey) {
-      chatKey = await chatKeyManager.getKey(chat_id);
-    }
-    if (!chatKey) {
+    // KEYS-04: converted from getKeySync+getKey to withKey for key-before-content guarantee.
+    // Metadata encryption buffers until key is available rather than failing immediately.
+    let metadataKey: Uint8Array | null = null;
+    try {
+      await chatKeyManager.withKey(
+        chat_id,
+        "encrypt-broadcast-metadata",
+        async (key) => {
+          metadataKey = key;
+        },
+      );
+    } catch (keyError) {
       console.error(
         `[ChatSyncService:ChatUpdates] No chat key available for metadata encryption (chat ${chat_id}). ` +
           `Skipping encrypted metadata update to prevent data corruption.`,
+        keyError,
       );
       return;
     }
+    if (!metadataKey) return; // Safety — should not happen after withKey resolves
+    const chatKey: Uint8Array = metadataKey;
 
     // Import chat-specific encryption function
     const { encryptWithChatKey } = await import("./cryptoService");
@@ -1513,6 +1529,7 @@ export async function handleEncryptedChatMetadataImpl(
       payload.encrypted_chat_key !== undefined &&
       payload.encrypted_chat_key !== chat.encrypted_chat_key
     ) {
+      // KEYS-04: getKeySync acceptable here -- key comparison/validation, not a content decrypt path
       const cachedKey = chatKeyManager.getKeySync(payload.chat_id);
       let rawKeysMatch = false;
 
@@ -1593,7 +1610,23 @@ export async function handleEncryptedChatMetadataImpl(
     // encrypted with a WRONG key. If the incoming field fails to decrypt but
     // our local copy succeeds, reject the incoming value to preserve the
     // correctly-encrypted local version.
-    const chatKey = chatKeyManager.getKeySync(payload.chat_id);
+    // KEYS-04: converted from getKeySync to withKey for key-before-content guarantee.
+    // Field validation uses withKey to buffer until key is available for proper validation.
+    let chatKey: Uint8Array | null = null;
+    try {
+      await chatKeyManager.withKey(
+        payload.chat_id,
+        "validate-broadcast-fields",
+        async (key) => {
+          chatKey = key;
+        },
+      );
+    } catch {
+      // Key unavailable — proceed without validation (accept incoming values as-is)
+      console.debug(
+        `[ChatSyncService:ChatUpdates] Could not obtain key for field validation on chat ${payload.chat_id}, accepting incoming values`,
+      );
+    }
     let needsHeal = false;
 
     for (const field of [
