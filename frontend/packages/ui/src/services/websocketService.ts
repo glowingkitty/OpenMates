@@ -56,7 +56,6 @@ function sanitizeTokenForLogging(token: string | null | undefined): string {
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
   // === Client to Server ===
-  | "initial_sync_request" // Section 5.2: Client sends its local state (chat_id + versions map)
   | "update_title" // Section 6.2: Client sends new title
   | "update_draft" // Section 7.2: Client sends new draft (Tiptap JSON or null)
   | "delete_chat" // Client requests to delete a chat
@@ -67,7 +66,7 @@ type KnownMessageTypes =
   | "ping" // Standard keep-alive
 
   // === Server to Client ===
-  | "initial_sync_response" // Section 5.4 & initial_sync_handler.py: Server responds with sync plan, deltas, and full chat order
+  | "initial_sync_response" // Legacy: no longer sent by server (replaced by phased_sync_handler.py phases 1-3)
   | "priority_chat_ready" // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
   | "cache_primed" // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
   | "chat_title_updated" // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)

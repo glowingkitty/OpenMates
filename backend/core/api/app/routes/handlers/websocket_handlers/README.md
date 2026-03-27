@@ -31,7 +31,7 @@ async def handle_specific_action(
 
 ## Current Handlers:
 
--   `initial_sync_handler.py`: Handles the `initial_sync_request` from the client to synchronize its local state with the server.
+-   `phased_sync_handler.py`: Handles the 3-phase `phased_sync_request` (Phase 1: last chat, Phase 2: recent 20, Phase 3: remaining 100).
 -   `title_update_handler.py`: Processes requests to update a chat's title.
 -   `draft_update_handler.py`: Manages updates to a user's draft for a specific chat.
 -   `delete_draft_handler.py`: Handles requests to delete a user's draft for a chat.

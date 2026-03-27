@@ -7,12 +7,12 @@ the session ID, resume command, and GSD workflow recommendation.
 
 Also adds the `claude-investigated` label to the issue.
 
-Usage (from host via docker exec):
-    docker exec api python3 /app/scripts/linear-update-issue.py \
+Usage (from host):
+    LINEAR_API_KEY=... python3 scripts/linear-update-issue.py \
         --issue-id <linear-uuid> \
         --session-id <claude-session-id>
 
-Runs INSIDE the `api` Docker container where httpx and LINEAR_API_KEY are available.
+Runs on the HOST with LINEAR_API_KEY passed via environment variable.
 """
 
 import argparse
@@ -32,6 +32,7 @@ logging.basicConfig(
 # --- Constants ---
 
 LINEAR_API_URL = "https://api.linear.app/graphql"
+LABEL_WORKINGONIT = "claude-workingonit"
 LABEL_INVESTIGATED = "claude-investigated"
 
 # --- GraphQL Mutations ---
@@ -63,10 +64,10 @@ query GetIssueLabels($id: String!) {
 }
 """
 
-QUERY_INVESTIGATED_LABEL = """
-query GetInvestigatedLabel {
+QUERY_CLAUDE_LABELS = """
+query GetClaudeLabels {
   issueLabels(filter: {
-    name: { eq: "claude-investigated" }
+    name: { in: ["claude-workingonit", "claude-investigated"] }
   }) {
     nodes {
       id
@@ -104,7 +105,7 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
         httpx.HTTPStatusError: If the HTTP request fails.
     """
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": api_key,
         "Content-Type": "application/json",
     }
     payload: Dict[str, Any] = {"query": query}
@@ -121,18 +122,29 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
     return data["data"]
 
 
-def build_comment_body(session_id: str) -> str:
+def build_comment_body(session_id: str, status: str) -> str:
     """
     Build the markdown comment body posted to the Linear issue.
 
     Args:
         session_id: Claude Code session ID from the completed investigation.
+        status: Investigation outcome — "completed", "timeout", or "error".
 
     Returns:
         Formatted markdown string for the Linear comment.
     """
+    if status == "timeout":
+        header = "## Claude Code Investigation Timed Out"
+        status_line = "**Status:** Investigation timed out after 15 minutes. Resume to continue."
+    elif status == "error":
+        header = "## Claude Code Investigation Error"
+        status_line = "**Status:** Investigation encountered an error. Resume to review partial findings."
+    else:
+        header = "## Claude Code Investigation Complete"
+        status_line = "**Status:** Awaiting developer review"
+
     return (
-        "## Claude Code Investigation Complete\n\n"
+        f"{header}\n\n"
         f"**Session ID:** `{session_id}`\n\n"
         "**Resume command:**\n"
         "```\n"
@@ -143,31 +155,36 @@ def build_comment_body(session_id: str) -> str:
         "- `/gsd:debug` -- if the issue is a bug that needs fixing\n"
         "- `/gsd:quick` -- if the issue needs a small feature or refactor\n"
         "- `/gsd:execute-phase` -- if the issue relates to a roadmap phase\n\n"
-        "**Status:** Awaiting developer review"
+        f"{status_line}"
     )
 
 
-def add_investigated_label(api_key: str, issue_id: str) -> None:
+def swap_to_investigated_label(api_key: str, issue_id: str) -> None:
     """
-    Add the claude-investigated label to the issue using read-then-write pattern.
+    Swap claude-workingonit → claude-investigated using read-then-write pattern.
 
     Linear requires the full set of labelIds on update (no addLabel mutation).
-    Reads current labels, appends the investigated label, writes back.
+    Reads current labels, removes workingonit, adds investigated, writes back.
 
     Args:
         api_key: Linear API key.
         issue_id: Linear issue UUID.
     """
-    # Look up investigated label UUID
-    label_result = linear_query(api_key, QUERY_INVESTIGATED_LABEL)
-    label_nodes = label_result.get("issueLabels", {}).get("nodes", [])
-    if not label_nodes:
+    # Look up both label UUIDs
+    label_result = linear_query(api_key, QUERY_CLAUDE_LABELS)
+    label_map: Dict[str, str] = {}
+    for node in label_result.get("issueLabels", {}).get("nodes", []):
+        label_map[node["name"]] = node["id"]
+
+    investigated_label_id = label_map.get(LABEL_INVESTIGATED)
+    workingonit_label_id = label_map.get(LABEL_WORKINGONIT)
+
+    if not investigated_label_id:
         logger.warning(
             "Label '%s' not found in workspace -- skipping label update",
             LABEL_INVESTIGATED,
         )
         return
-    investigated_label_id = label_nodes[0]["id"]
 
     # Get current issue labels
     issue_result = linear_query(
@@ -176,9 +193,14 @@ def add_investigated_label(api_key: str, issue_id: str) -> None:
     current_labels: List[Dict[str, str]] = (
         issue_result.get("issue", {}).get("labels", {}).get("nodes", [])
     )
-    current_ids = [lbl["id"] for lbl in current_labels]
 
-    # Add investigated label if not already present
+    # Remove workingonit, keep everything else
+    current_ids = [
+        lbl["id"] for lbl in current_labels
+        if lbl["id"] != workingonit_label_id
+    ]
+
+    # Add investigated if not already present
     if investigated_label_id not in current_ids:
         current_ids.append(investigated_label_id)
 
@@ -187,7 +209,10 @@ def add_investigated_label(api_key: str, issue_id: str) -> None:
         MUTATION_UPDATE_LABELS,
         variables={"id": issue_id, "labelIds": current_ids},
     )
-    logger.info("Added '%s' label to issue %s", LABEL_INVESTIGATED, issue_id)
+    logger.info(
+        "Swapped '%s' → '%s' on issue %s",
+        LABEL_WORKINGONIT, LABEL_INVESTIGATED, issue_id,
+    )
 
 
 def main() -> None:
@@ -205,6 +230,12 @@ def main() -> None:
         required=True,
         help="Claude Code session ID from the completed investigation",
     )
+    parser.add_argument(
+        "--status",
+        default="completed",
+        choices=["completed", "timeout", "error"],
+        help="Investigation outcome (default: completed)",
+    )
     args = parser.parse_args()
 
     api_key = os.environ.get("LINEAR_API_KEY", "")
@@ -213,7 +244,7 @@ def main() -> None:
         sys.exit(1)
 
     # Post the investigation comment
-    comment_body = build_comment_body(args.session_id)
+    comment_body = build_comment_body(args.session_id, args.status)
     try:
         result = linear_query(
             api_key,

@@ -19,7 +19,6 @@ from .handlers.websocket_handlers.message_received_handler import handle_message
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
-from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.delete_draft_embed_handler import handle_delete_draft_embed
@@ -1876,55 +1875,7 @@ async def websocket_endpoint(
             payload = data.get("payload", {})
 
             # Process different message types
-            if message_type == "initial_sync_request":
-                logger.debug(f"Received initial_sync_request from {user_id}/{device_fingerprint_hash}")
-                
-                # Extract required fields
-                client_chat_ids = payload.get("chat_ids")  # REQUIRED: explicit list of chat IDs
-                client_chat_count = payload.get("chat_count")  # REQUIRED: number of chats
-                
-                # Validate required fields immediately
-                if client_chat_ids is None:
-                    logger.error(f"Missing required field 'chat_ids' in sync request from {user_id}/{device_fingerprint_hash}")
-                    await manager.send_personal_message(
-                        message={"type": "initial_sync_error", "payload": {"message": "Missing required field: chat_ids. Please update your client."}},
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
-                    )
-                    continue
-                
-                if client_chat_count is None:
-                    logger.error(f"Missing required field 'chat_count' in sync request from {user_id}/{device_fingerprint_hash}")
-                    await manager.send_personal_message(
-                        message={"type": "initial_sync_error", "payload": {"message": "Missing required field: chat_count. Please update your client."}},
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
-                    )
-                    continue
-                
-                # Extract optional fields
-                client_chat_versions = payload.get("chat_versions", {})
-                last_sync_timestamp = payload.get("last_sync_timestamp", None)
-                immediate_view_chat_id = payload.get("immediate_view_chat_id", None)
-                pending_message_ids = payload.get("pending_message_ids", {})
-                
-                await handle_initial_sync(
-                    cache_service=cache_service,
-                    directus_service=directus_service,
-                    encryption_service=encryption_service,
-                    manager=manager,
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash,
-                    websocket=websocket,
-                    client_chat_versions=client_chat_versions,
-                    client_chat_ids=client_chat_ids,
-                    client_chat_count=client_chat_count,
-                    last_sync_timestamp=last_sync_timestamp,
-                    immediate_view_chat_id=immediate_view_chat_id,
-                    pending_message_ids=pending_message_ids
-                )
-
-            elif message_type == "update_draft":
+            if message_type == "update_draft":
                 await handle_update_draft(
                     websocket=websocket,
                     manager=manager,
