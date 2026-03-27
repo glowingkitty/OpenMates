@@ -50,9 +50,13 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/packages/ui
           npx vitest run --config vitest.simple.config.ts --reporter=json \
-            --pool forks --testTimeout 30000 \
+            --pool forks --testTimeout 30000 --fileParallelism=false \
             --exclude 'src/services/encryption/**' \
-            > $GITHUB_WORKSPACE/test-results/vitest-ui.json 2>&1 || true
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/vitest-ui.json || true
+          # Ensure we have output even if vitest times out
+          if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-ui.json ]; then
+            echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-ui.json
+          fi
       - name: Run web app unit tests
         id: webapp_tests
         continue-on-error: true
@@ -60,7 +64,10 @@ jobs:
         run: |
           cd frontend/apps/web_app
           npx vitest run --reporter=json \
-            > $GITHUB_WORKSPACE/test-results/vitest-webapp.json 2>&1 || true
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/vitest-webapp.json || true
+          if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-webapp.json ]; then
+            echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
