@@ -156,7 +156,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- Privacy tier wiring: add debug_logging_opted_in to cached profile, create ws_span_helper, wire user attributes in WS dispatch
+- [x] 09-01-PLAN.md -- Privacy tier wiring: add debug_logging_opted_in to cached profile, create ws_span_helper, wire user attributes in WS dispatch
 - [ ] 09-02-PLAN.md -- Instrument all 37 WS handlers with OTel spans via ws_span_helper + audit test
 - [ ] 09-03-PLAN.md -- Rework debug.py trace CLI: full span trees via SQL search API, trace recent subcommand, Unicode tree output
 
