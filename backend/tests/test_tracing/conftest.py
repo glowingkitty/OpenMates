@@ -6,6 +6,14 @@ Provides mock TracerProvider, InMemorySpanExporter, and sample span
 attribute dictionaries for each privacy tier.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'backend.shared...' imports resolve
+_project_root = str(Path(__file__).resolve().parents[3])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 import pytest
 from unittest.mock import MagicMock
 from opentelemetry.sdk.trace import TracerProvider, ReadableSpan

@@ -12,18 +12,14 @@ Bug history this test suite guards against:
 """
 
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 import pytest
 from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
 
 
 class TestSetupTracing:
     """Tests for the setup_tracing() function."""
-
-    def setup_method(self):
-        """Reset the global tracer provider before each test."""
-        # Reset to default NoOpTracerProvider
-        trace.set_tracer_provider(trace.ProxyTracerProvider())
 
     def test_setup_tracing_creates_tracer_provider_with_service_name(self):
         """setup_tracing() creates a TracerProvider with service.name resource attribute."""
@@ -32,19 +28,25 @@ class TestSetupTracing:
             "OPENOBSERVE_ROOT_EMAIL": "test@example.com",
             "OPENOBSERVE_ROOT_PASSWORD": "testpassword",
         }):
-            # Mock auto-instrumentors to prevent side effects
+            captured_provider = {}
+
+            def capture_provider(provider):
+                """Capture the TracerProvider passed to set_tracer_provider."""
+                captured_provider["value"] = provider
+
             with patch("backend.shared.python_utils.tracing.config.FastAPIInstrumentor") as mock_fastapi, \
                  patch("backend.shared.python_utils.tracing.config.HTTPXClientInstrumentor") as mock_httpx, \
                  patch("backend.shared.python_utils.tracing.config.CeleryInstrumentor") as mock_celery, \
                  patch("backend.shared.python_utils.tracing.config.RedisInstrumentor") as mock_redis, \
-                 patch("backend.shared.python_utils.tracing.config.LoggingInstrumentor") as mock_logging:
+                 patch("backend.shared.python_utils.tracing.config.LoggingInstrumentor") as mock_logging, \
+                 patch("backend.shared.python_utils.tracing.config.trace.set_tracer_provider", side_effect=capture_provider):
 
-                from backend.shared.python_utils.tracing import setup_tracing
+                from backend.shared.python_utils.tracing.config import setup_tracing
                 setup_tracing(service_name="test-api")
 
-                provider = trace.get_tracer_provider()
-                # The provider should be a real TracerProvider (not NoOp)
-                from opentelemetry.sdk.trace import TracerProvider
+                # The provider should be a real TracerProvider
+                provider = captured_provider.get("value")
+                assert provider is not None, "set_tracer_provider should have been called"
                 assert isinstance(provider, TracerProvider)
 
                 # Check resource has correct service.name
@@ -62,9 +64,10 @@ class TestSetupTracing:
                  patch("backend.shared.python_utils.tracing.config.HTTPXClientInstrumentor") as mock_httpx, \
                  patch("backend.shared.python_utils.tracing.config.CeleryInstrumentor") as mock_celery, \
                  patch("backend.shared.python_utils.tracing.config.RedisInstrumentor") as mock_redis, \
-                 patch("backend.shared.python_utils.tracing.config.LoggingInstrumentor") as mock_logging:
+                 patch("backend.shared.python_utils.tracing.config.LoggingInstrumentor") as mock_logging, \
+                 patch("backend.shared.python_utils.tracing.config.trace.set_tracer_provider"):
 
-                from backend.shared.python_utils.tracing import setup_tracing
+                from backend.shared.python_utils.tracing.config import setup_tracing
                 setup_tracing(service_name="test-api")
 
                 # Verify each instrumentor was called
@@ -79,10 +82,9 @@ class TestSetupTracing:
         with patch.dict(os.environ, {
             "OTEL_TRACING_ENABLED": "false",
         }):
-            from backend.shared.python_utils.tracing import setup_tracing
-            setup_tracing(service_name="test-api")
+            with patch("backend.shared.python_utils.tracing.config.trace.set_tracer_provider") as mock_set:
+                from backend.shared.python_utils.tracing.config import setup_tracing
+                setup_tracing(service_name="test-api")
 
-            # Provider should NOT be a real TracerProvider
-            provider = trace.get_tracer_provider()
-            from opentelemetry.sdk.trace import TracerProvider
-            assert not isinstance(provider, TracerProvider)
+                # set_tracer_provider should NOT have been called
+                mock_set.assert_not_called()
