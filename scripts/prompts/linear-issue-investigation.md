@@ -2,15 +2,9 @@
 
 # Placeholders replaced by scripts/linear-poller.py before passing to claude:
 
-# {{LINEAR_IDENTIFIER}} — Linear issue identifier (e.g., ENG-42)
+# {{LINEAR_IDENTIFIER}} — Linear issue identifier (e.g., OPE-42)
 
 # {{TITLE}} — Issue title
-
-# {{DESCRIPTION}} — Issue description body
-
-# {{PRIORITY}} — Priority level (Urgent, High, Medium, Low, None)
-
-# {{LABELS}} — Comma-separated label names (excluding claude-investigate)
 
 # {{URL}} — Direct URL to the issue in Linear
 
@@ -25,24 +19,19 @@ implement) a concrete fix.
 
 - **Date:** {{DATE}}
 - **Linear Issue:** {{LINEAR_IDENTIFIER}} — {{URL}}
-- **Priority:** {{PRIORITY}}
-- **Labels:** {{LABELS}}
 
-## Issue Report
+## Step 1: Read the Issue
 
-### Title
+Use your **Linear MCP tools** to read the full issue {{LINEAR_IDENTIFIER}}:
+- Read the title, description, and all comments
+- View any attached images or screenshots — these provide critical visual context
+- Note the priority and labels
 
-{{TITLE}}
+## Step 2: Investigate
 
-### Description
-
-{{DESCRIPTION}}
-
-## Your Task
-
-1. **Understand the problem** — read the title and description carefully. Identify what
-   the reporter was trying to do, what went wrong, and what the expected behaviour was.
-   If the description is sparse, use the title and labels to infer context.
+1. **Understand the problem** — from the issue description, comments, and any screenshots,
+   identify what the reporter was trying to do, what went wrong, and what the expected
+   behaviour was.
 
 2. **Locate the relevant code** — search the codebase for the component, route, or service
    most likely responsible. Use the issue description as your guide.
@@ -60,6 +49,14 @@ implement) a concrete fix.
 6. **Implement the fix** — if you are confident in the diagnosis, apply the fix directly.
    For complex or risky changes, leave a clear TODO comment in the relevant file and describe
    exactly what a developer needs to do to complete it.
+
+## Step 3: Update Linear
+
+After completing the investigation:
+- **Post a summary comment** on the Linear issue with your findings, the fix (if applied),
+  and any recommended next steps
+- **Update the issue status** to "In Review" if you implemented a fix, or leave as-is if
+  you only investigated
 
 ## GSD Command Recommendation
 

@@ -3,8 +3,15 @@ Linear Issue Poller for Claude Code Investigation Pipeline.
 
 Single-run script that queries Linear for issues labeled `claude-investigate`,
 writes trigger files to the agent pipeline, and immediately removes the label
-to prevent duplicate processing. Designed to run every 30s via a systemd
-service loop: `python3 scripts/linear-poller.py`.
+to prevent duplicate processing. Also polls for new developer comments on
+active issues to trigger session resumes.
+
+Designed to run every 30s via a systemd service loop:
+  python3 scripts/linear-poller.py
+
+Claude reads issue details (description, attachments, images, comments) directly
+via the Linear MCP server during the session — this script only needs to detect
+triggers and write minimal prompt files.
 
 Runs on the HOST (not inside Docker). Sources LINEAR_API_KEY from the project
 .env file via the systemd EnvironmentFile directive. httpx is available on
@@ -34,15 +41,13 @@ logging.basicConfig(
 LINEAR_API_URL = "https://api.linear.app/graphql"
 SCRIPT_DIR = Path(__file__).resolve().parent
 TRIGGER_DIR = SCRIPT_DIR / ".agent-triggers"
+TMP_DIR = SCRIPT_DIR / ".tmp"
 PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "prompts" / "linear-issue-investigation.md"
 
-PRIORITY_MAP = {
-    0: "None",
-    1: "Urgent",
-    2: "High",
-    3: "Medium",
-    4: "Low",
-}
+# Session-to-issue mapping and comment state
+SESSIONS_DIR = TMP_DIR / "linear-sessions"
+COMMENT_STATE_FILE = TMP_DIR / "linear-comment-state.json"
+RESUME_PROMPT_PATH = SCRIPT_DIR / "prompts" / "linear-resume-comment.md"
 
 # Label name constants
 LABEL_INVESTIGATE = "claude-investigate"
@@ -52,6 +57,9 @@ LABEL_GSD_ADD_PHASE = "claude-gsd-add-phase"
 LABEL_WORKINGONIT = "claude-workingonit"
 LABEL_COMPLETE = "claude-investigate-complete"
 
+# Labels indicating an active/completed Claude session (for comment polling)
+LABELS_WITH_SESSIONS = [LABEL_WORKINGONIT, LABEL_COMPLETE]
+
 # Trigger labels → (mode, permission_mode, gsd_command)
 TRIGGER_LABELS = {
     LABEL_INVESTIGATE: ("investigate", "plan", None),
@@ -60,13 +68,11 @@ TRIGGER_LABELS = {
     LABEL_GSD_ADD_PHASE: ("gsd-add-phase", "auto", "/gsd:add-phase"),
 }
 
-# Issue fields fragment shared by both queries
+# Issue fields fragment — minimal since Claude reads details via Linear MCP
 ISSUE_FIELDS = """
       id
       identifier
       title
-      description
-      priority
       url
       labels {
         nodes {
@@ -126,6 +132,32 @@ mutation UpdateIssue($id: String!, $labelIds: [String!]!, $stateId: String) {
     issue {
       id
       labels { nodes { id name } }
+    }
+  }
+}
+"""
+
+QUERY_ISSUES_WITH_COMMENTS = """
+query GetIssuesWithComments($labels: [String!]!) {
+  issues(filter: {
+    labels: { name: { in: $labels } }
+  }) {
+    nodes {
+      id
+      identifier
+      title
+      comments(orderBy: createdAt) {
+        nodes {
+          id
+          body
+          createdAt
+          user {
+            id
+            name
+            isMe
+          }
+        }
+      }
     }
   }
 }
@@ -204,13 +236,18 @@ def get_in_progress_state_id(api_key: str) -> Optional[str]:
 
 
 def render_prompt(
-    issue: Dict[str, Any], template_path: Optional[Path] = None
+    issue: Dict[str, Any],
+    template_path: Optional[Path] = None,
 ) -> str:
     """
-    Render a prompt template with issue data.
+    Render a prompt template with issue metadata.
+
+    The prompt is minimal — it tells Claude which Linear issue to investigate.
+    Claude reads the full issue (description, attachments, images, comments)
+    directly via the Linear MCP server during the session.
 
     Args:
-        issue: Linear issue node dict with id, identifier, title, etc.
+        issue: Linear issue node dict with identifier, title, url.
         template_path: Optional override for the template file. Defaults to
             the investigation prompt template.
 
@@ -224,32 +261,22 @@ def render_prompt(
         logger.error("Prompt template not found at %s", path)
         sys.exit(1)
 
-    priority_str = PRIORITY_MAP.get(issue.get("priority", 0), "None")
-
-    # Build labels string (excluding claude-investigate)
-    label_names = [
-        lbl["name"]
-        for lbl in issue.get("labels", {}).get("nodes", [])
-        if lbl["name"] not in (LABEL_INVESTIGATE, LABEL_GSD_QUICK)
-    ]
-    labels_str = ", ".join(label_names) if label_names else "None"
-
     date_str = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return (
         template
         .replace("{{LINEAR_IDENTIFIER}}", issue.get("identifier", ""))
         .replace("{{TITLE}}", issue.get("title", ""))
-        .replace("{{DESCRIPTION}}", issue.get("description", "") or "(no description provided)")
-        .replace("{{PRIORITY}}", priority_str)
-        .replace("{{LABELS}}", labels_str)
         .replace("{{URL}}", issue.get("url", ""))
         .replace("{{DATE}}", date_str)
     )
 
 
 def write_trigger_file(
-    issue: Dict[str, Any], prompt: str, session_id: str, mode: str = "investigate"
+    issue: Dict[str, Any],
+    prompt: str,
+    session_id: str,
+    mode: str = "investigate",
 ) -> Path:
     """
     Write an atomic trigger JSON file for the agent-trigger-watcher.
@@ -359,10 +386,183 @@ def start_investigation(
     logger.info("Posted 'started' comment to %s with session %s", identifier, session_id)
 
 
+def find_session_for_issue(issue_id: str) -> Optional[str]:
+    """
+    Find the Claude session ID associated with a Linear issue UUID.
+
+    Scans the session-to-issue mapping files in scripts/.tmp/linear-sessions/.
+    Each file is named after the session UUID and contains the Linear issue UUID.
+
+    Args:
+        issue_id: Linear issue UUID to look up.
+
+    Returns:
+        Session UUID string if found, None otherwise.
+    """
+    if not SESSIONS_DIR.is_dir():
+        return None
+    for f in SESSIONS_DIR.iterdir():
+        if f.is_file():
+            try:
+                if f.read_text().strip() == issue_id:
+                    return f.name
+            except OSError:
+                continue
+    return None
+
+
+def render_resume_prompt(identifier: str) -> str:
+    """
+    Render the resume prompt template for a comment-triggered resume.
+
+    The prompt is minimal — it tells Claude to check the Linear issue for new
+    comments via the MCP server and continue working based on what was said.
+
+    Args:
+        identifier: Linear issue identifier (e.g., OPE-42).
+
+    Returns:
+        Rendered prompt string for the resume trigger.
+    """
+    if RESUME_PROMPT_PATH.is_file():
+        template = RESUME_PROMPT_PATH.read_text()
+    else:
+        # Inline fallback if template file doesn't exist
+        template = (
+            "The developer left new comments on Linear issue "
+            "{{LINEAR_IDENTIFIER}}.\n\n"
+            "Use your Linear MCP tools to read the latest comments, then "
+            "continue working based on what the developer said."
+        )
+
+    return template.replace("{{LINEAR_IDENTIFIER}}", identifier)
+
+
+def load_comment_state() -> Dict[str, str]:
+    """
+    Load the comment state file tracking last-seen comment IDs per issue.
+
+    Returns:
+        Dict mapping Linear issue UUID to the last-seen comment ID.
+    """
+    if COMMENT_STATE_FILE.is_file():
+        try:
+            return json.loads(COMMENT_STATE_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def save_comment_state(state: Dict[str, str]) -> None:
+    """Save the comment state file atomically."""
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = COMMENT_STATE_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, indent=2))
+    os.rename(str(tmp), str(COMMENT_STATE_FILE))
+
+
+def check_comment_triggers(api_key: str) -> None:
+    """
+    Poll for new developer comments on issues with active Claude sessions.
+
+    Queries issues labeled claude-workingonit or claude-investigate-complete,
+    checks for comments newer than the last-seen comment, skips bot comments
+    (isMe=true), and writes resume trigger files for new human comments.
+
+    Args:
+        api_key: Linear API key for GraphQL queries.
+    """
+    result = linear_query(
+        api_key, QUERY_ISSUES_WITH_COMMENTS, {"labels": LABELS_WITH_SESSIONS}
+    )
+    issues = result.get("issues", {}).get("nodes", [])
+
+    if not issues:
+        return
+
+    state = load_comment_state()
+    state_changed = False
+
+    for issue in issues:
+        issue_id = issue["id"]
+        identifier = issue.get("identifier", "unknown")
+        comments = issue.get("comments", {}).get("nodes", [])
+
+        if not comments:
+            continue
+
+        last_seen_id = state.get(issue_id, "")
+
+        # Find new comments after the last-seen one
+        new_comments: List[Dict[str, Any]] = []
+        found_last_seen = not last_seen_id  # If no last seen, all are new
+        for comment in comments:
+            if comment["id"] == last_seen_id:
+                found_last_seen = True
+                continue
+            if found_last_seen:
+                new_comments.append(comment)
+
+        if not new_comments:
+            continue
+
+        # Update state to the latest comment ID
+        state[issue_id] = comments[-1]["id"]
+        state_changed = True
+
+        # Filter to human comments only (skip bot/API-created ones)
+        human_comments = [
+            c for c in new_comments
+            if not c.get("user", {}).get("isMe", False)
+        ]
+
+        if not human_comments:
+            logger.debug("Skipping %d bot comment(s) on %s", len(new_comments), identifier)
+            continue
+
+        # Find the session ID for this issue
+        session_id = find_session_for_issue(issue_id)
+        if not session_id:
+            logger.warning(
+                "New comment on %s but no session mapping found — skipping",
+                identifier,
+            )
+            continue
+
+        # Write a resume trigger — Claude reads comments directly via MCP
+        prompt = render_resume_prompt(identifier)
+
+        TRIGGER_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "issue_id": f"linear-{identifier}",
+            "linear_issue_id": issue_id,
+            "linear_identifier": identifier,
+            "session_id": session_id,
+            "mode": "resume",
+            "session_title": f"Linear {identifier}: Resume (comment)",
+            "prompt": prompt,
+            "source": "linear-poller-comment",
+            "created_at": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
+        }
+
+        trigger_file = TRIGGER_DIR / f"linear-{identifier}-resume.json"
+        tmp_file = TRIGGER_DIR / f"linear-{identifier}-resume.json.tmp"
+        tmp_file.write_text(json.dumps(payload, indent=2))
+        os.rename(str(tmp_file), str(trigger_file))
+
+        logger.info(
+            "Comment-triggered resume for %s (session %s, %d new comment(s))",
+            identifier, session_id, len(human_comments),
+        )
+
+    if state_changed:
+        save_comment_state(state)
+
+
 def main() -> None:
     """
-    Main polling loop entry point. Fetches issues with claude-investigate label,
-    writes trigger files, and removes the label immediately to prevent duplicates.
+    Main polling loop entry point. Fetches issues with trigger labels, writes
+    trigger files, removes labels, and checks for comment-triggered resumes.
     """
     api_key = os.environ.get("LINEAR_API_KEY", "")
     if not api_key:
@@ -421,19 +621,20 @@ def main() -> None:
 
     if not jobs:
         logger.info("No issues with claude trigger labels found")
-        return
-
-    logger.info("Found %d issue(s) to process", len(jobs))
+    else:
+        logger.info("Found %d issue(s) to process", len(jobs))
 
     for issue, mode, trigger_label, gsd_command in jobs:
         identifier = issue.get("identifier", "unknown")
         title = issue.get("title", "")
 
         try:
-            # Step 1: Pre-generate session UUID
+            # Step 1: Pre-generate session UUID and persist mapping
             session_id = str(uuid.uuid4())
+            SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+            (SESSIONS_DIR / session_id).write_text(issue["id"])
 
-            # Step 2: Render prompt based on mode
+            # Step 2: Render prompt based on mode (Claude reads full issue via MCP)
             if mode == "investigate":
                 prompt = render_prompt(issue)
             else:
@@ -448,7 +649,7 @@ def main() -> None:
                     logger.warning("GSD command prompt template not found, using investigation template")
             logger.info("Rendered %s prompt for %s: %s", mode, identifier, title)
 
-            # Step 3: Write atomic trigger file (includes session_id and mode)
+            # Step 3: Write atomic trigger file
             trigger_path = write_trigger_file(issue, prompt, session_id, mode=mode)
             logger.info("Wrote trigger file: %s", trigger_path)
 
@@ -470,6 +671,13 @@ def main() -> None:
                 exc_info=True,
             )
             # Continue to next issue -- don't let one failure block others
+
+    # --- Comment-triggered resumes ---
+    # Check for new developer comments on issues with active/completed sessions
+    try:
+        check_comment_triggers(api_key)
+    except Exception:
+        logger.error("Comment trigger check failed", exc_info=True)
 
 
 if __name__ == "__main__":
