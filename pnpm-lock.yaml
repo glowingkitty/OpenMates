@@ -141,6 +141,21 @@ importers:
       workbox-cli:
         specifier: ^7.3.0
         version: 7.3.0
+      workbox-core:
+        specifier: ^7.3.0
+        version: 7.3.0
+      workbox-expiration:
+        specifier: ^7.3.0
+        version: 7.3.0
+      workbox-precaching:
+        specifier: ^7.3.0
+        version: 7.3.0
+      workbox-routing:
+        specifier: ^7.3.0
+        version: 7.3.0
+      workbox-strategies:
+        specifier: ^7.3.0
+        version: 7.3.0
       workbox-window:
         specifier: ^7.3.0
         version: 7.3.0
