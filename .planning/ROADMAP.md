@@ -99,9 +99,9 @@ Plans:
 Plans:
 - [x] 06-01-PLAN.md -- Backend OTel SDK setup, auto-instrumentation, TracePrivacyFilter, and unit tests
 - [x] 06-02-PLAN.md -- Directus schema field, user opt-in toggle in Settings UI
-- [ ] 06-03-PLAN.md -- Backend WS custom spans, frontend OTel SDK, OTLP proxy, WS span wrappers
+- [x] 06-03-PLAN.md -- Backend WS custom spans, frontend OTel SDK, OTLP proxy, WS span wrappers
 - [x] 06-04-PLAN.md -- debug.py trace CLI subcommand family
-- [ ] 06-05-PLAN.md -- Issue reporting integration, LoggingMiddleware migration to OTel trace context
+- [x] 06-05-PLAN.md -- Issue reporting integration, LoggingMiddleware migration to OTel trace context
 
 ### Phase 7: E2E Test Suite Repair
 **Goal**: Investigate and fix the 46 failing Playwright specs so the daily test suite passes reliably -- no new tests, only fixing broken ones
