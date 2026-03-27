@@ -1880,13 +1880,27 @@ class TestOrchestrator:
         for jf in json_files:
             try:
                 raw = jf.read_text(encoding="utf-8", errors="replace")
-                # Vitest JSON output may have non-JSON prefix (SvelteKit warnings).
-                # Find the first '{' that starts the actual JSON object.
-                json_start = raw.find("{")
-                json_end = raw.rfind("}")
-                if json_start < 0 or json_end <= json_start:
+                # Vitest/pytest JSON output may have non-JSON prefix (SvelteKit warnings).
+                # Try direct parse first, then look for known JSON markers.
+                data = None
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    # Look for vitest marker: "numTotalTestSuites"
+                    # or pytest marker: "tests"
+                    for marker in ('"numTotalTestSuites"', '"created"'):
+                        idx = raw.find(marker)
+                        if idx >= 0:
+                            brace_idx = raw.rfind("{", 0, idx)
+                            json_end = raw.rfind("}")
+                            if brace_idx >= 0 and json_end > brace_idx:
+                                try:
+                                    data = json.loads(raw[brace_idx:json_end + 1])
+                                    break
+                                except json.JSONDecodeError:
+                                    continue
+                if data is None:
                     continue
-                data = json.loads(raw[json_start:json_end + 1])
             except (json.JSONDecodeError, OSError):
                 continue
 
