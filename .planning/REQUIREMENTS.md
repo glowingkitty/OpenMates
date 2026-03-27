@@ -55,7 +55,7 @@ Requirements for the rebuild. Each maps to roadmap phases.
 - [x] **OTEL-02**: TracePrivacyFilter enforces 3-tier privacy model — Tier 1 (structural, pseudonymized), Tier 2 (diagnostic, auto-escalated on errors), Tier 3 (full, admin + opted-in only)
 - [x] **OTEL-03**: Backend WebSocket handlers extract `_traceparent` from message payloads and create parent spans for downstream operations
 - [x] **OTEL-04**: Frontend OTel SDK auto-instruments fetch() calls and injects `_traceparent` into all outgoing WebSocket messages
-- [ ] **OTEL-05**: OTLP proxy endpoint (`/v1/telemetry/traces`) forwards frontend traces to OpenObserve with authentication
+- [x] **OTEL-05**: OTLP proxy endpoint (`/v1/telemetry/traces`) forwards frontend traces to OpenObserve with authentication
 - [x] **OTEL-06**: User opt-in mechanism: `debug_logging_opted_in` boolean on Directus users collection, Settings UI toggle with disclosure text
 - [x] **OTEL-07**: `debug.py trace` CLI subcommand family queries OpenObserve for trace data and renders indented span timelines
 - [x] **OTEL-08**: Issue reports include trace IDs, `debug.py issue --timeline` merges OTel trace spans into log timeline, LoggingMiddleware uses OTel trace_id
@@ -130,7 +130,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OTEL-02 | Phase 9 | Complete |
 | OTEL-03 | Phase 6 | Complete |
 | OTEL-04 | Phase 6 | Complete |
-| OTEL-05 | Phase 9 | Pending |
+| OTEL-05 | Phase 9 | Complete |
 | OTEL-06 | Phase 9 | Complete |
 | OTEL-07 | Phase 6 | Complete |
 | OTEL-08 | Phase 6 | Complete |
