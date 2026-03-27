@@ -23,7 +23,7 @@ async def handle_update_chat_pinned(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-) -> None:
+    user_otel_attrs: dict = None,) -> None:
     """
     Handles pin/unpin updates from a client device.
 
@@ -33,66 +33,81 @@ async def handle_update_chat_pinned(
     3. Dispatch Celery task to persist pinned state to Directus
     4. Broadcast chat_pinned_updated to all OTHER devices of this user
     """
-    chat_id = payload.get("chat_id")
-    pinned = payload.get("pinned")
-
-    if not chat_id or pinned is None:
-        logger.warning(
-            f"Invalid update_chat (pinned) payload from {user_id}/{device_fingerprint_hash}: "
-            f"missing chat_id or pinned. payload={payload}"
-        )
-        return
-
-    # Normalize to bool
-    pinned = bool(pinned)
-
-    logger.info(
-        f"Processing update_chat pinned={pinned} for chat {chat_id} "
-        f"from {user_id}/{device_fingerprint_hash}"
-    )
-
-    # 1. Update Redis cache (list_item_data hash)
+    _otel_span, _otel_token = None, None
     try:
-        await cache_service.update_chat_pinned_status(
-            user_id=user_id,
-            chat_id=chat_id,
-            pinned=pinned,
-        )
-    except Exception as e:
-        logger.error(
-            f"Failed to update pinned status in cache for chat {chat_id}, "
-            f"user {user_id}: {e}",
-            exc_info=True,
-        )
-        # Continue — Directus persistence and broadcast are still valuable
-        # even if the cache update fails (cache will self-heal on next warm)
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("update_chat_pinned", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        chat_id = payload.get("chat_id")
+        pinned = payload.get("pinned")
 
-    # 2. Persist to Directus via Celery task (async, non-blocking)
-    celery_app_instance.send_task(
-        "app.tasks.persistence_tasks.persist_chat_pinned",
-        kwargs={
-            "chat_id": chat_id,
-            "pinned": pinned,
-        },
-        queue="persistence",
-    )
-    logger.debug(
-        f"Dispatched persist_chat_pinned task for chat {chat_id}, pinned={pinned}"
-    )
+        if not chat_id or pinned is None:
+            logger.warning(
+                f"Invalid update_chat (pinned) payload from {user_id}/{device_fingerprint_hash}: "
+                f"missing chat_id or pinned. payload={payload}"
+            )
+            return
 
-    # 3. Broadcast to all OTHER devices of this user
-    await manager.broadcast_to_user(
-        message={
-            "type": "chat_pinned_updated",
-            "payload": {
+        # Normalize to bool
+        pinned = bool(pinned)
+
+        logger.info(
+            f"Processing update_chat pinned={pinned} for chat {chat_id} "
+            f"from {user_id}/{device_fingerprint_hash}"
+        )
+
+        # 1. Update Redis cache (list_item_data hash)
+        try:
+            await cache_service.update_chat_pinned_status(
+                user_id=user_id,
+                chat_id=chat_id,
+                pinned=pinned,
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to update pinned status in cache for chat {chat_id}, "
+                f"user {user_id}: {e}",
+                exc_info=True,
+            )
+            # Continue — Directus persistence and broadcast are still valuable
+            # even if the cache update fails (cache will self-heal on next warm)
+
+        # 2. Persist to Directus via Celery task (async, non-blocking)
+        celery_app_instance.send_task(
+            "app.tasks.persistence_tasks.persist_chat_pinned",
+            kwargs={
                 "chat_id": chat_id,
                 "pinned": pinned,
             },
-        },
-        user_id=user_id,
-        exclude_device_hash=device_fingerprint_hash,
-    )
-    logger.info(
-        f"Broadcasted chat_pinned_updated for chat {chat_id} (pinned={pinned}) "
-        f"to user {user_id} (excluding device {device_fingerprint_hash})"
-    )
+            queue="persistence",
+        )
+        logger.debug(
+            f"Dispatched persist_chat_pinned task for chat {chat_id}, pinned={pinned}"
+        )
+
+        # 3. Broadcast to all OTHER devices of this user
+        await manager.broadcast_to_user(
+            message={
+                "type": "chat_pinned_updated",
+                "payload": {
+                    "chat_id": chat_id,
+                    "pinned": pinned,
+                },
+            },
+            user_id=user_id,
+            exclude_device_hash=device_fingerprint_hash,
+        )
+        logger.info(
+            f"Broadcasted chat_pinned_updated for chat {chat_id} (pinned={pinned}) "
+            f"to user {user_id} (excluding device {device_fingerprint_hash})"
+        )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

@@ -24,7 +24,7 @@ async def handle_inspiration_viewed(
     cache_service: Any,
     user_id: str,
     payload: dict,
-) -> None:
+    user_otel_attrs: dict = None,) -> None:
     """
     Record that the user viewed a specific Daily Inspiration banner.
 
@@ -33,29 +33,44 @@ async def handle_inspiration_viewed(
         user_id: User UUID (not hashed — used as cache key)
         payload: WebSocket message payload dict containing `inspiration_id`
     """
-    inspiration_id = payload.get("inspiration_id")
-    if not inspiration_id:
-        logger.warning(
-            f"[InspirationViewed] Missing inspiration_id in payload from user {user_id[:8]}..."
-        )
-        return
-
+    _otel_span, _otel_token = None, None
     try:
-        success = await cache_service.track_inspiration_viewed(
-            user_id=user_id,
-            inspiration_id=str(inspiration_id),
-        )
-        if success:
-            logger.debug(
-                f"[InspirationViewed] Tracked view of inspiration {str(inspiration_id)[:8]}... "
-                f"for user {user_id[:8]}..."
-            )
-        else:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("inspiration_viewed", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        inspiration_id = payload.get("inspiration_id")
+        if not inspiration_id:
             logger.warning(
-                f"[InspirationViewed] Failed to track view for user {user_id[:8]}..."
+                f"[InspirationViewed] Missing inspiration_id in payload from user {user_id[:8]}..."
             )
-    except Exception as e:
-        logger.error(
-            f"[InspirationViewed] Error tracking inspiration view for user {user_id[:8]}...: {e}",
-            exc_info=True,
-        )
+            return
+
+        try:
+            success = await cache_service.track_inspiration_viewed(
+                user_id=user_id,
+                inspiration_id=str(inspiration_id),
+            )
+            if success:
+                logger.debug(
+                    f"[InspirationViewed] Tracked view of inspiration {str(inspiration_id)[:8]}... "
+                    f"for user {user_id[:8]}..."
+                )
+            else:
+                logger.warning(
+                    f"[InspirationViewed] Failed to track view for user {user_id[:8]}..."
+                )
+        except Exception as e:
+            logger.error(
+                f"[InspirationViewed] Error tracking inspiration view for user {user_id[:8]}...: {e}",
+                exc_info=True,
+            )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

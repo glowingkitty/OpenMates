@@ -207,7 +207,7 @@ async def handle_focus_mode_rejected(
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
-):
+    user_otel_attrs: dict = None,):
     """
     Handle user rejection of focus mode during the countdown.
 
@@ -222,103 +222,118 @@ async def handle_focus_mode_rejected(
         "focus_id": "jobs-career_insights"
     }
     """
-    chat_id = payload.get("chat_id")
-    focus_id = payload.get("focus_id", "unknown")
-    log_prefix = f"[FocusModeRejected][User: {user_id[:6]}][Device: {device_fingerprint_hash[:6]}]"
-
-    if not chat_id:
-        logger.warning(f"{log_prefix} 'chat_id' not provided in focus_mode_rejected payload")
-        await manager.send_personal_message(
-            message={
-                "type": "error",
-                "payload": {
-                    "message": "chat_id is required to reject focus mode.",
-                    "details": "missing_chat_id"
-                }
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
-        return
-
-    logger.info(f"{log_prefix} User rejected focus mode '{focus_id}' for chat {chat_id}")
-
+    _otel_span, _otel_token = None, None
     try:
-        if not cache_service:
-            cache_service = CacheService()
-        if not directus_service:
-            directus_service = DirectusService()
-            await directus_service.ensure_auth_token()
-        if not encryption_service:
-            encryption_service = EncryptionService()
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("focus_mode_rejected", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        chat_id = payload.get("chat_id")
+        focus_id = payload.get("focus_id", "unknown")
+        log_prefix = f"[FocusModeRejected][User: {user_id[:6]}][Device: {device_fingerprint_hash[:6]}]"
 
-        # Atomically get and delete the pending context
-        # If auto-confirm already consumed it, this returns None
-        pending_context = await cache_service.get_and_delete_pending_focus_activation(chat_id)
-
-        if pending_context:
-            # Happy path: we got the context before auto-confirm
-            # Fire a continuation task WITHOUT focus mode
-            logger.info(f"{log_prefix} Consumed pending context — firing continuation without focus mode")
-            await _trigger_continuation_without_focus(
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service,
-                pending_context=pending_context,
-                log_prefix=log_prefix,
-            )
-        else:
-            # Auto-confirm already consumed it — focus mode is already active
-            # Fall back to the standard deactivation path
-            logger.info(f"{log_prefix} Pending context already consumed — falling back to deactivation")
-            
-            # Clear focus mode from cache
-            await cache_service.update_chat_active_focus_id(
+        if not chat_id:
+            logger.warning(f"{log_prefix} 'chat_id' not provided in focus_mode_rejected payload")
+            await manager.send_personal_message(
+                message={
+                    "type": "error",
+                    "payload": {
+                        "message": "chat_id is required to reject focus mode.",
+                        "details": "missing_chat_id"
+                    }
+                },
                 user_id=user_id,
-                chat_id=chat_id,
-                encrypted_focus_id=None
+                device_fingerprint_hash=device_fingerprint_hash
             )
-            
-            # Clear in Directus via Celery task
-            try:
-                from backend.core.api.app.tasks.celery_config import app as celery_app_instance
-                celery_app_instance.send_task(
-                    'app.tasks.persistence_tasks.persist_chat_active_focus_id',
-                    kwargs={
-                        "chat_id": chat_id,
-                        "encrypted_active_focus_id": None
-                    },
-                    queue='persistence'
+            return
+
+        logger.info(f"{log_prefix} User rejected focus mode '{focus_id}' for chat {chat_id}")
+
+        try:
+            if not cache_service:
+                cache_service = CacheService()
+            if not directus_service:
+                directus_service = DirectusService()
+                await directus_service.ensure_auth_token()
+            if not encryption_service:
+                encryption_service = EncryptionService()
+
+            # Atomically get and delete the pending context
+            # If auto-confirm already consumed it, this returns None
+            pending_context = await cache_service.get_and_delete_pending_focus_activation(chat_id)
+
+            if pending_context:
+                # Happy path: we got the context before auto-confirm
+                # Fire a continuation task WITHOUT focus mode
+                logger.info(f"{log_prefix} Consumed pending context — firing continuation without focus mode")
+                await _trigger_continuation_without_focus(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    pending_context=pending_context,
+                    log_prefix=log_prefix,
                 )
-            except Exception as celery_error:
-                logger.error(f"{log_prefix} Error dispatching deactivation task: {celery_error}", exc_info=True)
+            else:
+                # Auto-confirm already consumed it — focus mode is already active
+                # Fall back to the standard deactivation path
+                logger.info(f"{log_prefix} Pending context already consumed — falling back to deactivation")
+            
+                # Clear focus mode from cache
+                await cache_service.update_chat_active_focus_id(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    encrypted_focus_id=None
+                )
+            
+                # Clear in Directus via Celery task
+                try:
+                    from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+                    celery_app_instance.send_task(
+                        'app.tasks.persistence_tasks.persist_chat_active_focus_id',
+                        kwargs={
+                            "chat_id": chat_id,
+                            "encrypted_active_focus_id": None
+                        },
+                        queue='persistence'
+                    )
+                except Exception as celery_error:
+                    logger.error(f"{log_prefix} Error dispatching deactivation task: {celery_error}", exc_info=True)
 
-        # Acknowledge the rejection to the client
-        await manager.send_personal_message(
-            message={
-                "type": "focus_mode_rejected_ack",
-                "payload": {
-                    "chat_id": chat_id,
-                    "focus_id": focus_id,
-                    "status": "rejected",
-                    # Let the client know if we caught it before auto-confirm
-                    "caught_before_activation": pending_context is not None,
-                }
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
+            # Acknowledge the rejection to the client
+            await manager.send_personal_message(
+                message={
+                    "type": "focus_mode_rejected_ack",
+                    "payload": {
+                        "chat_id": chat_id,
+                        "focus_id": focus_id,
+                        "status": "rejected",
+                        # Let the client know if we caught it before auto-confirm
+                        "caught_before_activation": pending_context is not None,
+                    }
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
 
-    except Exception as e:
-        logger.error(f"{log_prefix} Error handling focus mode rejection: {e}", exc_info=True)
-        await manager.send_personal_message(
-            message={
-                "type": "error",
-                "payload": {
-                    "message": "Failed to reject focus mode.",
-                    "details": str(e)
-                }
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
+        except Exception as e:
+            logger.error(f"{log_prefix} Error handling focus mode rejection: {e}", exc_info=True)
+            await manager.send_personal_message(
+                message={
+                    "type": "error",
+                    "payload": {
+                        "message": "Failed to reject focus mode.",
+                        "details": str(e)
+                    }
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

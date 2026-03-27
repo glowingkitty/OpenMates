@@ -23,7 +23,7 @@ async def handle_key_received(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-) -> None:
+    user_otel_attrs: dict = None,) -> None:
     """
     Handles key_received ACK from a recipient device after successful key injection.
 
@@ -37,28 +37,43 @@ async def handle_key_received(
         device_fingerprint_hash: SHA-256 hash of the acknowledging device fingerprint
         payload: Must contain 'chat_id' (the chat whose key was received)
     """
-    chat_id = payload.get("chat_id")
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("key_received", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        chat_id = payload.get("chat_id")
 
-    if not chat_id:
-        logger.warning(
-            f"[KeyReceived] Missing chat_id in key_received from "
-            f"device {device_fingerprint_hash[:8]}... — ignoring"
+        if not chat_id:
+            logger.warning(
+                f"[KeyReceived] Missing chat_id in key_received from "
+                f"device {device_fingerprint_hash[:8]}... — ignoring"
+            )
+            return
+
+        logger.info(
+            f"Key received ack from device {device_fingerprint_hash[:8]} for chat {chat_id}"
         )
-        return
 
-    logger.info(
-        f"Key received ack from device {device_fingerprint_hash[:8]} for chat {chat_id}"
-    )
-
-    # Relay acknowledgment to all OTHER devices of this user (the sender device(s))
-    await manager.broadcast_to_user(
-        {
-            "type": "key_delivery_confirmed",
-            "payload": {
-                "chat_id": chat_id,
-                "device_hash": device_fingerprint_hash,
+        # Relay acknowledgment to all OTHER devices of this user (the sender device(s))
+        await manager.broadcast_to_user(
+            {
+                "type": "key_delivery_confirmed",
+                "payload": {
+                    "chat_id": chat_id,
+                    "device_hash": device_fingerprint_hash,
+                },
             },
-        },
-        user_id,
-        exclude_device_hash=device_fingerprint_hash,
-    )
+            user_id,
+            exclude_device_hash=device_fingerprint_hash,
+        )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

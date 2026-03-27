@@ -119,8 +119,8 @@ async def handle_phased_sync_request(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles phased sync requests from the client.
     This implements the 3-phase sync architecture with version-aware delta sync:
@@ -131,71 +131,86 @@ async def handle_phased_sync_request(
     The client sends version data so we can skip sending chats that are already up-to-date.
     Phase 1 ALWAYS sends suggestions - Phase 3 NEVER sends suggestions.
     """
+    _otel_span, _otel_token = None, None
     try:
-        sync_phase = payload.get("phase", "all")
-        # Extract client version data for delta checking
-        client_chat_versions = payload.get("client_chat_versions", {})
-        client_chat_ids = payload.get("client_chat_ids", [])
-        client_suggestions_count = payload.get("client_suggestions_count", 0)
-        # Client sends the embed IDs it already has stored in IndexedDB so the server
-        # can skip re-sending those embeds (cross-session deduplication).
-        client_embed_ids: List[str] = payload.get("client_embed_ids", [])
-        
-        logger.info(
-            f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
-            f"client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions, "
-            f"{len(client_embed_ids)} embed(s) already on device"
-        )
-        
-        # Track sent embed IDs across all phases to prevent duplicates
-        # Embeds can be shared across chats in different phases
-        sent_embed_ids: set = set()
-        
-        if sync_phase == "phase1" or sync_phase == "all":
-            await _handle_phase1_sync(
-                manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids
-            )
-        
-        if sync_phase == "phase2" or sync_phase == "all":
-            await _handle_phase2_sync(
-                manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
-            )
-        
-        if sync_phase == "phase3" or sync_phase == "all":
-            await _handle_phase3_sync(
-                manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
-            )
-        
-        # Send sync completion event
-        await manager.send_personal_message(
-            {
-                "type": "phased_sync_complete",
-                "payload": {
-                    "phase": sync_phase,
-                    "timestamp": int(datetime.now(timezone.utc).timestamp())
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
-        
-        logger.info(f"Phased sync complete for user {user_id}, phase: {sync_phase}")
-        
-    except Exception as e:
-        logger.error(f"Error handling phased sync for user {user_id}: {e}", exc_info=True)
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("phased_sync_request", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
         try:
+            sync_phase = payload.get("phase", "all")
+            # Extract client version data for delta checking
+            client_chat_versions = payload.get("client_chat_versions", {})
+            client_chat_ids = payload.get("client_chat_ids", [])
+            client_suggestions_count = payload.get("client_suggestions_count", 0)
+            # Client sends the embed IDs it already has stored in IndexedDB so the server
+            # can skip re-sending those embeds (cross-session deduplication).
+            client_embed_ids: List[str] = payload.get("client_embed_ids", [])
+        
+            logger.info(
+                f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
+                f"client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions, "
+                f"{len(client_embed_ids)} embed(s) already on device"
+            )
+        
+            # Track sent embed IDs across all phases to prevent duplicates
+            # Embeds can be shared across chats in different phases
+            sent_embed_ids: set = set()
+        
+            if sync_phase == "phase1" or sync_phase == "all":
+                await _handle_phase1_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    client_chat_versions, client_chat_ids, sent_embed_ids
+                )
+        
+            if sync_phase == "phase2" or sync_phase == "all":
+                await _handle_phase2_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
+                )
+        
+            if sync_phase == "phase3" or sync_phase == "all":
+                await _handle_phase3_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
+                )
+        
+            # Send sync completion event
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to process phased sync request"}},
+                {
+                    "type": "phased_sync_complete",
+                    "payload": {
+                        "phase": sync_phase,
+                        "timestamp": int(datetime.now(timezone.utc).timestamp())
+                    }
+                },
                 user_id,
                 device_fingerprint_hash
             )
-        except Exception as send_err:
-            logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+        
+            logger.info(f"Phased sync complete for user {user_id}, phase: {sync_phase}")
+        
+        except Exception as e:
+            logger.error(f"Error handling phased sync for user {user_id}: {e}", exc_info=True)
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to process phased sync request"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+            except Exception as send_err:
+                logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
 
 
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass
 async def _handle_phase1_sync(
     manager: ConnectionManager,
     cache_service: CacheService,
@@ -1636,8 +1651,8 @@ async def handle_sync_status_request(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles sync status requests from the client.
     Returns the current sync status and progress.
@@ -1646,56 +1661,71 @@ async def handle_sync_status_request(
     this handler auto-dispatches a cache warming task so the client doesn't get stuck waiting
     forever. The client will receive a cache_primed push event when warming completes.
     """
+    _otel_span, _otel_token = None, None
     try:
-        logger.info(f"Handling sync status request for user {user_id}")
-        
-        # Check cache primed status
-        cache_primed = await cache_service.is_user_cache_primed(user_id)
-        
-        # Get current chat count from cache
-        chat_ids = await cache_service.get_chat_ids_versions(user_id, with_scores=False)
-        chat_count = len(chat_ids) if chat_ids else 0
-        
-        logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
-        
-        # AUTO-REWARM: If cache is not primed (e.g. primed_flag TTL expired after device was
-        # offline for >6 hours), dispatch a new cache warming task. Without this, the client
-        # would be stuck forever at "Loading chats..." because:
-        # 1. The client only calls /lookup during initial login (not on WebSocket reconnect)
-        # 2. /lookup is what normally triggers cache warming
-        # 3. The cache_primed push event from the original warming task is long gone
-        # This ensures that reconnecting devices always get their cache re-warmed.
-        if not cache_primed:
-            await _trigger_cache_rewarming_if_needed(cache_service, user_id)
-        
-        # Send sync status to client
-        await manager.send_personal_message(
-            {
-                "type": "sync_status_response",
-                "payload": {
-                    "is_primed": cache_primed,  # Frontend expects 'is_primed' not 'cache_primed'
-                    "chat_count": chat_count,
-                    "timestamp": int(datetime.now(timezone.utc).timestamp())
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
-        
-        logger.info(f"Sync status sent for user {user_id}: primed={cache_primed}, chats={chat_count}")
-        
-    except Exception as e:
-        logger.error(f"Error handling sync status for user {user_id}: {e}", exc_info=True)
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("sync_status_request", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
         try:
+            logger.info(f"Handling sync status request for user {user_id}")
+        
+            # Check cache primed status
+            cache_primed = await cache_service.is_user_cache_primed(user_id)
+        
+            # Get current chat count from cache
+            chat_ids = await cache_service.get_chat_ids_versions(user_id, with_scores=False)
+            chat_count = len(chat_ids) if chat_ids else 0
+        
+            logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
+        
+            # AUTO-REWARM: If cache is not primed (e.g. primed_flag TTL expired after device was
+            # offline for >6 hours), dispatch a new cache warming task. Without this, the client
+            # would be stuck forever at "Loading chats..." because:
+            # 1. The client only calls /lookup during initial login (not on WebSocket reconnect)
+            # 2. /lookup is what normally triggers cache warming
+            # 3. The cache_primed push event from the original warming task is long gone
+            # This ensures that reconnecting devices always get their cache re-warmed.
+            if not cache_primed:
+                await _trigger_cache_rewarming_if_needed(cache_service, user_id)
+        
+            # Send sync status to client
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to get sync status"}},
+                {
+                    "type": "sync_status_response",
+                    "payload": {
+                        "is_primed": cache_primed,  # Frontend expects 'is_primed' not 'cache_primed'
+                        "chat_count": chat_count,
+                        "timestamp": int(datetime.now(timezone.utc).timestamp())
+                    }
+                },
                 user_id,
                 device_fingerprint_hash
             )
-        except Exception as send_err:
-            logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+        
+            logger.info(f"Sync status sent for user {user_id}: primed={cache_primed}, chats={chat_count}")
+        
+        except Exception as e:
+            logger.error(f"Error handling sync status for user {user_id}: {e}", exc_info=True)
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to get sync status"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+            except Exception as send_err:
+                logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
 
 
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass
 async def _trigger_cache_rewarming_if_needed(
     cache_service: CacheService,
     user_id: str

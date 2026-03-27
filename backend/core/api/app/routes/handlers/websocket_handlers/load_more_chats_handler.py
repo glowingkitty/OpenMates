@@ -34,8 +34,8 @@ async def handle_load_more_chats(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handle client request to load more chats beyond the initial 100.
     
@@ -51,24 +51,95 @@ async def handle_load_more_chats(
             total_count: Total number of chats for this user
             offset: The offset that was requested (for client-side tracking)
     """
+    _otel_span, _otel_token = None, None
     try:
-        offset = payload.get("offset", 100)
-        limit = min(payload.get("limit", 20), 50)  # Cap at 50 to prevent abuse
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("load_more_chats", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        try:
+            offset = payload.get("offset", 100)
+            limit = min(payload.get("limit", 20), 50)  # Cap at 50 to prevent abuse
         
-        logger.info(f"Loading more chats for user {user_id[:8]}...: offset={offset}, limit={limit}")
+            logger.info(f"Loading more chats for user {user_id[:8]}...: offset={offset}, limit={limit}")
         
-        # Get total chat count from Redis sorted set
-        total_count = await _get_total_chat_count(cache_service, user_id)
+            # Get total chat count from Redis sorted set
+            total_count = await _get_total_chat_count(cache_service, user_id)
         
-        if total_count <= offset:
-            # No more chats available
-            logger.info(f"No more chats for user {user_id[:8]}...: total={total_count}, offset={offset}")
+            if total_count <= offset:
+                # No more chats available
+                logger.info(f"No more chats for user {user_id[:8]}...: total={total_count}, offset={offset}")
+                await manager.send_personal_message(
+                    {
+                        "type": "load_more_chats_response",
+                        "payload": {
+                            "chats": [],
+                            "has_more": False,
+                            "total_count": total_count,
+                            "offset": offset
+                        }
+                    },
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+        
+            # Fetch chat IDs from cache (sorted by last_edited_overall_timestamp desc)
+            end_index = offset + limit - 1  # Redis ZRANGE end is inclusive
+            cached_chat_ids = await cache_service.get_chat_ids_versions(
+                user_id, start=offset, end=end_index, with_scores=False
+            )
+        
+            chats_to_send = []
+        
+            if cached_chat_ids:
+                logger.info(f"Load more: Using {len(cached_chat_ids)} cached chat IDs for user {user_id[:8]}... (offset={offset})")
+            
+                # Fetch metadata for each chat from cache — batch Redis lookups
+                chat_ids_needing_directus = []
+                batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
+                batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
+
+                for chat_id in cached_chat_ids:
+                    cached_list_item = batch_list_items.get(chat_id)
+                    cached_versions = batch_versions.get(chat_id)
+
+                    if not cached_list_item:
+                        chat_ids_needing_directus.append(chat_id)
+                        continue
+
+                    # Build chat wrapper in same format as Phase 2/3 (metadata only, no messages)
+                    chat_wrapper = _build_chat_wrapper_from_cache(chat_id, cached_list_item, cached_versions)
+                    chats_to_send.append(chat_wrapper)
+            
+                # Fetch any missing chats from Directus
+                if chat_ids_needing_directus:
+                    logger.info(f"Load more: Fetching {len(chat_ids_needing_directus)} chats from Directus (cache miss)")
+                    directus_chats = await _fetch_chats_from_directus(
+                        directus_service, user_id, chat_ids_needing_directus
+                    )
+                    chats_to_send.extend(directus_chats)
+            else:
+                # Cache empty — fall back to Directus with offset/limit
+                logger.info(f"Load more: No cached chat IDs, falling back to Directus for user {user_id[:8]}...")
+                chats_to_send = await _fetch_chats_from_directus_paginated(
+                    directus_service, user_id, offset, limit
+                )
+        
+            has_more = (offset + len(chats_to_send)) < total_count
+        
+            logger.info(
+                f"Load more complete for user {user_id[:8]}...: "
+                f"sent={len(chats_to_send)}, offset={offset}, total={total_count}, has_more={has_more}"
+            )
+        
             await manager.send_personal_message(
                 {
                     "type": "load_more_chats_response",
                     "payload": {
-                        "chats": [],
-                        "has_more": False,
+                        "chats": chats_to_send,
+                        "has_more": has_more,
                         "total_count": total_count,
                         "offset": offset
                     }
@@ -76,90 +147,34 @@ async def handle_load_more_chats(
                 user_id,
                 device_fingerprint_hash
             )
-            return
         
-        # Fetch chat IDs from cache (sorted by last_edited_overall_timestamp desc)
-        end_index = offset + limit - 1  # Redis ZRANGE end is inclusive
-        cached_chat_ids = await cache_service.get_chat_ids_versions(
-            user_id, start=offset, end=end_index, with_scores=False
-        )
-        
-        chats_to_send = []
-        
-        if cached_chat_ids:
-            logger.info(f"Load more: Using {len(cached_chat_ids)} cached chat IDs for user {user_id[:8]}... (offset={offset})")
-            
-            # Fetch metadata for each chat from cache — batch Redis lookups
-            chat_ids_needing_directus = []
-            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
-            batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
-
-            for chat_id in cached_chat_ids:
-                cached_list_item = batch_list_items.get(chat_id)
-                cached_versions = batch_versions.get(chat_id)
-
-                if not cached_list_item:
-                    chat_ids_needing_directus.append(chat_id)
-                    continue
-
-                # Build chat wrapper in same format as Phase 2/3 (metadata only, no messages)
-                chat_wrapper = _build_chat_wrapper_from_cache(chat_id, cached_list_item, cached_versions)
-                chats_to_send.append(chat_wrapper)
-            
-            # Fetch any missing chats from Directus
-            if chat_ids_needing_directus:
-                logger.info(f"Load more: Fetching {len(chat_ids_needing_directus)} chats from Directus (cache miss)")
-                directus_chats = await _fetch_chats_from_directus(
-                    directus_service, user_id, chat_ids_needing_directus
-                )
-                chats_to_send.extend(directus_chats)
-        else:
-            # Cache empty — fall back to Directus with offset/limit
-            logger.info(f"Load more: No cached chat IDs, falling back to Directus for user {user_id[:8]}...")
-            chats_to_send = await _fetch_chats_from_directus_paginated(
-                directus_service, user_id, offset, limit
+        except Exception as e:
+            logger.error(f"Error loading more chats for user {user_id}: {e}", exc_info=True)
+            # Send error response so client can handle gracefully
+            await manager.send_personal_message(
+                {
+                    "type": "load_more_chats_response",
+                    "payload": {
+                        "chats": [],
+                        "has_more": False,
+                        "total_count": 0,
+                        "offset": payload.get("offset", 100),
+                        "error": "Failed to load more chats"
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
             )
-        
-        has_more = (offset + len(chats_to_send)) < total_count
-        
-        logger.info(
-            f"Load more complete for user {user_id[:8]}...: "
-            f"sent={len(chats_to_send)}, offset={offset}, total={total_count}, has_more={has_more}"
-        )
-        
-        await manager.send_personal_message(
-            {
-                "type": "load_more_chats_response",
-                "payload": {
-                    "chats": chats_to_send,
-                    "has_more": has_more,
-                    "total_count": total_count,
-                    "offset": offset
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
-        
-    except Exception as e:
-        logger.error(f"Error loading more chats for user {user_id}: {e}", exc_info=True)
-        # Send error response so client can handle gracefully
-        await manager.send_personal_message(
-            {
-                "type": "load_more_chats_response",
-                "payload": {
-                    "chats": [],
-                    "has_more": False,
-                    "total_count": 0,
-                    "offset": payload.get("offset", 100),
-                    "error": "Failed to load more chats"
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
 
 
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass
 async def _get_total_chat_count(cache_service: CacheService, user_id: str) -> int:
     """Get the total number of chats for a user from the Redis sorted set."""
     try:

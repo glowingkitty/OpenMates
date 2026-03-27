@@ -24,31 +24,25 @@ async def handle_initial_sync(
     client_chat_count: int,  # REQUIRED: number of chats client has
     last_sync_timestamp: Optional[int] = None,
     immediate_view_chat_id: Optional[str] = None,
-    pending_message_ids: Optional[Dict[str, List[str]]] = None
+    pending_message_ids: Optional[Dict[str, List[str]]] = None,
+    user_otel_attrs: dict = None,
 ):
     logger.info(f"Handling initial_sync_request for user {user_id}, device {device_fingerprint_hash}. Client has {client_chat_count} chats. Last sync timestamp: {last_sync_timestamp}")
 
-    # --- OpenTelemetry span creation for distributed tracing ---
-    # Guard with ImportError so the handler works if OTel is not installed.
-    _otel_span = None
-    _otel_token = None
+    # --- OpenTelemetry span creation via ws_span_helper (migrated from inline) ---
+    _otel_span, _otel_token = None, None
     try:
-        from opentelemetry import trace as _trace, context as _ctx
-        from opentelemetry.trace import StatusCode as _StatusCode
-        _tracer = _trace.get_tracer(__name__)
-        _otel_span = _tracer.start_span(
-            "ws.initial_sync",
-            attributes={
-                "ws.message_type": "initial_sync",
-                "enduser.id": str(user_id),
-                "ws.client_chat_count": str(client_chat_count) if client_chat_count else "0",
-            },
-        )
-        _otel_token = _ctx.attach(_ctx.set_value("current-span", _otel_span))
-    except ImportError:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("initial_sync", user_id, None, user_otel_attrs)
+    except Exception:
         pass
-    except Exception as _otel_err:
-        logger.debug("OTel span creation failed (non-fatal): %s", _otel_err)
+
+    # Handler-specific span attribute (preserved from inline OTel)
+    if _otel_span is not None:
+        try:
+            _otel_span.set_attribute("ws.client_chat_count", str(client_chat_count) if client_chat_count else "0")
+        except Exception:
+            pass
 
     chats_to_add_or_update_data: List[ChatSyncData] = []
     chat_ids_to_delete_on_client: List[str] = []
@@ -460,10 +454,12 @@ async def handle_initial_sync(
     except Exception as e:
         logger.error(f"Error during handle_initial_sync for user {user_id}, device {device_fingerprint_hash}: {e}", exc_info=True)
 
-        # Mark OTel span as error
+        # Mark OTel span as error via ws_span_helper
         if _otel_span is not None:
             try:
-                _otel_span.set_status(_StatusCode.ERROR, str(e))
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token, error=e)
+                _otel_span, _otel_token = None, None  # Prevent double-end in finally
             except Exception:
                 pass
 
@@ -476,14 +472,10 @@ async def handle_initial_sync(
         except Exception as send_err:
             logger.error(f"Failed to send error message for initial_sync to user {user_id}: {send_err}")
     finally:
-        # End the OTel span and detach context
+        # End the OTel span and detach context via ws_span_helper
         if _otel_span is not None:
             try:
-                _otel_span.end()
-            except Exception:
-                pass
-        if _otel_token is not None:
-            try:
-                _ctx.detach(_otel_token)
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
             except Exception:
                 pass

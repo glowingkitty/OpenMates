@@ -89,8 +89,8 @@ async def handle_app_settings_memories_confirmed(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles app settings/memories confirmation from client.
     
@@ -113,59 +113,74 @@ async def handle_app_settings_memories_confirmed(
         device_fingerprint_hash: Device fingerprint hash
         payload: Payload containing chat_id and app_settings_memories array
     """
+    _otel_span, _otel_token = None, None
     try:
-        chat_id = payload.get("chat_id")
-        app_settings_memories = payload.get("app_settings_memories", [])
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("app_settings_memories_confirmed", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        try:
+            chat_id = payload.get("chat_id")
+            app_settings_memories = payload.get("app_settings_memories", [])
         
-        if not chat_id:
-            logger.warning(f"Invalid app_settings_memories payload from user {user_id}: missing chat_id")
-            return
+            if not chat_id:
+                logger.warning(f"Invalid app_settings_memories payload from user {user_id}: missing chat_id")
+                return
         
-        # Verify chat ownership
-        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-        if not is_owner:
-            logger.warning(f"User {user_id} attempted to confirm app settings/memories for chat {chat_id} they don't own. Rejecting.")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+            # Verify chat ownership
+            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            if not is_owner:
+                logger.warning(f"User {user_id} attempted to confirm app settings/memories for chat {chat_id} they don't own. Rejecting.")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
 
-        # app_settings_memories can be empty if user rejected all categories
-        # We still need to continue processing (without the data)
-        is_rejection = not app_settings_memories or not isinstance(app_settings_memories, list) or len(app_settings_memories) == 0
+            # app_settings_memories can be empty if user rejected all categories
+            # We still need to continue processing (without the data)
+            is_rejection = not app_settings_memories or not isinstance(app_settings_memories, list) or len(app_settings_memories) == 0
         
-        if is_rejection:
-            logger.info(f"User {user_id} rejected all app settings/memories for chat {chat_id} - will continue processing without data")
-        else:
-            # Cache the confirmed app settings/memories
-            await _cache_app_settings_memories(
+            if is_rejection:
+                logger.info(f"User {user_id} rejected all app settings/memories for chat {chat_id} - will continue processing without data")
+            else:
+                # Cache the confirmed app settings/memories
+                await _cache_app_settings_memories(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    manager=manager,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    app_settings_memories=app_settings_memories
+                )
+        
+            # Load the pending request context and trigger re-processing
+            await _trigger_continuation(
                 cache_service=cache_service,
                 directus_service=directus_service,
                 encryption_service=encryption_service,
-                manager=manager,
                 user_id=user_id,
                 chat_id=chat_id,
                 device_fingerprint_hash=device_fingerprint_hash,
-                app_settings_memories=app_settings_memories
+                is_rejection=is_rejection
             )
         
-        # Load the pending request context and trigger re-processing
-        await _trigger_continuation(
-            cache_service=cache_service,
-            directus_service=directus_service,
-            encryption_service=encryption_service,
-            user_id=user_id,
-            chat_id=chat_id,
-            device_fingerprint_hash=device_fingerprint_hash,
-            is_rejection=is_rejection
-        )
-        
-    except Exception as e:
-        logger.error(f"Error handling app settings/memories confirmation for user {user_id}: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error handling app settings/memories confirmation for user {user_id}: {e}", exc_info=True)
 
 
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass
 async def _cache_app_settings_memories(
     cache_service: CacheService,
     directus_service: DirectusService,

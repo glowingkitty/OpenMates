@@ -25,7 +25,7 @@ async def handle_inspiration_received(
     cache_service: Any,
     user_id: str,
     payload: dict,
-) -> None:
+    user_otel_attrs: dict = None,) -> None:
     """
     ACK handler: client confirms it received daily inspirations.
 
@@ -41,7 +41,22 @@ async def handle_inspiration_received(
         user_id: User UUID (not hashed - used as cache key)
         payload: WebSocket message payload dict (currently unused)
     """
-    logger.debug(
-        f"[InspirationReceived] Received client ACK from user {user_id[:8]}... "
-        f"(no-op — pending cache is cleared server-side after broadcast)"
-    )
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("inspiration_received", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        logger.debug(
+            f"[InspirationReceived] Received client ACK from user {user_id[:8]}... "
+            f"(no-op — pending cache is cleared server-side after broadcast)"
+        )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

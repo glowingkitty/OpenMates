@@ -21,63 +21,93 @@ async def handle_delete_chat(
     encryption_service: EncryptionService, # Passed to handler, may not be directly used but available
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
-    chat_id = payload.get("chatId")
-    if not chat_id:
-        logger.warning(f"Received delete_chat without chatId from {user_id}/{device_fingerprint_hash}")
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "Missing chatId for delete_chat"}},
-            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-        )
-        return
-
-    logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
-    
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
+    _otel_span, _otel_token = None, None
     try:
-        # 0. Verify chat ownership before processing deletion
-        # This prevents users from deleting chats they don't own.
-        # CRITICAL: Allow deletion for chats that don't exist in Directus yet
-        # (e.g., new chats that only exist locally and have not been persisted).
-        try:
-            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-            if not is_owner:
-                # Check if the chat exists at all - if not, treat as new/local chat (allowed).
-                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata:
-                    # Chat exists but user doesn't own it - reject deletion.
-                    logger.warning(
-                        f"User {user_id} attempted to delete existing chat {chat_id} they don't own. Rejecting."
-                    )
-                    await manager.send_personal_message(
-                        message={
-                            "type": "error",
-                            "payload": {
-                                "message": "You do not have permission to delete this chat.",
-                                "chat_id": chat_id,
-                            },
-                        },
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash,
-                    )
-                    return
-                else:
-                    # Chat does not exist in Directus - treat as local-only chat.
-                    # We still proceed with cache tombstoning to ensure any residual cache state is cleaned up.
-                    logger.debug(
-                        f"Chat {chat_id} not found in Directus during delete_chat - treating as new/local chat (allowed)."
-                    )
-        except Exception as ownership_error:
-            # If ownership check fails, attempt to determine if chat exists.
-            # If it exists, fail closed; if not, allow deletion to proceed.
-            logger.error(
-                f"Error verifying ownership for chat {chat_id}, user {user_id} during delete_chat: {ownership_error}",
-                exc_info=True,
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("delete_chat", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        chat_id = payload.get("chatId")
+        if not chat_id:
+            logger.warning(f"Received delete_chat without chatId from {user_id}/{device_fingerprint_hash}")
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": "Missing chatId for delete_chat"}},
+                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
             )
+            return
+
+        logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
+    
+        try:
+            # 0. Verify chat ownership before processing deletion
+            # This prevents users from deleting chats they don't own.
+            # CRITICAL: Allow deletion for chats that don't exist in Directus yet
+            # (e.g., new chats that only exist locally and have not been persisted).
             try:
-                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata:
-                    # Existing chat but we couldn't verify ownership - reject for security.
+                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+                if not is_owner:
+                    # Check if the chat exists at all - if not, treat as new/local chat (allowed).
+                    chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                    if chat_metadata:
+                        # Chat exists but user doesn't own it - reject deletion.
+                        logger.warning(
+                            f"User {user_id} attempted to delete existing chat {chat_id} they don't own. Rejecting."
+                        )
+                        await manager.send_personal_message(
+                            message={
+                                "type": "error",
+                                "payload": {
+                                    "message": "You do not have permission to delete this chat.",
+                                    "chat_id": chat_id,
+                                },
+                            },
+                            user_id=user_id,
+                            device_fingerprint_hash=device_fingerprint_hash,
+                        )
+                        return
+                    else:
+                        # Chat does not exist in Directus - treat as local-only chat.
+                        # We still proceed with cache tombstoning to ensure any residual cache state is cleaned up.
+                        logger.debug(
+                            f"Chat {chat_id} not found in Directus during delete_chat - treating as new/local chat (allowed)."
+                        )
+            except Exception as ownership_error:
+                # If ownership check fails, attempt to determine if chat exists.
+                # If it exists, fail closed; if not, allow deletion to proceed.
+                logger.error(
+                    f"Error verifying ownership for chat {chat_id}, user {user_id} during delete_chat: {ownership_error}",
+                    exc_info=True,
+                )
+                try:
+                    chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                    if chat_metadata:
+                        # Existing chat but we couldn't verify ownership - reject for security.
+                        await manager.send_personal_message(
+                            message={
+                                "type": "error",
+                                "payload": {
+                                    "message": "Unable to verify chat permissions. Please try again.",
+                                    "chat_id": chat_id,
+                                },
+                            },
+                            user_id=user_id,
+                            device_fingerprint_hash=device_fingerprint_hash,
+                        )
+                        return
+                    else:
+                        # Chat doesn't exist in Directus - treat as local-only chat and continue deletion.
+                        logger.debug(
+                            f"Chat {chat_id} not found in Directus after ownership check error - treating as new/local chat for delete_chat."
+                        )
+                except Exception as metadata_error:
+                    # Could not determine if chat exists - fail closed.
+                    logger.error(
+                        f"Error checking existence of chat {chat_id} for user {user_id} during delete_chat: {metadata_error}",
+                        exc_info=True,
+                    )
                     await manager.send_personal_message(
                         message={
                             "type": "error",
@@ -90,105 +120,89 @@ async def handle_delete_chat(
                         device_fingerprint_hash=device_fingerprint_hash,
                     )
                     return
-                else:
-                    # Chat doesn't exist in Directus - treat as local-only chat and continue deletion.
-                    logger.debug(
-                        f"Chat {chat_id} not found in Directus after ownership check error - treating as new/local chat for delete_chat."
-                    )
-            except Exception as metadata_error:
-                # Could not determine if chat exists - fail closed.
-                logger.error(
-                    f"Error checking existence of chat {chat_id} for user {user_id} during delete_chat: {metadata_error}",
-                    exc_info=True,
+
+            # 1. Mark chat as deleted in general cache (tombstone)
+            # Cached drafts will be allowed to expire naturally.
+            # The Celery task is responsible for deleting all drafts from Directus.
+            removed_from_set = await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
+            if removed_from_set:
+                 logger.info(f"Removed chat {chat_id} from user:{user_id}:chat_ids_versions sorted set.")
+            else:
+                 logger.warning(f"Chat {chat_id} not found in user:{user_id}:chat_ids_versions sorted set during delete.")
+
+            client = await cache_service.client
+            deleted_specific_keys_count = 0
+            if client:
+                async with client.pipeline(transaction=False) as pipe:
+                    pipe.delete(cache_service._get_chat_versions_key(user_id, chat_id))
+                    pipe.delete(cache_service._get_chat_list_item_data_key(user_id, chat_id))
+                    pipe.delete(cache_service._get_chat_messages_key(user_id, chat_id))
+                    results = await pipe.execute()
+                    deleted_specific_keys_count = sum(results)
+                    logger.info(f"Deleted specific general cache keys for chat {chat_id} (user: {user_id}). Results: {results}")
+            else:
+                 logger.error(f"Cache client not available, cannot delete specific general keys for chat {chat_id}.")
+        
+            # Delete app settings/memories for this chat (chat-specific caching)
+            # This ensures sensitive app settings/memories are removed when chat is deleted
+            deleted_app_data_count = await cache_service.delete_chat_app_settings_memories(user_id, chat_id)
+            if deleted_app_data_count > 0:
+                logger.info(f"Deleted {deleted_app_data_count} app settings/memories entries for deleted chat {chat_id}")
+        
+            # Delete all cached embeds for this chat
+            # This removes individual embed:{embed_id} entries and the chat:{chat_id}:embed_ids index
+            deleted_embed_count = await cache_service.delete_chat_embed_cache(chat_id)
+            if deleted_embed_count > 0:
+                logger.info(f"Deleted {deleted_embed_count} embed cache entries for deleted chat {chat_id}")
+        
+            tombstone_success = removed_from_set or deleted_specific_keys_count > 0
+            if tombstone_success:
+                logger.info(f"Successfully tombstoned chat {chat_id} in cache for user {user_id}.")
+            else:
+                logger.warning(f"Failed to fully tombstone chat {chat_id} in cache for user {user_id}.")
+
+            # 3. Trigger Celery task to delete chat from Directus and ALL associated drafts
+            try:
+                # Use app.send_task for explicit task dispatch
+                app.send_task(
+                    name='app.tasks.persistence_tasks.persist_delete_chat', # Full path to the task
+                    kwargs={'user_id': user_id, 'chat_id': chat_id},
+                    queue='persistence' # Assign to the 'persistence' queue
                 )
-                await manager.send_personal_message(
-                    message={
-                        "type": "error",
-                        "payload": {
-                            "message": "Unable to verify chat permissions. Please try again.",
-                            "chat_id": chat_id,
-                        },
-                    },
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash,
-                )
-                return
+                logger.info(f"Successfully queued Celery task persist_delete_chat for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
+            except Exception as celery_e:
+                logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)
 
-        # 1. Mark chat as deleted in general cache (tombstone)
-        # Cached drafts will be allowed to expire naturally.
-        # The Celery task is responsible for deleting all drafts from Directus.
-        removed_from_set = await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
-        if removed_from_set:
-             logger.info(f"Removed chat {chat_id} from user:{user_id}:chat_ids_versions sorted set.")
-        else:
-             logger.warning(f"Chat {chat_id} not found in user:{user_id}:chat_ids_versions sorted set during delete.")
-
-        client = await cache_service.client
-        deleted_specific_keys_count = 0
-        if client:
-            async with client.pipeline(transaction=False) as pipe:
-                pipe.delete(cache_service._get_chat_versions_key(user_id, chat_id))
-                pipe.delete(cache_service._get_chat_list_item_data_key(user_id, chat_id))
-                pipe.delete(cache_service._get_chat_messages_key(user_id, chat_id))
-                results = await pipe.execute()
-                deleted_specific_keys_count = sum(results)
-                logger.info(f"Deleted specific general cache keys for chat {chat_id} (user: {user_id}). Results: {results}")
-        else:
-             logger.error(f"Cache client not available, cannot delete specific general keys for chat {chat_id}.")
-        
-        # Delete app settings/memories for this chat (chat-specific caching)
-        # This ensures sensitive app settings/memories are removed when chat is deleted
-        deleted_app_data_count = await cache_service.delete_chat_app_settings_memories(user_id, chat_id)
-        if deleted_app_data_count > 0:
-            logger.info(f"Deleted {deleted_app_data_count} app settings/memories entries for deleted chat {chat_id}")
-        
-        # Delete all cached embeds for this chat
-        # This removes individual embed:{embed_id} entries and the chat:{chat_id}:embed_ids index
-        deleted_embed_count = await cache_service.delete_chat_embed_cache(chat_id)
-        if deleted_embed_count > 0:
-            logger.info(f"Deleted {deleted_embed_count} embed cache entries for deleted chat {chat_id}")
-        
-        tombstone_success = removed_from_set or deleted_specific_keys_count > 0
-        if tombstone_success:
-            logger.info(f"Successfully tombstoned chat {chat_id} in cache for user {user_id}.")
-        else:
-            logger.warning(f"Failed to fully tombstone chat {chat_id} in cache for user {user_id}.")
-
-        # 3. Trigger Celery task to delete chat from Directus and ALL associated drafts
-        try:
-            # Use app.send_task for explicit task dispatch
-            app.send_task(
-                name='app.tasks.persistence_tasks.persist_delete_chat', # Full path to the task
-                kwargs={'user_id': user_id, 'chat_id': chat_id},
-                queue='persistence' # Assign to the 'persistence' queue
+            # 4. Log compliance event
+            ComplianceService.log_chat_deletion(
+                user_id=user_id,
+                chat_id=chat_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+                details={"source": "websocket_request"}
             )
-            logger.info(f"Successfully queued Celery task persist_delete_chat for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
-        except Exception as celery_e:
-            logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)
+            logger.info(f"Compliance event logged for chat deletion: chat_id {chat_id}, user_id {user_id}")
 
-        # 4. Log compliance event
-        ComplianceService.log_chat_deletion(
-            user_id=user_id,
-            chat_id=chat_id,
-            device_fingerprint_hash=device_fingerprint_hash,
-            details={"source": "websocket_request"}
-        )
-        logger.info(f"Compliance event logged for chat deletion: chat_id {chat_id}, user_id {user_id}")
+            # 5. Broadcast deletion confirmation to all user's devices
+            await manager.broadcast_to_user(
+                {
+                    "type": "chat_deleted",
+                    "payload": {"chat_id": chat_id, "tombstone": True}
+                },
+                user_id,
+                exclude_device_hash=None
+            )
+            logger.info(f"Broadcasted chat_deleted event for chat {chat_id} to user {user_id}.")
 
-        # 5. Broadcast deletion confirmation to all user's devices
-        await manager.broadcast_to_user(
-            {
-                "type": "chat_deleted",
-                "payload": {"chat_id": chat_id, "tombstone": True}
-            },
-            user_id,
-            exclude_device_hash=None
-        )
-        logger.info(f"Broadcasted chat_deleted event for chat {chat_id} to user {user_id}.")
-
-    except Exception as e:
-        logger.error(f"Error processing delete_chat for chat {chat_id}, user {user_id}: {e}", exc_info=True)
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": f"Failed to process delete request for chat {chat_id}", "chat_id": chat_id}},
-            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-        )
+        except Exception as e:
+            logger.error(f"Error processing delete_chat for chat {chat_id}, user {user_id}: {e}", exc_info=True)
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": f"Failed to process delete request for chat {chat_id}", "chat_id": chat_id}},
+                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
+            )
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

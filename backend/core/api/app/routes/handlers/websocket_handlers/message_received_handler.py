@@ -39,7 +39,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any] # Expected: {"chat_id": "...", "message": {"message_id": ..., "sender": ..., "content": ..., "timestamp": ...}}
+    payload: Dict[str, Any], # Expected: {"chat_id": "...", "message": {"message_id": ..., "sender": ..., "content": ..., "timestamp": ...}}
+    user_otel_attrs: dict = None,
 ):
     """
     Handles a new message sent from the client (now via "chat_message_added" type).
@@ -57,32 +58,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     message_id_for_log = message_payload_temp.get("message_id") if isinstance(message_payload_temp, dict) else "unknown"
     logger.info(f"[PERF] Message handler started for user_id={user_id}, chat_id={payload.get('chat_id')}, message_id={message_id_for_log}")
 
-    # --- OpenTelemetry span creation for distributed tracing ---
-    # Extract W3C traceparent from the WS payload (injected by the frontend SDK)
-    # and create a server-side span that becomes the parent for all downstream work
-    # (Celery tasks, Directus calls, etc.). Guard with ImportError so the handler
-    # works even if OTel packages are not installed.
-    _otel_span = None
-    _otel_token = None
+    # --- OpenTelemetry span creation via ws_span_helper (migrated from inline) ---
+    # ws_span_helper extracts W3C traceparent from payload automatically.
+    _otel_span, _otel_token = None, None
     try:
-        from opentelemetry import trace as _trace, context as _ctx
-        from opentelemetry.trace import StatusCode as _StatusCode
-        from backend.shared.python_utils.tracing.ws_trace_context import extract_ws_trace_context
-        _ws_ctx = extract_ws_trace_context(payload)
-        _tracer = _trace.get_tracer(__name__)
-        _otel_span = _tracer.start_span(
-            "ws.message_received",
-            context=_ws_ctx,
-            attributes={
-                "ws.message_type": "message_received",
-                "enduser.id": str(user_id),
-            },
-        )
-        _otel_token = _ctx.attach(_ctx.set_value("current-span", _otel_span))
-    except ImportError:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("message_received", user_id, payload, user_otel_attrs)
+    except Exception:
         pass
-    except Exception as _otel_err:
-        logger.debug("OTel span creation failed (non-fatal): %s", _otel_err)
 
     try:
         chat_id = payload.get("chat_id")
@@ -1593,10 +1576,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         logger.error(f"[PERF] Message handler failed after {handler_total_time:.3f}s for user_id={user_id}, chat_id={payload.get('chat_id') if payload else 'unknown'}: {e}", exc_info=True)
         logger.error(f"Error in handle_message_received (new message) from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
 
-        # Mark OTel span as error
+        # Mark OTel span as error via ws_span_helper
         if _otel_span is not None:
             try:
-                _otel_span.set_status(_StatusCode.ERROR, str(e))
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token, error=e)
+                _otel_span, _otel_token = None, None  # Prevent double-end in finally
             except Exception:
                 pass
 
@@ -1609,14 +1594,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         except Exception as e_send:
             logger.error(f"Failed to send error to {user_id}/{device_fingerprint_hash} after main error: {e_send}")
     finally:
-        # End the OTel span and detach context
+        # End the OTel span and detach context via ws_span_helper
         if _otel_span is not None:
             try:
-                _otel_span.end()
-            except Exception:
-                pass
-        if _otel_token is not None:
-            try:
-                _ctx.detach(_otel_token)
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
             except Exception:
                 pass
