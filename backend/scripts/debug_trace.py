@@ -279,7 +279,7 @@ def _get_full_trace_spans(
     """
     import httpx
 
-    url = f"{base_url}/api/{OPENOBSERVE_ORG}/{TRACE_STREAM}/_search"
+    url = f"{base_url}/api/{OPENOBSERVE_ORG}/_search?type=traces"
     sql = (
         f"SELECT * FROM {TRACE_STREAM} "
         f"WHERE trace_id = '{trace_id}' "
@@ -334,7 +334,7 @@ def _search_traces_sql(
     """
     import httpx
 
-    url = f"{base_url}/api/{OPENOBSERVE_ORG}/{TRACE_STREAM}/_search"
+    url = f"{base_url}/api/{OPENOBSERVE_ORG}/_search?type=traces"
     body = {
         "query": {
             "sql": sql,
