@@ -83,11 +83,9 @@ process_trigger() {
     local mode="investigate"
     mode="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('mode','investigate'))" "$trigger_file" 2>/dev/null)" || true
 
-    # Set permission mode based on trigger type
-    local permission_mode="plan"
-    case "$mode" in
-        gsd-quick|gsd-debug|gsd-add-phase|resume) permission_mode="auto" ;;
-    esac
+    # All modes use auto permission — MCP tools need it, and auto mode's
+    # model-based classifier is safe for automated sessions (99.6% approval rate)
+    local permission_mode="auto"
 
     log "[agent-watcher] Starting claude $mode (issue_id=$issue_id, title=$session_title, permission=$permission_mode)"
 
