@@ -595,9 +595,9 @@ class BatchRunner:
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
         """Copy screenshots and traces from a failed test's artifacts to
-        test-results/screenshots/{spec-name}/ for post-run debugging."""
+        test-results/screenshots/current/{spec-name}/ for post-run debugging."""
         spec_name = spec.replace(".spec.ts", "")
-        dest = RESULTS_DIR / "screenshots" / spec_name
+        dest = RESULTS_DIR / "screenshots" / "current" / spec_name
         dest.mkdir(parents=True, exist_ok=True)
         copied = 0
         for root, _dirs, files in os.walk(art_path):
@@ -607,7 +607,7 @@ class BatchRunner:
                     shutil.copy2(src, dest / fname)
                     copied += 1
         if copied:
-            _log(f"    Saved {copied} artifact(s) to test-results/screenshots/{spec_name}/")
+            _log(f"    Saved {copied} artifact(s) to test-results/screenshots/current/{spec_name}/")
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -1271,11 +1271,18 @@ class TestOrchestrator:
         start_time = time.time()
         suites: dict[str, SuiteResult] = {}
 
-        # Clear previous failure screenshots before starting a new run
+        # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
         if screenshots_dir.is_dir():
-            shutil.rmtree(screenshots_dir, ignore_errors=True)
-            _log("Cleared previous failure screenshots")
+            # Move current screenshots to date-stamped archive (preserves history)
+            current_dir = screenshots_dir / "current"
+            if current_dir.is_dir() and any(current_dir.iterdir()):
+                prev_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                archive_dest = screenshots_dir / prev_date
+                if archive_dest.is_dir():
+                    shutil.rmtree(archive_dest, ignore_errors=True)
+                current_dir.rename(archive_dest)
+                _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
         # Run local suites first (fast)
         if self.suite in ("all", "vitest"):
@@ -1410,6 +1417,18 @@ class TestOrchestrator:
         archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
         for old in archives[30:]:
             old.unlink(missing_ok=True)
+
+        # Prune old screenshot archives (keep last 30 days)
+        screenshots_dir = RESULTS_DIR / "screenshots"
+        if screenshots_dir.is_dir():
+            date_dirs = sorted(
+                [d for d in screenshots_dir.iterdir()
+                 if d.is_dir() and d.name != "current" and len(d.name) == 10],
+                reverse=True,
+            )
+            for old_dir in date_dirs[30:]:
+                shutil.rmtree(old_dir, ignore_errors=True)
+                _log(f"Pruned old screenshot archive: {old_dir.name}")
 
         # Start claude analysis on failures (reuse helper)
         if result.summary["failed"] > 0:
