@@ -4,8 +4,9 @@
 # Covers status aggregation, URL normalization, text sanitization, and other pure-logic tests.
 #
 # Triggers:
-# - Push to dev branch
-# - Pull requests targeting dev
+# - Push to dev branch (path-filtered)
+# - Pull requests targeting dev (path-filtered)
+# - workflow_dispatch (called by scripts/run_tests.py orchestrator)
 #
 # Architecture: docs/architecture/github-actions-ci.md
 
@@ -20,6 +21,7 @@ on:
     branches: [dev]
     paths:
       - "backend/**"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -30,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name || 'dev' }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -38,5 +40,22 @@ jobs:
         run: pip install -r requirements-dev.txt
         working-directory: backend
       - name: Run unit tests
-        run: pytest -m "not integration and not slow and not vault and not benchmark"
-        working-directory: backend
+        id: pytest_run
+        continue-on-error: true
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/test-results
+          cd backend
+          pytest -m "not integration and not slow and not vault and not benchmark" \
+            -v --tb=short --color=no \
+            --json-report --json-report-file=$GITHUB_WORKSPACE/test-results/pytest-results.json \
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/pytest-output.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Fail if tests failed
+        if: steps.pytest_run.outcome == 'failure'
+        run: exit 1
