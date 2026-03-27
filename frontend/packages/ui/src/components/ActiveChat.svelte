@@ -635,7 +635,7 @@
     async function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
         console.debug("Login success, in signup flow:", inSignupFlow);
-        
+
         // CRITICAL: Set signup state BEFORE updating auth state
         // This ensures signup state is preserved and login interface stays open
         if (inSignupFlow && user?.last_opened) {
@@ -647,8 +647,19 @@
             const { loginInterfaceOpen } = await import('../stores/uiStateStore');
             loginInterfaceOpen.set(true);
             console.debug('[ActiveChat] Set signup state after login:', step);
+        } else {
+            // CRITICAL: Reset isInSignupProcess when login succeeds outside of signup flow.
+            // The header "Login / Sign Up" button sets isInSignupProcess=true (via openSignupInterface event).
+            // If the user switches to the Login tab and authenticates (password or passkey), isInSignupProcess
+            // remains true, causing the $effect to keep the login interface open instead of closing it.
+            // This manifests as "login failed" — the session is established but the UI doesn't transition.
+            const { isInSignupProcess: isInSignup } = await import('../stores/signupState');
+            if (get(isInSignup)) {
+                console.debug('[ActiveChat] Resetting isInSignupProcess to false - login succeeded outside signup flow');
+                isInSignup.set(false);
+            }
         }
-        
+
         // Update the authentication state after successful login
         const { setAuthenticatedState } = await import('../stores/authSessionActions');
         setAuthenticatedState();
