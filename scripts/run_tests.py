@@ -267,12 +267,12 @@ class GitHubActionsClient:
         _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
         return None
 
-    def _recent_run_ids(self, limit: int = 5) -> list[int]:
-        """Get the most recent run IDs for the workflow."""
+    def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
+        """Get the most recent run IDs for a workflow."""
         rc = subprocess.run(
             ["gh", "run", "list",
              "--repo", GH_REPO,
-             "--workflow", WORKFLOW_NAME,
+             "--workflow", workflow,
              "--limit", str(limit),
              "--json", "databaseId"],
             capture_output=True, text=True,
@@ -1732,13 +1732,12 @@ class TestOrchestrator:
                 current_dir.rename(archive_dest)
                 _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
-        # Run local suites first (fast)
+        # Run all suites via GitHub Actions (prevents dev server overload)
         if self.suite in ("all", "vitest"):
-            suites["vitest"] = run_vitest() if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         if self.suite in ("all", "pytest"):
-            include_integration = self.environment != "production"
-            suites["pytest_unit"] = run_pytest(include_integration) if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
@@ -1777,6 +1776,151 @@ class TestOrchestrator:
             self._daily_post_run(result)
 
         return 1 if result.summary["failed"] > 0 else 0
+
+    def _run_unit_suite_via_gha(self, workflow_file: str, artifact_name: str) -> SuiteResult:
+        """Dispatch a unit test workflow to GitHub Actions, wait, download results.
+
+        Args:
+            workflow_file: GHA workflow filename (e.g. "vitest.yml")
+            artifact_name: Name of the uploaded artifact (e.g. "vitest-results")
+
+        Returns:
+            SuiteResult with parsed test results from the JSON artifact.
+        """
+        suite_label = workflow_file.replace(".yml", "")
+        _log(f"  {suite_label}: dispatching to GitHub Actions...")
+
+        client = GitHubActionsClient()
+
+        # Record pre-dispatch run IDs to find the new one
+        pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
+
+        rc = subprocess.run(
+            ["gh", "workflow", "run", workflow_file,
+             "--repo", GH_REPO, "--ref", GH_BRANCH],
+            capture_output=True, text=True,
+        )
+        if rc.returncode != 0:
+            _log(f"  {suite_label}: dispatch failed: {rc.stderr.strip()[:200]}", "ERROR")
+            return SuiteResult(
+                status="failed",
+                tests=[{"name": f"{suite_label}-dispatch", "status": "failed",
+                        "duration_seconds": 0, "error": f"Dispatch failed: {rc.stderr.strip()[:200]}"}],
+            )
+
+        # Find the new run ID
+        time.sleep(5)
+        run_id = None
+        for attempt in range(10):
+            post_ids = client._recent_run_ids(limit=10, workflow=workflow_file)
+            new_ids = [rid for rid in post_ids if rid not in pre_ids]
+            if new_ids:
+                run_id = new_ids[0]
+                break
+            time.sleep(3)
+
+        if not run_id:
+            _log(f"  {suite_label}: could not find dispatched run", "ERROR")
+            return SuiteResult(
+                status="failed",
+                tests=[{"name": f"{suite_label}-dispatch", "status": "failed",
+                        "duration_seconds": 0, "error": "Could not find dispatched workflow run"}],
+            )
+
+        _log(f"  {suite_label}: waiting for run {run_id}...")
+        statuses = client.wait_for_runs([run_id], fail_fast=False)
+
+        status_data = statuses.get(run_id, {})
+        conclusion = status_data.get("conclusion", "unknown")
+        _log(f"  {suite_label}: run {run_id} → {conclusion}")
+
+        # Download artifact with JSON results
+        artifact_dir = Path(tempfile.mkdtemp(prefix=f"{suite_label}-artifacts-"))
+        art_path = client.download_artifact(run_id, artifact_name, artifact_dir)
+
+        all_tests: list[dict] = []
+        overall_status = "passed" if conclusion == "success" else "failed"
+
+        if art_path:
+            all_tests = self._parse_unit_test_artifact(art_path, suite_label)
+            if not all_tests and conclusion != "success":
+                # Fallback: no parseable results but the run failed
+                log_error = client.get_failed_job_error(run_id)
+                all_tests = [{"name": f"{suite_label}-run", "status": "failed",
+                              "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
+        elif conclusion != "success":
+            log_error = client.get_failed_job_error(run_id)
+            all_tests = [{"name": f"{suite_label}-run", "status": "failed",
+                          "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
+
+        # Recalculate overall status from actual test results
+        if all_tests:
+            has_failures = any(t.get("status") == "failed" for t in all_tests)
+            overall_status = "failed" if has_failures else "passed"
+
+        shutil.rmtree(artifact_dir, ignore_errors=True)
+
+        passed = sum(1 for t in all_tests if t.get("status") == "passed")
+        _log(f"  {suite_label}: {passed}/{len(all_tests)} passed")
+
+        return SuiteResult(status=overall_status, tests=all_tests)
+
+    @staticmethod
+    def _parse_unit_test_artifact(art_path: Path, suite_label: str) -> list[dict]:
+        """Parse unit test results from downloaded GHA artifact.
+
+        Handles both vitest JSON (testResults[].assertionResults[]) and
+        pytest-json-report (tests[]) formats.
+        """
+        all_tests: list[dict] = []
+
+        # Find all JSON result files
+        json_files = sorted(art_path.rglob("*.json"))
+
+        for jf in json_files:
+            try:
+                with open(jf) as f:
+                    data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                continue
+
+            # Vitest format: { testResults: [{ assertionResults: [...] }] }
+            if "testResults" in data:
+                for tf in data.get("testResults", []):
+                    for ar in tf.get("assertionResults", []):
+                        name = ar.get("fullName", ar.get("title", "unknown"))
+                        status = "passed" if ar.get("status") == "passed" else "failed"
+                        test_dur = ar.get("duration", 0) / 1000.0
+                        entry: dict = {
+                            "name": name,
+                            "status": status,
+                            "duration_seconds": round(test_dur, 3),
+                        }
+                        if status == "failed":
+                            msgs = ar.get("failureMessages", [])
+                            if msgs:
+                                entry["error"] = msgs[0][:MAX_ERROR_SNIPPET]
+                        all_tests.append(entry)
+
+            # Pytest-json-report format: { tests: [{ nodeid, outcome, call: { longrepr } }] }
+            elif "tests" in data:
+                for t in data.get("tests", []):
+                    name = t.get("nodeid", "unknown")
+                    outcome = t.get("outcome", "")
+                    duration = t.get("duration", 0)
+                    entry = {
+                        "name": name,
+                        "status": "passed" if outcome == "passed" else "failed" if outcome == "failed" else "skipped",
+                        "duration_seconds": round(duration, 3),
+                    }
+                    if outcome == "failed":
+                        call = t.get("call", {})
+                        longrepr = call.get("longrepr", "")
+                        if longrepr:
+                            entry["error"] = str(longrepr)[:MAX_ERROR_SNIPPET]
+                    all_tests.append(entry)
+
+        return all_tests
 
     def _run_playwright(self) -> SuiteResult:
         """Run Playwright specs via GitHub Actions."""
