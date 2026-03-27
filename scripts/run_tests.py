@@ -1920,6 +1920,23 @@ class TestOrchestrator:
                             entry["error"] = str(longrepr)[:MAX_ERROR_SNIPPET]
                     all_tests.append(entry)
 
+        # Fallback: parse pytest verbose text output (test::name PASSED/FAILED lines)
+        if not all_tests:
+            for txt_file in sorted(art_path.rglob("*.txt")):
+                try:
+                    content = txt_file.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                for line in content.splitlines():
+                    m = re.match(r"^(\S+::\S+)\s+(PASSED|FAILED|SKIPPED|ERROR)", line)
+                    if m:
+                        name = m.group(1)
+                        result_str = m.group(2)
+                        status = ("passed" if result_str == "PASSED"
+                                  else "failed" if result_str in ("FAILED", "ERROR")
+                                  else "skipped")
+                        all_tests.append({"name": name, "status": status, "duration_seconds": 0})
+
         return all_tests
 
     def _run_playwright(self) -> SuiteResult:

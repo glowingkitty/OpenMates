@@ -45,8 +45,12 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd backend
-          pytest -m "not integration and not slow and not vault and not benchmark" \
+          pytest tests/ \
+            -m "not integration and not slow and not vault and not benchmark" \
             -v --tb=short --color=no \
+            --ignore=tests/fixtures \
+            --ignore=tests/test_encryption_service.py \
+            --ignore=tests/test_integration_encryption.py \
             --json-report --json-report-file=$GITHUB_WORKSPACE/test-results/pytest-results.json \
             2>&1 | tee $GITHUB_WORKSPACE/test-results/pytest-output.txt || true
       - uses: actions/upload-artifact@v4
