@@ -1,0 +1,238 @@
+{
+  "triage_date": "2026-03-27",
+  "gha_dispatch_time": "2026-03-27T13:44:55Z",
+  "specs": {
+    "skill-web-search.spec.ts": {
+      "run_id": "23649180350",
+      "status": "failure",
+      "conclusion": "failure",
+      "total_tests": 4,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 2,
+      "error": "Error: web/Search: missing display type \"Preview \u2014 Large\"\n\nexpect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0",
+      "all_test_results": [
+        {
+          "test_title": "Phase 1: embed preview renders at /dev/preview/embeds/web",
+          "status": "failed",
+          "error": "Error: web/Search: missing display type \"Preview \u2014 Large\"\n\nexpect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0"
+        },
+        {
+          "test_title": "Phase 2: CLI apps web search returns results",
+          "status": "skipped",
+          "error": null
+        },
+        {
+          "test_title": "Phase 3: CLI chats new triggers web search",
+          "status": "skipped",
+          "error": null
+        },
+        {
+          "test_title": "Phase 4: Web chat triggers web search with embed",
+          "status": "failed",
+          "error": "Error: Login failed after 3 OTP attempts"
+        }
+      ]
+    },
+    "skill-news-search.spec.ts": {
+      "run_id": "23649181711",
+      "status": "failure",
+      "conclusion": "failure",
+      "total_tests": 4,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 2,
+      "error": "Error: news/Article: missing display type \"Preview \u2014 Large\"\n\nexpect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0",
+      "all_test_results": [
+        {
+          "test_title": "Phase 1: embed preview renders at /dev/preview/embeds/news",
+          "status": "failed",
+          "error": "Error: news/Article: missing display type \"Preview \u2014 Large\"\n\nexpect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0"
+        },
+        {
+          "test_title": "Phase 2: CLI apps news search returns results",
+          "status": "skipped",
+          "error": null
+        },
+        {
+          "test_title": "Phase 3: CLI chats new triggers news search",
+          "status": "skipped",
+          "error": null
+        },
+        {
+          "test_title": "Phase 4: Web chat triggers news search with embed",
+          "status": "failed",
+          "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('.editor-content.prose')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 20000ms\n  - waiting for locator('.editor-content.prose')\n"
+        }
+      ]
+    },
+    "signup-flow.spec.ts": {
+      "run_id": "23649182631",
+      "status": "failure",
+      "conclusion": "failure",
+      "total_tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "error": "Test timeout of 240000ms exceeded.",
+      "all_test_results": [
+        {
+          "test_title": "completes full signup flow with email + 2FA + purchase",
+          "status": "timedOut",
+          "error": "Test timeout of 240000ms exceeded."
+        }
+      ]
+    },
+    "api-keys-flow.spec.ts": {
+      "run_id": "23649184159",
+      "status": "failure",
+      "conclusion": "failure",
+      "total_tests": 4,
+      "passed": 0,
+      "failed": 4,
+      "skipped": 0,
+      "error": "Error: Login failed after 3 OTP attempts",
+      "all_test_results": [
+        {
+          "test_title": "creates an API key, verifies format, and deletes it",
+          "status": "failed",
+          "error": "Error: Login failed after 3 OTP attempts"
+        },
+        {
+          "test_title": "create button is disabled when API key name is empty",
+          "status": "failed",
+          "error": "Error: Login failed after 3 OTP attempts"
+        },
+        {
+          "test_title": "creates API key, verifies device approval flow, and saves working key",
+          "status": "failed",
+          "error": "Error: Login failed after 3 OTP attempts"
+        },
+        {
+          "test_title": "shows limit warning and disabled create button when 5 API keys exist",
+          "status": "failed",
+          "error": "Error: Login failed after 3 OTP attempts"
+        }
+      ]
+    },
+    "status-page.spec.ts": {
+      "run_id": "23649185727",
+      "status": "failure",
+      "conclusion": "failure",
+      "total_tests": 15,
+      "passed": 13,
+      "failed": 2,
+      "skipped": 0,
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Groq')\nExpected: visible\nError: strict mode violation: getByText('Groq') resolved to 2 elements:\n    1) <span class=\"name svelte-4zpq20\">Groq</span> aka getByRole('button', { name: 'Groq Degraded Uptime history' })\n    2) <span class=\"component svelte-bn3qn9\">Groq</span> aka getByText('Groq').nth(1)\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for getByText('Groq')\n",
+      "all_test_results": [
+        {
+          "test_title": "renders title, status banner text, uptime percentage, and last-updated info",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "renders all 8 group headers",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "shows service name, status label, and uptime percentage for each service",
+          "status": "failed",
+          "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Groq')\nExpected: visible\nError: strict mode violation: getByText('Groq') resolved to 2 elements:\n    1) <span class=\"name svelte-4zpq20\">Groq</span> aka getByRole('button', { name: 'Groq Degraded Uptime history' })\n    2) <span class=\"component svelte-bn3qn9\">Groq</span> aka getByText('Groq').nth(1)\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 5000ms\n  - waiting for getByText('Groq')\n"
+        },
+        {
+          "test_title": "uptime bars render with 90 segments for services",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "clicking a provider row with response_times_7d expands the chart",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "clicking a service without response_times_7d does not expand a chart",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "shows test summary with total and passed count",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "renders all three test category names",
+          "status": "failed",
+          "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Chat')\nExpected: visible\nError: strict mode violation: getByText('Chat') resolved to 5 elements:\n    1) <span class=\"cat-name svelte-14z9fjb\">Chat</span> aka getByRole('button', { name: '\u25be Chat (5 tests) 4/5 passing' })\n    2) <span class=\"name svelte-en1eu7\">chat-flow</span> aka getByText('chat-flow')\n    3) <span class=\"name svelte-en1eu7\">chat-management</span> aka getByText('chat-management')\n    4) <span class=\"name svelte-en1"
+        },
+        {
+          "test_title": "categories with failures are auto-expanded and show FAILED badges",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "passing categories are collapsed by default",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "shows category-level pass/fail counts",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "renders incident with component name and duration",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "shows \"No incidents\" when incident list is empty",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "shows error message when API returns an error",
+          "status": "passed",
+          "error": null
+        },
+        {
+          "test_title": "shows loading state initially before data loads",
+          "status": "passed",
+          "error": null
+        }
+      ]
+    },
+    "not-found-404-flow.spec.ts": {
+      "run_id": "23649186932",
+      "status": "failure",
+      "conclusion": "failure",
+      "total_tests": 4,
+      "passed": 0,
+      "failed": 4,
+      "skipped": 0,
+      "error": "Error: Recovery options container should be visible\n\nexpect(locator).toBeVisible() failed\n\nLocator: locator('.not-found-options')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Recovery options container should be visible with timeout 5000ms\n  - waiting for locator('.not-found-options')\n",
+      "all_test_results": [
+        {
+          "test_title": "unknown path redirects to SPA and shows 404 screen",
+          "status": "failed",
+          "error": "Error: Recovery options container should be visible\n\nexpect(locator).toBeVisible() failed\n\nLocator: locator('.not-found-options')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Recovery options container should be visible with timeout 5000ms\n  - waiting for locator('.not-found-options')\n"
+        },
+        {
+          "test_title": "404 screen search option opens pre-filled search",
+          "status": "failed",
+          "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('.not-found-options')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 10000ms\n  - waiting for locator('.not-found-options')\n"
+        },
+        {
+          "test_title": "404 screen Ask AI option pre-fills message input",
+          "status": "failed",
+          "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('.not-found-options')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 10000ms\n  - waiting for locator('.not-found-options')\n"
+        },
+        {
+          "test_title": "multi-segment unknown path uses first segment for search",
+          "status": "failed",
+          "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: locator('.not-found-options')\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 10000ms\n  - waiting for locator('.not-found-options')\n"
+        }
+      ]
+    }
+  }
+}
