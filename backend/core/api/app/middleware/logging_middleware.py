@@ -112,8 +112,20 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Generate request_id and store in both contextvars (for automatic log
         # injection and Celery propagation) and request.state (for handlers).
+        # When OTel is active, request_id == OTel trace_id (see request_context.py).
         request_id = generate_request_id()
         request.state.request_id = request_id
+
+        # Attach OTel trace_id to request.state for handlers that need it
+        # separately from request_id (e.g. for explicit trace correlation).
+        try:
+            from opentelemetry import trace
+            span = trace.get_current_span()
+            ctx = span.get_span_context()
+            if ctx and ctx.trace_id != 0:
+                request.state.trace_id = format(ctx.trace_id, '032x')
+        except ImportError:
+            pass
 
         # Extract debugging_id from X-Debug-Session header if present.
         # This tags all backend logs for this request with the user's debug
@@ -243,6 +255,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
         except Exception as e:
             # Log exceptions as errors with more context
+            trace_id = getattr(request.state, 'trace_id', None)
             extra_exception_data = {
                 "request_id": request_id,
                 "error_type": type(e).__name__,
@@ -251,6 +264,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "path": path,   #
                 "event_type": "request_exception",
             }
+            if trace_id:
+                extra_exception_data["trace_id"] = trace_id
             if hasattr(request, 'query_params'): # Check if request attributes are safe to access
                 extra_exception_data["query_params"] = str(request.query_params) if request.query_params else None
             if hasattr(request, 'headers'):

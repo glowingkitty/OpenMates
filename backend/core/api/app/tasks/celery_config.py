@@ -560,28 +560,49 @@ async def prewarm_ai_services():
 # we can detect and debug any issues with task routing or execution.
 #
 # request_id propagation:
-#   1. before_task_publish → injects current request_id into task headers
-#   2. task_prerun → restores request_id from headers into contextvars
-# This allows correlating HTTP requests with their spawned Celery tasks in Loki.
-
-@signals.before_task_publish.connect
-def inject_request_id_header(headers=None, **kwargs):
-    """Propagate the current request_id into Celery task headers."""
-    if headers is not None:
-        request_id = get_request_id()
-        if request_id != "no-request-id":
-            headers["request_id"] = request_id
+#   Previously, manual signal handlers (before_task_publish / task_prerun)
+#   injected/extracted request_id into Celery task headers for log correlation.
+#   Replaced by opentelemetry-instrumentation-celery which propagates W3C
+#   trace context via Celery headers automatically. The manual handlers are
+#   kept commented out below for rollback safety.
+#
+# @signals.before_task_publish.connect
+# def inject_request_id_header(headers=None, **kwargs):
+#     """Propagate the current request_id into Celery task headers."""
+#     if headers is not None:
+#         request_id = get_request_id()
+#         if request_id != "no-request-id":
+#             headers["request_id"] = request_id
+#
+# @signals.task_prerun.connect — request_id restoration portion replaced by OTel.
+# The task_prerun_handler below still logs TASK_STARTED for monitoring.
 
 @signals.task_prerun.connect
 def task_prerun_handler(task_id, task, args, kwargs, **kw):
     """
     Called immediately before a task is executed.
-    Restores request_id from task headers into contextvars and logs task start.
+    Logs task start for monitoring. OTel auto-instrumentation handles
+    trace context propagation (previously manual request_id injection).
     """
-    # Restore request_id from task headers into contextvars for this worker context
-    request_id = getattr(task.request, 'request_id', None)
-    if request_id:
-        set_request_id(request_id)
+    # OTel Celery instrumentation now propagates trace context automatically.
+    # Fall back to manual request_id restoration if OTel is not active.
+    try:
+        from opentelemetry import trace
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx and ctx.trace_id != 0:
+            # OTel is active — set request_id to match trace_id for log correlation
+            set_request_id(format(ctx.trace_id, '032x'))
+        else:
+            # No OTel span — fall back to header-based request_id
+            request_id = getattr(task.request, 'request_id', None)
+            if request_id:
+                set_request_id(request_id)
+    except ImportError:
+        # OTel not installed — use legacy request_id from headers
+        request_id = getattr(task.request, 'request_id', None)
+        if request_id:
+            set_request_id(request_id)
 
     queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
     worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
