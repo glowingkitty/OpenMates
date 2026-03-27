@@ -361,8 +361,8 @@
                             class="login-signup-button"
                             onclick={(e) => {
                                 e.preventDefault();
-                                // Dispatch event to open login interface (which includes Login/Sign up tabs)
-                                window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                                // Dispatch event to open signup interface (shows signup tab by default)
+                                window.dispatchEvent(new CustomEvent('openSignupInterface'));
                             }}
                             aria-label={loginButtonText}
                         >
