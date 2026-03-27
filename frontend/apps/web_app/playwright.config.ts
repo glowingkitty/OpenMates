@@ -29,7 +29,7 @@ const config: PlaywrightTestConfig = {
 		// (test-results/reports/) to show inline screenshots per step.
 		// Uploaded to GHA artifacts and synced to test-results/screenshots/.
 		screenshot: 'on',
-		trace: 'retain-on-failure'
+		trace: 'off'
 	},
 	testDir: 'tests',
 	testMatch: /(.+\.)?(test|spec)\.[jt]s/,

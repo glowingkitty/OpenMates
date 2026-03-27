@@ -10,7 +10,8 @@ When given a Linear issue (ID like OPE-42, URL, or title):
 1. **Read the issue** — `get_issue` for full context (title, description, status, labels)
 2. **View images** — `extract_images` on the description markdown. Most bug reports include screenshots — always check.
 3. **Read comments** — `list_comments` for prior discussion and follow-ups
-4. **Move to In Progress** — `save_issue` with `state: "In Progress"` (run `list_issue_statuses` first if unsure of valid state names)
+4. **Move to In Progress** — `save_issue` with `state: "In Progress"`, add label `claude-is-working`
+5. **Post pickup comment** — include the `claude --resume <session-id>` command so the task can be resumed later. Get the session ID from `sessions.py start` output.
 
 ## Design References
 
@@ -29,7 +30,7 @@ Post a summary comment (`save_comment`):
 - Key files changed
 - Commit hash (if any)
 
-Update status (`save_issue`):
+Update status (`save_issue`) and remove `claude-is-working` label:
 - **"In Review"** — code needs review
 - **"Done"** — confirmed complete or self-contained (docs, config)
 

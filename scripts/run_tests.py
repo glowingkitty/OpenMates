@@ -703,7 +703,7 @@ class BatchRunner:
         copied = 0
         for root, _dirs, files in os.walk(art_path):
             for fname in files:
-                if fname.endswith((".png", ".webp", ".zip", ".trace", ".json")):
+                if fname.endswith((".png", ".webp", ".json")):
                     src = Path(root) / fname
                     shutil.copy2(src, dest / fname)
                     copied += 1
@@ -1176,124 +1176,172 @@ class ReportGenerator:
         _log(f"Generated {generated} MD report(s) in test-results/reports/")
 
     def _build_test_md(self, test: dict, run_id: str, suite_name: str) -> str:
-        """Build markdown content for a single test."""
+        """Build markdown content for a single test.
+
+        Uses step-log.json (written by logCheckpoint/takeStepScreenshot) to
+        reconstruct the execution timeline with checkpoints and inline screenshots.
+        Falls back to screenshot-filename parsing if no step log exists.
+        """
         name = test.get("file") or test.get("name", "unknown")
         status = test.get("status", "unknown")
-        duration = test.get("duration_seconds", 0)
         error = test.get("error", "")
-        steps = test.get("steps", [])
         pw_errors = test.get("playwright_errors", [])
         screenshot_paths = test.get("screenshot_paths", [])
+        spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
 
         status_icon = "PASSED" if status == "passed" else "FAILED"
         lines: list[str] = [
             f"# {name}",
             "",
-            f"**Status:** {status_icon} | **Date:** {run_id} | "
-            f"**Duration:** {duration:.1f}s | **Suite:** {suite_name}",
+            f"**Status:** {status_icon} | **Date:** {run_id} | **Suite:** {suite_name}",
             "",
             "---",
             "",
         ]
 
-        # Error section for failed tests
-        if status == "failed" and (pw_errors or error):
-            lines.append("## Error")
-            lines.append("")
-            # Prefer structured Playwright error over generic one
-            if pw_errors:
-                err_msg = pw_errors[0].get("message", "")
-                if err_msg:
-                    lines.append("```")
-                    lines.append(err_msg.strip())
-                    lines.append("```")
-                    lines.append("")
-            elif error:
-                lines.append("```")
-                lines.append(error.strip())
-                lines.append("```")
-                lines.append("")
+        # Try to load step-log.json for this spec
+        step_log = self._load_step_log(spec_name)
 
-        # Steps section
-        if steps:
+        if step_log:
             lines.append("## Steps")
             lines.append("")
-            spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
-
-            for i, step in enumerate(steps, 1):
-                title = step.get("title", "Unknown step")
-                step_status = step.get("status", "passed")
-                duration_ms = step.get("duration_ms", 0)
-                duration_s = duration_ms / 1000
-
-                icon = "✅" if step_status == "passed" else "❌"
-                lines.append(f"{i}. {title} ({duration_s:.1f}s) {icon}")
-
-                # Find matching screenshot for this step
-                step_screenshot = self._find_step_screenshot(
-                    screenshot_paths, i, spec_name
-                )
-                if step_screenshot:
-                    lines.append(f"   ![step-{i}](../../{step_screenshot})")
-
-                # Inline error for failed steps
-                if step_status == "failed" and step.get("error"):
-                    lines.append("")
-                    lines.append("   **Error:**")
-                    lines.append("   ```")
-                    for err_line in step["error"].strip().splitlines()[:10]:
-                        lines.append(f"   {err_line}")
-                    lines.append("   ```")
-
-                lines.append("")
+            self._render_steps_from_log(
+                lines, step_log, spec_name, status, pw_errors, error, screenshot_paths
+            )
+        elif screenshot_paths:
+            # Fallback: reconstruct steps from screenshot filenames
+            lines.append("## Steps")
+            lines.append("")
+            self._render_steps_from_screenshots(
+                lines, screenshot_paths, spec_name, status, pw_errors, error
+            )
         elif status != "not_started":
             lines.append("*No step data available (artifact not downloaded)*")
             lines.append("")
 
-        # Screenshots gallery (all screenshots if steps didn't consume them)
-        if screenshot_paths:
-            spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
-            lines.append("## Screenshots")
-            lines.append("")
-            for ss_path in screenshot_paths:
-                ss_filename = Path(ss_path).stem
-                lines.append(f"![{ss_filename}](../../{ss_path})")
-                lines.append("")
-
-        # Trace link
-        spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
-        trace_dir = RESULTS_DIR / "screenshots" / "current" / spec_name
-        if trace_dir.is_dir():
-            traces = [f.name for f in trace_dir.iterdir() if f.suffix in (".zip", ".trace")]
-            if traces:
-                lines.append("## Trace")
-                lines.append("")
-                for trace_name in traces:
-                    rel = f"screenshots/current/{spec_name}/{trace_name}"
-                    lines.append(f"- [{trace_name}](../../{rel})")
-                lines.append("")
-
         return "\n".join(lines)
 
     @staticmethod
-    def _find_step_screenshot(
-        screenshot_paths: list[str], step_num: int, spec_name: str
-    ) -> Optional[str]:
-        """Find a screenshot that matches a step number.
-
-        Playwright names screenshots like test-failed-1.png or
-        <test-title>-<index>.png. Try to match by step index.
-        """
-        for path in screenshot_paths:
-            fname = Path(path).stem.lower()
-            # Match patterns like: step-1, test-1, screenshot-1, or just the number
-            if (
-                f"-{step_num}" in fname
-                or f"step{step_num}" in fname
-                or fname.endswith(str(step_num))
-            ):
-                return path
+    def _load_step_log(spec_name: str) -> Optional[list[dict]]:
+        """Load step-log.json from the spec's artifact directory."""
+        ss_dir = RESULTS_DIR / "screenshots" / "current" / spec_name
+        step_log_path = ss_dir / "step-log.json"
+        if step_log_path.is_file():
+            try:
+                with open(step_log_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
         return None
+
+    @staticmethod
+    def _render_steps_from_log(
+        lines: list[str],
+        step_log: list[dict],
+        spec_name: str,
+        status: str,
+        pw_errors: list[dict],
+        error: str,
+        screenshot_paths: list[str],
+    ) -> None:
+        """Render step log entries as interleaved checkpoints + screenshots."""
+        ss_dir_rel = f"screenshots/current/{spec_name}"
+
+        for i, entry in enumerate(step_log):
+            entry_type = entry.get("type", "checkpoint")
+            message = entry.get("message", "")
+            is_last = i == len(step_log) - 1
+
+            if entry_type == "checkpoint":
+                icon = "❌" if is_last and status == "failed" else "✅"
+                lines.append(f"{entry['index']}. {message} {icon}")
+                lines.append("")
+            elif entry_type == "screenshot":
+                screenshot_file = entry.get("screenshot", "")
+                if screenshot_file:
+                    lines.append(
+                        f"   ![{message}](../../{ss_dir_rel}/{screenshot_file})"
+                    )
+                    lines.append("")
+
+        # Append error + failure screenshot at the end for failed tests
+        if status == "failed":
+            err_msg = ""
+            if pw_errors:
+                err_msg = pw_errors[0].get("message", "")
+            elif error:
+                err_msg = error
+
+            if err_msg:
+                lines.append("**Error:**")
+                lines.append("```")
+                lines.append(err_msg.strip())
+                lines.append("```")
+                lines.append("")
+
+            # Append test-failed-*.png screenshots
+            for ss_path in screenshot_paths:
+                fname = Path(ss_path).name.lower()
+                if fname.startswith("test-failed"):
+                    lines.append(f"![{Path(ss_path).stem}](../../{ss_path})")
+                    lines.append("")
+
+    @staticmethod
+    def _render_steps_from_screenshots(
+        lines: list[str],
+        screenshot_paths: list[str],
+        spec_name: str,
+        status: str,
+        pw_errors: list[dict],
+        error: str,
+    ) -> None:
+        """Fallback: reconstruct steps from screenshot filenames."""
+        import re
+
+        step_screenshots = []
+        failure_screenshots = []
+        for ss_path in screenshot_paths:
+            fname = Path(ss_path).name.lower()
+            if fname.startswith("test-failed") or fname.startswith("test-finished"):
+                failure_screenshots.append(ss_path)
+            else:
+                step_screenshots.append(ss_path)
+
+        # Parse step number and label from filename: {prefix}-{NN}-{label}.png
+        for ss_path in step_screenshots:
+            fname = Path(ss_path).stem
+            match = re.search(r"-(\d+)-(.+)$", fname)
+            if match:
+                step_num = int(match.group(1))
+                label = match.group(2).replace("-", " ").title()
+            else:
+                step_num = 0
+                label = fname.replace("-", " ").title()
+
+            icon = "✅"
+            lines.append(f"{step_num}. {label} {icon}")
+            lines.append(f"   ![{label}](../../{ss_path})")
+            lines.append("")
+
+        # Error + failure screenshots for failed tests
+        if status == "failed":
+            err_msg = ""
+            if pw_errors:
+                err_msg = pw_errors[0].get("message", "")
+            elif error:
+                err_msg = error
+
+            if err_msg:
+                lines.append("**Error:**")
+                lines.append("```")
+                lines.append(err_msg.strip())
+                lines.append("```")
+                lines.append("")
+
+            for ss_path in failure_screenshots:
+                if "test-failed" in Path(ss_path).name.lower():
+                    lines.append(f"![{Path(ss_path).stem}](../../{ss_path})")
+                    lines.append("")
 
 
 # ---------------------------------------------------------------------------
