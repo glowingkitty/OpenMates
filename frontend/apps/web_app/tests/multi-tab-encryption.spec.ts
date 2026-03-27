@@ -151,7 +151,8 @@ async function startNewChat(page: any, logFn: (msg: string) => void): Promise<vo
 	if (await newChatButton.isVisible()) {
 		logFn('Clicking New Chat button.');
 		await newChatButton.click();
-		await page.waitForTimeout(2000);
+		await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 15000 });
+		logFn('Editor visible after new chat.');
 	}
 }
 
