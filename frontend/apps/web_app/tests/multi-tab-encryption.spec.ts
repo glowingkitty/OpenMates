@@ -147,13 +147,32 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 async function startNewChat(page: any, logFn: (msg: string) => void): Promise<void> {
 	await page.waitForTimeout(3000);
 
-	const newChatButton = page.locator('.icon_create');
-	if (await newChatButton.isVisible()) {
-		logFn('Clicking New Chat button.');
-		await newChatButton.click();
-		await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 15000 });
-		logFn('Editor visible after new chat.');
+	// Multiple fallback selectors — sidebar-closed may show .new-chat-cta-button
+	const newChatButtonSelectors = [
+		'.new-chat-cta-button',
+		'.icon_create',
+		'button[aria-label*="New"]',
+		'button[aria-label*="new"]'
+	];
+
+	let clicked = false;
+	for (const selector of newChatButtonSelectors) {
+		const button = page.locator(selector).first();
+		if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
+			logFn(`Clicking New Chat button (${selector}).`);
+			await button.click();
+			clicked = true;
+			break;
+		}
 	}
+
+	if (!clicked) {
+		logFn('No New Chat button found — editor may already be visible.');
+	}
+
+	// Wait for editor to appear regardless of which path we took
+	await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 15000 });
+	logFn('Editor visible.');
 }
 
 // ---- Send message and get chat ID ----
