@@ -1,0 +1,51 @@
+{
+  "note": "Pre-validation file. Actual daily run required after merging fixes to dev.",
+  "created": "2026-03-27T14:20:00Z",
+  "baseline": {
+    "source": "daily-run-2026-03-25.json",
+    "total": 88,
+    "passed": 42,
+    "failed": 46
+  },
+  "fixes_applied": {
+    "plan_02": {
+      "category": "B - Embed Display Type Drift",
+      "specs_fixed": 16,
+      "fix": "Removed stale 'Preview -- Large' from EXPECTED_DT_HEADINGS"
+    },
+    "plan_03": {
+      "category": "A - Login OTP Failure + D - Signup Timeout",
+      "specs_fixed": 24,
+      "fix": "OTP clock-drift compensation + signup timeout increase + inline login migration"
+    },
+    "plan_04": {
+      "category": "C - Selector Drift + E - Strict Mode",
+      "specs_fixed": 6,
+      "fixes": [
+        "not-found-404-flow: .not-found-options -> .not-found-actions selector update",
+        "status-page: strict mode fix for getByText('Chat') and getByText('Groq')",
+        "embed-showcase: EXPECTED_DT_HEADINGS updated (same as embed-test-helpers)",
+        "a11y-pages: migrated inline login to shared loginToTestAccount()",
+        "docs-links: selectors verified correct, no changes needed",
+        "preview-error: selectors verified correct, no changes needed",
+        "seo-demo-chat: server-side content tests, no selector changes needed"
+      ]
+    }
+  },
+  "expected_results": {
+    "total": 89,
+    "expected_passing": "85+",
+    "known_potential_failures": [
+      "signup-flow.spec.ts - Mailosaur email delivery timing on GHA",
+      "signup-flow-passkey.spec.ts - Mailosaur + passkey complexity",
+      "signup-flow-polar.spec.ts - Mailosaur + Polar checkout external service",
+      "newsletter-flow.spec.ts - Mailosaur email verification timing"
+    ]
+  },
+  "validation_status": "pending_deployment",
+  "suites": {
+    "playwright": {
+      "tests": []
+    }
+  }
+}
