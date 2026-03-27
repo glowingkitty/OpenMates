@@ -66,6 +66,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "account_id": user_data.get("account_id"),  # Include account_id for invoice generation
             "tfa_enabled": tfa_enabled_status, # Add the determined status here
             "is_admin": user_data.get("is_admin", False),
+            "debug_logging_opted_in": user_data.get("debug_logging_opted_in", False),
             "last_opened": user_data.get("last_opened"),
             "status": user_data.get("status"),
             "role": user_data.get("role"),
