@@ -49,6 +49,17 @@ Requirements for the rebuild. Each maps to roadmap phases.
 - [ ] **TEST-04**: Performance test: encryption/decryption of a 100-message chat completes within acceptable bounds (no sync timeout)
 - [ ] **TEST-05**: File-size monitoring script that flags files over a configurable line threshold and suggests splits
 
+### OpenTelemetry Distributed Tracing
+
+- [ ] **OTEL-01**: Backend OTel SDK initializes with auto-instrumentation for FastAPI, httpx, Celery, and Redis — traces export to OpenObserve via OTLP HTTP
+- [ ] **OTEL-02**: TracePrivacyFilter enforces 3-tier privacy model — Tier 1 (structural, pseudonymized), Tier 2 (diagnostic, auto-escalated on errors), Tier 3 (full, admin + opted-in only)
+- [ ] **OTEL-03**: Backend WebSocket handlers extract `_traceparent` from message payloads and create parent spans for downstream operations
+- [ ] **OTEL-04**: Frontend OTel SDK auto-instruments fetch() calls and injects `_traceparent` into all outgoing WebSocket messages
+- [ ] **OTEL-05**: OTLP proxy endpoint (`/v1/telemetry/traces`) forwards frontend traces to OpenObserve with authentication
+- [ ] **OTEL-06**: User opt-in mechanism: `debug_logging_opted_in` boolean on Directus users collection, Settings UI toggle with disclosure text
+- [ ] **OTEL-07**: `debug.py trace` CLI subcommand family queries OpenObserve for trace data and renders indented span timelines
+- [ ] **OTEL-08**: Issue reports include trace IDs, `debug.py issue --timeline` merges OTel trace spans into log timeline, LoggingMiddleware uses OTel trace_id
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -108,12 +119,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-03 | Phase 5 | Complete |
 | TEST-04 | Phase 5 | Pending |
 | TEST-05 | Phase 5 | Pending |
+| OTEL-01 | Phase 6 | Pending |
+| OTEL-02 | Phase 6 | Pending |
+| OTEL-03 | Phase 6 | Pending |
+| OTEL-04 | Phase 6 | Pending |
+| OTEL-05 | Phase 6 | Pending |
+| OTEL-06 | Phase 6 | Pending |
+| OTEL-07 | Phase 6 | Pending |
+| OTEL-08 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 27 total
-- Mapped to phases: 27
+- v1 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after roadmap creation*
+*Last updated: 2026-03-27 after Phase 6 planning*

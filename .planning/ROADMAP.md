@@ -83,10 +83,30 @@ Plans:
   4. Encryption/decryption of a 100-message chat completes within acceptable performance bounds (no sync timeout)
   5. Architecture documentation in docs/architecture/ explains the full encryption flow end-to-end with module boundaries and data flow diagrams
 
+### Phase 6: OpenTelemetry Distributed Tracing
+**Goal**: OpenTelemetry distributed tracing covers backend (auto-instrumented) and frontend (fetch + custom WebSocket spans), with tiered privacy filtering for production and CLI-based trace inspection via debug.py
+**Depends on**: Phase 5
+**Requirements**: OTEL-01, OTEL-02, OTEL-03, OTEL-04, OTEL-05, OTEL-06, OTEL-07, OTEL-08
+**Success Criteria** (what must be TRUE):
+  1. Backend OTel SDK auto-instruments FastAPI, httpx, Celery, and Redis -- traces export to OpenObserve via OTLP HTTP
+  2. TracePrivacyFilter enforces 3-tier privacy model before spans reach OpenObserve
+  3. WebSocket messages carry _traceparent for end-to-end trace propagation (browser to API to Celery to microservices)
+  4. Frontend OTel SDK auto-instruments fetch() and injects trace context into WS messages
+  5. `debug.py trace` CLI renders indented span timelines from OpenObserve trace data
+  6. Issue reports include trace IDs and `debug.py issue --timeline` merges trace spans into log timeline
+**Plans:** 5 plans
+
+Plans:
+- [ ] 06-01-PLAN.md -- Backend OTel SDK setup, auto-instrumentation, TracePrivacyFilter, and unit tests
+- [ ] 06-02-PLAN.md -- Directus schema field, user opt-in toggle in Settings UI
+- [ ] 06-03-PLAN.md -- Backend WS custom spans, frontend OTel SDK, OTLP proxy, WS span wrappers
+- [ ] 06-04-PLAN.md -- debug.py trace CLI subcommand family
+- [ ] 06-05-PLAN.md -- Issue reporting integration, LoggingMiddleware migration to OTel trace context
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -95,3 +115,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Key Management Hardening | 0/? | Not started | - |
 | 4. Sync Handler Rewire | 0/? | Not started | - |
 | 5. Testing & Documentation | 1/3 | Executing | - |
+| 6. OpenTelemetry Distributed Tracing | 0/5 | Planning complete | - |
