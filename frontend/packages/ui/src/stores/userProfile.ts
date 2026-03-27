@@ -89,6 +89,11 @@ export interface UserProfile {
   // Used by: ActiveChat.svelte overflow "+N" counter, SettingsAccountChats.svelte display.
   // Updated on: Phase 3 sync completion, chat deletion. Cleared on logout.
   total_chat_count?: number;
+  // Debug logging opt-in (OpenTelemetry Tier 3 tracing).
+  // When true, detailed trace data (request timing, service interactions, error context) is collected.
+  // Encrypted message content is never collected regardless of this setting.
+  // Managed via Settings > Privacy & Security. Synced to Directus via updateProfile().
+  debug_logging_opted_in?: boolean;
 }
 
 // Default currency is now EUR
