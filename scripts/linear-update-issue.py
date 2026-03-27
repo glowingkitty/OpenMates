@@ -33,7 +33,7 @@ logging.basicConfig(
 
 LINEAR_API_URL = "https://api.linear.app/graphql"
 LABEL_WORKINGONIT = "claude-workingonit"
-LABEL_INVESTIGATED = "claude-investigated"
+LABEL_COMPLETE = "claude-investigate-complete"
 
 # --- GraphQL Mutations ---
 
@@ -67,7 +67,7 @@ query GetIssueLabels($id: String!) {
 QUERY_CLAUDE_LABELS = """
 query GetClaudeLabels {
   issueLabels(filter: {
-    name: { in: ["claude-workingonit", "claude-investigated"] }
+    name: { in: ["claude-workingonit", "claude-investigate-complete"] }
   }) {
     nodes {
       id
@@ -77,12 +77,25 @@ query GetClaudeLabels {
 }
 """
 
-MUTATION_UPDATE_LABELS = """
-mutation UpdateIssueLabels($id: String!, $labelIds: [String!]!) {
+MUTATION_UPDATE_ISSUE = """
+mutation UpdateIssue($id: String!, $labelIds: [String!]!, $stateId: String) {
   issueUpdate(id: $id, input: {
     labelIds: $labelIds
+    stateId: $stateId
   }) {
     success
+  }
+}
+"""
+
+QUERY_WORKFLOW_STATES = """
+query GetWorkflowStates {
+  workflowStates {
+    nodes {
+      id
+      name
+      type
+    }
   }
 }
 """
@@ -122,13 +135,14 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
     return data["data"]
 
 
-def build_comment_body(session_id: str, status: str) -> str:
+def build_comment_body(session_id: str, status: str, response_text: str = "") -> str:
     """
     Build the markdown comment body posted to the Linear issue.
 
     Args:
         session_id: Claude Code session ID from the completed investigation.
         status: Investigation outcome — "completed", "timeout", or "error".
+        response_text: Full Claude response text (optional).
 
     Returns:
         Formatted markdown string for the Linear comment.
@@ -143,46 +157,71 @@ def build_comment_body(session_id: str, status: str) -> str:
         header = "## Claude Code Investigation Complete"
         status_line = "**Status:** Awaiting developer review"
 
-    return (
-        f"{header}\n\n"
-        f"**Session ID:** `{session_id}`\n\n"
-        "**Resume command:**\n"
-        "```\n"
-        f"claude --resume {session_id}\n"
-        "```\n\n"
-        "**Recommended next step:**\n"
-        "Review the investigation session, then run the appropriate GSD command:\n"
-        "- `/gsd:debug` -- if the issue is a bug that needs fixing\n"
-        "- `/gsd:quick` -- if the issue needs a small feature or refactor\n"
-        "- `/gsd:execute-phase` -- if the issue relates to a roadmap phase\n\n"
-        f"{status_line}"
-    )
+    parts = [
+        f"{header}\n",
+        f"**Session ID:** `{session_id}`\n",
+        "**Resume command:**",
+        "```",
+        f"claude --resume {session_id}",
+        "```\n",
+    ]
+
+    # Include full Claude response if available
+    if response_text:
+        # Linear comments support markdown — truncate if extremely long
+        max_len = 10000
+        truncated = response_text[:max_len]
+        if len(response_text) > max_len:
+            truncated += "\n\n... (truncated — resume session for full output)"
+        parts.append("---\n")
+        parts.append("### Investigation Findings\n")
+        parts.append(truncated)
+        parts.append("\n---\n")
+
+    parts.extend([
+        "**Recommended next step:**",
+        "Review the investigation session, then run the appropriate GSD command:",
+        "- `/gsd:debug` -- if the issue is a bug that needs fixing",
+        "- `/gsd:quick` -- if the issue needs a small feature or refactor",
+        "- `/gsd:execute-phase` -- if the issue relates to a roadmap phase\n",
+        status_line,
+    ])
+
+    return "\n".join(parts)
 
 
-def swap_to_investigated_label(api_key: str, issue_id: str) -> None:
+def get_in_review_state_id(api_key: str) -> Optional[str]:
+    """Find the 'In Review' workflow state ID. Returns None if not found."""
+    result = linear_query(api_key, QUERY_WORKFLOW_STATES)
+    for node in result.get("workflowStates", {}).get("nodes", []):
+        if node["name"] == "In Review":
+            return node["id"]
+    return None
+
+
+def complete_investigation(api_key: str, issue_id: str) -> None:
     """
-    Swap claude-workingonit → claude-investigated using read-then-write pattern.
+    Finalize issue: swap labels, move to "In Review".
 
-    Linear requires the full set of labelIds on update (no addLabel mutation).
-    Reads current labels, removes workingonit, adds investigated, writes back.
+    Swaps claude-workingonit → claude-investigate-complete and sets
+    the issue status to "In Review" in one API call.
 
     Args:
         api_key: Linear API key.
         issue_id: Linear issue UUID.
     """
-    # Look up both label UUIDs
     label_result = linear_query(api_key, QUERY_CLAUDE_LABELS)
     label_map: Dict[str, str] = {}
     for node in label_result.get("issueLabels", {}).get("nodes", []):
         label_map[node["name"]] = node["id"]
 
-    investigated_label_id = label_map.get(LABEL_INVESTIGATED)
+    complete_label_id = label_map.get(LABEL_COMPLETE)
     workingonit_label_id = label_map.get(LABEL_WORKINGONIT)
 
-    if not investigated_label_id:
+    if not complete_label_id:
         logger.warning(
             "Label '%s' not found in workspace -- skipping label update",
-            LABEL_INVESTIGATED,
+            LABEL_COMPLETE,
         )
         return
 
@@ -200,18 +239,22 @@ def swap_to_investigated_label(api_key: str, issue_id: str) -> None:
         if lbl["id"] != workingonit_label_id
     ]
 
-    # Add investigated if not already present
-    if investigated_label_id not in current_ids:
-        current_ids.append(investigated_label_id)
+    # Add complete if not already present
+    if complete_label_id not in current_ids:
+        current_ids.append(complete_label_id)
 
-    linear_query(
-        api_key,
-        MUTATION_UPDATE_LABELS,
-        variables={"id": issue_id, "labelIds": current_ids},
-    )
+    # Combine labels + "In Review" status in one API call
+    in_review_state_id = get_in_review_state_id(api_key)
+    variables: Dict[str, Any] = {"id": issue_id, "labelIds": current_ids}
+    if in_review_state_id:
+        variables["stateId"] = in_review_state_id
+
+    linear_query(api_key, MUTATION_UPDATE_ISSUE, variables=variables)
+
+    status_msg = " + status → In Review" if in_review_state_id else ""
     logger.info(
-        "Swapped '%s' → '%s' on issue %s",
-        LABEL_WORKINGONIT, LABEL_INVESTIGATED, issue_id,
+        "Swapped '%s' → '%s' on issue %s%s",
+        LABEL_WORKINGONIT, LABEL_COMPLETE, issue_id, status_msg,
     )
 
 
@@ -236,6 +279,11 @@ def main() -> None:
         choices=["completed", "timeout", "error"],
         help="Investigation outcome (default: completed)",
     )
+    parser.add_argument(
+        "--response-file",
+        default="",
+        help="Path to file containing Claude's full response text",
+    )
     args = parser.parse_args()
 
     api_key = os.environ.get("LINEAR_API_KEY", "")
@@ -243,8 +291,16 @@ def main() -> None:
         logger.error("LINEAR_API_KEY environment variable is not set")
         sys.exit(1)
 
+    # Read full response if provided
+    response_text = ""
+    if args.response_file and os.path.isfile(args.response_file):
+        try:
+            response_text = open(args.response_file).read().strip()
+        except Exception:
+            logger.warning("Could not read response file: %s", args.response_file)
+
     # Post the investigation comment
-    comment_body = build_comment_body(args.session_id, args.status)
+    comment_body = build_comment_body(args.session_id, args.status, response_text)
     try:
         result = linear_query(
             api_key,
@@ -269,12 +325,12 @@ def main() -> None:
         )
         sys.exit(1)
 
-    # Add investigated label
+    # Swap labels + move to "In Review"
     try:
-        add_investigated_label(api_key, args.issue_id)
+        complete_investigation(api_key, args.issue_id)
     except Exception:
         logger.error(
-            "Failed to add investigated label to issue %s",
+            "Failed to swap label on issue %s",
             args.issue_id,
             exc_info=True,
         )

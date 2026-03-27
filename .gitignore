@@ -1,3 +1,6 @@
+# GSD planning artifacts
+.planning/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -272,6 +275,8 @@ rankings.json
 debug_output*.yml
 shared/cache/web_analytics_backup.json
 shared/cache/pending_reminders_backup.json
+shared/cache/inspiration_cache_backup.json
+shared/cache/pending_orders_backup.json
 
 # Script auto-generated state files
 scripts/.dead-code-removal-state.json

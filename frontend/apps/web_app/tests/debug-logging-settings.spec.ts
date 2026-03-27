@@ -112,11 +112,9 @@ function getDebugLoggingRow(page: any) {
 // ---------------------------------------------------------------------------
 
 test.describe('Debug Logging Settings', () => {
-	test.beforeEach(async () => {
-		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
-	});
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	test('Debug logging toggle appears and persists state', async ({ page, context }) => {
+	test('Debug logging toggle appears and persists state', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('debug-logging');
 		const takeStepScreenshot = createStepScreenshotter('debug-logging-settings');
 

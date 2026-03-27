@@ -79,7 +79,17 @@ process_trigger() {
     local trigger_session_id=""
     trigger_session_id="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('session_id',''))" "$trigger_file" 2>/dev/null)" || true
 
-    log "[agent-watcher] Starting claude investigation (issue_id=$issue_id, title=$session_title)"
+    # Extract execution mode: "investigate" (plan) or "gsd-quick" (auto)
+    local mode="investigate"
+    mode="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('mode','investigate'))" "$trigger_file" 2>/dev/null)" || true
+
+    # Set permission mode based on trigger type
+    local permission_mode="plan"
+    case "$mode" in
+        gsd-quick|gsd-debug|gsd-add-phase) permission_mode="auto" ;;
+    esac
+
+    log "[agent-watcher] Starting claude $mode (issue_id=$issue_id, title=$session_title, permission=$permission_mode)"
 
     # Write prompt to temp file to avoid MAX_ARG_STRLEN limit
     local tmp_file="$PROJECT_ROOT/scripts/.tmp/claude-trigger-$issue_id.txt"
@@ -93,14 +103,22 @@ process_trigger() {
         session_id_flag="--session-id $trigger_session_id"
     fi
 
-    # Run claude plan-mode session with a 15 minute timeout
+    # Export Linear issue ID so SessionStart hook knows this is Linear-triggered
+    if [[ -n "$linear_issue_id" ]]; then
+        export CLAUDE_LINEAR_ISSUE_ID="$linear_issue_id"
+    fi
+
+    # Run claude session with appropriate permission mode and 15 minute timeout
     output="$(timeout 900 claude \
         -p "Read scripts/.tmp/claude-trigger-$issue_id.txt in full and follow all the instructions precisely." \
         --model "claude-sonnet-4-6" \
         --name "$session_title" \
         $session_id_flag \
-        --permission-mode plan \
+        --permission-mode "$permission_mode" \
         --output-format json 2>&1)" || exit_code=$?
+
+    # Unset so next trigger doesn't inherit
+    unset CLAUDE_LINEAR_ISSUE_ID
 
     # Clean up temp file
     rm -f "$tmp_file"

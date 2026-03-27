@@ -104,6 +104,14 @@ None -- all functionality is fully wired.
 - rewrapKey is available for future hide/unhide refactoring if deeper integration is desired
 - All ChatKeyManager bypasses are documented; remaining work is in Plan 03 (caller migration to createAndPersistKeyLocked)
 
+## Self-Check: PASSED
+
+- FOUND: docs/architecture/core/master-key-cross-device.md
+- FOUND: .planning/phases/03-key-management-hardening/03-02-SUMMARY.md
+- FOUND: commit 2ecac10b6 (Task 1)
+- FOUND: commit a6630db05 (Task 2)
+- All 83 encryption tests pass (0 failures)
+
 ---
 *Phase: 03-key-management-hardening*
 *Completed: 2026-03-26*

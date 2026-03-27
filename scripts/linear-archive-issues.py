@@ -8,11 +8,11 @@ in Linear to free up capacity.
 
 Target: bring count down to 200 (50 issues of buffer).
 
-Usage (from host via docker exec):
-    docker exec api python3 /app/scripts/linear-archive-issues.py
+Usage (from host):
+    python3 scripts/linear-archive-issues.py
 
-Runs INSIDE the `api` Docker container. Designed to be called once daily
-via a systemd timer.
+Runs on the HOST with LINEAR_API_KEY from .env. Designed to be called once
+daily via a systemd timer.
 """
 
 import datetime
@@ -33,7 +33,8 @@ logging.basicConfig(
 # --- Constants ---
 
 LINEAR_API_URL = "https://api.linear.app/graphql"
-ARCHIVE_FILE = Path("/app/.planning/linear-archive.md")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ARCHIVE_FILE = PROJECT_ROOT / ".planning" / "linear-archive.md"
 ARCHIVE_THRESHOLD = 230
 ARCHIVE_TARGET = 200
 WARNING_THRESHOLD = 200
@@ -106,7 +107,7 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
         httpx.HTTPStatusError: If the HTTP request fails.
     """
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": api_key,
         "Content-Type": "application/json",
     }
     payload: Dict[str, Any] = {"query": query}

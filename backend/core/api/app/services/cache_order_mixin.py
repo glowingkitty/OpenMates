@@ -2,7 +2,10 @@ import logging
 import time
 import json
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
@@ -200,15 +203,33 @@ class OrderCacheMixin:
             logger.error(f"Error checking for pending orders for user '{user_id}': {str(e)}")
             return False
 
-    async def dump_pending_orders_to_disk(self) -> int:
+    async def dump_pending_orders_to_disk(
+        self,
+        encryption_service: Optional["EncryptionService"] = None,
+    ) -> int:
         """
         Dump all pending (non-completed, non-failed) orders to disk for persistence across restarts.
         Called during graceful shutdown to prevent payment data loss.
-        
+
+        Order data may contain PII (support_email) and sensitive material
+        (email_encryption_key). The entire backup payload is encrypted with Vault
+        transit before writing to disk so no cleartext touches the host filesystem.
+
+        Args:
+            encryption_service: EncryptionService instance for Vault transit encryption.
+                If not provided, the backup is skipped to avoid writing cleartext PII.
+
         Returns:
             Number of orders saved to disk
         """
         try:
+            if not encryption_service:
+                logger.warning(
+                    "Cannot dump orders to disk: no encryption_service provided "
+                    "(refusing to write cleartext PII to disk)"
+                )
+                return 0
+
             client = await self.client
             if not client:
                 logger.warning("Cannot dump orders to disk: cache client not connected")
@@ -217,7 +238,7 @@ class OrderCacheMixin:
             # Find all order keys
             order_pattern = f"{self.ORDER_KEY_PREFIX}*"
             order_keys = await self.get_keys_by_pattern(order_pattern)
-            
+
             if not order_keys:
                 logger.info("No orders in cache to dump to disk")
                 return 0
@@ -225,7 +246,7 @@ class OrderCacheMixin:
             # Collect pending orders (exclude completed/failed)
             final_statuses = {"completed", "failed", "failed_missing_cache_data"}
             pending_orders: List[Dict[str, Any]] = []
-            
+
             for key in order_keys:
                 order_data = await self.get(key)
                 if isinstance(order_data, dict):
@@ -247,27 +268,59 @@ class OrderCacheMixin:
             backup_dir = os.path.dirname(ORDER_BACKUP_PATH)
             os.makedirs(backup_dir, exist_ok=True)
 
-            # Write to disk with timestamp
+            # Build plaintext payload, then encrypt with Vault transit
             backup_data = {
                 "timestamp": int(time.time()),
                 "orders": pending_orders
             }
-            
-            with open(ORDER_BACKUP_PATH, 'w') as f:
-                json.dump(backup_data, f, indent=2)
+            plaintext_json = json.dumps(backup_data)
 
-            logger.info(f"Successfully dumped {len(pending_orders)} pending orders to disk at {ORDER_BACKUP_PATH}")
+            try:
+                ciphertext, _key_version = await encryption_service.encrypt(
+                    plaintext_json, key_name="user_data"
+                )
+            except Exception as enc_err:
+                logger.error(
+                    f"Failed to encrypt order backup — refusing to write cleartext to disk: {enc_err}",
+                    exc_info=True,
+                )
+                return 0
+
+            # Write the Vault-encrypted ciphertext (not raw JSON) to disk.
+            # Format: {"encrypted": "vault:v1:...", "version": 1}
+            encrypted_wrapper = {
+                "encrypted": ciphertext,
+                "version": 1,
+            }
+            with open(ORDER_BACKUP_PATH, 'w') as f:
+                json.dump(encrypted_wrapper, f)
+
+            logger.info(
+                f"Successfully dumped {len(pending_orders)} pending orders to disk "
+                f"(Vault-encrypted) at {ORDER_BACKUP_PATH}"
+            )
             return len(pending_orders)
 
         except Exception as e:
             logger.error(f"Error dumping orders to disk: {str(e)}", exc_info=True)
             return 0
 
-    async def restore_orders_from_disk(self) -> int:
+    async def restore_orders_from_disk(
+        self,
+        encryption_service: Optional["EncryptionService"] = None,
+    ) -> int:
         """
         Restore orders from disk backup into cache.
         Called during startup to recover payment orders after restart.
-        
+
+        The backup file is Vault-encrypted (since the privacy fix). Legacy unencrypted
+        backups are detected and deleted without restoring (they may contain cleartext
+        PII such as email addresses).
+
+        Args:
+            encryption_service: EncryptionService instance for Vault transit decryption.
+                If not provided, encrypted backups cannot be restored.
+
         Returns:
             Number of orders restored to cache
         """
@@ -277,7 +330,45 @@ class OrderCacheMixin:
                 return 0
 
             with open(ORDER_BACKUP_PATH, 'r') as f:
-                backup_data = json.load(f)
+                raw_backup = json.load(f)
+
+            # Detect format: encrypted (version 1+) vs legacy cleartext
+            if "encrypted" in raw_backup and "version" in raw_backup:
+                # Vault-encrypted backup — decrypt before processing
+                if not encryption_service:
+                    logger.warning(
+                        "Order backup is encrypted but no encryption_service provided — "
+                        "cannot restore. File will be kept for next attempt."
+                    )
+                    return 0
+                ciphertext = raw_backup["encrypted"]
+                try:
+                    decrypted_json = await encryption_service.decrypt(
+                        ciphertext, key_name="user_data"
+                    )
+                    if not decrypted_json:
+                        logger.error("Vault decryption returned empty result for order backup")
+                        os.remove(ORDER_BACKUP_PATH)
+                        return 0
+                    backup_data = json.loads(decrypted_json)
+                except Exception as dec_err:
+                    logger.error(
+                        f"Failed to decrypt order backup: {dec_err}", exc_info=True
+                    )
+                    os.remove(ORDER_BACKUP_PATH)
+                    return 0
+            elif "orders" in raw_backup:
+                # Legacy cleartext backup — delete it without restoring (may contain PII)
+                logger.warning(
+                    "Found legacy cleartext order backup — deleting without restoring "
+                    "(cleartext PII should not be on disk)"
+                )
+                os.remove(ORDER_BACKUP_PATH)
+                return 0
+            else:
+                logger.error("Unrecognized order backup format — deleting")
+                os.remove(ORDER_BACKUP_PATH)
+                return 0
 
             timestamp = backup_data.get("timestamp", 0)
             orders = backup_data.get("orders", [])
