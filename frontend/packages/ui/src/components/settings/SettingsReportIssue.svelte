@@ -543,6 +543,17 @@
             // NO user-typed text content is included — only developer-authored labels
             const actionHistory = userActionTracker.getActionHistoryAsText();
 
+            // Collect last N trace IDs from OTel for issue-to-trace correlation.
+            // These are stored in the issue YAML on S3 so debug.py issue --timeline
+            // can merge OTel trace spans into the log timeline.
+            let recentTraceIds: string[] = [];
+            try {
+                const { getRecentTraceIds } = await import('../../services/tracing/wsSpans');
+                recentTraceIds = getRecentTraceIds();
+            } catch {
+                // Tracing not available — no trace IDs to attach
+            }
+
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
                 headers: {
@@ -572,6 +583,9 @@
                     // outerHTML of the DOM element the user picked via the element picker overlay.
                     // Null if the user did not pick an element.
                     picked_element_html: pickedElementHtml ?? null,
+                    // Recent OTel trace IDs for issue-to-trace correlation.
+                    // Empty array if tracing is not active.
+                    trace_ids: recentTraceIds,
                     // Admin-only: trigger Claude Code plan-mode investigation.
                     // Only honoured server-side when reporter is a verified admin.
                     submit_to_agent: isAdminUser && submitToAgent

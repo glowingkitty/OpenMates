@@ -906,6 +906,55 @@ async def fetch_issue_timeline_local(
         for hit in result:
             all_events.append(_hit_to_event(hit, source_override))
 
+    # ── Merge OTel trace spans if trace_ids are present in the issue ──
+    # Issues created after the OTel integration include trace_ids from the
+    # frontend's WS span ring buffer. We query OpenObserve for these traces
+    # and merge the spans into the timeline for end-to-end visibility.
+    trace_ids = issue.get("trace_ids") or []
+    if trace_ids and isinstance(trace_ids, list):
+        try:
+            # Import from the sibling debug_trace module (lives in the same directory)
+            import importlib.util
+            trace_script = os.path.join(os.path.dirname(__file__), "debug_trace.py")
+            spec = importlib.util.spec_from_file_location("debug_trace", trace_script)
+            if spec and spec.loader:
+                debug_trace_mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(debug_trace_mod)
+                base_url = debug_trace_mod._get_base_url(production=False)
+                auth = debug_trace_mod._get_auth(production=False)
+
+                for tid in trace_ids[:20]:  # Cap to 20 trace IDs max
+                    tid_clean = tid.strip()
+                    if not tid_clean:
+                        continue
+                    sql = debug_trace_mod._query_by_trace_id(tid_clean)
+                    spans = debug_trace_mod._search_traces(
+                        sql, start_us, end_us, base_url, auth
+                    )
+                    for span in spans:
+                        # Convert trace span to timeline event format
+                        span_ts = span.get("start_time", 0)
+                        span_name = span.get("operation_name", span.get("span_name", "unknown"))
+                        service = span.get("service_name", "")
+                        duration_ns = span.get("duration", 0)
+                        duration_ms = duration_ns / 1_000_000 if duration_ns else 0
+                        status = span.get("span_status", "")
+
+                        msg = f"[TRACE] {span_name}"
+                        if duration_ms > 0:
+                            msg += f" ({duration_ms:.1f}ms)"
+                        if status and status != "Unset":
+                            msg += f" [{status}]"
+
+                        all_events.append({
+                            "ts_us": span_ts // 1000 if span_ts > 1e15 else span_ts,
+                            "source": f"trace:{service}" if service else "trace",
+                            "level": "TRACE",
+                            "message": msg,
+                        })
+        except Exception as trace_err:
+            script_logger.warning(f"Failed to merge OTel trace spans: {trace_err}")
+
     # Deduplicate (same µs + first 100 chars of message)
     seen: set = set()
     unique: List[Dict[str, Any]] = []

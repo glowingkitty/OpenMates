@@ -2382,6 +2382,15 @@ class IssueReportRequest(BaseModel):
             "rendering, or content issues. Collected client-side via the element picker overlay."
         )
     )
+    trace_ids: Optional[List[str]] = Field(
+        None,
+        max_length=20,
+        description=(
+            "Recent OTel trace IDs from the frontend's WS span ring buffer. "
+            "Stored in the issue YAML on S3 so debug.py issue --timeline can "
+            "merge OTel trace spans into the log timeline."
+        )
+    )
     submit_to_agent: bool = Field(
         False,
         description=(
@@ -2851,6 +2860,8 @@ async def report_issue(
                 "encrypted_screenshot_s3_key": encrypted_screenshot_s3_key,
                 "is_from_admin": is_from_admin,
                 "reported_by_user_id": reported_by_user_id,
+                # OTel trace IDs from frontend for trace-to-issue correlation
+                "trace_ids": issue_data.trace_ids or [],
                 "created_at": current_timestamp.isoformat(),
                 "updated_at": current_timestamp.isoformat()
             }
@@ -2916,7 +2927,9 @@ async def report_issue(
                 "picked_element_html": picked_element_html_str,
                 # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
                 # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
-                "screenshot_presigned_url": screenshot_presigned_url
+                "screenshot_presigned_url": screenshot_presigned_url,
+                # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
+                "trace_ids": issue_data.trace_ids or []
             },
             queue='email'
         )
