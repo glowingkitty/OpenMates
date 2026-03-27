@@ -121,7 +121,7 @@ test.describe('Debug Logging Settings', () => {
 		});
 
 		// Archive old screenshots
-		await archiveExistingScreenshots('debug-logging-settings');
+		await archiveExistingScreenshots(logCheckpoint);
 
 		// Attach console/network monitors
 		attachConsoleListeners(page, logCheckpoint);
