@@ -365,7 +365,14 @@ def start_investigation(
 
     linear_query(api_key, MUTATION_UPDATE_ISSUE, variables=variables)
 
+    # Post a minimal "started" comment with just the resume command
     identifier = issue.get("identifier", "unknown")
+    comment_body = f"`claude --resume {session_id}`"
+    linear_query(
+        api_key,
+        MUTATION_CREATE_COMMENT,
+        variables={"issueId": issue["id"], "body": comment_body},
+    )
     logger.info("Marked %s as in-progress (session %s)", identifier, session_id)
 
 
