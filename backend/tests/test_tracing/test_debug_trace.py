@@ -403,9 +403,11 @@ class TestParseArgsRecent:
 class TestGetFullTraceSpans:
     """Verify _get_full_trace_spans uses SQL _search API, not /traces/latest."""
 
-    @patch("debug_trace.httpx")
-    def test_calls_search_api_not_traces_latest(self, mock_httpx):
+    def test_calls_search_api_not_traces_latest(self):
         """_get_full_trace_spans must POST to _search endpoint with SQL query."""
+        import importlib
+        import httpx as real_httpx
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -413,27 +415,27 @@ class TestGetFullTraceSpans:
                 {"trace_id": "abc123", "span_id": "s1", "operation_name": "GET /v1/chats"}
             ]
         }
-        mock_httpx.post.return_value = mock_response
 
-        result = _get_full_trace_spans(
-            trace_id="abc123",
-            start_time_us=1000000,
-            end_time_us=9000000,
-            base_url="http://localhost:5080",
-            auth=("user", "pass"),
-        )
+        with patch.object(real_httpx, "post", return_value=mock_response) as mock_post:
+            result = _get_full_trace_spans(
+                trace_id="abc123",
+                start_time_us=1000000,
+                end_time_us=9000000,
+                base_url="http://localhost:5080",
+                auth=("user", "pass"),
+            )
 
-        # Must call httpx.post (SQL _search), not httpx.get (traces/latest)
-        mock_httpx.post.assert_called_once()
-        call_args = mock_httpx.post.call_args
-        url = call_args[0][0] if call_args[0] else call_args[1].get("url", "")
-        assert "_search" in url, f"Expected _search in URL, got: {url}"
-        assert "traces/latest" not in url, f"Must NOT use traces/latest, got: {url}"
+            # Must call httpx.post (SQL _search), not httpx.get (traces/latest)
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            url = call_args[0][0] if call_args[0] else call_args[1].get("url", "")
+            assert "_search" in url, f"Expected _search in URL, got: {url}"
+            assert "traces/latest" not in url, f"Must NOT use traces/latest, got: {url}"
 
-        # Verify SQL contains trace_id filter
-        body = call_args[1].get("json", {})
-        sql = body.get("query", {}).get("sql", "")
-        assert "abc123" in sql, f"SQL must filter by trace_id, got: {sql}"
+            # Verify SQL contains trace_id filter
+            body = call_args[1].get("json", {})
+            sql = body.get("query", {}).get("sql", "")
+            assert "abc123" in sql, f"SQL must filter by trace_id, got: {sql}"
 
-        assert len(result) == 1
-        assert result[0]["trace_id"] == "abc123"
+            assert len(result) == 1
+            assert result[0]["trace_id"] == "abc123"

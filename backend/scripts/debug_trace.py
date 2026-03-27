@@ -2,13 +2,17 @@
 """
 Distributed Trace CLI — OpenTelemetry trace inspection via OpenObserve.
 
-Provides 6 subcommands for querying OTLP trace data stored in OpenObserve:
+Provides 7 subcommands for querying OTLP trace data stored in OpenObserve:
   request   — Single trace by trace ID
   errors    — Recent error traces (optionally filtered by route/fingerprint)
   task      — Celery task execution trace by task UUID
   session   — All traces for a user within a time window
   slow      — Traces exceeding a latency threshold
   login     — Login flow trace for a specific user
+  recent    — All recent traces in a time window (not just errors)
+
+All subcommands fetch full span trees via the SQL _search API and render
+hierarchical output with Unicode box-drawing characters.
 
 Architecture context: docs/architecture/admin-console-log-forwarding.md
 Tests: backend/tests/test_tracing/test_debug_trace.py
@@ -20,7 +24,6 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 # ── Path bootstrap ────────────────────────────────────────────────────────────
@@ -52,9 +55,13 @@ TRACE_STREAM = "default"
 # Maximum results per query
 DEFAULT_QUERY_LIMIT = 50
 SESSION_QUERY_LIMIT = 100
+RECENT_DEFAULT_LIMIT = 25
 
-# Indentation per depth level in timeline output (spaces)
-INDENT_SPACES = 2
+# Unicode box-drawing characters for span tree rendering
+TREE_BRANCH = "\u251c\u2500"   # ├─  (middle child)
+TREE_LAST = "\u2514\u2500"     # └─  (last child)
+TREE_PIPE = "\u2502  "         # │   (vertical continuation)
+TREE_SPACE = "   "             # spaces (no continuation)
 
 
 # ── Duration parsing ─────────────────────────────────────────────────────────
@@ -150,6 +157,13 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     lgn.add_argument("--json", dest="json_output", action="store_true", help="JSON output")
     lgn.add_argument("--production", action="store_true", help="Query production OpenObserve")
 
+    # ── recent ────────────────────────────────────────────────────────────
+    rec = subparsers.add_parser("recent", help="All recent traces (not just errors)")
+    rec.add_argument("--last", required=True, help="Time window (e.g. 5m, 1h)")
+    rec.add_argument("--limit", type=int, default=RECENT_DEFAULT_LIMIT, help="Max traces to show")
+    rec.add_argument("--json", dest="json_output", action="store_true", help="JSON output")
+    rec.add_argument("--production", action="store_true", help="Query production OpenObserve")
+
     return parser.parse_args(argv)
 
 
@@ -200,8 +214,9 @@ def _get_latest_traces(
 ) -> List[Dict[str, Any]]:
     """Fetch latest traces from OpenObserve traces/latest API.
 
-    OpenObserve v0.70+ uses a dedicated trace query endpoint rather than
-    the generic _search endpoint for trace streams.
+    This endpoint returns trace-level summaries (not individual spans).
+    Each result contains a trace_id that can be used with
+    _get_full_trace_spans to fetch the complete span tree.
 
     Args:
         start_time_us: Query window start in microseconds since epoch.
@@ -239,47 +254,73 @@ def _get_latest_traces(
         return []
 
 
-def _search_trace_spans(
+def _get_full_trace_spans(
     trace_id: str,
     start_time_us: int,
     end_time_us: int,
     base_url: str,
     auth: Tuple[str, str],
 ) -> List[Dict[str, Any]]:
-    """Fetch trace detail for a specific trace ID via traces/latest filter.
+    """Fetch ALL spans for a trace via the SQL _search API.
 
-    OpenObserve v0.70+ does not support SQL search on trace streams.
-    Uses the traces/latest endpoint with a trace_id filter instead.
+    Unlike _get_latest_traces (which returns trace summaries with only
+    first_event metadata), this function returns every individual span
+    for a given trace_id — enabling full hierarchical tree rendering.
 
     Args:
-        trace_id: Full or partial trace ID.
+        trace_id: Full trace ID string.
         start_time_us: Query window start in microseconds since epoch.
         end_time_us: Query window end in microseconds since epoch.
         base_url: OpenObserve base URL.
         auth: Tuple of (email, password) for Basic auth.
 
     Returns:
-        List of span dicts (first_event from each matching trace). Empty list on error.
+        List of span dicts with span_id, parent_span_id, etc. Empty list on error.
     """
-    import urllib.parse
+    import httpx
 
-    filter_str = urllib.parse.quote(f"trace_id='{trace_id}'")
-    traces = _get_latest_traces(
-        start_time_us, end_time_us, base_url, auth,
-        size=1, filter_str=filter_str,
+    url = f"{base_url}/api/{OPENOBSERVE_ORG}/{TRACE_STREAM}/_search"
+    sql = (
+        f"SELECT * FROM {TRACE_STREAM} "
+        f"WHERE trace_id = '{trace_id}' "
+        f"ORDER BY start_time ASC"
     )
-    # Return first_event spans from matching traces
-    return [t.get("first_event", t) for t in traces if t.get("first_event")]
+    body = {
+        "query": {
+            "sql": sql,
+            "start_time": start_time_us,
+            "end_time": end_time_us,
+        }
+    }
+
+    try:
+        response = httpx.post(url, json=body, auth=auth, timeout=30.0)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("hits", [])
+        else:
+            print(
+                f"OpenObserve span search failed (status={response.status_code}): "
+                f"{response.text[:300]}",
+                file=sys.stderr,
+            )
+            return []
+    except Exception as exc:
+        print(f"Error fetching spans for trace {trace_id}: {exc}", file=sys.stderr)
+        return []
 
 
-def _search_traces_legacy(
+def _search_traces_sql(
     sql: str,
     start_time_us: int,
     end_time_us: int,
     base_url: str,
     auth: Tuple[str, str],
 ) -> List[Dict[str, Any]]:
-    """Legacy SQL search (kept for non-trace stream queries like log correlation).
+    """Execute a SQL query against the trace stream via _search API.
+
+    Used for direct span queries (errors, task lookup, session, etc.)
+    where we need individual span records rather than trace summaries.
 
     Args:
         sql: SQL query string for OpenObserve.
@@ -319,130 +360,69 @@ def _search_traces_legacy(
         return []
 
 
-# ── Query builders ───────────────────────────────────────────────────────────
+# Keep legacy name as alias for backwards compatibility
+_search_traces_legacy = _search_traces_sql
 
 
-def _query_by_trace_id(trace_id: str) -> str:
-    """SQL to fetch all spans for a trace by its ID (prefix match).
+def _collect_full_spans(
+    traces: List[Dict[str, Any]],
+    start_time_us: int,
+    end_time_us: int,
+    base_url: str,
+    auth: Tuple[str, str],
+) -> List[Dict[str, Any]]:
+    """For each trace summary, fetch all spans via _get_full_trace_spans.
 
-    Args:
-        trace_id: Full or partial trace ID.
-
-    Returns:
-        SQL query string.
-    """
-    return (
-        f"SELECT * FROM {TRACE_STREAM} "
-        f"WHERE trace_id LIKE '{trace_id}%' "
-        f"ORDER BY start_time ASC"
-    )
-
-
-def _query_errors(
-    duration_s: int,
-    route: Optional[str] = None,
-    fingerprint: Optional[str] = None,
-) -> str:
-    """SQL to find recent error traces.
+    This replaces the broken pattern of extracting first_event from trace
+    summaries. Instead, we get the complete span tree for every trace.
 
     Args:
-        duration_s: Lookback window in seconds (used for time range, not SQL).
-        route: Optional route pattern filter.
-        fingerprint: Optional error fingerprint hash filter.
+        traces: List of trace summary dicts from _get_latest_traces.
+        start_time_us: Query window start in microseconds since epoch.
+        end_time_us: Query window end in microseconds since epoch.
+        base_url: OpenObserve base URL.
+        auth: Tuple of (email, password) for Basic auth.
 
     Returns:
-        SQL query string.
+        List of all span dicts across all traces (ready for format_trace_timeline).
     """
-    clauses = [f"span_status = 'ERROR'"]
-    if route:
-        clauses.append(f"operation_name LIKE '%{route}%'")
-    if fingerprint:
-        clauses.append(f"error_fingerprint = '{fingerprint}'")
-    where = " AND ".join(clauses)
-    return (
-        f"SELECT * FROM {TRACE_STREAM} "
-        f"WHERE {where} "
-        f"ORDER BY start_time DESC LIMIT {DEFAULT_QUERY_LIMIT}"
-    )
+    all_spans: List[Dict[str, Any]] = []
+    seen_trace_ids: set = set()
 
+    for trace in traces:
+        # Extract trace_id from summary — may be top-level or inside first_event
+        trace_id = trace.get("trace_id", "")
+        if not trace_id:
+            fe = trace.get("first_event", {})
+            trace_id = fe.get("trace_id", "")
+        if not trace_id or trace_id in seen_trace_ids:
+            continue
+        seen_trace_ids.add(trace_id)
 
-def _query_by_celery_task(task_id: str) -> str:
-    """SQL to fetch spans for a Celery task by its UUID.
+        spans = _get_full_trace_spans(
+            trace_id, start_time_us, end_time_us, base_url, auth
+        )
+        all_spans.extend(spans)
 
-    Args:
-        task_id: Celery task UUID.
-
-    Returns:
-        SQL query string.
-    """
-    return (
-        f"SELECT * FROM {TRACE_STREAM} "
-        f"WHERE \"celery.task_id\" = '{task_id}' "
-        f"ORDER BY start_time ASC"
-    )
-
-
-def _query_user_session(user_email: str, duration_s: int) -> str:
-    """SQL to fetch traces for a user's session.
-
-    Args:
-        user_email: User email to search for.
-        duration_s: Lookback window in seconds (used for time range, not SQL).
-
-    Returns:
-        SQL query string.
-    """
-    return (
-        f"SELECT * FROM {TRACE_STREAM} "
-        f"WHERE \"enduser.id\" LIKE '%{user_email}%' "
-        f"ORDER BY start_time DESC LIMIT {SESSION_QUERY_LIMIT}"
-    )
-
-
-def _query_slow(threshold_ms: int, duration_s: int) -> str:
-    """SQL to find traces exceeding a latency threshold.
-
-    Args:
-        threshold_ms: Minimum duration in milliseconds.
-        duration_s: Lookback window in seconds (used for time range, not SQL).
-
-    Returns:
-        SQL query string.
-    """
-    threshold_us = threshold_ms * 1000
-    return (
-        f"SELECT * FROM {TRACE_STREAM} "
-        f"WHERE duration > {threshold_us} "
-        f"ORDER BY duration DESC LIMIT {DEFAULT_QUERY_LIMIT}"
-    )
-
-
-def _query_login(user_email: str) -> str:
-    """SQL to find login flow traces for a user.
-
-    Args:
-        user_email: User email to search for.
-
-    Returns:
-        SQL query string.
-    """
-    return (
-        f"SELECT * FROM {TRACE_STREAM} "
-        f"WHERE \"enduser.id\" LIKE '%{user_email}%' "
-        f"AND operation_name LIKE '%login%' "
-        f"ORDER BY start_time DESC LIMIT {DEFAULT_QUERY_LIMIT}"
-    )
+    return all_spans
 
 
 # ── Timeline formatter ──────────────────────────────────────────────────────
 
 
 def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
-    """Format spans into an indented text timeline grouped by trace.
+    """Format spans into a Unicode tree timeline grouped by trace.
 
     Builds a parent-child hierarchy using span_id / parent_span_id,
-    then renders each span at its depth level with timestamp, service,
-    operation, duration, and status.
+    then renders each span with Unicode box-drawing characters showing
+    the tree structure. Each span line shows service.operation (duration) status.
+
+    Output format per D-03:
+        Trace abc123 -- GET /v1/chats (234ms) OK
+          ├─ directus.get_chats (45ms) OK
+          ├─ redis.get cache:chats (2ms) OK
+          └─ httpx.post app-ai (180ms) OK
+              └─ celery.task ask_skill (170ms) OK
 
     Args:
         spans: List of span dicts from OpenObserve search results.
@@ -490,50 +470,61 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
                 overall_status = "ERROR"
                 break
 
-        # Trace header
+        # Find root span operation name for trace header
+        root_operation = "unknown"
+        if root_ids:
+            root_span = span_map.get(root_ids[0], {})
+            root_operation = root_span.get(
+                "operation_name", root_span.get("name", "unknown")
+            )
+
+        # Trace header with root operation name (per D-03)
         output_lines.append(
-            f"Trace {short_trace_id(trace_id)}  "
-            f"Duration: {total_duration_ms:.0f}ms  "
-            f"Status: {overall_status}"
+            f"Trace {short_trace_id(trace_id)} -- "
+            f"{root_operation} ({total_duration_ms:.0f}ms) {overall_status}"
         )
 
         # Sort root spans by start_time
         root_ids.sort(key=lambda sid: span_map[sid].get("start_time", 0))
 
-        # Recursive depth-first render
-        def _render_span(sid: str, depth: int) -> None:
+        # Recursive depth-first render with Unicode tree characters
+        def _render_span(sid: str, prefix: str, is_last: bool) -> None:
+            """Render a single span and its children with tree connectors.
+
+            Args:
+                sid: Span ID to render.
+                prefix: Accumulated prefix string for indentation/tree lines.
+                is_last: Whether this span is the last sibling at its level.
+            """
             span = span_map.get(sid)
             if not span:
                 return
 
-            indent = " " * (INDENT_SPACES * (depth + 1))
-            start_us = span.get("start_time", 0)
             duration_us = span.get("duration", 0)
             duration_ms = duration_us / 1000.0
             service = span.get("service_name", span.get("service", "???"))
             operation = span.get("operation_name", span.get("name", "???"))
             status = span.get("span_status", "OK")
 
-            # Format timestamp from microseconds
-            try:
-                dt = datetime.fromtimestamp(start_us / 1_000_000, tz=timezone.utc)
-                ts_str = dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # millisecond precision
-            except (ValueError, OSError):
-                ts_str = str(start_us)
+            # Choose connector: └─ for last child, ├─ for middle children
+            connector = TREE_LAST if is_last else TREE_BRANCH
 
             output_lines.append(
-                f"{indent}{ts_str}  [{service}]  {operation}  "
-                f"{duration_ms:.0f}ms  {status}"
+                f"{prefix}{connector} {service}.{operation} "
+                f"({duration_ms:.0f}ms) {status}"
             )
+
+            # Build prefix for children: │ continues if not last, spaces if last
+            child_prefix = prefix + (TREE_SPACE if is_last else TREE_PIPE)
 
             # Render children sorted by start_time
             child_ids = children.get(sid, [])
             child_ids.sort(key=lambda cid: span_map[cid].get("start_time", 0))
-            for child_id in child_ids:
-                _render_span(child_id, depth + 1)
+            for i, child_id in enumerate(child_ids):
+                _render_span(child_id, child_prefix, is_last=(i == len(child_ids) - 1))
 
-        for root_id in root_ids:
-            _render_span(root_id, 0)
+        for i, root_id in enumerate(root_ids):
+            _render_span(root_id, "  ", is_last=(i == len(root_ids) - 1))
 
         output_lines.append("")  # Blank line between traces
 
@@ -573,7 +564,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     """Entry point for the trace CLI subcommand.
 
     Parses arguments, executes the appropriate OpenObserve query,
-    and prints formatted output to stdout.
+    and prints formatted output to stdout. All commands fetch full
+    span trees via the SQL _search API for hierarchical display.
 
     Args:
         argv: Argument list. If None, uses sys.argv[1:].
@@ -590,14 +582,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     default_lookback_s = 3600  # 1 hour
 
     if args.command == "request":
-        # Fetch all spans for a specific trace ID
+        # Fetch all spans for a specific trace ID via SQL _search
         start_us, end_us = _time_range(7 * 86400)  # 7-day window
-        spans = _search_trace_spans(args.trace_id, start_us, end_us, base_url, auth)
+        spans = _get_full_trace_spans(args.trace_id, start_us, end_us, base_url, auth)
 
     elif args.command == "errors":
         duration_s = parse_duration(args.last)
         start_us, end_us = _time_range(duration_s)
-        # Build filter for error traces
+        # Get error trace summaries, then fetch full span trees for each
         filter_parts = ["span_status = 'ERROR'"]
         if getattr(args, "route", None):
             filter_parts.append(f"operation_name LIKE '%{args.route}%'")
@@ -605,17 +597,16 @@ def main(argv: Optional[List[str]] = None) -> None:
             start_us, end_us, base_url, auth,
             filter_str=" AND ".join(filter_parts),
         )
-        # Extract first_event spans for timeline display
-        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
+        spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     elif args.command == "task":
-        # Celery task lookup — search for spans with the task ID attribute
+        # Celery task lookup — get trace summaries, then full span trees
         start_us, end_us = _time_range(7 * 86400)
         traces = _get_latest_traces(
             start_us, end_us, base_url, auth,
             filter_str=f"celery.task_id = '{args.task_id}'",
         )
-        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
+        spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     elif args.command == "session":
         duration_s = parse_duration(args.last)
@@ -624,7 +615,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             start_us, end_us, base_url, auth,
             filter_str=f"enduser.id LIKE '%{args.user}%'",
         )
-        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
+        spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     elif args.command == "slow":
         duration_s = parse_duration(args.last)
@@ -634,7 +625,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             start_us, end_us, base_url, auth,
             filter_str=f"duration > {threshold_us}",
         )
-        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
+        spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     elif args.command == "login":
         start_us, end_us = _time_range(default_lookback_s)
@@ -642,7 +633,16 @@ def main(argv: Optional[List[str]] = None) -> None:
             start_us, end_us, base_url, auth,
             filter_str=f"enduser.id LIKE '%{args.user}%' AND operation_name LIKE '%login%'",
         )
-        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
+        spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
+
+    elif args.command == "recent":
+        duration_s = parse_duration(args.last)
+        start_us, end_us = _time_range(duration_s)
+        limit = getattr(args, "limit", RECENT_DEFAULT_LIMIT)
+        traces = _get_latest_traces(
+            start_us, end_us, base_url, auth, size=limit,
+        )
+        spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     else:
         print(f"Unknown trace command: {args.command}", file=sys.stderr)
