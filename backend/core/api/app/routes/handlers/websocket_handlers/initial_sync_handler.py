@@ -28,9 +28,31 @@ async def handle_initial_sync(
 ):
     logger.info(f"Handling initial_sync_request for user {user_id}, device {device_fingerprint_hash}. Client has {client_chat_count} chats. Last sync timestamp: {last_sync_timestamp}")
 
+    # --- OpenTelemetry span creation for distributed tracing ---
+    # Guard with ImportError so the handler works if OTel is not installed.
+    _otel_span = None
+    _otel_token = None
+    try:
+        from opentelemetry import trace as _trace, context as _ctx
+        from opentelemetry.trace import StatusCode as _StatusCode
+        _tracer = _trace.get_tracer(__name__)
+        _otel_span = _tracer.start_span(
+            "ws.initial_sync",
+            attributes={
+                "ws.message_type": "initial_sync",
+                "enduser.id": str(user_id),
+                "ws.client_chat_count": str(client_chat_count) if client_chat_count else "0",
+            },
+        )
+        _otel_token = _ctx.attach(_ctx.set_value("current-span", _otel_span))
+    except ImportError:
+        pass
+    except Exception as _otel_err:
+        logger.debug("OTel span creation failed (non-fatal): %s", _otel_err)
+
     chats_to_add_or_update_data: List[ChatSyncData] = []
     chat_ids_to_delete_on_client: List[str] = []
-    
+
     try:
         # Validate required fields
         if client_chat_ids is None:
@@ -426,8 +448,25 @@ async def handle_initial_sync(
             device_fingerprint_hash=device_fingerprint_hash
         )
 
+        # Mark OTel span as successful
+        if _otel_span is not None:
+            try:
+                _otel_span.set_attribute("ws.result_status", "ok")
+                _otel_span.set_attribute("ws.sync_deletes", str(len(response_payload_model.chat_ids_to_delete)))
+                _otel_span.set_attribute("ws.sync_updates", str(len(response_payload_model.chats_to_add_or_update)))
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"Error during handle_initial_sync for user {user_id}, device {device_fingerprint_hash}: {e}", exc_info=True)
+
+        # Mark OTel span as error
+        if _otel_span is not None:
+            try:
+                _otel_span.set_status(_StatusCode.ERROR, str(e))
+            except Exception:
+                pass
+
         try:
             await manager.send_personal_message(
                 message={"type": "initial_sync_error", "payload": {"message": "Failed to perform initial synchronization."}},
@@ -436,3 +475,15 @@ async def handle_initial_sync(
             )
         except Exception as send_err:
             logger.error(f"Failed to send error message for initial_sync to user {user_id}: {send_err}")
+    finally:
+        # End the OTel span and detach context
+        if _otel_span is not None:
+            try:
+                _otel_span.end()
+            except Exception:
+                pass
+        if _otel_token is not None:
+            try:
+                _ctx.detach(_otel_token)
+            except Exception:
+                pass
