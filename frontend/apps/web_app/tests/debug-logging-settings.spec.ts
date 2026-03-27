@@ -112,6 +112,8 @@ function getDebugLoggingRow(page: any) {
 // ---------------------------------------------------------------------------
 
 test.describe('Debug Logging Settings', () => {
+	// Login + settings navigation + toggle + re-open needs time
+	test.describe.configure({ timeout: 90000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('Debug logging toggle appears and persists state', async ({ page }) => {
