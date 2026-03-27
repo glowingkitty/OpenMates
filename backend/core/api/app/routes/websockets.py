@@ -1835,6 +1835,15 @@ async def websocket_endpoint(
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
+    # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
+    # These are set once per connection and passed to every handler span.
+    # auth_data["user_data"] is the session cache dict from auth_ws.py.
+    _user_data = auth_data.get("user_data", {})
+    user_otel_attrs = {  # noqa: F841 — used by Plan 02 (handler instrumentation)
+        "is_admin": _user_data.get("is_admin", False),
+        "debug_opted_in": _user_data.get("debug_logging_opted_in", False),
+    }
+
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
