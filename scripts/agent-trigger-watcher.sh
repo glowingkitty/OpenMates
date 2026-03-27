@@ -86,7 +86,7 @@ process_trigger() {
     # Set permission mode based on trigger type
     local permission_mode="plan"
     case "$mode" in
-        gsd-quick|gsd-debug|gsd-add-phase) permission_mode="auto" ;;
+        gsd-quick|gsd-debug|gsd-add-phase|resume) permission_mode="auto" ;;
     esac
 
     log "[agent-watcher] Starting claude $mode (issue_id=$issue_id, title=$session_title, permission=$permission_mode)"
@@ -108,14 +108,23 @@ process_trigger() {
         export CLAUDE_LINEAR_ISSUE_ID="$linear_issue_id"
     fi
 
-    # Run claude session with appropriate permission mode and 15 minute timeout
-    output="$(timeout 900 claude \
-        -p "Read scripts/.tmp/claude-trigger-$issue_id.txt in full and follow all the instructions precisely." \
-        --model "claude-sonnet-4-6" \
-        --name "$session_title" \
-        $session_id_flag \
-        --permission-mode "$permission_mode" \
-        --output-format json 2>&1)" || exit_code=$?
+    # Run claude session — resume mode uses --resume to continue existing session
+    if [[ "$mode" == "resume" && -n "$trigger_session_id" ]]; then
+        output="$(timeout 900 claude \
+            -p --resume "$trigger_session_id" \
+            "$(cat "$tmp_file")" \
+            --model "claude-sonnet-4-6" \
+            --permission-mode "$permission_mode" \
+            --output-format json 2>&1)" || exit_code=$?
+    else
+        output="$(timeout 900 claude \
+            -p "Read $tmp_file in full and follow all the instructions precisely." \
+            --model "claude-sonnet-4-6" \
+            --name "$session_title" \
+            $session_id_flag \
+            --permission-mode "$permission_mode" \
+            --output-format json 2>&1)" || exit_code=$?
+    fi
 
     # Unset so next trigger doesn't inherit
     unset CLAUDE_LINEAR_ISSUE_ID
