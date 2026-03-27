@@ -208,21 +208,22 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await pwInput.fill(TEST_PASSWORD);
 	await page.getByRole('button', { name: /continue|login|sign in/i }).click();
 
-	// OTP
+	// OTP with clock-drift compensation: try adjacent time windows on failure
+	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
 	let attempts = 0;
-	while (attempts < 3) {
+	while (attempts < 5) {
 		try {
 			const otpInput = page.locator('input[name="code"]');
 			await expect(otpInput).toBeVisible({ timeout: 8000 });
-			const totp = generateTotp(TEST_OTP_KEY);
+			const totp = generateTotp(TEST_OTP_KEY, WINDOW_OFFSETS[attempts]);
 			await otpInput.fill(totp);
 			await page.getByRole('button', { name: /verify|continue/i }).click();
 			await expect(page).toHaveURL(/chat|home|dashboard/, { timeout: 15000 });
 			break;
 		} catch {
 			attempts++;
-			if (attempts < 3) await page.waitForTimeout(31000);
-			else throw new Error('OTP login failed after 3 attempts');
+			if (attempts < 5) await page.waitForTimeout(5000);
+			else throw new Error('OTP login failed after 5 attempts');
 		}
 	}
 

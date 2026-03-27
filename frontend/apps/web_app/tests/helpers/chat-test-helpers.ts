@@ -87,21 +87,28 @@ async function loginToTestAccount(
 		.locator('.error-message, [class*="error"]')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
 
+	// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
+	// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
+	// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
+	// we cover the current window and both adjacent windows.
+	const MAX_OTP_ATTEMPTS = 5;
+	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
 	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		// Avoid TOTP window boundary race: if we're in the last 3s of a 30s window,
+	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
+		// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
 		// wait for the next window so the generated code is valid long enough.
 		const nowSec = Math.floor(Date.now() / 1000);
 		const secondsIntoWindow = nowSec % 30;
-		if (secondsIntoWindow >= 27) {
+		if (secondsIntoWindow >= 25) {
 			const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
 			logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
 			await page.waitForTimeout(waitMs);
 		}
 
-		const otpCode = generateTotp(TEST_OTP_KEY);
+		const windowOffset = WINDOW_OFFSETS[attempt - 1];
+		const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
 		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
+		logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
 		if (attempt === 1) {
 			await takeStepScreenshot(page, 'otp-entered');
 		}
@@ -116,11 +123,12 @@ async function loginToTestAccount(
 			logCheckpoint('Login dialog closed, login successful.');
 		} catch {
 			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
+			if (hasError && attempt < MAX_OTP_ATTEMPTS) {
+				logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
+				// Wait longer between retries to allow time window to advance.
+				await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+			} else if (attempt === MAX_OTP_ATTEMPTS) {
+				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
 			}
 		}
 	}

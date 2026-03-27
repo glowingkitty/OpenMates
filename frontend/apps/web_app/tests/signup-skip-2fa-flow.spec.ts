@@ -72,7 +72,8 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	});
 
 	test.slow();
-	test.setTimeout(360000);
+	// GHA runners are slower — increase from 360s to 480s for comfortable margin.
+	test.setTimeout(480000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_SKIP_2FA_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
@@ -237,8 +238,9 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
 
-	const emailInputRelogin = page.locator('input[type="email"][name="username"]');
-	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
+	// Use broader selector to handle both login dialog variants (name="username" or id="login-email-input").
+	const emailInputRelogin = page.locator('#login-email-input, input[type="email"][name="username"]').first();
+	await expect(emailInputRelogin).toBeVisible({ timeout: 15000 });
 	await emailInputRelogin.fill(signupEmail);
 	await page.getByRole('button', { name: /continue|next/i }).click();
 

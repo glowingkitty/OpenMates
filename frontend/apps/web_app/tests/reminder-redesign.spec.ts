@@ -24,10 +24,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
 	getE2EDebugUrl,
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -36,39 +37,9 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ---------------------------------------------------------------------------
 
 async function loginTestAccount(page: any, log: any): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-
-	await page.evaluate(() => {
-		localStorage.removeItem('emailLookupRateLimit');
-	});
-
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(loginBtn).toBeVisible();
-	await loginBtn.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await page.waitForTimeout(1000);
-	await emailInput.fill(TEST_EMAIL);
-	const continueBtn = page.getByRole('button', { name: /continue/i });
-	await expect(continueBtn).toBeEnabled({ timeout: 30000 });
-	await continueBtn.click();
-
-	const pwInput = page.locator('#login-password-input');
-	await expect(pwInput).toBeVisible();
-	await pwInput.fill(TEST_PASSWORD);
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(generateTotp(TEST_OTP_KEY));
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
-	await submitBtn.click();
-
-	await page.waitForURL(/chat/);
+	// Use shared login helper with OTP retry + clock-drift compensation.
+	await loginToTestAccount(page, log);
 	log('Login successful.');
-	await page.waitForTimeout(5000);
 }
 
 function getMinutesFromNow(minutes: number): { date: string; time: string } {

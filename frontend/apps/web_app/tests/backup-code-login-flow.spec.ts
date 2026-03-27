@@ -25,6 +25,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -81,70 +82,11 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	});
 
 	// ========================================================================
-	// PHASE 1: Login with password + OTP to access settings
+	// PHASE 1: Login with password + OTP (via shared helper with clock-drift compensation)
 	// ========================================================================
 
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-	logCheckpoint('Opened login dialog.');
-
-	// Enter email
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.locator('#login-continue-button').click();
-	logCheckpoint('Submitted email for lookup.');
-
-	// Enter password
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	await takeStepScreenshot(page, 'password-filled');
-	logCheckpoint('Filled password.');
-
-	// Handle 2FA — TOTP with race-condition fix.
-	// Wait until we're well into the current 30s window before generating the code.
-	const tfaInput = page.locator('#login-otp-input');
-	await expect(tfaInput).toBeVisible({ timeout: 15000 });
-	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible();
-
-	let loginSuccess = false;
-	for (let attempt = 0; attempt < 3; attempt++) {
-		const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
-		if (secondsIntoWindow > 27) {
-			const msToWait = (30 - secondsIntoWindow) * 1000 + 3000;
-			logCheckpoint(`Waiting ${msToWait}ms for fresh TOTP window (attempt ${attempt + 1})...`);
-			await page.waitForTimeout(msToWait);
-		}
-		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await tfaInput.fill(otpCode);
-		logCheckpoint(`OTP attempt ${attempt + 1}: entered code ${otpCode}`);
-		await takeStepScreenshot(page, 'otp-entered');
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login with password + OTP.');
-		try {
-			await page.waitForURL(/chat/, { timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login successful with password + OTP.');
-			break;
-		} catch {
-			logCheckpoint(`OTP attempt ${attempt + 1} failed, retrying...`);
-			await page.waitForTimeout(3000);
-		}
-	}
-	if (!loginSuccess) {
-		await takeStepScreenshot(page, 'login-failed');
-		throw new Error('Login failed after 3 OTP attempts');
-	}
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot, { waitForEditor: false });
+	logCheckpoint('Login successful with password + OTP.');
 
 	// ========================================================================
 	// PHASE 2: Navigate to Settings > Security > 2FA to regenerate backup codes

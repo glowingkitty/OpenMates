@@ -141,7 +141,8 @@ test('completes passkey signup flow with email + purchase', async ({
 
 	test.slow();
 	// Allow extra time for passkey registration + purchase confirmation email.
-	test.setTimeout(240000);
+	// GHA runners are slower — 240s was insufficient; 420s provides comfortable margin.
+	test.setTimeout(420000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_PASSKEY');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {

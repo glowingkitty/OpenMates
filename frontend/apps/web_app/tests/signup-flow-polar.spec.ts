@@ -141,7 +141,8 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	test.slow();
 	// Allow extra time: Polar checkout overlay + purchase confirmation email + account deletion.
-	test.setTimeout(300000);
+	// GHA runners are slower — 300s was insufficient; 480s provides comfortable margin.
+	test.setTimeout(480000);
 
 	const logSignupCheckpoint = createSignupLogger('POLAR_SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {

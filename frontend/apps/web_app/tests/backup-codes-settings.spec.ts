@@ -41,6 +41,8 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+
 /**
  * Backup codes SETTINGS test — validates the standalone "Reset Backup Codes"
  * feature in Settings > Account > Security > Two-Factor Authentication.
@@ -113,71 +115,11 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	});
 
 	// ========================================================================
-	// PHASE 1: Login with password + OTP (with retry on OTP timing failures)
+	// PHASE 1: Login with password + OTP (via shared helper with clock-drift compensation)
 	// ========================================================================
 
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, 'login-dialog');
-	logCheckpoint('Opened login dialog.');
-
-	// Enter email
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.locator('#login-continue-button').click();
-	logCheckpoint('Submitted email for lookup.');
-
-	// Wait for password+TFA form to appear
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	const tfaInput = page.locator('#login-otp-input');
-	await expect(tfaInput).toBeVisible({ timeout: 15000 });
-	const submitLoginButton = page.locator('#login-submit-button');
-
-	// .chat-container.authenticated is the ONLY reliable DOM indicator of a truly
-	// logged-in state. The .profile-container exists on the demo page too.
-	const authIndicator = page.locator('.chat-container.authenticated');
-
-	// Retry login up to 3 times to handle OTP timing boundary failures
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		logCheckpoint(`Login attempt ${attempt}/3.`);
-
-		// Fill password (may have been cleared by previous failed attempt)
-		await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-
-		// Generate a fresh OTP for each attempt
-		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await tfaInput.fill(otpCode);
-		logCheckpoint(`Filled password + OTP (attempt ${attempt}).`);
-
-		// Submit
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-
-		// Check if login succeeded by waiting for authenticated container
-		try {
-			await expect(authIndicator).toBeVisible({ timeout: 10000 });
-			loginSuccess = true;
-			logCheckpoint('Login successful.');
-		} catch {
-			logCheckpoint(`Login attempt ${attempt} failed (likely OTP timing). Retrying...`);
-			// Wait a moment before retrying to ensure we're in a new TOTP window
-			if (attempt < 3) {
-				await page.waitForTimeout(2000);
-			}
-		}
-	}
-
-	expect(loginSuccess, 'Login should succeed within 3 attempts.').toBe(true);
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot, { waitForEditor: false });
+	logCheckpoint('Login successful.');
 	await takeStepScreenshot(page, 'logged-in');
 
 	// ========================================================================

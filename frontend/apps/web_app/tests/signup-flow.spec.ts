@@ -102,8 +102,9 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	});
 
 	test.slow();
-	// Allow extra time for purchase confirmation email + account deletion cleanup.
-	test.setTimeout(240000);
+	// Allow extra time for Mailosaur email delivery + purchase confirmation + account deletion.
+	// GHA runners are slower than local — 240s was insufficient; 420s provides comfortable margin.
+	test.setTimeout(420000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint);

@@ -29,10 +29,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -68,51 +69,11 @@ async function performLogin(
 	logStep: (...args: any[]) => void,
 	takeStepScreenshot: (...args: any[]) => Promise<void>
 ): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, '00-home');
-
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 10000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-
-	// Enable "Stay logged in"
-	const stayLoggedInLabel = page.locator(
-		'label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)'
-	);
-	try {
-		await stayLoggedInLabel.waitFor({ state: 'visible', timeout: 3000 });
-		const checkbox = page.locator('#stayLoggedIn');
-		const isChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
-		if (!isChecked) await stayLoggedInLabel.click();
-	} catch {
-		// Toggle not available — proceed
-	}
-
-	await page.locator('#login-continue-button').click();
-	logStep('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 10000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 10000 });
-	await otpInput.fill(otpCode);
-
-	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible({ timeout: 5000 });
-	await submitLoginButton.click();
-	logStep('Submitted login form.');
-
-	await page.waitForURL(/chat/, { timeout: 15000 });
-	logStep('Redirected to chat page.');
+	// Use shared login helper with OTP retry + clock-drift compensation.
+	await loginToTestAccount(page, logStep, takeStepScreenshot);
+	logStep('Login complete. Waiting for phased sync...');
 	// Wait for phased sync to complete
-	await page.waitForTimeout(6000);
+	await page.waitForTimeout(4000);
 }
 
 /**

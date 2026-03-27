@@ -73,12 +73,13 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -124,48 +125,11 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await archiveExistingScreenshots(log);
 	log('Starting daily inspiration chat flow test.', { email: TEST_EMAIL });
 
-	// ── 1. Navigate to home ──────────────────────────────────────────────────
-	await page.goto(getE2EDebugUrl('/'));
-	await screenshot(page, 'home');
-
-	// ── 2. Open login dialog ─────────────────────────────────────────────────
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-	await screenshot(page, 'login-dialog');
-
-	// ── 3. Enter email ───────────────────────────────────────────────────────
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.locator('#login-continue-button').click();
-	log('Entered email and clicked continue.');
-
-	// ── 4. Enter password ────────────────────────────────────────────────────
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// ── 5. Enter OTP ─────────────────────────────────────────────────────────
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	log('Generated and entered OTP.');
-
-	// ── 6. Submit login ──────────────────────────────────────────────────────
-	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	log('Submitted login form.');
-
-	// ── 7. Wait for authenticated state ─────────────────────────────────────
-	await page.waitForURL(/chat/);
-	log('Authenticated — waiting for initial load and WS sync...');
-	// Allow time for WebSocket to deliver pending daily inspirations
-	await page.waitForTimeout(6000);
+	// ── 1-6. Login via shared helper (includes OTP retry with clock-drift compensation) ──
+	await loginToTestAccount(page, log, screenshot);
+	log('Authenticated — waiting for WS sync to deliver pending daily inspirations...');
+	// Allow extra time for WebSocket to deliver pending daily inspirations
+	await page.waitForTimeout(4000);
 	await screenshot(page, 'after-login');
 
 	// ── 8. Verify daily inspiration banner is visible ────────────────────────
