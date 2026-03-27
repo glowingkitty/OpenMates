@@ -19,7 +19,7 @@ import { userProfile, defaultProfile, updateProfile } from "./userProfile";
 import { locale } from "svelte-i18n";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId"; // Import deleteSessionId
-import { logout, deleteAllCookies } from "./authLoginLogoutActions"; // Import logout function and deleteAllCookies
+import { logout, deleteAllCookies, bumpLoginSessionGeneration } from "./authLoginLogoutActions"; // Import logout function, deleteAllCookies, and bumpLoginSessionGeneration
 import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Import WebSocket token utilities
 import { notificationStore } from "./notificationStore"; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from "./userProfile"; // Import to load user profile from IndexedDB
@@ -1252,6 +1252,14 @@ export function setAuthenticatedState(): void {
   console.debug(
     "Setting authentication state to authenticated after successful login",
   );
+
+  // CRITICAL: Bump login session generation to signal any in-flight background
+  // logout IIFE (from a previous forced-logout) that a new session is established.
+  // Without this, the IIFE's generation check passes and it POSTs /auth/logout
+  // with the new session's cookies, destroying the freshly-established session.
+  // This is the single chokepoint ALL successful login paths pass through
+  // (passkey, password+TFA, backup code, recovery key).
+  bumpLoginSessionGeneration();
 
   // CRITICAL: Reset phased sync state on login so syncing indicator shows.
   // This is needed because non-auth users have initialSyncCompleted=true (to prevent loading flash).

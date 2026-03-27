@@ -66,6 +66,24 @@ function getLoginSessionGeneration(): number {
 }
 
 /**
+ * Increments the login session generation counter.
+ *
+ * MUST be called by any login path that establishes a new authenticated session
+ * but does not go through the `login()` function above (e.g., passkey login in
+ * Login.svelte, which calls /auth/login directly via fetch()).
+ *
+ * The counter is checked by the background logout IIFE inside `logout()` — if a
+ * new login bumped it, the IIFE skips the destructive POST /auth/logout and
+ * cookie deletion that would otherwise destroy the freshly-established session.
+ */
+export function bumpLoginSessionGeneration(): void {
+  loginSessionGeneration++;
+  console.debug(
+    `[AuthStore] Bumped loginSessionGeneration to ${loginSessionGeneration} (external login path)`,
+  );
+}
+
+/**
  * Detects the user's timezone from the browser and syncs it to the server.
  * This is called after successful login to ensure the server always has the current timezone.
  * The timezone is used for reminders, scheduling, and displaying times in user's local time.

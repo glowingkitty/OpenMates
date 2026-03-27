@@ -980,10 +980,19 @@
                 };
                 console.log('[Login] Authentication successful via login endpoint');
             }
-            
+
+            // CRITICAL: Bump login session generation IMMEDIATELY after auth succeeds.
+            // Passkey login bypasses the login() function in authLoginLogoutActions.ts
+            // (which normally increments this counter). Without this, any in-flight
+            // background logout IIFE from a previous forced-logout will pass its
+            // generation check and POST /auth/logout with the new session's cookies,
+            // destroying the freshly-established session.
+            const { bumpLoginSessionGeneration } = await import('../stores/authLoginLogoutActions');
+            bumpLoginSessionGeneration();
+
             // Step 15: Store email encrypted with master key for client use
             await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
-            
+
             // Step 16: Store WebSocket token if provided (CRITICAL for WebSocket connection)
             // Check both verifyData.auth_session.ws_token and direct authData.ws_token for compatibility
             const wsToken = verifyData.auth_session?.ws_token;
@@ -994,7 +1003,7 @@
             } else {
                 console.warn('[Login] No ws_token in auth_session - WebSocket connection may fail');
             }
-            
+
             // Step 17: Update user profile
             const userData = verifyData.auth_session?.user;
             if (userData) {
@@ -1519,10 +1528,19 @@
                 };
                 console.log('[Login] Authentication successful via login endpoint');
             }
-            
+
+            // CRITICAL: Bump login session generation IMMEDIATELY after auth succeeds.
+            // Passkey login bypasses the login() function in authLoginLogoutActions.ts
+            // (which normally increments this counter). Without this, any in-flight
+            // background logout IIFE from a previous forced-logout will pass its
+            // generation check and POST /auth/logout with the new session's cookies,
+            // destroying the freshly-established session.
+            const { bumpLoginSessionGeneration: bumpGenPath2 } = await import('../stores/authLoginLogoutActions');
+            bumpGenPath2();
+
             // Store email encrypted with master key
             await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
-            
+
             // Store WebSocket token
             const wsToken = verifyData.auth_session?.ws_token;
             if (wsToken) {
@@ -1530,7 +1548,7 @@
                 setWebSocketToken(wsToken);
                 console.debug('[Login] WebSocket token stored from login response');
             }
-            
+
             // Update user profile
             const userData = verifyData.auth_session?.user;
             if (userData) {
