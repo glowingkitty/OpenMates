@@ -47,10 +47,11 @@ test.describe('404 not-found flow', () => {
 			'Not404Screen container should be visible'
 		).toBeVisible({ timeout: 10000 });
 
-		// 4. Recovery options (search + ask AI) should be visible
+		// 4. Recovery actions (search + ask AI) should be visible
+		// Not404Screen uses .not-found-actions (not .not-found-options)
 		await expect(
-			page.locator('.not-found-options'),
-			'Recovery options container should be visible'
+			page.locator('.not-found-actions'),
+			'Recovery actions container should be visible'
 		).toBeVisible({ timeout: 5000 });
 
 		console.log('✅ 404 screen shown correctly for /iphone-review');
@@ -63,11 +64,11 @@ test.describe('404 not-found flow', () => {
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000);
 
-		// Wait for Not404Screen
-		await expect(page.locator('.not-found-options')).toBeVisible({ timeout: 10000 });
+		// Wait for Not404Screen actions container
+		await expect(page.locator('.not-found-actions')).toBeVisible({ timeout: 10000 });
 
-		// Click the search option (first button in not-found-options)
-		const searchButton = page.locator('.not-found-option').first();
+		// Click the search option (first button in .not-found-actions)
+		const searchButton = page.locator('.not-found-actions button').first();
 		await searchButton.click();
 
 		// The sidebar should open and search should be active
@@ -79,8 +80,8 @@ test.describe('404 not-found flow', () => {
 
 		// The 404 screen should be gone
 		await expect(
-			page.locator('.not-found-options'),
-			'404 options should disappear after search click'
+			page.locator('.not-found-actions'),
+			'404 actions should disappear after search click'
 		).not.toBeVisible({ timeout: 5000 });
 
 		console.log('✅ Search option correctly opens pre-filled search');
@@ -93,17 +94,17 @@ test.describe('404 not-found flow', () => {
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000);
 
-		// Wait for Not404Screen
-		await expect(page.locator('.not-found-options')).toBeVisible({ timeout: 10000 });
+		// Wait for Not404Screen actions container
+		await expect(page.locator('.not-found-actions')).toBeVisible({ timeout: 10000 });
 
-		// Click the Ask AI option (second / primary button)
-		const askAIButton = page.locator('.not-found-option-primary');
+		// Click the Ask AI option (last button in .not-found-actions)
+		const askAIButton = page.locator('.not-found-actions button').last();
 		await askAIButton.click();
 
 		// The 404 screen should be gone
 		await expect(
-			page.locator('.not-found-options'),
-			'404 options should disappear after Ask AI click'
+			page.locator('.not-found-actions'),
+			'404 actions should disappear after Ask AI click'
 		).not.toBeVisible({ timeout: 5000 });
 
 		// Message input should be pre-filled with the humanized path
@@ -129,10 +130,10 @@ test.describe('404 not-found flow', () => {
 		const url = new URL(page.url());
 		expect(url.pathname, 'URL should be cleaned to /').toBe('/');
 
-		await expect(page.locator('.not-found-options')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('.not-found-actions')).toBeVisible({ timeout: 10000 });
 
 		// The search button label should show only the first segment "ai"
-		const searchButton = page.locator('.not-found-option').first();
+		const searchButton = page.locator('.not-found-actions button').first();
 		const buttonText = await searchButton.textContent();
 		expect(buttonText?.toLowerCase(), 'Search option should reference first segment "ai"').toContain('ai');
 

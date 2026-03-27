@@ -269,9 +269,10 @@ test.describe('Status page — service groups', () => {
 		await expect(page.getByText('Web App')).toBeVisible();
 		await expect(page.getByText('API Server')).toBeVisible();
 
-		// AI Providers services
-		await expect(page.getByText('Anthropic')).toBeVisible();
-		await expect(page.getByText('Groq')).toBeVisible();
+		// AI Providers services — use .name selector to avoid strict mode violations
+		// (service names also appear in the incidents section)
+		await expect(page.locator('.name', { hasText: 'Anthropic' })).toBeVisible();
+		await expect(page.locator('.name', { hasText: 'Groq' })).toBeVisible();
 
 		// Status labels — "Operational" appears multiple times, just verify at least one
 		await expect(page.getByText('Operational').first()).toBeVisible();
@@ -351,9 +352,11 @@ test.describe('Status page — E2E tests section', () => {
 		await mockStatusApi(page, MOCK_STATUS_RESPONSE);
 		await gotoStatus(page);
 
-		await expect(page.getByText('Chat')).toBeVisible();
-		await expect(page.getByText('Payment')).toBeVisible();
-		await expect(page.getByText('Signup')).toBeVisible();
+		// Use .cat-name selectors to avoid strict mode violations —
+		// "Chat" appears in both the category name and individual spec names
+		await expect(page.locator('.cat-name', { hasText: 'Chat' })).toBeVisible();
+		await expect(page.locator('.cat-name', { hasText: 'Payment' })).toBeVisible();
+		await expect(page.locator('.cat-name', { hasText: 'Signup' })).toBeVisible();
 	});
 
 	test('categories with failures are auto-expanded and show FAILED badges', async ({
