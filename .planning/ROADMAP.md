@@ -12,11 +12,15 @@ This roadmap rebuilds OpenMates' client-side encryption and cross-device sync ar
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Audit & Discovery** - Map every encryption code path, document formats, create regression fixtures, and identify root causes
-- [ ] **Phase 2: Foundation Layer Extraction** - Extract stateless crypto modules (MessageEncryptor, MetadataEncryptor, CryptoOperations) with clean boundaries
-- [ ] **Phase 3: Key Management Hardening** - Harden ChatKeyManager with mutex, state machine, and cross-device key delivery guarantees
-- [ ] **Phase 4: Sync Handler Rewire** - Rewire all sync handlers to route crypto exclusively through ChatKeyManager and encryptor modules
-- [ ] **Phase 5: Testing & Documentation** - E2E multi-tab/multi-device tests, performance validation, architecture documentation, and file-size monitoring
+- [x] **Phase 1: Audit & Discovery** - Map every encryption code path, document formats, create regression fixtures, and identify root causes
+- [x] **Phase 2: Foundation Layer Extraction** - Extract stateless crypto modules (MessageEncryptor, MetadataEncryptor, CryptoOperations) with clean boundaries
+- [x] **Phase 3: Key Management Hardening** - Harden ChatKeyManager with mutex, state machine, and cross-device key delivery guarantees
+- [x] **Phase 4: Sync Handler Rewire** - Rewire all sync handlers to route crypto exclusively through ChatKeyManager and encryptor modules
+- [x] **Phase 5: Testing & Documentation** - E2E multi-tab/multi-device tests, performance validation, architecture documentation, and file-size monitoring
+- [x] **Phase 6: OpenTelemetry Distributed Tracing** - Backend/frontend OTel SDK, privacy filtering, debug.py trace CLI, issue integration
+- [x] **Phase 7: E2E Test Suite Repair** - Investigate and fix 46 failing Playwright specs so the daily test suite passes reliably
+- [ ] **Phase 8: Sender Barrel Deployment** - Deploy the sender sub-module barrel to replace the monolithic chatSyncServiceSenders.ts (gap closure)
+- [ ] **Phase 9: OTel Tracing Fix** - Wire privacy tiers, instrument missing handlers, rework debug.py trace CLI for usable output (gap closure)
 
 ## Phase Details
 
@@ -123,17 +127,44 @@ Plans:
 - [ ] 07-04-PLAN.md -- Fix ~7 non-auth specs + full daily validation run (85+/88 target)
 - [ ] 07-05-PLAN.md -- Persistent date-stamped screenshot storage + fix sync-test-results.sh workflow name
 
+### Phase 8: Sender Barrel Deployment
+**Goal**: Deploy the sender sub-module barrel so chatSyncServiceSenders.ts is a re-export file and import-audit.test.ts passes — closing the ARCH-03 gap
+**Depends on**: Phase 4
+**Requirements**: ARCH-03
+**Gap Closure**: Closes ARCH-03 from v1.0 audit — sender barrel created but never deployed to dev
+**Success Criteria** (what must be TRUE):
+  1. chatSyncServiceSenders.ts is a barrel re-export file (~30 lines) with no inline crypto imports
+  2. All 5 sender sub-modules are imported via the barrel — zero orphaned files
+  3. import-audit.test.ts passes with zero ARCH-03 violations
+  4. All existing dynamic imports of chatSyncServiceSenders continue to work unchanged
+**Plans**: TBD
+
+### Phase 9: OTel Tracing Fix
+**Goal**: OTel tracing is practically useful — privacy tiers resolve correctly based on user settings, all WS handlers are instrumented, and debug.py trace CLI shows full span trees with meaningful detail
+**Depends on**: Phase 6
+**Requirements**: OTEL-02, OTEL-05, OTEL-06
+**Gap Closure**: Closes OTEL-02, OTEL-05, OTEL-06 from v1.0 audit + user-reported debug.py trace output issues
+**Success Criteria** (what must be TRUE):
+  1. WebSocket handlers set enduser.debug_opted_in and enduser.is_admin as span attributes from the user record
+  2. TracePrivacyFilter correctly resolves Tier 1/2/3 based on actual user settings (not always Tier 1)
+  3. key_received_handler.py has OTel spans visible in traces
+  4. `debug.py trace recent --last 5m` shows all requests from the last N minutes with full span trees, HTTP paths, durations, and status codes
+  5. `debug.py trace errors` shows error detail including HTTP path, status code, and child spans (not just bare root spans)
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Audit & Discovery | 0/3 | Planning complete | - |
-| 2. Foundation Layer Extraction | 0/? | Not started | - |
-| 3. Key Management Hardening | 0/? | Not started | - |
-| 4. Sync Handler Rewire | 0/? | Not started | - |
-| 5. Testing & Documentation | 1/3 | Executing | - |
-| 6. OpenTelemetry Distributed Tracing | 0/5 | Planning complete | - |
-| 7. E2E Test Suite Repair | 0/6 | Planning complete | - |
+| 1. Audit & Discovery | 3/3 | Done | 2026-03-26 |
+| 2. Foundation Layer Extraction | 2/2 | Done | 2026-03-26 |
+| 3. Key Management Hardening | 3/3 | Done | 2026-03-26 |
+| 4. Sync Handler Rewire | 3/3 | Done | 2026-03-26 |
+| 5. Testing & Documentation | 3/3 | Done | 2026-03-26 |
+| 6. OpenTelemetry Distributed Tracing | 5/5 | Done | 2026-03-27 |
+| 7. E2E Test Suite Repair | 6/6 | Done | 2026-03-27 |
+| 8. Sender Barrel Deployment | 0/? | Not started | - |
+| 9. OTel Tracing Fix | 0/? | Not started | - |
