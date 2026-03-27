@@ -1247,14 +1247,26 @@ class ReportGenerator:
         """Render step log entries as interleaved checkpoints + screenshots."""
         ss_dir_rel = f"screenshots/current/{spec_name}"
 
-        for i, entry in enumerate(step_log):
+        # Filter out noise entries:
+        # - "Captured step screenshot." — the screenshot entry already represents it
+        # - "Archived prior screenshots" — test infrastructure, not a test step
+        noise_prefixes = ("Captured step screenshot", "Archived prior screenshots")
+        filtered = [
+            e for e in step_log
+            if not (e.get("type") == "checkpoint"
+                    and e.get("message", "").startswith(noise_prefixes))
+        ]
+
+        display_num = 0
+        for i, entry in enumerate(filtered):
             entry_type = entry.get("type", "checkpoint")
             message = entry.get("message", "")
-            is_last = i == len(step_log) - 1
+            is_last = i == len(filtered) - 1
 
             if entry_type == "checkpoint":
+                display_num += 1
                 icon = "❌" if is_last and status == "failed" else "✅"
-                lines.append(f"{entry['index']}. {message} {icon}")
+                lines.append(f"{display_num}. {message} {icon}")
                 lines.append("")
             elif entry_type == "screenshot":
                 screenshot_file = entry.get("screenshot", "")
