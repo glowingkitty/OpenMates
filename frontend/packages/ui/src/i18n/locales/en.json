@@ -10106,6 +10106,18 @@
         "description": {
           "text": "To protect your private data, please confirm your identity before editing."
         }
+      },
+      "debug_logging_title": {
+        "text": "Debug Logging"
+      },
+      "debug_logging_description": {
+        "text": "Help improve OpenMates by sharing detailed trace data when errors occur. This includes request timing, service interactions, and error context."
+      },
+      "debug_logging_never_collected": {
+        "text": "Your encrypted message content is never collected, regardless of this setting."
+      },
+      "debug_logging_toggle_label": {
+        "text": "Enable detailed debug logging"
       }
     },
     "terms_and_conditions": {

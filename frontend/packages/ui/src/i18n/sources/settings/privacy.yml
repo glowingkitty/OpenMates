@@ -2350,6 +2350,102 @@ auth.title:
   sv: Verifiera din identitet
   he: אמת את זהותך
   verified_by_human: []
+debug_logging_title:
+  context: Section heading for the debug logging opt-in toggle in Privacy settings
+  en: Debug Logging
+  de: Debug-Protokollierung
+  zh: 调试日志
+  es: Registro de depuración
+  fr: Journalisation de débogage
+  pt: Registro de depuração
+  ru: Журнал отладки
+  ja: デバッグログ
+  ko: 디버그 로깅
+  it: Log di debug
+  tr: Hata ayıklama günlüğü
+  vi: Ghi nhật ký gỡ lỗi
+  id: Log debug
+  pl: Logowanie debugowania
+  nl: Debug-logging
+  ar: سجل التصحيح
+  hi: डीबग लॉगिंग
+  th: บันทึกการดีบัก
+  cs: Ladění protokolování
+  sv: Felsökningsloggning
+  he: רישום ניפוי שגיאות
+  verified_by_human: []
+debug_logging_description:
+  context: Description text explaining what debug logging collects
+  en: Help improve OpenMates by sharing detailed trace data when errors occur. This includes request timing, service interactions, and error context.
+  de: Helfen Sie, OpenMates zu verbessern, indem Sie detaillierte Trace-Daten teilen, wenn Fehler auftreten. Dies umfasst Anforderungszeiten, Service-Interaktionen und Fehlerkontext.
+  zh: 通过在发生错误时分享详细的跟踪数据来帮助改进 OpenMates。这包括请求时间、服务交互和错误上下文。
+  es: Ayuda a mejorar OpenMates compartiendo datos de rastreo detallados cuando ocurran errores. Esto incluye tiempos de solicitud, interacciones de servicios y contexto de errores.
+  fr: Aidez à améliorer OpenMates en partageant des données de traçage détaillées lorsque des erreurs surviennent. Cela inclut les temps de requête, les interactions de services et le contexte des erreurs.
+  pt: Ajude a melhorar o OpenMates compartilhando dados detalhados de rastreamento quando erros ocorrerem. Isso inclui tempos de solicitação, interações de serviços e contexto de erros.
+  ru: Помогите улучшить OpenMates, делясь подробными данными трассировки при возникновении ошибок. Это включает время запросов, взаимодействия сервисов и контекст ошибок.
+  ja: エラー発生時に詳細なトレースデータを共有して、OpenMates の改善にご協力ください。これにはリクエストのタイミング、サービスの相互作用、エラーのコンテキストが含まれます。
+  ko: 오류 발생 시 상세한 추적 데이터를 공유하여 OpenMates 개선에 도움을 주세요. 여기에는 요청 타이밍, 서비스 상호작용 및 오류 컨텍스트가 포함됩니다.
+  it: Aiuta a migliorare OpenMates condividendo dati di tracciamento dettagliati quando si verificano errori. Questo include tempi delle richieste, interazioni dei servizi e contesto degli errori.
+  tr: Hatalar meydana geldiğinde ayrıntılı izleme verilerini paylaşarak OpenMates'i iyileştirmeye yardımcı olun. Bu, istek zamanlama, hizmet etkileşimleri ve hata bağlamını içerir.
+  vi: Giúp cải thiện OpenMates bằng cách chia sẻ dữ liệu theo dõi chi tiết khi xảy ra lỗi. Bao gồm thời gian yêu cầu, tương tác dịch vụ và ngữ cảnh lỗi.
+  id: Bantu tingkatkan OpenMates dengan berbagi data jejak terperinci saat terjadi kesalahan. Ini mencakup waktu permintaan, interaksi layanan, dan konteks kesalahan.
+  pl: Pomóż ulepszyć OpenMates, udostępniając szczegółowe dane śledzenia, gdy wystąpią błędy. Obejmuje to czasy żądań, interakcje usług i kontekst błędów.
+  nl: Help OpenMates te verbeteren door gedetailleerde tracegegevens te delen wanneer fouten optreden. Dit omvat verzoektijden, service-interacties en foutcontext.
+  ar: ساعد في تحسين OpenMates من خلال مشاركة بيانات التتبع التفصيلية عند حدوث أخطاء. يشمل ذلك توقيت الطلبات وتفاعلات الخدمات وسياق الأخطاء.
+  hi: त्रुटियाँ होने पर विस्तृत ट्रेस डेटा साझा करके OpenMates को बेहतर बनाने में मदद करें। इसमें अनुरोध का समय, सेवा इंटरैक्शन और त्रुटि संदर्भ शामिल हैं।
+  th: ช่วยปรับปรุง OpenMates โดยการแชร์ข้อมูลการติดตามโดยละเอียดเมื่อเกิดข้อผิดพลาด ซึ่งรวมถึงเวลาร้องขอ การโต้ตอบของบริการ และบริบทของข้อผิดพลาด
+  cs: Pomozte zlepšit OpenMates sdílením podrobných trasovacích dat při výskytu chyb. To zahrnuje časy požadavků, interakce služeb a kontext chyb.
+  sv: Hjälp till att förbättra OpenMates genom att dela detaljerad spårningsdata när fel uppstår. Detta inkluderar förfrågningstider, tjänsteinteraktioner och felkontext.
+  he: עזור לשפר את OpenMates על ידי שיתוף נתוני מעקב מפורטים כאשר מתרחשות שגיאות. זה כולל תזמון בקשות, אינטראקציות שירות והקשר שגיאות.
+  verified_by_human: []
+debug_logging_never_collected:
+  context: Disclaimer text emphasizing encrypted content is never collected regardless of debug logging
+  en: Your encrypted message content is never collected, regardless of this setting.
+  de: Ihre verschlüsselten Nachrichteninhalte werden niemals erfasst, unabhängig von dieser Einstellung.
+  zh: 无论此设置如何，您的加密消息内容都不会被收集。
+  es: El contenido cifrado de tus mensajes nunca se recopila, independientemente de esta configuración.
+  fr: Le contenu chiffré de vos messages n'est jamais collecté, quel que soit ce paramètre.
+  pt: O conteúdo criptografado de suas mensagens nunca é coletado, independentemente desta configuração.
+  ru: Зашифрованное содержимое ваших сообщений никогда не собирается, независимо от этой настройки.
+  ja: この設定に関係なく、暗号化されたメッセージの内容は収集されません。
+  ko: 이 설정에 관계없이 암호화된 메시지 내용은 수집되지 않습니다.
+  it: Il contenuto crittografato dei tuoi messaggi non viene mai raccolto, indipendentemente da questa impostazione.
+  tr: Şifreli mesaj içeriğiniz bu ayardan bağımsız olarak hiçbir zaman toplanmaz.
+  vi: Nội dung tin nhắn được mã hóa của bạn không bao giờ được thu thập, bất kể cài đặt này.
+  id: Konten pesan terenkripsi Anda tidak pernah dikumpulkan, terlepas dari pengaturan ini.
+  pl: Zaszyfrowana treść Twoich wiadomości nigdy nie jest gromadzona, niezależnie od tego ustawienia.
+  nl: Uw versleutelde berichtinhoud wordt nooit verzameld, ongeacht deze instelling.
+  ar: لا يتم جمع محتوى رسائلك المشفرة أبدًا، بغض النظر عن هذا الإعداد.
+  hi: इस सेटिंग की परवाह किए बिना, आपकी एन्क्रिप्टेड संदेश सामग्री कभी एकत्र नहीं की जाती है।
+  th: เนื้อหาข้อความที่เข้ารหัสของคุณจะไม่ถูกเก็บรวบรวม ไม่ว่าการตั้งค่านี้จะเป็นอย่างไร
+  cs: Šifrovaný obsah vašich zpráv se nikdy neshromažďuje, bez ohledu na toto nastavení.
+  sv: Ditt krypterade meddelandeinnehåll samlas aldrig in, oavsett denna inställning.
+  he: תוכן ההודעות המוצפן שלך לא נאסף לעולם, ללא קשר להגדרה זו.
+  verified_by_human: []
+debug_logging_toggle_label:
+  context: Label for the debug logging toggle switch
+  en: Enable detailed debug logging
+  de: Detaillierte Debug-Protokollierung aktivieren
+  zh: 启用详细调试日志
+  es: Habilitar registro de depuración detallado
+  fr: Activer la journalisation de débogage détaillée
+  pt: Ativar registro de depuração detalhado
+  ru: Включить подробное журналирование отладки
+  ja: 詳細なデバッグログを有効にする
+  ko: 상세 디버그 로깅 활성화
+  it: Abilita il log di debug dettagliato
+  tr: Ayrıntılı hata ayıklama günlüğünü etkinleştir
+  vi: Bật ghi nhật ký gỡ lỗi chi tiết
+  id: Aktifkan log debug terperinci
+  pl: Włącz szczegółowe logowanie debugowania
+  nl: Gedetailleerde debug-logging inschakelen
+  ar: تمكين سجل التصحيح التفصيلي
+  hi: विस्तृत डीबग लॉगिंग सक्षम करें
+  th: เปิดใช้งานการบันทึกการดีบักโดยละเอียด
+  cs: Povolit podrobné ladění protokolování
+  sv: Aktivera detaljerad felsökningsloggning
+  he: אפשר רישום ניפוי שגיאות מפורט
+  verified_by_human: []
 auth.description:
   context: Description shown in the identity verification modal before editing a personal data entry
   en: To protect your private data, please confirm your identity before editing.
