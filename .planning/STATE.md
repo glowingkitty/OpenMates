@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-27T17:25:52.809Z"
-last_activity: 2026-03-27 -- Phase 07 Plan 05 completed
+status: verifying
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-27T17:42:06.961Z"
+last_activity: 2026-03-27
 progress:
   total_phases: 9
-  completed_phases: 7
-  total_plans: 25
-  completed_plans: 25
+  completed_phases: 8
+  total_plans: 26
+  completed_plans: 26
   percent: 92
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Every encrypted chat must decrypt successfully on every device, every time -- no exceptions, no race conditions, no key mismatches.
-**Current focus:** Phase 07 -- e2e-test-suite-repair
+**Current focus:** Phase 08 — sender-barrel-deployment
 
 ## Current Position
 
-Phase: 07 (e2e-test-suite-repair) -- EXECUTING
-Plan: 5 of 6
-Status: Completed Plan 05 (screenshot storage + sync script fix)
-Last activity: 2026-03-27 -- Phase 07 Plan 05 completed
+Phase: 09
+Plan: Not started
+Status: Phase complete — ready for verification
+Last activity: 2026-03-27
 
 Progress: [█████████░] 92%
 
@@ -54,6 +54,7 @@ Progress: [█████████░] 92%
 *Updated after each plan completion*
 | Phase 07 P03 | 10min | 2 tasks | 15 files |
 | Phase 07 P05 | 2min | 2 tasks | 2 files |
+| Phase 08 P01 | 2min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 07-03]: Migrate inline login specs to shared loginToTestAccount() helper
 - [Phase 07-05]: Screenshots write to screenshots/current/ during runs, archived to screenshots/{date}/ before next run
 - [Phase 07-05]: 30-day retention for screenshot archives matches existing daily-run JSON archive retention
+- [Phase 08]: Pure export * barrel with no selective re-exports for backwards-compatible sender decomposition
 
 ### Pending Todos
 
@@ -80,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T17:25:52.803Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-sender-barrel-deployment/08-CONTEXT.md
+Last session: 2026-03-27T17:38:32.043Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None

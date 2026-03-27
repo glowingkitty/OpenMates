@@ -137,7 +137,10 @@ Plans:
   2. All 5 sender sub-modules are imported via the barrel — zero orphaned files
   3. import-audit.test.ts passes with zero ARCH-03 violations
   4. All existing dynamic imports of chatSyncServiceSenders continue to work unchanged
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [x] 08-01-PLAN.md -- Atomic barrel swap + full encryption test suite validation
 
 ### Phase 9: OTel Tracing Fix
 **Goal**: OTel tracing is practically useful — privacy tiers resolve correctly based on user settings, all WS handlers are instrumented, and debug.py trace CLI shows full span trees with meaningful detail
@@ -166,5 +169,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Testing & Documentation | 3/3 | Done | 2026-03-26 |
 | 6. OpenTelemetry Distributed Tracing | 5/5 | Done | 2026-03-27 |
 | 7. E2E Test Suite Repair | 6/6 | Done | 2026-03-27 |
-| 8. Sender Barrel Deployment | 0/? | Not started | - |
+| 8. Sender Barrel Deployment | 0/1 | Not started | - |
 | 9. OTel Tracing Fix | 0/? | Not started | - |
