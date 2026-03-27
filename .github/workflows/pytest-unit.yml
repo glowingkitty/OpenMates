@@ -37,11 +37,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
-        working-directory: backend
+        run: |
+          pip install -r backend/requirements-dev.txt
+          pip install -r backend/core/api/requirements.txt 2>/dev/null || true
       - name: Run unit tests
         id: pytest_run
         continue-on-error: true
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd backend
