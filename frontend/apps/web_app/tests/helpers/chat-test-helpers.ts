@@ -29,7 +29,7 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 /**
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
- * Includes retry logic for OTP timing edge cases.
+ * Includes retry logic for OTP timing edge cases and 429 rate limits.
  */
 async function loginToTestAccount(
 	page: any,
@@ -38,6 +38,15 @@ async function loginToTestAccount(
 	options: { waitForEditor?: boolean } = {}
 ): Promise<void> {
 	const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+	// Monitor for 429 rate limit responses during login flow
+	let hit429 = false;
+	const on429 = (response: any) => {
+		if (response.status() === 429) {
+			hit429 = true;
+		}
+	};
+	page.on('response', on429);
 
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
@@ -82,6 +91,14 @@ async function loginToTestAccount(
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
+
+	// Retry if 429 hit on lookup — wait and try again (max 3 retries)
+	for (let retryCount = 0; retryCount < 3 && hit429; retryCount++) {
+		logCheckpoint(`Hit 429 rate limit on lookup, waiting 5s before retry ${retryCount + 1}...`);
+		hit429 = false;
+		await page.waitForTimeout(5000);
+		await page.getByRole('button', { name: /continue/i }).click();
+	}
 
 	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
@@ -141,6 +158,9 @@ async function loginToTestAccount(
 			}
 		}
 	}
+
+	// Clean up 429 listener
+	page.off('response', on429);
 
 	const { waitForEditor = true } = options;
 	if (waitForEditor) {
