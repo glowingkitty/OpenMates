@@ -1148,8 +1148,15 @@ class ReportGenerator:
 
     REPORTS_DIR = RESULTS_DIR / "reports"
 
+    # Suites that get per-test MD files (E2E with screenshots/steps)
+    E2E_SUITES = {"playwright"}
+
     def generate(self, result: RunResult) -> None:
-        """Generate MD files for all tests in the latest run."""
+        """Generate MD files for all tests in the latest run.
+
+        E2E tests (playwright): per-test MD files in success/ and failed/.
+        Unit tests (vitest, pytest): single summary MD per suite.
+        """
         # Clean previous reports
         if self.REPORTS_DIR.is_dir():
             shutil.rmtree(self.REPORTS_DIR)
@@ -1161,16 +1168,28 @@ class ReportGenerator:
 
         generated = 0
         for suite_name, suite_data in result.suites.items():
-            for test in suite_data.get("tests", []):
-                name = test.get("file") or test.get("name", "unknown")
-                status = test.get("status", "unknown")
-                target_dir = failed_dir if status == "failed" else success_dir
-                # Sanitize name: replace slashes with dashes to keep flat directory
-                safe_name = name.replace("/", "-").replace("\\", "-")
-                md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
+            tests = suite_data.get("tests", [])
 
-                content = self._build_test_md(test, result.run_id, suite_name)
-                (target_dir / md_name).write_text(content, encoding="utf-8")
+            if suite_name in self.E2E_SUITES:
+                # Per-test MD files for E2E suites
+                for test in tests:
+                    name = test.get("file") or test.get("name", "unknown")
+                    status = test.get("status", "unknown")
+                    target_dir = failed_dir if status == "failed" else success_dir
+                    safe_name = name.replace("/", "-").replace("\\", "-")
+                    md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
+
+                    content = self._build_test_md(test, result.run_id, suite_name)
+                    (target_dir / md_name).write_text(content, encoding="utf-8")
+                    generated += 1
+            else:
+                # Single summary MD for unit test suites
+                content = self._build_unit_summary_md(
+                    suite_name, tests, result.run_id
+                )
+                (self.REPORTS_DIR / f"{suite_name}-summary.md").write_text(
+                    content, encoding="utf-8"
+                )
                 generated += 1
 
         _log(f"Generated {generated} MD report(s) in test-results/reports/")
@@ -1354,6 +1373,77 @@ class ReportGenerator:
                 if "test-failed" in Path(ss_path).name.lower():
                     lines.append(f"![{Path(ss_path).stem}](../../{ss_path})")
                     lines.append("")
+
+    @staticmethod
+    def _build_unit_summary_md(
+        suite_name: str, tests: list[dict], run_id: str
+    ) -> str:
+        """Build a single summary MD for a unit test suite (vitest/pytest).
+
+        Groups failures with full error output, lists passed tests compactly.
+        """
+        total = len(tests)
+        passed_tests = [t for t in tests if t.get("status") == "passed"]
+        failed_tests = [t for t in tests if t.get("status") == "failed"]
+        skipped_tests = [t for t in tests if t.get("status") not in ("passed", "failed")]
+        passed = len(passed_tests)
+        failed = len(failed_tests)
+
+        status_text = f"**{passed}/{total} passed**" if failed == 0 else f"**{failed} failed** | {passed} passed"
+        lines: list[str] = [
+            f"# Unit Test Report — {suite_name}",
+            "",
+            f"**Date:** {run_id} | {status_text} | {total} total",
+            "",
+            "---",
+            "",
+        ]
+
+        # Failed tests — full detail
+        if failed_tests:
+            lines.append("## Failed")
+            lines.append("")
+            for t in failed_tests:
+                name = t.get("name") or t.get("file", "?")
+                error = t.get("error", "")
+                # Use structured Playwright errors if available (unlikely for unit tests)
+                pw_errors = t.get("playwright_errors", [])
+                if pw_errors:
+                    error = pw_errors[0].get("message", error)
+
+                lines.append(f"### {name}")
+                lines.append("")
+                if error:
+                    lines.append("```")
+                    # Limit error output to 50 lines to keep reports readable
+                    error_lines = error.strip().splitlines()
+                    for err_line in error_lines[:50]:
+                        lines.append(err_line)
+                    if len(error_lines) > 50:
+                        lines.append(f"... ({len(error_lines) - 50} more lines)")
+                    lines.append("```")
+                else:
+                    lines.append("*No error details available*")
+                lines.append("")
+
+        # Passed tests — compact list
+        if passed_tests:
+            lines.append(f"## Passed ({passed})")
+            lines.append("")
+            passed_names = [t.get("name") or t.get("file", "?") for t in passed_tests]
+            # Group by file prefix for readability
+            lines.append(", ".join(passed_names))
+            lines.append("")
+
+        # Skipped tests
+        if skipped_tests:
+            lines.append(f"## Skipped ({len(skipped_tests)})")
+            lines.append("")
+            skipped_names = [t.get("name") or t.get("file", "?") for t in skipped_tests]
+            lines.append(", ".join(skipped_names))
+            lines.append("")
+
+        return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
