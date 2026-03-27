@@ -27,6 +27,13 @@ Commands:
   demo            Demo chat state
   replay          Replay a request trace from OpenObserve
   errors          Top error fingerprints
+  trace           Distributed trace inspection (OpenTelemetry)
+    request         Single trace by ID
+    errors          Recent error traces
+    task            Celery task trace
+    session         User session traces
+    slow            Slow traces above threshold
+    login           Login flow trace
     --diff          Compare errors before vs after last sessions.py deploy (new vs pre-existing)
     --since-deploy  Alias for --diff
   issues          List recent issues with optional git commit cross-reference
@@ -104,6 +111,7 @@ COMMANDS = {
     'preview-status':  'debug_logs',
     'replay':          'debug_health',
     'errors':          'debug_health',
+    'trace':           'debug_trace',
 }
 
 # Satellite commands are mode flags within debug_logs.py
@@ -284,6 +292,8 @@ def _dispatch(command, rest):
         _delegate(module_name, ['debug_logs.py', _SATELLITE_FLAG[command]] + rest)
     elif command in ('health', 'replay', 'errors'):
         _delegate(module_name, ['debug_health.py', command] + rest)
+    elif command == 'trace':
+        _delegate(module_name, ['debug_trace.py'] + rest)
     else:
         _delegate(module_name, [f'{module_name}.py'] + rest)
 
