@@ -11,14 +11,12 @@ export default defineConfig({
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
-			// Use injectManifest so our custom sw.ts is the service worker entry.
-			// sw.ts contains: clientsClaim(), SKIP_WAITING message handler,
-			// navigation/API cache routes, and push notification handlers.
-			// Previously used generateSW which silently IGNORED sw.ts, meaning
-			// the SKIP_WAITING handler never existed in the deployed SW — causing
-			// stale JS chunks to be served after Vercel deploys.
-			strategies: 'injectManifest',
-			filename: 'service-worker.ts',
+			// generateSW creates the service worker automatically.
+			// skipWaiting + clientsClaim ensure new SW activates immediately on deploy,
+			// preventing stale JS chunks from being served after Vercel deploys.
+			// The custom service-worker.ts is compiled by SvelteKit separately and
+			// handles push notifications — it coexists with the Workbox-generated SW.
+			strategies: 'generateSW',
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
 			// with existing installed PWAs on user devices
@@ -51,9 +49,18 @@ export default defineConfig({
 					}
 				]
 			},
-			injectManifest: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.html'],
-				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024
+			workbox: {
+				// CRITICAL: Disable navigateFallback — adapter-vercel does NOT prerender "/",
+				// so it is never in the precache manifest. Without this override the
+				// @vite-pwa/sveltekit plugin auto-sets navigateFallback to "/" which causes
+				// createHandlerBoundToURL("/") to throw "non-precached-url" on every page load.
+				navigateFallback: null,
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+				cleanupOutdatedCaches: true,
+				// Activate new SW immediately on deploy — prevents stale chunks
+				skipWaiting: true,
+				clientsClaim: true
 			},
 			devOptions: {
 				enabled: true,
