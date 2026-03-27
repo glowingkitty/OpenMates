@@ -72,15 +72,14 @@ const SECTION_LOAD_TIMEOUT = 20_000;
 /** How long to wait for the page to fully hydrate after navigation (ms) */
 const HYDRATION_WAIT = 3_000;
 
-/** The 6 expected display-type headings per skill section */
+/** The expected display-type headings per skill section.
+ * "Preview — Large" was renamed to "Group — Large" and made conditional
+ * (hidden for app skills with isAppSkill: true), so it is not universally asserted. */
 const EXPECTED_DT_HEADINGS = [
 	'Inline Link',
 	'Quote Block',
 	'Group — Small',
-	'Preview — Large',
 	'Fullscreen'
-	// Note: "Group — Large" only appears when there are > 1 data variants,
-	// so we don't assert it universally but do check it when it appears.
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
