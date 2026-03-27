@@ -1,9 +1,10 @@
-// frontend/apps/web_app/src/sw.ts
+// frontend/apps/web_app/src/service-worker.ts
 //
 // Custom Workbox service worker entry for Vite PWA injectManifest.
 // Keeps runtime caching behavior and handles Web Push notifications.
 // Architecture context: docs/architecture/notifications.md
-// Build note: injectManifest reads this file via `injectManifest.swSrc`.
+// Build note: SvelteKit compiles this file → .svelte-kit/output/client/service-worker.js,
+//   then @vite-pwa/sveltekit injects the precache manifest via injectManifest.
 // Test reference: `pnpm run build` in frontend/apps/web_app.
 
 /// <reference lib="webworker" />

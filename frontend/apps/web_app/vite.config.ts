@@ -18,7 +18,7 @@ export default defineConfig({
 			// the SKIP_WAITING handler never existed in the deployed SW — causing
 			// stale JS chunks to be served after Vercel deploys.
 			strategies: 'injectManifest',
-			filename: 'sw.ts',
+			filename: 'service-worker.ts',
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
 			// with existing installed PWAs on user devices
