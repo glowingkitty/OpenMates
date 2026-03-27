@@ -2,13 +2,17 @@
 # =============================================================================
 # OpenMates Test Results Sync
 #
-# Downloads the latest daily-tests.yml workflow results from GitHub Actions
+# Downloads the latest playwright-spec.yml workflow results from GitHub Actions
 # and writes them to test-results/ so the /status page and sessions.py
 # can read fresh data.
 #
+# NOTE: Per-spec failure screenshots are archived by run_tests.py during batch
+# execution (to test-results/screenshots/{date}/{spec-name}/). This script only
+# syncs the aggregated JSON results artifact.
+#
 # Two modes:
 #   1. --wait: Trigger + wait for a running workflow, then download results.
-#      Used by the crontab entry after `gh workflow run daily-tests.yml`.
+#      Used by the crontab entry after dispatching playwright-spec.yml.
 #   2. --latest: Download results from the most recent completed run.
 #      Used for ad-hoc syncs.
 #
@@ -23,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_DIR="$PROJECT_ROOT/test-results"
 REPO="glowingkitty/OpenMates"
-WORKFLOW="daily-tests.yml"
+WORKFLOW="playwright-spec.yml"
 
 # Max wait: 40 minutes (tests typically take ~20 min)
 MAX_WAIT_SECONDS=2400
