@@ -31,7 +31,12 @@ Usage:
     docker exec api python /app/backend/scripts/debug.py issue --list --production
     docker exec api python /app/backend/scripts/debug.py issue <issue_id> --timeline --production
 
+    # List N most recent unprocessed issues (compact output, optional timeline)
+    docker exec api python /app/backend/scripts/debug.py issue --recent 5
+    docker exec api python /app/backend/scripts/debug.py issue --recent 3 --timeline --compact
+
 Options:
+    --recent [N]        List N most recent unprocessed issues (default: 5, max 3 with --timeline)
     --no-logs           Skip fetching the full YAML report from S3
     --full-logs         Show all data untruncated: full text fields (description,
                         device info, IndexedDB, etc.). Output can be very long — pipe to a file or
@@ -56,10 +61,13 @@ Options:
 
 import asyncio
 import argparse
+import base64
 import json
 import os
+import re
 import sys
 import time
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -991,6 +999,203 @@ async def fetch_issue_timeline_remote(
     )
 
 
+# ---------------------------------------------------------------------------
+# Shared chat link key validation (S8 from workflow review 2026-03-26)
+# ---------------------------------------------------------------------------
+
+_BASE64URL_RE = re.compile(r'^[A-Za-z0-9_-]+=*$')
+
+
+def validate_shared_link_key(url: str) -> Tuple[str, str]:
+    """
+    Validate the #key= fragment in a shared chat/embed URL.
+
+    Shared link keys are composite values (not raw NaCl keys) so we validate
+    encoding and report the decoded byte length without enforcing a specific size.
+
+    Returns:
+        Tuple of (status, detail) where status is "valid", "invalid",
+        "bad_encoding", or "no_key".
+    """
+    try:
+        parsed = urllib.parse.urlparse(url)
+        fragment = parsed.fragment
+        if not fragment or 'key=' not in fragment:
+            return ("no_key", "No #key= fragment found")
+
+        # Extract key value from fragment (may have multiple params)
+        key_value = None
+        for part in fragment.split('&'):
+            if part.startswith('key='):
+                key_value = part[4:]
+                break
+        # Also handle bare fragment starting with key=
+        if key_value is None and fragment.startswith('key='):
+            key_value = fragment[4:]
+
+        if not key_value:
+            return ("no_key", "Empty #key= fragment")
+
+        # Validate base64url charset
+        if not _BASE64URL_RE.match(key_value):
+            return ("bad_encoding", f"Invalid base64url characters in key ({len(key_value)} chars)")
+
+        # Decode to verify encoding is valid and report byte length
+        padded = key_value.replace('-', '+').replace('_', '/')
+        padding_needed = (4 - len(padded) % 4) % 4
+        padded += '=' * padding_needed
+        key_bytes = base64.b64decode(padded)
+        byte_len = len(key_bytes)
+
+        if byte_len > 0:
+            return ("valid", f"{byte_len}-byte key ({len(key_value)} chars base64url)")
+        else:
+            return ("invalid", "Empty key after decoding")
+
+    except Exception as e:
+        return ("bad_encoding", f"Could not decode key: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Timeline key-signal extraction (S1 + S4 from workflow review 2026-03-26)
+# ---------------------------------------------------------------------------
+
+# Patterns that indicate IndexedDB or decryption anomalies in browser logs
+_ANOMALY_PATTERNS = [
+    re.compile(r"(?i)doesn't match"),
+    re.compile(r"(?i)count mismatch"),
+    re.compile(r"(?i)decryption failed"),
+    re.compile(r"(?i)failed to decrypt"),
+    re.compile(r"(?i)decrypt.*error"),
+    re.compile(r"(?i)IndexedDB.*error"),
+    re.compile(r"(?i)decode.*(?:error|fail)"),
+]
+
+
+def extract_key_signals(
+    events: List[Dict[str, Any]],
+    anchor_us: int,
+) -> Dict[str, List[Tuple[str, str, str]]]:
+    """
+    Scan timeline events and extract diagnostically important signals.
+
+    Returns a dict with:
+      - errors_critical: ERROR/CRITICAL events (timestamp, source, message[:160])
+      - decryption_anomalies: browser events matching decryption/IndexedDB anomaly patterns
+      - last_non_info: the single last event before anchor_us that isn't INFO level
+    """
+    errors_critical: List[Tuple[str, str, str]] = []
+    decryption_anomalies: List[Tuple[str, str, str]] = []
+    last_non_info: Optional[Tuple[str, str, str]] = None
+
+    for evt in events:
+        ts_us   = evt["ts_us"]
+        level   = evt["level"]
+        source  = evt["source"]
+        message = evt["message"]
+
+        dt     = datetime.fromtimestamp(ts_us / 1_000_000, tz=timezone.utc)
+        ts_str = dt.strftime("%H:%M:%S.") + f"{dt.microsecond // 1000:03d}"
+        msg_short = message[:160]
+
+        # Collect errors / criticals
+        if level in ("error", "critical"):
+            errors_critical.append((ts_str, source, msg_short))
+
+        # Collect browser anomalies (decryption failures, IndexedDB mismatches)
+        if source == "browser":
+            for pat in _ANOMALY_PATTERNS:
+                if pat.search(message):
+                    decryption_anomalies.append((ts_str, source, msg_short))
+                    break
+
+        # Track last non-info event before the issue report
+        if level not in ("info",) and ts_us < anchor_us:
+            last_non_info = (ts_str, source, msg_short)
+
+    return {
+        "errors_critical": errors_critical,
+        "decryption_anomalies": decryption_anomalies,
+        "last_non_info": [last_non_info] if last_non_info else [],
+    }
+
+
+def _format_signal_block(signals: Dict[str, List[Tuple[str, str, str]]]) -> List[str]:
+    """Format extracted key signals into a readable block for compact timeline output."""
+    lines: List[str] = []
+    lines.append("")
+    lines.append("-" * 100)
+    lines.append("KEY SIGNALS")
+    lines.append("-" * 100)
+
+    errors = signals["errors_critical"]
+    anomalies = signals["decryption_anomalies"]
+    last = signals["last_non_info"]
+
+    if not errors and not anomalies and not last:
+        lines.append("  (no key signals detected)")
+        lines.append("")
+        return lines
+
+    # Errors / criticals (max 10)
+    if errors:
+        lines.append(f"  ERRORS/CRITICAL: {len(errors)} total")
+        for ts, src, msg in errors[:10]:
+            lines.append(f"    {ts}  [{src}]  {msg}")
+        if len(errors) > 10:
+            lines.append(f"    ... and {len(errors) - 10} more")
+        lines.append("")
+
+    # Decryption / IndexedDB anomalies (max 10)
+    if anomalies:
+        lines.append(f"  ⚠ DECRYPTION / INDEXEDDB ANOMALIES: {len(anomalies)} total")
+        for ts, src, msg in anomalies[:10]:
+            lines.append(f"    {ts}  [{src}]  {msg}")
+        if len(anomalies) > 10:
+            lines.append(f"    ... and {len(anomalies) - 10} more")
+        lines.append("")
+
+    # Last non-info event before report
+    if last:
+        ts, src, msg = last[0]
+        lines.append("  LAST NON-INFO BEFORE REPORT:")
+        lines.append(f"    {ts}  [{src}]  {msg}")
+        lines.append("")
+
+    return lines
+
+
+def _format_anomaly_footer(events: List[Dict[str, Any]]) -> List[str]:
+    """
+    Scan browser events for IndexedDB/decryption anomaly patterns and return
+    a footer block. Used in non-compact mode to auto-flag anomalies.
+    """
+    anomalies: List[Tuple[str, str]] = []
+    for evt in events:
+        if evt["source"] != "browser":
+            continue
+        for pat in _ANOMALY_PATTERNS:
+            if pat.search(evt["message"]):
+                dt = datetime.fromtimestamp(
+                    evt["ts_us"] / 1_000_000, tz=timezone.utc
+                )
+                ts_str = dt.strftime("%H:%M:%S.") + f"{dt.microsecond // 1000:03d}"
+                anomalies.append((ts_str, evt["message"][:160]))
+                break
+
+    if not anomalies:
+        return []
+
+    lines: List[str] = []
+    lines.append("")
+    lines.append(f"  ⚠ INDEXEDDB / DECRYPTION ANOMALIES ({len(anomalies)} detected):")
+    for ts, msg in anomalies[:10]:
+        lines.append(f"    {ts}  {msg}")
+    if len(anomalies) > 10:
+        lines.append(f"    ... and {len(anomalies) - 10} more")
+    return lines
+
+
 def format_issue_timeline(
     events: List[Dict[str, Any]],
     issue: Dict[str, Any],
@@ -998,6 +1203,7 @@ def format_issue_timeline(
     end_us: int,
     before_minutes: int,
     after_minutes: int,
+    compact: bool = False,
 ) -> str:
     """
     Render the merged browser+backend event timeline for an issue.
@@ -1045,6 +1251,15 @@ def format_issue_timeline(
         lines.append("=" * 100)
         lines.append("")
         return "\n".join(lines)
+
+    # Compact mode: extract key signals and show summary + last 50 events
+    if compact:
+        signals = extract_key_signals(events, anchor_us)
+        lines.extend(_format_signal_block(signals))
+        # Truncate to last 50 events for compact output
+        if len(events) > 50:
+            lines.append(f"  (showing last 50 of {len(events)} events)")
+            events = events[-50:]
 
     marker_inserted = False
     prev_ts_us: Optional[int] = None
@@ -1122,6 +1337,11 @@ def format_issue_timeline(
         f"  Summary: {len(events)} events | {error_count} errors | {warning_count} warnings | "
         f"sources: {', '.join(sources)}"
     )
+
+    # In non-compact mode, auto-flag anomalies as a footer block
+    if not compact:
+        lines.extend(_format_anomaly_footer(events))
+
     lines.append("=" * 100)
     lines.append("")
 
@@ -1380,6 +1600,13 @@ def format_detail_output(
         url = decrypted.get('chat_or_embed_url')
         if url:
             lines.append(f"  🔗 Chat/Embed URL:     {url}")
+            # Validate #key= fragment for shared links
+            if '#key=' in url:
+                key_status, key_detail = validate_shared_link_key(url)
+                if key_status == "valid":
+                    lines.append(f"  🔑 Key Validation:     ✓ {key_detail}")
+                else:
+                    lines.append(f"  🔑 Key Validation:     ✗ {key_detail}")
         else:
             lines.append("  🔗 Chat/Embed URL:     N/A (not provided)")
 
@@ -1634,6 +1861,10 @@ def format_summary_output(
     location = decrypted.get('estimated_location', '')
     if url:
         lines.append(f"  URL: {url[:120]}{'...' if len(url) > 120 else ''}")
+        if '#key=' in url:
+            key_status, key_detail = validate_shared_link_key(url)
+            symbol = "✓" if key_status == "valid" else "✗"
+            lines.append(f"  Key: {symbol} {key_detail}")
     if location:
         lines.append(f"  Location: {location}  |  Device: {device[:80] if device else 'N/A'}")
 
@@ -1836,9 +2067,9 @@ async def main():
     parser.add_argument(
         '--compact',
         action='store_true',
-        help='Output a one-line-per-issue summary for embedding in session context. '
-        'Shows truncated issue_id, relative time, title, truncated user_id, and URL. '
-        'Used with --list. No email addresses are shown.'
+        help='With --list: one-line-per-issue summary. '
+        'With --timeline: extract KEY SIGNALS (errors, decryption/IndexedDB anomalies) '
+        'and truncate to last 50 events. Keeps output under 10KB for tool consumption.'
     )
     parser.add_argument(
         '--list-limit',
@@ -1856,6 +2087,16 @@ async def main():
         '--include-processed',
         action='store_true',
         help='Include processed issues in --list results'
+    )
+    parser.add_argument(
+        '--recent',
+        type=int,
+        nargs='?',
+        const=5,
+        default=None,
+        metavar='N',
+        help='List N most recent unprocessed issues (default: 5). '
+        'Combine with --timeline to auto-run timeline for each (max 3).'
     )
     parser.add_argument(
         '--full-logs',
@@ -1926,8 +2167,8 @@ async def main():
     args = parser.parse_args()
 
     # Validate arguments
-    if not args.list and not args.issue_id:
-        parser.error("Either provide an issue_id or use --list to list recent issues")
+    if not args.list and not args.issue_id and args.recent is None:
+        parser.error("Either provide an issue_id, use --list, or use --recent")
     if args.delete and args.list:
         parser.error("Cannot use --delete with --list")
     if args.delete and not args.issue_id:
@@ -1987,6 +2228,57 @@ async def main():
                     print(json.dumps(output_data, indent=2, default=str))
                 else:
                     print(format_list_output(issues, decrypted_list))
+
+            elif args.recent is not None:
+                # ---- Remote recent mode ----
+                limit = args.recent
+                script_logger.info(
+                    f"Fetching {limit} most recent unprocessed issues from {source_label}"
+                )
+                api_response = await fetch_issues_list_from_production_api(
+                    limit=limit,
+                    include_processed=False,
+                    use_dev=args.dev,
+                )
+                if api_response is None:
+                    script_logger.error(f"Failed to fetch issues from {source_label} API")
+                    sys.exit(1)
+
+                issues, _ = map_production_issues_list(api_response)
+                if not issues:
+                    print("No unprocessed issues found.")
+                    return
+
+                # Always show compact list first
+                print(format_compact_output(issues))
+
+                # If --timeline requested, run timeline for each (max 3)
+                if args.timeline:
+                    timeline_limit = min(len(issues), 3)
+                    if len(issues) > 3:
+                        print(f"\n(Running timeline for first 3 of {len(issues)} issues)")
+                    for i, issue in enumerate(issues[:timeline_limit]):
+                        issue_id = issue.get("id", "")
+                        print(f"\n{'─' * 40} Timeline {i + 1}/{timeline_limit}: {issue_id[:8]} {'─' * 40}")
+                        tl_response = await fetch_issue_timeline_remote(
+                            issue_id,
+                            before_minutes=args.before,
+                            after_minutes=args.after,
+                            use_dev=args.dev,
+                        )
+                        if tl_response is None:
+                            print(f"  Timeline unavailable for {issue_id[:8]}")
+                            continue
+                        tl_issue  = tl_response.get("issue", {})
+                        tl_events = tl_response.get("events", [])
+                        tl_start  = tl_response.get("start_us", 0)
+                        tl_end    = tl_response.get("end_us", 0)
+                        print(format_issue_timeline(
+                            tl_events, tl_issue,
+                            tl_start, tl_end,
+                            args.before, args.after,
+                            compact=args.compact,
+                        ))
 
             elif args.delete:
                 # ---- Remote delete mode ----
@@ -2052,6 +2344,7 @@ async def main():
                         tl_events, tl_issue,
                         tl_start, tl_end,
                         args.before, args.after,
+                        compact=args.compact,
                     ))
 
                 else:
@@ -2159,6 +2452,42 @@ async def main():
                 else:
                     print(format_list_output(issues, decrypted_list))
 
+            elif args.recent is not None:
+                # ===================== RECENT MODE =====================
+                limit = args.recent
+                script_logger.info(f"Fetching {limit} most recent unprocessed issues")
+                issues = await list_issues(
+                    directus_service,
+                    limit=limit,
+                    include_processed=False,
+                )
+                if not issues:
+                    print("No unprocessed issues found.")
+                    return
+
+                # Always show compact list first
+                print(format_compact_output(issues))
+
+                # If --timeline requested, run timeline for each (max 3)
+                if args.timeline:
+                    timeline_limit = min(len(issues), 3)
+                    if len(issues) > 3:
+                        print(f"\n(Running timeline for first 3 of {len(issues)} issues)")
+                    for i, issue in enumerate(issues[:timeline_limit]):
+                        issue_id = issue.get("id", "")
+                        print(f"\n{'─' * 40} Timeline {i + 1}/{timeline_limit}: {issue_id[:8]} {'─' * 40}")
+                        tl_events, tl_start, tl_end = await fetch_issue_timeline_local(
+                            issue,
+                            before_minutes=args.before,
+                            after_minutes=args.after,
+                        )
+                        print(format_issue_timeline(
+                            tl_events, issue,
+                            tl_start, tl_end,
+                            args.before, args.after,
+                            compact=args.compact,
+                        ))
+
             else:
                 # ===================== DETAIL MODE (or DELETE) =====================
                 # 1. Fetch issue metadata
@@ -2230,6 +2559,7 @@ async def main():
                         tl_events, issue,
                         tl_start, tl_end,
                         args.before, args.after,
+                        compact=args.compact,
                     ))
 
                 else:

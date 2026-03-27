@@ -1098,11 +1098,11 @@ def _prefetch_health_check_compact() -> str:
 
 
 def _prefetch_recent_issues(limit: int = 2) -> str:
-    """Fetch the most recent user-reported issues in compact format."""
+    """Fetch the most recent unprocessed issues in compact format."""
     cmd = [
         "docker", "exec", "api",
         "python", "/app/backend/scripts/debug.py",
-        "issue", "--list", "--compact", "--list-limit", str(limit),
+        "issue", "--recent", str(limit),
     ]
     rc, stdout, stderr = _run_cmd(cmd, timeout=30)
     if rc != 0 or not stdout.strip():
@@ -1990,7 +1990,12 @@ def cmd_start(args: argparse.Namespace) -> None:
     # ── ISSUES (bug mode) ─────────────────────────────────────────────────
     if mode == "bug":
         issues_content = _prefetch_recent_issues(limit=2)
-        sections.append(_box_section("ISSUES (last 24h)", issues_content.split("\n")))
+        issue_lines = issues_content.split("\n")
+        # Add hint when no specific --issue was provided
+        if not getattr(args, "issue", None):
+            issue_lines.append("")
+            issue_lines.append("Hint: debug.py issue --recent 5  |  debug.py issue <ID> --timeline")
+        sections.append(_box_section("ISSUES (last 24h)", issue_lines))
 
     # ── ERROR TRENDS (bug mode) ───────────────────────────────────────────
     if mode == "bug":
