@@ -1879,8 +1879,14 @@ class TestOrchestrator:
 
         for jf in json_files:
             try:
-                with open(jf) as f:
-                    data = json.load(f)
+                raw = jf.read_text(encoding="utf-8", errors="replace")
+                # Vitest JSON output may have non-JSON prefix (SvelteKit warnings).
+                # Find the first '{' that starts the actual JSON object.
+                json_start = raw.find("{")
+                json_end = raw.rfind("}")
+                if json_start < 0 or json_end <= json_start:
+                    continue
+                data = json.loads(raw[json_start:json_end + 1])
             except (json.JSONDecodeError, OSError):
                 continue
 
