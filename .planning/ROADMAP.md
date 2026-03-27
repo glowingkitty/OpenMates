@@ -153,7 +153,12 @@ Plans:
   3. key_received_handler.py has OTel spans visible in traces
   4. `debug.py trace recent --last 5m` shows all requests from the last N minutes with full span trees, HTTP paths, durations, and status codes
   5. `debug.py trace errors` shows error detail including HTTP path, status code, and child spans (not just bare root spans)
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 09-01-PLAN.md -- Privacy tier wiring: add debug_logging_opted_in to cached profile, create ws_span_helper, wire user attributes in WS dispatch
+- [ ] 09-02-PLAN.md -- Instrument all 37 WS handlers with OTel spans via ws_span_helper + audit test
+- [ ] 09-03-PLAN.md -- Rework debug.py trace CLI: full span trees via SQL search API, trace recent subcommand, Unicode tree output
 
 ## Progress
 
@@ -170,4 +175,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. OpenTelemetry Distributed Tracing | 5/5 | Done | 2026-03-27 |
 | 7. E2E Test Suite Repair | 6/6 | Done | 2026-03-27 |
 | 8. Sender Barrel Deployment | 0/1 | Not started | - |
-| 9. OTel Tracing Fix | 0/? | Not started | - |
+| 9. OTel Tracing Fix | 0/3 | Not started | - |
