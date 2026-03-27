@@ -4,11 +4,12 @@ Linear Issue Poller for Claude Code Investigation Pipeline.
 Single-run script that queries Linear for issues labeled `claude-investigate`,
 writes trigger files to the agent pipeline, and immediately removes the label
 to prevent duplicate processing. Designed to run every 30s via a systemd
-service loop: `docker exec api python3 /app/scripts/linear-poller.py`.
+service loop: `python3 scripts/linear-poller.py`.
 
-Runs INSIDE the `api` Docker container where httpx and Vault-injected
-LINEAR_API_KEY are available. Trigger files are written to the bind-mounted
-scripts/.agent-triggers/ directory for the host-side watcher to pick up.
+Runs on the HOST (not inside Docker). Sources LINEAR_API_KEY from the project
+.env file via the systemd EnvironmentFile directive. httpx is available on
+the host Python. Trigger files are written to scripts/.agent-triggers/ for
+the host-side watcher to pick up.
 """
 
 import datetime
@@ -16,6 +17,7 @@ import json
 import logging
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -30,8 +32,9 @@ logging.basicConfig(
 # --- Constants ---
 
 LINEAR_API_URL = "https://api.linear.app/graphql"
-TRIGGER_DIR = Path("/app/scripts/.agent-triggers")
-PROMPT_TEMPLATE_PATH = Path("/app/scripts/prompts/linear-issue-investigation.md")
+SCRIPT_DIR = Path(__file__).resolve().parent
+TRIGGER_DIR = SCRIPT_DIR / ".agent-triggers"
+PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "prompts" / "linear-issue-investigation.md"
 
 PRIORITY_MAP = {
     0: "None",
@@ -43,7 +46,8 @@ PRIORITY_MAP = {
 
 # Label name constants
 LABEL_INVESTIGATE = "claude-investigate"
-LABEL_INVESTIGATED = "claude-investigated"
+LABEL_WORKINGONIT = "claude-workingonit"
+LABEL_COMPLETE = "claude-investigate-complete"
 
 # --- GraphQL Queries ---
 
@@ -73,7 +77,7 @@ query GetInvestigateIssues {
 QUERY_LABEL_IDS = """
 query GetLabels {
   issueLabels(filter: {
-    name: { in: ["claude-investigate", "claude-investigated"] }
+    name: { in: ["claude-investigate", "claude-workingonit", "claude-investigate-complete"] }
   }) {
     nodes {
       id
@@ -83,16 +87,40 @@ query GetLabels {
 }
 """
 
-MUTATION_UPDATE_LABELS = """
-mutation UpdateIssueLabels($id: String!, $labelIds: [String!]!) {
+QUERY_WORKFLOW_STATES = """
+query GetWorkflowStates {
+  workflowStates {
+    nodes {
+      id
+      name
+      type
+    }
+  }
+}
+"""
+
+MUTATION_UPDATE_ISSUE = """
+mutation UpdateIssue($id: String!, $labelIds: [String!]!, $stateId: String) {
   issueUpdate(id: $id, input: {
     labelIds: $labelIds
+    stateId: $stateId
   }) {
     success
     issue {
       id
       labels { nodes { id name } }
     }
+  }
+}
+"""
+
+MUTATION_CREATE_COMMENT = """
+mutation AddComment($issueId: String!, $body: String!) {
+  commentCreate(input: {
+    issueId: $issueId
+    body: $body
+  }) {
+    success
   }
 }
 """
@@ -115,7 +143,7 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
         httpx.HTTPStatusError: If the HTTP request fails.
     """
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": api_key,
         "Content-Type": "application/json",
     }
     payload: Dict[str, Any] = {"query": query}
@@ -134,17 +162,28 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
 
 def get_label_ids(api_key: str) -> Dict[str, str]:
     """
-    Fetch the UUIDs for claude-investigate and claude-investigated labels.
+    Fetch the UUIDs for all claude-* labels.
 
     Returns:
         Dict mapping label name to label UUID, e.g.
-        {"claude-investigate": "uuid1", "claude-investigated": "uuid2"}.
+        {"claude-investigate": "uuid1", "claude-workingonit": "uuid2", ...}.
     """
     result = linear_query(api_key, QUERY_LABEL_IDS)
     label_map: Dict[str, str] = {}
     for node in result.get("issueLabels", {}).get("nodes", []):
         label_map[node["name"]] = node["id"]
     return label_map
+
+
+def get_in_progress_state_id(api_key: str) -> Optional[str]:
+    """
+    Find the 'In Progress' workflow state ID. Returns None if not found.
+    """
+    result = linear_query(api_key, QUERY_WORKFLOW_STATES)
+    for node in result.get("workflowStates", {}).get("nodes", []):
+        if node["name"] == "In Progress" and node["type"] == "started":
+            return node["id"]
+    return None
 
 
 def render_prompt(issue: Dict[str, Any]) -> str:
@@ -173,7 +212,7 @@ def render_prompt(issue: Dict[str, Any]) -> str:
     ]
     labels_str = ", ".join(label_names) if label_names else "None"
 
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    date_str = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return (
         template
@@ -187,7 +226,7 @@ def render_prompt(issue: Dict[str, Any]) -> str:
     )
 
 
-def write_trigger_file(issue: Dict[str, Any], prompt: str) -> Path:
+def write_trigger_file(issue: Dict[str, Any], prompt: str, session_id: str) -> Path:
     """
     Write an atomic trigger JSON file for the agent-trigger-watcher.
 
@@ -197,6 +236,7 @@ def write_trigger_file(issue: Dict[str, Any], prompt: str) -> Path:
     Args:
         issue: Linear issue node dict.
         prompt: Rendered investigation prompt.
+        session_id: Pre-generated UUID for the Claude session.
 
     Returns:
         Path to the written trigger file.
@@ -205,16 +245,16 @@ def write_trigger_file(issue: Dict[str, Any], prompt: str) -> Path:
 
     identifier = issue.get("identifier", "unknown")
     linear_id = issue["id"]
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
     payload = {
         "issue_id": f"linear-{identifier}",
         "linear_issue_id": linear_id,
         "linear_identifier": identifier,
+        "session_id": session_id,
         "session_title": f"Linear {identifier}: {issue.get('title', 'Investigation')}",
         "prompt": prompt,
         "source": "linear-poller",
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
     }
 
     # Atomic write: .tmp then rename
@@ -227,41 +267,65 @@ def write_trigger_file(issue: Dict[str, Any], prompt: str) -> Path:
     return trigger_file
 
 
-def remove_investigate_label(
+def start_investigation(
     api_key: str,
     issue: Dict[str, Any],
     label_ids: Dict[str, str],
+    session_id: str,
+    in_progress_state_id: Optional[str],
 ) -> None:
     """
-    Remove claude-investigate label and add claude-investigated label.
+    Mark issue as being investigated: swap labels, set In Progress, post comment.
 
-    Uses the read-then-write pattern required by Linear's API: reads current
-    label IDs from the issue, filters out claude-investigate, adds
-    claude-investigated, then sends the full label list via issueUpdate.
+    Swaps claude-investigate → claude-workingonit, moves to In Progress,
+    and posts a comment with the pre-generated session ID so the user can
+    immediately run `claude --resume` to watch the active investigation.
 
     Args:
         api_key: Linear API key.
         issue: Linear issue node dict (must include labels.nodes[].id).
         label_ids: Dict mapping label names to UUIDs.
+        session_id: Pre-generated Claude session UUID.
+        in_progress_state_id: Workflow state ID for "In Progress" (or None).
     """
     investigate_label_id = label_ids.get(LABEL_INVESTIGATE)
-    investigated_label_id = label_ids.get(LABEL_INVESTIGATED)
+    workingonit_label_id = label_ids.get(LABEL_WORKINGONIT)
 
-    # Build new label list: remove investigate, add investigated
+    # Build new label list: remove investigate, add workingonit
     current_label_ids = [
         lbl["id"]
         for lbl in issue.get("labels", {}).get("nodes", [])
         if lbl["id"] != investigate_label_id
     ]
 
-    if investigated_label_id and investigated_label_id not in current_label_ids:
-        current_label_ids.append(investigated_label_id)
+    if workingonit_label_id and workingonit_label_id not in current_label_ids:
+        current_label_ids.append(workingonit_label_id)
+
+    # Update labels + status in one API call
+    variables: Dict[str, Any] = {"id": issue["id"], "labelIds": current_label_ids}
+    if in_progress_state_id:
+        variables["stateId"] = in_progress_state_id
+
+    linear_query(api_key, MUTATION_UPDATE_ISSUE, variables=variables)
+
+    # Post "investigation started" comment with resume command
+    identifier = issue.get("identifier", "unknown")
+    comment_body = (
+        "## Claude Code Investigation Started\n\n"
+        f"**Session ID:** `{session_id}`\n\n"
+        "**Watch or resume this investigation:**\n"
+        "```\n"
+        f"claude --resume {session_id}\n"
+        "```\n\n"
+        f"**Status:** In progress..."
+    )
 
     linear_query(
         api_key,
-        MUTATION_UPDATE_LABELS,
-        variables={"id": issue["id"], "labelIds": current_label_ids},
+        MUTATION_CREATE_COMMENT,
+        variables={"issueId": issue["id"], "body": comment_body},
     )
+    logger.info("Posted 'started' comment to %s with session %s", identifier, session_id)
 
 
 def main() -> None:
@@ -284,12 +348,17 @@ def main() -> None:
         )
         return
 
-    if LABEL_INVESTIGATED not in label_ids:
-        logger.warning(
-            "Label '%s' not found in Linear workspace. "
-            "Create it before using the poller.",
-            LABEL_INVESTIGATED,
-        )
+    for label_name in [LABEL_WORKINGONIT, LABEL_COMPLETE]:
+        if label_name not in label_ids:
+            logger.warning(
+                "Label '%s' not found in Linear workspace. Create it.",
+                label_name,
+            )
+
+    # Look up "In Progress" workflow state (optional — skip if not found)
+    in_progress_state_id = get_in_progress_state_id(api_key)
+    if not in_progress_state_id:
+        logger.warning("'In Progress' workflow state not found — will skip status update")
 
     # Fetch issues with claude-investigate label
     result = linear_query(api_key, QUERY_INVESTIGATE_ISSUES)
@@ -306,21 +375,23 @@ def main() -> None:
         title = issue.get("title", "")
 
         try:
-            # Step 1: Render prompt
+            # Step 1: Pre-generate session UUID
+            session_id = str(uuid.uuid4())
+
+            # Step 2: Render prompt
             prompt = render_prompt(issue)
             logger.info("Rendered prompt for %s: %s", identifier, title)
 
-            # Step 2: Write atomic trigger file
-            trigger_path = write_trigger_file(issue, prompt)
+            # Step 3: Write atomic trigger file (includes session_id)
+            trigger_path = write_trigger_file(issue, prompt, session_id)
             logger.info("Wrote trigger file: %s", trigger_path)
 
-            # Step 3: Immediately remove label to prevent duplicate processing
-            # This is the critical duplicate-prevention step
-            remove_investigate_label(api_key, issue, label_ids)
+            # Step 4: Update Linear immediately — swap labels, set In Progress, post comment
+            start_investigation(api_key, issue, label_ids, session_id, in_progress_state_id)
             logger.info(
-                "Removed '%s' label from %s",
-                LABEL_INVESTIGATE,
+                "Started investigation for %s (session %s)",
                 identifier,
+                session_id,
             )
 
         except Exception:

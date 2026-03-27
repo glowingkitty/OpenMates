@@ -75,6 +75,10 @@ process_trigger() {
     # Extract Linear issue UUID (empty string for non-Linear triggers from admin sidecar)
     linear_issue_id="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('linear_issue_id',''))" "$trigger_file" 2>/dev/null)" || true
 
+    # Extract pre-generated session ID (empty for non-Linear triggers)
+    local trigger_session_id=""
+    trigger_session_id="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('session_id',''))" "$trigger_file" 2>/dev/null)" || true
+
     log "[agent-watcher] Starting claude investigation (issue_id=$issue_id, title=$session_title)"
 
     # Write prompt to temp file to avoid MAX_ARG_STRLEN limit
@@ -82,12 +86,19 @@ process_trigger() {
     mkdir -p "$(dirname "$tmp_file")"
     echo "$prompt" > "$tmp_file"
 
-    # Run claude plan-mode session with a 15 minute timeout
+    # Build claude command — include --session-id if pre-generated (Linear triggers)
     local output exit_code=0
+    local session_id_flag=""
+    if [[ -n "$trigger_session_id" ]]; then
+        session_id_flag="--session-id $trigger_session_id"
+    fi
+
+    # Run claude plan-mode session with a 15 minute timeout
     output="$(timeout 900 claude \
         -p "Read scripts/.tmp/claude-trigger-$issue_id.txt in full and follow all the instructions precisely." \
         --model "claude-sonnet-4-6" \
         --name "$session_title" \
+        $session_id_flag \
         --permission-mode plan \
         --output-format json 2>&1)" || exit_code=$?
 
@@ -100,30 +111,55 @@ process_trigger() {
         log "[agent-watcher] WARNING: claude exited with code $exit_code (issue_id=$issue_id)"
     fi
 
-    # Extract session ID from JSON output
-    local session_id=""
-    session_id="$(echo "$output" | python3 -c "import json,sys; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null)" || true
+    # Session ID: use pre-generated from trigger file, fallback to JSON output
+    local session_id="$trigger_session_id"
+    if [[ -z "$session_id" ]]; then
+        session_id="$(echo "$output" | python3 -c "import json,sys; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null)" || true
+    fi
 
     if [[ -n "$session_id" ]]; then
         log "[agent-watcher] claude session completed: $session_id (issue_id=$issue_id)"
     else
-        log "[agent-watcher] claude ran but no session ID found in output (issue_id=$issue_id)"
+        log "[agent-watcher] claude ran but no session ID found (issue_id=$issue_id)"
+    fi
+
+    # Determine exit status for Linear update
+    local status="completed"
+    if [[ $exit_code -eq 124 ]]; then
+        status="timeout"
+    elif [[ $exit_code -ne 0 ]]; then
+        status="error"
     fi
 
     # Move trigger file to done/
-    mv "$trigger_file" "$DONE_DIR/$filename"
-    log "[agent-watcher] Trigger processed and moved to done/: $filename"
+    mv "$trigger_file" "$DONE_DIR/$filename" 2>/dev/null || log "[agent-watcher] Trigger file already moved: $filename"
+    log "[agent-watcher] Trigger processed: $filename"
 
     # Post investigation results back to Linear (if this was a Linear-triggered issue)
     if [[ -n "$linear_issue_id" && -n "$session_id" ]]; then
-        log "[agent-watcher] Updating Linear issue $linear_issue_id with session $session_id"
+        log "[agent-watcher] Updating Linear issue $linear_issue_id with session $session_id (status=$status)"
+
+        # Extract Claude's text response from JSON output and save to temp file
+        local response_file="$PROJECT_ROOT/scripts/.tmp/claude-response-$issue_id.txt"
+        echo "$output" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data.get('result', data.get('response', '')))
+except: pass
+" > "$response_file" 2>/dev/null || true
+
         LINEAR_API_KEY="$(grep '^LINEAR_API_KEY=' "$PROJECT_ROOT/.env" 2>/dev/null | cut -d= -f2-)" \
         python3 "$PROJECT_ROOT/scripts/linear-update-issue.py" \
             --issue-id "$linear_issue_id" \
             --session-id "$session_id" \
+            --status "$status" \
+            --response-file "$response_file" \
             2>&1 | while read -r line; do log "[linear-update] $line"; done || {
             log "[agent-watcher] WARNING: Failed to update Linear issue $linear_issue_id"
         }
+
+        rm -f "$response_file"
     fi
 }
 
