@@ -115,8 +115,10 @@ test.describe('Debug Logging Settings', () => {
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('Debug logging toggle appears and persists state', async ({ page }) => {
-		const logCheckpoint = createSignupLogger('debug-logging');
-		const takeStepScreenshot = createStepScreenshotter('debug-logging-settings');
+		const logCheckpoint = createSignupLogger('DEBUG_LOGGING');
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+			filenamePrefix: 'debug-logging-settings'
+		});
 
 		// Archive old screenshots
 		await archiveExistingScreenshots('debug-logging-settings');
