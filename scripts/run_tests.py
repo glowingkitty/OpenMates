@@ -59,6 +59,7 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
+VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
@@ -1060,7 +1061,18 @@ def run_vitest() -> SuiteResult:
         _log(f"  vitest in {rel}")
 
         cmd = f"npx vitest run {config_flag} --reporter=json".split()
-        rc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(vdir))
+        try:
+            rc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(vdir), timeout=VITEST_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            _log(f"  vitest timed out after {VITEST_TIMEOUT}s in {rel}", "WARN")
+            overall_status = "failed"
+            all_tests.append({
+                "name": f"{rel}/vitest-timeout",
+                "status": "failed",
+                "duration_seconds": VITEST_TIMEOUT,
+                "error": f"vitest timed out after {VITEST_TIMEOUT}s — likely a deadlock in crypto/jsdom tests",
+            })
+            continue
 
         # Parse JSON from output (may have non-JSON prefix)
         raw = rc.stdout
