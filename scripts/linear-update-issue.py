@@ -64,6 +64,20 @@ query GetIssueLabels($id: String!) {
 }
 """
 
+QUERY_ISSUE_COMMENTS = """
+query GetIssueComments($id: String!) {
+  issue(id: $id) {
+    comments(orderBy: createdAt) {
+      nodes {
+        id
+        body
+        createdAt
+      }
+    }
+  }
+}
+"""
+
 QUERY_CLAUDE_LABELS = """
 query GetClaudeLabels {
   issueLabels(filter: {
@@ -285,34 +299,59 @@ def main() -> None:
         except Exception:
             logger.warning("Could not read response file: %s", args.response_file)
 
-    # Post a comment only if Claude produced substantive findings
-    # (Claude normally posts its own via MCP — this is the fallback)
-    comment_body = build_comment_body(response_text)
-    if comment_body:
-        try:
-            result = linear_query(
-                api_key,
-                MUTATION_CREATE_COMMENT,
-                variables={"issueId": args.issue_id, "body": comment_body},
-            )
-            success = result.get("commentCreate", {}).get("success", False)
-            if success:
-                logger.info(
-                    "Posted findings comment to issue %s", args.issue_id
-                )
-            else:
-                logger.error(
-                    "Comment creation returned success=false for issue %s",
-                    args.issue_id,
-                )
-        except Exception:
-            logger.error(
-                "Failed to post comment to issue %s",
+    # Check if Claude already posted findings via MCP during the session.
+    # The poller posts a one-line resume command comment — any comment after
+    # that is from Claude's MCP. If so, skip the fallback to avoid duplicates.
+    claude_already_posted = False
+    try:
+        comments_result = linear_query(
+            api_key, QUERY_ISSUE_COMMENTS, variables={"id": args.issue_id}
+        )
+        comments = (
+            comments_result.get("issue", {}).get("comments", {}).get("nodes", [])
+        )
+        # The poller's resume command comment is a single backtick-wrapped line.
+        # Any comment after it that's NOT a resume command is from Claude's MCP.
+        for comment in comments:
+            body = comment.get("body", "").strip()
+            if body and not body.startswith("`claude --resume"):
+                claude_already_posted = True
+        if claude_already_posted:
+            logger.info(
+                "Claude already posted findings via MCP for issue %s — skipping fallback",
                 args.issue_id,
-                exc_info=True,
             )
-    else:
-        logger.info("No substantive findings to post for issue %s", args.issue_id)
+    except Exception:
+        logger.warning("Could not check existing comments", exc_info=True)
+
+    # Post fallback comment only if Claude didn't already post via MCP
+    if not claude_already_posted:
+        comment_body = build_comment_body(response_text)
+        if comment_body:
+            try:
+                result = linear_query(
+                    api_key,
+                    MUTATION_CREATE_COMMENT,
+                    variables={"issueId": args.issue_id, "body": comment_body},
+                )
+                success = result.get("commentCreate", {}).get("success", False)
+                if success:
+                    logger.info(
+                        "Posted fallback findings comment to issue %s", args.issue_id
+                    )
+                else:
+                    logger.error(
+                        "Comment creation returned success=false for issue %s",
+                        args.issue_id,
+                    )
+            except Exception:
+                logger.error(
+                    "Failed to post comment to issue %s",
+                    args.issue_id,
+                    exc_info=True,
+                )
+        else:
+            logger.info("No substantive findings to post for issue %s", args.issue_id)
 
     # Swap labels + move to "In Review"
     try:
