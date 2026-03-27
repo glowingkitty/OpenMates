@@ -603,6 +603,8 @@ class BatchRunner:
     ) -> tuple[Optional[str], list[dict], list[dict]]:
         """Extract error message, structured errors, and step data from Playwright JSON.
 
+        Handles nested suites (suites can contain both specs and child suites).
+
         Returns:
             (first_error_string, playwright_errors_list, steps_list)
         """
@@ -610,59 +612,70 @@ class BatchRunner:
         errors: list[dict] = []
         steps: list[dict] = []
 
+        def _process_result(result: dict) -> None:
+            nonlocal first_error
+            # Extract steps with pass/fail status
+            for step in result.get("steps", []):
+                step_entry: dict = {
+                    "title": step.get("title", ""),
+                    "duration_ms": step.get("duration", 0),
+                    "status": "failed" if step.get("error") else "passed",
+                }
+                if step.get("error"):
+                    err = step["error"]
+                    step_entry["error"] = (
+                        err.get("message", str(err))
+                        if isinstance(err, dict) else str(err)
+                    )
+                steps.append(step_entry)
+
+            # Extract attachments (screenshots)
+            attachments = []
+            for att in result.get("attachments", []):
+                if att.get("contentType", "").startswith("image/"):
+                    attachments.append({
+                        "name": att.get("name", ""),
+                        "path": att.get("path", ""),
+                    })
+
+            # Extract errors from non-passed results
+            if result.get("status") != "passed":
+                err = result.get("error", {})
+                if isinstance(err, dict):
+                    msg = err.get("message", "")
+                    stack = err.get("stack", "")
+                elif isinstance(err, str):
+                    msg = err
+                    stack = ""
+                else:
+                    msg = ""
+                    stack = ""
+
+                if msg:
+                    if first_error is None:
+                        first_error = msg[:MAX_ERROR_SNIPPET]
+                    errors.append({
+                        "message": msg,
+                        "stack": stack[:1000] if stack else "",
+                        "attachments": attachments,
+                    })
+
+        def _walk_suite(suite: dict) -> None:
+            """Recursively walk nested suites to find all specs and tests."""
+            for spec in suite.get("specs", []):
+                for test in spec.get("tests", []):
+                    for result in test.get("results", []):
+                        _process_result(result)
+            # Recurse into nested suites
+            for child_suite in suite.get("suites", []):
+                _walk_suite(child_suite)
+
         try:
             with open(pw_json) as f:
                 data = json.load(f)
 
             for suite in data.get("suites", []):
-                for spec in suite.get("specs", []):
-                    for test in spec.get("tests", []):
-                        for result in test.get("results", []):
-                            # Extract steps with pass/fail status
-                            for step in result.get("steps", []):
-                                step_entry: dict = {
-                                    "title": step.get("title", ""),
-                                    "duration_ms": step.get("duration", 0),
-                                    "status": "failed" if step.get("error") else "passed",
-                                }
-                                if step.get("error"):
-                                    err = step["error"]
-                                    step_entry["error"] = (
-                                        err.get("message", str(err))
-                                        if isinstance(err, dict) else str(err)
-                                    )
-                                steps.append(step_entry)
-
-                            # Extract attachments (screenshots)
-                            attachments = []
-                            for att in result.get("attachments", []):
-                                if att.get("contentType", "").startswith("image/"):
-                                    attachments.append({
-                                        "name": att.get("name", ""),
-                                        "path": att.get("path", ""),
-                                    })
-
-                            # Extract errors from non-passed results
-                            if result.get("status") != "passed":
-                                err = result.get("error", {})
-                                if isinstance(err, dict):
-                                    msg = err.get("message", "")
-                                    stack = err.get("stack", "")
-                                elif isinstance(err, str):
-                                    msg = err
-                                    stack = ""
-                                else:
-                                    msg = ""
-                                    stack = ""
-
-                                if msg:
-                                    if first_error is None:
-                                        first_error = msg[:MAX_ERROR_SNIPPET]
-                                    errors.append({
-                                        "message": msg,
-                                        "stack": stack[:1000] if stack else "",
-                                        "attachments": attachments,
-                                    })
+                _walk_suite(suite)
 
             # Check top-level errors (e.g. compilation errors)
             for err in data.get("errors", []):
