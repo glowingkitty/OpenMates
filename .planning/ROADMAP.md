@@ -104,16 +104,22 @@ Plans:
 - [ ] 06-05-PLAN.md -- Issue reporting integration, LoggingMiddleware migration to OTel trace context
 
 ### Phase 7: E2E Test Suite Repair
-**Goal**: Investigate and fix the 46 failing Playwright specs so the daily test suite passes reliably — no new tests, only fixing broken ones
+**Goal**: Investigate and fix the 46 failing Playwright specs so the daily test suite passes reliably -- no new tests, only fixing broken ones
 **Depends on**: Phase 5
 **Requirements**: E2E-01, E2E-02, E2E-03, E2E-04
 **Success Criteria** (what must be TRUE):
   1. All 15 skill-* specs pass (shared infrastructure issue resolved)
   2. All 4 signup-* specs pass (auth flow alignment verified)
   3. Daily test suite Playwright pass rate reaches 85+ of 88 specs
-  4. No spec relies on hardcoded timeouts or flaky selectors — all use data-testid or role-based selectors with proper wait conditions
+  4. No spec relies on hardcoded timeouts or flaky selectors -- all use data-testid or role-based selectors with proper wait conditions
   5. Failures are categorized and documented so regressions can be quickly attributed
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 07-01-PLAN.md -- Diagnostic triage: run 6 representative specs on GHA, capture errors, categorize all 46 failures by root cause
+- [ ] 07-02-PLAN.md -- Fix all 15 skill-* specs (batch fix based on triage root cause)
+- [ ] 07-03-PLAN.md -- Fix 4 signup-* specs + ~20 login-dependent other specs
+- [ ] 07-04-PLAN.md -- Fix ~7 non-auth specs + full daily validation run (85+/88 target)
 
 ## Progress
 
@@ -128,4 +134,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Sync Handler Rewire | 0/? | Not started | - |
 | 5. Testing & Documentation | 1/3 | Executing | - |
 | 6. OpenTelemetry Distributed Tracing | 0/5 | Planning complete | - |
-| 7. E2E Test Suite Repair | 0/? | Not started | - |
+| 7. E2E Test Suite Repair | 0/4 | Planning complete | - |
