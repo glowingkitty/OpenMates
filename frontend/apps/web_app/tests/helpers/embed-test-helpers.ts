@@ -21,7 +21,6 @@ const EXPECTED_DT_HEADINGS = [
 	'Inline Link',
 	'Quote Block',
 	'Group — Small',
-	'Preview — Large',
 	'Fullscreen'
 ];
 
