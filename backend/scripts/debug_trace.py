@@ -190,16 +190,96 @@ def _get_auth(production: bool = False) -> Tuple[str, str]:
     )
 
 
-def _search_traces(
+def _get_latest_traces(
+    start_time_us: int,
+    end_time_us: int,
+    base_url: str,
+    auth: Tuple[str, str],
+    size: int = DEFAULT_QUERY_LIMIT,
+    filter_str: str = "",
+) -> List[Dict[str, Any]]:
+    """Fetch latest traces from OpenObserve traces/latest API.
+
+    OpenObserve v0.70+ uses a dedicated trace query endpoint rather than
+    the generic _search endpoint for trace streams.
+
+    Args:
+        start_time_us: Query window start in microseconds since epoch.
+        end_time_us: Query window end in microseconds since epoch.
+        base_url: OpenObserve base URL.
+        auth: Tuple of (email, password) for Basic auth.
+        size: Number of traces to return.
+        filter_str: Optional filter query string for traces.
+
+    Returns:
+        List of trace dicts from the response. Empty list on error.
+    """
+    import httpx
+
+    url = (
+        f"{base_url}/api/{OPENOBSERVE_ORG}/{TRACE_STREAM}/traces/latest"
+        f"?start_time={start_time_us}&end_time={end_time_us}"
+        f"&from=0&size={size}&filter={filter_str}"
+    )
+
+    try:
+        response = httpx.get(url, auth=auth, timeout=30.0)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("hits", [])
+        else:
+            print(
+                f"OpenObserve trace query failed (status={response.status_code}): "
+                f"{response.text[:300]}",
+                file=sys.stderr,
+            )
+            return []
+    except Exception as exc:
+        print(f"Error querying OpenObserve traces: {exc}", file=sys.stderr)
+        return []
+
+
+def _search_trace_spans(
+    trace_id: str,
+    start_time_us: int,
+    end_time_us: int,
+    base_url: str,
+    auth: Tuple[str, str],
+) -> List[Dict[str, Any]]:
+    """Fetch trace detail for a specific trace ID via traces/latest filter.
+
+    OpenObserve v0.70+ does not support SQL search on trace streams.
+    Uses the traces/latest endpoint with a trace_id filter instead.
+
+    Args:
+        trace_id: Full or partial trace ID.
+        start_time_us: Query window start in microseconds since epoch.
+        end_time_us: Query window end in microseconds since epoch.
+        base_url: OpenObserve base URL.
+        auth: Tuple of (email, password) for Basic auth.
+
+    Returns:
+        List of span dicts (first_event from each matching trace). Empty list on error.
+    """
+    import urllib.parse
+
+    filter_str = urllib.parse.quote(f"trace_id='{trace_id}'")
+    traces = _get_latest_traces(
+        start_time_us, end_time_us, base_url, auth,
+        size=1, filter_str=filter_str,
+    )
+    # Return first_event spans from matching traces
+    return [t.get("first_event", t) for t in traces if t.get("first_event")]
+
+
+def _search_traces_legacy(
     sql: str,
     start_time_us: int,
     end_time_us: int,
     base_url: str,
     auth: Tuple[str, str],
 ) -> List[Dict[str, Any]]:
-    """Execute a SQL search against the OpenObserve OTLP trace stream.
-
-    Uses httpx synchronously (this is a CLI tool, not an async service).
+    """Legacy SQL search (kept for non-trace stream queries like log correlation).
 
     Args:
         sql: SQL query string for OpenObserve.
@@ -223,12 +303,7 @@ def _search_traces(
     }
 
     try:
-        response = httpx.post(
-            url,
-            json=body,
-            auth=auth,
-            timeout=30.0,
-        )
+        response = httpx.post(url, json=body, auth=auth, timeout=30.0)
         if response.status_code == 200:
             data = response.json()
             return data.get("hits", [])
@@ -515,43 +590,59 @@ def main(argv: Optional[List[str]] = None) -> None:
     default_lookback_s = 3600  # 1 hour
 
     if args.command == "request":
-        sql = _query_by_trace_id(args.trace_id)
-        # Use a wide time window for single-trace lookup (7 days)
-        start_us, end_us = _time_range(7 * 86400)
-        spans = _search_traces(sql, start_us, end_us, base_url, auth)
+        # Fetch all spans for a specific trace ID
+        start_us, end_us = _time_range(7 * 86400)  # 7-day window
+        spans = _search_trace_spans(args.trace_id, start_us, end_us, base_url, auth)
 
     elif args.command == "errors":
         duration_s = parse_duration(args.last)
-        sql = _query_errors(
-            duration_s,
-            route=getattr(args, "route", None),
-            fingerprint=getattr(args, "fingerprint", None),
-        )
         start_us, end_us = _time_range(duration_s)
-        spans = _search_traces(sql, start_us, end_us, base_url, auth)
+        # Build filter for error traces
+        filter_parts = ["span_status = 'ERROR'"]
+        if getattr(args, "route", None):
+            filter_parts.append(f"operation_name LIKE '%{args.route}%'")
+        traces = _get_latest_traces(
+            start_us, end_us, base_url, auth,
+            filter_str=" AND ".join(filter_parts),
+        )
+        # Extract first_event spans for timeline display
+        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
 
     elif args.command == "task":
-        sql = _query_by_celery_task(args.task_id)
-        # Wide window for task lookup (7 days)
+        # Celery task lookup — search for spans with the task ID attribute
         start_us, end_us = _time_range(7 * 86400)
-        spans = _search_traces(sql, start_us, end_us, base_url, auth)
+        traces = _get_latest_traces(
+            start_us, end_us, base_url, auth,
+            filter_str=f"celery.task_id = '{args.task_id}'",
+        )
+        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
 
     elif args.command == "session":
         duration_s = parse_duration(args.last)
-        sql = _query_user_session(args.user, duration_s)
         start_us, end_us = _time_range(duration_s)
-        spans = _search_traces(sql, start_us, end_us, base_url, auth)
+        traces = _get_latest_traces(
+            start_us, end_us, base_url, auth,
+            filter_str=f"enduser.id LIKE '%{args.user}%'",
+        )
+        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
 
     elif args.command == "slow":
         duration_s = parse_duration(args.last)
-        sql = _query_slow(args.threshold, duration_s)
+        threshold_us = args.threshold * 1000  # ms to us
         start_us, end_us = _time_range(duration_s)
-        spans = _search_traces(sql, start_us, end_us, base_url, auth)
+        traces = _get_latest_traces(
+            start_us, end_us, base_url, auth,
+            filter_str=f"duration > {threshold_us}",
+        )
+        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
 
     elif args.command == "login":
-        sql = _query_login(args.user)
         start_us, end_us = _time_range(default_lookback_s)
-        spans = _search_traces(sql, start_us, end_us, base_url, auth)
+        traces = _get_latest_traces(
+            start_us, end_us, base_url, auth,
+            filter_str=f"enduser.id LIKE '%{args.user}%' AND operation_name LIKE '%login%'",
+        )
+        spans = [t.get("first_event", t) for t in traces if t.get("first_event")]
 
     else:
         print(f"Unknown trace command: {args.command}", file=sys.stderr)
