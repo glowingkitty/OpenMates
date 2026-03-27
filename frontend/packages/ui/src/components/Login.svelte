@@ -1005,78 +1005,99 @@
             }
 
             // Step 17: Update user profile
+            // CRITICAL: These post-auth steps are wrapped in a separate try-catch because
+            // the session is already established at this point (cookies set, master key saved,
+            // WS token stored). If IndexedDB writes or profile updates fail (e.g., database
+            // blocked during forced-logout cleanup on iOS), login should still succeed.
+            // The phased sync after WebSocket connects will recover any missing profile data.
             const userData = verifyData.auth_session?.user;
-            if (userData) {
-                // Log auto top-up fields from backend response - ERROR if missing
-                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in userData;
-                if (!hasAutoTopupFields) {
-                    console.error('[Login] ERROR: Auto top-up fields missing from backend response (passkey path 1)!');
-                    console.error('[Login] Received user object keys:', Object.keys(userData));
-                    console.error('[Login] Full user object:', userData);
+            try {
+                if (userData) {
+                    // Log auto top-up fields from backend response - ERROR if missing
+                    const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in userData;
+                    if (!hasAutoTopupFields) {
+                        console.error('[Login] ERROR: Auto top-up fields missing from backend response (passkey path 1)!');
+                        console.error('[Login] Received user object keys:', Object.keys(userData));
+                    } else {
+                        console.debug('[Login] Auto top-up fields from backend (passkey path 1):', {
+                            enabled: userData.auto_topup_low_balance_enabled,
+                            threshold: userData.auto_topup_low_balance_threshold,
+                            amount: userData.auto_topup_low_balance_amount,
+                            currency: userData.auto_topup_low_balance_currency
+                        });
+                    }
+
+                    // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags BEFORE any database operations
+                    // This handles the race condition where orphaned database cleanup was triggered on page load
+                    // (setting these flags to true) but the user then successfully logs in with passkey.
+                    // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
+                    const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
+                    if (get(forcedLogoutInProgress)) {
+                        console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
+                        resetForcedLogoutInProgress();
+                    }
+                    if (get(isLoggingOut)) {
+                        console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 1)');
+                        isLoggingOut.set(false);
+                    }
+                    // Also clear the cleanup marker to prevent future false positives
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.removeItem('openmates_needs_cleanup');
+                    }
+
+                    // Save to IndexedDB first
+                    const { userDB } = await import('../services/userDB');
+                    await userDB.saveUserData(userData);
+
+                    const { updateProfile } = await import('../stores/userProfile');
+                    const userProfileData = {
+                        user_id: userData.id || null,
+                        username: userData.username || '',
+                        profile_image_url: userData.profile_image_url || null,
+                        credits: userData.credits || 0,
+                        is_admin: userData.is_admin || false,
+                        last_opened: userData.last_opened || '',
+                        tfa_app_name: userData.tfa_app_name || null,
+                        tfa_enabled: userData.tfa_enabled || false,
+                        consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
+                        consent_mates_default_settings: userData.consent_mates_default_settings || false,
+                        language: userData.language || 'en',
+                        darkmode: userData.darkmode || false,
+                        timezone: userData.timezone || null,
+                        // Low balance auto top-up fields
+                        auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
+                        auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
+                        auto_topup_low_balance_amount: userData.auto_topup_low_balance_amount,
+                        auto_topup_low_balance_currency: userData.auto_topup_low_balance_currency
+                    };
+                    updateProfile(userProfileData);
+                    console.log('[Login] User profile updated:', { username: userProfileData.username, credits: userProfileData.credits });
                 } else {
-                    console.debug('[Login] Auto top-up fields from backend (passkey path 1):', {
-                        enabled: userData.auto_topup_low_balance_enabled,
-                        threshold: userData.auto_topup_low_balance_threshold,
-                        amount: userData.auto_topup_low_balance_amount,
-                        currency: userData.auto_topup_low_balance_currency
-                    });
+                    console.warn('[Login] No user data in auth_session - user profile not updated');
                 }
-                
-                // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags BEFORE any database operations
-                // This handles the race condition where orphaned database cleanup was triggered on page load
-                // (setting these flags to true) but the user then successfully logs in with passkey.
-                // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
-                const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
-                if (get(forcedLogoutInProgress)) {
-                    console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 1)');
-                    resetForcedLogoutInProgress();
-                }
-                if (get(isLoggingOut)) {
-                    console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 1)');
-                    isLoggingOut.set(false);
-                }
-                // Also clear the cleanup marker to prevent future false positives
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.removeItem('openmates_needs_cleanup');
-                }
-                
-                // Save to IndexedDB first
-                const { userDB } = await import('../services/userDB');
-                await userDB.saveUserData(userData);
-                
-                const { updateProfile } = await import('../stores/userProfile');
-                const userProfileData = {
-                    user_id: userData.id || null,
-                    username: userData.username || '',
-                    profile_image_url: userData.profile_image_url || null,
-                    credits: userData.credits || 0,
-                    is_admin: userData.is_admin || false,
-                    last_opened: userData.last_opened || '',
-                    tfa_app_name: userData.tfa_app_name || null,
-                    tfa_enabled: userData.tfa_enabled || false,
-                    consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
-                    consent_mates_default_settings: userData.consent_mates_default_settings || false,
-                    language: userData.language || 'en',
-                    darkmode: userData.darkmode || false,
-                    timezone: userData.timezone || null,
-                    // Low balance auto top-up fields
-                    auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
-                    auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
-                    auto_topup_low_balance_amount: userData.auto_topup_low_balance_amount,
-                    auto_topup_low_balance_currency: userData.auto_topup_low_balance_currency
-                };
-                updateProfile(userProfileData);
-                console.log('[Login] User profile updated:', { username: userProfileData.username, credits: userProfileData.credits });
-            } else {
-                console.warn('[Login] No user data in auth_session - user profile not updated');
+            } catch (profileError) {
+                // Non-fatal: session is already established (cookies + master key + WS token).
+                // Profile data will be recovered by phased sync after WebSocket connects.
+                console.error('[Login] Post-auth profile setup failed (non-fatal, login will proceed):', profileError);
+                // Persist error for admin debugging (clientLogForwarder isn't active during login)
+                try {
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.setItem('openmates_last_login_error', JSON.stringify({
+                            path: 'passkey_path_1_profile',
+                            error: profileError instanceof Error ? profileError.message : String(profileError),
+                            stack: profileError instanceof Error ? profileError.stack : undefined,
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                } catch { /* localStorage write failed — ignore */ }
             }
-            
+
             // Step 18: Dispatch login success
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
             // Note: userData is already declared above, so we reuse it
             const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
-            
+
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
@@ -1085,14 +1106,26 @@
                 isMobile,
                 inSignupFlow: inSignupFlow
             });
-            
+
         } catch (error: unknown) {
             console.error('Error during passkey login:', error);
+            // Persist error for admin debugging (clientLogForwarder isn't active during login)
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('openmates_last_login_error', JSON.stringify({
+                        path: 'passkey_path_1_main',
+                        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+                        stack: error instanceof Error ? error.stack : undefined,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            } catch { /* localStorage write failed — ignore */ }
+
             if (error instanceof Error && error.name === 'AbortError') {
                 // User cancelled - already handled
                 return;
             }
-            
+
             // Check for chunk loading errors (stale cache after deployment)
             if (isChunkLoadError(error)) {
                 logChunkLoadError('Login.passkeyLogin', error);
@@ -1101,7 +1134,7 @@
                 isLoading = false;
                 return;
             }
-            
+
             loginFailedWarning = true;
             isPasskeyLoading = false;
             isLoading = false;
@@ -1550,75 +1583,93 @@
             }
 
             // Update user profile
+            // CRITICAL: Wrapped in separate try-catch — session is already established at this point.
+            // If IndexedDB or profile updates fail (e.g., database blocked during logout cleanup),
+            // login should still succeed. Phased sync will recover missing profile data.
             const userData = verifyData.auth_session?.user;
-            if (userData) {
-                // Log auto top-up fields from backend response - ERROR if missing
-                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in userData;
-                if (!hasAutoTopupFields) {
-                    console.error('[Login] ERROR: Auto top-up fields missing from backend response (passkey path 2)!');
-                    console.error('[Login] Received user object keys:', Object.keys(userData));
-                    console.error('[Login] Full user object:', userData);
-                } else {
-                    console.debug('[Login] Auto top-up fields from backend (passkey path 2):', {
-                        enabled: userData.auto_topup_low_balance_enabled,
-                        threshold: userData.auto_topup_low_balance_threshold,
-                        amount: userData.auto_topup_low_balance_amount,
-                        currency: userData.auto_topup_low_balance_currency
-                    });
+            try {
+                if (userData) {
+                    // Log auto top-up fields from backend response - ERROR if missing
+                    const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in userData;
+                    if (!hasAutoTopupFields) {
+                        console.error('[Login] ERROR: Auto top-up fields missing from backend response (passkey path 2)!');
+                        console.error('[Login] Received user object keys:', Object.keys(userData));
+                    } else {
+                        console.debug('[Login] Auto top-up fields from backend (passkey path 2):', {
+                            enabled: userData.auto_topup_low_balance_enabled,
+                            threshold: userData.auto_topup_low_balance_threshold,
+                            amount: userData.auto_topup_low_balance_amount,
+                            currency: userData.auto_topup_low_balance_currency
+                        });
+                    }
+
+                    // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags BEFORE any database operations
+                    // This handles the race condition where orphaned database cleanup was triggered on page load
+                    // (setting these flags to true) but the user then successfully logs in with passkey.
+                    // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
+                    const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
+                    if (get(forcedLogoutInProgress)) {
+                        console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 2)');
+                        resetForcedLogoutInProgress();
+                    }
+                    if (get(isLoggingOut)) {
+                        console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 2)');
+                        isLoggingOut.set(false);
+                    }
+                    // Also clear the cleanup marker to prevent future false positives
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.removeItem('openmates_needs_cleanup');
+                    }
+
+                    // Save to IndexedDB first
+                    const { userDB } = await import('../services/userDB');
+                    await userDB.saveUserData(userData);
+
+                    const { updateProfile } = await import('../stores/userProfile');
+                    const userProfileData = {
+                        user_id: userData.id || null,
+                        username: userData.username || '',
+                        profile_image_url: userData.profile_image_url || null,
+                        credits: userData.credits || 0,
+                        is_admin: userData.is_admin || false,
+                        last_opened: userData.last_opened || '',
+                        tfa_app_name: userData.tfa_app_name || null,
+                        tfa_enabled: userData.tfa_enabled || false,
+                        consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
+                        consent_mates_default_settings: userData.consent_mates_default_settings || false,
+                        language: userData.language || 'en',
+                        darkmode: userData.darkmode || false,
+                        timezone: userData.timezone || null,
+                        // Low balance auto top-up fields
+                        auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
+                        auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
+                        auto_topup_low_balance_amount: userData.auto_topup_low_balance_amount,
+                        auto_topup_low_balance_currency: userData.auto_topup_low_balance_currency
+                    };
+                    updateProfile(userProfileData);
+                    console.log('[Login] User profile updated');
                 }
-                
-                // CRITICAL: Reset forcedLogoutInProgress and isLoggingOut flags BEFORE any database operations
-                // This handles the race condition where orphaned database cleanup was triggered on page load
-                // (setting these flags to true) but the user then successfully logs in with passkey.
-                // Without this reset, userDB.saveUserData() would throw "Database initialization blocked during logout"
-                const { forcedLogoutInProgress, isLoggingOut, resetForcedLogoutInProgress } = await import('../stores/signupState');
-                if (get(forcedLogoutInProgress)) {
-                    console.debug('[Login] Resetting forcedLogoutInProgress to false - successful passkey login (path 2)');
-                    resetForcedLogoutInProgress();
-                }
-                if (get(isLoggingOut)) {
-                    console.debug('[Login] Resetting isLoggingOut to false - successful passkey login (path 2)');
-                    isLoggingOut.set(false);
-                }
-                // Also clear the cleanup marker to prevent future false positives
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.removeItem('openmates_needs_cleanup');
-                }
-                
-                // Save to IndexedDB first
-                const { userDB } = await import('../services/userDB');
-                await userDB.saveUserData(userData);
-                
-                const { updateProfile } = await import('../stores/userProfile');
-                const userProfileData = {
-                    user_id: userData.id || null,
-                    username: userData.username || '',
-                    profile_image_url: userData.profile_image_url || null,
-                    credits: userData.credits || 0,
-                    is_admin: userData.is_admin || false,
-                    last_opened: userData.last_opened || '',
-                    tfa_app_name: userData.tfa_app_name || null,
-                    tfa_enabled: userData.tfa_enabled || false,
-                    consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
-                    consent_mates_default_settings: userData.consent_mates_default_settings || false,
-                    language: userData.language || 'en',
-                    darkmode: userData.darkmode || false,
-                    timezone: userData.timezone || null,
-                    // Low balance auto top-up fields
-                    auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
-                    auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
-                    auto_topup_low_balance_amount: userData.auto_topup_low_balance_amount,
-                    auto_topup_low_balance_currency: userData.auto_topup_low_balance_currency
-                };
-                updateProfile(userProfileData);
-                console.log('[Login] User profile updated');
+            } catch (profileError) {
+                // Non-fatal: session is already established (cookies + master key + WS token).
+                // Profile data will be recovered by phased sync after WebSocket connects.
+                console.error('[Login] Post-auth profile setup failed (non-fatal, login will proceed):', profileError);
+                try {
+                    if (typeof localStorage !== 'undefined') {
+                        localStorage.setItem('openmates_last_login_error', JSON.stringify({
+                            path: 'passkey_path_2_profile',
+                            error: profileError instanceof Error ? profileError.message : String(profileError),
+                            stack: profileError instanceof Error ? profileError.stack : undefined,
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
+                } catch { /* localStorage write failed — ignore */ }
             }
-            
+
             // Dispatch login success
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
             const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
-            
+
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
@@ -1627,10 +1678,21 @@
                 isMobile,
                 inSignupFlow: inSignupFlow
             });
-            
+
         } catch (error: unknown) {
             console.error('[Login] Error processing passkey assertion:', error);
-            
+            // Persist error for admin debugging (clientLogForwarder isn't active during login)
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('openmates_last_login_error', JSON.stringify({
+                        path: 'passkey_path_2_main',
+                        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+                        stack: error instanceof Error ? error.stack : undefined,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            } catch { /* localStorage write failed — ignore */ }
+
             // Check for chunk loading errors (stale cache after deployment)
             if (isChunkLoadError(error)) {
                 logChunkLoadError('Login.processPasskeyAssertion', error);
@@ -1639,7 +1701,7 @@
                 isLoading = false;
                 return;
             }
-            
+
             loginFailedWarning = true;
             isPasskeyLoading = false;
             isLoading = false;
