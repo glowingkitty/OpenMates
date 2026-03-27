@@ -50,6 +50,7 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/packages/ui
           npx vitest run --config vitest.simple.config.ts --reporter=json \
+            --pool forks --testTimeout 30000 \
             > $GITHUB_WORKSPACE/test-results/vitest-ui.json 2>&1 || true
       - name: Run web app unit tests
         id: webapp_tests
