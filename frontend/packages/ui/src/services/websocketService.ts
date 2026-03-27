@@ -1154,6 +1154,16 @@ class WebSocketService extends EventTarget {
         if (type !== "ping") {
           console.debug("[WebSocketService] Sending message:", message);
         }
+        // Inject W3C traceparent into the message payload for distributed tracing.
+        // The backend's ws_trace_context.py extracts it to create correlated spans.
+        if (type !== "ping" && message.payload && typeof message.payload === "object") {
+          try {
+            const { injectTraceparent } = await import("./tracing/wsSpans");
+            injectTraceparent(message.payload as Record<string, unknown>);
+          } catch {
+            // Tracing not available -- non-fatal, silently skip
+          }
+        }
         this.ws?.send(JSON.stringify(message));
       } catch (error) {
         if (type !== "ping") {

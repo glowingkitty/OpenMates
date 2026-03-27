@@ -1,4 +1,9 @@
 // frontend/packages/ui/src/services/chatSyncServiceSenders.ts
+//
+// NOTE: W3C traceparent injection (via injectTraceparent from tracing/wsSpans.ts)
+// for distributed tracing is handled centrally in websocketService.sendMessage().
+// This ensures ALL outgoing WS messages carry trace context without modifying
+// every sender function individually. See websocketService.ts for the integration.
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";

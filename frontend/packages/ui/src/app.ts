@@ -51,6 +51,18 @@ export async function initializeApp(
       console.debug("Skipping auth initialization in initializeApp");
     }
 
+    // Initialize OpenTelemetry distributed tracing (non-blocking, errors logged).
+    // This must happen AFTER auth init so the API base URL is resolved and
+    // fetch instrumentation can propagate trace headers to the correct origin.
+    try {
+      const { getApiUrl } = await import("./config/api");
+      const { initTracing } = await import("./services/tracing/setup");
+      initTracing(getApiUrl());
+      console.debug("[App] OTel tracing initialized");
+    } catch (err) {
+      console.debug("[App] OTel tracing not available:", err);
+    }
+
     console.debug("Application initialization complete");
   } catch (error) {
     console.error("Error initializing application:", error);
