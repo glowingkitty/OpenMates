@@ -30,7 +30,7 @@ docker exec api python /app/backend/scripts/debug.py issue --list
 
 **Key flags:** Default target: production. `--dev` for dev server. `--json` for raw output. `--lines 500` (max).
 
-**Available commands:** `logs`, `upload-logs`, `preview-logs`, `upload-update`, `preview-update`, `issues`, `issue <id>`, `issue-delete <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`, `newsletter`
+**Available commands:** `logs`, `trace`, `upload-logs`, `preview-logs`, `upload-update`, `preview-update`, `issues`, `issue <id>`, `issue-delete <id>`, `user <email>`, `chat <id>`, `embed <id>`, `requests`, `newsletter`
 
 **Issue inspection:**
 
@@ -43,13 +43,58 @@ docker exec api python /app/backend/scripts/debug.py issue --list
 | `issue <id> --no-logs`                        | Metadata + decrypted fields only (skip S3 YAML fetch, fastest)                                                        |
 | `issue --list`                                | List recent unprocessed issues                                                                                        |
 
-The `--timeline` flag queries OpenObserve live — no S3 access needed. It runs three parallel SQL queries anchored to `issue.created_at`:
+The `--timeline` flag queries OpenObserve live — no S3 access needed. It merges OTel trace spans (if trace_ids are present in the issue report) with log queries anchored to `issue.created_at`:
 
 1. `job=client-issue-report AND issue_id=<id>` — browser console snapshot pushed at report time
 2. `job=container-logs` — backend containers mentioning `issue_id` or `user_id`
 3. `job=api-logs` — API logs mentioning same terms
 
 The S3 YAML no longer stores `console_logs` or `docker_compose_logs` (stripped as of `a4ccddcff`). Old YAMLs still containing them show a 40-line error-only quick scan with a pointer to `--timeline`.
+
+---
+
+## Distributed Tracing (OpenTelemetry)
+
+OTel traces provide structured request timelines across services. Use `debug.py trace` for performance debugging, error investigation, and request lifecycle analysis. Traces show exact timing and parent-child span relationships — use them to find *where* a problem is before diving into logs for *why*.
+
+```bash
+# Recent error traces (auto-escalated to Tier 2 — includes stack traces and real user IDs)
+docker exec api python /app/backend/scripts/debug.py trace errors --last 1h
+docker exec api python /app/backend/scripts/debug.py trace errors --last 24h --route /v1/auth/register
+
+# Slow requests above threshold
+docker exec api python /app/backend/scripts/debug.py trace slow --threshold 500 --last 1h
+
+# All traces for a specific user session
+docker exec api python /app/backend/scripts/debug.py trace session --user someone@example.com --last 2h
+
+# Login flow trace for a user
+docker exec api python /app/backend/scripts/debug.py trace login --user someone@example.com
+
+# Single trace by ID (from error logs, issue reports, or other trace output)
+docker exec api python /app/backend/scripts/debug.py trace request --id <trace-id>
+
+# Celery task execution trace
+docker exec api python /app/backend/scripts/debug.py trace task --id <celery-task-uuid>
+```
+
+All trace commands support `--json` (machine-readable output) and `--production` (query production OpenObserve).
+
+**Privacy tiers (production only):**
+
+| Tier | Who | What's visible |
+|------|-----|----------------|
+| 1 — Structural | All users, happy path | Span name, duration, status, pseudonymized user_id |
+| 2 — Diagnostic | All users, error spans (auto) | + stack trace, real user_id, task IDs, cache hit/miss |
+| 3 — Full | Admin + opted-in users | + WS payload sizes, cache keys, LLM token counts |
+
+Dev server always uses Tier 3 for all users.
+
+**Investigating unreported issues:** Traces capture errors automatically — no user action needed. Example: "a user tried to sign up last night but it failed":
+
+```bash
+docker exec api python /app/backend/scripts/debug.py trace errors --route /v1/auth/register --last 24h
+```
 
 ---
 
