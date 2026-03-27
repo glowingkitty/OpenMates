@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-00-PLAN.md
-last_updated: "2026-03-27T13:44:39Z"
-last_activity: 2026-03-27 -- Phase 07 plan 00 completed (vitest timeout fix)
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-03-27T13:59:11Z"
+last_activity: 2026-03-27 -- Phase 07 Plan 01 completed (E2E triage)
 progress:
   total_phases: 7
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 Phase: 07 (e2e-test-suite-repair) -- EXECUTING
 Plan: 2 of 6
 Status: Executing Phase 07
-Last activity: 2026-03-27 -- Phase 07 plan 00 completed (vitest timeout fix)
+Last activity: 2026-03-27 -- Phase 07 Plan 01 completed (E2E triage)
 
 Progress: [████████░░] 80%
 
@@ -52,7 +52,7 @@ Progress: [████████░░] 80%
 - Trend: -
 
 *Updated after each plan completion*
-| Phase 07 P00 | 1min | 1 task | 1 file |
+| Phase 07 P01 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -63,7 +63,9 @@ Recent decisions affecting current work:
 
 - Roadmap: Audit-first approach before any code changes (from PROJECT.md)
 - Roadmap: 5 phases derived from requirement categories -- Audit, Foundation, Keys, Sync, Testing
-- [Phase 07-00]: 300s vitest timeout to unblock daily cron pipeline
+- [Phase 07-01]: 5 failure categories identified: OTP login (20), embed display drift (16), selector drift (5), signup timeout (4), strict mode (1)
+- [Phase 07-01]: Skill specs confirmed same root cause -- batch fix all 15 via embed-test-helpers.ts constant update
+- [Phase 07-01]: Fix priority: embed display (highest ROI) > OTP login (most specs) > selector drift > strict mode > signup timeout
 
 ### Pending Todos
 
@@ -76,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:44:39Z
-Stopped at: Completed 07-00-PLAN.md
+Last session: 2026-03-27T13:59:11Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
