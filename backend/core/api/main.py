@@ -10,6 +10,14 @@ from backend.core.api.app.utils.setup_logging import setup_logging  # noqa: E402
 setup_logging()
 # --- End Logging Setup ---
 
+# --- Setup OpenTelemetry Tracing ---
+# Must initialize BEFORE FastAPI() creation so auto-instrumentation patches routes.
+# Gated by OTEL_TRACING_ENABLED env var (default: true).
+if os.getenv("OTEL_TRACING_ENABLED", "true").lower() == "true":
+    from backend.shared.python_utils.tracing import setup_tracing  # noqa: E402
+    setup_tracing(service_name="api")
+# --- End Tracing Setup ---
+
 # Now import other modules that might log
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.responses import RedirectResponse  # noqa: E402

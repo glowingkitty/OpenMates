@@ -61,6 +61,21 @@ LOGGING_CONFIG = {
 # Apply logging configuration using dictConfig (same as main API)
 logging.config.dictConfig(LOGGING_CONFIG)
 
+# --- Setup OpenTelemetry Tracing ---
+# Must initialize BEFORE BaseApp creates its FastAPI instance.
+# App microservices may not have OTel packages installed (different requirements.txt).
+# The try/except handles this gracefully.
+if os.getenv("OTEL_TRACING_ENABLED", "true").lower() == "true":
+    try:
+        from backend.shared.python_utils.tracing import setup_tracing
+        _app_name = os.getenv("APP_NAME", "unknown-app")
+        setup_tracing(service_name=f"app-{_app_name}")
+    except ImportError:
+        logging.getLogger(__name__).warning(
+            "OTel tracing packages not installed for app microservice — tracing disabled"
+        )
+# --- End Tracing Setup ---
+
 logger = logging.getLogger(__name__)
 
 app_instance = None
