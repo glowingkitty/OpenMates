@@ -100,12 +100,9 @@ def setup_tracing(service_name: str = "api") -> None:
     # Set as global tracer provider
     trace.set_tracer_provider(provider)
 
-    # Register auto-instrumentors
-    # FastAPIInstrumentor and HTTPXClientInstrumentor use class-level .instrument()
-    FastAPIInstrumentor.instrument()
-    HTTPXClientInstrumentor.instrument()
-
-    # CeleryInstrumentor, RedisInstrumentor, LoggingInstrumentor use instance .instrument()
+    # Register auto-instrumentors (all use instance-level .instrument() in 0.61b0+)
+    FastAPIInstrumentor().instrument()
+    HTTPXClientInstrumentor().instrument()
     CeleryInstrumentor().instrument()
     RedisInstrumentor().instrument()
     LoggingInstrumentor().instrument()
