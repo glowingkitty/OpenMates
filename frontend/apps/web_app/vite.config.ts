@@ -11,7 +11,14 @@ export default defineConfig({
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
-			strategies: 'generateSW',
+			// Use injectManifest so our custom sw.ts is the service worker entry.
+			// sw.ts contains: clientsClaim(), SKIP_WAITING message handler,
+			// navigation/API cache routes, and push notification handlers.
+			// Previously used generateSW which silently IGNORED sw.ts, meaning
+			// the SKIP_WAITING handler never existed in the deployed SW — causing
+			// stale JS chunks to be served after Vercel deploys.
+			strategies: 'injectManifest',
+			filename: 'sw.ts',
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
 			// with existing installed PWAs on user devices
@@ -44,17 +51,9 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				// CRITICAL: Disable navigateFallback — adapter-vercel does NOT prerender "/",
-				// so it is never in the precache manifest. Without this override the
-				// @vite-pwa/sveltekit plugin auto-sets navigateFallback to "/" which causes
-				// createHandlerBoundToURL("/") to throw "non-precached-url" on every page load.
-				navigateFallback: null,
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-				cleanupOutdatedCaches: true,
-				skipWaiting: false,
-				clientsClaim: false
+			injectManifest: {
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}', 'prerendered/**/*.html'],
+				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024
 			},
 			devOptions: {
 				enabled: true,
