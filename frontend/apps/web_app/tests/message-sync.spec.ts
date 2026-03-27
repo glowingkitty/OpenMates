@@ -43,11 +43,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -198,46 +199,13 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	logCheckpoint('Starting message sync test.', { email: TEST_EMAIL });
 
 	// =========================================================================
-	// STEP 1: Login
+	// STEP 1: Login (via shared helper with OTP retry + clock-drift compensation)
 	// =========================================================================
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, '01-home');
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-	await takeStepScreenshot(page, '02-login-dialog');
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeStepScreenshot(page, '03-password-entered');
-
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logCheckpoint('Generated and entered OTP.');
-	await takeStepScreenshot(page, '04-otp-entered');
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login form.');
-
-	await page.waitForURL(/chat/);
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	logCheckpoint('Redirected to chat page.');
-	
+
 	// Wait for initial sync to complete
-	await page.waitForTimeout(5000);
+	await page.waitForTimeout(3000);
 
 	// =========================================================================
 	// STEP 2: Start a new chat
@@ -430,32 +398,9 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	// Login flow (abbreviated)
-	await page.goto(getE2EDebugUrl('/'));
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
-	await passwordInput.fill(TEST_PASSWORD);
-
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-
-	await page.waitForURL(/chat/);
-	await page.waitForTimeout(5000);
+	// Login flow (via shared helper with OTP retry + clock-drift compensation)
+	await loginToTestAccount(page, logCheckpoint);
+	await page.waitForTimeout(3000);
 
 	// Start new chat
 	const newChatButton = page.locator('.icon_create');

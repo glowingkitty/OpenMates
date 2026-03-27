@@ -32,10 +32,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -81,40 +82,10 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
 // ─── Login helper ────────────────────────────────────────────────────────────
 
 /**
- * Perform the full login flow (email → password+OTP → redirect to /chat).
+ * Perform the full login flow via shared helper (includes OTP retry with clock-drift compensation).
  */
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logFn('Email submitted.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// OTP is time-sensitive — generate immediately before entering
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logFn(`OTP entered: ${otpCode}`);
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
-	await submitBtn.click();
-	logFn('Login submitted, waiting for redirect…');
-
-	await page.waitForURL(/chat/, { timeout: 30000 });
+	await loginToTestAccount(page, logFn);
 	logFn('Redirected to /chat — login complete.');
 }
 

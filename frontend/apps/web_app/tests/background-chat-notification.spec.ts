@@ -38,11 +38,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -64,96 +64,12 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep('Starting background chat notification test.', { email: TEST_EMAIL });
 
 	// ══════════════════════════════════════════════════════════════
-	// 1. Navigate to home
+	// 1-5. Login via shared helper (includes OTP retry with clock-drift compensation)
 	// ══════════════════════════════════════════════════════════════
-	await page.goto(getE2EDebugUrl('/'));
-	await takeScreenshot(page, 'home');
-
-	// 2. Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-	await takeScreenshot(page, 'login-dialog');
-
-	// 3. Enter email
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.locator('#login-continue-button').click();
-	logStep('Entered email and clicked continue.');
-
-	// 4. Enter password
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-	await takeScreenshot(page, 'password-entered');
-
-	// 5. Handle 2FA OTP — fixed TOTP race condition.
-	//
-	// Root cause of previous failures: the 3-attempt retry loop used a 2-second
-	// wait between attempts. If the first attempt landed at a TOTP window boundary
-	// (29s into a 30s window), the next code was generated ~2s later — still within
-	// the same window and thus invalid. After 3 such attempts the test threw.
-	//
-	// Fix: on failure, wait until we're at least 3 seconds into the NEXT 30-second
-	// window (i.e. wait until seconds-within-window < 3). This guarantees a fresh
-	// code on every retry without an arbitrary 31s hardcoded sleep.
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible({ timeout: 10000 });
-
-	let loginSuccess = false;
-	for (let attempt = 0; attempt < 3; attempt++) {
-		// Wait until we're well into the current TOTP window (>= 3s past the boundary)
-		// so the code is valid for at least 27 more seconds.
-		const now = Date.now();
-		const secondsIntoWindow = Math.floor(now / 1000) % 30;
-		if (secondsIntoWindow > 27) {
-			// We're in the last 3 seconds of a window — wait for the next window + 3s buffer
-			const msToNextWindow = (30 - secondsIntoWindow) * 1000 + 3000;
-			logStep(`Waiting ${msToNextWindow}ms for next TOTP window to avoid boundary race...`);
-			await page.waitForTimeout(msToNextWindow);
-		}
-
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logStep(`OTP attempt ${attempt + 1}: entered code ${otpCode}`);
-		await submitLoginButton.click();
-
-		try {
-			await page.waitForURL(/chat/, { timeout: 12000 });
-			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 12000 });
-			loginSuccess = true;
-			logStep('Login succeeded.');
-			break;
-		} catch {
-			logStep(`OTP attempt ${attempt + 1} failed, retrying...`);
-			await takeScreenshot(page, `otp-retry-${attempt + 1}`);
-			// Wait until at least 3s into the next TOTP window before retrying
-			await page.waitForTimeout(3000);
-		}
-	}
-
-	if (!loginSuccess) {
-		await takeScreenshot(page, 'login-failed');
-		throw new Error('Login failed after 3 OTP attempts');
-	}
-
-	// Wait for initial chat load
-	logStep('Waiting for initial chat to load...');
-	await page.waitForTimeout(3000);
+	await loginToTestAccount(page, logStep, takeScreenshot);
+	logStep('Login succeeded. Waiting for initial chat load...');
+	await page.waitForTimeout(2000);
 	await takeScreenshot(page, 'after-login');
-
-	// Start a fresh chat if the new-chat button is visible
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible().catch(() => false)) {
-		logStep('New Chat button visible, clicking it to start a fresh chat.');
-		await newChatButton.click();
-		await page.waitForTimeout(2000);
-	}
 
 	// ══════════════════════════════════════════════════════════════
 	// 9. Send a message in Chat A

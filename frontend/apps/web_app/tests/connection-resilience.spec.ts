@@ -46,11 +46,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -75,48 +76,8 @@ async function loginAndNavigateToChat(
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	logCheckpoint('Navigating to home page.', { email: TEST_EMAIL });
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-
-	// Enter email
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	// Enter password
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// Handle 2FA OTP
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logCheckpoint('Generated and entered OTP.');
-
-	// Submit login
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login form.');
-
-	// Wait for redirect to chat
-	await page.waitForURL(/chat/);
-	logCheckpoint('Redirected to chat.');
-
-	// Wait for initial load
-	await page.waitForTimeout(5000);
+	logCheckpoint('Logging in via loginToTestAccount (includes OTP retry with clock-drift compensation).');
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
 	// Start a fresh chat if possible
 	const newChatButton = page.locator('.icon_create');
