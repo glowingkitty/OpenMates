@@ -555,7 +555,10 @@ class BatchRunner:
 
             art_path = self.client.download_artifact(rid, f"playwright-{spec}", artifact_dir)
             if art_path:
+                # playwright.json may be at top level or under test-results/
                 pw_json = art_path / "playwright.json"
+                if not pw_json.is_file():
+                    pw_json = art_path / "test-results" / "playwright.json"
                 if pw_json.is_file():
                     extracted_err, pw_errors, pw_steps = (
                         self._extract_structured_data_from_playwright_json(pw_json)
