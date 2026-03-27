@@ -5,13 +5,13 @@ import { expect, test } from '@playwright/test';
  *
  * Tests the /dev/preview/embeds/<app> pages for all 17 registered apps.
  * These pages render every embed display type (Inline Link, Quote Block,
- * Group—Small, Preview—Large, Group—Large, Fullscreen) using static mock
- * data from .preview.ts files — no login or AI calls required.
+ * Group — Small, Group — Large, Fullscreen) using static mock data from
+ * .preview.ts files — no login or AI calls required.
  *
  * What is tested per app:
  *   1. Page loads without JS errors or component load failures
  *   2. All sections finish loading (no stuck "Loading..." states)
- *   3. All 6 display types are present per skill section
+ *   3. All 4 universal display types are present per skill section
  *   4. At least one embed reaches data-status="finished"
  *   5. No broken <img> tags (favicons, thumbnails, OG images)
  *   6. No [object Object], undefined, or null rendering artifacts
@@ -72,15 +72,14 @@ const SECTION_LOAD_TIMEOUT = 20_000;
 /** How long to wait for the page to fully hydrate after navigation (ms) */
 const HYDRATION_WAIT = 3_000;
 
-/** The 6 expected display-type headings per skill section */
+/** The 4 universally-expected display-type headings per skill section.
+ *  "Group — Large" only appears when dataVars.length > 1 AND !isAppSkill,
+ *  so it is NOT included here but checked conditionally when it appears. */
 const EXPECTED_DT_HEADINGS = [
 	'Inline Link',
 	'Quote Block',
 	'Group — Small',
-	'Preview — Large',
 	'Fullscreen'
-	// Note: "Group — Large" only appears when there are > 1 data variants,
-	// so we don't assert it universally but do check it when it appears.
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
