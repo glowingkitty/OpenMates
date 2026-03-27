@@ -46,17 +46,22 @@ PRIORITY_MAP = {
 
 # Label name constants
 LABEL_INVESTIGATE = "claude-investigate"
+LABEL_GSD_QUICK = "claude-gsd-quick"
+LABEL_GSD_DEBUG = "claude-gsd-debug"
+LABEL_GSD_ADD_PHASE = "claude-gsd-add-phase"
 LABEL_WORKINGONIT = "claude-workingonit"
 LABEL_COMPLETE = "claude-investigate-complete"
 
-# --- GraphQL Queries ---
+# Trigger labels → (mode, permission_mode, gsd_command)
+TRIGGER_LABELS = {
+    LABEL_INVESTIGATE: ("investigate", "plan", None),
+    LABEL_GSD_QUICK: ("gsd-quick", "auto", "/gsd:quick"),
+    LABEL_GSD_DEBUG: ("gsd-debug", "auto", "/gsd:debug"),
+    LABEL_GSD_ADD_PHASE: ("gsd-add-phase", "auto", "/gsd:add-phase"),
+}
 
-QUERY_INVESTIGATE_ISSUES = """
-query GetInvestigateIssues {
-  issues(filter: {
-    labels: { name: { eq: "claude-investigate" } }
-  }) {
-    nodes {
+# Issue fields fragment shared by both queries
+ISSUE_FIELDS = """
       id
       identifier
       title
@@ -69,15 +74,27 @@ query GetInvestigateIssues {
           name
         }
       }
-    }
+"""
+
+# All trigger label names for the query filter
+ALL_LABEL_NAMES = list(TRIGGER_LABELS.keys()) + [LABEL_WORKINGONIT, LABEL_COMPLETE]
+
+# --- GraphQL Queries ---
+
+QUERY_TRIGGERED_ISSUES = """
+query GetTriggeredIssues($labels: [String!]!) {
+  issues(filter: {
+    labels: { name: { in: $labels } }
+  }) {
+    nodes {""" + ISSUE_FIELDS + """    }
   }
 }
 """
 
 QUERY_LABEL_IDS = """
-query GetLabels {
+query GetLabels($names: [String!]!) {
   issueLabels(filter: {
-    name: { in: ["claude-investigate", "claude-workingonit", "claude-investigate-complete"] }
+    name: { in: $names }
   }) {
     nodes {
       id
@@ -168,7 +185,7 @@ def get_label_ids(api_key: str) -> Dict[str, str]:
         Dict mapping label name to label UUID, e.g.
         {"claude-investigate": "uuid1", "claude-workingonit": "uuid2", ...}.
     """
-    result = linear_query(api_key, QUERY_LABEL_IDS)
+    result = linear_query(api_key, QUERY_LABEL_IDS, {"names": ALL_LABEL_NAMES})
     label_map: Dict[str, str] = {}
     for node in result.get("issueLabels", {}).get("nodes", []):
         label_map[node["name"]] = node["id"]
@@ -186,20 +203,25 @@ def get_in_progress_state_id(api_key: str) -> Optional[str]:
     return None
 
 
-def render_prompt(issue: Dict[str, Any]) -> str:
+def render_prompt(
+    issue: Dict[str, Any], template_path: Optional[Path] = None
+) -> str:
     """
-    Render the investigation prompt template with issue data.
+    Render a prompt template with issue data.
 
     Args:
         issue: Linear issue node dict with id, identifier, title, etc.
+        template_path: Optional override for the template file. Defaults to
+            the investigation prompt template.
 
     Returns:
         Rendered prompt string ready for the trigger file.
     """
-    if PROMPT_TEMPLATE_PATH.is_file():
-        template = PROMPT_TEMPLATE_PATH.read_text()
+    path = template_path or PROMPT_TEMPLATE_PATH
+    if path.is_file():
+        template = path.read_text()
     else:
-        logger.error("Prompt template not found at %s", PROMPT_TEMPLATE_PATH)
+        logger.error("Prompt template not found at %s", path)
         sys.exit(1)
 
     priority_str = PRIORITY_MAP.get(issue.get("priority", 0), "None")
@@ -208,7 +230,7 @@ def render_prompt(issue: Dict[str, Any]) -> str:
     label_names = [
         lbl["name"]
         for lbl in issue.get("labels", {}).get("nodes", [])
-        if lbl["name"] != LABEL_INVESTIGATE
+        if lbl["name"] not in (LABEL_INVESTIGATE, LABEL_GSD_QUICK)
     ]
     labels_str = ", ".join(label_names) if label_names else "None"
 
@@ -226,7 +248,9 @@ def render_prompt(issue: Dict[str, Any]) -> str:
     )
 
 
-def write_trigger_file(issue: Dict[str, Any], prompt: str, session_id: str) -> Path:
+def write_trigger_file(
+    issue: Dict[str, Any], prompt: str, session_id: str, mode: str = "investigate"
+) -> Path:
     """
     Write an atomic trigger JSON file for the agent-trigger-watcher.
 
@@ -237,6 +261,7 @@ def write_trigger_file(issue: Dict[str, Any], prompt: str, session_id: str) -> P
         issue: Linear issue node dict.
         prompt: Rendered investigation prompt.
         session_id: Pre-generated UUID for the Claude session.
+        mode: Execution mode — "investigate" (plan) or "gsd-quick" (auto).
 
     Returns:
         Path to the written trigger file.
@@ -251,6 +276,7 @@ def write_trigger_file(issue: Dict[str, Any], prompt: str, session_id: str) -> P
         "linear_issue_id": linear_id,
         "linear_identifier": identifier,
         "session_id": session_id,
+        "mode": mode,
         "session_title": f"Linear {identifier}: {issue.get('title', 'Investigation')}",
         "prompt": prompt,
         "source": "linear-poller",
@@ -273,13 +299,15 @@ def start_investigation(
     label_ids: Dict[str, str],
     session_id: str,
     in_progress_state_id: Optional[str],
+    trigger_label: str = LABEL_INVESTIGATE,
+    mode: str = "investigate",
 ) -> None:
     """
-    Mark issue as being investigated: swap labels, set In Progress, post comment.
+    Mark issue as being worked on: swap labels, set In Progress, post comment.
 
-    Swaps claude-investigate → claude-workingonit, moves to In Progress,
+    Swaps the trigger label → claude-workingonit, moves to In Progress,
     and posts a comment with the pre-generated session ID so the user can
-    immediately run `claude --resume` to watch the active investigation.
+    immediately run `claude --resume` to watch the active session.
 
     Args:
         api_key: Linear API key.
@@ -287,8 +315,10 @@ def start_investigation(
         label_ids: Dict mapping label names to UUIDs.
         session_id: Pre-generated Claude session UUID.
         in_progress_state_id: Workflow state ID for "In Progress" (or None).
+        trigger_label: The label that triggered this (to remove).
+        mode: Execution mode for the comment ("investigate" or "gsd-quick").
     """
-    investigate_label_id = label_ids.get(LABEL_INVESTIGATE)
+    investigate_label_id = label_ids.get(trigger_label)
     workingonit_label_id = label_ids.get(LABEL_WORKINGONIT)
 
     # Build new label list: remove investigate, add workingonit
@@ -310,10 +340,11 @@ def start_investigation(
 
     # Post "investigation started" comment with resume command
     identifier = issue.get("identifier", "unknown")
+    mode_label = "GSD Quick Execution" if mode == "gsd-quick" else "Investigation"
     comment_body = (
-        "## Claude Code Investigation Started\n\n"
+        f"## Claude Code {mode_label} Started\n\n"
         f"**Session ID:** `{session_id}`\n\n"
-        "**Watch or resume this investigation:**\n"
+        f"**Watch or resume this {mode_label.lower()}:**\n"
         "```\n"
         f"claude --resume {session_id}\n"
         "```\n\n"
@@ -360,17 +391,41 @@ def main() -> None:
     if not in_progress_state_id:
         logger.warning("'In Progress' workflow state not found — will skip status update")
 
-    # Fetch issues with claude-investigate label
-    result = linear_query(api_key, QUERY_INVESTIGATE_ISSUES)
-    issues = result.get("issues", {}).get("nodes", [])
+    # Single query: fetch all issues with any claude trigger label
+    trigger_label_names = list(TRIGGER_LABELS.keys())
+    result = linear_query(api_key, QUERY_TRIGGERED_ISSUES, {"labels": trigger_label_names})
+    all_issues = result.get("issues", {}).get("nodes", [])
 
-    if not issues:
-        logger.info("No issues with '%s' label found", LABEL_INVESTIGATE)
+    # Route each issue by its FIRST matching trigger label (prevents processing conflicts)
+    jobs = []
+    seen_ids = set()
+    for issue in all_issues:
+        issue_id = issue["id"]
+        if issue_id in seen_ids:
+            continue
+        seen_ids.add(issue_id)
+
+        # Find the first trigger label on this issue
+        issue_label_names = [lbl["name"] for lbl in issue.get("labels", {}).get("nodes", [])]
+        trigger_label = None
+        for label_name in trigger_label_names:
+            if label_name in issue_label_names:
+                trigger_label = label_name
+                break
+
+        if not trigger_label:
+            continue
+
+        mode, _perm, gsd_command = TRIGGER_LABELS[trigger_label]
+        jobs.append((issue, mode, trigger_label, gsd_command))
+
+    if not jobs:
+        logger.info("No issues with claude trigger labels found")
         return
 
-    logger.info("Found %d issue(s) with '%s' label", len(issues), LABEL_INVESTIGATE)
+    logger.info("Found %d issue(s) to process", len(jobs))
 
-    for issue in issues:
+    for issue, mode, trigger_label, gsd_command in jobs:
         identifier = issue.get("identifier", "unknown")
         title = issue.get("title", "")
 
@@ -378,20 +433,33 @@ def main() -> None:
             # Step 1: Pre-generate session UUID
             session_id = str(uuid.uuid4())
 
-            # Step 2: Render prompt
-            prompt = render_prompt(issue)
-            logger.info("Rendered prompt for %s: %s", identifier, title)
+            # Step 2: Render prompt based on mode
+            if mode == "investigate":
+                prompt = render_prompt(issue)
+            else:
+                # GSD commands use the generic GSD prompt template
+                gsd_prompt_path = SCRIPT_DIR / "prompts" / "linear-gsd-command.md"
+                if gsd_prompt_path.is_file():
+                    prompt = render_prompt(issue, template_path=gsd_prompt_path)
+                    # Inject the specific GSD command
+                    prompt = prompt.replace("{{GSD_COMMAND}}", gsd_command or "/gsd:quick")
+                else:
+                    prompt = render_prompt(issue)
+                    logger.warning("GSD command prompt template not found, using investigation template")
+            logger.info("Rendered %s prompt for %s: %s", mode, identifier, title)
 
-            # Step 3: Write atomic trigger file (includes session_id)
-            trigger_path = write_trigger_file(issue, prompt, session_id)
+            # Step 3: Write atomic trigger file (includes session_id and mode)
+            trigger_path = write_trigger_file(issue, prompt, session_id, mode=mode)
             logger.info("Wrote trigger file: %s", trigger_path)
 
             # Step 4: Update Linear immediately — swap labels, set In Progress, post comment
-            start_investigation(api_key, issue, label_ids, session_id, in_progress_state_id)
+            start_investigation(
+                api_key, issue, label_ids, session_id, in_progress_state_id,
+                trigger_label=trigger_label, mode=mode,
+            )
             logger.info(
-                "Started investigation for %s (session %s)",
-                identifier,
-                session_id,
+                "Started %s for %s (session %s)",
+                mode, identifier, session_id,
             )
 
         except Exception:
