@@ -97,16 +97,28 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Backend OTel SDK setup, auto-instrumentation, TracePrivacyFilter, and unit tests
-- [ ] 06-02-PLAN.md -- Directus schema field, user opt-in toggle in Settings UI
+- [x] 06-01-PLAN.md -- Backend OTel SDK setup, auto-instrumentation, TracePrivacyFilter, and unit tests
+- [x] 06-02-PLAN.md -- Directus schema field, user opt-in toggle in Settings UI
 - [ ] 06-03-PLAN.md -- Backend WS custom spans, frontend OTel SDK, OTLP proxy, WS span wrappers
-- [ ] 06-04-PLAN.md -- debug.py trace CLI subcommand family
+- [x] 06-04-PLAN.md -- debug.py trace CLI subcommand family
 - [ ] 06-05-PLAN.md -- Issue reporting integration, LoggingMiddleware migration to OTel trace context
+
+### Phase 7: E2E Test Suite Repair
+**Goal**: Investigate and fix the 46 failing Playwright specs so the daily test suite passes reliably — no new tests, only fixing broken ones
+**Depends on**: Phase 5
+**Requirements**: E2E-01, E2E-02, E2E-03, E2E-04
+**Success Criteria** (what must be TRUE):
+  1. All 15 skill-* specs pass (shared infrastructure issue resolved)
+  2. All 4 signup-* specs pass (auth flow alignment verified)
+  3. Daily test suite Playwright pass rate reaches 85+ of 88 specs
+  4. No spec relies on hardcoded timeouts or flaky selectors — all use data-testid or role-based selectors with proper wait conditions
+  5. Failures are categorized and documented so regressions can be quickly attributed
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -116,3 +128,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 4. Sync Handler Rewire | 0/? | Not started | - |
 | 5. Testing & Documentation | 1/3 | Executing | - |
 | 6. OpenTelemetry Distributed Tracing | 0/5 | Planning complete | - |
+| 7. E2E Test Suite Repair | 0/? | Not started | - |

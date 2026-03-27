@@ -57,8 +57,15 @@ Requirements for the rebuild. Each maps to roadmap phases.
 - [ ] **OTEL-04**: Frontend OTel SDK auto-instruments fetch() calls and injects `_traceparent` into all outgoing WebSocket messages
 - [ ] **OTEL-05**: OTLP proxy endpoint (`/v1/telemetry/traces`) forwards frontend traces to OpenObserve with authentication
 - [ ] **OTEL-06**: User opt-in mechanism: `debug_logging_opted_in` boolean on Directus users collection, Settings UI toggle with disclosure text
-- [ ] **OTEL-07**: `debug.py trace` CLI subcommand family queries OpenObserve for trace data and renders indented span timelines
+- [x] **OTEL-07**: `debug.py trace` CLI subcommand family queries OpenObserve for trace data and renders indented span timelines
 - [ ] **OTEL-08**: Issue reports include trace IDs, `debug.py issue --timeline` merges OTel trace spans into log timeline, LoggingMiddleware uses OTel trace_id
+
+### E2E Test Suite Repair
+
+- [ ] **E2E-01**: All 15 skill-* Playwright specs pass — shared infrastructure issue (auth, mocking, or env config) identified and resolved
+- [ ] **E2E-02**: All 4 signup-* Playwright specs pass — auth flow alignment verified after encryption rebuild
+- [ ] **E2E-03**: Remaining ~27 individually failing specs triaged by root cause category and fixed (stale selectors, timing, env, feature drift)
+- [ ] **E2E-04**: Daily test suite Playwright pass rate reaches 85+ of 88 specs with no flaky failures on retry
 
 ## v2 Requirements
 
@@ -125,14 +132,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OTEL-04 | Phase 6 | Pending |
 | OTEL-05 | Phase 6 | Pending |
 | OTEL-06 | Phase 6 | Pending |
-| OTEL-07 | Phase 6 | Pending |
+| OTEL-07 | Phase 6 | Complete |
 | OTEL-08 | Phase 6 | Pending |
 
+| E2E-01 | Phase 7 | Pending |
+| E2E-02 | Phase 7 | Pending |
+| E2E-03 | Phase 7 | Pending |
+| E2E-04 | Phase 7 | Pending |
+
 **Coverage:**
-- v1 requirements: 35 total
-- Mapped to phases: 35
+- v1 requirements: 39 total
+- Mapped to phases: 39
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-27 after Phase 6 planning*
+*Last updated: 2026-03-27 after Phase 7 addition*
