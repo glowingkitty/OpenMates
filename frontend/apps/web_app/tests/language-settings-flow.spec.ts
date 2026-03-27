@@ -202,6 +202,11 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	await expect(loginButton).toBeVisible({ timeout: 15000 });
 	await loginButton.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	await page.waitForTimeout(2000);
 	await takeScreenshot(page, '02-login-dialog');
 

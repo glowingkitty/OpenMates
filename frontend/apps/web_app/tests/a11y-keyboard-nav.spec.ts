@@ -154,6 +154,11 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 		await headerLoginButton.click();
 
+		// Click Login tab to switch from signup to login view
+		const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		await expect(loginTab).toBeVisible({ timeout: 10000 });
+		await loginTab.click();
+
 		const emailInput = page.locator('#login-email-input');
 		await expect(emailInput).toBeVisible({ timeout: 15000 });
 		await emailInput.fill(TEST_EMAIL);

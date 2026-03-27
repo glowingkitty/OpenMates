@@ -113,6 +113,11 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	// Wait a moment for the login dialog to mount and render
 	await page.waitForTimeout(2000);
 	await takeStepScreenshot(page, '02-login-dialog');
@@ -324,6 +329,12 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	if (await loginButtonAfterReload.isVisible({ timeout: 5000 }).catch(() => false)) {
 		logCheckpoint('Session lost — re-logging in.');
 		await loginButtonAfterReload.click();
+
+		// Click Login tab to switch from signup to login view
+		const loginTabRelogin = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
+		await loginTabRelogin.click();
+
 		const emailInput2 = page.locator(SELECTORS.emailInput);
 		await expect(emailInput2).toBeVisible();
 		await emailInput2.fill(TEST_EMAIL);

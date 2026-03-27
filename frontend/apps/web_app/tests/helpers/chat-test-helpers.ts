@@ -42,11 +42,20 @@ async function loginToTestAccount(
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginButton = page.getByRole('button', {
+	// Header button now opens the signup interface (not login directly).
+	// Click it, then switch to the Login tab before entering credentials.
+	const headerSignupButton = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
 	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
+	await expect(headerSignupButton).toBeVisible({ timeout: 15000 });
+	await headerSignupButton.click();
+	await takeStepScreenshot(page, 'signup-interface-opened');
+
+	// Click the "Login" tab in the login/signup tab bar to switch to the login form
+	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+	logCheckpoint('Clicked Login tab to switch from signup to login view.');
 	await takeStepScreenshot(page, 'login-dialog');
 
 	const emailInput = page.locator('#login-email-input');

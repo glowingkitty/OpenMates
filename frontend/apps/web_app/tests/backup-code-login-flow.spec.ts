@@ -279,6 +279,11 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	});
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
+
+	// Click Login tab to switch from signup to login view
+	const loginTabRelogin = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
+	await loginTabRelogin.click();
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email

@@ -275,6 +275,11 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	});
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
+
+	// Click Login tab to switch from signup to login view
+	const loginTabRelogin = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
+	await loginTabRelogin.click();
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email

@@ -123,6 +123,11 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
+
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
 	logCheckpoint('Opened login dialog.');
 
 	// Enter email
@@ -330,6 +335,11 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	});
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
+
+	// Click Login tab to switch from signup to login view
+	const loginTabRelogin = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
+	await loginTabRelogin.click();
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email

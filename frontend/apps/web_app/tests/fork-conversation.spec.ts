@@ -91,6 +91,11 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await headerLoginButton.click();
 	await screenshot(page, 'login-dialog');
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	// ── 3. Enter email ───────────────────────────────────────────────────────
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });

@@ -151,6 +151,11 @@ test('completes full account recovery flow with same password', async ({
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
+
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
 	logRecoveryCheckpoint('Opened login dialog.');
 
 	// ========================================================================
