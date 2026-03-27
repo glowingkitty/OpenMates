@@ -135,59 +135,45 @@ def linear_query(api_key: str, query: str, variables: Optional[Dict[str, Any]] =
     return data["data"]
 
 
-def build_comment_body(session_id: str, status: str, response_text: str = "") -> str:
+def build_comment_body(response_text: str = "") -> Optional[str]:
     """
-    Build the markdown comment body posted to the Linear issue.
+    Build a clean comment body from Claude's response, or None to skip.
+
+    Only returns content if Claude produced substantive findings. This is a
+    fallback — Claude normally posts its own findings via the Linear MCP
+    during the session. This catches cases where Claude crashed or couldn't
+    access MCP.
 
     Args:
-        session_id: Claude Code session ID from the completed investigation.
-        status: Investigation outcome — "completed", "timeout", or "error".
         response_text: Full Claude response text (optional).
 
     Returns:
-        Formatted markdown string for the Linear comment.
+        Formatted markdown string, or None if no substantive content.
     """
-    if status == "timeout":
-        header = "## Claude Code Investigation Timed Out"
-        status_line = "**Status:** Investigation timed out after 15 minutes. Resume to continue."
-    elif status == "error":
-        header = "## Claude Code Investigation Error"
-        status_line = "**Status:** Investigation encountered an error. Resume to review partial findings."
-    else:
-        header = "## Claude Code Investigation Complete"
-        status_line = "**Status:** Awaiting developer review"
+    if not response_text or not response_text.strip():
+        return None
 
-    parts = [
-        f"{header}\n",
-        f"**Session ID:** `{session_id}`\n",
-        "**Resume command:**",
-        "```",
-        f"claude --resume {session_id}",
-        "```\n",
+    text = response_text.strip()
+
+    # Skip non-substantive responses (permission errors, file-not-found, etc.)
+    skip_phrases = [
+        "need permission",
+        "could you approve",
+        "file doesn't exist",
+        "file does not exist",
+        "isn't available",
+        "not available in this session",
     ]
+    text_lower = text.lower()
+    if any(phrase in text_lower for phrase in skip_phrases):
+        return None
 
-    # Include full Claude response if available
-    if response_text:
-        # Linear comments support markdown — truncate if extremely long
-        max_len = 10000
-        truncated = response_text[:max_len]
-        if len(response_text) > max_len:
-            truncated += "\n\n... (truncated — resume session for full output)"
-        parts.append("---\n")
-        parts.append("### Investigation Findings\n")
-        parts.append(truncated)
-        parts.append("\n---\n")
+    # Truncate long responses
+    max_len = 5000
+    if len(text) > max_len:
+        text = text[:max_len] + "\n\n<details><summary>Truncated</summary>\n\nResume the session for full output.\n</details>"
 
-    parts.extend([
-        "**Recommended next step:**",
-        "Review the investigation session, then run the appropriate GSD command:",
-        "- `/gsd:debug` -- if the issue is a bug that needs fixing",
-        "- `/gsd:quick` -- if the issue needs a small feature or refactor",
-        "- `/gsd:execute-phase` -- if the issue relates to a roadmap phase\n",
-        status_line,
-    ])
-
-    return "\n".join(parts)
+    return f"**Claude:**\n{text}"
 
 
 def get_in_review_state_id(api_key: str) -> Optional[str]:
@@ -299,31 +285,34 @@ def main() -> None:
         except Exception:
             logger.warning("Could not read response file: %s", args.response_file)
 
-    # Post the investigation comment
-    comment_body = build_comment_body(args.session_id, args.status, response_text)
-    try:
-        result = linear_query(
-            api_key,
-            MUTATION_CREATE_COMMENT,
-            variables={"issueId": args.issue_id, "body": comment_body},
-        )
-        success = result.get("commentCreate", {}).get("success", False)
-        if success:
-            logger.info(
-                "Posted investigation comment to issue %s", args.issue_id
+    # Post a comment only if Claude produced substantive findings
+    # (Claude normally posts its own via MCP — this is the fallback)
+    comment_body = build_comment_body(response_text)
+    if comment_body:
+        try:
+            result = linear_query(
+                api_key,
+                MUTATION_CREATE_COMMENT,
+                variables={"issueId": args.issue_id, "body": comment_body},
             )
-        else:
+            success = result.get("commentCreate", {}).get("success", False)
+            if success:
+                logger.info(
+                    "Posted findings comment to issue %s", args.issue_id
+                )
+            else:
+                logger.error(
+                    "Comment creation returned success=false for issue %s",
+                    args.issue_id,
+                )
+        except Exception:
             logger.error(
-                "Comment creation returned success=false for issue %s",
+                "Failed to post comment to issue %s",
                 args.issue_id,
+                exc_info=True,
             )
-    except Exception:
-        logger.error(
-            "Failed to post comment to issue %s",
-            args.issue_id,
-            exc_info=True,
-        )
-        sys.exit(1)
+    else:
+        logger.info("No substantive findings to post for issue %s", args.issue_id)
 
     # Swap labels + move to "In Review"
     try:

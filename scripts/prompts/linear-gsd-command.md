@@ -52,12 +52,15 @@ Run the following GSD command with the issue context:
 - Use the issue title as the phase description
 - Do NOT execute the phase — only add it to the roadmap
 
-## Step 3: Update Linear
+## Step 3: Post Findings
 
-After completing:
-- **Post a summary comment** on the Linear issue with what was done, files changed,
-  commit hash, and any risks or follow-up needed
-- **Update the issue status** appropriately
+When done, use the `save_comment` Linear MCP tool to post a summary on the issue with:
+- What was done and why
+- Files modified
+- Commit hash (if any)
+- Any risks or follow-up needed
+
+Do NOT update the issue status or labels — the pipeline handles that automatically.
 
 ## Constraints
 

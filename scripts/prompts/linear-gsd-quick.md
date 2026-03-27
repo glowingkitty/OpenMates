@@ -40,15 +40,15 @@ Use your **Linear MCP tools** to read the full issue {{LINEAR_IDENTIFIER}}:
 5. **Commit** — commit the changes with a conventional commit message that references
    the Linear issue: `fix(LINEAR_ID): description` or `feat(LINEAR_ID): description`.
 
-## Step 3: Update Linear
+## Step 3: Post Findings
 
-After completing:
-- **Post a summary comment** on the Linear issue with:
-  - What was changed and why
-  - Files modified
-  - Commit hash
-  - Any risks or follow-up needed
-- **Update the issue status** to "In Review"
+When done, use the `save_comment` Linear MCP tool to post a summary on the issue with:
+- What was changed and why
+- Files modified
+- Commit hash
+- Any risks or follow-up needed
+
+Do NOT update the issue status or labels — the pipeline handles that automatically.
 
 ## Constraints
 

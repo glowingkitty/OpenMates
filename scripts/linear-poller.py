@@ -330,11 +330,11 @@ def start_investigation(
     mode: str = "investigate",
 ) -> None:
     """
-    Mark issue as being worked on: swap labels, set In Progress, post comment.
+    Mark issue as being worked on: swap labels and set In Progress.
 
-    Swaps the trigger label → claude-workingonit, moves to In Progress,
-    and posts a comment with the pre-generated session ID so the user can
-    immediately run `claude --resume` to watch the active session.
+    Swaps the trigger label → claude-workingonit and moves to In Progress.
+    No comment is posted — labels are the status indicator. Claude posts
+    its own findings via the Linear MCP when the investigation completes.
 
     Args:
         api_key: Linear API key.
@@ -343,7 +343,7 @@ def start_investigation(
         session_id: Pre-generated Claude session UUID.
         in_progress_state_id: Workflow state ID for "In Progress" (or None).
         trigger_label: The label that triggered this (to remove).
-        mode: Execution mode for the comment ("investigate" or "gsd-quick").
+        mode: Execution mode (unused, kept for call-site compatibility).
     """
     investigate_label_id = label_ids.get(trigger_label)
     workingonit_label_id = label_ids.get(LABEL_WORKINGONIT)
@@ -365,25 +365,8 @@ def start_investigation(
 
     linear_query(api_key, MUTATION_UPDATE_ISSUE, variables=variables)
 
-    # Post "investigation started" comment with resume command
     identifier = issue.get("identifier", "unknown")
-    mode_label = "GSD Quick Execution" if mode == "gsd-quick" else "Investigation"
-    comment_body = (
-        f"## Claude Code {mode_label} Started\n\n"
-        f"**Session ID:** `{session_id}`\n\n"
-        f"**Watch or resume this {mode_label.lower()}:**\n"
-        "```\n"
-        f"claude --resume {session_id}\n"
-        "```\n\n"
-        f"**Status:** In progress..."
-    )
-
-    linear_query(
-        api_key,
-        MUTATION_CREATE_COMMENT,
-        variables={"issueId": issue["id"], "body": comment_body},
-    )
-    logger.info("Posted 'started' comment to %s with session %s", identifier, session_id)
+    logger.info("Marked %s as in-progress (session %s)", identifier, session_id)
 
 
 def find_session_for_issue(issue_id: str) -> Optional[str]:

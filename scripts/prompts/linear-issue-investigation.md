@@ -50,34 +50,23 @@ Use your **Linear MCP tools** to read the full issue {{LINEAR_IDENTIFIER}}:
    For complex or risky changes, leave a clear TODO comment in the relevant file and describe
    exactly what a developer needs to do to complete it.
 
-## Step 3: Update Linear
+## Step 3: Post Findings
 
-After completing the investigation:
-- **Post a summary comment** on the Linear issue with your findings, the fix (if applied),
-  and any recommended next steps
-- **Update the issue status** to "In Review" if you implemented a fix, or leave as-is if
-  you only investigated
+When done, use the `save_comment` Linear MCP tool to post a concise summary of your
+findings on the issue. Include: root cause, fix applied (if any), and any follow-up needed.
+Do NOT update the issue status or labels — the pipeline handles that automatically.
 
 ## GSD Command Recommendation
 
 Based on the nature of this issue, recommend the appropriate GSD workflow command for the
-developer to run next. Use these guidelines:
+developer to run next:
 
-- If the issue describes a **bug, error, broken behavior, failure, or crash**:
-  Recommend: `/gsd:debug`
+- Bug/error/broken behavior → `/gsd:debug`
+- New feature/addition → `/gsd:quick` (small) or `/gsd:execute-phase` (roadmap)
+- Refactor/cleanup → `/gsd:quick`
+- Default (unclear) → `/gsd:debug`
 
-- If the issue describes a **new feature, addition, implementation, or creation**:
-  Recommend: `/gsd:quick` for small self-contained changes, or suggest checking the roadmap
-  (`/gsd:execute-phase`) if the feature seems to relate to a planned phase.
-
-- If the issue describes a **refactor, cleanup, improvement, or optimization**:
-  Recommend: `/gsd:quick`
-
-- **Default** (if the nature is unclear):
-  Recommend: `/gsd:debug` — most Linear issues originate from observed problems.
-
-Provide the recommendation as a concrete, copy-pasteable command the developer can run
-immediately after reviewing this investigation session.
+Include the recommendation in your findings comment.
 
 Work efficiently. The developer who filed this issue is available to answer clarifying
 questions via the claude session chat.
