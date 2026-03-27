@@ -45,16 +45,20 @@ jobs:
       - name: Run UI package tests
         id: ui_tests
         continue-on-error: true
+        timeout-minutes: 10
         run: |
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd frontend/packages/ui
-          npx vitest run --reporter=json > $GITHUB_WORKSPACE/test-results/vitest-ui.json 2>&1 || true
+          npx vitest run --config vitest.simple.config.ts --reporter=json \
+            > $GITHUB_WORKSPACE/test-results/vitest-ui.json 2>&1 || true
       - name: Run web app unit tests
         id: webapp_tests
         continue-on-error: true
+        timeout-minutes: 5
         run: |
           cd frontend/apps/web_app
-          npx vitest run --reporter=json > $GITHUB_WORKSPACE/test-results/vitest-webapp.json 2>&1 || true
+          npx vitest run --reporter=json \
+            > $GITHUB_WORKSPACE/test-results/vitest-webapp.json 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
