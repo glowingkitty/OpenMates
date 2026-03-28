@@ -9,17 +9,19 @@
 
 /// <reference lib="webworker" />
 
-import { clientsClaim } from 'workbox-core';
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+// NOTE: Precaching and cache cleanup are handled by @vite-pwa/sveltekit's
+// generateSW strategy (outputs sw.js). This file is auto-compiled by SvelteKit
+// as a separate service worker — it must NOT use self.__WB_MANIFEST or any
+// Workbox precaching APIs, as the manifest placeholder is only resolved by
+// the injectManifest strategy (which we don't use).
+//
+// This SW handles: push notifications, skip-waiting, and runtime caching.
+
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { NetworkFirst } from 'workbox-strategies';
 
 declare let self: ServiceWorkerGlobalScope;
-
-precacheAndRoute(self.__WB_MANIFEST);
-cleanupOutdatedCaches();
-clientsClaim();
 
 // Listen for SKIP_WAITING message from performCleanUpdate() in cacheManager.ts.
 // When the app detects a new version (via SvelteKit version polling) and the user
