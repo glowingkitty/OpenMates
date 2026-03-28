@@ -391,6 +391,26 @@
 				isAppSkill: true
 			}
 		],
+		home: [
+			{
+				skillLabel: 'Search',
+				appId: 'home',
+				previewPath: 'embeds/home/HomeSearchEmbedPreview',
+				fullscreenPath: 'embeds/home/HomeSearchEmbedFullscreen',
+				inlineLinkText: 'Apartments in Berlin',
+				quoteText:
+					'Found 12 apartments in Berlin. Top pick: 850 EUR/month, 2-room apartment in Kreuzberg.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Listing',
+				appId: 'home',
+				previewPath: 'embeds/home/HomeListingEmbedPreview',
+				fullscreenPath: 'embeds/home/HomeListingEmbedFullscreen',
+				inlineLinkText: 'Schöne 2-Zimmer-Wohnung in Kreuzberg',
+				quoteText: '850 EUR/month — 55 m², 2 rooms, Bergmannstr., Berlin-Kreuzberg'
+			}
+		],
 		shopping: [
 			{
 				skillLabel: 'Search',
@@ -431,7 +451,8 @@
 		health: 'app',
 		mail: 'mail',
 		pdf: 'pdf',
-		shopping: 'shopping'
+		shopping: 'shopping',
+		home: 'home'
 	};
 
 	const ALL_APPS = [
@@ -451,7 +472,8 @@
 		'health',
 		'mail',
 		'pdf',
-		'shopping'
+		'shopping',
+		'home'
 	];
 
 	// ─── Glob maps ────────────────────────────────────────────────────
