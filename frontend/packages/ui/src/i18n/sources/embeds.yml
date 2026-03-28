@@ -4321,3 +4321,75 @@ image_search.more_results:
   sv: fler
   he: עוד
   verified_by_human: []
+home.search.title:
+  context: Title label for the Home Search embed (housing/apartment search in Germany)
+  en: Home Search
+  de: Wohnungssuche
+  zh: 住房搜索
+  es: Buscar vivienda
+  fr: Recherche de logement
+  pt: Busca de moradia
+  ru: Поиск жилья
+  ja: 住宅検索
+  ko: 주거 검색
+  it: Ricerca casa
+  tr: Konut arama
+  vi: Tìm nhà
+  id: Cari rumah
+  pl: Szukaj mieszkania
+  nl: Woning zoeken
+  ar: بحث عن سكن
+  hi: आवास खोजें
+  th: ค้นหาที่อยู่อาศัย
+  cs: Hledání bydlení
+  sv: Bostadssökning
+  he: חיפוש דיור
+  verified_by_human: [en, de]
+home.search.processing:
+  context: Text shown while Home Search embed is processing (searching for apartments)
+  en: Searching for listings...
+  de: Suche nach Angeboten...
+  zh: 正在搜索房源...
+  es: Buscando anuncios...
+  fr: Recherche d'annonces...
+  pt: Buscando anúncios...
+  ru: Поиск объявлений...
+  ja: 物件を検索中...
+  ko: 매물 검색 중...
+  it: Ricerca annunci...
+  tr: İlanlar aranıyor...
+  vi: Đang tìm tin đăng...
+  id: Mencari iklan...
+  pl: Szukam ogłoszeń...
+  nl: Zoeken naar advertenties...
+  ar: جارٍ البحث عن الإعلانات...
+  hi: सूची खोज रहे हैं...
+  th: กำลังค้นหารายการ...
+  cs: Hledání inzerátů...
+  sv: Söker annonser...
+  he: מחפש מודעות...
+  verified_by_human: [en, de]
+home.search.results_count:
+  context: Text showing the number of listing results found (e.g. "12 listings found")
+  en: "{count} listings found"
+  de: "{count} Angebote gefunden"
+  zh: "找到 {count} 个房源"
+  es: "{count} anuncios encontrados"
+  fr: "{count} annonces trouvées"
+  pt: "{count} anúncios encontrados"
+  ru: "Найдено {count} объявлений"
+  ja: "{count}件の物件が見つかりました"
+  ko: "{count}개의 매물을 찾았습니다"
+  it: "{count} annunci trovati"
+  tr: "{count} ilan bulundu"
+  vi: "Tìm thấy {count} tin đăng"
+  id: "{count} iklan ditemukan"
+  pl: "Znaleziono {count} ogłoszeń"
+  nl: "{count} advertenties gevonden"
+  ar: "تم العثور على {count} إعلانات"
+  hi: "{count} सूचियां मिलीं"
+  th: "พบ {count} รายการ"
+  cs: "Nalezeno {count} inzerátů"
+  sv: "{count} annonser hittades"
+  he: "נמצאו {count} מודעות"
+  verified_by_human: [en, de]

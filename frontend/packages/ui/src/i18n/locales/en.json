@@ -1963,6 +1963,12 @@
         "text": "Improve your health and well being."
       }
     },
+    "home": {
+      "text": "Home",
+      "description": {
+        "text": "Search for apartments, houses & rooms in Germany."
+      }
+    },
     "fitness": {
       "text": "Fitness",
       "description": {
@@ -4716,6 +4722,19 @@
     },
     "reviews": {
       "text": "reviews"
+    },
+    "home": {
+      "search": {
+        "title": {
+          "text": "Home Search"
+        },
+        "processing": {
+          "text": "Searching for listings..."
+        },
+        "results_count": {
+          "text": "{count} listings found"
+        }
+      }
     }
   },
   "enter_message": {
