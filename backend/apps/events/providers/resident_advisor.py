@@ -67,16 +67,32 @@ query GET_EVENT_LISTINGS($filters: FilterInputDtoInput, $pageSize: Int) {
         flyerFront
         isTicketed
         cost
+        minimumAge
+        attending
+        interestedCount
+        isFestival
         venue {
           name
           address
+          contentUrl
+          capacity
           area { name }
+          location { latitude longitude }
         }
         artists {
           name
         }
         genres {
           name
+        }
+        promoters {
+          name
+        }
+        pick {
+          blurb
+        }
+        images {
+          filename
         }
       }
     }
@@ -182,17 +198,18 @@ def _normalize_event(raw: Dict[str, Any], city: str) -> Dict[str, Any]:
     content_url = raw.get("contentUrl") or ""
     url = f"{_BASE_URL}{content_url}" if content_url else f"{_BASE_URL}/events/{event_id}"
 
-    # Venue
+    # Venue (with lat/lon from venue.location)
     venue_raw = raw.get("venue") or {}
     area = venue_raw.get("area") or {}
+    venue_location = venue_raw.get("location") or {}
     venue = {
         "name": venue_raw.get("name", ""),
         "address": venue_raw.get("address", ""),
         "city": area.get("name") or city.title(),
         "state": None,
         "country": None,
-        "lat": None,
-        "lon": None,
+        "lat": venue_location.get("latitude"),
+        "lon": venue_location.get("longitude"),
     }
 
     # Artists
@@ -223,8 +240,28 @@ def _normalize_event(raw: Dict[str, Any], city: str) -> Dict[str, Any]:
     if cost_str:
         fee = {"amount": cost_str, "currency": "EUR"}
 
-    # Image (flyer)
+    # Image — prefer flyerFront, fall back to images array
     image_url = raw.get("flyerFront")
+    if not image_url:
+        images = raw.get("images") or []
+        if images and isinstance(images[0], dict):
+            image_url = images[0].get("filename")
+
+    # Attendance (RA uses "attending" for going count, "interestedCount" for interested)
+    attending = raw.get("attending")
+    interested = raw.get("interestedCount")
+    rsvp_count = attending or interested
+
+    # Promoter as organizer
+    promoters = raw.get("promoters") or []
+    organizer = None
+    if promoters:
+        organizer = {"name": promoters[0].get("name", ""), "slug": None, "id": None}
+
+    # RA Pick editorial blurb — append to description if present
+    pick = raw.get("pick") or {}
+    if pick.get("blurb") and pick["blurb"] not in description:
+        description = f"RA Pick: {pick['blurb']}\n{description}"
 
     return {
         "id": str(event_id),
@@ -237,13 +274,15 @@ def _normalize_event(raw: Dict[str, Any], city: str) -> Dict[str, Any]:
         "timezone": None,
         "event_type": "PHYSICAL",
         "venue": venue,
-        "organizer": None,
-        "rsvp_count": None,
+        "organizer": organizer,
+        "rsvp_count": rsvp_count,
         "is_paid": is_paid,
         "fee": fee,
         "image_url": image_url,
         "artists": artist_names[:10] if artist_names else None,
         "genres": genres if genres else None,
+        "minimum_age": raw.get("minimumAge"),
+        "is_festival": raw.get("isFestival", False),
     }
 
 
