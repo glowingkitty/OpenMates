@@ -70,9 +70,9 @@ class TestSetupTracing:
                 from backend.shared.python_utils.tracing.config import setup_tracing
                 setup_tracing(service_name="test-api")
 
-                # Verify each instrumentor was called
-                mock_fastapi.instrument.assert_called_once()
-                mock_httpx.instrument.assert_called_once()
+                # Verify each instrumentor instance's .instrument() was called
+                mock_fastapi.return_value.instrument.assert_called_once()
+                mock_httpx.return_value.instrument.assert_called_once()
                 mock_celery.return_value.instrument.assert_called_once()
                 mock_redis.return_value.instrument.assert_called_once()
                 mock_logging.return_value.instrument.assert_called_once()
