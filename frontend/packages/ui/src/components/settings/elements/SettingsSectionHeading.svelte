@@ -41,20 +41,11 @@
         margin-bottom: 0.5rem;
     }
 
-    /*
-     * Override the default subsetting_icon rendering (gradient mask on transparent)
-     * to show a gradient-filled square with a white icon inside, per Figma spec.
-     */
+    /* Keep subsetting_icon dimensions, gradient icon is the default behavior */
     .heading-icon {
         width: 44px;
         height: 44px;
         min-width: 44px;
-        border-radius: 10px;
-        background: var(--color-primary);
-    }
-
-    .heading-icon::after {
-        background: white;
     }
 
     .heading-text {
