@@ -70,7 +70,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { setupOtelCapture, saveOtelTimeline } = require('./helpers/otel-capture');
+const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -396,10 +396,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300000); // 5 minutes: covers send + reload + logout + relogin + delete
 
-	// Set up OTel span capture — intercepts OTLP export requests to capture
-	// message.send.* span timing for profiling. Traces still reach OpenObserve.
-	await setupOtelCapture(page);
-
 	const logChatCheckpoint = createSignupLogger('CHAT_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logChatCheckpoint);
 
@@ -413,6 +409,11 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 1: Login + send message
 	// =========================================================================
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '01');
+
+	// Inject OTel span capture — wraps fetch() to intercept OTLP exports
+	// and store span data in window.__otelCapturedSpans for profiling.
+	const otelInjected = await injectOtelCapture(page);
+	logChatCheckpoint(`OTel capture injected: ${otelInjected}`);
 
 	// =========================================================================
 	// PHASE 1a: Verify database init + most recent chats load after login
@@ -553,13 +554,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
 	logChatCheckpoint(`Chat ID detected: ${chatId}`, { chatId });
 
-	// OTel spans are batched — wait for the BatchSpanProcessor to flush,
-	// then save the captured message.send.* pipeline timeline to artifacts.
-	// We capture BEFORE waiting for AI response so the timeline is saved
-	// even if the AI response assertion fails (pre-existing flakiness).
-	await page.waitForTimeout(5000);
-	const otelFilePath = saveOtelTimeline(chatId, 'message-send');
-	logChatCheckpoint(`OTel timeline saved to ${otelFilePath}`);
+	// Collect OTel spans — force-flushes the BatchSpanProcessor and reads
+	// captured message.send.* spans. Done BEFORE AI response assertion so
+	// timeline is saved even if that assertion fails (pre-existing flakiness).
+	const otelSpans = await collectOtelSpans(page);
+	const otelFilePath = saveOtelTimeline(otelSpans, chatId, 'message-send');
+	logChatCheckpoint(`OTel timeline saved (${otelSpans.length} spans) to ${otelFilePath}`);
 
 	// Wait for assistant response containing "Berlin"
 	logChatCheckpoint('Waiting for assistant response...');
