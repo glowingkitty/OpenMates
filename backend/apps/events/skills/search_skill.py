@@ -449,22 +449,24 @@ class SearchSkill(BaseSkill):
         self,
         query: str,
         location_str: str,
+        start_date: Optional[str],
+        end_date: Optional[str],
         count: int,
-        secrets_manager: Optional[SecretsManager] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
-        Search Resident Advisor and return (events, total_available, error_or_None).
+        Search Resident Advisor via GraphQL and return (events, total_available, error_or_None).
         Never raises — errors are returned as the third tuple element.
 
         If the city is not in RA's supported cities, returns empty list (not an error).
-        Requires secrets_manager for Firecrawl (RA blocks direct HTTP requests).
+        No API key or proxy needed — RA's GraphQL endpoint is publicly accessible.
         """
         try:
             events, total = await ra_provider.search_events_async(
                 city=location_str,
                 query=query,
                 count=count,
-                secrets_manager=secrets_manager,
+                start_date=start_date,
+                end_date=end_date,
             )
             return events, total, None
         except ValueError:
@@ -710,8 +712,9 @@ class SearchSkill(BaseSkill):
             ra_events, total, ra_err = await self._search_resident_advisor(
                 query=query,
                 location_str=luma_city,
+                start_date=start_date,
+                end_date=end_date,
                 count=count,
-                secrets_manager=secrets_manager,
             )
             if ra_err and not ra_events:
                 return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0)
@@ -766,8 +769,9 @@ class SearchSkill(BaseSkill):
             ra_task = self._search_resident_advisor(
                 query=query,
                 location_str=luma_city,
+                start_date=start_date,
+                end_date=end_date,
                 count=per_provider_count,
-                secrets_manager=secrets_manager,
             )
             siegessaeule_task = self._search_siegessaeule(
                 query=query,

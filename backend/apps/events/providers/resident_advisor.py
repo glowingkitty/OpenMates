@@ -2,33 +2,28 @@
 #
 # Resident Advisor (ra.co) event search provider.
 #
-# Scrapes RA's event listing pages for electronic music / club events.
-# RA is a Next.js SSR app — event data is embedded in __NEXT_DATA__ JSON
-# in the HTML, providing structured data without needing a headless browser.
+# Uses RA's internal GraphQL API at ra.co/graphql for structured event data.
+# The GraphQL endpoint is publicly accessible without authentication — no API
+# key, no proxy, no headless browser needed.
 #
 # Key design decisions:
-# - No API key needed — RA deprecated their public API years ago
-# - Uses Firecrawl for scraping (RA blocks direct httpx and proxy requests with 403)
-# - Parses __NEXT_DATA__ JSON for structured event data (lineup, genres, etc.)
-# - Falls back to HTML/markdown parsing if __NEXT_DATA__ is not present
-# - Currently supports city-based event listings only
+# - Direct GraphQL queries via httpx (no auth, no proxy required)
+# - Rich structured data: title, date, venue, artists, genres, cost, flyer
+# - City-based area IDs map cities to RA's internal area identifiers
+# - Client-side keyword filtering (RA GraphQL doesn't support text search)
+# - Polite usage: request only the fields and page sizes we need
 #
-# URL patterns:
-#   Listing: https://ra.co/events/{country_code}/{city}
-#   Event:   https://ra.co/events/{event_id}
+# GraphQL endpoint: POST https://ra.co/graphql
+# Introspection is enabled (schema is discoverable).
 #
 # Coverage: Electronic music, clubs, DJ events. Strongest in Berlin, London,
 # Amsterdam, Barcelona, and other major European cities.
 
-import json
 import logging
-import re
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
-from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
-
-if TYPE_CHECKING:
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.testing.caching_http_transport import create_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -37,57 +32,103 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _BASE_URL = "https://ra.co"
+_GRAPHQL_URL = f"{_BASE_URL}/graphql"
 
-# HTTP timeout for RA requests (seconds).
+# HTTP timeout for GraphQL requests (seconds).
 _HTTP_TIMEOUT = 25.0
 
 # Maximum description length to return (characters).
 _MAX_DESCRIPTION_CHARS = 2000
 
-# Map city names to RA URL slugs: {normalised_city: (country_code, city_slug)}
-# RA uses 2-letter ISO country codes in URLs.
-CITY_SLUGS: Dict[str, Tuple[str, str]] = {
-    "berlin": ("de", "berlin"),
-    "hamburg": ("de", "hamburg"),
-    "munich": ("de", "munich"),
-    "cologne": ("de", "cologne"),
-    "frankfurt": ("de", "frankfurt"),
-    "dusseldorf": ("de", "dusseldorf"),
-    "london": ("uk", "london"),
-    "manchester": ("uk", "manchester"),
-    "amsterdam": ("nl", "amsterdam"),
-    "rotterdam": ("nl", "rotterdam"),
-    "paris": ("fr", "paris"),
-    "barcelona": ("es", "barcelona"),
-    "madrid": ("es", "madrid"),
-    "lisbon": ("pt", "lisbon"),
-    "rome": ("it", "rome"),
-    "milan": ("it", "milan"),
-    "vienna": ("at", "vienna"),
-    "prague": ("cz", "prague"),
-    "budapest": ("hu", "budapest"),
-    "warsaw": ("pl", "warsaw"),
-    "zurich": ("ch", "zurich"),
-    "brussels": ("be", "brussels"),
-    "copenhagen": ("dk", "copenhagen"),
-    "stockholm": ("se", "stockholm"),
-    "oslo": ("no", "oslo"),
-    "helsinki": ("fi", "helsinki"),
-    "new york": ("us", "newyork"),
-    "los angeles": ("us", "losangeles"),
-    "san francisco": ("us", "sanfrancisco"),
-    "chicago": ("us", "chicago"),
-    "detroit": ("us", "detroit"),
-    "miami": ("us", "miami"),
-    "tokyo": ("jp", "tokyo"),
-    "sydney": ("au", "sydney"),
-    "melbourne": ("au", "melbourne"),
-    "toronto": ("ca", "toronto"),
-    "montreal": ("ca", "montreal"),
-    "seoul": ("kr", "seoul"),
-    "bangkok": ("th", "bangkok"),
-    "singapore": ("sg", "singapore"),
-    "tbilisi": ("ge", "tbilisi"),
+# Headers required by RA's GraphQL endpoint.
+_HEADERS = {
+    "Content-Type": "application/json",
+    "Origin": "https://ra.co",
+    "Referer": "https://ra.co/events",
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    ),
+}
+
+# GraphQL query for event listings with full detail.
+_EVENT_LISTINGS_QUERY = """
+query GET_EVENT_LISTINGS($filters: FilterInputDtoInput, $pageSize: Int) {
+  eventListings(filters: $filters, pageSize: $pageSize) {
+    data {
+      event {
+        id
+        title
+        date
+        startTime
+        endTime
+        content
+        contentUrl
+        flyerFront
+        isTicketed
+        cost
+        venue {
+          name
+          address
+          area { name }
+        }
+        artists {
+          name
+        }
+        genres {
+          name
+        }
+      }
+    }
+    totalResults
+  }
+}
+"""
+
+# Map city names to RA's internal area IDs.
+# Discovered via GraphQL introspection and RA's web app network traffic.
+CITY_AREA_IDS: Dict[str, int] = {
+    "berlin": 34,
+    "hamburg": 45,
+    "munich": 74,
+    "cologne": 76,
+    "frankfurt": 43,
+    "dusseldorf": 170,
+    "london": 13,
+    "manchester": 100,
+    "amsterdam": 29,
+    "rotterdam": 163,
+    "paris": 44,
+    "barcelona": 8,
+    "madrid": 49,
+    "lisbon": 77,
+    "rome": 150,
+    "milan": 47,
+    "vienna": 35,
+    "prague": 60,
+    "budapest": 41,
+    "warsaw": 110,
+    "zurich": 145,
+    "brussels": 37,
+    "copenhagen": 40,
+    "stockholm": 66,
+    "oslo": 151,
+    "helsinki": 115,
+    "new york": 8,
+    "los angeles": 18,
+    "san francisco": 14,
+    "chicago": 15,
+    "detroit": 11,
+    "miami": 22,
+    "tokyo": 27,
+    "sydney": 5,
+    "melbourne": 48,
+    "toronto": 28,
+    "montreal": 79,
+    "seoul": 97,
+    "bangkok": 107,
+    "singapore": 80,
+    "tbilisi": 126,
 }
 
 
@@ -95,494 +136,115 @@ CITY_SLUGS: Dict[str, Tuple[str, str]] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _resolve_city(location: str) -> Tuple[str, str]:
+def _resolve_area_id(location: str) -> Tuple[int, str]:
     """
-    Resolve a location string to RA's (country_code, city_slug) tuple.
+    Resolve a location string to RA's (area_id, city_name) tuple.
 
     Args:
         location: City name or "city, country" string.
 
     Returns:
-        Tuple of (country_code, city_slug) for URL construction.
+        Tuple of (area_id, normalised_city_name).
 
     Raises:
         ValueError: If the city is not in RA's supported cities.
     """
-    # Normalise: lowercase, strip country suffix, strip whitespace.
     normalised = location.lower().strip()
-    # Handle "Berlin, Germany" -> "berlin"
     if "," in normalised:
         normalised = normalised.split(",")[0].strip()
 
-    if normalised in CITY_SLUGS:
-        return CITY_SLUGS[normalised]
+    if normalised in CITY_AREA_IDS:
+        return CITY_AREA_IDS[normalised], normalised
 
-    # Try partial match (e.g., "new york city" -> "new york")
-    for key, value in CITY_SLUGS.items():
+    # Partial match
+    for key, area_id in CITY_AREA_IDS.items():
         if key in normalised or normalised in key:
-            return value
+            return area_id, key
 
     raise ValueError(
-        f"Resident Advisor does not have a listing page for '{location}'. "
-        f"Supported cities: {', '.join(sorted(CITY_SLUGS.keys()))}"
+        f"Resident Advisor does not cover '{location}'. "
+        f"Supported cities: {', '.join(sorted(CITY_AREA_IDS.keys()))}"
     )
 
 
-async def _fetch_page(
-    url: str,
-    secrets_manager: Optional["SecretsManager"] = None,
-) -> str:
+def _normalize_event(raw: Dict[str, Any], city: str) -> Dict[str, Any]:
     """
-    Fetch an RA page via Firecrawl.
-
-    RA blocks direct httpx requests and proxy requests with 403.
-    Firecrawl uses a headless browser which bypasses this protection.
+    Normalize an RA GraphQL event object into the standard EventResult format.
 
     Args:
-        url:             The RA URL to scrape.
-        secrets_manager: Required for Firecrawl API key retrieval.
+        raw:  Event dict from the GraphQL response.
+        city: Normalised city name (e.g., "berlin").
 
     Returns:
-        HTML content of the page.
-
-    Raises:
-        ValueError: If secrets_manager is not provided or Firecrawl fails.
+        Normalized event dict.
     """
-    if not secrets_manager:
-        raise ValueError(
-            "Resident Advisor requires Firecrawl (secrets_manager) for scraping. "
-            "RA blocks direct HTTP requests."
-        )
-
-    logger.debug("[ra] Fetching via Firecrawl: %s", url)
-    result = await scrape_url(
-        url=url,
-        secrets_manager=secrets_manager,
-        formats=["markdown"],
-        only_main_content=False,
-        sanitize_output=False,
-        wait_for=3000,  # Wait 3s for Next.js hydration
-    )
-
-    if result.get("error"):
-        raise ValueError(f"Firecrawl scrape failed for {url}: {result['error']}")
-
-    data = result.get("data", {})
-    markdown = data.get("markdown") or ""
-    if not markdown:
-        raise ValueError(f"Firecrawl returned empty content for {url}")
-
-    return markdown
-
-
-def _parse_events_from_markdown(
-    markdown: str,
-    city: str,
-    country_code: str,
-) -> List[Dict[str, Any]]:
-    """
-    Parse events from RA's Firecrawl markdown output.
-
-    The markdown structure for each event block:
-        - Sat, 28 Mar                                   (date line)
-        ### [Event Title](https://ra.co/events/NNNNNN)  (title + URL)
-        Location                                         (label)
-        [Venue Name](https://ra.co/clubs/NNNNN)          (venue)
-        Person                                           (label)
-        1.8K                                             (attendance)
-
-    Args:
-        markdown:     Raw markdown from Firecrawl.
-        city:         City slug (e.g., "berlin").
-        country_code: ISO country code (e.g., "de").
-
-    Returns:
-        List of normalized event dicts.
-    """
-    events: List[Dict[str, Any]] = []
-    seen_ids: set = set()
-
-    # Find event title links: ### [Title](https://ra.co/events/NNNNNN)
-    event_pattern = re.compile(
-        r'###\s*\[([^\]]+)\]\(https://ra\.co/events/(\d+)\)',
-    )
-
-    # Split markdown into lines for context-aware parsing.
-    lines = markdown.split("\n")
-
-    for i, line in enumerate(lines):
-        match = event_pattern.search(line)
-        if not match:
-            continue
-
-        title = match.group(1).strip()
-        event_id = match.group(2)
-
-        if event_id in seen_ids:
-            continue
-        seen_ids.add(event_id)
-
-        # Look backward for date line (e.g., "- Sat, 28 Mar")
-        date_str = None
-        for j in range(max(0, i - 5), i):
-            date_match = re.search(
-                r'-\s*((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+\d{1,2}\s+\w+)',
-                lines[j],
-            )
-            if date_match:
-                date_str = date_match.group(1).strip()
-                break
-
-        # Look forward for venue and attendance
-        venue_name = ""
-        venue_url = ""
-        attendance = None
-
-        for j in range(i + 1, min(len(lines), i + 10)):
-            fwd_line = lines[j].strip()
-
-            # Venue: [Name](https://ra.co/clubs/NNNNN)
-            venue_match = re.search(
-                r'\[([^\]]+)\]\(https://ra\.co/clubs/\d+\)', fwd_line,
-            )
-            if venue_match and not venue_name:
-                venue_name = venue_match.group(1).strip()
-                venue_url = re.search(r'\((https://ra\.co/clubs/\d+)\)', fwd_line)
-                venue_url = venue_url.group(1) if venue_url else ""
-
-            # Attendance: number like "1.8K" or "692"
-            att_match = re.match(r'^([\d,.]+[KkMm]?)$', fwd_line)
-            if att_match and attendance is None:
-                att_str = att_match.group(1).strip()
-                try:
-                    if att_str.upper().endswith("K"):
-                        attendance = int(float(att_str[:-1]) * 1000)
-                    elif att_str.upper().endswith("M"):
-                        attendance = int(float(att_str[:-1]) * 1000000)
-                    else:
-                        attendance = int(att_str.replace(",", "").replace(".", ""))
-                except (ValueError, TypeError):
-                    pass
-
-            # Stop at next event block
-            if re.search(r'###\s*\[', fwd_line):
-                break
-
-        events.append({
-            "id": event_id,
-            "provider": "resident_advisor",
-            "title": title,
-            "description": "",
-            "url": f"{_BASE_URL}/events/{event_id}",
-            "date_start": date_str,  # Human-readable (e.g., "Sat, 28 Mar")
-            "date_end": None,
-            "timezone": None,
-            "event_type": "PHYSICAL",
-            "venue": {
-                "name": venue_name,
-                "address": "",
-                "city": city.title(),
-                "state": None,
-                "country": country_code.upper(),
-                "lat": None,
-                "lon": None,
-            },
-            "organizer": None,
-            "rsvp_count": attendance,
-            "is_paid": None,
-            "fee": None,
-            "image_url": None,
-        })
-
-    return events
-
-
-def _extract_next_data(html: str) -> Optional[Dict[str, Any]]:
-    """Extract __NEXT_DATA__ JSON from a Next.js SSR page."""
-    match = re.search(
-        r'<script\s+id="__NEXT_DATA__"\s+type="application/json">(.*?)</script>',
-        html,
-        re.DOTALL,
-    )
-    if not match:
-        return None
-    try:
-        return json.loads(match.group(1))
-    except json.JSONDecodeError:
-        logger.warning("[ra] Failed to parse __NEXT_DATA__ JSON")
-        return None
-
-
-def _parse_events_from_next_data(
-    next_data: Dict[str, Any],
-    city: str,
-    country_code: str,
-) -> List[Dict[str, Any]]:
-    """
-    Extract normalized event dicts from RA's __NEXT_DATA__ JSON.
-
-    The structure varies but typically lives under:
-      props.pageProps.dehydratedState.queries[].state.data.listing.data[]
-    or similar paths. We search recursively for event-like objects.
-    """
-    events: List[Dict[str, Any]] = []
-
-    # Try the common Next.js data path
-    try:
-        page_props = next_data.get("props", {}).get("pageProps", {})
-
-        # RA uses Apollo/urql — look for dehydrated state with event data
-        dehydrated = page_props.get("dehydratedState", {})
-        queries = dehydrated.get("queries", [])
-
-        for query in queries:
-            state_data = query.get("state", {}).get("data", {})
-            # Look for listing data (events are usually in a listing object)
-            _extract_events_from_data(state_data, events, city, country_code)
-
-        # Also check direct pageProps for event arrays
-        if not events:
-            _extract_events_from_data(page_props, events, city, country_code)
-
-    except Exception as exc:
-        logger.warning("[ra] Error parsing __NEXT_DATA__: %s", exc)
-
-    return events
-
-
-def _extract_events_from_data(
-    data: Any,
-    events: List[Dict[str, Any]],
-    city: str,
-    country_code: str,
-    depth: int = 0,
-) -> None:
-    """
-    Recursively search a data structure for event-like objects.
-
-    An event-like object has at least 'title' (or 'name') and some date field.
-    Limits recursion depth to avoid infinite loops.
-    """
-    if depth > 8 or data is None:
-        return
-
-    if isinstance(data, dict):
-        # Check if this dict looks like an event
-        if _is_event_like(data):
-            normalized = _normalize_event(data, city, country_code)
-            if normalized:
-                events.append(normalized)
-            return
-
-        # Recurse into dict values
-        for value in data.values():
-            _extract_events_from_data(value, events, city, country_code, depth + 1)
-
-    elif isinstance(data, list):
-        for item in data:
-            _extract_events_from_data(item, events, city, country_code, depth + 1)
-
-
-def _is_event_like(obj: Dict[str, Any]) -> bool:
-    """Check if a dict looks like an RA event object."""
-    # RA events typically have: title/name, startTime/date, venue
-    has_title = bool(obj.get("title") or obj.get("name"))
-    has_date = bool(
-        obj.get("startTime") or obj.get("date") or obj.get("start_time")
-    )
-    has_venue_or_type = bool(
-        obj.get("venue") or obj.get("contentUrl") or obj.get("__typename") == "Event"
-    )
-    return has_title and (has_date or has_venue_or_type)
-
-
-def _normalize_event(
-    raw: Dict[str, Any],
-    city: str,
-    country_code: str,
-) -> Optional[Dict[str, Any]]:
-    """Normalize an RA event object into our standard EventResult format."""
-    title = raw.get("title") or raw.get("name") or ""
-    if not title:
-        return None
-
-    # Event URL
-    event_id = raw.get("id") or raw.get("contentUrl", "").split("/")[-1]
+    event_id = raw.get("id", "")
     content_url = raw.get("contentUrl") or ""
-    if content_url and not content_url.startswith("http"):
-        url = f"{_BASE_URL}{content_url}"
-    elif content_url:
-        url = content_url
-    elif event_id:
-        url = f"{_BASE_URL}/events/{event_id}"
-    else:
-        url = ""
-
-    # Date
-    date_start = raw.get("startTime") or raw.get("date") or raw.get("start_time")
-    date_end = raw.get("endTime") or raw.get("end_time")
+    url = f"{_BASE_URL}{content_url}" if content_url else f"{_BASE_URL}/events/{event_id}"
 
     # Venue
     venue_raw = raw.get("venue") or {}
-    if isinstance(venue_raw, dict):
-        venue = {
-            "name": venue_raw.get("name", ""),
-            "address": venue_raw.get("address", ""),
-            "city": city.title(),
-            "state": None,
-            "country": country_code.upper(),
-            "lat": venue_raw.get("lat") or venue_raw.get("latitude"),
-            "lon": venue_raw.get("lng") or venue_raw.get("longitude"),
-        }
-    else:
-        venue = {
-            "name": str(venue_raw) if venue_raw else "",
-            "address": "",
-            "city": city.title(),
-            "state": None,
-            "country": country_code.upper(),
-            "lat": None,
-            "lon": None,
-        }
+    area = venue_raw.get("area") or {}
+    venue = {
+        "name": venue_raw.get("name", ""),
+        "address": venue_raw.get("address", ""),
+        "city": area.get("name") or city.title(),
+        "state": None,
+        "country": None,
+        "lat": None,
+        "lon": None,
+    }
 
-    # Artists / lineup
-    artists = raw.get("artists") or raw.get("lineup") or []
-    if isinstance(artists, list):
-        artist_names = [
-            a.get("name") or a.get("title") or str(a)
-            for a in artists
-            if isinstance(a, dict)
-        ]
-    else:
-        artist_names = []
+    # Artists
+    artists_raw = raw.get("artists") or []
+    artist_names = [a.get("name", "") for a in artists_raw if a.get("name")]
 
     # Genres
-    genres = []
-    for genre in (raw.get("genres") or []):
-        if isinstance(genre, dict):
-            genres.append(genre.get("name", ""))
-        elif isinstance(genre, str):
-            genres.append(genre)
+    genres_raw = raw.get("genres") or []
+    genres = [g.get("name", "") for g in genres_raw if g.get("name")]
 
-    # Description — combine lineup + genres into a useful description
+    # Description — combine lineup + genres + content
     description_parts = []
     if artist_names:
         description_parts.append(f"Lineup: {', '.join(artist_names[:10])}")
     if genres:
         description_parts.append(f"Genres: {', '.join(genres)}")
-    raw_desc = raw.get("description") or raw.get("content") or ""
-    if raw_desc:
-        if len(raw_desc) > _MAX_DESCRIPTION_CHARS:
-            raw_desc = raw_desc[:_MAX_DESCRIPTION_CHARS] + "..."
-        description_parts.append(raw_desc)
+    content = raw.get("content") or ""
+    if content:
+        if len(content) > _MAX_DESCRIPTION_CHARS:
+            content = content[:_MAX_DESCRIPTION_CHARS] + "..."
+        description_parts.append(content)
     description = "\n".join(description_parts)
 
-    # Attendance
-    rsvp_count = (
-        raw.get("interestedCount")
-        or raw.get("attending")
-        or raw.get("goingCount")
-    )
-
-    # Tickets / pricing
-    tickets = raw.get("tickets") or []
-    is_paid = bool(tickets) or bool(raw.get("cost"))
+    # Cost / pricing
+    cost_str = raw.get("cost") or ""
+    is_paid = raw.get("isTicketed", False) or bool(cost_str)
     fee = None
-    if raw.get("cost"):
-        fee = {"amount": raw.get("cost"), "currency": "EUR"}
+    if cost_str:
+        fee = {"amount": cost_str, "currency": "EUR"}
 
-    # Image
-    images = raw.get("images") or []
-    image_url = None
-    if images and isinstance(images, list):
-        first_img = images[0]
-        if isinstance(first_img, dict):
-            image_url = first_img.get("filename") or first_img.get("url")
-        elif isinstance(first_img, str):
-            image_url = first_img
-    if not image_url:
-        image_url = raw.get("flyerFront") or raw.get("image")
+    # Image (flyer)
+    image_url = raw.get("flyerFront")
 
     return {
-        "id": str(event_id) if event_id else "",
+        "id": str(event_id),
         "provider": "resident_advisor",
-        "title": title,
+        "title": raw.get("title", ""),
         "description": description,
         "url": url,
-        "date_start": date_start,
-        "date_end": date_end,
+        "date_start": raw.get("startTime") or raw.get("date"),
+        "date_end": raw.get("endTime"),
         "timezone": None,
         "event_type": "PHYSICAL",
         "venue": venue,
         "organizer": None,
-        "rsvp_count": rsvp_count,
+        "rsvp_count": None,
         "is_paid": is_paid,
         "fee": fee,
         "image_url": image_url,
         "artists": artist_names[:10] if artist_names else None,
         "genres": genres if genres else None,
     }
-
-
-def _parse_events_from_html(
-    html: str,
-    city: str,
-    country_code: str,
-) -> List[Dict[str, Any]]:
-    """
-    Fallback parser: extract events from RA HTML when __NEXT_DATA__ is absent.
-
-    Looks for event links and metadata in the rendered HTML. Less reliable than
-    __NEXT_DATA__ but covers cases where RA changes their rendering approach.
-    """
-    events: List[Dict[str, Any]] = []
-
-    # Find event links: /events/NNNNNN pattern
-    event_blocks = re.findall(
-        r'<a[^>]*href="(/events/\d+)"[^>]*>(.*?)</a>',
-        html,
-        re.DOTALL,
-    )
-
-    seen_ids: set = set()
-    for href, inner_html in event_blocks:
-        event_id = href.split("/")[-1]
-        if event_id in seen_ids:
-            continue
-        seen_ids.add(event_id)
-
-        # Extract title from link text (strip HTML tags)
-        title = re.sub(r"<[^>]+>", "", inner_html).strip()
-        if not title or len(title) < 3:
-            continue
-
-        events.append({
-            "id": event_id,
-            "provider": "resident_advisor",
-            "title": title,
-            "description": "",
-            "url": f"{_BASE_URL}/events/{event_id}",
-            "date_start": None,
-            "date_end": None,
-            "timezone": None,
-            "event_type": "PHYSICAL",
-            "venue": {
-                "name": "",
-                "address": "",
-                "city": city.title(),
-                "state": None,
-                "country": country_code.upper(),
-                "lat": None,
-                "lon": None,
-            },
-            "organizer": None,
-            "rsvp_count": None,
-            "is_paid": None,
-            "fee": None,
-            "image_url": None,
-        })
-
-    return events
 
 
 # ---------------------------------------------------------------------------
@@ -594,62 +256,116 @@ async def search_events_async(
     city: str,
     query: str = "",
     count: int = 10,
-    secrets_manager: Optional["SecretsManager"] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    secrets_manager: Optional[Any] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
-    Search for events on Resident Advisor by city.
-
-    RA does not support keyword search on listing pages — results are all
-    upcoming events for the city. The query parameter is used for client-side
-    filtering after fetching.
+    Search for events on Resident Advisor by city via GraphQL.
 
     Args:
         city:            City name or "city, country" string.
-        query:           Optional keyword filter (applied client-side after fetching).
+        query:           Optional keyword filter (applied client-side — RA GraphQL
+                         does not support text search).
         count:           Maximum number of events to return (default 10, max 50).
-        secrets_manager: Required for Firecrawl API key (RA blocks direct HTTP).
+        start_date:      ISO 8601 start date (defaults to today).
+        end_date:        ISO 8601 end date (defaults to 14 days from start).
+        secrets_manager: Not required (RA GraphQL is public), accepted for
+                         interface compatibility with other providers.
 
     Returns:
         Tuple of (events_list, total_available).
 
     Raises:
-        ValueError: If the city is not supported by RA or Firecrawl is unavailable.
+        ValueError: If the city is not supported by RA.
     """
-    country_code, city_slug = _resolve_city(city)
-    url = f"{_BASE_URL}/events/{country_code}/{city_slug}"
+    area_id, city_name = _resolve_area_id(city)
 
-    logger.debug("[ra] Fetching events: url=%s query=%r count=%d", url, query, count)
+    # Default date range: today + 14 days
+    now = datetime.now(timezone.utc)
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            start_dt = now
+    else:
+        start_dt = now
 
-    markdown = await _fetch_page(url, secrets_manager=secrets_manager)
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            end_dt = start_dt + timedelta(days=14)
+    else:
+        end_dt = start_dt + timedelta(days=14)
 
-    events = _parse_events_from_markdown(markdown, city_slug, country_code)
-    logger.debug("[ra] Parsed %d events from markdown", len(events))
+    # Request more than needed for client-side keyword filtering.
+    fetch_count = min(count * 3, 50) if query else min(count, 50)
 
-    total_available = len(events)
+    variables = {
+        "filters": {
+            "areas": {"eq": area_id},
+            "listingDate": {
+                "gte": start_dt.strftime("%Y-%m-%d"),
+                "lte": end_dt.strftime("%Y-%m-%d"),
+            },
+        },
+        "pageSize": fetch_count,
+    }
 
-    # Client-side keyword filtering (RA doesn't support server-side search)
+    logger.debug(
+        "[ra] GraphQL query: area=%d (%s) dates=%s..%s count=%d",
+        area_id,
+        city_name,
+        variables["filters"]["listingDate"]["gte"],
+        variables["filters"]["listingDate"]["lte"],
+        fetch_count,
+    )
+
+    async with create_http_client("ra_graphql", timeout=_HTTP_TIMEOUT) as client:
+        response = await client.post(
+            _GRAPHQL_URL,
+            json={"query": _EVENT_LISTINGS_QUERY, "variables": variables},
+            headers=_HEADERS,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    # Extract events from GraphQL response.
+    listings = data.get("data", {}).get("eventListings", {})
+    raw_events = listings.get("data", [])
+    total_available = listings.get("totalResults", 0)
+
+    events = []
+    for listing in raw_events:
+        event_data = listing.get("event")
+        if not event_data:
+            continue
+        events.append(_normalize_event(event_data, city_name))
+
+    # Client-side keyword filtering.
     if query:
-        query_lower = query.lower()
-        query_tokens = query_lower.split()
+        query_tokens = query.lower().split()
         events = [
             e for e in events
             if any(
-                token in (e.get("title", "") + " " + e.get("description", "")).lower()
+                token in (
+                    e.get("title", "") + " " + e.get("description", "")
+                ).lower()
                 for token in query_tokens
             )
         ]
 
-    # Sort by date ascending (soonest first); None dates to end.
+    # Sort by date ascending; None dates to end.
     events.sort(key=lambda e: (e.get("date_start") or "9999"))
 
-    # Trim to requested count.
     events = events[:count]
 
     logger.info(
-        "[ra] Search complete: %d events returned (total=%d) city=%r query=%r",
+        "[ra] Search complete: %d events (total=%d) city=%r query=%r",
         len(events),
         total_available,
-        city_slug,
+        city_name,
         query,
     )
 
