@@ -161,7 +161,7 @@
 		<h2 class="app-showcase-title">Embed App Showcases</h2>
 		<p class="app-showcase-desc">All embed display types (inline, quote, mobile, small, large, fullscreen) for each app on one page.</p>
 		<div class="app-showcase-grid">
-			{#each ['code', 'docs', 'web', 'videos', 'images', 'news', 'travel', 'maps', 'math', 'events', 'reminder', 'sheets', 'audio', 'health', 'mail', 'pdf', 'shopping'] as appSlug}
+			{#each ['code', 'docs', 'web', 'videos', 'images', 'news', 'travel', 'maps', 'math', 'events', 'reminder', 'sheets', 'audio', 'health', 'mail', 'pdf', 'shopping', 'home'] as appSlug}
 				<a class="app-showcase-pill" href="/dev/preview/embeds/{appSlug}">{appSlug}</a>
 			{/each}
 		</div>
