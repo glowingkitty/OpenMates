@@ -553,18 +553,20 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
 	logChatCheckpoint(`Chat ID detected: ${chatId}`, { chatId });
 
+	// OTel spans are batched — wait for the BatchSpanProcessor to flush,
+	// then save the captured message.send.* pipeline timeline to artifacts.
+	// We capture BEFORE waiting for AI response so the timeline is saved
+	// even if the AI response assertion fails (pre-existing flakiness).
+	await page.waitForTimeout(5000);
+	const otelFilePath = saveOtelTimeline(chatId, 'message-send');
+	logChatCheckpoint(`OTel timeline saved to ${otelFilePath}`);
+
 	// Wait for assistant response containing "Berlin"
 	logChatCheckpoint('Waiting for assistant response...');
 	const assistantResponse = page.locator('.message-wrapper.assistant');
 	await expect(assistantResponse.last()).toContainText('Berlin', { timeout: 45000 });
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
-
-	// OTel spans are batched — wait briefly for the BatchSpanProcessor to flush,
-	// then save the captured message.send.* pipeline timeline to artifacts.
-	await page.waitForTimeout(3000);
-	const otelFilePath = saveOtelTimeline(chatId, 'message-send');
-	logChatCheckpoint(`OTel timeline saved to ${otelFilePath}`);
 
 	// =========================================================================
 	// PHASE 2: Console warn/error check — save logs if any occurred during send
