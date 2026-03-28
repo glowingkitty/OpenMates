@@ -70,6 +70,8 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
+const { setupOtelCapture, saveOtelTimeline } = require('./helpers/otel-capture');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -394,6 +396,10 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300000); // 5 minutes: covers send + reload + logout + relogin + delete
 
+	// Set up OTel span capture — intercepts OTLP export requests to capture
+	// message.send.* span timing for profiling. Traces still reach OpenObserve.
+	await setupOtelCapture(page);
+
 	const logChatCheckpoint = createSignupLogger('CHAT_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logChatCheckpoint);
 
@@ -553,6 +559,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await expect(assistantResponse.last()).toContainText('Berlin', { timeout: 45000 });
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
+
+	// OTel spans are batched — wait briefly for the BatchSpanProcessor to flush,
+	// then save the captured message.send.* pipeline timeline to artifacts.
+	await page.waitForTimeout(3000);
+	const otelFilePath = saveOtelTimeline(chatId, 'message-send');
+	logChatCheckpoint(`OTel timeline saved to ${otelFilePath}`);
 
 	// =========================================================================
 	// PHASE 2: Console warn/error check — save logs if any occurred during send
