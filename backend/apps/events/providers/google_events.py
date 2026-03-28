@@ -165,6 +165,7 @@ def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
     address_str = ", ".join(address_parts) if isinstance(address_parts, list) else str(address_parts)
 
     venue_info = raw.get("venue") or {}
+    event_map = raw.get("event_location_map") or {}
     venue: Optional[Dict[str, Any]] = None
     if venue_info.get("name") or address_str:
         venue = {
@@ -175,6 +176,9 @@ def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
             "country": None,
             "lat": None,
             "lon": None,
+            "rating": venue_info.get("rating"),
+            "reviews": venue_info.get("reviews"),
+            "maps_link": event_map.get("link"),
         }
         # Try to extract city from address parts (typically last element: "Austin, TX")
         if address_parts and len(address_parts) >= 2:
@@ -191,14 +195,24 @@ def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
             is_paid = True
             break
 
+    # --- Price (available on some events) ---
+    fee = None
+    extracted_price = raw.get("extracted_price")
+    price_str = raw.get("price")
+    if extracted_price is not None:
+        fee = {"amount": extracted_price, "currency": "EUR"}
+        is_paid = True
+    elif price_str:
+        fee = {"amount": price_str, "currency": None}
+        is_paid = True
+
     # --- Description ---
     description = raw.get("description", "") or ""
     if len(description) > _MAX_DESCRIPTION_CHARS:
         description = description[:_MAX_DESCRIPTION_CHARS] + "..."
 
-    # --- Event type ---
-    # Google Events doesn't explicitly label PHYSICAL vs ONLINE in the response,
-    # but virtual events are typically in the htichips filter results.
+    # --- Event type from Google's type field (e.g., "Live music performance") ---
+    event_category = raw.get("type")
     event_type = "PHYSICAL"  # Default — Google Events are mostly in-person
 
     # --- Image ---
@@ -218,9 +232,11 @@ def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
         "organizer": None,  # Google Events doesn't provide organizer info
         "rsvp_count": None,
         "is_paid": is_paid,
-        "fee": None,  # Google doesn't provide pricing details
+        "fee": fee,
         "image_url": image_url,
         "ticket_info": ticket_info,  # Preserve ticket sources for UI
+        "event_category": event_category,  # Google's category (e.g., "Live music performance")
+        "map_image_url": event_map.get("image"),  # Static map preview
     }
 
 

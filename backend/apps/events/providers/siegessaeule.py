@@ -209,6 +209,130 @@ def _parse_events(page_html: str) -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Detail page enrichment (iCal parsing)
+# ---------------------------------------------------------------------------
+
+# Concurrency limit for detail page fetches.
+_DETAIL_FETCH_CONCURRENCY = 4
+
+# Polite delay between detail page fetches (seconds).
+_DETAIL_FETCH_DELAY = 0.3
+
+
+def _parse_ical_from_html(detail_html: str) -> Dict[str, Any]:
+    """
+    Extract structured data from the iCal data URL embedded in event detail pages.
+
+    Siegessäule embeds an iCal link like:
+        data:text/calendar;charset=utf-8,...LOCATION:SO36\\, Oranienstrasse 190\\, ...
+        GEO:52.500392;13.422102
+        DESCRIPTION:...
+
+    Returns dict with: address, lat, lon, full_description.
+    """
+    result: Dict[str, Any] = {}
+
+    # Find the iCal data URL
+    ical_match = re.search(
+        r'data:text/calendar;charset=utf-8[^"\'>\s]+',
+        detail_html,
+    )
+    if not ical_match:
+        return result
+
+    from urllib.parse import unquote
+    ical_text = unquote(ical_match.group(0))
+
+    # Extract GEO (lat/lon)
+    geo_match = re.search(r'GEO:([\d.]+);([\d.]+)', ical_text)
+    if geo_match:
+        try:
+            result["lat"] = float(geo_match.group(1))
+            result["lon"] = float(geo_match.group(2))
+        except (ValueError, TypeError):
+            pass
+
+    # Extract LOCATION (full venue address)
+    loc_match = re.search(r'LOCATION:(.+?)(?:\r?\n[A-Z]|\Z)', ical_text, re.DOTALL)
+    if loc_match:
+        location_str = loc_match.group(1).strip()
+        # iCal escapes commas with backslash
+        location_str = location_str.replace("\\,", ",").replace("\\n", " ").strip()
+        result["address"] = location_str
+
+    # Extract DESCRIPTION (full event description)
+    desc_match = re.search(r'DESCRIPTION:(.+?)(?:\r?\n[A-Z]|\Z)', ical_text, re.DOTALL)
+    if desc_match:
+        desc = desc_match.group(1).strip()
+        desc = desc.replace("\\,", ",").replace("\\n", "\n").replace("\\;", ";").strip()
+        if len(desc) > _MAX_DESCRIPTION_CHARS:
+            desc = desc[:_MAX_DESCRIPTION_CHARS] + "..."
+        result["full_description"] = desc
+
+    return result
+
+
+# Maximum description length (characters) — also used for iCal parsing.
+_MAX_DESCRIPTION_CHARS = 2000
+
+
+async def _enrich_events_with_details(
+    events: List[Dict[str, Any]],
+    proxy_url: Optional[str],
+) -> None:
+    """
+    Fetch detail pages for events and enrich with venue address, lat/lon, description.
+
+    Modifies events in-place. Only fetches details for events that are missing
+    venue address or lat/lon (avoids redundant requests).
+    """
+    import asyncio
+
+    events_needing_details = [
+        e for e in events
+        if not (e.get("venue") or {}).get("lat")
+    ]
+    if not events_needing_details:
+        return
+
+    semaphore = asyncio.Semaphore(_DETAIL_FETCH_CONCURRENCY)
+
+    async def fetch_detail(event: Dict[str, Any]) -> None:
+        url = event.get("url", "")
+        if not url:
+            return
+
+        async with semaphore:
+            try:
+                detail_html = await _fetch_page(url, proxy_url=proxy_url)
+                ical_data = _parse_ical_from_html(detail_html)
+
+                # Enrich venue with address and coordinates
+                venue = event.get("venue") or {}
+                if ical_data.get("address") and not venue.get("address"):
+                    venue["address"] = ical_data["address"]
+                if ical_data.get("lat"):
+                    venue["lat"] = ical_data["lat"]
+                if ical_data.get("lon"):
+                    venue["lon"] = ical_data["lon"]
+                event["venue"] = venue
+
+                # Enrich description
+                if ical_data.get("full_description") and len(event.get("description", "")) < 50:
+                    event["description"] = ical_data["full_description"]
+
+            except Exception as exc:
+                logger.debug(
+                    "[siegessaeule] Detail fetch failed for %s: %s", url, exc,
+                )
+
+            # Polite delay
+            await asyncio.sleep(_DETAIL_FETCH_DELAY)
+
+    await asyncio.gather(*[fetch_detail(e) for e in events_needing_details])
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -282,6 +406,11 @@ async def search_events_async(
     events.sort(key=lambda e: (e.get("date_start") or "9999"))
 
     events = events[:count]
+
+    # Enrich top results with detail page data (venue address, lat/lon, description).
+    # Only fetches details for the final result set to avoid unnecessary requests.
+    if events and proxy_url:
+        await _enrich_events_with_details(events, proxy_url=proxy_url)
 
     logger.info(
         "[siegessaeule] Search complete: %d events (total=%d) query=%r",
