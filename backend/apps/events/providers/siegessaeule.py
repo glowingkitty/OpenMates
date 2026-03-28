@@ -232,9 +232,9 @@ def _parse_ical_from_html(detail_html: str) -> Dict[str, Any]:
     """
     result: Dict[str, Any] = {}
 
-    # Find the iCal data URL
+    # Find the iCal data URL (charset can be utf-8 or utf8)
     ical_match = re.search(
-        r'data:text/calendar;charset=utf-8[^"\'>\s]+',
+        r'data:text/calendar;charset=utf-?8[^"\'>\s]+',
         detail_html,
     )
     if not ical_match:
