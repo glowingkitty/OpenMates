@@ -119,6 +119,13 @@ async function loginToTestAccount(
 	// we cover the current window and both adjacent windows.
 	const MAX_OTP_ATTEMPTS = 5;
 	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+	// Positive auth signal: ActiveChat.svelte sets data-authenticated="true" on the
+	// container div when authStore.isAuthenticated becomes true. This is the most
+	// reliable login success detector because it's driven directly by the canonical
+	// auth state, not by UI visibility heuristics (which can race with animations).
+	const authSignal = page.locator('[data-authenticated="true"]');
+
 	let loginSuccess = false;
 	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
 		// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
@@ -144,9 +151,12 @@ async function loginToTestAccount(
 		logCheckpoint('Submitted login form.');
 
 		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
+			// Primary success signal: data-authenticated="true" appears on the DOM.
+			// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
+			// which happens after setAuthenticatedState() runs in the login success chain.
+			await expect(authSignal).toBeVisible({ timeout: 15000 });
 			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
+			logCheckpoint('Login successful — data-authenticated="true" detected.');
 		} catch {
 			const hasError = await errorMessage.isVisible().catch(() => false);
 			if (hasError && attempt < MAX_OTP_ATTEMPTS) {
@@ -165,13 +175,16 @@ async function loginToTestAccount(
 	const { waitForEditor = true } = options;
 	if (waitForEditor) {
 		logCheckpoint('Waiting for chat interface to load...');
-		await page.waitForTimeout(3000);
+		// Brief settle time for post-auth UI transitions (WebSocket connect, phased sync start).
+		// Reduced from 3000ms — the auth state transition is now reliable (see fix in
+		// PasswordAndTfaOtp.svelte handleSuccessfulLogin Phase 1/Phase 2 split).
+		await page.waitForTimeout(1000);
 		const messageEditor = page.locator('.editor-content.prose');
 		await expect(messageEditor).toBeVisible({ timeout: 20000 });
 		logCheckpoint('Chat interface loaded - message editor visible.');
 	} else {
 		logCheckpoint('Login complete (skipping editor wait).');
-		await page.waitForTimeout(2000);
+		await page.waitForTimeout(1000);
 	}
 }
 

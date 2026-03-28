@@ -9185,6 +9185,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
 <div
     class="active-chat-container"
+    data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
     class:ai-typing={isAssistantTyping}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
