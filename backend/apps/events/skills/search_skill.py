@@ -212,7 +212,6 @@ class SearchResponse(BaseModel):
         default_factory=lambda: [
             "type",
             "hash",
-            "description",  # Full event description (1-5 KB) — too large for LLM context
             "cover_url",    # Image URL — not useful for LLM reasoning
             "image_url",    # Image URL — not useful for LLM reasoning
         ],
