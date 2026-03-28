@@ -634,36 +634,54 @@
 
     async function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
-        console.debug("Login success, in signup flow:", inSignupFlow);
+        console.debug("[ActiveChat] [1/3] handleLoginSuccess entry — inSignupFlow:", inSignupFlow);
 
         // CRITICAL: Set signup state BEFORE updating auth state
         // This ensures signup state is preserved and login interface stays open
-        if (inSignupFlow && user?.last_opened) {
-            const { currentSignupStep, isInSignupProcess, getStepFromPath } = await import('../stores/signupState');
-            const step = getStepFromPath(user.last_opened);
-            currentSignupStep.set(step);
-            isInSignupProcess.set(true);
-            // Ensure login interface is open to show signup flow
-            const { loginInterfaceOpen } = await import('../stores/uiStateStore');
-            loginInterfaceOpen.set(true);
-            console.debug('[ActiveChat] Set signup state after login:', step);
-        } else {
-            // CRITICAL: Reset isInSignupProcess when login succeeds outside of signup flow.
-            // The header "Login / Sign Up" button sets isInSignupProcess=true (via openSignupInterface event).
-            // If the user switches to the Login tab and authenticates (password or passkey), isInSignupProcess
-            // remains true, causing the $effect to keep the login interface open instead of closing it.
-            // This manifests as "login failed" — the session is established but the UI doesn't transition.
-            const { isInSignupProcess: isInSignup } = await import('../stores/signupState');
-            if (get(isInSignup)) {
-                console.debug('[ActiveChat] Resetting isInSignupProcess to false - login succeeded outside signup flow');
-                isInSignup.set(false);
+        try {
+            if (inSignupFlow && user?.last_opened) {
+                const { currentSignupStep, isInSignupProcess, getStepFromPath } = await import('../stores/signupState');
+                const step = getStepFromPath(user.last_opened);
+                currentSignupStep.set(step);
+                isInSignupProcess.set(true);
+                // Ensure login interface is open to show signup flow
+                const { loginInterfaceOpen } = await import('../stores/uiStateStore');
+                loginInterfaceOpen.set(true);
+                console.debug('[ActiveChat] Set signup state after login:', step);
+            } else {
+                // CRITICAL: Reset isInSignupProcess when login succeeds outside of signup flow.
+                // The header "Login / Sign Up" button sets isInSignupProcess=true (via openSignupInterface event).
+                // If the user switches to the Login tab and authenticates (password or passkey), isInSignupProcess
+                // remains true, causing the $effect to keep the login interface open instead of closing it.
+                // This manifests as "login failed" — the session is established but the UI doesn't transition.
+                // Regression fix: commit 9068fc6f1 added this reset but it was still behind a dynamic import
+                // that could fail, preventing the auth state update below from transitioning the UI.
+                const { isInSignupProcess: isInSignup } = await import('../stores/signupState');
+                if (get(isInSignup)) {
+                    console.debug('[ActiveChat] Resetting isInSignupProcess to false - login succeeded outside signup flow');
+                    isInSignup.set(false);
+                }
             }
+        } catch (signupStateErr) {
+            // Non-fatal: if signup state check fails, proceed with auth state update.
+            // The $effect will still close the login interface since isInSignupProcess defaults to false.
+            console.error('[ActiveChat] Failed to update signup state during login:', signupStateErr);
         }
 
-        // Update the authentication state after successful login
-        const { setAuthenticatedState } = await import('../stores/authSessionActions');
-        setAuthenticatedState();
-        console.debug("Authentication state updated after login success");
+        // CRITICAL: Update the authentication state after successful login.
+        // This MUST always run — it sets authStore.isAuthenticated=true which triggers
+        // the $effect that closes loginInterfaceOpen and transitions to the chat editor.
+        // Wrapped in its own try-catch to guarantee execution even if the import above failed.
+        console.debug("[ActiveChat] [2/3] Calling setAuthenticatedState");
+        try {
+            const { setAuthenticatedState } = await import('../stores/authSessionActions');
+            setAuthenticatedState();
+        } catch (authStateErr) {
+            // Last resort: if dynamic import fails, update authStore directly
+            console.error('[ActiveChat] Failed to import setAuthenticatedState, falling back to direct authStore update:', authStateErr);
+            authStore.update((state) => ({ ...state, isAuthenticated: true, isInitialized: true }));
+        }
+        console.debug("[ActiveChat] [3/3] Authentication state updated — authStore.isAuthenticated should now be true");
         
         // CRITICAL: Migrate sessionStorage drafts to IndexedDB after successful login/signup
         // This ensures drafts created while not authenticated are properly encrypted and stored
@@ -861,6 +879,7 @@
             // Close login interface when user successfully logs in
             // CRITICAL: Do NOT close if user is in signup process - they need to complete signup
             if ($loginInterfaceOpen && !$isInSignupProcess) {
+                console.debug('[ActiveChat] $effect: authStore.isAuthenticated=true, closing loginInterfaceOpen (isInSignupProcess=' + $isInSignupProcess + ')');
                 loginInterfaceOpen.set(false);
                 // Only open chats panel on desktop (not mobile) when closing login interface after successful login
                 // On mobile, let the user manually open the panel if they want to see the chat list

@@ -1280,6 +1280,9 @@ export function setAuthenticatedState(): void {
     isAuthenticated: true,
     isInitialized: true,
   }));
+  console.debug(
+    "[setAuthenticatedState] authStore.isAuthenticated set to true — downstream $effects should fire",
+  );
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
   deviceVerificationReason.set(null);

@@ -530,25 +530,37 @@
     }
 
     // Handle successful login
+    //
+    // ARCHITECTURE: This function is split into two phases:
+    //   Phase 1 (critical): ws_token storage, master key decryption+storage — blocks login on failure
+    //   Phase 2 (non-critical): profile update, notifications, pair credentials — runs after dispatch
+    //
+    // Regression fix for v1.0 encryption rebuild (commits 92a1e4ea6, 1ccfdf8cc):
+    // Previously, the loginSuccess dispatch was at the BOTTOM of a single try-catch block
+    // containing all post-login operations. If ANY non-critical operation (dynamic import,
+    // IndexedDB save, notification) threw an uncaught exception, the dispatch never fired,
+    // leaving the login dialog open despite a successful backend authentication.
+    // The fix: dispatch loginSuccess immediately after critical crypto succeeds, then
+    // run non-critical operations in a separate non-blocking block.
     async function handleSuccessfulLogin(data: any) {
-        console.debug('[PasswordAndTfaOtp] handleSuccessfulLogin called with data:', {
+        console.debug('[PasswordAndTfaOtp] [1/5] handleSuccessfulLogin called with data:', {
             hasUser: !!data.user,
             hasEncryptedKey: !!data.user?.encrypted_key,
             hasSalt: !!data.user?.salt,
             hasKeyIv: !!data.user?.key_iv,
             hasWsToken: !!data.ws_token
         });
-        
+
         // CRITICAL: Store WebSocket token FIRST before any auth state changes
         // This must happen before calling setAuthenticatedState to prevent race conditions
         if (data.ws_token) {
             const { setWebSocketToken } = await import('../utils/cookies');
             setWebSocketToken(data.ws_token);
-            console.debug('[PasswordAndTfaOtp] WebSocket token stored from login response');
+            console.debug('[PasswordAndTfaOtp] [2/5] WebSocket token stored from login response');
         } else {
             console.warn('[PasswordAndTfaOtp] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
         }
-        
+
         // CRITICAL: Validate required data for master key decryption
         // If any required field is missing, show error instead of silently failing
         if (!data.user) {
@@ -556,23 +568,23 @@
             errorMessage = $text('login.login_failed');
             return;
         }
-        
+
         if (!data.user.encrypted_key) {
             console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
             errorMessage = $text('login.login_failed');
             return;
         }
-        
+
         if (!data.user.salt) {
             console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
             errorMessage = $text('login.login_failed');
             return;
         }
-        
+
+        // ── Phase 1: Critical crypto operations (blocks login on failure) ──
         // Decrypt and save master key (Web Crypto API)
         try {
             // Decode salt from base64
-            console.debug('[PasswordAndTfaOtp] Decoding salt from base64...');
             const saltString = atob(data.user.salt);
             const salt = new Uint8Array(saltString.length);
             for (let i = 0; i < saltString.length; i++) {
@@ -580,12 +592,11 @@
             }
 
             // Derive wrapping key from password
-            console.debug('[PasswordAndTfaOtp] Deriving wrapping key from password...');
             const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
 
             // Unwrap master key with IV (Web Crypto API)
             const keyIv = data.user.key_iv || ''; // IV for key unwrapping
-            console.debug('[PasswordAndTfaOtp] Decrypting master key...');
+            console.debug('[PasswordAndTfaOtp] [3/5] Decrypting master key...');
             const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
 
             if (!masterKey) {
@@ -593,32 +604,57 @@
                 errorMessage = 'Failed to decrypt master key. Please try again.';
                 return;
             }
-            
+
             // Save extractable master key to IndexedDB
             // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
             // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
             // CRITICAL: Wrap in try-catch to handle IndexedDB failures (e.g., blocked by other tabs)
-            console.debug('[PasswordAndTfaOtp] Saving master key to IndexedDB...');
             try {
                 await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                console.debug('[PasswordAndTfaOtp] Master key unwrapped and saved to IndexedDB (extractable).');
+                console.debug('[PasswordAndTfaOtp] [4/5] Master key unwrapped and saved (extractable).');
             } catch (saveError) {
-                // IndexedDB can fail for various reasons:
-                // - Browser in private/incognito mode with IndexedDB disabled
-                // - Storage quota exceeded
-                // - Database corruption
-                // - Firefox-specific bugs with IndexedDB
                 console.error('[PasswordAndTfaOtp] CRITICAL: Failed to save master key to IndexedDB!', saveError);
                 errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
                 return;
             }
+        } catch (e) {
+            console.error('[PasswordAndTfaOtp] Error during key decryption:', e);
+            errorMessage = 'Error during key decryption. Please try again.';
+            return;
+        }
 
-            // Store pair login credentials in sessionStorage so the authorizing device
-            // can build the encrypted bundle for SettingsSessionsConfirmPair.
-            // These are never sent to the server in plaintext — only as AES ciphertext during pairing.
-            // Keys: openmates_pair_lookup_hash, openmates_pair_encrypted_key, openmates_pair_salt
+        // ── Determine signup flow (needed for dispatch payload) ──
+        let inSignupFlow = false;
+        try {
+            const { isSignupPath } = await import('../stores/signupState');
+            inSignupFlow = isSignupPath(data.user?.last_opened) || false;
+        } catch (importErr) {
+            console.error('[PasswordAndTfaOtp] Failed to import signupState:', importErr);
+            // Default to false — non-signup login is the common case
+        }
+
+        // ── Dispatch loginSuccess IMMEDIATELY ──
+        // This is the critical state transition: the parent chain (Login.svelte → ActiveChat.svelte)
+        // will call setAuthenticatedState() which closes the login dialog and shows the chat editor.
+        // All operations after this point are non-critical and must not block the UI transition.
+        console.debug('[PasswordAndTfaOtp] [5/5] Dispatching loginSuccess event (inSignupFlow=' + inSignupFlow + ')');
+
+        // Clear sensitive data before dispatching
+        password = '';
+        tfaCode = '';
+
+        dispatch('loginSuccess', {
+            user: data.user,
+            inSignupFlow: inSignupFlow
+        });
+
+        // ── Phase 2: Non-critical post-login operations (non-blocking) ──
+        // These operations run after the loginSuccess dispatch. Failures here do NOT
+        // prevent the UI from transitioning to the logged-in state.
+        try {
+            // Store pair login credentials in sessionStorage
             try {
-                sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
+                // Note: encrypted_key and salt come from data.user, not from local scope
                 sessionStorage.setItem('openmates_pair_encrypted_key', data.user.encrypted_key);
                 sessionStorage.setItem('openmates_pair_salt', data.user.salt);
             } catch (pairStoreErr) {
@@ -627,92 +663,64 @@
             }
 
             // Save email encrypted with master key for payment processing
-            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
-            if (!emailStoredSuccessfully) {
-                console.error('[PasswordAndTfaOtp] Failed to encrypt and store email with master key during login');
-                // Don't block login for this - it's not critical
-            } else {
-                console.debug('[PasswordAndTfaOtp] Email encrypted and stored with master key for payment processing');
+            try {
+                const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
+                if (!emailStoredSuccessfully) {
+                    console.error('[PasswordAndTfaOtp] Failed to encrypt and store email with master key during login');
+                }
+            } catch (emailErr) {
+                console.error('[PasswordAndTfaOtp] Error storing encrypted email:', emailErr);
             }
-            
-            // Check if user is in signup flow BEFORE updating profile
-            // A user is in signup flow ONLY if last_opened explicitly indicates a signup path.
-            // Do NOT infer signup from tfa_enabled=false — users who completed signup but skipped
-            // 2FA setup have tfa_enabled=false and should NOT be forced back into the signup flow.
-            // This aligns with authLoginLogoutActions.ts and authSessionActions.ts which also
-            // do not use tfa_enabled=false for signup detection (to protect passkey users too).
-            const { isInSignupProcess, currentSignupStep, getStepFromPath, isSignupPath } = await import('../stores/signupState');
-            const inSignupFlow = isSignupPath(data.user?.last_opened);
+
             console.debug('[PasswordAndTfaOtp] Login success, in signup flow:', inSignupFlow, {
                 last_opened: data.user?.last_opened,
                 tfa_enabled: data.user?.tfa_enabled
             });
-            
+
             // If user completed signup but has no 2FA, show a reminder notification.
-            // This only fires on fresh login (not page reload — session restore uses authSessionActions.ts).
             if (!inSignupFlow && data.user?.tfa_enabled === false) {
-                console.debug('[PasswordAndTfaOtp] User has no 2FA — showing security reminder notification');
                 try {
-                    const { notificationStore } = await import('../stores/notificationStore');
-                    const { text } = await import('../i18n/translations');
-                    const { get } = await import('svelte/store');
-                    const t = get(text);
                     notificationStore.addNotificationWithOptions('warning', {
-                        title: t('notifications.security_reminder.title'),
-                        message: t('notifications.security_reminder.message'),
-                        actionLabel: t('notifications.security_reminder.action'),
+                        title: $text('notifications.security_reminder.title'),
+                        message: $text('notifications.security_reminder.message'),
+                        actionLabel: $text('notifications.security_reminder.action'),
                         onAction: () => {
-                            // Deep-link into security settings
                             if (typeof window !== 'undefined') {
                                 window.location.hash = '#settings/account/security';
                             }
                         },
-                        duration: 0, // Persistent until dismissed
+                        duration: 0,
                         dismissible: true,
                     });
                 } catch (notifError) {
                     console.warn('[PasswordAndTfaOtp] Failed to show 2FA reminder notification:', notifError);
                 }
             }
-            
-            // If in signup flow, set signup state IMMEDIATELY before any other operations
+
+            // If in signup flow, set signup state IMMEDIATELY
             // This prevents WebSocket from sending set_active_chat and overwriting last_opened
             if (inSignupFlow) {
-                // Determine step: use last_opened if it's a signup path
-                const stepName = getStepFromPath(data.user.last_opened);
-                currentSignupStep.set(stepName);
-                isInSignupProcess.set(true);
-                console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true immediately, step:', stepName);
+                try {
+                    const { isInSignupProcess, currentSignupStep, getStepFromPath } = await import('../stores/signupState');
+                    const stepName = getStepFromPath(data.user.last_opened);
+                    currentSignupStep.set(stepName);
+                    isInSignupProcess.set(true);
+                    console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true, step:', stepName);
+                } catch (signupErr) {
+                    console.error('[PasswordAndTfaOtp] Failed to set signup state:', signupErr);
+                }
             }
-            
+
             // Update user profile with received data
             if (data.user) {
-                // Log auto top-up fields from backend response - ERROR if missing
-                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
-                if (!hasAutoTopupFields) {
-                    console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (successful login)!');
-                    console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
-                    console.error('[PasswordAndTfaOtp] Full user object:', data.user);
-                } else {
-                    console.debug('[PasswordAndTfaOtp] Auto top-up fields from backend (successful login):', {
-                        enabled: data.user.auto_topup_low_balance_enabled,
-                        threshold: data.user.auto_topup_low_balance_threshold,
-                        amount: data.user.auto_topup_low_balance_amount,
-                        currency: data.user.auto_topup_low_balance_currency
-                    });
-                }
-                
-                // Save to IndexedDB first - wrap in try-catch for IndexedDB failures
-                console.debug('[PasswordAndTfaOtp] Saving user data to IndexedDB...');
+                // Save to IndexedDB - wrap in try-catch for IndexedDB failures
                 try {
                     const { userDB } = await import('../services/userDB');
                     await userDB.saveUserData(data.user);
-                    console.debug('[PasswordAndTfaOtp] User data saved to IndexedDB');
                 } catch (userDbError) {
                     console.error('[PasswordAndTfaOtp] Failed to save user data to IndexedDB:', userDbError);
-                    // Don't block login for this - profile store update below is more important
                 }
-                
+
                 const userProfileData = {
                     username: data.user.username || '',
                     profile_image_url: data.user.profile_image_url || null,
@@ -725,31 +733,18 @@
                     consent_mates_default_settings: data.user.consent_mates_default_settings || false,
                     language: data.user.language || 'en',
                     darkmode: data.user.darkmode || false,
-                    // Low balance auto top-up fields
                     auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
                     auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
                     auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
                     auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
                 };
-                
-                // Update the user profile store
+
                 updateProfile(userProfileData);
-                console.debug('[PasswordAndTfaOtp] User profile updated with login data:', userProfileData);
+                console.debug('[PasswordAndTfaOtp] User profile updated with login data');
             }
-            
-            // Clear sensitive data
-            password = '';
-            tfaCode = '';
-            
-            // Dispatch success event
-            console.debug('[PasswordAndTfaOtp] Dispatching loginSuccess event');
-            dispatch('loginSuccess', {
-                user: data.user,
-                inSignupFlow: inSignupFlow
-            });
-        } catch (e) {
-            console.error('[PasswordAndTfaOtp] Error during key decryption:', e);
-            errorMessage = 'Error during key decryption. Please try again.';
+        } catch (postLoginErr) {
+            // Non-critical: log but do not show error to user — login already succeeded
+            console.error('[PasswordAndTfaOtp] Non-critical post-login error (login still succeeded):', postLoginErr);
         }
     }
 

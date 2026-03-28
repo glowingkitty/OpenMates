@@ -2412,8 +2412,8 @@
                                                 {tfaAppName}
                                                 tfa_required={tfaEnabled}
                                                 on:loginSuccess={async (e) => {
-                                                    console.log("Login success, in signup flow:", e.detail.inSignupFlow);
-                                                    
+                                                    console.debug("[Login] [1/2] OTP loginSuccess received from PasswordAndTfaOtp, inSignupFlow:", e.detail.inSignupFlow);
+
                                                     // If user is in signup flow, set up the signup state
                                                     // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-for-everyone)
@@ -2424,16 +2424,17 @@
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
-                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
+                                                        console.debug("[Login] Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
                                                     }
-                                                    
+
                                                     email = '';
                                                     currentLoginStep = 'email';
                                                     // Reset account recovery mode on successful login
                                                     isInAccountRecoveryMode = false;
+                                                    console.debug("[Login] [2/2] Re-dispatching loginSuccess to parent (ActiveChat)");
                                                     dispatch('loginSuccess', {
                                                         user: e.detail.user,
                                                         isMobile,
