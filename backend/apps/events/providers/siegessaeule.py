@@ -20,7 +20,6 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urljoin
 
 import httpx
 
@@ -118,63 +117,93 @@ async def _fetch_page(
     return html
 
 
-def _parse_events(html: str) -> List[Dict[str, Any]]:
+def _parse_events(content: str) -> List[Dict[str, Any]]:
     """
-    Parse event listings from Siegessäule's /termine/ HTML page.
+    Parse event listings from Siegessäule's markdown (via Firecrawl).
 
-    The page structure uses event blocks with links to individual event pages.
-    Each block contains: event title, time, venue name, and category.
+    Markdown event blocks follow this pattern:
+        [28\\. März 2026, 22:00\\
+        \\
+        **Event Title**\\
+        \\
+        Optional description\\
+        \\
+        Venue Name](https://www.siegessaeule.de/termine/category/slug/YYYY-MM-DD/HH:MM/)
+
+    The URL contains the category, date, and time in a structured format.
     """
     events: List[Dict[str, Any]] = []
     seen_urls: set = set()
 
-    # Look for event links — Siegessäule uses /termine/{category}/{slug}/{date}/{time}/
-    # pattern for event detail pages.
-    event_link_pattern = re.compile(
-        r'<a[^>]*href="(/termine/(?:clubs|bars|kultur|mix|sex)/[^"]+)"[^>]*>(.*?)</a>',
-        re.DOTALL | re.IGNORECASE,
+    # Match event links: [...](https://www.siegessaeule.de/termine/category/slug/date/time/)
+    # The link text contains date, title (in **bold**), optional description, and venue.
+    event_pattern = re.compile(
+        r'\[([^\]]*?\*\*[^\]]+?\*\*[^\]]*?)\]'  # Link text containing **bold title**
+        r'\((https://www\.siegessaeule\.de/termine/'
+        r'(clubs|bars|kultur|mix|sex)/'  # Category
+        r'[^/]+/'                         # Slug
+        r'(\d{4}-\d{2}-\d{2})/'          # Date
+        r'(\d{2}:\d{2})/)\)',            # Time
+        re.DOTALL,
     )
 
-    for match in event_link_pattern.finditer(html):
-        href = match.group(1)
-        inner = match.group(2)
+    for match in event_pattern.finditer(content):
+        link_text = match.group(1)
+        full_url = match.group(2)
+        category = match.group(3)
+        date_str = match.group(4)
+        time_str = match.group(5)
 
-        full_url = urljoin(_BASE_URL, href)
         if full_url in seen_urls:
             continue
         seen_urls.add(full_url)
 
-        # Extract title (strip HTML tags)
-        title = re.sub(r"<[^>]+>", "", inner).strip()
-        if not title or len(title) < 2:
+        # Extract title from **bold** text
+        title_match = re.search(r'\*\*(.+?)\*\*', link_text, re.DOTALL)
+        title = title_match.group(1).strip() if title_match else ""
+        if not title:
             continue
 
-        # Extract category from URL
-        category_match = re.search(r"/termine/(clubs|bars|kultur|mix|sex)/", href)
-        category = category_match.group(1) if category_match else ""
+        # Clean escaped characters from title
+        title = title.replace("\\", "").strip()
 
-        # Extract date and time from URL if present
-        # Pattern: /termine/category/slug/YYYY-MM-DD/HH:MM/
-        date_match = re.search(r"/(\d{4}-\d{2}-\d{2})/(\d{2}:\d{2})/", href)
-        date_start = None
-        time_str = ""
-        if date_match:
-            date_str = date_match.group(1)
-            time_str = date_match.group(2)
-            date_start = f"{date_str}T{time_str}:00"
+        # Extract description — text between title and venue (after the bold title)
+        description = ""
+        after_title = link_text.split("**")[-1] if "**" in link_text else ""
+        # Clean up markdown escape sequences
+        after_parts = re.sub(r'\\+\n?', ' ', after_title).strip()
+        after_parts = re.sub(r'\s+', ' ', after_parts).strip()
+        if after_parts:
+            # Last part is usually venue name, rest is description
+            parts = [p.strip() for p in after_parts.split(',') if p.strip()]
+            if len(parts) > 1:
+                description = ', '.join(parts[:-1])
+                venue_name = parts[-1]
+            elif parts:
+                venue_name = parts[0]
+            else:
+                venue_name = ""
+        else:
+            venue_name = ""
+
+        # Extract image URL if present
+        image_match = re.search(r'!\[\]\((https://cdn\.siegessaeule\.de/[^)]+)\)', link_text)
+        image_url = image_match.group(1) if image_match else None
+
+        date_start = f"{date_str}T{time_str}:00"
 
         events.append({
-            "id": href.strip("/").split("/")[-3] if "/" in href else "",
+            "id": full_url.rstrip("/").split("/")[-3],
             "provider": "siegessaeule",
             "title": title,
-            "description": f"Category: {category}" if category else "",
+            "description": description,
             "url": full_url,
             "date_start": date_start,
             "date_end": None,
             "timezone": "Europe/Berlin",
             "event_type": "PHYSICAL",
             "venue": {
-                "name": "",
+                "name": venue_name,
                 "address": "",
                 "city": "Berlin",
                 "state": None,
@@ -186,37 +215,11 @@ def _parse_events(html: str) -> List[Dict[str, Any]]:
             "rsvp_count": None,
             "is_paid": None,
             "fee": None,
-            "image_url": None,
+            "image_url": image_url,
             "category": category,
         })
 
     return events
-
-
-def _try_extract_venue_from_context(html: str, event_url: str) -> Optional[str]:
-    """
-    Try to extract venue name from the HTML context near an event link.
-
-    Siegessäule sometimes shows venue names near event links in the listing.
-    """
-    # Find the event URL in HTML and look at surrounding text
-    escaped_url = re.escape(event_url.replace(_BASE_URL, ""))
-    context_match = re.search(
-        rf'(.{{0,200}}){escaped_url}(.{{0,200}})',
-        html,
-        re.DOTALL,
-    )
-    if not context_match:
-        return None
-
-    context = context_match.group(1) + context_match.group(2)
-    # Strip HTML tags
-    clean = re.sub(r"<[^>]+>", " ", context).strip()
-    # Look for venue-like text (often after "@" or "im" or "at")
-    venue_match = re.search(r"(?:@|im|at|in)\s+([A-Z][^,\n]{3,40})", clean)
-    if venue_match:
-        return venue_match.group(1).strip()
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -270,16 +273,8 @@ async def search_events_async(
 
     logger.debug("[siegessaeule] Fetching events: url=%s query=%r", url, query)
 
-    html = await _fetch_page(url, secrets_manager=secrets_manager)
-    events = _parse_events(html)
-
-    # Try to enrich events with venue names from context
-    for event in events:
-        if not event.get("venue", {}).get("name"):
-            venue_name = _try_extract_venue_from_context(html, event["url"])
-            if venue_name:
-                event["venue"]["name"] = venue_name
-
+    content = await _fetch_page(url, secrets_manager=secrets_manager)
+    events = _parse_events(content)
     total_available = len(events)
 
     # Client-side keyword filtering

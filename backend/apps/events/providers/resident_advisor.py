@@ -158,7 +158,7 @@ async def _fetch_page(
     result = await scrape_url(
         url=url,
         secrets_manager=secrets_manager,
-        formats=["html", "markdown"],
+        formats=["markdown"],
         only_main_content=False,
         sanitize_output=False,
         wait_for=3000,  # Wait 3s for Next.js hydration
@@ -168,16 +168,133 @@ async def _fetch_page(
         raise ValueError(f"Firecrawl scrape failed for {url}: {result['error']}")
 
     data = result.get("data", {})
-    # Prefer HTML (for __NEXT_DATA__ parsing), fall back to markdown
-    html = data.get("html") or ""
-    if not html:
-        # If no HTML, construct minimal wrapper around markdown for fallback parser
-        markdown = data.get("markdown") or ""
-        if not markdown:
-            raise ValueError(f"Firecrawl returned empty content for {url}")
-        html = markdown  # _parse_events_from_html handles plain text too
+    markdown = data.get("markdown") or ""
+    if not markdown:
+        raise ValueError(f"Firecrawl returned empty content for {url}")
 
-    return html
+    return markdown
+
+
+def _parse_events_from_markdown(
+    markdown: str,
+    city: str,
+    country_code: str,
+) -> List[Dict[str, Any]]:
+    """
+    Parse events from RA's Firecrawl markdown output.
+
+    The markdown structure for each event block:
+        - Sat, 28 Mar                                   (date line)
+        ### [Event Title](https://ra.co/events/NNNNNN)  (title + URL)
+        Location                                         (label)
+        [Venue Name](https://ra.co/clubs/NNNNN)          (venue)
+        Person                                           (label)
+        1.8K                                             (attendance)
+
+    Args:
+        markdown:     Raw markdown from Firecrawl.
+        city:         City slug (e.g., "berlin").
+        country_code: ISO country code (e.g., "de").
+
+    Returns:
+        List of normalized event dicts.
+    """
+    events: List[Dict[str, Any]] = []
+    seen_ids: set = set()
+
+    # Find event title links: ### [Title](https://ra.co/events/NNNNNN)
+    event_pattern = re.compile(
+        r'###\s*\[([^\]]+)\]\(https://ra\.co/events/(\d+)\)',
+    )
+
+    # Split markdown into lines for context-aware parsing.
+    lines = markdown.split("\n")
+
+    for i, line in enumerate(lines):
+        match = event_pattern.search(line)
+        if not match:
+            continue
+
+        title = match.group(1).strip()
+        event_id = match.group(2)
+
+        if event_id in seen_ids:
+            continue
+        seen_ids.add(event_id)
+
+        # Look backward for date line (e.g., "- Sat, 28 Mar")
+        date_str = None
+        for j in range(max(0, i - 5), i):
+            date_match = re.search(
+                r'-\s*((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+\d{1,2}\s+\w+)',
+                lines[j],
+            )
+            if date_match:
+                date_str = date_match.group(1).strip()
+                break
+
+        # Look forward for venue and attendance
+        venue_name = ""
+        venue_url = ""
+        attendance = None
+
+        for j in range(i + 1, min(len(lines), i + 10)):
+            fwd_line = lines[j].strip()
+
+            # Venue: [Name](https://ra.co/clubs/NNNNN)
+            venue_match = re.search(
+                r'\[([^\]]+)\]\(https://ra\.co/clubs/\d+\)', fwd_line,
+            )
+            if venue_match and not venue_name:
+                venue_name = venue_match.group(1).strip()
+                venue_url = re.search(r'\((https://ra\.co/clubs/\d+)\)', fwd_line)
+                venue_url = venue_url.group(1) if venue_url else ""
+
+            # Attendance: number like "1.8K" or "692"
+            att_match = re.match(r'^([\d,.]+[KkMm]?)$', fwd_line)
+            if att_match and attendance is None:
+                att_str = att_match.group(1).strip()
+                try:
+                    if att_str.upper().endswith("K"):
+                        attendance = int(float(att_str[:-1]) * 1000)
+                    elif att_str.upper().endswith("M"):
+                        attendance = int(float(att_str[:-1]) * 1000000)
+                    else:
+                        attendance = int(att_str.replace(",", "").replace(".", ""))
+                except (ValueError, TypeError):
+                    pass
+
+            # Stop at next event block
+            if re.search(r'###\s*\[', fwd_line):
+                break
+
+        events.append({
+            "id": event_id,
+            "provider": "resident_advisor",
+            "title": title,
+            "description": "",
+            "url": f"{_BASE_URL}/events/{event_id}",
+            "date_start": date_str,  # Human-readable (e.g., "Sat, 28 Mar")
+            "date_end": None,
+            "timezone": None,
+            "event_type": "PHYSICAL",
+            "venue": {
+                "name": venue_name,
+                "address": "",
+                "city": city.title(),
+                "state": None,
+                "country": country_code.upper(),
+                "lat": None,
+                "lon": None,
+            },
+            "organizer": None,
+            "rsvp_count": attendance,
+            "is_paid": None,
+            "fee": None,
+            "image_url": None,
+        })
+
+    return events
 
 
 def _extract_next_data(html: str) -> Optional[Dict[str, Any]]:
@@ -503,17 +620,10 @@ async def search_events_async(
 
     logger.debug("[ra] Fetching events: url=%s query=%r count=%d", url, query, count)
 
-    html = await _fetch_page(url, secrets_manager=secrets_manager)
+    markdown = await _fetch_page(url, secrets_manager=secrets_manager)
 
-    # Try __NEXT_DATA__ first (structured, rich data)
-    next_data = _extract_next_data(html)
-    if next_data:
-        events = _parse_events_from_next_data(next_data, city_slug, country_code)
-        logger.debug("[ra] Parsed %d events from __NEXT_DATA__", len(events))
-    else:
-        # Fallback to HTML parsing
-        events = _parse_events_from_html(html, city_slug, country_code)
-        logger.debug("[ra] Parsed %d events from HTML fallback", len(events))
+    events = _parse_events_from_markdown(markdown, city_slug, country_code)
+    logger.debug("[ra] Parsed %d events from markdown", len(events))
 
     total_available = len(events)
 
