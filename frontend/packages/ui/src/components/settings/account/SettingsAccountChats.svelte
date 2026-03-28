@@ -19,6 +19,7 @@ Tests: none yet — new settings sub-page.
 
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { chatDB } from '../../../services/db';
     import { chatListCache } from '../../../services/chatListCache';
@@ -244,7 +245,10 @@ Tests: none yet — new settings sub-page.
 
         <!-- Delete old chats -->
         <div class="section-card danger-section">
-            <h3 class="section-title">{$text('settings.account.chats.delete_section_title')}</h3>
+            <SettingsSectionHeading
+                title={$text('settings.account.chats.delete_section_title')}
+                icon="calendar"
+            />
             <p class="section-desc">{$text('settings.account.chats.delete_section_desc')}</p>
 
             <!-- Row 1: label + dropdown + Preview button -->
@@ -421,14 +425,6 @@ Tests: none yet — new settings sub-page.
         gap: 14px;
     }
 
-    .section-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--color-grey-60);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin: 0;
-    }
 
     .section-desc {
         font-size: 14px;

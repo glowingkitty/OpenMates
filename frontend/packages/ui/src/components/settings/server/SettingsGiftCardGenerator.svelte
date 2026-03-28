@@ -10,6 +10,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
 
 <script lang="ts">
     import { getApiEndpoint, text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { notificationStore } from '../../../stores/notificationStore';
     import { focusTrap } from '../../../actions/focusTrap';
     import { fade } from 'svelte/transition';
@@ -289,7 +290,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
 <div class="generator-container">
     <!-- Form Section -->
     <div class="form-section">
-        <h3 class="section-title">{$text('settings.server.gift_cards.title')}</h3>
+        <SettingsSectionHeading title={$text('settings.server.gift_cards.title')} icon="coins" />
         <p class="section-subtitle">{$text('settings.server.gift_cards.subtitle')}</p>
 
         <!-- Credits Value -->
@@ -446,7 +447,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     <!-- Active Gift Cards Section -->
     <div class="active-section">
         <div class="active-header">
-            <h3 class="section-title">{$text('settings.server.gift_cards.active_cards')}</h3>
+            <SettingsSectionHeading title={$text('settings.server.gift_cards.active_cards')} icon="document" />
             <button
                 class="btn-refresh"
                 onclick={fetchActiveCards}
@@ -548,12 +549,6 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         gap: 16px;
     }
 
-    .section-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0;
-    }
 
     .section-subtitle {
         font-size: 14px;

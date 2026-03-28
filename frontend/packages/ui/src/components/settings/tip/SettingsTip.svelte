@@ -13,6 +13,7 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { createEventDispatcher } from 'svelte';
     import { notificationStore } from '../../../stores/notificationStore';
     import { userProfile } from '../../../stores/userProfile';
@@ -171,7 +172,7 @@
     
     <!-- Tip amount section -->
     <div class="tip-amount-section">
-        <h3 class="section-title">{$text('settings.tip.amount')}</h3>
+        <SettingsSectionHeading title={$text('settings.tip.amount')} icon="coins" />
         
         <!-- Slider container -->
         <div class="slider-container">
@@ -270,12 +271,6 @@
         gap: 16px;
     }
     
-    .section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0;
-    }
     
     /* Slider container */
     .slider-container {

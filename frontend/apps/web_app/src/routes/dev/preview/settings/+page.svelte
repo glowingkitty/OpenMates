@@ -13,7 +13,7 @@
     E. Feedback & status (SettingsProgressBar, SettingsLoadingState, SettingsBadge)
     F. Data display (SettingsCard, SettingsDetailRow, SettingsBalanceDisplay, SettingsCodeBlock)
     G. Confirmation & navigation (SettingsConfirmBlock, SettingsPageHeader, SettingsAvatar, SettingsCheckboxList)
-    H. Layout primitives (SettingsDivider, SettingsGradientLink, SettingsPageContainer)
+    H. Layout primitives (SettingsDivider, SettingsSectionHeading, SettingsGradientLink, SettingsPageContainer)
 -->
 <script lang="ts">
 	import SettingsItem from '@repo/ui/components/SettingsItem.svelte';
@@ -41,6 +41,7 @@
 		SettingsAvatar,
 		SettingsCheckboxList,
 		SettingsDivider,
+		SettingsSectionHeading,
 		SettingsGradientLink,
 		SettingsPageContainer
 	} from '@repo/ui/components/settings/elements';
@@ -880,10 +881,28 @@ Y5Z6-A7B8-C9D0`;
 				</div>
 			</div>
 
-			<!-- 27. SettingsGradientLink -->
+			<!-- 27. SettingsSectionHeading -->
 			<div class="element-block">
 				<div class="element-header">
-					<h3>27. Gradient Link</h3>
+					<h3>27. Section Heading</h3>
+					<span class="element-tag new">SettingsSectionHeading</span>
+				</div>
+				<p class="element-purpose">
+					Prominent section separator for settings sub-pages. Shows a gradient-filled
+					icon square, bold title text, and a gradient underline bar. Replaces the old
+					invisible 12px uppercase section-title pattern.
+				</p>
+				<div class="element-demo">
+					<SettingsSectionHeading title="Notification Categories" icon="announcement" />
+					<SettingsSectionHeading title="Email Settings" icon="email" />
+					<SettingsSectionHeading title="Security" icon="security" />
+				</div>
+			</div>
+
+			<!-- 28. SettingsGradientLink -->
+			<div class="element-block">
+				<div class="element-header">
+					<h3>28. Gradient Link</h3>
 					<span class="element-tag new">SettingsGradientLink</span>
 				</div>
 				<p class="element-purpose">
@@ -898,10 +917,10 @@ Y5Z6-A7B8-C9D0`;
 				</div>
 			</div>
 
-			<!-- 28. SettingsPageContainer -->
+			<!-- 29. SettingsPageContainer -->
 			<div class="element-block">
 				<div class="element-header">
-					<h3>28. Page Container</h3>
+					<h3>29. Page Container</h3>
 					<span class="element-tag new">SettingsPageContainer</span>
 				</div>
 				<p class="element-purpose">

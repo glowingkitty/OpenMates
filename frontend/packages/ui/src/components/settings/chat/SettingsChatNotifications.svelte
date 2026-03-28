@@ -8,6 +8,7 @@ When enabled, notifications are sent to the user's login email (from account set
 <script lang="ts">
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { focusTrap } from '../../../actions/focusTrap';
     import {
         pushNotificationStore,
@@ -358,9 +359,10 @@ When enabled, notifications are sent to the user's login email (from account set
         <!-- Notification Categories (only show if enabled) -->
         {#if isEnabled && permission === 'granted'}
             <div class="category-section">
-                <h3 class="section-title">
-                    {$text('settings.chat.notifications.categories')}
-                </h3>
+                <SettingsSectionHeading
+                    title={$text('settings.chat.notifications.categories')}
+                    icon="announcement"
+                />
                 
                 <SettingsItem
                     type="submenu"
@@ -399,9 +401,10 @@ When enabled, notifications are sent to the user's login email (from account set
     <!-- EMAIL NOTIFICATIONS SECTION -->
     <!-- ================================================== -->
     <div class="email-section">
-        <h3 class="section-title">
-            {$text('settings.chat.notifications.email_section')}
-        </h3>
+        <SettingsSectionHeading
+            title={$text('settings.chat.notifications.email_section')}
+            icon="email"
+        />
         
         <!-- Info banner explaining how email notifications work -->
         <div class="info-banner email-info">
@@ -547,15 +550,6 @@ When enabled, notifications are sent to the user's login email (from account set
         border-top: 1px solid var(--color-grey-20);
     }
     
-    .section-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--color-grey-60);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin: 0 0 12px 0;
-        padding: 0 10px;
-    }
     
     /* iOS Modal Styles */
     .ios-modal-overlay {

@@ -14,6 +14,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getApiEndpoint, text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { fade } from 'svelte/transition';
     import SettingsItem from '../../SettingsItem.svelte';
 
@@ -308,7 +309,7 @@
         <!-- Suite Breakdown -->
         {#if suiteEntries.length > 0}
             <div class="suites-section">
-                <h3 class="section-title">{$text('settings.server.tests.suite_breakdown')}</h3>
+                <SettingsSectionHeading title={$text('settings.server.tests.suite_breakdown')} icon="settings" />
                 {#each suiteEntries as { key, label, suite }}
                     <div class="suite-block">
                         <button
@@ -545,14 +546,6 @@
         padding: 0 1rem;
     }
 
-    .section-title {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-grey-50);
-        font-weight: 600;
-        margin: 1rem 0 0.5rem 0;
-    }
 
     .suite-block {
         margin-bottom: 0.25rem;

@@ -3,7 +3,11 @@ description: Linear task workflow — reading, updating status, and completing i
 globs:
 ---
 
-## Working on a Linear Task
+## Every Session Needs a Linear Task
+
+Every Claude session MUST be linked to a Linear task — no exceptions. This includes features, bugs, refactors, research, docs, and questions. If the user provides a task ID, use it. If not, create one.
+
+## When a Linear Issue Is Provided
 
 When given a Linear issue (ID like OPE-42, URL, or title), you MUST follow every step below. Do not skip status updates — they are mandatory, not optional.
 
@@ -41,8 +45,28 @@ This step is MANDATORY. Never finish a task without updating Linear.
    - `state: "In Review"` — code needs review
    - `state: "Done"` — confirmed complete or self-contained (docs, config)
 
+## When No Linear Issue Is Provided
+
+If the user requests work without referencing a Linear issue, you MUST create one before starting:
+
+1. **Create a new issue** — call `mcp__linear__save_issue` with:
+   - `title`: concise description of the work (e.g., "Research: WebSocket reconnection strategies", "Fix: settings page crash on mobile")
+   - `state`: "In Progress"
+   - `labels`: ["claude-is-working"]
+2. **Post pickup comment** — call `mcp__linear__save_comment` with the `claude --resume <session-id>` command
+3. **Tell the user** — mention the created task ID (e.g., "Created OPE-XX to track this work")
+4. Follow Steps 3-4 from the existing task workflow as normal
+
+**Title conventions by session mode:**
+- `feature` → "Feat: ..."
+- `bug` → "Fix: ..."
+- `docs` → "Docs: ..."
+- `question` / research → "Research: ..."
+- `testing` → "Test: ..."
+
 ## Rules
 
+- **Every session needs a task.** No exceptions — features, bugs, research, docs, questions. Create one if not provided.
 - **Always check images.** Call `mcp__linear__extract_images` before starting work.
 - **Always update status.** Mark "In Progress" at start, "Done"/"In Review" at end. No exceptions.
 - **Don't over-comment.** Max 3 comments per task: pickup, milestone/question, completion.
