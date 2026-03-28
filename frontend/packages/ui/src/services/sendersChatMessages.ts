@@ -25,6 +25,8 @@ import {
 	wrapEmbedKeyWithMasterKey,
 	wrapEmbedKeyWithChatKey
 } from "./encryption/MetadataEncryptor";
+import { getTracer } from './tracing/setup';
+import { injectTraceparent } from './tracing/wsSpans';
 import type { Chat, Message } from "../types/chat";
 
 export async function sendNewMessageImpl(
@@ -82,6 +84,13 @@ export async function sendNewMessageImpl(
 		return;
 	}
 
+	// OTel instrumentation: trace the entire sendNewMessageImpl pipeline
+	const tracer = getTracer();
+	const implSpan = tracer.startSpan('message.send.sendNewMessageImpl', {
+		attributes: { 'message.chat_id': message.chat_id }
+	});
+
+	try {
 	// DUAL-PHASE ARCHITECTURE - Phase 1: Send ONLY plaintext for AI processing
 	// Encrypted data will be sent separately after preprocessing completes via chat_metadata_for_encryption event
 
@@ -616,12 +625,17 @@ export async function sendNewMessageImpl(
 		}
 	}
 
+	// OTel: key management span — fetching encrypted chat key for device sync
+	const keyMgmtSpan = tracer.startSpan('message.send.key_management', {
+		attributes: { 'key.source': isIncognitoChat ? 'incognito-skip' : 'idb-lookup' }
+	});
 	// Fetch encrypted_chat_key for server storage (zero-knowledge architecture)
 	// This is critical for device sync - other devices need the chat key to decrypt messages
 	let encryptedChatKey: string | null = null;
 	if (!isIncognitoChat) {
 		encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
 	}
+	keyMgmtSpan.end();
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
@@ -778,6 +792,10 @@ export async function sendNewMessageImpl(
 			embeds.length
 		);
 
+		// OTel: encrypt span — client-side embed encryption for Directus storage
+		const encryptSpan = tracer.startSpan('message.send.encrypt', {
+			attributes: { 'encrypt.embed_count': String(embeds.length) }
+		});
 		// ARCHITECTURE FIX: Also include client-encrypted embeds for direct Directus storage
 		// This avoids round-trip WebSocket calls (send_embed_data → store_embed).
 		// The client already has the embed data and encryption keys, so we encrypt before sending.
@@ -1018,6 +1036,7 @@ export async function sendNewMessageImpl(
 				// Non-fatal: embeds will still be cached server-side for AI, just not stored in Directus
 			}
 		}
+		encryptSpan.end();
 	}
 
 	// Include encrypted suggestion for deletion if user clicked a new chat suggestion
@@ -1040,6 +1059,10 @@ export async function sendNewMessageImpl(
 		}
 	);
 
+	// OTel: WebSocket dispatch span — the actual send over the wire
+	const wsDispatchSpan = tracer.startSpan('message.send.websocket_dispatch');
+	// Inject W3C traceparent into WS payload for backend trace correlation
+	injectTraceparent(payload as unknown as Record<string, unknown>);
 	try {
 		await webSocketService.sendMessage("chat_message_added", payload);
 	} catch (error) {
@@ -1083,6 +1106,11 @@ export async function sendNewMessageImpl(
 				dbError
 			);
 		}
+	} finally {
+		wsDispatchSpan.end();
+	}
+	} finally {
+		implSpan.end();
 	}
 }
 
