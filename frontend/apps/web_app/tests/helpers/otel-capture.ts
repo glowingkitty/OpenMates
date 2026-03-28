@@ -100,9 +100,18 @@ async function injectOtelCapture(page: any): Promise<boolean> {
 				if (urlStr.includes('/v1/telemetry/traces') && options?.method === 'POST') {
 					try {
 						let body = options.body;
-						// OTLPTraceExporter sends JSON with content-type application/json
+						// OTLPTraceExporter sends JSON (content-type: application/json).
+						// The body may be a string OR a Uint8Array (from TextEncoder).
+						let jsonStr: string | null = null;
 						if (typeof body === 'string') {
-							const payload = JSON.parse(body);
+							jsonStr = body;
+						} else if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
+							jsonStr = new TextDecoder().decode(body);
+						} else if (body instanceof Blob) {
+							jsonStr = await body.text();
+						}
+						if (jsonStr) {
+							const payload = JSON.parse(jsonStr);
 							const spans = (window as any).__otelCapturedSpans;
 							for (const rs of (payload.resourceSpans || [])) {
 								for (const ss of (rs.scopeSpans || [])) {
