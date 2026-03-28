@@ -318,19 +318,31 @@ async def search_events_async(
         error_msg = errors[0].get("message", "Unknown GraphQL error")
         raise ValueError(f"Siegessäule GraphQL error: {error_msg}")
 
-    date_groups = (
+    result = (
         data.get("data", {})
         .get("homePage", {})
         .get("eventIndexPage", {})
-        .get("eventsAndAdsForDate", [])
+        .get("eventsAndAdsForDate")
     )
 
     events: List[Dict[str, Any]] = []
+
+    # eventsAndAdsForDate returns a single {date, items} dict or a list of them
+    if isinstance(result, dict):
+        date_groups = [result]
+    elif isinstance(result, list):
+        date_groups = result
+    else:
+        date_groups = []
+
     for group in date_groups:
+        if isinstance(group, str):
+            # Skip string items (e.g., date strings in unexpected format)
+            continue
         items = group.get("items") or []
         for item in items:
             # Filter out ads (union type — only EventPage has 'title')
-            if not item.get("title"):
+            if not isinstance(item, dict) or not item.get("title"):
                 continue
             events.append(_normalize_event(item))
 
