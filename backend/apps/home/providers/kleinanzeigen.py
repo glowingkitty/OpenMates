@@ -113,7 +113,7 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
 
     # Find all ad items with data-adid
     # Pattern: <article ... data-adid="NNNN" ...> ... </article>
-    ad_pattern = re.compile(
+    re.compile(
         r'data-adid="(\d+)".*?'
         r'<a[^>]*class="[^"]*ellipsis[^"]*"[^>]*>([^<]*)</a>.*?'
         r'(?:<p[^>]*class="[^"]*aditem-main--middle--price[^"]*"[^>]*>([^<]*)</p>)?',
