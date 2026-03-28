@@ -10,7 +10,7 @@ Dependabot security alerts. Called by the shell script via:
     python3 scripts/_dependabot_helper.py process-alerts
 
 Environment variables (set by the shell script):
-    ALERTS_JSON_B64         — base64-encoded JSON array of GitHub Dependabot alerts
+    ALERTS_JSON_FILE        — path to temp file containing JSON array of GitHub Dependabot alerts
     TRACKING_FILE_PATH      — absolute path to scripts/dependabot-processed.json
     PROJECT_ROOT            — absolute path to the repo root
     REDISPATCH_AFTER_DAYS   — number of days before re-dispatching an unresolved alert
@@ -37,7 +37,6 @@ Tracking file format (scripts/dependabot-processed.json):
 }
 """
 
-import base64
 import json
 import os
 import subprocess
@@ -201,7 +200,7 @@ def process_alerts() -> None:
     Main entry point: process Dependabot alerts, update tracking, run claude if needed.
     """
     # Read env vars set by the shell script
-    alerts_json_b64 = os.environ.get("ALERTS_JSON_B64", "")
+    alerts_json_file = os.environ.get("ALERTS_JSON_FILE", "")
     tracking_file = os.environ.get("TRACKING_FILE_PATH", "")
     project_root = os.environ.get("PROJECT_ROOT", "")
     redispatch_days = int(os.environ.get("REDISPATCH_AFTER_DAYS", "7"))
@@ -213,14 +212,14 @@ def process_alerts() -> None:
         print("[dependabot] ERROR: TRACKING_FILE_PATH not set.", file=sys.stderr)
         sys.exit(1)
 
-    if not alerts_json_b64:
-        print("[dependabot] ERROR: ALERTS_JSON_B64 not set.", file=sys.stderr)
+    if not alerts_json_file:
+        print("[dependabot] ERROR: ALERTS_JSON_FILE not set.", file=sys.stderr)
         sys.exit(1)
 
-    # Decode and parse alerts
+    # Read and parse alerts from temp file
     try:
-        alerts_json = base64.b64decode(alerts_json_b64).decode("utf-8")
-        raw_alerts: list[dict] = json.loads(alerts_json)
+        with open(alerts_json_file) as f:
+            raw_alerts: list[dict] = json.load(f)
     except Exception as e:
         print(f"[dependabot] ERROR: Failed to decode/parse alerts: {e}", file=sys.stderr)
         sys.exit(1)

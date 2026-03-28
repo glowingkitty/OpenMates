@@ -136,9 +136,14 @@ PYEOF
 fi
 
 # --- Process alerts using Python for the complex dedup/tracking logic ---
+# Write alerts JSON to a temp file instead of env var to avoid "Argument list too long"
+# errors when the alerts payload is large (observed with 28+ alerts).
+ALERTS_TMPFILE=$(mktemp /tmp/dependabot-alerts-XXXXXX.json)
+echo "$ALERTS_JSON" > "$ALERTS_TMPFILE"
+trap 'rm -f "$ALERTS_TMPFILE"' EXIT
+
 export TRACKING_FILE_PATH="$TRACKING_FILE"
-export ALERTS_JSON_B64
-ALERTS_JSON_B64=$(echo "$ALERTS_JSON" | base64 -w 0)
+export ALERTS_JSON_FILE="$ALERTS_TMPFILE"
 export PROJECT_ROOT
 export REDISPATCH_AFTER_DAYS
 export DRY_RUN
