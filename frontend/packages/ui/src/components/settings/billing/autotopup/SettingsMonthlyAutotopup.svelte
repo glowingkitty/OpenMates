@@ -6,6 +6,7 @@ Allows creating new subscriptions if user has a saved payment method
 <script lang="ts">
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../elements';
     import { apiEndpoints, getApiEndpoint } from '../../../../config/api';
     import { pricingTiers } from '../../../../config/pricing';
     import SettingsDropdown from '../../elements/SettingsDropdown.svelte';
@@ -343,7 +344,7 @@ Allows creating new subscriptions if user has a saved payment method
 
         <!-- Billing day preference selector -->
         <div class="billing-day-section">
-            <label for="billingDay" class="section-label">Change Billing Day</label>
+            <SettingsSectionHeading title="Change Billing Day" icon="calendar" />
             <SettingsDropdown
                 bind:value={billingDayPreference}
                 options={billingDayOptions}
@@ -672,11 +673,6 @@ Allows creating new subscriptions if user has a saved payment method
         border: 1px solid var(--color-grey-20);
     }
 
-    .section-label {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-    }
 
     .billing-day-select {
         background: var(--color-grey-10);

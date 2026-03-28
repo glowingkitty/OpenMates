@@ -14,7 +14,7 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
-    import { SettingsInput, SettingsTextarea, SettingsInfoBox } from './elements';
+    import { SettingsInput, SettingsTextarea, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -1535,7 +1535,7 @@
 
         <!-- Short Description (required, multi-line) -->
         <div class="input-group">
-            <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.title_label')} icon="chat" />
             <SettingsTextarea
                 bind:value={issueTitle}
                 id="issue-title"
@@ -1553,7 +1553,7 @@
         
         <!-- User Flow — "What did you do?" (optional) -->
         <div class="input-group">
-            <label for="user-flow">{$text('settings.report_issue.user_flow_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.user_flow_label')} icon="document" />
             <SettingsTextarea
                 bind:value={userFlow}
                 placeholder={$text('settings.report_issue.user_flow_placeholder')}
@@ -1566,7 +1566,7 @@
 
         <!-- Expected Behaviour (optional) -->
         <div class="input-group">
-            <label for="expected-behaviour">{$text('settings.report_issue.expected_behaviour_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.expected_behaviour_label')} icon="search" />
             <SettingsTextarea
                 bind:value={expectedBehaviour}
                 placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
@@ -1579,7 +1579,7 @@
 
         <!-- Actual Behaviour (optional) -->
         <div class="input-group">
-            <label for="actual-behaviour">{$text('settings.report_issue.actual_behaviour_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.actual_behaviour_label')} icon="announcement" />
             <SettingsTextarea
                 bind:value={actualBehaviour}
                 placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
@@ -1938,7 +1938,6 @@
         gap: 8px;
     }
     
-    .input-group label,
     .input-label {
         font-size: 14px;
         font-weight: 500;

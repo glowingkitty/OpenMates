@@ -27,6 +27,7 @@ component:
     import { getApiEndpoint, text } from '@repo/ui';
     import { onMount, onDestroy } from 'svelte';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { fade } from 'svelte/transition';
 
     // ===========================================================================
@@ -508,7 +509,7 @@ component:
         <!-- Update Settings Section -->
         {#if config}
             <div class="settings-section">
-                <h3 class="section-heading">{$text('settings.update_settings')}</h3>
+                <SettingsSectionHeading title={$text('settings.update_settings')} icon="settings" />
 
                 <div class="setting-row">
                     <span class="setting-label">{$text('settings.auto_check_for_updates')}</span>
@@ -564,7 +565,7 @@ component:
         <!-- Server Versions Section -->
         {#if versions?.services && versions.services.length > 0}
             <div class="settings-section">
-                <h3 class="section-heading">{$text('settings.server_versions')}</h3>
+                <SettingsSectionHeading title={$text('settings.server_versions')} icon="cloud" />
 
                 <div class="server-versions-list">
                     {#each versions.services as service}
@@ -866,15 +867,6 @@ component:
         padding: 0 16px;
     }
 
-    .section-heading {
-        color: var(--color-grey-60);
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin: 0 0 12px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--color-grey-20);
-    }
 
     .setting-row {
         display: flex;
