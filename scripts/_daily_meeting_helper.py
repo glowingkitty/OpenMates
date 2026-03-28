@@ -33,12 +33,10 @@ Importable from other helpers:
     gather_all_data(project_root: str, yesterday: str) → dict
 """
 
-import glob as glob_mod
 import json
 import os
 import subprocess
 import sys
-import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -126,23 +124,83 @@ def _safe_json_read(path: Path, label: str) -> str:
 
 
 def gather_git_log(project_root: str) -> str:
-    """Source A: git commits from the last 24 hours."""
+    """Source A: git commits from the last 24 hours.
+
+    Uses --oneline (no stat) to keep output compact. The subagent doesn't
+    need per-file diffs — just commit messages grouped by area.
+    """
     try:
         result = subprocess.run(
             ["git", "-C", project_root, "log", "--since=24 hours ago",
-             "--oneline", "--stat", "--no-color"],
+             "--oneline", "--no-color"],
             capture_output=True, text=True, timeout=30,
         )
         output = result.stdout.strip()
-        return output if output else "(No commits in the last 24 hours.)"
+        if not output:
+            return "(No commits in the last 24 hours.)"
+        # Cap at 5000 chars — typically enough for ~100 commits
+        if len(output) > 5000:
+            lines = output.splitlines()
+            output = "\n".join(lines[:80]) + f"\n\n[...{len(lines) - 80} more commits truncated...]"
+        return output
     except Exception as e:
         return f"[DATA UNAVAILABLE: git log — {e}]"
 
 
 def gather_test_results() -> dict:
     """Source B: test results from last run."""
-    summary = _safe_json_read(TEST_RESULTS_DIR / "last-run.json", "test summary")
-    failed = _safe_json_read(TEST_RESULTS_DIR / "last-failed-tests.json", "failed tests")
+    # Extract only the summary portion from last-run.json (not all 577 tests)
+    try:
+        last_run_path = TEST_RESULTS_DIR / "last-run.json"
+        if last_run_path.is_file():
+            full_data = json.loads(last_run_path.read_text())
+            compact = {
+                "run_id": full_data.get("run_id"),
+                "git_sha": full_data.get("git_sha"),
+                "git_branch": full_data.get("git_branch"),
+                "duration_seconds": full_data.get("duration_seconds"),
+                "summary": full_data.get("summary", {}),
+                "suites": {},
+            }
+            # Include only suite status + failed test names (not all passed tests)
+            for suite_name, suite_data in full_data.get("suites", {}).items():
+                failed_tests = [
+                    {"name": t["name"], "status": t["status"],
+                     "error": (t.get("error") or "")[:300]}
+                    for t in suite_data.get("tests", [])
+                    if t.get("status") != "passed"
+                ]
+                compact["suites"][suite_name] = {
+                    "status": suite_data.get("status"),
+                    "total_tests": len(suite_data.get("tests", [])),
+                    "failed_tests": failed_tests,
+                }
+            summary = json.dumps(compact, indent=2)
+        else:
+            summary = "[DATA UNAVAILABLE: test summary — file not found]"
+    except Exception as e:
+        summary = f"[DATA UNAVAILABLE: test summary — {e}]"
+
+    # Cap failed tests JSON — only include first 10 failures with truncated errors
+    try:
+        failed_path = TEST_RESULTS_DIR / "last-failed-tests.json"
+        if failed_path.is_file():
+            failed_data = json.loads(failed_path.read_text())
+            if isinstance(failed_data, list):
+                capped = []
+                for t in failed_data[:10]:
+                    capped.append({
+                        "name": t.get("name", "?"),
+                        "status": t.get("status", "?"),
+                        "error": (t.get("error") or "")[:500],
+                    })
+                failed = json.dumps(capped, indent=2)
+            else:
+                failed = json.dumps(failed_data, indent=2)[:5000]
+        else:
+            failed = "(No failed tests file found.)"
+    except Exception as e:
+        failed = f"[DATA UNAVAILABLE: failed tests — {e}]"
 
     # Gather failed test .md reports (with screenshots)
     failed_reports = []
@@ -155,11 +213,27 @@ def gather_test_results() -> dict:
                 content = content[:4000] + "\n\n[...truncated...]"
             failed_reports.append(f"### {md_path.name}\n\n{content}")
 
-    # Coverage
-    vitest_cov = _safe_json_read(
+    # Coverage — extract only the top-level summary, not per-file data
+    def _extract_coverage_summary(path: Path, label: str) -> str:
+        try:
+            if not path.is_file():
+                return f"({label}: no coverage file)"
+            data = json.loads(path.read_text())
+            # Coverage JSON typically has a "total" or top-level summary
+            if isinstance(data, dict):
+                total = data.get("total", data.get("summary", {}))
+                if total:
+                    return json.dumps(total, indent=2)
+                # Fallback: just show top-level keys and their types
+                return json.dumps({k: type(v).__name__ for k, v in data.items()})
+            return str(data)[:500]
+        except Exception as e:
+            return f"[DATA UNAVAILABLE: {label} — {e}]"
+
+    vitest_cov = _extract_coverage_summary(
         TEST_RESULTS_DIR / "coverage" / "vitest-coverage.json", "vitest coverage"
     )
-    pytest_cov = _safe_json_read(
+    pytest_cov = _extract_coverage_summary(
         TEST_RESULTS_DIR / "coverage" / "pytest-coverage.json", "pytest coverage"
     )
 
@@ -232,7 +306,7 @@ def gather_openobserve_errors(production: bool = False) -> str:
         "--json", "--quiet-health",
     ]
     if production:
-        cmd.append("--production")
+        cmd.append("--prod")
 
     try:
         result = subprocess.run(
@@ -268,14 +342,52 @@ def gather_large_files(project_root: str) -> str:
 
 
 def gather_nightly_state_files() -> dict:
-    """Source F: nightly job state files."""
+    """Source F: nightly job state files (compact summaries, not raw dumps)."""
+
+    # Dependabot: summarize by severity counts
+    def _summarize_dependabot() -> str:
+        path = SCRIPTS_DIR / "dependabot-processed.json"
+        try:
+            if not path.is_file():
+                return "(No dependabot state file.)"
+            data = json.loads(path.read_text())
+            processed = data.get("processed", [])
+            last_run = data.get("last_run", "unknown")
+            severity_counts: dict[str, int] = {}
+            unresolved = 0
+            for item in processed:
+                sev = item.get("severity", "unknown")
+                severity_counts[sev] = severity_counts.get(sev, 0) + 1
+                if not item.get("resolved_via_commit"):
+                    unresolved += 1
+            return (
+                f"Last run: {last_run}\n"
+                f"Total tracked: {len(processed)}\n"
+                f"Unresolved: {unresolved}\n"
+                f"By severity: {json.dumps(severity_counts)}"
+            )
+        except Exception as e:
+            return f"[DATA UNAVAILABLE: dependabot — {e}]"
+
+    # Dead code: just summary stats, not all 272 items
+    def _summarize_dead_code() -> str:
+        path = SCRIPTS_DIR / ".dead-code-removal-state.json"
+        try:
+            if not path.is_file():
+                return "(No dead code state file.)"
+            data = json.loads(path.read_text())
+            items = data.get("removed", data.get("items", []))
+            last_run = data.get("last_run", data.get("last_run_sha", "unknown"))
+            return (
+                f"Last run: {last_run}\n"
+                f"Total items tracked: {len(items) if isinstance(items, list) else 'N/A'}"
+            )
+        except Exception as e:
+            return f"[DATA UNAVAILABLE: dead code — {e}]"
+
     return {
-        "dependabot": _safe_json_read(
-            SCRIPTS_DIR / "dependabot-processed.json", "dependabot state"
-        ),
-        "dead_code": _safe_json_read(
-            SCRIPTS_DIR / ".dead-code-removal-state.json", "dead code state"
-        ),
+        "dependabot": _summarize_dependabot(),
+        "dead_code": _summarize_dead_code(),
         "security": _safe_json_read(
             PROJECT_ROOT / ".claude" / "security-audit-state.json", "security audit state"
         ),
@@ -286,14 +398,20 @@ def gather_nightly_state_files() -> dict:
 
 
 def gather_session_quality(yesterday: str) -> str:
-    """Source G: session quality data from workflow review helper."""
+    """Source G: session quality data from workflow review helper.
+
+    Caps to 8000 chars — the subagent only needs a summary, not the full digest.
+    """
     try:
-        # Import from sibling helper
         from _workflow_review_helper import build_session_digests
         digest_text, count, chars = build_session_digests(yesterday, verbose=False)
         if count == 0:
             return "(No relevant Claude Code sessions found for yesterday.)"
-        return f"({count} sessions, {chars:,} chars extracted)\n\n{digest_text}"
+        # Cap digest to keep the work subagent prompt reasonable
+        MAX_SESSION_CHARS = 8000
+        if len(digest_text) > MAX_SESSION_CHARS:
+            digest_text = digest_text[:MAX_SESSION_CHARS] + "\n\n[...truncated for daily meeting...]"
+        return f"({count} sessions, {chars:,} chars total — showing first {MAX_SESSION_CHARS})\n\n{digest_text}"
     except Exception as e:
         return f"[DATA UNAVAILABLE: session quality — {e}]"
 
