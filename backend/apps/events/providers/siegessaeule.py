@@ -2,30 +2,35 @@
 #
 # Siegessäule (siegessaeule.de) event search provider.
 #
-# Scrapes Berlin's primary LGBTQ+ community event calendar. Covers clubs,
-# bars, culture (theater/exhibitions), mixed events, and nightlife.
+# Uses Siegessäule's internal GraphQL API (Sapper/Apollo) for structured
+# event data. The GraphQL endpoint requires a residential proxy — Siegessäule
+# blocks datacenter IPs.
 #
 # Key design decisions:
-# - No API available — HTML scraping via Webshare residential proxy
-# - Siegessaeule blocks datacenter IPs (403) but allows residential proxies
-# - Same proxy pattern as Meetup: direct attempt first, proxy fallback
+# - GraphQL API at siegessaeule.de/graphql/ (trailing slash required)
+# - No authentication needed — public API
+# - Requires Webshare residential proxy (datacenter IPs get 403)
+# - Single query returns all data: title, dates, venue with lat/lng, tags,
+#   images, descriptions — no detail page fetching needed
 # - Berlin-only (Siegessäule is a Berlin-specific publication)
-# - No server-side keyword search — client-side filtering after fetch
-# - Categories from URL structure: clubs, bars, kultur, mix, sex
+# - Client-side keyword filtering (GraphQL supports section filter only)
 #
-# Coverage: LGBTQ+ events in Berlin — unique data source not covered by
-# Meetup, Luma, or RA. Includes drag shows, queer parties, pride events,
-# bar nights, cultural exhibitions, and community gatherings.
+# GraphQL structure:
+#   homePage → eventIndexPage → eventsAndAdsForDate(date, days, section)
+#   Returns union of [EventPage | EventSectionBannerAd] — filter on EventPage
+#
+# Coverage: LGBTQ+ events in Berlin — unique data source. Includes drag shows,
+# queer parties, pride events, bar nights, culture, and community gatherings.
+#
+# Sections (categories): mix, kultur, bars, clubs, sex, festival, fetisch,
+# open-air, livestreams
 
-import html as html_module
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-
-from backend.shared.testing.caching_http_transport import create_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -34,302 +39,191 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _BASE_URL = "https://www.siegessaeule.de"
-_TERMINE_URL = f"{_BASE_URL}/termine/"
+_GRAPHQL_URL = f"{_BASE_URL}/graphql/"  # Trailing slash required
 
 # HTTP timeout (seconds).
 _HTTP_TIMEOUT = 25.0
 
-# Browser-like headers.
+# Maximum description length (characters).
+_MAX_DESCRIPTION_CHARS = 2000
+
+# Headers for GraphQL requests.
 _HEADERS = {
+    "Content-Type": "application/json",
+    "Origin": "https://www.siegessaeule.de",
+    "Referer": "https://www.siegessaeule.de/termine/",
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
 }
 
-# Siegessäule event categories (from URL structure).
-CATEGORIES = {"clubs", "bars", "kultur", "mix", "sex"}
+# GraphQL query for event listings.
+_EVENTS_QUERY = """
+{
+  homePage {
+    eventIndexPage {
+      eventsAndAdsForDate(date: "%DATE%", days: %DAYS%%SECTION%) {
+        date
+        items {
+          ... on EventPage {
+            id
+            title
+            slug
+            startDate
+            startTime
+            startsAt
+            endsAt
+            teaser
+            info
+            description
+            tags
+            siegessaeulePresents
+            venue {
+              title
+              slug
+              address
+              location { lat lng }
+              phone
+              email
+              categories { name slug }
+            }
+            section { title slug }
+            image {
+              title
+              rendition(fill: {width: 480, height: 480}) { url }
+            }
+            categories { name slug }
+          }
+        }
+      }
+    }
+  }
+}
+"""
 
-# HTTP status codes indicating the site is rejecting direct requests.
-_REJECTION_STATUS_CODES = {403, 429, 500, 502, 503, 504}
-
-# Regex to extract event blocks from HTML.
-# Each event is an <a> tag linking to /termine/category/slug/YYYY-MM-DD/HH:MM/
-_EVENT_LINK_PATTERN = re.compile(
-    r'<a[^>]*href="(/termine/(clubs|bars|kultur|mix|sex)/([^/]+)/(\d{4}-\d{2}-\d{2})/(\d{2}:\d{2})/)"[^>]*>(.*?)</a>',
-    re.DOTALL,
-)
+# Map query keywords to Siegessäule section slugs for server-side filtering.
+_KEYWORD_TO_SECTION: Dict[str, str] = {
+    "club": "clubs",
+    "clubs": "clubs",
+    "techno": "clubs",
+    "rave": "clubs",
+    "bar": "bars",
+    "bars": "bars",
+    "kultur": "kultur",
+    "culture": "kultur",
+    "theater": "kultur",
+    "theatre": "kultur",
+    "exhibition": "kultur",
+    "art": "kultur",
+    "sex": "sex",
+    "fetish": "fetisch",
+    "fetisch": "fetisch",
+    "festival": "festival",
+    "open air": "open-air",
+}
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-async def _fetch_page(
-    url: str,
-    proxy_url: Optional[str] = None,
-) -> str:
+def _build_query(date_str: str, days: int, section: Optional[str] = None) -> str:
+    """Build the GraphQL query string with parameters interpolated."""
+    query = _EVENTS_QUERY.replace("%DATE%", date_str)
+    query = query.replace("%DAYS%", str(days))
+    if section:
+        query = query.replace("%SECTION%", f', section: "{section}"')
+    else:
+        query = query.replace("%SECTION%", "")
+    return query
+
+
+def _strip_html(text: str) -> str:
+    """Strip HTML tags from a string."""
+    clean = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", clean).strip()
+
+
+def _normalize_event(raw: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Fetch a Siegessäule page. Tries direct first, falls back to proxy.
-
-    Siegessäule blocks datacenter IPs with 403 but allows residential proxies.
+    Normalize a Siegessäule GraphQL EventPage into the standard EventResult format.
     """
-    # Try direct first (works from residential IPs)
-    try:
-        async with create_http_client(
-            "siegessaeule", timeout=_HTTP_TIMEOUT, follow_redirects=True
-        ) as client:
-            response = await client.get(url, headers=_HEADERS)
-            if response.status_code not in _REJECTION_STATUS_CODES:
-                response.raise_for_status()
-                return response.text
-            logger.debug(
-                "[siegessaeule] Direct request rejected (%d) — retrying via proxy",
-                response.status_code,
-            )
-    except (httpx.ConnectError, httpx.TimeoutException) as exc:
-        logger.debug("[siegessaeule] Direct request failed (%s) — retrying via proxy", exc)
+    # Venue
+    venue_raw = raw.get("venue") or {}
+    location = venue_raw.get("location") or {}
+    venue = {
+        "name": venue_raw.get("title", ""),
+        "address": venue_raw.get("address", ""),
+        "city": "Berlin",
+        "state": None,
+        "country": "DE",
+        "lat": location.get("lat"),
+        "lon": location.get("lng"),
+    }
 
-    # Retry via Webshare residential proxy
-    if not proxy_url:
-        raise ValueError(
-            "Siegessäule blocked direct request and no proxy configured. "
-            "Webshare residential proxy is required for datacenter servers."
-        )
+    # Description — combine teaser + info + full description
+    teaser = raw.get("teaser") or ""
+    info = raw.get("info") or ""
+    full_desc = raw.get("description") or ""
+    if full_desc:
+        full_desc = _strip_html(full_desc)
 
-    async with httpx.AsyncClient(
-        proxy=proxy_url,
-        timeout=_HTTP_TIMEOUT,
-        follow_redirects=True,
-    ) as client:
-        response = await client.get(url, headers=_HEADERS)
-        response.raise_for_status()
-        return response.text
+    description_parts = []
+    if teaser:
+        description_parts.append(teaser)
+    if info:
+        description_parts.append(info)
+    if full_desc and full_desc != teaser:
+        description_parts.append(full_desc)
+    description = "\n".join(description_parts)
+    if len(description) > _MAX_DESCRIPTION_CHARS:
+        description = description[:_MAX_DESCRIPTION_CHARS] + "..."
 
+    # Section / category
+    section = raw.get("section") or {}
+    category = section.get("slug") or ""
 
-def _strip_tags(value: str) -> str:
-    """Strip HTML tags and decode entities."""
-    without_tags = re.sub(r"<[^>]+>", " ", value)
-    return re.sub(r"\s+", " ", html_module.unescape(without_tags)).strip()
+    # Tags
+    tags = raw.get("tags") or []
 
+    # Image
+    image_data = raw.get("image") or {}
+    rendition = image_data.get("rendition") or {}
+    image_url = rendition.get("url")
+    if image_url and not image_url.startswith("http"):
+        image_url = f"https://cdn.siegessaeule.de{image_url}"
 
-def _parse_events(page_html: str) -> List[Dict[str, Any]]:
-    """
-    Parse event listings from Siegessäule's HTML.
+    # Date
+    date_start = raw.get("startsAt")
+    date_end = raw.get("endsAt")
 
-    Each event is an <a> block containing:
-    - URL with category, slug, date, and time
-    - <h4> tag with event title
-    - Description text
-    - Venue name (last text segment before closing tag)
-    - Optional <img> with CDN image URL
-    """
-    events: List[Dict[str, Any]] = []
-    seen_urls: set = set()
+    # Build URL from section + slug + date
+    slug = raw.get("slug", "")
+    start_date = raw.get("startDate", "")
+    start_time = raw.get("startTime", "")
+    url = f"{_BASE_URL}/termine/{category}/{slug}/{start_date}/{start_time[:5]}/" if slug and start_date and start_time else ""
 
-    for match in _EVENT_LINK_PATTERN.finditer(page_html):
-        href = match.group(1)
-        category = match.group(2)
-        slug = match.group(3)
-        date_str = match.group(4)
-        time_str = match.group(5)
-        inner_html = match.group(6)
-
-        full_url = f"{_BASE_URL}{href}"
-        if full_url in seen_urls:
-            continue
-        seen_urls.add(full_url)
-
-        # Extract title from <h4>
-        title_match = re.search(r"<h4[^>]*>(.*?)</h4>", inner_html, re.DOTALL)
-        title = _strip_tags(title_match.group(1)) if title_match else ""
-        if not title or len(title) < 2:
-            continue
-
-        # Extract all text segments (split by tags, filter empties)
-        text_segments = [
-            s.strip() for s in re.split(r"<[^>]+>", inner_html)
-            if s.strip() and s.strip() != title
-        ]
-
-        # First segment is usually the date string (e.g., "28. März 2026, 16:00")
-        # Last non-empty segment is usually the venue name
-        description = ""
-        venue_name = ""
-
-        # Filter out the date string from segments
-        non_date_segments = [
-            s for s in text_segments
-            if not re.match(r"\d{1,2}\.\s+\w+\s+\d{4}", s)
-        ]
-
-        if non_date_segments:
-            venue_name = non_date_segments[-1]
-            if len(non_date_segments) > 1:
-                description = " ".join(non_date_segments[:-1])
-
-        # Extract image URL
-        img_match = re.search(
-            r'src="(https://cdn\.siegessaeule\.de/[^"]+)"', inner_html,
-        )
-        image_url = img_match.group(1) if img_match else None
-
-        date_start = f"{date_str}T{time_str}:00"
-
-        events.append({
-            "id": slug,
-            "provider": "siegessaeule",
-            "title": title,
-            "description": description,
-            "url": full_url,
-            "date_start": date_start,
-            "date_end": None,
-            "timezone": "Europe/Berlin",
-            "event_type": "PHYSICAL",
-            "venue": {
-                "name": venue_name,
-                "address": "",
-                "city": "Berlin",
-                "state": None,
-                "country": "DE",
-                "lat": None,
-                "lon": None,
-            },
-            "organizer": None,
-            "rsvp_count": None,
-            "is_paid": None,
-            "fee": None,
-            "image_url": image_url,
-            "category": category,
-        })
-
-    return events
-
-
-# ---------------------------------------------------------------------------
-# Detail page enrichment (iCal parsing)
-# ---------------------------------------------------------------------------
-
-# Concurrency limit for detail page fetches.
-_DETAIL_FETCH_CONCURRENCY = 4
-
-# Polite delay between detail page fetches (seconds).
-_DETAIL_FETCH_DELAY = 0.3
-
-
-def _parse_ical_from_html(detail_html: str) -> Dict[str, Any]:
-    """
-    Extract structured data from the iCal data URL embedded in event detail pages.
-
-    Siegessäule embeds an iCal link like:
-        data:text/calendar;charset=utf-8,...LOCATION:SO36\\, Oranienstrasse 190\\, ...
-        GEO:52.500392;13.422102
-        DESCRIPTION:...
-
-    Returns dict with: address, lat, lon, full_description.
-    """
-    result: Dict[str, Any] = {}
-
-    # Find the iCal data URL (charset can be utf-8 or utf8)
-    ical_match = re.search(
-        r'data:text/calendar;charset=utf-?8[^"\'>\s]+',
-        detail_html,
-    )
-    if not ical_match:
-        return result
-
-    from urllib.parse import unquote
-    ical_text = unquote(ical_match.group(0))
-
-    # Extract GEO (lat/lon)
-    geo_match = re.search(r'GEO:([\d.]+);([\d.]+)', ical_text)
-    if geo_match:
-        try:
-            result["lat"] = float(geo_match.group(1))
-            result["lon"] = float(geo_match.group(2))
-        except (ValueError, TypeError):
-            pass
-
-    # Extract LOCATION (full venue address)
-    loc_match = re.search(r'LOCATION:(.+?)(?:\r?\n[A-Z]|\Z)', ical_text, re.DOTALL)
-    if loc_match:
-        location_str = loc_match.group(1).strip()
-        # iCal escapes commas with backslash
-        location_str = location_str.replace("\\,", ",").replace("\\n", " ").strip()
-        result["address"] = location_str
-
-    # Extract DESCRIPTION (full event description)
-    desc_match = re.search(r'DESCRIPTION:(.+?)(?:\r?\n[A-Z]|\Z)', ical_text, re.DOTALL)
-    if desc_match:
-        desc = desc_match.group(1).strip()
-        desc = desc.replace("\\,", ",").replace("\\n", "\n").replace("\\;", ";").strip()
-        if len(desc) > _MAX_DESCRIPTION_CHARS:
-            desc = desc[:_MAX_DESCRIPTION_CHARS] + "..."
-        result["full_description"] = desc
-
-    return result
-
-
-# Maximum description length (characters) — also used for iCal parsing.
-_MAX_DESCRIPTION_CHARS = 2000
-
-
-async def _enrich_events_with_details(
-    events: List[Dict[str, Any]],
-    proxy_url: Optional[str],
-) -> None:
-    """
-    Fetch detail pages for events and enrich with venue address, lat/lon, description.
-
-    Modifies events in-place. Only fetches details for events that are missing
-    venue address or lat/lon (avoids redundant requests).
-    """
-    import asyncio
-
-    events_needing_details = [
-        e for e in events
-        if not (e.get("venue") or {}).get("lat")
-    ]
-    if not events_needing_details:
-        return
-
-    semaphore = asyncio.Semaphore(_DETAIL_FETCH_CONCURRENCY)
-
-    async def fetch_detail(event: Dict[str, Any]) -> None:
-        url = event.get("url", "")
-        if not url:
-            return
-
-        async with semaphore:
-            try:
-                detail_html = await _fetch_page(url, proxy_url=proxy_url)
-                ical_data = _parse_ical_from_html(detail_html)
-
-                # Enrich venue with address and coordinates
-                venue = event.get("venue") or {}
-                if ical_data.get("address") and not venue.get("address"):
-                    venue["address"] = ical_data["address"]
-                if ical_data.get("lat"):
-                    venue["lat"] = ical_data["lat"]
-                if ical_data.get("lon"):
-                    venue["lon"] = ical_data["lon"]
-                event["venue"] = venue
-
-                # Enrich description
-                if ical_data.get("full_description") and len(event.get("description", "")) < 50:
-                    event["description"] = ical_data["full_description"]
-
-            except Exception as exc:
-                logger.debug(
-                    "[siegessaeule] Detail fetch failed for %s: %s", url, exc,
-                )
-
-            # Polite delay
-            await asyncio.sleep(_DETAIL_FETCH_DELAY)
-
-    await asyncio.gather(*[fetch_detail(e) for e in events_needing_details])
+    return {
+        "id": raw.get("id", ""),
+        "provider": "siegessaeule",
+        "title": raw.get("title", ""),
+        "description": description,
+        "url": url,
+        "date_start": date_start,
+        "date_end": date_end,
+        "timezone": "Europe/Berlin",
+        "event_type": "PHYSICAL",
+        "venue": venue,
+        "organizer": None,
+        "rsvp_count": None,
+        "is_paid": None,
+        "fee": None,
+        "image_url": image_url,
+        "category": category,
+        "tags": tags if tags else None,
+        "siegessaeule_presents": raw.get("siegessaeulePresents", False),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -346,17 +240,17 @@ async def search_events_async(
     secrets_manager: Optional[Any] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
-    Search for LGBTQ+ events on Siegessäule.
+    Search for LGBTQ+ events on Siegessäule via GraphQL.
 
-    Berlin-only. Fetches the /termine/ listing page via Webshare proxy.
-    Keyword filtering is applied client-side after fetching.
+    Berlin-only. Uses the internal GraphQL API with Webshare proxy.
 
     Args:
         city:            City name (must contain "berlin" — only Berlin is supported).
-        query:           Optional keyword filter (applied client-side).
+        query:           Optional keyword filter. Some keywords map to sections for
+                         server-side filtering (e.g., "clubs", "kultur"). Others are
+                         applied client-side.
         count:           Maximum number of events to return (default 10).
-        start_date:      ISO 8601 date string — fetches events for this date.
-                         Defaults to today if not provided.
+        start_date:      ISO 8601 date string. Defaults to today.
         proxy_url:       Webshare rotating proxy URL (required for datacenter servers).
         secrets_manager: Not used directly, accepted for interface compatibility.
 
@@ -372,23 +266,78 @@ async def search_events_async(
             "It does not cover events outside Berlin."
         )
 
-    # Build URL with date parameter
-    url = _TERMINE_URL
+    if not proxy_url:
+        raise ValueError(
+            "Siegessäule GraphQL requires a proxy (datacenter IPs are blocked). "
+            "Webshare rotating proxy URL is required."
+        )
+
+    # Parse start date or default to today
+    now = datetime.now(timezone.utc)
     if start_date:
         try:
             dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-            url = f"{_TERMINE_URL}?date={dt.strftime('%Y-%m-%d')}"
+            date_str = dt.strftime("%Y-%m-%d")
         except (ValueError, TypeError):
-            logger.debug("[siegessaeule] Could not parse start_date %r", start_date)
+            date_str = now.strftime("%Y-%m-%d")
+    else:
+        date_str = now.strftime("%Y-%m-%d")
 
-    logger.debug("[siegessaeule] Fetching events: url=%s query=%r", url, query)
+    # Map query keywords to section for server-side filtering
+    section = None
+    if query:
+        for keyword, sec in _KEYWORD_TO_SECTION.items():
+            if keyword in query.lower():
+                section = sec
+                break
 
-    page_html = await _fetch_page(url, proxy_url=proxy_url)
-    events = _parse_events(page_html)
+    # Request 7 days of events (Siegessäule shows daily listings)
+    days = 7
+    graphql_query = _build_query(date_str, days, section)
+
+    logger.debug(
+        "[siegessaeule] GraphQL query: date=%s days=%d section=%r query=%r",
+        date_str, days, section, query,
+    )
+
+    async with httpx.AsyncClient(
+        proxy=proxy_url,
+        timeout=_HTTP_TIMEOUT,
+    ) as client:
+        response = await client.post(
+            _GRAPHQL_URL,
+            json={"query": graphql_query},
+            headers=_HEADERS,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    # Extract events from the nested response structure
+    errors = data.get("errors")
+    if errors:
+        error_msg = errors[0].get("message", "Unknown GraphQL error")
+        raise ValueError(f"Siegessäule GraphQL error: {error_msg}")
+
+    date_groups = (
+        data.get("data", {})
+        .get("homePage", {})
+        .get("eventIndexPage", {})
+        .get("eventsAndAdsForDate", [])
+    )
+
+    events: List[Dict[str, Any]] = []
+    for group in date_groups:
+        items = group.get("items") or []
+        for item in items:
+            # Filter out ads (union type — only EventPage has 'title')
+            if not item.get("title"):
+                continue
+            events.append(_normalize_event(item))
+
     total_available = len(events)
 
-    # Client-side keyword filtering
-    if query:
+    # Client-side keyword filtering (for queries that don't map to sections)
+    if query and not section:
         query_tokens = query.lower().split()
         events = [
             e for e in events
@@ -396,7 +345,7 @@ async def search_events_async(
                 token in (
                     e.get("title", "") + " " +
                     e.get("description", "") + " " +
-                    e.get("category", "")
+                    " ".join(e.get("tags") or [])
                 ).lower()
                 for token in query_tokens
             )
@@ -407,16 +356,12 @@ async def search_events_async(
 
     events = events[:count]
 
-    # Enrich top results with detail page data (venue address, lat/lon, description).
-    # Only fetches details for the final result set to avoid unnecessary requests.
-    if events and proxy_url:
-        await _enrich_events_with_details(events, proxy_url=proxy_url)
-
     logger.info(
-        "[siegessaeule] Search complete: %d events (total=%d) query=%r",
+        "[siegessaeule] Search complete: %d events (total=%d) query=%r section=%r",
         len(events),
         total_available,
         query,
+        section,
     )
 
     return events, total_available
