@@ -8,9 +8,9 @@
 #
 # Key design decisions:
 # - No API key needed — RA deprecated their public API years ago
-# - Direct httpx scraping with proxy fallback (same pattern as Meetup/Luma)
+# - Uses Firecrawl for scraping (RA blocks direct httpx and proxy requests with 403)
 # - Parses __NEXT_DATA__ JSON for structured event data (lineup, genres, etc.)
-# - Falls back to HTML parsing if __NEXT_DATA__ is not present
+# - Falls back to HTML/markdown parsing if __NEXT_DATA__ is not present
 # - Currently supports city-based event listings only
 #
 # URL patterns:
@@ -23,11 +23,12 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
-import httpx
+from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 
-from backend.shared.testing.caching_http_transport import create_http_client
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
@@ -42,20 +43,6 @@ _HTTP_TIMEOUT = 25.0
 
 # Maximum description length to return (characters).
 _MAX_DESCRIPTION_CHARS = 2000
-
-# HTTP status codes indicating RA is rejecting direct requests.
-_REJECTION_STATUS_CODES = {403, 429, 500, 502, 503, 504}
-
-# Browser-like headers to avoid bot detection.
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-}
 
 # Map city names to RA URL slugs: {normalised_city: (country_code, city_slug)}
 # RA uses 2-letter ISO country codes in URLs.
@@ -143,46 +130,54 @@ def _resolve_city(location: str) -> Tuple[str, str]:
 
 async def _fetch_page(
     url: str,
-    proxy_url: Optional[str] = None,
+    secrets_manager: Optional["SecretsManager"] = None,
 ) -> str:
     """
-    Fetch an RA page, with proxy fallback on rejection.
+    Fetch an RA page via Firecrawl.
 
-    Tries direct request first. If RA returns a rejection status code
-    (403/429/5xx), retries once via the Webshare proxy.
+    RA blocks direct httpx requests and proxy requests with 403.
+    Firecrawl uses a headless browser which bypasses this protection.
+
+    Args:
+        url:             The RA URL to scrape.
+        secrets_manager: Required for Firecrawl API key retrieval.
+
+    Returns:
+        HTML content of the page.
+
+    Raises:
+        ValueError: If secrets_manager is not provided or Firecrawl fails.
     """
-    # Try direct first
-    try:
-        async with create_http_client(
-            "ra_direct", timeout=_HTTP_TIMEOUT, follow_redirects=True
-        ) as client:
-            response = await client.get(url, headers=_HEADERS)
-            if response.status_code not in _REJECTION_STATUS_CODES:
-                response.raise_for_status()
-                return response.text
-            logger.debug(
-                "[ra] Direct request rejected (%d) — retrying via proxy",
-                response.status_code,
-            )
-    except (httpx.ConnectError, httpx.TimeoutException) as exc:
-        logger.debug("[ra] Direct request failed (%s) — retrying via proxy", exc)
-
-    # Retry via proxy
-    if not proxy_url:
-        raise httpx.HTTPStatusError(
-            "RA rejected direct request and no proxy configured",
-            request=httpx.Request("GET", url),
-            response=httpx.Response(403),
+    if not secrets_manager:
+        raise ValueError(
+            "Resident Advisor requires Firecrawl (secrets_manager) for scraping. "
+            "RA blocks direct HTTP requests."
         )
 
-    async with httpx.AsyncClient(
-        proxy=proxy_url,
-        timeout=_HTTP_TIMEOUT,
-        follow_redirects=True,
-    ) as client:
-        response = await client.get(url, headers=_HEADERS)
-        response.raise_for_status()
-        return response.text
+    logger.debug("[ra] Fetching via Firecrawl: %s", url)
+    result = await scrape_url(
+        url=url,
+        secrets_manager=secrets_manager,
+        formats=["html", "markdown"],
+        only_main_content=False,
+        sanitize_output=False,
+        wait_for=3000,  # Wait 3s for Next.js hydration
+    )
+
+    if result.get("error"):
+        raise ValueError(f"Firecrawl scrape failed for {url}: {result['error']}")
+
+    data = result.get("data", {})
+    # Prefer HTML (for __NEXT_DATA__ parsing), fall back to markdown
+    html = data.get("html") or ""
+    if not html:
+        # If no HTML, construct minimal wrapper around markdown for fallback parser
+        markdown = data.get("markdown") or ""
+        if not markdown:
+            raise ValueError(f"Firecrawl returned empty content for {url}")
+        html = markdown  # _parse_events_from_html handles plain text too
+
+    return html
 
 
 def _extract_next_data(html: str) -> Optional[Dict[str, Any]]:
@@ -482,7 +477,7 @@ async def search_events_async(
     city: str,
     query: str = "",
     count: int = 10,
-    proxy_url: Optional[str] = None,
+    secrets_manager: Optional["SecretsManager"] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Search for events on Resident Advisor by city.
@@ -492,23 +487,23 @@ async def search_events_async(
     filtering after fetching.
 
     Args:
-        city:      City name or "city, country" string.
-        query:     Optional keyword filter (applied client-side after fetching).
-        count:     Maximum number of events to return (default 10, max 50).
-        proxy_url: Optional Webshare proxy URL for fallback.
+        city:            City name or "city, country" string.
+        query:           Optional keyword filter (applied client-side after fetching).
+        count:           Maximum number of events to return (default 10, max 50).
+        secrets_manager: Required for Firecrawl API key (RA blocks direct HTTP).
 
     Returns:
         Tuple of (events_list, total_available).
 
     Raises:
-        ValueError: If the city is not supported by RA.
+        ValueError: If the city is not supported by RA or Firecrawl is unavailable.
     """
     country_code, city_slug = _resolve_city(city)
     url = f"{_BASE_URL}/events/{country_code}/{city_slug}"
 
     logger.debug("[ra] Fetching events: url=%s query=%r count=%d", url, query, count)
 
-    html = await _fetch_page(url, proxy_url=proxy_url)
+    html = await _fetch_page(url, secrets_manager=secrets_manager)
 
     # Try __NEXT_DATA__ first (structured, rich data)
     next_data = _extract_next_data(html)

@@ -446,20 +446,21 @@ class SearchSkill(BaseSkill):
         query: str,
         location_str: str,
         count: int,
-        proxy_url: Optional[str] = None,
+        secrets_manager: Optional[SecretsManager] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
         Search Resident Advisor and return (events, total_available, error_or_None).
         Never raises — errors are returned as the third tuple element.
 
         If the city is not in RA's supported cities, returns empty list (not an error).
+        Requires secrets_manager for Firecrawl (RA blocks direct HTTP requests).
         """
         try:
             events, total = await ra_provider.search_events_async(
                 city=location_str,
                 query=query,
                 count=count,
-                proxy_url=proxy_url,
+                secrets_manager=secrets_manager,
             )
             return events, total, None
         except ValueError:
@@ -706,7 +707,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 count=count,
-                proxy_url=proxy_url,
+                secrets_manager=secrets_manager,
             )
             if ra_err and not ra_events:
                 return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0)
@@ -762,7 +763,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 count=per_provider_count,
-                proxy_url=proxy_url,
+                secrets_manager=secrets_manager,
             )
             siegessaeule_task = self._search_siegessaeule(
                 query=query,
