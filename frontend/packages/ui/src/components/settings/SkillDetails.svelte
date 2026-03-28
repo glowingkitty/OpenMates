@@ -25,6 +25,7 @@
     import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -311,11 +312,7 @@
 
             <!-- Pricing section first — always visible at top -->
             <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="coins"
-                    title={$text('common.pricing')}
-                />
+                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="content">
                     {#if Array.isArray(formattedPricing)}
                         {#each formattedPricing as pricingLine}
@@ -330,11 +327,7 @@
             <!-- How to use section (after pricing) -->
             {#if howToUseExamples.length > 0}
                 <div class="section how-to-use-section">
-                    <SettingsItem
-                        type="heading"
-                        icon="skill"
-                        title={$text('settings.app_store.skills.how_to_use')}
-                    />
+                    <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
                     <p class="how-to-use-prefix">{$text('settings.app_store.skills.how_to_use_prefix')}</p>
                     <div class="how-to-use-scroll-container">
                         <div class="how-to-use-scroll">
@@ -363,11 +356,7 @@
 
             <!-- Models list (below pricing and how-to-use) -->
             <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="skill"
-                    title={$text('settings.app_store.skills.models')}
-                />
+                <SettingsSectionHeading title={$text('settings.app_store.skills.models')} icon="skill" />
                 <div class="models-list">
                     {#each skillModels as model (model.id)}
                         <div
@@ -401,11 +390,7 @@
 
             <!-- Pricing section - always show first, even if free -->
             <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="coins"
-                    title={$text('common.pricing')}
-                />
+                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="content">
                     {#if Array.isArray(formattedPricing)}
                         <!-- Token pricing: display each line separately -->
@@ -422,11 +407,7 @@
             <!-- How to use section (after pricing) - horizontal scrollable example instructions -->
             {#if howToUseExamples.length > 0}
                 <div class="section how-to-use-section">
-                    <SettingsItem 
-                        type="heading"
-                        icon="skill"
-                        title={$text('settings.app_store.skills.how_to_use')}
-                    />
+                    <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
                     <!-- "Just ask your mates something like:" prefix -->
                     <p class="how-to-use-prefix">{$text('settings.app_store.skills.how_to_use_prefix')}</p>
                     <div class="how-to-use-scroll-container">
@@ -464,11 +445,7 @@
             <!-- Providers section (below pricing and how-to-use) -->
             {#if skill.providers && skill.providers.length > 0}
                 <div class="section">
-                    <SettingsItem 
-                        type="heading"
-                        icon="provider"
-                        title={$text('settings.app_store.skills.providers')}
-                    />
+                    <SettingsSectionHeading title={$text('settings.app_store.skills.providers')} icon="provider" />
                     <div class="providers-list">
                         {#each skill.providers as providerName}
                             {@const providerMeta = findProviderByName(providerName)}

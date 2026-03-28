@@ -4,15 +4,17 @@
 #
 # Searches for public events (meetups, conferences, hackathons, workshops, etc.)
 # using one or more providers simultaneously. Supported providers:
-#   - meetup: Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
-#   - luma:   Luma.com internal REST API (78 featured cities, includes descriptions)
+#   - meetup:        Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
+#   - luma:          Luma.com internal REST API (78 featured cities, includes descriptions)
+#   - google_events: Google Events via SerpAPI (aggregates Eventbrite, Ticketmaster, etc.)
 #
 # Provider selection via the 'provider' request field:
-#   "auto"   (default) — searches all applicable providers in parallel, merges results
-#   "meetup" — Meetup only
-#   "luma"   — Luma only (requires city to be in Luma's 78 featured cities)
+#   "auto"          (default) — searches all applicable providers in parallel, merges results
+#   "meetup"        — Meetup only
+#   "luma"          — Luma only (requires city to be in Luma's 78 featured cities)
+#   "google_events" — Google Events only (requires SerpAPI key)
 #
-# In "auto" mode, both providers are queried simultaneously. Results from all
+# In "auto" mode, all providers are queried simultaneously. Results from all
 # providers are merged, deduplicated by URL, sorted by date, and sliced to count.
 #
 # Architecture:
@@ -38,6 +40,7 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -45,7 +48,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma"}
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events"}
 
 # Platform-brand and generic filler words that narrow provider results unnecessarily.
 # Both Meetup and Luma use literal keyword matching — passing "meetup" to Meetup or
@@ -381,6 +384,42 @@ class SearchSkill(BaseSkill):
             logger.warning("Luma search failed for query=%r city=%r: %s", query, location_str, exc)
             return [], 0, str(exc)
 
+    async def _search_google_events(
+        self,
+        query: str,
+        location_str: str,
+        start_date: Optional[str],
+        end_date: Optional[str],
+        event_type: Optional[str],
+        count: int,
+        secrets_manager: Optional[SecretsManager] = None,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search Google Events via SerpAPI and return (events, total_available, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+
+        Requires SerpAPI key in Vault. Returns empty results with error message
+        if the key is not configured.
+        """
+        try:
+            events, total = await google_events_provider.search_events_async(
+                query=query,
+                location=location_str,
+                start_date=start_date,
+                end_date=end_date,
+                event_type=event_type,
+                count=count,
+                secrets_manager=secrets_manager,
+            )
+            return events, total, None
+        except ValueError as exc:
+            # Missing API key — not a transient error.
+            logger.warning("Google Events search unavailable: %s", exc)
+            return [], 0, str(exc)
+        except Exception as exc:
+            logger.warning("Google Events search failed for query=%r: %s", query, exc)
+            return [], 0, str(exc)
+
     @staticmethod
     def _merge_and_sort(
         *provider_results: List[Dict[str, Any]],
@@ -562,8 +601,24 @@ class SearchSkill(BaseSkill):
             all_events = luma_events
             total_available = total
 
+        elif provider_choice == "google_events":
+            # Google Events only (via SerpAPI)
+            ge_events, total, ge_err = await self._search_google_events(
+                query=query,
+                location_str=luma_city,
+                start_date=start_date,
+                end_date=end_date,
+                event_type=event_type,
+                count=count,
+                secrets_manager=secrets_manager,
+            )
+            if ge_err and not ge_events:
+                return (request_id, [], f"Google Events search failed: {ge_err}", 0)
+            all_events = ge_events
+            total_available = total
+
         else:
-            # "auto": query both providers in parallel with extra headroom.
+            # "auto": query all providers in parallel with extra headroom.
             per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
             meetup_task = self._search_meetup(
                 query=query,
@@ -584,20 +639,36 @@ class SearchSkill(BaseSkill):
                 count=per_provider_count,
                 proxy_url=proxy_url,
             )
-
-            (meetup_events, meetup_total, meetup_err), (luma_events, luma_total, _luma_err) = (
-                await asyncio.gather(meetup_task, luma_task)
+            google_events_task = self._search_google_events(
+                query=query,
+                location_str=luma_city,
+                start_date=start_date,
+                end_date=end_date,
+                event_type=event_type,
+                count=per_provider_count,
+                secrets_manager=secrets_manager,
             )
+
+            (
+                (meetup_events, meetup_total, meetup_err),
+                (luma_events, luma_total, _luma_err),
+                (ge_events, ge_total, ge_err),
+            ) = await asyncio.gather(meetup_task, luma_task, google_events_task)
 
             if meetup_err:
                 logger.warning(
                     "Meetup failed in auto mode for request %s: %s", request_id, meetup_err
                 )
+            if ge_err:
+                logger.warning(
+                    "Google Events failed in auto mode for request %s: %s", request_id, ge_err
+                )
 
-            # Merge: Luma first (sorted by date from Luma), then Meetup (by relevance).
-            # _merge_and_sort deduplicates by URL and re-sorts by date.
-            all_events = self._merge_and_sort(luma_events, meetup_events, count=count)
-            total_available = meetup_total + luma_total
+            # Merge: all providers, deduplicate by URL, re-sort by date.
+            all_events = self._merge_and_sort(
+                luma_events, meetup_events, ge_events, count=count,
+            )
+            total_available = meetup_total + luma_total + ge_total
 
         # Add 'type' field and content hash for UI rendering consistency.
         results: List[Dict[str, Any]] = []

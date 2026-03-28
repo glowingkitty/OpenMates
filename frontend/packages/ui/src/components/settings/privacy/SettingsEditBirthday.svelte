@@ -14,6 +14,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { personalDataStore } from '../../../stores/personalDataStore';
 
@@ -146,11 +147,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
 />
 
 <!-- Title field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.title')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.title')} icon="text" />
 
 <SettingsInput
     bind:value={title}
@@ -159,11 +156,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
 />
 
 <!-- Date field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('common.date')}
-/>
+<SettingsSectionHeading title={$text('common.date')} icon="text" />
 
 <SettingsInput
     bind:value={dateValue}

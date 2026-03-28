@@ -8,6 +8,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { userProfile } from '../../stores/userProfile';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import SettingsUsage from './SettingsUsage.svelte';
 
     const dispatch = createEventDispatcher();
@@ -121,7 +122,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <div class="section-divider"></div>
 
 <!-- Usage Section -->
-<SettingsItem type="heading" icon="usage" title={$text('settings.usage')} />
+<SettingsSectionHeading title={$text('settings.usage')} icon="usage" />
 <SettingsUsage
     on:chatSelected={(e) => dispatch('chatSelected', e.detail)}
     on:closeSettings={() => dispatch('closeSettings')}

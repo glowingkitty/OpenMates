@@ -19,7 +19,7 @@ visual-only for now.
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { getApiUrl, apiEndpoints } from '../../../config/api';
     import { userProfile, updateProfile } from '../../../stores/userProfile';
 
@@ -262,11 +262,7 @@ visual-only for now.
 </div>
 
 <!-- Period options list -->
-<SettingsItem
-    type="heading"
-    icon={categoryIcon}
-    title={$text(`settings.privacy.auto_deletion.select_period`)}
-/>
+<SettingsSectionHeading title={$text(`settings.privacy.auto_deletion.select_period`)} icon={categoryIcon} />
 
 {#each periodOptions as option}
     <button

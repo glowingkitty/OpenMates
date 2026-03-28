@@ -19,6 +19,7 @@
 <script lang="ts">
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, FocusModeMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -224,11 +225,7 @@
         <!-- How to use section: scrollable example prompts, only shown if translations exist -->
         {#if howToUseExamples.length > 0}
             <div class="section how-to-use-section">
-                <SettingsItem
-                    type="heading"
-                    icon="skill"
-                    title={$text('settings.app_store.skills.how_to_use')}
-                />
+                <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
                 <!-- "Just ask your mates something like:" prefix -->
                 <p class="how-to-use-prefix">{$text('settings.app_store.focus_modes.how_to_use_prefix')}</p>
                 <div class="how-to-use-scroll-container">
@@ -266,11 +263,7 @@
              Uses process_translation_key bullets when available; falls back to showing
              the system prompt directly if no process key is defined. -->
         <div class="section">
-            <SettingsItem 
-                type="heading"
-                icon="systemprompt"
-                title={$text('settings.app_store.focus_modes.system_prompt')}
-            />
+            <SettingsSectionHeading title={$text('settings.app_store.focus_modes.system_prompt')} icon="systemprompt" />
             {#if hasInstructions}
                 <!-- "An overview, over what the focus mode will do:" label -->
                 {#if processBullets.length > 0}

@@ -14,6 +14,7 @@ Related to: SettingsAddAddress.svelte, SettingsHidePersonalData.svelte
     import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { personalDataStore } from '../../../stores/personalDataStore';
 
@@ -169,11 +170,7 @@ Related to: SettingsAddAddress.svelte, SettingsHidePersonalData.svelte
 />
 
 <!-- Title field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.title')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.title')} icon="text" />
 
 <SettingsInput
     bind:value={title}
@@ -182,11 +179,7 @@ Related to: SettingsAddAddress.svelte, SettingsHidePersonalData.svelte
 />
 
 <!-- First line to hide -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.first_line')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.first_line')} icon="text" />
 
 <SettingsInput
     bind:value={firstLine}
@@ -195,11 +188,7 @@ Related to: SettingsAddAddress.svelte, SettingsHidePersonalData.svelte
 />
 
 <!-- Second line to hide -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.second_line')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.second_line')} icon="text" />
 
 <SettingsInput
     bind:value={secondLine}

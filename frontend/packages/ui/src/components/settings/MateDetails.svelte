@@ -21,6 +21,7 @@
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
 
     // Event dispatcher for Settings.svelte navigation
     const dispatch = createEventDispatcher();
@@ -134,11 +135,7 @@
 
         <!-- Instructions section: process bullets + collapsible system prompt -->
         <div class="section">
-            <SettingsItem
-                type="heading"
-                icon="ai"
-                title={$text('settings.mates.system_prompt_heading')}
-            />
+            <SettingsSectionHeading title={$text('settings.mates.system_prompt_heading')} icon="ai" />
             {#if hasInstructions}
                 <!-- Bullet-point summary from process_translation_key -->
                 {#if processBullets.length > 0}

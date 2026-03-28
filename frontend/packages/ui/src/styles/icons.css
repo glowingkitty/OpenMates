@@ -182,6 +182,60 @@
 .subsetting_icon.provider {
   --icon-mask-image: url("@openmates/ui/static/icons/provider.svg");
 }
+.subsetting_icon.skill {
+  --icon-mask-image: url("@openmates/ui/static/icons/skill.svg");
+}
+.subsetting_icon.focus {
+  --icon-mask-image: url("@openmates/ui/static/icons/filter.svg");
+}
+.subsetting_icon.reminder {
+  --icon-mask-image: url("@openmates/ui/static/icons/reminder.svg");
+}
+.subsetting_icon.embed {
+  --icon-mask-image: url("@openmates/ui/static/icons/embed.svg");
+}
+.subsetting_icon.insight {
+  --icon-mask-image: url("@openmates/ui/static/icons/insight.svg");
+}
+.subsetting_icon.server {
+  --icon-mask-image: url("@openmates/ui/static/icons/server.svg");
+}
+.subsetting_icon.usage {
+  --icon-mask-image: url("@openmates/ui/static/icons/usage.svg");
+}
+.subsetting_icon.icon_info {
+  --icon-mask-image: url("@openmates/ui/static/icons/introduction.svg");
+}
+.subsetting_icon.contact {
+  --icon-mask-image: url("@openmates/ui/static/icons/contact.svg");
+}
+.subsetting_icon.coding {
+  --icon-mask-image: url("@openmates/ui/static/icons/coding.svg");
+}
+.subsetting_icon.create {
+  --icon-mask-image: url("@openmates/ui/static/icons/create.svg");
+}
+.subsetting_icon.text {
+  --icon-mask-image: url("@openmates/ui/static/icons/text.svg");
+}
+.subsetting_icon.share {
+  --icon-mask-image: url("@openmates/ui/static/icons/share.svg");
+}
+.subsetting_icon.ai {
+  --icon-mask-image: url("@openmates/ui/static/icons/ai.svg");
+}
+.subsetting_icon.task {
+  --icon-mask-image: url("@openmates/ui/static/icons/task.svg");
+}
+.subsetting_icon.anonym {
+  --icon-mask-image: url("@openmates/ui/static/icons/anonym.svg");
+}
+.subsetting_icon.event {
+  --icon-mask-image: url("@openmates/ui/static/icons/event.svg");
+}
+.subsetting_icon.puzzle {
+  --icon-mask-image: url("@openmates/ui/static/icons/planning.svg");
+}
 
 /* Modify icon for subsubmenu items */
 
