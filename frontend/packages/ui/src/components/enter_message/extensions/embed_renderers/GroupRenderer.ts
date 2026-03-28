@@ -46,6 +46,8 @@ import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.sve
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
 import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
+import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPreview.svelte";
+import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
@@ -243,6 +245,16 @@ export class GroupRenderer implements EmbedRenderer {
         "health-appointment",
         (item, embedData, decodedContent, content) =>
           this.renderHealthAppointmentComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "home-listing",
+        (item, embedData, decodedContent, content) =>
+          this.renderHomeListingComponent(
             item,
             embedData,
             decodedContent,
@@ -525,6 +537,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderImageResultItem(item, embedData, decodedContent);
       case "health-appointment":
         return this.renderHealthAppointmentItem(item, embedData, decodedContent);
+      case "home-listing":
+        return this.renderHomeListingItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -1461,6 +1475,25 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "REWE",
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle home.search skill — German housing search
+      if (appId === "home" && skillId === "search") {
+        const component = mount(HomeSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Multi",
             status,
             results,
             taskId,
@@ -4117,6 +4150,7 @@ export class GroupRenderer implements EmbedRenderer {
       "events-event": "event",
       "maps-place": "place",
       "images-image-result": "image",
+      "home-listing": "listing",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
@@ -4233,6 +4267,102 @@ export class GroupRenderer implements EmbedRenderer {
       <div class="embed-text-content">
         <div class="embed-text-line">${slotDatetime}</div>
         ${name ? `<div class="embed-text-subline">${name}${speciality ? ` · ${speciality}` : ""}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * Render a Home listing child embed as a Svelte component (HomeListingEmbedPreview).
+   * Used when a home-listing embed is rendered individually in a message.
+   */
+  private async renderHomeListingComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping HomeListingEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(HomeListingEmbedPreview, {
+        target: content,
+        props: {
+          embed_id: embedId,
+          title: decodedContent?.title as string | undefined,
+          price_label: decodedContent?.price_label as string | undefined,
+          size_sqm: typeof decodedContent?.size_sqm === "number"
+            ? decodedContent.size_sqm
+            : undefined,
+          rooms: typeof decodedContent?.rooms === "number"
+            ? decodedContent.rooms
+            : undefined,
+          address: decodedContent?.address as string | undefined,
+          image_url: decodedContent?.image_url as string | undefined,
+          url: decodedContent?.url as string | undefined,
+          provider: decodedContent?.provider as string | undefined,
+          listing_type: decodedContent?.listing_type as string | undefined,
+          onSelect: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted HomeListingEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount HomeListingEmbedPreview:",
+        err,
+      );
+      content.innerHTML = await this.renderHomeListingItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+    }
+  }
+
+  /**
+   * HTML fallback renderer for home-listing embeds (used in group rendering).
+   */
+  private async renderHomeListingItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const title = decodedContent?.title || "Listing";
+    const priceLabel = decodedContent?.price_label || "";
+    const address = decodedContent?.address || "";
+    const provider = decodedContent?.provider || "";
+
+    return `
+      <div class="embed-app-icon home">
+        <span class="icon icon_home"></span>
+      </div>
+      <div class="embed-text-content">
+        ${priceLabel ? `<div class="embed-text-line">${priceLabel}</div>` : ""}
+        <div class="embed-text-line">${title}</div>
+        ${address ? `<div class="embed-text-subline">${address}</div>` : ""}
+        ${provider ? `<div class="embed-text-subline">${provider}</div>` : ""}
       </div>
     `;
   }

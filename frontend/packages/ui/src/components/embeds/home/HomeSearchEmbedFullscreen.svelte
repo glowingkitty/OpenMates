@@ -1,0 +1,230 @@
+<!--
+  frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.svelte
+
+  Fullscreen view for Home Search skill embeds.
+  Uses SearchResultsTemplate for unified grid + overlay + loading pattern.
+
+  Shows:
+  - Header with search query (city) and "via Multi" subtitle
+  - Listing cards in a responsive grid
+  - Overlay drill-down into HomeListingEmbedFullscreen
+
+  Child embeds are automatically loaded by SearchResultsTemplate/UnifiedEmbedFullscreen.
+
+  See docs/architecture/embeds.md
+-->
+
+<script lang="ts">
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
+  import HomeListingEmbedPreview from './HomeListingEmbedPreview.svelte';
+  import HomeListingEmbedFullscreen from './HomeListingEmbedFullscreen.svelte';
+  import { text } from '@repo/ui';
+
+  /**
+   * Home listing result interface (transformed from child embeds).
+   * Contains all fields needed for both preview cards and fullscreen view.
+   */
+  interface HomeListingResult {
+    embed_id: string;
+    title?: string;
+    price_label?: string;
+    size_sqm?: number;
+    rooms?: number;
+    address?: string;
+    image_url?: string;
+    url?: string;
+    provider?: string;
+    listing_type?: string;
+  }
+
+  interface Props {
+    query?: string;
+    provider?: string;
+    embedIds?: string | string[];
+    status?: 'processing' | 'finished' | 'error' | 'cancelled';
+    errorMessage?: string;
+    results?: HomeListingResult[];
+    previewData?: {
+      query?: string;
+      provider?: string;
+      status?: string;
+      results?: unknown[];
+    };
+    onClose: () => void;
+    embedId?: string;
+    hasPreviousEmbed?: boolean;
+    hasNextEmbed?: boolean;
+    onNavigatePrevious?: () => void;
+    onNavigateNext?: () => void;
+    navigateDirection?: 'previous' | 'next';
+    showChatButton?: boolean;
+    onShowChat?: () => void;
+    initialChildEmbedId?: string;
+  }
+
+  let {
+    query: queryProp,
+    provider: providerProp,
+    embedIds,
+    status: statusProp,
+    errorMessage: errorMessageProp,
+    results: resultsProp,
+    previewData,
+    onClose,
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    navigateDirection,
+    showChatButton = false,
+    onShowChat,
+    initialChildEmbedId
+  }: Props = $props();
+
+  // Local reactive state for streaming updates
+  let localQuery = $state('');
+  let localProvider = $state('Multi');
+  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
+  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
+  let localErrorMessage = $state('');
+
+  $effect(() => {
+    localQuery = previewData?.query || queryProp || '';
+    localProvider = previewData?.provider || providerProp || 'Multi';
+    localStatus = (previewData?.status as typeof localStatus) || statusProp || 'finished';
+    localErrorMessage = errorMessageProp || '';
+  });
+
+  let query = $derived(localQuery);
+  let provider = $derived(localProvider);
+  let legacyResults = $derived(previewData?.results || resultsProp || []);
+  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+
+  /**
+   * Transform raw embed content to HomeListingResult format.
+   */
+  function transformToHomeResult(
+    embedId: string,
+    content: Record<string, unknown>
+  ): HomeListingResult {
+    return {
+      embed_id: embedId,
+      title: content.title as string | undefined,
+      price_label: content.price_label as string | undefined,
+      size_sqm: typeof content.size_sqm === 'number' ? content.size_sqm : undefined,
+      rooms: typeof content.rooms === 'number' ? content.rooms : undefined,
+      address: content.address as string | undefined,
+      image_url: content.image_url as string | undefined,
+      url: content.url as string | undefined,
+      provider: content.provider as string | undefined,
+      listing_type: content.listing_type as string | undefined
+    };
+  }
+
+  /**
+   * Transform legacy results for backwards compatibility.
+   */
+  function transformLegacyResults(results: unknown[]): HomeListingResult[] {
+    return (results as Array<Record<string, unknown>>).map((r, i) => ({
+      embed_id: `legacy-${i}`,
+      title: r.title as string | undefined,
+      price_label: r.price_label as string | undefined,
+      size_sqm: typeof r.size_sqm === 'number' ? r.size_sqm : undefined,
+      rooms: typeof r.rooms === 'number' ? r.rooms : undefined,
+      address: r.address as string | undefined,
+      image_url: r.image_url as string | undefined,
+      url: r.url as string | undefined,
+      provider: r.provider as string | undefined,
+      listing_type: r.listing_type as string | undefined
+    }));
+  }
+
+  /**
+   * Handle embed data updates during streaming.
+   */
+  function handleEmbedDataUpdated(data: {
+    status: string;
+    decodedContent: Record<string, unknown>;
+  }) {
+    if (!data.decodedContent) return;
+    const s = data.status;
+    if (s === 'processing' || s === 'finished' || s === 'error' || s === 'cancelled')
+      localStatus = s;
+    const c = data.decodedContent;
+    if (typeof c.query === 'string') localQuery = c.query;
+    if (typeof c.provider === 'string') localProvider = c.provider;
+    if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
+    if (typeof c.error === 'string') localErrorMessage = c.error;
+  }
+</script>
+
+<SearchResultsTemplate
+  appId="home"
+  skillId="search"
+  minCardWidth="280px"
+  embedHeaderTitle={query}
+  embedHeaderSubtitle={viaProvider}
+  skillIconName="home"
+  showSkillIcon={true}
+  {onClose}
+  currentEmbedId={embedId}
+  embedIds={embedIdsValue}
+  childEmbedTransformer={transformToHomeResult}
+  {legacyResults}
+  legacyResultTransformer={transformLegacyResults}
+  status={localStatus}
+  errorMessage={localErrorMessage}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
+  {initialChildEmbedId}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {navigateDirection}
+  {showChatButton}
+  {onShowChat}
+>
+  {#snippet resultCard({ result, onSelect })}
+    <HomeListingEmbedPreview
+      embed_id={result.embed_id}
+      title={result.title}
+      price_label={result.price_label}
+      size_sqm={result.size_sqm}
+      rooms={result.rooms}
+      address={result.address}
+      image_url={result.image_url}
+      provider={result.provider}
+      listing_type={result.listing_type}
+      {onSelect}
+    />
+  {/snippet}
+
+  {#snippet childFullscreen(nav)}
+    <HomeListingEmbedFullscreen
+      url={nav.result.url || ''}
+      title={nav.result.title}
+      price_label={nav.result.price_label}
+      size_sqm={nav.result.size_sqm}
+      rooms={nav.result.rooms}
+      address={nav.result.address}
+      image_url={nav.result.image_url}
+      provider={nav.result.provider}
+      listing_type={nav.result.listing_type}
+      onClose={nav.onClose}
+      embedId={nav.result.embed_id}
+      hasPreviousEmbed={nav.hasPrevious}
+      hasNextEmbed={nav.hasNext}
+      onNavigatePrevious={nav.onPrevious}
+      onNavigateNext={nav.onNext}
+    />
+  {/snippet}
+</SearchResultsTemplate>
+
+<style>
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="home"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/home.svg');
+    mask-image: url('@openmates/ui/static/icons/home.svg');
+  }
+</style>
