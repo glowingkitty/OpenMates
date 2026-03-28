@@ -21,6 +21,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { ZoneContextManager } from '@opentelemetry/context-zone';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 
 import {
 	TRACING_SERVICE_NAME,
@@ -39,19 +40,18 @@ let _tracer: Tracer | null = null;
  */
 export function initTracing(apiBaseUrl: string): void {
 	try {
-		const provider = new WebTracerProvider({
-			resource: {
-				attributes: {
-					'service.name': TRACING_SERVICE_NAME
-				}
-			}
-		});
+		const exportUrl = `${apiBaseUrl}${OTLP_TRACES_PATH}`;
 
 		const exporter = new OTLPTraceExporter({
-			url: `${apiBaseUrl}${OTLP_TRACES_PATH}`
+			url: exportUrl
 		});
 
-		provider.addSpanProcessor(new BatchSpanProcessor(exporter));
+		const provider = new WebTracerProvider({
+			resource: resourceFromAttributes({
+				'service.name': TRACING_SERVICE_NAME
+			}),
+			spanProcessors: [new BatchSpanProcessor(exporter)]
+		});
 
 		provider.register({
 			contextManager: new ZoneContextManager()
@@ -71,7 +71,7 @@ export function initTracing(apiBaseUrl: string): void {
 
 		_tracer = trace.getTracer(TRACING_SERVICE_NAME);
 
-		console.debug('[Tracing] Browser OTel SDK initialized, exporting to', exporter.url);
+		console.debug('[Tracing] Browser OTel SDK initialized, exporting to', exportUrl);
 	} catch (error) {
 		console.error('[Tracing] Failed to initialize browser OTel SDK:', error);
 	}

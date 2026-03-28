@@ -30,6 +30,10 @@ import {
   clearMasterKeyFromIndexedDB,
   deleteCryptoDatabase,
 } from "./cryptoKeyStorage";
+import {
+  encryptWithMasterKey,
+  decryptWithMasterKey,
+} from "./encryption/MetadataEncryptor";
 
 // Email encryption key storage constants (for server communication)
 const EMAIL_ENCRYPTION_KEY = "openmates_email_encryption_key";
