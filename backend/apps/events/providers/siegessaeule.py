@@ -6,16 +6,18 @@
 # bars, culture (theater/exhibitions), mixed events, and nightlife.
 #
 # Key design decisions:
-# - No API — simple server-rendered HTML, scraped via direct httpx
+# - No API available — HTML scraping via Webshare residential proxy
+# - Siegessaeule blocks datacenter IPs (403) but allows residential proxies
+# - Same proxy pattern as Meetup: direct attempt first, proxy fallback
 # - Berlin-only (Siegessäule is a Berlin-specific publication)
-# - Date-based URL pattern: /termine/?date=YYYY-MM-DD
-# - No keyword search on server side — client-side filtering after fetch
-# - Categories in URLs: clubs, bars, kultur, mix, sex
+# - No server-side keyword search — client-side filtering after fetch
+# - Categories from URL structure: clubs, bars, kultur, mix, sex
 #
 # Coverage: LGBTQ+ events in Berlin — unique data source not covered by
 # Meetup, Luma, or RA. Includes drag shows, queer parties, pride events,
 # bar nights, cultural exhibitions, and community gatherings.
 
+import html as html_module
 import logging
 import re
 from datetime import datetime
@@ -23,12 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
-from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 from backend.shared.testing.caching_http_transport import create_http_client
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +37,7 @@ _BASE_URL = "https://www.siegessaeule.de"
 _TERMINE_URL = f"{_BASE_URL}/termine/"
 
 # HTTP timeout (seconds).
-_HTTP_TIMEOUT = 20.0
-
-# Maximum description length (characters).
-_MAX_DESCRIPTION_CHARS = 1000
+_HTTP_TIMEOUT = 25.0
 
 # Browser-like headers.
 _HEADERS = {
@@ -58,6 +52,16 @@ _HEADERS = {
 # Siegessäule event categories (from URL structure).
 CATEGORIES = {"clubs", "bars", "kultur", "mix", "sex"}
 
+# HTTP status codes indicating the site is rejecting direct requests.
+_REJECTION_STATUS_CODES = {403, 429, 500, 502, 503, 504}
+
+# Regex to extract event blocks from HTML.
+# Each event is an <a> tag linking to /termine/category/slug/YYYY-MM-DD/HH:MM/
+_EVENT_LINK_PATTERN = re.compile(
+    r'<a[^>]*href="(/termine/(clubs|bars|kultur|mix|sex)/([^/]+)/(\d{4}-\d{2}-\d{2})/(\d{2}:\d{2})/)"[^>]*>(.*?)</a>',
+    re.DOTALL,
+)
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -65,135 +69,117 @@ CATEGORIES = {"clubs", "bars", "kultur", "mix", "sex"}
 
 async def _fetch_page(
     url: str,
-    secrets_manager: Optional["SecretsManager"] = None,
+    proxy_url: Optional[str] = None,
 ) -> str:
     """
-    Fetch a Siegessäule page. Tries direct httpx first, falls back to Firecrawl.
+    Fetch a Siegessäule page. Tries direct first, falls back to proxy.
 
-    Args:
-        url:             The URL to fetch.
-        secrets_manager: Required for Firecrawl fallback.
-
-    Returns:
-        HTML content of the page.
+    Siegessäule blocks datacenter IPs with 403 but allows residential proxies.
     """
-    # Try direct first (cheapest)
+    # Try direct first (works from residential IPs)
     try:
         async with create_http_client(
             "siegessaeule", timeout=_HTTP_TIMEOUT, follow_redirects=True
         ) as client:
             response = await client.get(url, headers=_HEADERS)
-            if response.status_code < 400:
+            if response.status_code not in _REJECTION_STATUS_CODES:
+                response.raise_for_status()
                 return response.text
             logger.debug(
-                "[siegessaeule] Direct request rejected (%d) — trying Firecrawl",
+                "[siegessaeule] Direct request rejected (%d) — retrying via proxy",
                 response.status_code,
             )
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
-        logger.debug("[siegessaeule] Direct request failed (%s) — trying Firecrawl", exc)
+        logger.debug("[siegessaeule] Direct request failed (%s) — retrying via proxy", exc)
 
-    # Fallback to Firecrawl
-    if not secrets_manager:
+    # Retry via Webshare residential proxy
+    if not proxy_url:
         raise ValueError(
-            "Siegessäule blocked direct request and no secrets_manager for Firecrawl fallback"
+            "Siegessäule blocked direct request and no proxy configured. "
+            "Webshare residential proxy is required for datacenter servers."
         )
 
-    result = await scrape_url(
-        url=url,
-        secrets_manager=secrets_manager,
-        formats=["markdown"],
-        only_main_content=False,
-        sanitize_output=False,
-    )
-
-    if result.get("error"):
-        raise ValueError(f"Firecrawl scrape failed for {url}: {result['error']}")
-
-    data = result.get("data", {})
-    markdown = data.get("markdown") or ""
-    if not markdown:
-        raise ValueError(f"Firecrawl returned empty content for {url}")
-
-    return markdown
+    async with httpx.AsyncClient(
+        proxy=proxy_url,
+        timeout=_HTTP_TIMEOUT,
+        follow_redirects=True,
+    ) as client:
+        response = await client.get(url, headers=_HEADERS)
+        response.raise_for_status()
+        return response.text
 
 
-def _parse_events(content: str) -> List[Dict[str, Any]]:
+def _strip_tags(value: str) -> str:
+    """Strip HTML tags and decode entities."""
+    without_tags = re.sub(r"<[^>]+>", " ", value)
+    return re.sub(r"\s+", " ", html_module.unescape(without_tags)).strip()
+
+
+def _parse_events(page_html: str) -> List[Dict[str, Any]]:
     """
-    Parse event listings from Siegessäule's markdown (via Firecrawl).
+    Parse event listings from Siegessäule's HTML.
 
-    Markdown event blocks follow this pattern:
-        [28\\. März 2026, 22:00\\
-        \\
-        **Event Title**\\
-        \\
-        Optional description\\
-        \\
-        Venue Name](https://www.siegessaeule.de/termine/category/slug/YYYY-MM-DD/HH:MM/)
-
-    The URL contains the category, date, and time in a structured format.
+    Each event is an <a> block containing:
+    - URL with category, slug, date, and time
+    - <h4> tag with event title
+    - Description text
+    - Venue name (last text segment before closing tag)
+    - Optional <img> with CDN image URL
     """
     events: List[Dict[str, Any]] = []
     seen_urls: set = set()
 
-    # Match event links: [...](https://www.siegessaeule.de/termine/category/slug/date/time/)
-    # The link text contains date, title (in **bold**), optional description, and venue.
-    event_pattern = re.compile(
-        r'\[([^\]]*?\*\*[^\]]+?\*\*[^\]]*?)\]'  # Link text containing **bold title**
-        r'\((https://www\.siegessaeule\.de/termine/'
-        r'(clubs|bars|kultur|mix|sex)/'  # Category
-        r'[^/]+/'                         # Slug
-        r'(\d{4}-\d{2}-\d{2})/'          # Date
-        r'(\d{2}:\d{2})/)\)',            # Time
-        re.DOTALL,
-    )
-
-    for match in event_pattern.finditer(content):
-        link_text = match.group(1)
-        full_url = match.group(2)
-        category = match.group(3)
+    for match in _EVENT_LINK_PATTERN.finditer(page_html):
+        href = match.group(1)
+        category = match.group(2)
+        slug = match.group(3)
         date_str = match.group(4)
         time_str = match.group(5)
+        inner_html = match.group(6)
 
+        full_url = f"{_BASE_URL}{href}"
         if full_url in seen_urls:
             continue
         seen_urls.add(full_url)
 
-        # Extract title from **bold** text
-        title_match = re.search(r'\*\*(.+?)\*\*', link_text, re.DOTALL)
-        title = title_match.group(1).strip() if title_match else ""
-        if not title:
+        # Extract title from <h4>
+        title_match = re.search(r"<h4[^>]*>(.*?)</h4>", inner_html, re.DOTALL)
+        title = _strip_tags(title_match.group(1)) if title_match else ""
+        if not title or len(title) < 2:
             continue
 
-        # Clean escaped characters from title
-        title = title.replace("\\", "").strip()
+        # Extract all text segments (split by tags, filter empties)
+        text_segments = [
+            s.strip() for s in re.split(r"<[^>]+>", inner_html)
+            if s.strip() and s.strip() != title
+        ]
 
-        # Extract description — text between title and venue (after the bold title)
+        # First segment is usually the date string (e.g., "28. März 2026, 16:00")
+        # Last non-empty segment is usually the venue name
         description = ""
-        after_title = link_text.split("**")[-1] if "**" in link_text else ""
-        # Clean up markdown escape sequences
-        after_parts = re.sub(r'\\+\n?', ' ', after_title).strip()
-        after_parts = re.sub(r'\s+', ' ', after_parts).strip()
-        if after_parts:
-            # Last part is usually venue name, rest is description
-            parts = [p.strip() for p in after_parts.split(',') if p.strip()]
-            if len(parts) > 1:
-                description = ', '.join(parts[:-1])
-                venue_name = parts[-1]
-            elif parts:
-                venue_name = parts[0]
-            else:
-                venue_name = ""
-        else:
-            venue_name = ""
+        venue_name = ""
 
-        # Extract image URL if present
-        image_match = re.search(r'!\[\]\((https://cdn\.siegessaeule\.de/[^)]+)\)', link_text)
-        image_url = image_match.group(1) if image_match else None
+        # Filter out the date string from segments
+        non_date_segments = [
+            s for s in text_segments
+            if not re.match(r"\d{1,2}\.\s+\w+\s+\d{4}", s)
+        ]
+
+        if non_date_segments:
+            venue_name = non_date_segments[-1]
+            if len(non_date_segments) > 1:
+                description = " ".join(non_date_segments[:-1])
+
+        # Extract image URL
+        img_match = re.search(
+            r'src="(https://cdn\.siegessaeule\.de/[^"]+)"', inner_html,
+        )
+        image_url = img_match.group(1) if img_match else None
 
         date_start = f"{date_str}T{time_str}:00"
 
         events.append({
-            "id": full_url.rstrip("/").split("/")[-3],
+            "id": slug,
             "provider": "siegessaeule",
             "title": title,
             "description": description,
@@ -233,27 +219,28 @@ async def search_events_async(
     count: int = 10,
     start_date: Optional[str] = None,
     proxy_url: Optional[str] = None,
-    secrets_manager: Optional["SecretsManager"] = None,
+    secrets_manager: Optional[Any] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Search for LGBTQ+ events on Siegessäule.
 
-    Berlin-only. Fetches the /termine/ listing page, optionally filtered by
-    date. Keyword filtering is applied client-side after fetching.
+    Berlin-only. Fetches the /termine/ listing page via Webshare proxy.
+    Keyword filtering is applied client-side after fetching.
 
     Args:
-        city:       City name (must contain "berlin" — only Berlin is supported).
-        query:      Optional keyword filter (applied client-side).
-        count:      Maximum number of events to return (default 10).
-        start_date: ISO 8601 date string — fetches events for this date.
-                    Defaults to today if not provided.
-        proxy_url:  Optional Webshare proxy URL for fallback.
+        city:            City name (must contain "berlin" — only Berlin is supported).
+        query:           Optional keyword filter (applied client-side).
+        count:           Maximum number of events to return (default 10).
+        start_date:      ISO 8601 date string — fetches events for this date.
+                         Defaults to today if not provided.
+        proxy_url:       Webshare rotating proxy URL (required for datacenter servers).
+        secrets_manager: Not used directly, accepted for interface compatibility.
 
     Returns:
         Tuple of (events_list, total_available).
 
     Raises:
-        ValueError: If the city is not Berlin.
+        ValueError: If the city is not Berlin or proxy is unavailable.
     """
     if "berlin" not in city.lower():
         raise ValueError(
@@ -265,7 +252,6 @@ async def search_events_async(
     url = _TERMINE_URL
     if start_date:
         try:
-            # Parse ISO 8601 date to YYYY-MM-DD
             dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
             url = f"{_TERMINE_URL}?date={dt.strftime('%Y-%m-%d')}"
         except (ValueError, TypeError):
@@ -273,14 +259,13 @@ async def search_events_async(
 
     logger.debug("[siegessaeule] Fetching events: url=%s query=%r", url, query)
 
-    content = await _fetch_page(url, secrets_manager=secrets_manager)
-    events = _parse_events(content)
+    page_html = await _fetch_page(url, proxy_url=proxy_url)
+    events = _parse_events(page_html)
     total_available = len(events)
 
     # Client-side keyword filtering
     if query:
-        query_lower = query.lower()
-        query_tokens = query_lower.split()
+        query_tokens = query.lower().split()
         events = [
             e for e in events
             if any(

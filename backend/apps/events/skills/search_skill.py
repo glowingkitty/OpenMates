@@ -483,13 +483,14 @@ class SearchSkill(BaseSkill):
         location_str: str,
         start_date: Optional[str],
         count: int,
-        secrets_manager: Optional[SecretsManager] = None,
+        proxy_url: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
         Search Siegessäule and return (events, total_available, error_or_None).
         Never raises — errors are returned as the third tuple element.
 
         Berlin-only. Returns empty list for non-Berlin cities (not an error).
+        Uses Webshare residential proxy (Siegessäule blocks datacenter IPs).
         """
         if "berlin" not in location_str.lower():
             # Siegessäule is Berlin-only — silently skip for other cities.
@@ -501,7 +502,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 count=count,
                 start_date=start_date,
-                secrets_manager=secrets_manager,
+                proxy_url=proxy_url,
             )
             return events, total, None
         except Exception as exc:
@@ -728,7 +729,7 @@ class SearchSkill(BaseSkill):
                 location_str=luma_city,
                 start_date=start_date,
                 count=count,
-                secrets_manager=secrets_manager,
+                proxy_url=proxy_url,
             )
             if ss_err and not ss_events:
                 return (request_id, [], f"Siegessäule search failed: {ss_err}", 0)
@@ -778,7 +779,7 @@ class SearchSkill(BaseSkill):
                 location_str=luma_city,
                 start_date=start_date,
                 count=per_provider_count,
-                secrets_manager=secrets_manager,
+                proxy_url=proxy_url,
             )
 
             (
