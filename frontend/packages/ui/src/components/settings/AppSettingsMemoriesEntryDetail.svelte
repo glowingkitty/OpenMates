@@ -19,6 +19,7 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import Icon from '../Icon.svelte';
+    import { SettingsSectionHeading } from './elements';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import { updateEntryPrefillStore } from '../../stores/updateEntryPrefillStore';
     import { get } from 'svelte/store';
@@ -535,10 +536,7 @@
                     {#each Object.keys(userInputProperties) as fieldName}
                         {#if exampleEntry[fieldName] !== undefined}
                             <div class="detail-row">
-                                <div class="field-header">
-                                    <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                                    <span class="detail-label">{getFieldLabel(fieldName)}</span>
-                                </div>
+                                <SettingsSectionHeading title={getFieldLabel(fieldName)} icon={getCategoryIconName(category?.icon_image)} />
                                 <span class="detail-value">
                                     {resolveExampleValue(exampleEntry[fieldName])}
                                 </span>
@@ -578,10 +576,7 @@
                     <!-- Schema-based display -->
                     {#each Object.entries(userInputProperties) as [fieldName, prop]}
                         <div class="detail-row">
-                            <div class="field-header">
-                                <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                                <span class="detail-label">{getFieldLabel(fieldName)}</span>
-                            </div>
+                            <SettingsSectionHeading title={getFieldLabel(fieldName)} icon={getCategoryIconName(category?.icon_image)} />
                             <span class="detail-value" class:not-set={entry.item_value[fieldName] === null || entry.item_value[fieldName] === undefined || entry.item_value[fieldName] === ''}>
                                 {#if prop.type === 'boolean'}
                                     {entry.item_value[fieldName] ? 'Yes' : 'No'}
@@ -636,15 +631,7 @@
                 <!-- Schema-based form -->
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
-                        <div class="field-header">
-                            <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                            <label for={fieldName}>
-                                {getFieldLabel(fieldName)}
-                                {#if isFieldRequired(fieldName)}
-                                    <span class="required">*</span>
-                                {/if}
-                            </label>
-                        </div>
+                        <SettingsSectionHeading title={getFieldLabel(fieldName)} icon={getCategoryIconName(category?.icon_image)} />
                         {#if prop.type === 'boolean'}
                             <div class="checkbox-group">
                                 <input
@@ -715,13 +702,7 @@
             {:else}
                 <!-- Generic form -->
                 <div class="form-group">
-                    <div class="field-header">
-                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                        <label for="item-key">
-                            Key
-                            <span class="required">*</span>
-                        </label>
-                    </div>
+                    <SettingsSectionHeading title="Key" icon={getCategoryIconName(category?.icon_image)} />
                     <input
                         id="item-key"
                         type="text"
@@ -732,10 +713,7 @@
                 </div>
 
                 <div class="form-group">
-                    <div class="field-header">
-                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                        <label for="settings-group">Group</label>
-                    </div>
+                    <SettingsSectionHeading title="Group" icon={getCategoryIconName(category?.icon_image)} />
                     <input
                         id="settings-group"
                         type="text"
@@ -746,10 +724,7 @@
                 </div>
 
                 <div class="form-group">
-                    <div class="field-header">
-                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                        <label for="item-value">Value</label>
-                    </div>
+                    <SettingsSectionHeading title="Value" icon={getCategoryIconName(category?.icon_image)} />
                     <textarea
                         id="item-value"
                         bind:value={formState.itemValue}
@@ -910,12 +885,6 @@
         margin-bottom: 1.5rem;
     }
     
-    .field-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 0.5rem;
-    }
     
     .form-group label {
         display: block;

@@ -22,6 +22,7 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import Icon from '../Icon.svelte';
+    import { SettingsSectionHeading } from './elements';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import {
         MAX_LENGTH_SHORT,
@@ -507,15 +508,7 @@
                 <!-- Schema-based form: Generate fields from user-input properties (excludes auto_generated) -->
                 {#each Object.entries(userInputProperties) as [fieldName, prop]}
                     <div class="form-group">
-                        <div class="field-header">
-                            <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                            <label for={fieldName}>
-                                {getFieldLabel(fieldName)}
-                                {#if isFieldRequired(fieldName)}
-                                    <span class="required">*</span>
-                                {/if}
-                            </label>
-                        </div>
+                        <SettingsSectionHeading title={getFieldLabel(fieldName)} icon={getCategoryIconName(category?.icon_image)} />
                         {#if prop.type === 'boolean'}
                             <div class="checkbox-group">
                                 <input
@@ -573,13 +566,7 @@
             {:else}
                 <!-- Generic form: Fallback when no schema is defined -->
                 <div class="form-group">
-                    <div class="field-header">
-                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                        <label for="item-key">
-                            {$text('settings.app_settings_memories.item_key')}
-                            <span class="required">*</span>
-                        </label>
-                    </div>
+                    <SettingsSectionHeading title={$text('settings.app_settings_memories.item_key')} icon={getCategoryIconName(category?.icon_image)} />
                     <input
                         id="item-key"
                         type="text"
@@ -592,12 +579,7 @@
                 </div>
 
                 <div class="form-group">
-                    <div class="field-header">
-                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                        <label for="settings-group">
-                            {$text('settings.app_settings_memories.settings_group')}
-                        </label>
-                    </div>
+                    <SettingsSectionHeading title={$text('settings.app_settings_memories.settings_group')} icon={getCategoryIconName(category?.icon_image)} />
                     <input
                         id="settings-group"
                         type="text"
@@ -610,13 +592,7 @@
                 </div>
 
                 <div class="form-group">
-                    <div class="field-header">
-                        <Icon name={getCategoryIconName(category?.icon_image)} type="memory" size="44px" noAnimation={true} />
-                        <label for="item-value">
-                            {$text('settings.app_settings_memories.item_value')}
-                            <span class="required">*</span>
-                        </label>
-                    </div>
+                    <SettingsSectionHeading title={$text('settings.app_settings_memories.item_value')} icon={getCategoryIconName(category?.icon_image)} />
                     <textarea
                         id="item-value"
                         bind:value={formState.itemValue}
@@ -669,12 +645,6 @@
         margin-bottom: 1.5rem;
     }
     
-    .field-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 0.5rem;
-    }
     
     .form-group label {
         display: block;
