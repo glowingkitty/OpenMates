@@ -101,7 +101,7 @@ async def _fetch_page(
     result = await scrape_url(
         url=url,
         secrets_manager=secrets_manager,
-        formats=["html", "markdown"],
+        formats=["markdown"],
         only_main_content=False,
         sanitize_output=False,
     )
@@ -110,11 +110,11 @@ async def _fetch_page(
         raise ValueError(f"Firecrawl scrape failed for {url}: {result['error']}")
 
     data = result.get("data", {})
-    html = data.get("html") or data.get("markdown") or ""
-    if not html:
+    markdown = data.get("markdown") or ""
+    if not markdown:
         raise ValueError(f"Firecrawl returned empty content for {url}")
 
-    return html
+    return markdown
 
 
 def _parse_events(content: str) -> List[Dict[str, Any]]:
