@@ -1,25 +1,24 @@
 """
-WG-Gesucht sitemap + detail API provider for German housing search.
+WG-Gesucht search + detail API provider for German housing search.
 
 Searches WG-Gesucht for WG rooms and apartment listings by:
-  1. Fetching the gzipped sitemap XML to get all listing URLs
-  2. Filtering URLs by city name (e.g. "in-Berlin" in URL path)
-  3. Fetching listing details from the JSON API for the top N matches
+  1. Fetching the search results HTML page (server-rendered, no JS needed)
+  2. Extracting listing IDs from data-id attributes in the HTML
+  3. Fetching listing details from the undocumented JSON API (/api/offers/{id})
   4. Normalizing results to the standard listing schema
 
-The sitemap is cached at module level with a 1-hour TTL to avoid
-re-fetching on every search. Detail API calls are limited to
-max_results to avoid rate limiting.
+The search HTML is lightweight (~500KB) and returns ~27 listings per page.
+The detail API returns 100+ fields per listing as HAL+JSON.
+Neither endpoint requires authentication or cookies.
 
 Provider: WG-Gesucht (wg-gesucht.de)
 No API key required.
 """
 
-import gzip
+import asyncio
 import logging
 import re
-import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -29,146 +28,122 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-SITEMAP_URL = "https://www.wg-gesucht.de/sitemaps/offer_detail_views/offer_details_DE.xml.gz"
-DETAIL_API_BASE = "https://www.wg-gesucht.de/api/offers"
 BASE_URL = "https://www.wg-gesucht.de"
+DETAIL_API_BASE = f"{BASE_URL}/api/offers"
 REQUEST_TIMEOUT_SECONDS = 15
 DETAIL_TIMEOUT_SECONDS = 10
 
-# Sitemap cache: (urls_list, timestamp)
-SITEMAP_CACHE_TTL_SECONDS = 3600  # 1 hour
-_sitemap_cache: Optional[Tuple[List[str], float]] = None
+# City ID mapping — WG-Gesucht uses numeric IDs in URLs
+# Format: /wg-zimmer-in-{City}.{city_id}.{category}.1.0.html
+CITY_IDS: Dict[str, int] = {
+    "berlin": 8,
+    "munich": 90,
+    "muenchen": 90,
+    "münchen": 90,
+    "hamburg": 55,
+    "cologne": 73,
+    "köln": 73,
+    "koeln": 73,
+    "frankfurt": 41,
+    "düsseldorf": 30,
+    "duesseldorf": 30,
+    "stuttgart": 124,
+    "dortmund": 26,
+    "essen": 35,
+    "leipzig": 77,
+    "bremen": 17,
+    "dresden": 27,
+    "hannover": 57,
+    "nuremberg": 96,
+    "nürnberg": 96,
+    "freiburg": 44,
+    "heidelberg": 60,
+    "bonn": 13,
+    "münster": 91,
+    "aachen": 1,
+    "augsburg": 2,
+    "karlsruhe": 69,
+    "mannheim": 84,
+    "wiesbaden": 140,
+    "mainz": 82,
+    "regensburg": 111,
+    "potsdam": 107,
+    "rostock": 113,
+    "kiel": 71,
+}
 
-# Default max detail API calls per search to avoid rate limiting
-DEFAULT_MAX_DETAIL_CALLS = 10
+# Category mapping for URL construction
+# Category 0 = WG rooms, 1 = 1-room apartments, 2 = apartments, 3 = houses
+CATEGORY_MAP: Dict[str, str] = {
+    "wg": "wg-zimmer",
+    "1_room": "1-zimmer-wohnungen",
+    "apartment": "wohnungen",
+    "house": "haeuser",
+}
 
-# Browser-like headers for API requests
-API_HEADERS = {
+BROWSER_HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.7",
+}
+
+API_HEADERS = {
+    "User-Agent": BROWSER_HEADERS["User-Agent"],
     "Accept": "application/json",
-    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9",
 }
 
 
-async def _fetch_sitemap(client: httpx.AsyncClient) -> List[str]:
+def _get_city_id(city: str) -> Optional[int]:
+    """Resolve a city name to its WG-Gesucht numeric ID."""
+    return CITY_IDS.get(city.strip().lower())
+
+
+def _build_search_url(city: str, city_id: int, category: str = "0") -> str:
     """
-    Fetch and parse the WG-Gesucht sitemap XML to extract listing URLs.
+    Build a WG-Gesucht search URL.
 
-    Uses module-level cache with 1-hour TTL to avoid redundant fetches.
-
-    Args:
-        client: httpx.AsyncClient instance for making the request.
-
-    Returns:
-        List of listing URL strings from the sitemap.
+    URL format: /{type}-in-{City}.{city_id}.{category}.1.0.html
+    With filter params: ?offer_filter=1&city_id={id}&categories[]={cat}&rent_types[]=0&noDeact=1
     """
-    global _sitemap_cache
+    city_title = city.strip().title()
+    slug = CATEGORY_MAP.get("wg", "wg-zimmer")
+    if category == "2":
+        slug = CATEGORY_MAP["apartment"]
+    elif category == "1":
+        slug = CATEGORY_MAP["1_room"]
 
-    # Check cache
-    if _sitemap_cache is not None:
-        urls, cached_at = _sitemap_cache
-        if time.time() - cached_at < SITEMAP_CACHE_TTL_SECONDS:
-            logger.debug("WG-Gesucht sitemap cache hit (%d URLs)", len(urls))
-            return urls
-
-    logger.info("WG-Gesucht fetching sitemap from %s", SITEMAP_URL)
-
-    try:
-        response = await client.get(
-            SITEMAP_URL,
-            headers={"User-Agent": API_HEADERS["User-Agent"]},
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-
-        # Decompress gzip content
-        xml_bytes = gzip.decompress(response.content)
-        xml_text = xml_bytes.decode("utf-8")
-
-        # Extract URLs from <loc> tags
-        urls = re.findall(r"<loc>(https://www\.wg-gesucht\.de/[^<]+)</loc>", xml_text)
-
-        logger.info("WG-Gesucht sitemap parsed: %d URLs", len(urls))
-
-        # Update cache
-        _sitemap_cache = (urls, time.time())
-        return urls
-
-    except Exception as e:
-        logger.error("WG-Gesucht sitemap fetch failed: %s", e, exc_info=True)
-        # Return cached URLs if available (stale cache is better than nothing)
-        if _sitemap_cache is not None:
-            logger.warning("WG-Gesucht using stale sitemap cache")
-            return _sitemap_cache[0]
-        return []
+    base = f"{BASE_URL}/{slug}-in-{city_title}.{city_id}.{category}.1.0.html"
+    params = f"?offer_filter=1&city_id={city_id}&categories%5B%5D={category}&rent_types%5B%5D=0&noDeact=1"
+    return base + params
 
 
-def _extract_offer_id(url: str) -> Optional[str]:
-    """
-    Extract the numeric offer ID from a WG-Gesucht listing URL.
-
-    URL patterns:
-    - /wg-zimmer-in-Berlin-Kreuzberg.12345.html
-    - /1-zimmer-wohnungen-in-Hamburg.67890.html
-
-    Args:
-        url: Full WG-Gesucht listing URL.
-
-    Returns:
-        Offer ID string, or None if not parseable.
-    """
-    match = re.search(r'\.(\d+)\.html', url)
-    return match.group(1) if match else None
+def _extract_listing_ids_from_html(html: str) -> List[str]:
+    """Extract numeric listing IDs from WG-Gesucht search results HTML."""
+    ids = re.findall(r'data-id="(\d{5,})"', html)
+    return list(dict.fromkeys(ids))
 
 
-def _filter_urls_by_city(urls: List[str], city: str) -> List[str]:
-    """
-    Filter sitemap URLs to only include listings in the specified city.
-
-    WG-Gesucht URLs contain the city name in the path, e.g.:
-    - /wg-zimmer-in-Berlin-Kreuzberg.12345.html
-    - /1-zimmer-wohnungen-in-Hamburg.67890.html
-
-    Args:
-        urls: List of all sitemap URLs.
-        city: City name to filter by (case-insensitive).
-
-    Returns:
-        Filtered list of URLs matching the city.
-    """
-    city_lower = city.strip().lower()
-    # Match "in-{City}" pattern in URL (case-insensitive)
-    pattern = re.compile(rf'in-{re.escape(city_lower)}', re.IGNORECASE)
-    return [url for url in urls if pattern.search(url)]
-
-
-def _normalize_listing(offer_id: str, data: Dict[str, Any], url: str) -> Dict[str, Any]:
+def _normalize_listing(offer_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize a WG-Gesucht API offer response to the standard listing schema.
 
-    Args:
-        offer_id: WG-Gesucht offer ID.
-        data: JSON response from the WG-Gesucht offer detail API.
-        url: Original listing URL from the sitemap.
-
-    Returns:
-        Normalized listing dict with standard schema fields.
+    The /api/offers/{id} endpoint returns HAL+JSON with 100+ fields.
+    We extract the key fields for our unified listing format.
     """
-    title = data.get("offer_title") or data.get("title") or ""
+    title = data.get("offer_title", "")
 
-    # Price: try rent_costs first, then total_costs
-    rent_costs = data.get("rent_costs", {})
-    if isinstance(rent_costs, dict):
-        price_value = rent_costs.get("total_costs") or rent_costs.get("rent") or rent_costs.get("amount")
-    else:
-        price_value = rent_costs
+    # Price: rent_costs is Kaltmiete, total_costs is Warmmiete
     price: Optional[float] = None
-    if price_value is not None:
+    total_costs = data.get("total_costs")
+    rent_costs = data.get("rent_costs")
+    price_source = total_costs or rent_costs
+    if price_source is not None:
         try:
-            price = float(price_value)
+            price = float(price_source)
         except (ValueError, TypeError):
             pass
 
@@ -178,8 +153,8 @@ def _normalize_listing(offer_id: str, data: Dict[str, Any], url: str) -> Dict[st
         price_label = "Price on request"
 
     # Size
-    property_size = data.get("property_size") or data.get("size")
     size_sqm: Optional[float] = None
+    property_size = data.get("property_size")
     if property_size is not None:
         try:
             size_sqm = float(property_size)
@@ -187,8 +162,8 @@ def _normalize_listing(offer_id: str, data: Dict[str, Any], url: str) -> Dict[st
             pass
 
     # Rooms
-    num_rooms = data.get("number_of_rooms") or data.get("rooms")
     rooms: Optional[float] = None
+    num_rooms = data.get("number_of_rooms")
     if num_rooms is not None:
         try:
             rooms = float(num_rooms)
@@ -196,21 +171,20 @@ def _normalize_listing(offer_id: str, data: Dict[str, Any], url: str) -> Dict[st
             pass
 
     # Address
-    postcode = data.get("postcode") or data.get("zip_code") or ""
-    street = data.get("street") or ""
-    city_name = data.get("city") or ""
-    address_parts = [p for p in [street, postcode, city_name] if p]
-    address = ", ".join(address_parts) if address_parts else ""
+    street = data.get("street", "")
+    postcode = data.get("postcode", "")
+    district = data.get("district_custom", "")
+    address_parts = [p for p in [street, postcode] if p]
+    address = ", ".join(address_parts)
+    if district:
+        address = f"{address} ({district})" if address else district
 
-    # Image
-    images = data.get("images") or data.get("photos") or []
-    image_url: Optional[str] = None
-    if isinstance(images, list) and images:
-        first_img = images[0]
-        if isinstance(first_img, dict):
-            image_url = first_img.get("url") or first_img.get("src")
-        elif isinstance(first_img, str):
-            image_url = first_img
+    # Build listing URL from category and district
+    category = data.get("category", "0")
+    category_slugs = {"0": "wg-zimmer", "1": "1-zimmer-wohnungen", "2": "wohnungen", "3": "haeuser"}
+    slug = category_slugs.get(str(category), "wg-zimmer")
+    district_slug = district.replace(" ", "-").replace("/", "-") if district else "listing"
+    listing_url = f"{BASE_URL}/{slug}-in-{district_slug}.{offer_id}.html"
 
     return {
         "id": f"wg_{offer_id}",
@@ -220,10 +194,10 @@ def _normalize_listing(offer_id: str, data: Dict[str, Any], url: str) -> Dict[st
         "size_sqm": size_sqm,
         "rooms": rooms,
         "address": address,
-        "image_url": image_url,
-        "url": url,
+        "image_url": None,  # Images require auth on WG-Gesucht
+        "url": listing_url,
         "provider": "WG-Gesucht",
-        "listing_type": "rent",  # WG-Gesucht is rent-only
+        "listing_type": "rent",
     }
 
 
@@ -235,81 +209,73 @@ async def search_listings(
     """
     Search WG-Gesucht for room/apartment listings in a German city.
 
-    Note: WG-Gesucht primarily lists rental properties (WG rooms,
-    apartments). The listing_type parameter is accepted for interface
-    consistency but only "rent" produces results.
+    Approach:
+      1. Fetch search HTML page (lightweight, ~500KB, no JS needed)
+      2. Extract listing IDs from data-id attributes
+      3. Fetch details for top N listings via /api/offers/{id}
+
+    WG-Gesucht only has rental listings — returns empty for "buy" type.
 
     Args:
         city: City name (e.g. "Berlin", "Munich", "Hamburg").
         listing_type: "rent" or "buy" (only "rent" returns results).
-        max_results: Maximum number of listings to return (default 10).
-                     Also limits the number of detail API calls.
+        max_results: Maximum listings to return (default 10).
 
     Returns:
-        List of normalized listing dicts with standard schema fields.
-        Returns empty list for "buy" type or on error.
+        List of normalized listing dicts. Empty list on error or for "buy" type.
     """
-    # WG-Gesucht only has rental listings
     if listing_type == "buy":
         logger.info("WG-Gesucht skipped: only rental listings available (requested type=%s)", listing_type)
         return []
 
-    # Limit detail calls to avoid rate limiting
-    effective_max = min(max_results, DEFAULT_MAX_DETAIL_CALLS)
+    city_id = _get_city_id(city)
+    if city_id is None:
+        logger.warning("WG-Gesucht: unknown city '%s' — no city_id mapping", city)
+        return []
 
-    logger.info("WG-Gesucht search city=%s max_results=%d", city, effective_max)
+    search_url = _build_search_url(city, city_id)
+    logger.info("WG-Gesucht search city=%s city_id=%d url=%s", city, city_id, search_url)
 
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
-            # Step 1: Get sitemap URLs
-            all_urls = await _fetch_sitemap(client)
-            if not all_urls:
-                logger.warning("WG-Gesucht: no URLs from sitemap")
-                return []
+            # Step 1: Fetch search HTML
+            search_resp = await client.get(search_url, headers=BROWSER_HEADERS, follow_redirects=True)
+            search_resp.raise_for_status()
 
-            # Step 2: Filter by city
-            city_urls = _filter_urls_by_city(all_urls, city)
-            if not city_urls:
+            # Step 2: Extract listing IDs
+            listing_ids = _extract_listing_ids_from_html(search_resp.text)
+            if not listing_ids:
                 logger.info("WG-Gesucht: no listings found for city=%s", city)
                 return []
 
-            logger.info(
-                "WG-Gesucht found %d URLs for city=%s (fetching top %d)",
-                len(city_urls), city, effective_max,
-            )
+            logger.info("WG-Gesucht found %d listing IDs for city=%s", len(listing_ids), city)
 
-            # Step 3: Fetch details for top N listings
-            listings: List[Dict[str, Any]] = []
-            for listing_url in city_urls[:effective_max]:
-                offer_id = _extract_offer_id(listing_url)
-                if not offer_id:
-                    continue
+            # Step 3: Fetch details for top N listings in parallel
+            ids_to_fetch = listing_ids[:max_results]
 
+            async def fetch_detail(offer_id: str) -> Optional[Dict[str, Any]]:
                 try:
-                    detail_response = await client.get(
+                    resp = await client.get(
                         f"{DETAIL_API_BASE}/{offer_id}",
                         headers=API_HEADERS,
                         timeout=DETAIL_TIMEOUT_SECONDS,
                     )
-                    if detail_response.status_code == 200:
-                        offer_data = detail_response.json()
-                        listing = _normalize_listing(offer_id, offer_data, listing_url)
-                        listings.append(listing)
-                    else:
-                        logger.debug(
-                            "WG-Gesucht detail API status=%d for offer=%s",
-                            detail_response.status_code, offer_id,
-                        )
+                    if resp.status_code == 200:
+                        return _normalize_listing(offer_id, resp.json())
+                    logger.debug("WG-Gesucht detail API status=%d for offer=%s", resp.status_code, offer_id)
                 except Exception as e:
                     logger.debug("WG-Gesucht detail fetch failed offer=%s: %s", offer_id, e)
-                    continue
+                return None
 
-            logger.info(
-                "WG-Gesucht search city=%s -> %d listings",
-                city, len(listings),
-            )
+            results = await asyncio.gather(*[fetch_detail(oid) for oid in ids_to_fetch])
+            listings = [r for r in results if r is not None]
+
+            logger.info("WG-Gesucht search city=%s -> %d listings (from %d IDs)", city, len(listings), len(listing_ids))
             return listings
 
+    except httpx.HTTPStatusError as e:
+        logger.error("WG-Gesucht HTTP error status=%d city=%s: %s", e.response.status_code, city, e)
+        return []
     except Exception as e:
         logger.error("WG-Gesucht search failed city=%s: %s", city, e, exc_info=True)
         return []
