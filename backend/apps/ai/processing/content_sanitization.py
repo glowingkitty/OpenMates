@@ -65,7 +65,7 @@ def _split_text_into_chunks(text: str, max_chars_per_chunk: int) -> List[str]:
         # Try to find a word boundary (whitespace) near the chunk end
         # Use rfind() for efficient backwards search (much faster than loop)
         # Search up to 10% of chunk size backwards to find a good break point
-        search_back_limit = max(1, int(max_chars_per_chunk * 0.1))
+        search_back_limit = max(1, int(max_chars_per_chunk * 0.3))
         search_start = max(current_pos, chunk_end - search_back_limit)
         
         # Use rfind to efficiently find the last whitespace in the search range

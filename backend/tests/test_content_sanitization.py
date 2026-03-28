@@ -45,10 +45,16 @@ class TestSplitTextIntoChunks:
         assert chunks[0] == text
 
     def test_splits_at_word_boundary(self):
-        """Should prefer splitting at whitespace rather than mid-word."""
-        # Use a larger chunk size so the 10% search window can find whitespace
-        text = "Hello world this is a longer test message for chunking"
-        chunks = _split_text_into_chunks(text, max_chars_per_chunk=25)
+        """Should prefer splitting at whitespace rather than mid-word.
+
+        The 10% search window means we need chunk sizes large enough for the
+        backward search to find whitespace (e.g. chunk_size=100 → 10 char window).
+        """
+        text = (
+            "The quick brown fox jumps over the lazy dog and then runs across "
+            "the meadow to find more interesting things to do on a sunny afternoon"
+        )
+        chunks = _split_text_into_chunks(text, max_chars_per_chunk=50)
         # Each non-final chunk should end at a word boundary (whitespace)
         for chunk in chunks[:-1]:
             assert chunk[-1] == " ", f"Chunk should end with space but got: {chunk!r}"
