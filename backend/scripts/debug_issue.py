@@ -228,6 +228,7 @@ def map_production_issue_to_local_format(api_response: Dict[str, Any]) -> Dict[s
         "processed": api_response.get("processed", False),
         "is_from_admin": api_response.get("is_from_admin", False),
         "reported_by_user_id": api_response.get("reported_by_user_id"),
+        "linear_issue_identifier": api_response.get("linear_issue_identifier"),
         # Mark encrypted fields as present if decrypted values exist
         "encrypted_contact_email": "present" if api_response.get("contact_email") else None,
         "encrypted_chat_or_embed_url": "present" if api_response.get("chat_or_embed_url") else None,
@@ -277,6 +278,7 @@ def map_production_issues_list(api_response: Dict[str, Any]) -> tuple:
             "processed": item.get("processed", False),
             "is_from_admin": item.get("is_from_admin", False),
             "reported_by_user_id": item.get("reported_by_user_id"),
+            "linear_issue_identifier": item.get("linear_issue_identifier"),
             "encrypted_issue_report_yaml_s3_key": None,  # Not in list response
             "encrypted_screenshot_s3_key": None,
         }
@@ -1408,6 +1410,11 @@ def format_list_output(
             has_screenshot = "✓" if issue.get('encrypted_screenshot_s3_key') else "✗"
             lines.append(f"       Screenshot: {has_screenshot}")
 
+            # Show Linear issue if linked
+            linear_id = issue.get('linear_issue_identifier')
+            if linear_id:
+                lines.append(f"       Linear:    {linear_id}")
+
     lines.append("")
     lines.append("=" * 100)
     lines.append("")
@@ -1561,6 +1568,8 @@ def format_detail_output(
             lines.append(f"  Reporter User ID:  {issue.get('reported_by_user_id')}")
         else:
             lines.append("  Reporter User ID:  (unauthenticated)")
+        if issue.get('linear_issue_identifier'):
+            lines.append(f"  Linear Issue:      {issue.get('linear_issue_identifier')}")
         lines.append("")
 
         # Encrypted fields presence check

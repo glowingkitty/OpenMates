@@ -70,3 +70,9 @@ issues:
       type: uuid
       nullable: true
       note: "User ID of the authenticated user who reported the issue (NULL for non-authenticated reports)"
+
+    linear_issue_identifier:
+      type: string
+      length: 20
+      nullable: true
+      note: "Linear issue identifier (e.g., OPE-78) auto-created when the issue is reported. Used for cross-referencing between the internal issue database and the Linear project board."

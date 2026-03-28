@@ -2940,6 +2940,32 @@ async def report_issue(
             f"recipient={admin_email}"
         )
 
+        # Auto-create a Linear issue for tracking on the project board.
+        # Dispatched fire-and-forget alongside the email task — never blocks the response.
+        try:
+            linear_task_result = app.send_task(
+                name='app.tasks.linear_issue_task.create_linear_issue_for_report',
+                kwargs={
+                    "issue_id": issue_id,
+                    "issue_title": sanitized_title,
+                    "issue_description": sanitized_description,
+                    "chat_or_embed_url": sanitized_url,
+                    "is_from_admin": is_from_admin,
+                    "contact_email": sanitized_email if sanitized_email else None,
+                },
+                queue='email'
+            )
+            logger.info(
+                f"Linear issue creation task dispatched for issue '{issue_data.title[:50]}...' "
+                f"(task_id={linear_task_result.id})"
+            )
+        except Exception as _linear_err:
+            # Never block the issue report response if Linear task dispatch fails
+            logger.error(
+                f"Failed to dispatch Linear issue creation task: {_linear_err}",
+                exc_info=True
+            )
+
         # Admin-only: trigger claude plan-mode investigation if requested.
         # Only honoured when the reporter is a verified admin user.
         if is_from_admin and issue_data.submit_to_agent:

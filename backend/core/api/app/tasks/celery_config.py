@@ -13,7 +13,7 @@ from celery.schedules import crontab
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
-from backend.core.api.app.utils.request_context import get_request_id, set_request_id
+from backend.core.api.app.utils.request_context import set_request_id
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -134,8 +134,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
      {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
      {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
-     # Add new task configurations here, e.g.:
-     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
+     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
  ]
 
 
@@ -935,6 +934,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
     "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
+    "app.tasks.linear_issue_task.create_linear_issue_for_report": "email",
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
