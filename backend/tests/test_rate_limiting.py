@@ -29,6 +29,11 @@ except ImportError as _exc:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+async def _make_awaitable(value):
+    """Helper: return an awaitable that resolves to value."""
+    return value
+
+
 @pytest.fixture
 def mock_cache_service():
     """Mock CacheService with async client property."""
@@ -38,9 +43,8 @@ def mock_cache_service():
 
     cache = MagicMock()
     # Production code does: client = await cache_service.client
-    # So .client must be an awaitable that resolves to mock_client
-    cache.client = AsyncMock(return_value=mock_client)
-    # Stash the client for assertion access in tests
+    # Make .client a coroutine that resolves to mock_client when awaited
+    type(cache).client = property(lambda self: _make_awaitable(mock_client))
     cache._mock_client = mock_client
     return cache
 
@@ -53,7 +57,7 @@ def mock_cache_exceeded():
     mock_client.expire = AsyncMock()
 
     cache = MagicMock()
-    cache.client = AsyncMock(return_value=mock_client)
+    type(cache).client = property(lambda self: _make_awaitable(mock_client))
     cache._mock_client = mock_client
     return cache
 
