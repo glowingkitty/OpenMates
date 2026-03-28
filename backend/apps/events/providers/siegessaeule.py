@@ -24,7 +24,12 @@ from urllib.parse import urljoin
 
 import httpx
 
+from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 from backend.shared.testing.caching_http_transport import create_http_client
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
@@ -61,30 +66,56 @@ CATEGORIES = {"clubs", "bars", "kultur", "mix", "sex"}
 
 async def _fetch_page(
     url: str,
-    proxy_url: Optional[str] = None,
+    secrets_manager: Optional["SecretsManager"] = None,
 ) -> str:
-    """Fetch a Siegessäule page. Direct request only (no anti-bot detected)."""
+    """
+    Fetch a Siegessäule page. Tries direct httpx first, falls back to Firecrawl.
+
+    Args:
+        url:             The URL to fetch.
+        secrets_manager: Required for Firecrawl fallback.
+
+    Returns:
+        HTML content of the page.
+    """
+    # Try direct first (cheapest)
     try:
         async with create_http_client(
             "siegessaeule", timeout=_HTTP_TIMEOUT, follow_redirects=True
         ) as client:
             response = await client.get(url, headers=_HEADERS)
-            response.raise_for_status()
-            return response.text
+            if response.status_code < 400:
+                return response.text
+            logger.debug(
+                "[siegessaeule] Direct request rejected (%d) — trying Firecrawl",
+                response.status_code,
+            )
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
-        if not proxy_url:
-            raise
-        logger.debug("[siegessaeule] Direct request failed (%s) — retrying via proxy", exc)
+        logger.debug("[siegessaeule] Direct request failed (%s) — trying Firecrawl", exc)
 
-    # Fallback to proxy
-    async with httpx.AsyncClient(
-        proxy=proxy_url,
-        timeout=_HTTP_TIMEOUT,
-        follow_redirects=True,
-    ) as client:
-        response = await client.get(url, headers=_HEADERS)
-        response.raise_for_status()
-        return response.text
+    # Fallback to Firecrawl
+    if not secrets_manager:
+        raise ValueError(
+            "Siegessäule blocked direct request and no secrets_manager for Firecrawl fallback"
+        )
+
+    result = await scrape_url(
+        url=url,
+        secrets_manager=secrets_manager,
+        formats=["html", "markdown"],
+        only_main_content=False,
+        sanitize_output=False,
+    )
+
+    if result.get("error"):
+        raise ValueError(f"Firecrawl scrape failed for {url}: {result['error']}")
+
+    data = result.get("data", {})
+    html = data.get("html") or data.get("markdown") or ""
+    if not html:
+        raise ValueError(f"Firecrawl returned empty content for {url}")
+
+    return html
 
 
 def _parse_events(html: str) -> List[Dict[str, Any]]:
@@ -199,6 +230,7 @@ async def search_events_async(
     count: int = 10,
     start_date: Optional[str] = None,
     proxy_url: Optional[str] = None,
+    secrets_manager: Optional["SecretsManager"] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Search for LGBTQ+ events on Siegessäule.
@@ -238,7 +270,7 @@ async def search_events_async(
 
     logger.debug("[siegessaeule] Fetching events: url=%s query=%r", url, query)
 
-    html = await _fetch_page(url, proxy_url=proxy_url)
+    html = await _fetch_page(url, secrets_manager=secrets_manager)
     events = _parse_events(html)
 
     # Try to enrich events with venue names from context

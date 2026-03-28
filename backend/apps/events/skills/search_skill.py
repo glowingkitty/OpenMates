@@ -481,7 +481,7 @@ class SearchSkill(BaseSkill):
         location_str: str,
         start_date: Optional[str],
         count: int,
-        proxy_url: Optional[str] = None,
+        secrets_manager: Optional[SecretsManager] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
         Search Siegessäule and return (events, total_available, error_or_None).
@@ -499,7 +499,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 count=count,
                 start_date=start_date,
-                proxy_url=proxy_url,
+                secrets_manager=secrets_manager,
             )
             return events, total, None
         except Exception as exc:
@@ -725,7 +725,7 @@ class SearchSkill(BaseSkill):
                 location_str=luma_city,
                 start_date=start_date,
                 count=count,
-                proxy_url=proxy_url,
+                secrets_manager=secrets_manager,
             )
             if ss_err and not ss_events:
                 return (request_id, [], f"Siegessäule search failed: {ss_err}", 0)
@@ -774,7 +774,7 @@ class SearchSkill(BaseSkill):
                 location_str=luma_city,
                 start_date=start_date,
                 count=per_provider_count,
-                proxy_url=proxy_url,
+                secrets_manager=secrets_manager,
             )
 
             (
