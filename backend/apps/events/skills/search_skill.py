@@ -4,15 +4,19 @@
 #
 # Searches for public events (meetups, conferences, hackathons, workshops, etc.)
 # using one or more providers simultaneously. Supported providers:
-#   - meetup:        Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
-#   - luma:          Luma.com internal REST API (78 featured cities, includes descriptions)
-#   - google_events: Google Events via SerpAPI (aggregates Eventbrite, Ticketmaster, etc.)
+#   - meetup:            Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
+#   - luma:              Luma.com internal REST API (78 featured cities, includes descriptions)
+#   - google_events:     Google Events via SerpAPI (aggregates Eventbrite, Ticketmaster, etc.)
+#   - resident_advisor:  RA (ra.co) scraping — electronic music, clubs, DJ events
+#   - siegessaeule:      Siegessäule scraping — Berlin LGBTQ+ events (Berlin-only)
 #
 # Provider selection via the 'provider' request field:
-#   "auto"          (default) — searches all applicable providers in parallel, merges results
-#   "meetup"        — Meetup only
-#   "luma"          — Luma only (requires city to be in Luma's 78 featured cities)
-#   "google_events" — Google Events only (requires SerpAPI key)
+#   "auto"              (default) — searches all applicable providers in parallel, merges results
+#   "meetup"            — Meetup only
+#   "luma"              — Luma only (requires city to be in Luma's 78 featured cities)
+#   "google_events"     — Google Events only (requires SerpAPI key)
+#   "resident_advisor"  — Resident Advisor only (electronic music cities)
+#   "siegessaeule"      — Siegessäule only (Berlin LGBTQ+ events)
 #
 # In "auto" mode, all providers are queried simultaneously. Results from all
 # providers are merged, deduplicated by URL, sorted by date, and sliced to count.
@@ -43,12 +47,28 @@ from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_t
 from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
+from backend.apps.events.providers import resident_advisor as ra_provider
+from backend.apps.events.providers import siegessaeule as siegessaeule_provider
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
 # Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events"}
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events", "resident_advisor", "siegessaeule"}
+
+# Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
+_PROVIDER_ALIASES: Dict[str, str] = {
+    "google events": "google_events",
+    "google": "google_events",
+    "googleevents": "google_events",
+    "serpapi": "google_events",
+    "resident advisor": "resident_advisor",
+    "residentadvisor": "resident_advisor",
+    "ra": "resident_advisor",
+    "ra.co": "resident_advisor",
+    "siegessäule": "siegessaeule",
+    "siegessaule": "siegessaeule",
+}
 
 # Platform-brand and generic filler words that narrow provider results unnecessarily.
 # Both Meetup and Luma use literal keyword matching — passing "meetup" to Meetup or
@@ -59,6 +79,7 @@ _QUERY_STOPWORDS: frozenset = frozenset({
     "luma",
     "eventbrite",
     "event", "events",
+    "google",
 })
 
 
@@ -210,9 +231,9 @@ class SearchSkill(BaseSkill):
     Supports multiple parallel search requests via the 'requests' array pattern.
     Each request can specify its own provider, location, date range, and filters.
 
-    In "auto" mode (default), both Meetup and Luma are queried simultaneously.
-    Results are merged, deduplicated by URL, sorted by start date, and limited
-    to the requested count.
+    In "auto" mode (default), Meetup, Luma, and Google Events are queried
+    simultaneously. Results are merged, deduplicated by URL, sorted by start
+    date, and limited to the requested count.
 
     Execution model: direct async in app-events FastAPI container.
     No Celery dispatch — search completes in 1-5s, well within sync timeout.
@@ -420,6 +441,66 @@ class SearchSkill(BaseSkill):
             logger.warning("Google Events search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
+    async def _search_resident_advisor(
+        self,
+        query: str,
+        location_str: str,
+        count: int,
+        proxy_url: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search Resident Advisor and return (events, total_available, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+
+        If the city is not in RA's supported cities, returns empty list (not an error).
+        """
+        try:
+            events, total = await ra_provider.search_events_async(
+                city=location_str,
+                query=query,
+                count=count,
+                proxy_url=proxy_url,
+            )
+            return events, total, None
+        except ValueError:
+            # City not supported by RA — not an error, just no results.
+            logger.debug("Resident Advisor does not support city %r — skipping", location_str)
+            return [], 0, None
+        except Exception as exc:
+            logger.warning("Resident Advisor search failed for query=%r: %s", query, exc)
+            return [], 0, str(exc)
+
+    async def _search_siegessaeule(
+        self,
+        query: str,
+        location_str: str,
+        start_date: Optional[str],
+        count: int,
+        proxy_url: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search Siegessäule and return (events, total_available, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+
+        Berlin-only. Returns empty list for non-Berlin cities (not an error).
+        """
+        if "berlin" not in location_str.lower():
+            # Siegessäule is Berlin-only — silently skip for other cities.
+            return [], 0, None
+
+        try:
+            events, total = await siegessaeule_provider.search_events_async(
+                city=location_str,
+                query=query,
+                count=count,
+                start_date=start_date,
+                proxy_url=proxy_url,
+            )
+            return events, total, None
+        except Exception as exc:
+            logger.warning("Siegessäule search failed for query=%r: %s", query, exc)
+            return [], 0, str(exc)
+
     @staticmethod
     def _merge_and_sort(
         *provider_results: List[Dict[str, Any]],
@@ -500,6 +581,8 @@ class SearchSkill(BaseSkill):
 
         # --- Provider selection ---
         provider_choice = str(req.get("provider", "auto")).lower().strip()
+        # Normalize aliases (e.g. "Google Events" from LLM -> "google_events").
+        provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
         if provider_choice not in _VALID_PROVIDERS:
             logger.warning(
                 "Unknown provider %r for request %s — falling back to 'auto'",
@@ -617,6 +700,33 @@ class SearchSkill(BaseSkill):
             all_events = ge_events
             total_available = total
 
+        elif provider_choice == "resident_advisor":
+            # Resident Advisor only (electronic music / clubs)
+            ra_events, total, ra_err = await self._search_resident_advisor(
+                query=query,
+                location_str=luma_city,
+                count=count,
+                proxy_url=proxy_url,
+            )
+            if ra_err and not ra_events:
+                return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0)
+            all_events = ra_events
+            total_available = total
+
+        elif provider_choice == "siegessaeule":
+            # Siegessäule only (Berlin LGBTQ+ events)
+            ss_events, total, ss_err = await self._search_siegessaeule(
+                query=query,
+                location_str=luma_city,
+                start_date=start_date,
+                count=count,
+                proxy_url=proxy_url,
+            )
+            if ss_err and not ss_events:
+                return (request_id, [], f"Siegessäule search failed: {ss_err}", 0)
+            all_events = ss_events
+            total_available = total
+
         else:
             # "auto": query all providers in parallel with extra headroom.
             per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
@@ -648,12 +758,29 @@ class SearchSkill(BaseSkill):
                 count=per_provider_count,
                 secrets_manager=secrets_manager,
             )
+            ra_task = self._search_resident_advisor(
+                query=query,
+                location_str=luma_city,
+                count=per_provider_count,
+                proxy_url=proxy_url,
+            )
+            siegessaeule_task = self._search_siegessaeule(
+                query=query,
+                location_str=luma_city,
+                start_date=start_date,
+                count=per_provider_count,
+                proxy_url=proxy_url,
+            )
 
             (
                 (meetup_events, meetup_total, meetup_err),
                 (luma_events, luma_total, _luma_err),
                 (ge_events, ge_total, ge_err),
-            ) = await asyncio.gather(meetup_task, luma_task, google_events_task)
+                (ra_events, ra_total, ra_err),
+                (ss_events, ss_total, ss_err),
+            ) = await asyncio.gather(
+                meetup_task, luma_task, google_events_task, ra_task, siegessaeule_task,
+            )
 
             if meetup_err:
                 logger.warning(
@@ -663,12 +790,21 @@ class SearchSkill(BaseSkill):
                 logger.warning(
                     "Google Events failed in auto mode for request %s: %s", request_id, ge_err
                 )
+            if ra_err:
+                logger.warning(
+                    "Resident Advisor failed in auto mode for request %s: %s", request_id, ra_err
+                )
+            if ss_err:
+                logger.warning(
+                    "Siegessäule failed in auto mode for request %s: %s", request_id, ss_err
+                )
 
             # Merge: all providers, deduplicate by URL, re-sort by date.
             all_events = self._merge_and_sort(
-                luma_events, meetup_events, ge_events, count=count,
+                luma_events, meetup_events, ge_events, ra_events, ss_events,
+                count=count,
             )
-            total_available = meetup_total + luma_total + ge_total
+            total_available = meetup_total + luma_total + ge_total + ra_total + ss_total
 
         # Add 'type' field and content hash for UI rendering consistency.
         results: List[Dict[str, Any]] = []
