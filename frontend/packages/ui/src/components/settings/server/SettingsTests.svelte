@@ -16,7 +16,7 @@
     import { getApiEndpoint, text } from '@repo/ui';
     import { SettingsSectionHeading } from '../../settings/elements';
     import { fade } from 'svelte/transition';
-    import SettingsItem from '../../SettingsItem.svelte';
+
 
     // ============================================================================
     // TYPE DEFINITIONS
@@ -230,11 +230,9 @@
 </script>
 
 <div class="settings-tests" in:fade={{ duration: 300 }}>
-    <SettingsItem
-        type="heading"
-        icon="check"
-        subtitleTop={$text('settings.server.tests.description')}
+    <SettingsSectionHeading
         title={$text('settings.server.tests')}
+        icon="check"
     />
 
     {#if isLoading}

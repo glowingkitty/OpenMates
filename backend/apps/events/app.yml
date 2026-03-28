@@ -52,6 +52,8 @@ skills:
         no_api_key: true
       - name: Luma
         no_api_key: true
+      - name: Google Events
+        api_key_vault_path: kv/data/providers/serpapi
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
@@ -69,11 +71,12 @@ skills:
       properties:
         provider:
           type: string
-          description: "The event provider to use. 'auto' (default) queries both Meetup and Luma in parallel for the best coverage."
+          description: "The event provider to use. 'auto' (default) queries Meetup, Luma, and Google Events in parallel for the best coverage."
           enum:
             - "auto"
             - "Meetup"
             - "Luma"
+            - "Google Events"
         requests:
           type: array
           description: |
