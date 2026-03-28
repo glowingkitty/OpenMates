@@ -46,12 +46,12 @@ class TestSplitTextIntoChunks:
 
     def test_splits_at_word_boundary(self):
         """Should prefer splitting at whitespace rather than mid-word."""
-        # 30 chars with spaces: "Hello world this is a test msg"
-        text = "Hello world this is a test msg"
-        chunks = _split_text_into_chunks(text, max_chars_per_chunk=15)
-        # Each chunk should end at a word boundary (whitespace)
-        for chunk in chunks[:-1]:  # last chunk can end anywhere
-            assert chunk[-1] == " " or chunk == chunks[-1]
+        # Use a larger chunk size so the 10% search window can find whitespace
+        text = "Hello world this is a longer test message for chunking"
+        chunks = _split_text_into_chunks(text, max_chars_per_chunk=25)
+        # Each non-final chunk should end at a word boundary (whitespace)
+        for chunk in chunks[:-1]:
+            assert chunk[-1] == " ", f"Chunk should end with space but got: {chunk!r}"
         # Reassembled text should equal the original
         assert "".join(chunks) == text
 
@@ -132,21 +132,19 @@ class TestLoadLlmKeyFromAppYml:
         yml_path = tmp_path / "app.yml"
         yml_path.write_text("")
 
-        # Monkeypatch to point to our temp file
-        monkeypatch.setattr(
-            "backend.apps.ai.processing.content_sanitization.os.path.dirname",
-            lambda p: str(tmp_path) if "content_sanitization" in p else os.path.dirname(p),
-        )
+        # Monkeypatch os.path.exists and open to use our temp file
+        real_exists = os.path.exists
         monkeypatch.setattr(
             "backend.apps.ai.processing.content_sanitization.os.path.exists",
-            lambda p: True if str(tmp_path) in p else os.path.exists(p),
+            lambda p: True if p.endswith("app.yml") else real_exists(p),
         )
-        # This is hard to monkeypatch cleanly due to path resolution;
-        # the key point is that None is returned for missing keys
-        # Verify at least that the function doesn't crash
+        real_open = open
+        monkeypatch.setattr(
+            "builtins.open",
+            lambda p, *a, **kw: real_open(str(yml_path), *a, **kw) if str(p).endswith("app.yml") else real_open(p, *a, **kw),
+        )
         result = _load_llm_key_from_app_yml("nonexistent_key")
-        # May return None depending on path resolution
-        assert result is None or isinstance(result, str)
+        assert result is None
 
 
 # ===========================================================================

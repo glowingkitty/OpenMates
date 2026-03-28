@@ -1,12 +1,14 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-03-27
 key_files:
   - scripts/check-deploy-status.sh
   - scripts/run-tests-daily.sh
   - scripts/nightly-dead-code-removal.sh
   - scripts/weekly-codebase-audit.sh
   - scripts/security-audit.sh
+  - scripts/daily-meeting.sh
+  - scripts/_daily_meeting_helper.py
   - scripts/_claude_utils.py
 ---
 
@@ -22,21 +24,24 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 ### Overview
 
-| Schedule          | Script                                 | Purpose                                   |
-|-------------------|----------------------------------------|-------------------------------------------|
-| `*/2 * * * *`     | `check-deploy-status.sh`               | Watch Vercel for build failures           |
-| `02:00 daily`     | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
-| `02:00 Mon+Thu`   | `weekly-codebase-audit.sh`             | Top 5 improvement findings (plan only)    |
-| `03:00 daily`     | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
-| `04:00 daily`     | `nightly-issues-check.sh`              | Triage unresolved user issues             |
-| `04:30 daily`     | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
-| `05:00 daily`     | `nightly-workflow-review.sh`           | Analyze yesterday's Claude Code sessions  |
-| `02:30 Tue+Fri`   | `security-audit.sh`                    | Security code review (plan only)          |
-| `02:30 Wed+Sat`   | `red-teaming.sh`                       | External attacker simulation (GET only)   |
-| `02:00 Sun`       | `docker-cleanup.sh`                    | Remove dangling images/containers/volumes |
-| `@reboot`         | `agent-trigger-watcher.sh`             | Poll for admin-submitted issue triggers   |
+| Schedule                      | Script                                 | Purpose                                   |
+|-------------------------------|----------------------------------------|-------------------------------------------|
+| `10:00 Berlin daily`          | `daily-meeting.sh`                     | **Daily standup**: review, health, priorities |
+| `*/2 * * * *`                 | `check-deploy-status.sh`               | Watch Vercel for build failures           |
+| `02:00 daily`                 | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
+| `02:00 Mon+Thu`               | `weekly-codebase-audit.sh`             | Top 5 improvement findings (plan only)    |
+| `03:00 daily`                 | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
+| `04:30 daily`                 | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
+| `02:30 Tue+Fri`               | `security-audit.sh`                    | Security code review (plan only)          |
+| `02:30 Wed+Sat`               | `red-teaming.sh`                       | External attacker simulation (GET only)   |
+| `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images/containers/volumes |
+| `@reboot`                     | `agent-trigger-watcher.sh`             | Poll for admin-submitted issue triggers   |
+
+> **Consolidated (2026-03-27):** `nightly-issues-check.sh` and `nightly-workflow-review.sh` have been folded into the daily meeting. Their helpers (`_issues_checker.py`, `_workflow_review_helper.py`) are kept as importable libraries.
 
 ### Job Details
+
+**Daily standup meeting** (10:00 Berlin, DST-aware): Two-phase architecture — gathers data from 10 sources (git, tests, health, OpenObserve, Linear, nightly state files), spawns 3 parallel Sonnet subagents (health-report, work-report, linear-report), then starts an interactive Opus meeting session. Proposes top 3 daily priorities. Sends email with `claude resume --dangerous <id>` link; auto-confirms after 70 min if user doesn't join. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. State: `scripts/.daily-meeting-state.json`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `INTERNAL_API_URL`, `SECRET__ADMIN__DEBUG_CLI__API_KEY`, `INTERNAL_API_SHARED_TOKEN`.
 
 **Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches a claude build-mode session with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
@@ -46,11 +51,11 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion. On failure, dispatches claude analysis session. Archives to `test-results/daily-run-YYYY-MM-DD.json`. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`.
 
-**Issues check** (04:00): Fetches open issues from past 24h via admin debug API. Dispatches investigation for unresolved issues. Env: `SECRET__ADMIN__DEBUG_CLI__API_KEY`.
+**Issues check**: _Consolidated into daily meeting (2026-03-27)._ Helper `_issues_checker.py` still available as importable library.
 
 **Dependabot check** (04:30): Fetches critical/high/medium alerts via `gh` CLI. Dispatches fix session for new or stale (>7 days) alerts. State: `scripts/dependabot-processed.json`.
 
-**Workflow review** (05:00): Reads opencode SQLite DB, extracts yesterday's sessions, produces up to 10 improvement suggestions for tooling/instructions. State: `scripts/.workflow-review-state.json`.
+**Workflow review**: _Consolidated into daily meeting (2026-03-27)._ Helper `_workflow_review_helper.py` still available as importable library.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
