@@ -162,6 +162,10 @@ class SearchRequestItem(BaseModel):
         default=10,
         description="Maximum number of events to return (default: 10, max: 50).",
     )
+    provider: Optional[str] = Field(
+        default=None,
+        description="Provider to use for this request. Overrides top-level provider if set.",
+    )
 
 
 class SearchRequest(BaseModel):
