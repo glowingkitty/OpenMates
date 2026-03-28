@@ -282,6 +282,7 @@ shared/cache/pending_orders_backup.json
 scripts/.dead-code-removal-state.json
 scripts/.deploy-checker-state.json
 scripts/.workflow-review-state.json
+scripts/dependabot-processed.json
 scripts/dependabot-processed.json.bak
 
 # Test output artifacts
