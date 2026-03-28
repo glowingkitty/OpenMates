@@ -142,9 +142,10 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
         if not title:
             continue
 
-        # Extract price
+        # Extract price — the price element has multi-line whitespace around the value
         price_match = re.search(
-            r'class="[^"]*aditem-main--middle--price[^"]*"[^>]*>\s*(.*?)\s*<',
+            r'class="[^"]*aditem-main--middle--price[^"]*"[^>]*>\s*'
+            r'([\d.,]+\s*€)',
             block_html,
             re.DOTALL,
         )

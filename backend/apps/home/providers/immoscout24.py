@@ -91,6 +91,67 @@ def _get_geocode(city: str) -> str:
     return CITY_GEOCODE_MAP.get(normalized, f"/de/{normalized}")
 
 
+def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Optional[Dict[str, Any]]:
+    """Normalize a listing from the mobile API response format.
+
+    The mobile API returns items with: id, title, attributes (array of {value}),
+    address.line, titlePicture.full/preview.
+    """
+    listing_id = str(item.get("id", ""))
+    title = item.get("title", "")
+    if not listing_id and not title:
+        return None
+
+    # Price and size from attributes array (first = price, second = size)
+    attributes = item.get("attributes", [])
+    price_str = attributes[0].get("value", "") if len(attributes) > 0 else ""
+    size_str = attributes[1].get("value", "") if len(attributes) > 1 else ""
+
+    # Parse numeric price from string like "1.249 €" or "250.000 €"
+    price: Optional[float] = None
+    if price_str:
+        clean = price_str.replace(".", "").replace("€", "").replace(",", ".").strip()
+        try:
+            price = float(clean)
+        except ValueError:
+            pass
+
+    price_label = price_str.strip() if price_str else "Price on request"
+
+    # Parse size from string like "52,4 m²"
+    size_sqm: Optional[float] = None
+    if size_str:
+        clean = size_str.replace("m²", "").replace(",", ".").strip()
+        try:
+            size_sqm = float(clean)
+        except ValueError:
+            pass
+
+    # Address
+    address_obj = item.get("address", {})
+    address = address_obj.get("line", "") if isinstance(address_obj, dict) else ""
+
+    # Image
+    title_pic = item.get("titlePicture", {})
+    image_url = None
+    if isinstance(title_pic, dict):
+        image_url = title_pic.get("full") or title_pic.get("preview")
+
+    return {
+        "id": f"is24_{listing_id}",
+        "title": title,
+        "price": price,
+        "price_label": price_label,
+        "size_sqm": size_sqm,
+        "rooms": None,  # Not in mobile API list response
+        "address": address,
+        "image_url": image_url,
+        "url": f"https://www.immobilienscout24.de/expose/{listing_id}",
+        "provider": "ImmoScout24",
+        "listing_type": listing_type,
+    }
+
+
 def _normalize_listing(raw: Dict[str, Any], listing_type: str) -> Optional[Dict[str, Any]]:
     """
     Normalize a raw ImmoScout24 API listing to the standard schema.
@@ -235,34 +296,23 @@ async def search_listings(
         return []
 
     # Parse response structure — the path varies by API version
-    results_list = []
-    try:
-        search_response = data.get("searchResponseModel", data)
-        result_list = search_response.get("resultlistResultList", search_response.get("resultList", {}))
-        entries = result_list.get("resultlistEntries", [])
-
-        # entries can be a list of groups, each with resultlistEntry items
-        for group in entries:
-            if isinstance(group, dict):
-                items = group.get("resultlistEntry", [])
-                if isinstance(items, dict):
-                    items = [items]
-                results_list.extend(items)
-            elif isinstance(group, list):
-                results_list.extend(group)
-    except Exception as e:
-        logger.error("ImmoScout24 response parse error city=%s: %s", city, e, exc_info=True)
+    # Mobile API response: resultListItems array with type=EXPOSE_RESULT items
+    raw_items = data.get("resultListItems", [])
+    if not raw_items:
+        logger.warning("ImmoScout24: no resultListItems in response for city=%s", city)
         return []
 
-    # Normalize and filter
     listings: List[Dict[str, Any]] = []
-    for raw in results_list[:max_results]:
-        normalized = _normalize_listing(raw, listing_type)
-        if normalized:
-            listings.append(normalized)
+    for item_wrapper in raw_items[:max_results]:
+        if item_wrapper.get("type") != "EXPOSE_RESULT":
+            continue
+        item = item_wrapper.get("item", {})
+        listing = _normalize_mobile_listing(item, listing_type)
+        if listing:
+            listings.append(listing)
 
     logger.info(
         "ImmoScout24 search city=%s type=%s -> %d listings (raw=%d)",
-        city, listing_type, len(listings), len(results_list),
+        city, listing_type, len(listings), len(raw_items),
     )
     return listings
