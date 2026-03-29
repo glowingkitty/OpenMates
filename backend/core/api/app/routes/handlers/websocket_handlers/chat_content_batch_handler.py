@@ -148,9 +148,50 @@ async def handle_chat_content_batch(
                 )
                 messages_by_chat_id[chat_id] = []
 
+        # Fetch embeds + embed_keys for all requested chats (on-demand path)
+        # This enables opening chats from 101-1000 range that weren't synced in Phase 1b
+        import hashlib
+        all_embeds: List[Dict[str, Any]] = []
+        all_embed_keys: List[Dict[str, Any]] = []
+        seen_embed_ids: set = set()
+        seen_key_ids: set = set()
+        hashed_ids_for_keys: List[str] = []
+
+        for chat_id in chat_ids:
+            hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_ids_for_keys.append(hashed_id)
+
+            try:
+                embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
+                if not embeds:
+                    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_id)
+                if embeds:
+                    for embed in embeds:
+                        embed_id = embed.get("embed_id")
+                        embed_status = embed.get("status")
+                        if embed_id and embed_id not in seen_embed_ids and embed_status not in ("error", "cancelled"):
+                            all_embeds.append(embed)
+                            seen_embed_ids.add(embed_id)
+            except Exception as e:
+                logger.warning(f"Batch handler: Error fetching embeds for {chat_id}: {e}")
+
+        if hashed_ids_for_keys:
+            try:
+                batch_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_ids_for_keys)
+                if batch_keys:
+                    for key_entry in batch_keys:
+                        key_id = key_entry.get("id")
+                        if key_id and key_id not in seen_key_ids:
+                            all_embed_keys.append(key_entry)
+                            seen_key_ids.add(key_id)
+            except Exception as e:
+                logger.warning(f"Batch handler: Error fetching embed_keys: {e}")
+
         response_payload_data: Dict[str, Any] = {
             "messages_by_chat_id": messages_by_chat_id,
             "versions_by_chat_id": versions_by_chat_id,
+            "embeds": all_embeds,
+            "embed_keys": all_embed_keys,
         }
 
         if errors_occurred:

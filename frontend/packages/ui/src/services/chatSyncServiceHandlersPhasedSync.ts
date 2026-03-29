@@ -6,6 +6,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import type {
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
+  BackgroundMessageSyncPayload,
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
   LoadMoreChatsResponsePayload,
@@ -132,70 +133,42 @@ export async function handlePhase2RecentChatsImpl(
   serviceInstance: ChatSynchronizationService,
   payload: Phase2RecentChatsPayload,
 ): Promise<void> {
-  console.log(
-    "[ChatSyncService] Phase 2 complete - recent chats ready:",
-    payload,
+  console.info(
+    "[ChatSyncService] Phase 2 (metadata-only):",
+    payload.chat_count,
+    "chats, total:",
+    payload.total_chat_count,
   );
 
   try {
-    // Phase2RecentChatsPayload may have additional fields (embeds, embed_keys) not in the type definition
-    const { chats, chat_count, embeds, embed_keys } =
-      payload as Phase2RecentChatsPayload & {
-        embeds?: SyncEmbed[];
-        embed_keys?: EmbedKeyEntry[];
-      };
+    const { chats, chat_count, total_chat_count } = payload;
 
-    // CRITICAL: Validate that chats array exists before processing
-    // The cache warming task sends {chat_count: N} without chats array
-    // The direct sync handler sends {chats: [...], embeds: [...], embed_keys: [...], chat_count: N, phase: 'phase2'}
+    // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
-      console.debug(
-        "[ChatSyncService] Phase 2 notification received (cache warming), waiting for actual chat data...",
-      );
+      console.debug("[ChatSyncService] Phase 2 cache warming notification, ignoring");
       return;
     }
 
-    // Only process when we have actual chat data
+    // Update total chat count (moved from Phase 3)
+    if (total_chat_count !== undefined) {
+      updateTotalChatCount(total_chat_count);
+    }
+
     if (chats.length === 0) {
-      console.debug(
-        "[ChatSyncService] Phase 2 received empty chats array, nothing to store",
-      );
-      // Still store embeds and embed_keys if any (they can exist without chats being sent)
-      // CRITICAL: Store embed_keys FIRST so putEncrypted can decrypt content to extract app_id/skill_id
-      if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
-        await storeEmbedKeysBatch(embed_keys, "Phase 2");
-      }
-      if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-        await storeEmbedsBatch(embeds, "Phase 2");
-      }
+      console.debug("[ChatSyncService] Phase 2 empty chats array");
       return;
     }
 
-    // Store recent chats data and track processed IDs for Phase 3 dedup
+    // Store metadata-only chats — NO messages, NO embeds, NO validateAndHeal
     phase2ProcessedChatIds = await storeRecentChats(serviceInstance, chats);
 
-    // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
-    if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
-      await storeEmbedKeysBatch(embed_keys, "Phase 2");
-    }
-
-    // Store embeds from flat array (new format - deduplicated by backend)
-    // Now that keys are stored, putEncrypted can extract app_id/skill_id from decrypted content
-    if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-      await storeEmbedsBatch(embeds, "Phase 2");
-    }
-
-    // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
     serviceInstance.dispatchEvent(
       new CustomEvent("phase_2_last_20_chats_ready", {
-        detail: { chat_count },
+        detail: { chat_count, total_chat_count },
       }),
     );
   } catch (error) {
-    console.error(
-      "[ChatSyncService] Error handling Phase 2 completion:",
-      error,
-    );
+    console.error("[ChatSyncService] Error handling Phase 2:", error);
   }
 }
 
@@ -333,6 +306,70 @@ export async function handlePhase3FullSyncImpl(
       "[ChatSyncService] Error handling Phase 3 completion:",
       error,
     );
+  }
+}
+
+/**
+ * Handle background message sync batches (new Phase 3).
+ * Each batch contains messages for up to 10 chats. Messages are stored
+ * encrypted in IDB — NO decryption during sync.
+ */
+export async function handleBackgroundMessageSyncImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: BackgroundMessageSyncPayload,
+): Promise<void> {
+  console.info(
+    `[ChatSyncService] Background message sync batch ${payload.batch_number}:`,
+    `${payload.chats?.length || 0} chats, is_last=${payload.is_last_batch}`,
+  );
+
+  try {
+    for (const chatData of payload.chats || []) {
+      if (!chatData.messages || chatData.messages.length === 0) continue;
+
+      // Parse JSON strings and normalize message_id
+      const preparedMessages: Message[] = [];
+      for (const msgData of chatData.messages) {
+        let msg = msgData;
+        if (typeof msgData === "string") {
+          try {
+            msg = JSON.parse(msgData);
+          } catch {
+            continue;
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const msgObj = msg as any;
+        if (!msgObj.message_id && msgObj.id) {
+          msgObj.message_id = msgObj.id;
+        }
+        if (!msgObj.message_id) continue;
+        if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
+        if (!msgObj.status) msgObj.status = "delivered";
+        preparedMessages.push(msgObj as Message);
+      }
+
+      if (preparedMessages.length > 0) {
+        await chatDB.batchSaveMessages(preparedMessages);
+      }
+
+      // Update messages_v on the chat
+      const existingChat = await chatDB.getChat(chatData.chat_id);
+      if (existingChat) {
+        const newV = Math.max(
+          existingChat.messages_v || 0,
+          chatData.messages_v || chatData.server_message_count || 0,
+        );
+        if (newV > (existingChat.messages_v || 0)) {
+          await chatDB.addChat({ ...existingChat, messages_v: newV });
+        }
+      }
+    }
+
+    // Yield to main thread between batches
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  } catch (error) {
+    console.error("[ChatSyncService] Background message sync error:", error);
   }
 }
 

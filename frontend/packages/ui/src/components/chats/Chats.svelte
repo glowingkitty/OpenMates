@@ -972,13 +972,7 @@ let _chatUpdatedFlushPending = false;
 		// Phase 2 ensures at least 20 chats are available — tier 'initial' already shows 20
 		// No state change needed here; loadTier 'initial' already shows first 20
 
-		// Warm up search index for the first batch of chats (background, non-blocking)
-		const chatIds = allChatsFromDB.map(c => c.chat_id);
-		if (chatIds.length > 0) {
-			warmUpSearchIndex(chatIds).catch(err =>
-				console.error('[Chats] Search index warm-up error (phase 2):', err),
-			);
-		}
+		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
 
 	/**
@@ -1012,13 +1006,7 @@ let _chatUpdatedFlushPending = false;
 			syncComplete = false;
 		}, 1000);
 
-		// Warm up search index for all available chats (background, non-blocking)
-		const allChatIds = allChatsFromDB.map(c => c.chat_id);
-		if (allChatIds.length > 0) {
-			warmUpSearchIndex(allChatIds).catch(err =>
-				console.error('[Chats] Search index warm-up error (phase 3):', err),
-			);
-		}
+		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
 
 	/**
@@ -2148,8 +2136,28 @@ let _chatUpdatedFlushPending = false;
 	 * Performs the search across all chats, messages, and settings.
 	 * @param query - The debounced search query string
 	 */
+	/** Track whether search index warm-up has been triggered this session */
+	let searchWarmUpTriggered = false;
+
+	/**
+	 * Trigger search index warm-up on first search interaction.
+	 * Moved from auto-trigger after Phase 2/3 to on-demand — saves CPU for
+	 * users who never search during a session.
+	 */
+	function triggerSearchWarmUpIfNeeded(): void {
+		if (searchWarmUpTriggered) return;
+		searchWarmUpTriggered = true;
+		const chatIds = allChatsFromDB.map(c => c.chat_id);
+		if (chatIds.length > 0) {
+			warmUpSearchIndex(chatIds).catch(err =>
+				console.error('[Chats] Search index warm-up error:', err),
+			);
+		}
+	}
+
 	async function handleSearchQuery(query: string): Promise<void> {
 		setSearchQuery(query);
+		triggerSearchWarmUpIfNeeded();
 
 		if (!query || query.trim().length === 0) {
 			searchResults = null;

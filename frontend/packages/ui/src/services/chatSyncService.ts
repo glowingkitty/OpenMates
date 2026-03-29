@@ -35,8 +35,10 @@ import type {
   PhasedSyncRequestPayload,
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
+  Phase1bChatContentPayload,
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
+  BackgroundMessageSyncPayload,
   LoadMoreChatsResponsePayload,
   // Client to Server specific payloads (if not already covered or if preferred to list them all here)
   // UpdateTitlePayload, // Now in types/chat.ts
@@ -283,6 +285,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as Phase1LastChatPayload,
       ),
     );
+    webSocketService.on("phase_1b_chat_content_ready", (payload) =>
+      coreSyncHandlers.handlePhase1bChatContentImpl(
+        this,
+        payload as Phase1bChatContentPayload,
+      ),
+    );
     webSocketService.on("cache_primed", (payload) =>
       coreSyncHandlers.handleCachePrimedImpl(
         this,
@@ -296,13 +304,20 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
-    // New phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
+    // Phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
     webSocketService.on("phase_2_last_20_chats_ready", (payload) =>
       phasedSyncHandlers.handlePhase2RecentChatsImpl(
         this,
         payload as Phase2RecentChatsPayload,
       ),
     );
+    webSocketService.on("background_message_sync", (payload) =>
+      phasedSyncHandlers.handleBackgroundMessageSyncImpl(
+        this,
+        payload as BackgroundMessageSyncPayload,
+      ),
+    );
+    // Legacy Phase 3 handler kept for backwards compatibility
     webSocketService.on("phase_3_last_100_chats_ready", (payload) =>
       phasedSyncHandlers.handlePhase3FullSyncImpl(
         this,

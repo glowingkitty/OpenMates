@@ -95,6 +95,19 @@ export interface PhasedSyncState {
    * Previously always null because populateResumeChatDataFromPhase1 never decrypted it.
    */
   resumeChatSummary: string | null;
+
+  /**
+   * Pre-decrypted metadata for the 11 Phase 1a chats (last-opened + 10 recent).
+   * Populated by the Phase 1a handler immediately after sync. Used by the welcome
+   * screen to render "continue where you left off" cards without re-decrypting.
+   * Cleared when user navigates away from the welcome screen.
+   */
+  recentChats: Array<{
+    chat: Chat;
+    title: string;
+    category: string | null;
+    icon: string | null;
+  }>;
 }
 
 const initialState: PhasedSyncState = {
@@ -109,6 +122,7 @@ const initialState: PhasedSyncState = {
   resumeChatCategory: null,
   resumeChatIcon: null,
   resumeChatSummary: null,
+  recentChats: [],
 };
 
 const { subscribe, set, update } = writable<PhasedSyncState>(initialState);
@@ -298,6 +312,34 @@ export const phasedSyncState = {
         resumeChatSummary: decryptedSummary ?? null,
       };
     });
+  },
+
+  /**
+   * Set the pre-decrypted recent chats for "continue where you left off".
+   * Called by Phase 1a handler after decrypting metadata for 11 chats.
+   */
+  setRecentChats: (
+    chats: Array<{
+      chat: Chat;
+      title: string;
+      category: string | null;
+      icon: string | null;
+    }>,
+  ) => {
+    update((state) => ({
+      ...state,
+      recentChats: chats,
+    }));
+  },
+
+  /**
+   * Clear recent chats when user navigates away from welcome screen.
+   */
+  clearRecentChats: () => {
+    update((state) => ({
+      ...state,
+      recentChats: [],
+    }));
   },
 
   /**
