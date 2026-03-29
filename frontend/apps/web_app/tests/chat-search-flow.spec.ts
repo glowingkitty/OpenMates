@@ -89,8 +89,13 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 	await loginToTestAccount(page, log, screenshot);
 	await screenshot(page, 'logged-in');
 
-	// Wait for the sidebar chat list to load
+	// Wait for sync to populate chats, then ensure sidebar is open
 	await page.waitForTimeout(4000);
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(1000);
+	}
 
 	// Use an EXISTING chat from the sidebar — this avoids the fresh-chat indexing race condition
 	// (addMessageToIndex vs indexChatMessages overwrite). Existing chats are indexed during warm-up.

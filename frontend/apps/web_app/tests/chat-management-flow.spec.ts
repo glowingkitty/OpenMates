@@ -94,6 +94,15 @@ async function createTestChat(
 	await page.waitForTimeout(3000); // Allow title to generate
 }
 
+/** Ensure sidebar is open (on narrow viewports it's closed by default). */
+async function ensureSidebarOpen(page: any): Promise<void> {
+	const toggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (await toggle.isVisible().catch(() => false)) {
+		await toggle.click();
+		await page.waitForTimeout(1000);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Test 1: Pin / Unpin chat
 // ---------------------------------------------------------------------------
@@ -129,6 +138,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 	await createTestChat(page, 'What is the Eiffel Tower?', log);
 	await screenshot(page, 'chat-created');
 
+	await ensureSidebarOpen(page);
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
@@ -218,6 +228,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	await createTestChat(page, 'How does a rainbow form?', log);
 	await screenshot(page, 'chat-created');
 
+	await ensureSidebarOpen(page);
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
@@ -307,6 +318,7 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	await createTestChat(page, 'What is the speed of sound in air?', log);
 	await screenshot(page, 'chat-created');
 
+	await ensureSidebarOpen(page);
 	const activeChatItem = page.locator('.chat-item-wrapper.active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
