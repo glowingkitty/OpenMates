@@ -1785,6 +1785,172 @@ asyncio.run(main())
     return stdout.strip()
 
 
+# ── Linear integration helpers ────────────────────────────────────────────
+
+
+def _linear_start_integration(
+    sid: str,
+    data: dict,
+    mode: str,
+    task: str | None,
+    linear_issue_arg: str | None,
+) -> None:
+    """
+    Handle Linear issue linking at session start.
+
+    If --linear-issue is given, fetches the issue and marks it In Progress.
+    If omitted but --task is set and LINEAR_API_KEY exists, auto-creates an issue.
+    All failures are non-fatal (prints warnings, never blocks session start).
+    """
+    try:
+        # Ensure scripts/ is on sys.path for the sibling module import
+        _scripts_dir = str(Path(__file__).parent)
+        if _scripts_dir not in sys.path:
+            sys.path.insert(0, _scripts_dir)
+        from _linear_client import (
+            get_api_key, get_issue, create_issue,
+            update_issue_status, add_label, post_comment,
+        )
+    except ImportError:
+        if linear_issue_arg:
+            print("Warning: _linear_client.py not found; skipping Linear integration.", file=sys.stderr)
+        return
+
+    if not get_api_key():
+        if linear_issue_arg:
+            print("Warning: LINEAR_API_KEY not set; skipping Linear integration.", file=sys.stderr)
+        return
+
+    issue_data = None
+    linear_issue_id = None  # UUID for mutations
+
+    if linear_issue_arg:
+        # User provided an existing issue identifier (e.g., OPE-42)
+        issue_data = get_issue(linear_issue_arg)
+        if not issue_data:
+            print(f"Warning: Could not fetch Linear issue {linear_issue_arg}; continuing without it.", file=sys.stderr)
+            return
+        linear_issue_id = issue_data["id"]
+    elif task and task != "(pending)":
+        # Auto-create a new issue from the task description
+        created = create_issue(title=task, mode=mode)
+        if created:
+            linear_issue_id = created["id"]
+            issue_data = created
+            print(f"  Linear: created {created['identifier']} — {created['title']}", file=sys.stderr)
+        else:
+            return
+
+    if not linear_issue_id:
+        return
+
+    # Store in session record
+    identifier = issue_data.get("identifier", linear_issue_arg or "")
+    data["sessions"][sid]["linear_issue_id"] = identifier
+    data["sessions"][sid]["linear_uuid"] = linear_issue_id
+    _save_sessions(data)
+
+    # Mark In Progress + add label
+    update_issue_status(linear_issue_id, "In Progress")
+    label_ids = issue_data.get("label_ids", [])
+    add_label(linear_issue_id, current_label_ids=label_ids)
+
+    # Post pickup comment
+    post_comment(
+        linear_issue_id,
+        f"Picked up by Claude session `{sid}`\n\nResume: `claude --resume {sid}`",
+    )
+
+    # Display issue context in session output
+    display_lines = [f"  Issue:    {identifier}"]
+    if issue_data.get("title"):
+        display_lines.append(f"  Title:    {issue_data['title']}")
+    if issue_data.get("url"):
+        display_lines.append(f"  URL:      {issue_data['url']}")
+    if issue_data.get("assignee"):
+        display_lines.append(f"  Assignee: {issue_data['assignee']}")
+    if issue_data.get("description"):
+        # Show first 3 lines of description
+        desc_lines = issue_data["description"].strip().splitlines()[:3]
+        display_lines.append(f"  Desc:     {desc_lines[0]}")
+        for dl in desc_lines[1:]:
+            display_lines.append(f"            {dl}")
+    display_lines.append("  Status:   → In Progress (auto-updated)")
+
+    print(_box_section("LINEAR ISSUE", display_lines))
+
+
+def _linear_complete_session(
+    sid: str,
+    session: dict,
+    commit_sha: str | None = None,
+) -> None:
+    """
+    Handle Linear issue completion at session end or deploy --end.
+
+    Posts a summary comment, removes claude-is-working label, and updates
+    status to In Review (code changes) or Done (docs/question).
+    All failures are non-fatal.
+    """
+    linear_id = session.get("linear_issue_id")
+    if not linear_id:
+        return
+
+    try:
+        _scripts_dir = str(Path(__file__).parent)
+        if _scripts_dir not in sys.path:
+            sys.path.insert(0, _scripts_dir)
+        from _linear_client import (
+            get_api_key, get_issue, update_issue_status,
+            remove_label, post_comment,
+        )
+    except ImportError:
+        return
+
+    if not get_api_key():
+        return
+
+    # Fetch current issue state to get UUID and current labels
+    issue_data = get_issue(linear_id)
+    if not issue_data:
+        # Fallback: try using stored UUID directly
+        linear_uuid = session.get("linear_uuid")
+        if not linear_uuid:
+            print(f"Warning: Could not fetch Linear issue {linear_id} for completion.", file=sys.stderr)
+            return
+        # Proceed with UUID but no label context
+        issue_data = {"id": linear_uuid, "label_ids": []}
+
+    issue_uuid = issue_data["id"]
+    modified = session.get("modified_files", [])
+    mode = session.get("mode", "feature")
+
+    # Build summary comment
+    summary_lines = [f"Session `{sid}` completed."]
+    if commit_sha:
+        summary_lines.append(f"Commit: `{commit_sha}` on `dev`")
+    if modified:
+        summary_lines.append(f"Files changed: {len(modified)}")
+        for f in modified[:10]:
+            summary_lines.append(f"- `{f}`")
+        if len(modified) > 10:
+            summary_lines.append(f"- ... and {len(modified) - 10} more")
+
+    post_comment(issue_uuid, "\n".join(summary_lines))
+
+    # Remove claude-is-working label
+    label_ids = issue_data.get("label_ids", [])
+    remove_label(issue_uuid, current_label_ids=label_ids)
+
+    # Update status based on mode
+    if mode in ("docs", "question"):
+        update_issue_status(issue_uuid, "Done")
+    else:
+        update_issue_status(issue_uuid, "In Review")
+
+    print(f"  Linear: {linear_id} → {'Done' if mode in ('docs', 'question') else 'In Review'}")
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start a new session with tag-based doc preloading and git context."""
     data = _load_sessions()
@@ -1851,6 +2017,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         "modified_files": [],
         "writing": None,
         "task_id": task_id_arg,
+        "linear_issue_id": None,
     }
     data["sessions"][sid] = session_record
 
@@ -1866,6 +2033,10 @@ def cmd_start(args: argparse.Namespace) -> None:
             data["sessions"][sid]["task_id"] = None
 
     _save_sessions(data)
+
+    # ── Linear integration ────────────────────────────────────────────────
+    linear_issue_id = getattr(args, "linear_issue", None)
+    _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
 
     # ===================================================================
     # Output context for Claude (mode-aware, structured with box sections)
@@ -1898,11 +2069,14 @@ def cmd_start(args: argparse.Namespace) -> None:
         branch_info += f" ({git_status['tracking']})"
     uncommitted = git_status.get("uncommitted", [])
 
+    linear_linked = data["sessions"][sid].get("linear_issue_id")
     header_lines = [
         f"  Mode:  {mode}",
         f"  Tags:  {', '.join(tags) if tags else 'none'}",
         f"  Task:  {args.task or '(pending)'}",
     ]
+    if linear_linked:
+        header_lines.append(f"  Linear: {linear_linked}")
 
     # Git status line
     if mode in ("feature", "bug", "testing"):
@@ -2328,6 +2502,9 @@ def cmd_end(args: argparse.Namespace) -> None:
             for doc in related:
                 print(f"  - docs/architecture/{doc}")
             print()
+
+    # ── Linear completion ─────────────────────────────────────────────────
+    _linear_complete_session(sid, session)
 
     # Remove session
     del data["sessions"][sid]
@@ -2854,25 +3031,8 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
                 print("Lint: PASSED")
         print()
 
-    # Run translation validation if any frontend files are staged
-    if to_commit and _has_frontend_files(to_commit):
-        print("Running translation validation (validate:locales)...")
-        rc, stdout, stderr = _run_translation_validation()
-        # Only show output if there are $text() key errors (Step 4) — suppress
-        # the cross-locale completeness warnings (Step 6) which are pre-existing.
-        step4_error = "❌ Found" in stdout and "not found in en.json" in stdout
-        if rc != 0 and step4_error:
-            print("TRANSLATION ERRORS — fix before deploying:")
-            # Filter to only show the relevant lines, not the cross-locale noise
-            for line in stdout.splitlines():
-                if "not found in en.json" in line or "$text(" in line or "❌" in line:
-                    print(f"  {line}")
-        elif rc != 0 and not step4_error:
-            # Other error (e.g. npm not found) — show full output
-            print(f"  Warning: validate:locales exited {rc} (non-key error — check manually)")
-        else:
-            print("Translations: PASSED")
-        print()
+    # Translation validation skipped here — deploy and pre-commit hook both
+    # run validate:locales as blocking checks, so this was redundant and slow.
 
     # Related architecture docs
     related = _find_related_docs(modified)
@@ -3090,6 +3250,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # Auto-end session if --end flag is set
     if getattr(args, "end_session", False):
+        _linear_complete_session(sid, session, commit_sha=commit_hash)
         del data["sessions"][sid]
         _save_sessions(data)
         print(f"\nSession {sid} ended.")
@@ -4364,6 +4525,14 @@ def main() -> None:
         metavar="TASK_ID",
         help="Link an existing task file to this session (e.g. t003). "
         "Displays pending steps inline at startup.",
+    )
+    p_start.add_argument(
+        "--linear-issue",
+        "--linear",
+        metavar="ISSUE_ID",
+        help="Link to an existing Linear issue (e.g., OPE-42). "
+        "Auto-fetches context, marks In Progress, adds claude-is-working label. "
+        "If omitted and --task is set, a new Linear issue is auto-created.",
     )
 
     # end
