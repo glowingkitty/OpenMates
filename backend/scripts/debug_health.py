@@ -1188,18 +1188,20 @@ async def replay_request(request_id: str) -> None:
         start_us = int((time.time() - since_min * 60) * 1_000_000)
         end_us = int(time.time() * 1_000_000)
 
-        # OpenObserve SQL: search for request_id in JSON log body
+        # OpenObserve SQL: search for request_id in JSON log body.
+        # Log stream fields: _timestamp, container, service, message, level
+        # (no "log" field — logs are stored in "message").
         sql = (
-            f"SELECT _timestamp, container, service, log, message, level "
+            f"SELECT _timestamp, container, service, message, level "
             f"FROM \"default\" "
-            f"WHERE log LIKE '%{request_id}%' OR message LIKE '%{request_id}%' "
+            f"WHERE message LIKE '%{request_id}%' "
             f"ORDER BY _timestamp ASC LIMIT 500"
         )
 
         # Use /{org}/_search — stream is in the SQL FROM clause.
+        # Only the first URL works; the second doubles "default" when org=default.
         urls_to_try = (
             f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
-            f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
         )
         body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
@@ -1219,7 +1221,7 @@ async def replay_request(request_id: str) -> None:
         for hit in data.get("hits", []):
             ts_us = hit.get("_timestamp", 0)
             svc = hit.get("container", hit.get("service", "?"))
-            log_line = hit.get("log", hit.get("message", ""))
+            log_line = hit.get("message", "")
             try:
                 entry = json.loads(log_line)
                 level = entry.get("level", entry.get("levelname", "info")).upper()

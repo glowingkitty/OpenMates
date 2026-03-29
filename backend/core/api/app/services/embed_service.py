@@ -3497,6 +3497,8 @@ class EmbedService:
                         parent_content["query"] = request_metadata["query"]
                     if "provider" in request_metadata:
                         parent_content["provider"] = request_metadata["provider"]
+                    if "providers" in request_metadata:
+                        parent_content["providers"] = request_metadata["providers"]
                     # Add other metadata fields as needed
                     for key in ["country", "search_lang", "safesearch"]:
                         if key in request_metadata:

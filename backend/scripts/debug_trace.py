@@ -230,11 +230,12 @@ def _get_latest_traces(
         List of trace dicts from the response. Empty list on error.
     """
     import httpx
+    from urllib.parse import quote
 
     url = (
         f"{base_url}/api/{OPENOBSERVE_ORG}/{TRACE_STREAM}/traces/latest"
         f"?start_time={start_time_us}&end_time={end_time_us}"
-        f"&from=0&size={size}&filter={filter_str}"
+        f"&from=0&size={size}&filter={quote(filter_str)}"
     )
 
     try:
@@ -600,20 +601,26 @@ def main(argv: Optional[List[str]] = None) -> None:
         spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     elif args.command == "task":
-        # Celery task lookup — get trace summaries, then full span trees
+        # Celery task lookup — get trace summaries, then full span trees.
+        # OTel Celery instrumentor stores the task UUID as messaging_message_id
+        # (not celery_task_id). OpenObserve flattens dotted OTel attribute
+        # names to underscores, so celery.task_id → celery_task_id, but that
+        # field is only set on some span types. messaging_message_id is the
+        # reliable field present on all celery run/apply_async spans.
         start_us, end_us = _time_range(7 * 86400)
         traces = _get_latest_traces(
             start_us, end_us, base_url, auth,
-            filter_str=f"celery.task_id = '{args.task_id}'",
+            filter_str=f"messaging_message_id = '{args.task_id}'",
         )
         spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 
     elif args.command == "session":
         duration_s = parse_duration(args.last)
         start_us, end_us = _time_range(duration_s)
+        # OpenObserve flattens dotted attribute names: enduser.id → enduser_id
         traces = _get_latest_traces(
             start_us, end_us, base_url, auth,
-            filter_str=f"enduser.id LIKE '%{args.user}%'",
+            filter_str=f"enduser_id LIKE '%{args.user}%'",
         )
         spans = _collect_full_spans(traces, start_us, end_us, base_url, auth)
 

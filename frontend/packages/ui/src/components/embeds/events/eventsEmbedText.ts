@@ -12,11 +12,16 @@ export function renderEventsSearch(
 ): string {
 	const query = str(c.query) ?? str(c.search_query) ?? '';
 	const provider = str(c.provider);
+	const providers = Array.isArray(c.providers) ? (c.providers as string[]) : [];
 	const lines: string[] = [];
 
 	let header = '**Event Search**';
 	if (query) header += ` — "${trunc(query, 60)}"`;
-	if (provider) header += ` via ${provider}`;
+	if (providers.length > 0) {
+		header += ` via ${providers.join(', ')}`;
+	} else if (provider && provider !== 'auto') {
+		header += ` via ${provider}`;
+	}
 	lines.push(header);
 
 	if (children && children.length > 0) {

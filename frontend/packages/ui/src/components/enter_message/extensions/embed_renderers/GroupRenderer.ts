@@ -1060,6 +1060,8 @@ export class GroupRenderer implements EmbedRenderer {
     const query = decodedContent?.query || embedData?.query || itemQuery;
     const provider =
       decodedContent?.provider || embedData?.provider || itemProvider;
+    const providers: string[] =
+      (decodedContent?.providers as string[]) || (embedData?.providers as string[]) || [];
 
     console.debug("[GroupRenderer] mountAppSkillUsePreview:", {
       embedId, // CRITICAL: This is the ID used for embedUpdated event matching
@@ -1152,6 +1154,7 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "Meetup",
+            providers,
             status,
             results,
             taskId,
@@ -1494,6 +1497,7 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             query: query || "",
             provider: provider || "Multi",
+            providers,
             status,
             results,
             taskId,

@@ -67,8 +67,10 @@
     id: string;
     /** Search query */
     query: string;
-    /** Events provider (e.g., 'Meetup') */
+    /** Events provider (e.g., 'Meetup') — legacy single-provider field */
     provider: string;
+    /** List of provider slugs that contributed results (e.g. ['meetup', 'luma']) */
+    providers?: string[];
     /** Processing status - must match SkillExecutionStatus */
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Event results (for finished state) */
@@ -83,10 +85,26 @@
     onFullscreen: () => void;
   }
 
+  /** Map backend provider slugs to human-readable display names. */
+  function getProviderLabel(slug: string): string {
+    switch (slug?.toLowerCase()) {
+      case 'meetup':              return 'Meetup';
+      case 'luma':                return 'Luma';
+      case 'google_events':       return 'Google';
+      case 'resident_advisor':    return 'Resident Advisor';
+      case 'siegessaeule':        return 'Siegessäule';
+      case 'classictic':          return 'Classictic';
+      case 'berlin_philharmonic': return 'Berlin Philharmonic';
+      case 'bachtrack':           return 'Bachtrack';
+      default:                    return slug || '';
+    }
+  }
+
   let {
     id,
     query: queryProp,
     provider: providerProp,
+    providers: providersProp,
     status: statusProp,
     results: resultsProp = [],
     taskId: taskIdProp,
@@ -98,6 +116,7 @@
   // Local reactive state — updated when embed data changes via onEmbedDataUpdated
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Meetup');
+  let localProviders = $state<string[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<EventResult[]>([]);
@@ -110,6 +129,7 @@
     if (!storeResolved) {
       localQuery = queryProp || '';
       localProvider = providerProp || 'Meetup';
+      localProviders = providersProp || [];
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -120,6 +140,7 @@
   // Use local state as source of truth
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
@@ -149,6 +170,7 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (Array.isArray(content.providers)) localProviders = content.providers as string[];
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as EventResult[];
         console.debug(`[EventsSearchEmbedPreview] Updated results (inline):`, localResults.length);
@@ -204,8 +226,23 @@
   // The app-level icon is "event" (calendar), but the search *skill* uses "search".
   const skillIconName = 'search';
 
-  // "via {provider}" subtitle
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  // "via {provider}" subtitle — use providers list when available for multi-source display
+  let viaProvider = $derived.by(() => {
+    const via = $text('embeds.via');
+    // Prefer the providers list (actual contributing providers) over the single provider field
+    if (providers.length > 0) {
+      const labels = providers.map(getProviderLabel);
+      if (labels.length <= 2) {
+        return `${via} ${labels.join(', ')}`;
+      }
+      return `${via} ${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+    }
+    // Fallback to legacy single provider (backwards compatibility with existing embeds)
+    if (provider && provider !== 'auto') {
+      return `${via} ${getProviderLabel(provider)}`;
+    }
+    return '';
+  });
 
   // Event count for finished state: the total number of results
   let eventCount = $derived(results?.length || 0);

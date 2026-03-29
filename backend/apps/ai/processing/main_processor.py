@@ -3591,10 +3591,13 @@ async def handle_main_processing(
                                     f"query value: {request_metadata.get('query', 'NOT_FOUND')}"
                                 )
                                 
-                                # Include provider from first_response if available
+                                # Include provider info from first_response if available
                                 request_metadata_with_provider = request_metadata.copy()
-                                if first_response and isinstance(first_response, dict) and "provider" in first_response:
-                                    request_metadata_with_provider["provider"] = first_response["provider"]
+                                if first_response and isinstance(first_response, dict):
+                                    if "provider" in first_response:
+                                        request_metadata_with_provider["provider"] = first_response["provider"]
+                                    if "providers" in first_response:
+                                        request_metadata_with_provider["providers"] = first_response["providers"]
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
@@ -3667,6 +3670,8 @@ async def handle_main_processing(
                                                     embed_reference_payload["query"] = request_metadata_with_provider["query"]
                                                 if request_metadata_with_provider.get("provider"):
                                                     embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
+                                                if request_metadata_with_provider.get("providers"):
+                                                    embed_reference_payload["providers"] = request_metadata_with_provider["providers"]
                                                 updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -3770,6 +3775,8 @@ async def handle_main_processing(
                                             embed_reference_payload["query"] = request_metadata_with_provider["query"]
                                         if request_metadata_with_provider.get("provider"):
                                             embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
+                                        if request_metadata_with_provider.get("providers"):
+                                            embed_reference_payload["providers"] = request_metadata_with_provider["providers"]
                                         updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata

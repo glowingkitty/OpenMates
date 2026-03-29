@@ -1487,6 +1487,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
     const provider = decodedContent?.provider || "Meetup";
+    const providers: string[] = (decodedContent?.providers as string[]) || [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1523,6 +1524,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
+          providers,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,
@@ -1557,6 +1559,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
     const provider = decodedContent?.provider || "Multi";
+    const providers: string[] = (decodedContent?.providers as string[]) || [];
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1593,6 +1596,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
+          providers,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,

@@ -47,6 +47,8 @@
     query?: string;
     /** Provider label (direct format) */
     provider?: string;
+    /** List of provider names that contributed results */
+    providers?: string[];
     /** Processing status (direct format) */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Search results (for finished state) */
@@ -74,6 +76,7 @@
     id,
     query: queryProp,
     provider: providerProp,
+    providers: providersProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -86,6 +89,7 @@
   // Local reactive state for embed data
   let localQuery = $state<string>('');
   let localProvider = $state<string>('Multi');
+  let localProviders = $state<string[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let localResults = $state<HomeListingResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
@@ -99,6 +103,7 @@
       if (previewData) {
         localQuery = previewData.query || '';
         localProvider = previewData.provider || 'Multi';
+        localProviders = (previewData as Record<string, unknown>).providers as string[] || [];
         localStatus = (previewData.status as typeof localStatus) || 'processing';
         localResults = (previewData.results as HomeListingResult[]) || [];
         localTaskId = previewData.task_id;
@@ -106,6 +111,7 @@
       } else {
         localQuery = queryProp || '';
         localProvider = providerProp || 'Multi';
+        localProviders = providersProp || [];
         localStatus = statusProp || 'processing';
         localResults = resultsProp || [];
         localTaskId = taskIdProp;
@@ -116,6 +122,7 @@
 
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
@@ -142,6 +149,7 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (Array.isArray(content.providers)) localProviders = content.providers as string[];
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
       if (content.results && Array.isArray(content.results)) {
@@ -202,7 +210,20 @@
   let skillName = $derived($text('common.search'));
   const skillIconName = 'home';
 
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  // "via {provider}" subtitle — use providers list when available for multi-source display
+  let viaProvider = $derived.by(() => {
+    const via = $text('embeds.via');
+    if (providers.length > 0) {
+      if (providers.length <= 2) {
+        return `${via} ${providers.join(', ')}`;
+      }
+      return `${via} ${providers[0]}, ${providers[1]} +${providers.length - 2}`;
+    }
+    if (provider && provider !== 'Multi') {
+      return `${via} ${provider}`;
+    }
+    return '';
+  });
 
   /**
    * Flatten nested results structure from backend if needed.
