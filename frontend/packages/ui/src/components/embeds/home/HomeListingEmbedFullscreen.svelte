@@ -41,6 +41,12 @@
     provider?: string;
     /** Listing type (rent or buy) */
     listing_type?: string;
+    /** Move-in date (DD.MM.YYYY format, WG-Gesucht only) */
+    available_from?: string;
+    /** Deposit amount in EUR (WG-Gesucht only) */
+    deposit?: number;
+    /** Whether the listing is furnished (WG-Gesucht only) */
+    furnished?: boolean;
     /** Close handler */
     onClose: () => void;
     /** Embed ID for sharing */
@@ -71,6 +77,9 @@
     image_url,
     provider,
     listing_type,
+    available_from,
+    deposit,
+    furnished,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -115,6 +124,16 @@
   /** Capitalize listing type */
   let typeDisplay = $derived(
     listing_type ? listing_type.charAt(0).toUpperCase() + listing_type.slice(1) : undefined
+  );
+
+  /** Format deposit with currency */
+  let depositDisplay = $derived(
+    deposit ? `${deposit.toLocaleString('de-DE')} EUR` : undefined
+  );
+
+  /** Furnished display */
+  let furnishedDisplay = $derived(
+    furnished !== undefined ? (furnished ? 'Yes' : 'No') : undefined
   );
 
   /** Open listing on original platform */
@@ -196,6 +215,27 @@
           <div class="metadata-item">
             <span class="metadata-label">Source</span>
             <span class="metadata-value">{provider}</span>
+          </div>
+        {/if}
+
+        {#if available_from}
+          <div class="metadata-item">
+            <span class="metadata-label">Available</span>
+            <span class="metadata-value">{available_from}</span>
+          </div>
+        {/if}
+
+        {#if depositDisplay}
+          <div class="metadata-item">
+            <span class="metadata-label">Deposit</span>
+            <span class="metadata-value">{depositDisplay}</span>
+          </div>
+        {/if}
+
+        {#if furnishedDisplay}
+          <div class="metadata-item">
+            <span class="metadata-label">Furnished</span>
+            <span class="metadata-value">{furnishedDisplay}</span>
           </div>
         {/if}
       </div>

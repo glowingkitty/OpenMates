@@ -121,18 +121,56 @@ def _build_search_url(city: str, city_id: int, category: str = "0") -> str:
     return base + params
 
 
-def _extract_listing_ids_from_html(html: str) -> List[str]:
-    """Extract numeric listing IDs from WG-Gesucht search results HTML."""
-    ids = re.findall(r'data-id="(\d{5,})"', html)
-    return list(dict.fromkeys(ids))
+def _extract_listings_from_html(html: str) -> List[Dict[str, Any]]:
+    """
+    Extract listing IDs and thumbnail image URLs from WG-Gesucht search HTML.
+
+    Each listing block contains a data-id attribute and a thumbnail image from
+    img.wg-gesucht.de. We split the HTML by data-id boundaries and extract both.
+
+    Returns:
+        List of dicts with 'id' (str) and 'image_url' (str or None), deduplicated by ID.
+    """
+    # Split HTML into blocks per listing using data-id as boundary
+    block_pattern = re.compile(r'data-id="(\d{5,})"(.*?)(?=data-id="\d{5,}"|</main>|$)', re.DOTALL)
+    blocks = block_pattern.findall(html)
+
+    seen: Dict[str, bool] = {}
+    listings: List[Dict[str, Any]] = []
+
+    for offer_id, block_html in blocks:
+        if offer_id in seen:
+            continue
+        seen[offer_id] = True
+
+        # Extract thumbnail image from img.wg-gesucht.de within this block
+        img_match = re.search(
+            r'(https://img\.wg-gesucht\.de/media/[^\s"<>;]+\.(?:jpg|jpeg|png|webp|JPG|JPEG|PNG|WEBP))',
+            block_html,
+        )
+        image_url = img_match.group(1) if img_match else None
+
+        listings.append({"id": offer_id, "image_url": image_url})
+
+    return listings
 
 
-def _normalize_listing(offer_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_listing(
+    offer_id: str,
+    data: Dict[str, Any],
+    image_url: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Normalize a WG-Gesucht API offer response to the standard listing schema.
 
     The /api/offers/{id} endpoint returns HAL+JSON with 100+ fields.
     We extract the key fields for our unified listing format.
+
+    Args:
+        offer_id: The WG-Gesucht offer ID.
+        data: Full API response dict for this offer.
+        image_url: Thumbnail image URL extracted from search HTML (the API
+                   does not return images, but the search page does).
     """
     title = data.get("offer_title", "")
 
@@ -186,6 +224,25 @@ def _normalize_listing(offer_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     district_slug = district.replace(" ", "-").replace("/", "-") if district else "listing"
     listing_url = f"{BASE_URL}/{slug}-in-{district_slug}.{offer_id}.html"
 
+    # Available from/to dates
+    available_from = data.get("available_from_date", "")
+    if available_from == "00.00.0000":
+        available_from = ""
+
+    # Deposit (bond_costs)
+    deposit: Optional[float] = None
+    bond_costs = data.get("bond_costs")
+    if bond_costs is not None:
+        try:
+            deposit = float(bond_costs)
+            if deposit == 0:
+                deposit = None
+        except (ValueError, TypeError):
+            pass
+
+    # Amenities as boolean flags (API returns 0/1)
+    furnished = bool(data.get("furnished", 0))
+
     return {
         "id": f"wg_{offer_id}",
         "title": title,
@@ -194,10 +251,13 @@ def _normalize_listing(offer_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         "size_sqm": size_sqm,
         "rooms": rooms,
         "address": address,
-        "image_url": None,  # Images require auth on WG-Gesucht
+        "image_url": image_url,
         "url": listing_url,
         "provider": "WG-Gesucht",
         "listing_type": "rent",
+        "available_from": available_from if available_from else None,
+        "deposit": deposit,
+        "furnished": furnished,
     }
 
 
@@ -242,18 +302,19 @@ async def search_listings(
             search_resp = await client.get(search_url, headers=BROWSER_HEADERS, follow_redirects=True)
             search_resp.raise_for_status()
 
-            # Step 2: Extract listing IDs
-            listing_ids = _extract_listing_ids_from_html(search_resp.text)
-            if not listing_ids:
+            # Step 2: Extract listing IDs and thumbnail images from HTML
+            html_listings = _extract_listings_from_html(search_resp.text)
+            if not html_listings:
                 logger.info("WG-Gesucht: no listings found for city=%s", city)
                 return []
 
-            logger.info("WG-Gesucht found %d listing IDs for city=%s", len(listing_ids), city)
+            logger.info("WG-Gesucht found %d listing IDs for city=%s", len(html_listings), city)
 
             # Step 3: Fetch details for top N listings in parallel
-            ids_to_fetch = listing_ids[:max_results]
+            to_fetch = html_listings[:max_results]
 
-            async def fetch_detail(offer_id: str) -> Optional[Dict[str, Any]]:
+            async def fetch_detail(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+                offer_id = entry["id"]
                 try:
                     resp = await client.get(
                         f"{DETAIL_API_BASE}/{offer_id}",
@@ -261,16 +322,16 @@ async def search_listings(
                         timeout=DETAIL_TIMEOUT_SECONDS,
                     )
                     if resp.status_code == 200:
-                        return _normalize_listing(offer_id, resp.json())
+                        return _normalize_listing(offer_id, resp.json(), image_url=entry.get("image_url"))
                     logger.debug("WG-Gesucht detail API status=%d for offer=%s", resp.status_code, offer_id)
                 except Exception as e:
                     logger.debug("WG-Gesucht detail fetch failed offer=%s: %s", offer_id, e)
                 return None
 
-            results = await asyncio.gather(*[fetch_detail(oid) for oid in ids_to_fetch])
+            results = await asyncio.gather(*[fetch_detail(e) for e in to_fetch])
             listings = [r for r in results if r is not None]
 
-            logger.info("WG-Gesucht search city=%s -> %d listings (from %d IDs)", city, len(listings), len(listing_ids))
+            logger.info("WG-Gesucht search city=%s -> %d listings (from %d IDs)", city, len(listings), len(html_listings))
             return listings
 
     except httpx.HTTPStatusError as e:

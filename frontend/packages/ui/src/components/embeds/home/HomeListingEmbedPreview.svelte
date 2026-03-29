@@ -42,12 +42,14 @@
     provider?: string;
     /** Listing type (rent or buy) */
     listing_type?: string;
+    /** Move-in date (DD.MM.YYYY, WG-Gesucht only) */
+    available_from?: string;
     /** Click handler to open fullscreen view */
     onSelect: () => void;
   }
 
   let {
-    embed_id,
+    embed_id: _embedId,
     title,
     price_label,
     size_sqm,
@@ -55,7 +57,8 @@
     address,
     image_url,
     provider,
-    listing_type,
+    listing_type: _listingType,
+    available_from,
     onSelect
   }: Props = $props();
 
@@ -78,9 +81,14 @@
     rooms ? `${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : undefined
   );
 
+  /** Format available_from for compact display */
+  let availableDisplay = $derived(
+    available_from ? `from ${available_from}` : undefined
+  );
+
   /** Build metadata line from available fields */
   let metadataItems = $derived(
-    [sizeDisplay, roomsDisplay].filter(Boolean)
+    [sizeDisplay, roomsDisplay, availableDisplay].filter(Boolean)
   );
 </script>
 

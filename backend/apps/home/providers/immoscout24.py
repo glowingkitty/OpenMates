@@ -102,10 +102,11 @@ def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Option
     if not listing_id and not title:
         return None
 
-    # Price and size from attributes array (first = price, second = size)
+    # Price, size, rooms from attributes array (0=price, 1=size, 2=rooms)
     attributes = item.get("attributes", [])
     price_str = attributes[0].get("value", "") if len(attributes) > 0 else ""
     size_str = attributes[1].get("value", "") if len(attributes) > 1 else ""
+    rooms_str = attributes[2].get("value", "") if len(attributes) > 2 else ""
 
     # Parse numeric price from string like "1.249 €" or "250.000 €"
     price: Optional[float] = None
@@ -127,6 +128,15 @@ def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Option
         except ValueError:
             pass
 
+    # Rooms from attributes[2], e.g. "3 Zi." or "1,5 Zi."
+    rooms: Optional[float] = None
+    if rooms_str:
+        clean_rooms = rooms_str.replace("Zi.", "").replace("Zi", "").replace(",", ".").strip()
+        try:
+            rooms = float(clean_rooms)
+        except ValueError:
+            pass
+
     # Address
     address_obj = item.get("address", {})
     address = address_obj.get("line", "") if isinstance(address_obj, dict) else ""
@@ -143,7 +153,7 @@ def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Option
         "price": price,
         "price_label": price_label,
         "size_sqm": size_sqm,
-        "rooms": None,  # Not in mobile API list response
+        "rooms": rooms,
         "address": address,
         "image_url": image_url,
         "url": f"https://www.immobilienscout24.de/expose/{listing_id}",

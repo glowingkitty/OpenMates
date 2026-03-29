@@ -68,6 +68,15 @@ embed_types:
         type: string
       - name: listing_type
         type: string
+      - name: available_from
+        type: string
+        description: "Move-in date (WG-Gesucht only, format: DD.MM.YYYY)"
+      - name: deposit
+        type: number
+        description: "Deposit amount in EUR (WG-Gesucht only)"
+      - name: furnished
+        type: boolean
+        description: "Whether the listing is furnished (WG-Gesucht only)"
 instructions:
   - instruction: |
       **Home Search Skill**

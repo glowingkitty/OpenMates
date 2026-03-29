@@ -38,9 +38,16 @@ export function renderListing(c: Record<string, unknown>): string {
 	const title = str(c.title) ?? str(c.name) ?? '';
 	const price = formatPrice(c.price ?? c.rent, c.currency);
 	const address = str(c.address) ?? str(c.location) ?? '';
+	const available = str(c.available_from);
+	const deposit = c.deposit ? `Deposit: ${Number(c.deposit).toLocaleString('de-DE')} EUR` : '';
+	const furnished = c.furnished === true ? 'Furnished' : '';
 	const lines: string[] = [];
 	if (title) lines.push(`**${title}**`);
 	if (price) lines.push(price);
 	if (address) lines.push(address);
+	const extras = [available ? `Available: ${available}` : '', deposit, furnished]
+		.filter(Boolean)
+		.join(' · ');
+	if (extras) lines.push(extras);
 	return lines.length > 0 ? lines.join('\n') : '[Listing]';
 }

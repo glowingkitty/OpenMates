@@ -35,6 +35,9 @@
     url?: string;
     provider?: string;
     listing_type?: string;
+    available_from?: string;
+    deposit?: number;
+    furnished?: boolean;
   }
 
   interface Props {
@@ -119,7 +122,10 @@
       image_url: content.image_url as string | undefined,
       url: content.url as string | undefined,
       provider: content.provider as string | undefined,
-      listing_type: content.listing_type as string | undefined
+      listing_type: content.listing_type as string | undefined,
+      available_from: content.available_from as string | undefined,
+      deposit: typeof content.deposit === 'number' ? content.deposit : undefined,
+      furnished: typeof content.furnished === 'boolean' ? content.furnished : undefined
     };
   }
 
@@ -137,7 +143,10 @@
       image_url: r.image_url as string | undefined,
       url: r.url as string | undefined,
       provider: r.provider as string | undefined,
-      listing_type: r.listing_type as string | undefined
+      listing_type: r.listing_type as string | undefined,
+      available_from: r.available_from as string | undefined,
+      deposit: typeof r.deposit === 'number' ? r.deposit : undefined,
+      furnished: typeof r.furnished === 'boolean' ? r.furnished : undefined
     }));
   }
 
@@ -197,6 +206,7 @@
       image_url={result.image_url}
       provider={result.provider}
       listing_type={result.listing_type}
+      available_from={result.available_from}
       {onSelect}
     />
   {/snippet}
@@ -212,6 +222,9 @@
       image_url={nav.result.image_url}
       provider={nav.result.provider}
       listing_type={nav.result.listing_type}
+      available_from={nav.result.available_from}
+      deposit={nav.result.deposit}
+      furnished={nav.result.furnished}
       onClose={nav.onClose}
       embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
