@@ -348,18 +348,23 @@ async def search_events_async(
 
     total_available = len(events)
 
-    # Client-side keyword filtering (for queries that don't map to sections)
+    # Client-side keyword filtering (for queries that don't map to sections).
+    # Uses word-boundary matching to avoid substring false positives (e.g.
+    # "ai" matching "entertainment", "again", "paid").
     if query and not section:
-        query_tokens = query.lower().split()
+        token_patterns = [
+            re.compile(r"\b" + re.escape(token) + r"\b", re.IGNORECASE)
+            for token in query.lower().split()
+        ]
         events = [
             e for e in events
             if any(
-                token in (
+                pattern.search(
                     e.get("title", "") + " " +
                     e.get("description", "") + " " +
                     " ".join(e.get("tags") or [])
-                ).lower()
-                for token in query_tokens
+                )
+                for pattern in token_patterns
             )
         ]
 

@@ -20,6 +20,7 @@
 # Amsterdam, Barcelona, and other major European cities.
 
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -382,16 +383,20 @@ async def search_events_async(
             continue
         events.append(_normalize_event(event_data, city_name))
 
-    # Client-side keyword filtering.
+    # Client-side keyword filtering using word-boundary matching.
+    # Substring matching (e.g. "ai" in text) produces false positives like
+    # "entertainment", "again", "paid". Word boundaries ensure we only match
+    # whole words (e.g. "AI" but not "p-ai-d").
     if query:
-        query_tokens = query.lower().split()
+        token_patterns = [
+            re.compile(r"\b" + re.escape(token) + r"\b", re.IGNORECASE)
+            for token in query.lower().split()
+        ]
         events = [
             e for e in events
             if any(
-                token in (
-                    e.get("title", "") + " " + e.get("description", "")
-                ).lower()
-                for token in query_tokens
+                pattern.search(e.get("title", "") + " " + e.get("description", ""))
+                for pattern in token_patterns
             )
         ]
 
