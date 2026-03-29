@@ -43,6 +43,7 @@
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
+    import HomeSearchEmbedFullscreen from './embeds/home/HomeSearchEmbedFullscreen.svelte';
     import EventEmbedFullscreen from './embeds/events/EventEmbedFullscreen.svelte';
     import TravelConnectionEmbedFullscreen from './embeds/travel/TravelConnectionEmbedFullscreen.svelte';
     import TravelStayEmbedFullscreen from './embeds/travel/TravelStayEmbedFullscreen.svelte';
@@ -10175,6 +10176,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          <EventsSearchEmbedFullscreen
                              query={embedFullscreenData.decodedContent?.query || ''}
                              provider={embedFullscreenData.decodedContent?.provider || 'Meetup'}
+                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
+                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
+                             embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
+                             onClose={handleCloseEmbedFullscreen}
+                             {hasPreviousEmbed}
+                             {hasNextEmbed}
+                             onNavigatePrevious={handleNavigatePreviousEmbed}
+                             onNavigateNext={handleNavigateNextEmbed}
+                             navigateDirection={embedNavigateDirection}
+                             showChatButton={showChatButtonInFullscreen}
+                             onShowChat={handleShowChat}
+                         />
+                     {:else if appId === 'home' && skillId === 'search'}
+                         <!-- Home Search Fullscreen -->
+                         <!-- Results are stored as child embeds (listing) — pass embedIds for loading -->
+                         <HomeSearchEmbedFullscreen
+                             query={embedFullscreenData.decodedContent?.query || ''}
+                             provider={embedFullscreenData.decodedContent?.provider || 'Multi'}
                              embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                              status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              embedId={embedFullscreenData.embedId}
