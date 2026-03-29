@@ -61,161 +61,129 @@ export function tipTapToCanonicalMarkdown(doc: TipTapDoc): string {
 }
 
 /**
- * Convert TipTap document JSON to human-readable markdown with embed previews.
+ * Convert raw markdown content to human-readable text with embed previews.
  *
- * Unlike tipTapToCanonicalMarkdown (which outputs JSON reference blocks for
- * backend round-tripping), this function resolves embed content from IndexedDB
- * and renders each embed as a text preview using renderEmbedAsText().
+ * Replaces JSON embed reference blocks (```json\n{"type":"...","embed_id":"..."}\n```)
+ * with resolved plain-text previews. Also replaces embed: links in source quotes
+ * with actual URLs.
+ *
+ * Strategy: regex replacement on the raw markdown string, NOT TipTap doc walking.
+ * The parser converts JSON blocks to embedPreviewLarge nodes (not embed nodes),
+ * which the old TipTap-based approach could not handle.
  *
  * Used by: copy-to-clipboard (text/plain), markdown chat export (.md download).
  * NOT used by: sending to backend, YML export.
  */
-export async function tipTapToReadableMarkdown(doc: TipTapDoc): Promise<string> {
-  if (!doc || !doc.content) {
-    return "";
+export async function tipTapToReadableMarkdown(rawMarkdown: string | TipTapDoc): Promise<string> {
+  // Accept both raw markdown strings and TipTap docs (for backward compat with
+  // zipExportService which may pass a TipTap doc). If it's a doc, serialize first.
+  let markdown: string;
+  if (typeof rawMarkdown === "string") {
+    markdown = rawMarkdown;
+  } else {
+    // TipTap doc — serialize to canonical markdown first, then replace embed blocks
+    markdown = tipTapToCanonicalMarkdown(rawMarkdown);
   }
 
-  // Dynamic imports to avoid pulling heavy dependencies (embedStore, TOON decoder,
-  // IndexedDB) into the synchronous serializer module. Only loaded when this async
-  // function is actually called (copy-to-clipboard, markdown export).
-  const { renderEmbedAsText } = await import("../utils/embedTextRenderer");
+  if (!markdown) return "";
+
+  // Dynamic imports to avoid pulling heavy dependencies (IndexedDB, TOON decoder)
+  // into the synchronous serializer module.
+  const { renderEmbedAsText } = await import("../data/embedTextRenderers");
   const { resolveEmbedContent, resolveChildEmbedContents } = await import("../utils/embedContentResolver");
+  const { EMBED_TYPE_NORMALIZATION_MAP } = await import("../data/embedRegistry.generated");
 
-  const lines: string[] = [];
+  // Pattern matches JSON embed reference blocks:
+  //   ```json\n{"type":"...","embed_id":"..."}\n```
+  //   ```json_embed\n{...}\n```
+  // Captures the JSON content for parsing.
+  const embedBlockPattern = /```(?:json|json_embed)\n([\s\S]*?)\n```/g;
 
-  for (const node of doc.content) {
-    switch (node.type) {
-      case "paragraph":
-        lines.push(serializeParagraph(node));
-        break;
-
-      case "embed":
-        lines.push(await _serializeEmbedToReadableText(
-          node.attrs as EmbedNodeAttributes, renderEmbedAsText, resolveEmbedContent, resolveChildEmbedContents
-        ));
-        break;
-
-      case "heading":
-        lines.push(serializeHeading(node));
-        break;
-
-      case "bulletList":
-      case "orderedList":
-        lines.push(serializeList(node));
-        break;
-
-      case "blockquote":
-        lines.push(serializeBlockquote(node));
-        break;
-
-      case "sourceQuote":
-        lines.push(await _serializeSourceQuoteReadable(node, resolveEmbedContent));
-        break;
-
-      default:
-        lines.push(extractTextContent(node));
-    }
+  // Collect all matches first (since replacement is async)
+  const matches: Array<{ fullMatch: string; json: string; index: number }> = [];
+  let match;
+  while ((match = embedBlockPattern.exec(markdown)) !== null) {
+    matches.push({ fullMatch: match[0], json: match[1].trim(), index: match.index });
   }
 
-  const filteredLines = lines.filter((line) => line.length > 0);
-  return filteredLines.join("\n\n");
-}
+  // Resolve each embed block in parallel
+  const replacements = await Promise.all(
+    matches.map(async ({ fullMatch, json }) => {
+      try {
+        const parsed = JSON.parse(json);
+        const embedId = parsed.embed_id;
+        if (!embedId) return { fullMatch, replacement: fullMatch }; // Not an embed ref
 
-/**
- * Resolve an embed node's content and render as human-readable text.
- * Falls back to a type label if the embed can't be resolved.
- * Accepts dynamically imported functions to avoid eager dependency loading.
- */
-async function _serializeEmbedToReadableText(
-  attrs: EmbedNodeAttributes,
-  renderFn: (type: string, appId: string | null, skillId: string | null, content: Record<string, unknown>, children?: Record<string, unknown>[]) => string,
-  resolveFn: (id: string) => Promise<{ type: string; appId: string | null; skillId: string | null; content: Record<string, unknown>; childEmbedIds: string[] } | null>,
-  resolveChildrenFn: (ids: string[]) => Promise<Record<string, unknown>[]>,
-): Promise<string> {
-  // Try to resolve embed content from IndexedDB
-  if (attrs.contentRef?.startsWith("embed:")) {
-    const embedId = attrs.contentRef.replace("embed:", "");
-    try {
-      const resolved = await resolveFn(embedId);
-      if (resolved) {
-        // For composite embeds, optionally resolve children for richer output
+        const resolved = await resolveEmbedContent(embedId);
+        if (!resolved) return { fullMatch, replacement: `[${parsed.type ?? "Embed"}]` };
+
+        // Build registry key (same pattern as embedPreviewRegistry.ts)
+        let registryKey: string;
+        if (resolved.appId && resolved.skillId) {
+          registryKey = `app:${resolved.appId}:${resolved.skillId}`;
+        } else {
+          // Normalize type: server types like "website" → "web-website"
+          const normalizedType = EMBED_TYPE_NORMALIZATION_MAP[resolved.type] ?? resolved.type;
+          registryKey = normalizedType;
+        }
+
+        // Resolve child embeds for composite types
         let childContents: Record<string, unknown>[] | undefined;
         if (resolved.childEmbedIds.length > 0) {
           try {
-            childContents = await resolveChildrenFn(resolved.childEmbedIds);
+            childContents = await resolveChildEmbedContents(resolved.childEmbedIds);
           } catch {
             // Child resolution failed — render without children
           }
         }
 
-        return renderFn(
-          resolved.type,
-          resolved.appId,
-          resolved.skillId,
-          resolved.content,
-          childContents
-        );
+        const text = renderEmbedAsText(registryKey, resolved.content, childContents);
+        return { fullMatch, replacement: text };
+      } catch {
+        // JSON parse failed or resolution error — leave original
+        return { fullMatch, replacement: fullMatch };
       }
-    } catch {
-      // Resolution failed — fall through to fallback
+    }),
+  );
+
+  // Apply replacements in reverse order to preserve indices
+  let result = markdown;
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const { fullMatch, replacement } = replacements[i];
+    const idx = result.lastIndexOf(fullMatch);
+    if (idx !== -1) {
+      result = result.slice(0, idx) + replacement + result.slice(idx + fullMatch.length);
     }
   }
 
-  // Fallback: use inline attributes if available (legacy embeds without contentRef)
-  if (attrs.type === "web-website" && (attrs.title || attrs.url)) {
-    const parts: string[] = [];
-    if (attrs.title) parts.push(`**${attrs.title}**`);
-    if (attrs.url) parts.push(attrs.url);
-    if (attrs.description) parts.push(attrs.description);
-    return parts.join("\n");
+  // Replace embed: links in source quotes: > [text](embed:ref) → > [text](url)
+  const sourceQuotePattern = /^(>\s*\[([^\]]*)\])\(embed:([^)]+)\)/gm;
+  const quoteMatches: Array<{ fullMatch: string; prefix: string; quoteText: string; embedRef: string }> = [];
+  let qm;
+  while ((qm = sourceQuotePattern.exec(result)) !== null) {
+    quoteMatches.push({ fullMatch: qm[0], prefix: qm[1], quoteText: qm[2], embedRef: qm[3] });
   }
 
-  if (attrs.type === "code-code" && (attrs.code || attrs.filename)) {
-    const lang = attrs.language ?? "";
-    const code = attrs.code ?? "";
-    if (code) {
-      return `\`\`\`${lang}\n${code}\n\`\`\``;
-    }
-    return `**Code** — ${attrs.filename ?? lang}`;
-  }
+  if (quoteMatches.length > 0) {
+    const quoteReplacements = await Promise.all(
+      quoteMatches.map(async ({ fullMatch, prefix, embedRef }) => {
+        try {
+          const resolved = await resolveEmbedContent(embedRef);
+          if (resolved) {
+            const url = resolved.content.url as string | undefined;
+            if (url) return { fullMatch, replacement: `${prefix}(${url})` };
+          }
+        } catch { /* keep original */ }
+        return { fullMatch, replacement: fullMatch };
+      }),
+    );
 
-  if (attrs.type === "videos-video" && attrs.url) {
-    return attrs.url;
-  }
-
-  // Final fallback: type label
-  const typeLabel = attrs.type?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) ?? "Embed";
-  return `[${typeLabel}]`;
-}
-
-/**
- * Serialize source quote with resolved embed URL.
- * Source quotes reference embeds via embedRef — resolve to get the actual URL.
- * Accepts dynamically imported resolve function.
- */
-async function _serializeSourceQuoteReadable(
-  node: TipTapNode,
-  resolveFn: (id: string) => Promise<{ type: string; appId: string | null; skillId: string | null; content: Record<string, unknown>; childEmbedIds: string[] } | null>,
-): Promise<string> {
-  const quoteText = node.attrs?.quoteText || "";
-  const embedRef = node.attrs?.embedRef || "";
-
-  if (embedRef) {
-    try {
-      const resolved = await resolveFn(embedRef);
-      if (resolved) {
-        const url = resolved.content.url as string | undefined;
-        if (url) {
-          return `> [${quoteText}](${url})`;
-        }
-      }
-    } catch {
-      // Resolution failed — use embed ref fallback
+    for (const { fullMatch, replacement } of quoteReplacements) {
+      result = result.replace(fullMatch, replacement);
     }
   }
 
-  // Fallback: keep the embed reference format
-  return `> [${quoteText}](embed:${embedRef})`;
+  return result;
 }
 
 /**
