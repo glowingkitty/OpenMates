@@ -921,18 +921,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         // The ReadOnlyMessage component renders the TipTap doc; we parse the markdown
         // to extract embed nodes without depending on the DOM.
         let embedAttrs: import('../message_parsing/types').EmbedNodeAttributes[] = [];
-        let tiptapDoc: import('../message_parsing/types').TipTapDoc | null = null;
         try {
           const { parse_message } = await import('../message_parsing/parse_message');
           const rawMarkdown = typeof original_message?.content === 'string'
             ? original_message.content
             : '';
           if (rawMarkdown) {
-            tiptapDoc = parse_message(rawMarkdown, 'read', {
+            const tiptapDoc = parse_message(rawMarkdown, 'read', {
               unifiedParsingEnabled: true,
               role,
             });
-            // Walk the TipTap document to collect embed nodes
+            // Walk the TipTap document to collect embed nodes for structured MIME
             const collectEmbeds = (nodes: TipTapNode[]): void => {
               for (const node of nodes ?? []) {
                 if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('embed:')) {
@@ -950,12 +949,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         }
 
         // Generate human-readable text with embed previews (instead of JSON blocks).
-        // The readable markdown promise is passed to writeMessageWithEmbedsToClipboard
-        // which constructs ClipboardItem synchronously to preserve Safari gesture token.
+        // Works on the raw markdown string directly — regex-replaces JSON embed blocks
+        // with resolved text previews from the EMBED_TEXT_RENDERERS registry.
         let readableTextPromise: string | Promise<string> = contentToCopy;
-        if (tiptapDoc && embedAttrs.length > 0) {
+        if (embedAttrs.length > 0) {
           const { tipTapToReadableMarkdown } = await import('../message_parsing/serializers');
-          readableTextPromise = tipTapToReadableMarkdown(tiptapDoc);
+          readableTextPromise = tipTapToReadableMarkdown(contentToCopy);
         }
 
         // Write embed references + readable text to clipboard using dual-MIME ClipboardItem.

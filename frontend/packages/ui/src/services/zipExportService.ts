@@ -49,10 +49,10 @@ async function convertMessageToMarkdown(
 
     let content = "";
     if (typeof message.content === "string") {
-      content = message.content;
+      // Raw markdown string — resolve embed blocks to readable text
+      content = await tipTapToReadableMarkdown(message.content);
     } else if (message.content && typeof message.content === "object") {
-      // Use readable markdown for human-friendly output: embeds render as text
-      // previews instead of JSON reference blocks.
+      // TipTap doc — serialize to canonical markdown first, then resolve embeds
       content = await tipTapToReadableMarkdown(message.content);
     }
 
