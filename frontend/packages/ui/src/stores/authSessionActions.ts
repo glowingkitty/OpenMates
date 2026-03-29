@@ -4,7 +4,7 @@
  */
 
 import { get } from "svelte/store";
-import { getApiEndpoint, apiEndpoints } from "../config/api";
+import { getApiEndpoint, apiEndpoints, isDevEnvironment } from "../config/api";
 import {
   currentSignupStep,
   isInSignupProcess,
@@ -663,11 +663,12 @@ export async function checkAuth(
         console.error("Failed to save user data to database:", dbError);
       }
 
-      // Start live console log streaming for admin users on session restore.
-      if (data.user.is_admin) {
+      // Start live console log streaming for admin users on session restore,
+      // or for ALL authenticated users on dev (so frontend errors reach OpenObserve).
+      if (data.user.is_admin || isDevEnvironment()) {
         clientLogForwarder.start();
       } else {
-        // Non-admin: resume debug log sharing session if one was active
+        // Non-admin on prod: resume debug log sharing session if one was active
         try {
           const debugSession = localStorage.getItem("debug_session");
           if (debugSession) {
@@ -1134,9 +1135,9 @@ export async function checkAuth(
         // The normal (online) path starts the forwarder in checkAuth()'s happy path.
         // But if the server is unreachable, we restore auth from local IndexedDB here
         // without ever reaching the online success path — so we must start it here.
-        if (localProfile.is_admin) {
+        if (localProfile.is_admin || isDevEnvironment()) {
           console.debug(
-            "[AuthSessionActions] Admin user detected (offline-first) — starting clientLogForwarder",
+            "[AuthSessionActions] Starting clientLogForwarder (offline-first)",
           );
           clientLogForwarder.start();
         } else {
@@ -1298,9 +1299,9 @@ export function setAuthenticatedState(): void {
   // The user profile is populated by PasswordAndTfaOtp.svelte (via updateProfile) before
   // dispatching loginSuccess, so is_admin is available here when called from ActiveChat.
   const profile = get(userProfile);
-  if (profile.is_admin) {
+  if (profile.is_admin || isDevEnvironment()) {
     console.debug(
-      "[setAuthenticatedState] Admin user detected — starting clientLogForwarder",
+      "[setAuthenticatedState] Starting clientLogForwarder",
     );
     clientLogForwarder.start();
   } else {

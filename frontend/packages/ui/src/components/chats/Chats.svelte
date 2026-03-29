@@ -1860,7 +1860,7 @@ let _chatUpdatedFlushPending = false;
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
 		// If sync was already completed before this component mounted, ensure we have the latest data
 		// This handles the case where the sidebar was closed during sync (common on mobile)
-		// We intentionally stay on Tier 1 (20 chats) — user clicks "Show more" to see the rest
+		// We intentionally stay on Tier 1 (11 chats) — user clicks "Show more" to see the rest
 		if ($phasedSyncState.initialSyncCompleted) {
 			await updateChatListFromDB();
 			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);

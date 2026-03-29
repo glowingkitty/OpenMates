@@ -22,6 +22,9 @@ class UserDatabaseService {
   // Promise that resolves when an in-progress deleteDatabase() finishes.
   // Used by init() to wait for deletion instead of throwing permanently.
   private deletionPromise: Promise<void> | null = null;
+  // Tracks which resume timestamp was already logged for the grace period skip.
+  // Prevents log spam from repeated init() calls within the same grace window.
+  private _lastGraceLogTimestamp = 0;
 
   /**
    * Initialize the database.
@@ -129,9 +132,13 @@ class UserDatabaseService {
             : Infinity;
 
         if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
-          console.debug(
-            `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
-          );
+          // Log once per resume window to avoid spam from repeated init() calls
+          if (this._lastGraceLogTimestamp !== lastResumeTimestamp) {
+            this._lastGraceLogTimestamp = lastResumeTimestamp;
+            console.debug(
+              `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period`,
+            );
+          }
         } else {
           // Check if master key is missing but database was previously initialized
           const { getKeyFromStorage } = await import("./cryptoService");

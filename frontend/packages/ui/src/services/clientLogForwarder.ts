@@ -134,7 +134,8 @@ class ClientLogForwarderService {
   };
 
   /**
-   * Start forwarding in admin mode. Call only for admin users after auth.
+   * Start forwarding in admin mode. Call for admin users after auth,
+   * or for ALL authenticated users on dev (backend allows all users on dev).
    * Safe to call multiple times — idempotent.
    */
   start(): void {
