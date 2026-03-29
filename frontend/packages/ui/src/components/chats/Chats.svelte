@@ -76,8 +76,8 @@ let _chatUpdatedFlushPending = false;
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
 	// Phased Loading State — 3-tier progressive display:
-	// Tier 1 ('initial'): Show first 20 chats from IndexedDB (fast initial render during sync)
-	// Tier 2 ('all_local'): Show all ~100 chats from IndexedDB (after sync or user clicks "Show more")
+	// Tier 1 ('initial'): Show first 11 chats (10 recent + 1 last-opened, matching Phase 1a)
+	// Tier 2 ('all_local'): Show all ~100 chats from IndexedDB (after user clicks "Show more")
 	// Tier 3 ('loading_server'): Fetching additional older chats from server on demand
 	let loadTier: 'initial' | 'all_local' | 'loading_server' = $state('initial');
 	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond initial 100, in-memory only (NOT in IndexedDB)
@@ -550,15 +550,18 @@ let _chatUpdatedFlushPending = false;
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
 	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'legal'];
 
+	// Display limit for tier 1: matches Phase 1a (10 recent + 1 last-opened).
+	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
+	const TIER_1_USER_CHAT_LIMIT = 11;
+
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
-	// Tier 1 ('initial'): Show first 20 USER chats (fast render during sync), plus all static chats (intro, examples, legal)
+	// Tier 1 ('initial'): Show first 11 USER chats (matching Phase 1a), plus all static chats
 	// Tier 2+ ('all_local', 'loading_server'): Show all chats (IndexedDB + server-loaded)
-	// IMPORTANT: The limit of 20 applies only to user chats — intro, example, and legal chats are always shown
 	let chatsForDisplay = $derived((() => {
 		if (loadTier !== 'initial') {
 			return sortedAllChatsFiltered;
 		}
-		// Tier 1: Separate user chats from static chats, limit only user chats to 20
+		// Tier 1: Separate user chats from static chats, limit only user chats
 		const userChats: ChatType[] = [];
 		const staticChats: ChatType[] = [];
 		for (const chat of sortedAllChatsFiltered) {
@@ -568,11 +571,11 @@ let _chatUpdatedFlushPending = false;
 				userChats.push(chat);
 			}
 		}
-		return [...userChats.slice(0, 20), ...staticChats];
+		return [...userChats.slice(0, TIER_1_USER_CHAT_LIMIT), ...staticChats];
 	})());
-	
+
 	// Determine if "Show more" button should be visible
-	// Tier 1 ('initial'): Show if there are more than 20 USER chats (excludes intro/example/legal)
+	// Tier 1 ('initial'): Show if there are more user chats than the tier 1 limit
 	// Tier 2 ('all_local'): Show if server has more chats beyond what's loaded
 	// Tier 3 ('loading_server'): Keep visible (disabled) while fetching
 	let showMoreButtonVisible = $derived((() => {
@@ -580,7 +583,7 @@ let _chatUpdatedFlushPending = false;
 			const userChatCount = sortedAllChatsFiltered.filter(
 				c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
 			).length;
-			return userChatCount > 20;
+			return userChatCount > TIER_1_USER_CHAT_LIMIT;
 		}
 		if (loadTier === 'loading_server') {
 			return true; // Keep button visible while loading
@@ -963,14 +966,14 @@ let _chatUpdatedFlushPending = false;
 		* This means the last 20 updated chats are ready for quick access.
 		*/
 	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 2 complete - Last 20 chats ready: ${event.detail.chat_count} chats.`);
+		console.debug(`[Chats] Phase 2 complete - chats ready: ${event.detail.chat_count} chats.`);
 
 		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
 		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
 		await updateChatListFromDB(false);
-		
-		// Phase 2 ensures at least 20 chats are available — tier 'initial' already shows 20
-		// No state change needed here; loadTier 'initial' already shows first 20
+
+		// Phase 2 stores metadata in IDB but tier 1 only displays 11 chats (Phase 1a set).
+		// No state change needed here; user clicks "Show more" to see the rest.
 
 		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
@@ -1122,7 +1125,7 @@ let _chatUpdatedFlushPending = false;
 
 	/**
 	 * Handles "Show more" button click — 3-tier progressive loading:
-	 * Tier 1 → 2: Expands from 20 to all ~100 local chats from IndexedDB
+	 * Tier 1 → 2: Expands from 11 to all ~100 local chats from IndexedDB
 	 * Tier 2 → 3: Requests additional older chats from the server (20 at a time, in-memory only)
 	 */
 	const handleShowMoreClick = async () => {
