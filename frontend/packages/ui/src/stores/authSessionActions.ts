@@ -38,6 +38,7 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
+import { isValidLocale } from "../i18n/types"; // Import to validate localStorage language values (OPE-39)
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
@@ -558,9 +559,15 @@ export async function checkAuth(
         // the browser locale and never corrected). If the user explicitly
         // chose a language locally (stored in localStorage.preferredLanguage),
         // push it to the server so they stay in sync.
-        const localPreferredLanguage =
+        const rawLocalLanguage =
           typeof localStorage !== "undefined"
             ? localStorage.getItem("preferredLanguage")
+            : null;
+        // Validate localStorage value against supported locales (OPE-39: prevents
+        // invalid values like "cs-CZ" from being pushed to the server)
+        const localPreferredLanguage =
+          rawLocalLanguage && isValidLocale(rawLocalLanguage)
+            ? rawLocalLanguage
             : null;
 
         if (
