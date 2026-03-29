@@ -49,6 +49,7 @@ import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPr
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
+import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
@@ -266,6 +267,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       health_result: true,
       recipe: true,
       price_calendar_result: true,
+      listing: true,
     };
     const childType = decodedContent?.type || embedData?.type;
     if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
@@ -477,6 +479,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For events search, render events search preview using Svelte component
       if (appId === "events" && skillId === "search") {
         return this.renderEventsSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For home search, render housing search preview using Svelte component
+      if (appId === "home" && skillId === "search") {
+        return this.renderHomeSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -1527,6 +1539,76 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting EventsSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render home search embed using Svelte component (home/search skill).
+   * Shows housing listings from ImmoScout24, Kleinanzeigen, and WG-Gesucht.
+   */
+  private renderHomeSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Multi";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(HomeSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted HomeSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting HomeSearchEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
