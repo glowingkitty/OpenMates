@@ -921,13 +921,14 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         // The ReadOnlyMessage component renders the TipTap doc; we parse the markdown
         // to extract embed nodes without depending on the DOM.
         let embedAttrs: import('../message_parsing/types').EmbedNodeAttributes[] = [];
+        let tiptapDoc: import('../message_parsing/types').TipTapDoc | null = null;
         try {
           const { parse_message } = await import('../message_parsing/parse_message');
           const rawMarkdown = typeof original_message?.content === 'string'
             ? original_message.content
             : '';
           if (rawMarkdown) {
-            const tiptapDoc = parse_message(rawMarkdown, 'read', {
+            tiptapDoc = parse_message(rawMarkdown, 'read', {
               unifiedParsingEnabled: true,
               role,
             });
@@ -948,10 +949,19 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           embedAttrs = [];
         }
 
-        // Write embed references + message text to clipboard using dual-MIME ClipboardItem.
+        // Generate human-readable text with embed previews (instead of JSON blocks).
+        // The readable markdown promise is passed to writeMessageWithEmbedsToClipboard
+        // which constructs ClipboardItem synchronously to preserve Safari gesture token.
+        let readableTextPromise: string | Promise<string> = contentToCopy;
+        if (tiptapDoc && embedAttrs.length > 0) {
+          const { tipTapToReadableMarkdown } = await import('../message_parsing/serializers');
+          readableTextPromise = tipTapToReadableMarkdown(tiptapDoc);
+        }
+
+        // Write embed references + readable text to clipboard using dual-MIME ClipboardItem.
         // When pasted inside OpenMates MessageInput, the paste handler reads the embed
         // JSON and re-inserts the embed nodes. When pasted externally, text/plain is used.
-        await writeMessageWithEmbedsToClipboard(embedAttrs, contentToCopy);
+        await writeMessageWithEmbedsToClipboard(embedAttrs, readableTextPromise);
       }
       
       const { notificationStore } = await import('../stores/notificationStore');

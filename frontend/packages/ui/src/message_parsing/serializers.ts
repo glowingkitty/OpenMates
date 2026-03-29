@@ -61,6 +61,164 @@ export function tipTapToCanonicalMarkdown(doc: TipTapDoc): string {
 }
 
 /**
+ * Convert TipTap document JSON to human-readable markdown with embed previews.
+ *
+ * Unlike tipTapToCanonicalMarkdown (which outputs JSON reference blocks for
+ * backend round-tripping), this function resolves embed content from IndexedDB
+ * and renders each embed as a text preview using renderEmbedAsText().
+ *
+ * Used by: copy-to-clipboard (text/plain), markdown chat export (.md download).
+ * NOT used by: sending to backend, YML export.
+ */
+export async function tipTapToReadableMarkdown(doc: TipTapDoc): Promise<string> {
+  if (!doc || !doc.content) {
+    return "";
+  }
+
+  // Dynamic imports to avoid pulling heavy dependencies (embedStore, TOON decoder,
+  // IndexedDB) into the synchronous serializer module. Only loaded when this async
+  // function is actually called (copy-to-clipboard, markdown export).
+  const { renderEmbedAsText } = await import("../utils/embedTextRenderer");
+  const { resolveEmbedContent, resolveChildEmbedContents } = await import("../utils/embedContentResolver");
+
+  const lines: string[] = [];
+
+  for (const node of doc.content) {
+    switch (node.type) {
+      case "paragraph":
+        lines.push(serializeParagraph(node));
+        break;
+
+      case "embed":
+        lines.push(await _serializeEmbedToReadableText(
+          node.attrs as EmbedNodeAttributes, renderEmbedAsText, resolveEmbedContent, resolveChildEmbedContents
+        ));
+        break;
+
+      case "heading":
+        lines.push(serializeHeading(node));
+        break;
+
+      case "bulletList":
+      case "orderedList":
+        lines.push(serializeList(node));
+        break;
+
+      case "blockquote":
+        lines.push(serializeBlockquote(node));
+        break;
+
+      case "sourceQuote":
+        lines.push(await _serializeSourceQuoteReadable(node, resolveEmbedContent));
+        break;
+
+      default:
+        lines.push(extractTextContent(node));
+    }
+  }
+
+  const filteredLines = lines.filter((line) => line.length > 0);
+  return filteredLines.join("\n\n");
+}
+
+/**
+ * Resolve an embed node's content and render as human-readable text.
+ * Falls back to a type label if the embed can't be resolved.
+ * Accepts dynamically imported functions to avoid eager dependency loading.
+ */
+async function _serializeEmbedToReadableText(
+  attrs: EmbedNodeAttributes,
+  renderFn: (type: string, appId: string | null, skillId: string | null, content: Record<string, unknown>, children?: Record<string, unknown>[]) => string,
+  resolveFn: (id: string) => Promise<{ type: string; appId: string | null; skillId: string | null; content: Record<string, unknown>; childEmbedIds: string[] } | null>,
+  resolveChildrenFn: (ids: string[]) => Promise<Record<string, unknown>[]>,
+): Promise<string> {
+  // Try to resolve embed content from IndexedDB
+  if (attrs.contentRef?.startsWith("embed:")) {
+    const embedId = attrs.contentRef.replace("embed:", "");
+    try {
+      const resolved = await resolveFn(embedId);
+      if (resolved) {
+        // For composite embeds, optionally resolve children for richer output
+        let childContents: Record<string, unknown>[] | undefined;
+        if (resolved.childEmbedIds.length > 0) {
+          try {
+            childContents = await resolveChildrenFn(resolved.childEmbedIds);
+          } catch {
+            // Child resolution failed — render without children
+          }
+        }
+
+        return renderFn(
+          resolved.type,
+          resolved.appId,
+          resolved.skillId,
+          resolved.content,
+          childContents
+        );
+      }
+    } catch {
+      // Resolution failed — fall through to fallback
+    }
+  }
+
+  // Fallback: use inline attributes if available (legacy embeds without contentRef)
+  if (attrs.type === "web-website" && (attrs.title || attrs.url)) {
+    const parts: string[] = [];
+    if (attrs.title) parts.push(`**${attrs.title}**`);
+    if (attrs.url) parts.push(attrs.url);
+    if (attrs.description) parts.push(attrs.description);
+    return parts.join("\n");
+  }
+
+  if (attrs.type === "code-code" && (attrs.code || attrs.filename)) {
+    const lang = attrs.language ?? "";
+    const code = attrs.code ?? "";
+    if (code) {
+      return `\`\`\`${lang}\n${code}\n\`\`\``;
+    }
+    return `**Code** — ${attrs.filename ?? lang}`;
+  }
+
+  if (attrs.type === "videos-video" && attrs.url) {
+    return attrs.url;
+  }
+
+  // Final fallback: type label
+  const typeLabel = attrs.type?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) ?? "Embed";
+  return `[${typeLabel}]`;
+}
+
+/**
+ * Serialize source quote with resolved embed URL.
+ * Source quotes reference embeds via embedRef — resolve to get the actual URL.
+ * Accepts dynamically imported resolve function.
+ */
+async function _serializeSourceQuoteReadable(
+  node: TipTapNode,
+  resolveFn: (id: string) => Promise<{ type: string; appId: string | null; skillId: string | null; content: Record<string, unknown>; childEmbedIds: string[] } | null>,
+): Promise<string> {
+  const quoteText = node.attrs?.quoteText || "";
+  const embedRef = node.attrs?.embedRef || "";
+
+  if (embedRef) {
+    try {
+      const resolved = await resolveFn(embedRef);
+      if (resolved) {
+        const url = resolved.content.url as string | undefined;
+        if (url) {
+          return `> [${quoteText}](${url})`;
+        }
+      }
+    } catch {
+      // Resolution failed — use embed ref fallback
+    }
+  }
+
+  // Fallback: keep the embed reference format
+  return `> [${quoteText}](embed:${embedRef})`;
+}
+
+/**
  * Convert markdown to TipTap document JSON format for display
  * This parses markdown and creates appropriate TipTap nodes including embeds
  */
