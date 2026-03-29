@@ -540,107 +540,33 @@ async function storeRecentChats(
         unreadMessagesStore.setUnread(chatId, syncedUnread);
       }
 
-      // CRITICAL: Check if we should sync messages for Phase 2 chats
-      // This prevents data inconsistency where messages_v is set but messages are missing
+      // Phase 2 is now metadata-only — messages arrive in Phase 3 (background sync).
+      // Check if messages were provided (legacy/backwards compat) or metadata-only.
       const shouldSyncMessages =
         messages && Array.isArray(messages) && messages.length > 0;
-      const serverMessagesV = chat_details.messages_v || 0;
-      const localMessagesV = existingChat?.messages_v || 0;
 
-      // CRITICAL FIX: Validate message count when server skips sending messages
-      // If server sends server_message_count but no messages, validate local data
-      // This detects data inconsistency where version matches but messages are missing
-      if (
-        !shouldSyncMessages &&
-        server_message_count !== undefined &&
-        server_message_count !== null &&
-        server_message_count > 0
-      ) {
-        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
-
-        console.debug(
-          `[ChatSyncService] Phase 2 - Message count validation for chat ${chatId}: ` +
-            `server_count=${server_message_count}, local_count=${localMessageCount}`,
-        );
-
-        // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
-        if (localMessageCount < server_message_count) {
-          console.warn(
-            `[ChatSyncService] Phase 2 - ⚠️ DATA INCONSISTENCY DETECTED for chat ${chatId}: ` +
-              `Local has ${localMessageCount} messages but server has ${server_message_count}. ` +
-              `Resetting messages_v to 0 to force re-sync.`,
-          );
-
-          // Reset the chat's messages_v to 0 to force a full re-sync
-          mergedChat = {
-            ...mergedChat,
-            messages_v: 0, // Reset to force re-sync on next load
-          };
-          await chatDB.addChat(mergedChat);
-          chatListCache.upsertChat(mergedChat);
-
-          // Dispatch event to notify about the inconsistency
-          serviceInstance.dispatchEvent(
-            new CustomEvent("chatDataInconsistency", {
-              detail: {
-                chatId,
-                localCount: localMessageCount,
-                serverCount: server_message_count,
-                phase: "phase2",
-              },
-            }),
-          );
-          continue;
-        }
-      }
-
-      let shouldSkipMessageSync = false;
-      if (
-        existingChat &&
-        serverMessagesV === localMessagesV &&
-        shouldSyncMessages
-      ) {
-        // Check if we have messages in the database (count-only, no decryption needed)
-        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
-        const serverMessageCount = messages?.length || 0;
-
-        console.debug(
-          `[ChatSyncService] Phase 2 - Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}, serverCount=${serverMessageCount}`,
-        );
-
-        // Only skip sync if versions match and message counts match
-        if (localMessageCount === serverMessageCount && localMessageCount > 0) {
-          shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message counts match (${localMessageCount})`,
-          );
-        } else if (localMessageCount === 0 && serverMessageCount === 0) {
-          shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - no messages on server or client`,
-          );
-        } else {
-          console.debug(
-            `[ChatSyncService] Phase 2 - Message count mismatch for chat ${chatId}: local=${localMessageCount}, server=${serverMessageCount}. Syncing to fix...`,
-          );
-        }
-      }
-
-      if (shouldSkipMessageSync) {
+      // Metadata-only path: save chat and move on (no message processing)
+      if (!shouldSyncMessages) {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
         continue;
       }
 
-      // For new chats without messages, save immediately
-      if (
-        !existingChat &&
-        (!shouldSyncMessages || !messages || messages.length === 0)
-      ) {
-        console.debug(
-          `[ChatSyncService] Phase 2 - Saving new chat ${chatId} without messages`,
-        );
+      // --- Legacy path: messages were provided (backwards compat) ---
+      const serverMessagesV = chat_details.messages_v || 0;
+      const localMessagesV = existingChat?.messages_v || 0;
+
+      let shouldSkipMessageSync = false;
+      if (existingChat && serverMessagesV === localMessagesV) {
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
+        const serverMessageCount = messages?.length || 0;
+        if (localMessageCount === serverMessageCount && localMessageCount > 0) {
+          shouldSkipMessageSync = true;
+        }
+      }
+
+      if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
@@ -658,12 +584,9 @@ async function storeRecentChats(
       try {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
-        console.debug(
-          `[ChatSyncService] Phase 2 - Saved chat ${chatId} to IndexedDB`,
-        );
 
         if (shouldSyncMessages && preparedMessages.length > 0) {
-          console.log(
+          console.info(
             `[CLIENT_SYNC] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
               `(server v${serverMessagesV}, local v${localMessagesV})`,
           );
