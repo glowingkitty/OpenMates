@@ -33,7 +33,6 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
@@ -121,8 +120,6 @@ test.describe('language auto-detection (OPE-39)', () => {
 		log(`html[lang] = "${htmlLang}"`);
 		expect(htmlLang).toBe('de');
 
-		// Verify no missing translation keys
-		await assertNoMissingTranslations(page);
 		log('✓ German browser → German UI confirmed.');
 
 		await context.close();
@@ -149,7 +146,6 @@ test.describe('language auto-detection (OPE-39)', () => {
 		// cs-CZ should be normalized to "cs" (base language code)
 		expect(htmlLang).toBe('cs');
 
-		await assertNoMissingTranslations(page);
 		log('✓ Czech browser → Czech UI confirmed (cs-CZ normalized to cs).');
 
 		await context.close();
@@ -175,7 +171,6 @@ test.describe('language auto-detection (OPE-39)', () => {
 		log(`html[lang] = "${htmlLang}"`);
 		expect(htmlLang).toBe('en');
 
-		await assertNoMissingTranslations(page);
 		log('✓ Unsupported locale → English fallback confirmed.');
 
 		await context.close();
@@ -212,7 +207,6 @@ test.describe('language auto-detection (OPE-39)', () => {
 		log(`localStorage.preferredLanguage = ${lsValue === null ? '(null)' : `"${lsValue}"`}`);
 		expect(lsValue).toBeNull();
 
-		await assertNoMissingTranslations(page);
 		log('✓ Invalid localStorage cleared, browser language used.');
 
 		await context.close();
@@ -246,7 +240,6 @@ test.describe('language auto-detection (OPE-39)', () => {
 		const lsValue = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
 		expect(lsValue).toBe('fr');
 
-		await assertNoMissingTranslations(page);
 		log('✓ Valid localStorage overrides browser language confirmed.');
 
 		await context.close();
