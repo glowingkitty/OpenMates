@@ -1,5 +1,5 @@
 ---
-name: daily-meeting
+name: openmates:daily-meeting
 description: Run the daily standup meeting — review yesterday, assess health, set priorities
 user-invocable: true
 argument-hint: "[dry-run]"

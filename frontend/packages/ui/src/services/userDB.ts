@@ -35,6 +35,13 @@ class UserDatabaseService {
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
   async init(): Promise<void> {
+    // FAST PATH: If the database is already open and no deletion/logout is pending,
+    // skip orphan detection entirely. Eliminates log spam from repeated init() calls
+    // triggered by getChat, getAllChats, etc. after tab resume.
+    if (this.db && !this.isDeleting && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+      return;
+    }
+
     // If a deletion was in progress, complete it before re-opening the database.
     // A pending indexedDB.deleteDatabase() request blocks all subsequent open() calls
     // per the IDB spec — the open handlers never fire while a delete is pending.
@@ -122,7 +129,7 @@ class UserDatabaseService {
             : Infinity;
 
         if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
-          console.warn(
+          console.debug(
             `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
           );
         } else {
