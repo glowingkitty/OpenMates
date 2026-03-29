@@ -30,7 +30,18 @@ export async function initializeApp(
     // These allow inspecting IndexedDB data via window.debugChat(), etc.
     initDebugUtils();
 
-    // Initialize OpenObserve RUM SDK — non-blocking, no-op if endpoint not configured
+    // Initialize OpenTelemetry distributed tracing as early as possible so that
+    // database init, auth, and all subsequent fetch() calls are instrumented.
+    // getApiUrl() is a pure function based on compile-time VITE_* env vars —
+    // it does NOT depend on auth state or any runtime initialization.
+    try {
+      const { getApiUrl } = await import("./config/api");
+      const { initTracing } = await import("./services/tracing/setup");
+      initTracing(getApiUrl());
+      console.info("[App] OTel tracing initialized");
+    } catch (err) {
+      console.warn("[App] OTel tracing not available:", err);
+    }
 
     // Initialize databases
     await chatDB.init();
@@ -49,18 +60,6 @@ export async function initializeApp(
       await authStore.initialize();
     } else {
       console.debug("Skipping auth initialization in initializeApp");
-    }
-
-    // Initialize OpenTelemetry distributed tracing (non-blocking, errors logged).
-    // This must happen AFTER auth init so the API base URL is resolved and
-    // fetch instrumentation can propagate trace headers to the correct origin.
-    try {
-      const { getApiUrl } = await import("./config/api");
-      const { initTracing } = await import("./services/tracing/setup");
-      initTracing(getApiUrl());
-      console.info("[App] OTel tracing initialized");
-    } catch (err) {
-      console.warn("[App] OTel tracing not available:", err);
     }
 
     console.debug("Application initialization complete");
