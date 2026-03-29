@@ -69,6 +69,39 @@ class LogCollectorService {
     };
 
     this.interceptConsole();
+    this.interceptGlobalErrors();
+  }
+
+  /**
+   * Capture uncaught errors and unhandled promise rejections that bypass console.error.
+   * IDB DOMExceptions and other async errors often go through these global handlers
+   * rather than console.error, making them invisible to OTel without this hook.
+   */
+  private interceptGlobalErrors(): void {
+    if (typeof window === "undefined") return;
+
+    window.addEventListener("unhandledrejection", (event) => {
+      const reason = event.reason;
+      this.captureLog("error", [
+        "[UnhandledRejection]",
+        reason instanceof Error ? reason : String(reason),
+      ]);
+    });
+
+    window.addEventListener("error", (event) => {
+      // Skip errors already logged via console.error (avoid duplicates)
+      if (event.error) {
+        this.captureLog("error", [
+          "[UncaughtError]",
+          event.error,
+        ]);
+      } else {
+        this.captureLog("error", [
+          "[UncaughtError]",
+          `${event.message} at ${event.filename}:${event.lineno}:${event.colno}`,
+        ]);
+      }
+    });
   }
 
   /**
@@ -114,9 +147,22 @@ class LogCollectorService {
             return "null";
           } else if (arg === undefined) {
             return "undefined";
+          } else if (arg instanceof Error || arg instanceof DOMException) {
+            // Error/DOMException properties (name, message, stack) are non-enumerable,
+            // so JSON.stringify() returns "{}". Extract them explicitly.
+            const parts = [arg.name || arg.constructor.name, arg.message].filter(Boolean);
+            if (arg.stack) {
+              parts.push(arg.stack);
+            }
+            return parts.join(': ');
           } else if (typeof arg === "object") {
             try {
-              return JSON.stringify(arg, null, 2);
+              const json = JSON.stringify(arg, null, 2);
+              // Guard against Error-like objects that serialize to "{}" despite having useful info
+              if (json === '{}' && arg.constructor !== Object) {
+                return `[${arg.constructor.name}] ${String(arg)}`;
+              }
+              return json;
             } catch {
               return "[Object object - circular or non-serializable]";
             }
@@ -185,6 +231,10 @@ class LogCollectorService {
     return args.map((arg) => {
       if (typeof arg === "string") {
         return this.sanitizeMessage(arg);
+      } else if (arg instanceof Error || arg instanceof DOMException) {
+        // Error objects have non-enumerable properties — spread operator loses them.
+        // Convert to a plain object so downstream JSON.stringify captures everything.
+        return { name: arg.name, message: arg.message, stack: arg.stack };
       } else if (typeof arg === "object" && arg !== null) {
         try {
           const sanitized = { ...arg };

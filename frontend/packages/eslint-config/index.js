@@ -16,7 +16,7 @@ export const config = ts.config(
     },
     rules: {
       // Warn on console.log — allow structured logging methods
-      'no-console': ['warn', { allow: ['info', 'debug', 'warn', 'error'] }],
+      'no-console': ['warn', { allow: ['log', 'info', 'debug', 'warn', 'error'] }],
       // Prefix unused vars with _ to indicate intentional non-use
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
