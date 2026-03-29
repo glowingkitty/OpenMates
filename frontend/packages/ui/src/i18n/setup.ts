@@ -88,10 +88,14 @@ function normalizeLocale(locale: string): string {
 // Function to get the current language - simplified to prioritize browser language
 export function getCurrentLanguage(): string {
   if (browser) {
-    // Only use preferredLanguage if explicitly set by user, otherwise use browser language
+    // Only use preferredLanguage if explicitly set by user AND it's a valid locale
     const userPreference = localStorage.getItem("preferredLanguage");
-    if (userPreference) {
+    if (userPreference && isValidLocale(userPreference)) {
       return userPreference;
+    }
+    // Clear invalid/stale values (e.g. "cs-CZ" instead of "cs") to prevent persistence loops
+    if (userPreference) {
+      localStorage.removeItem("preferredLanguage");
     }
     const browserLang = normalizeLocale(getLocaleFromNavigator() || "en");
     return browserLang;
