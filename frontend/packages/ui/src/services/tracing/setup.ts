@@ -71,7 +71,7 @@ export function initTracing(apiBaseUrl: string): void {
 
 		_tracer = trace.getTracer(TRACING_SERVICE_NAME);
 
-		console.debug('[Tracing] Browser OTel SDK initialized, exporting to', exportUrl);
+		console.info('[Tracing] Browser OTel SDK initialized — exporting to', exportUrl);
 	} catch (error) {
 		console.error('[Tracing] Failed to initialize browser OTel SDK:', error);
 	}

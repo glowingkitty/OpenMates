@@ -58,9 +58,9 @@ export async function initializeApp(
       const { getApiUrl } = await import("./config/api");
       const { initTracing } = await import("./services/tracing/setup");
       initTracing(getApiUrl());
-      console.debug("[App] OTel tracing initialized");
+      console.info("[App] OTel tracing initialized");
     } catch (err) {
-      console.debug("[App] OTel tracing not available:", err);
+      console.warn("[App] OTel tracing not available:", err);
     }
 
     console.debug("Application initialization complete");
