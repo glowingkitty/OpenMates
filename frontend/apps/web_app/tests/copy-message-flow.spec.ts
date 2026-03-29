@@ -36,6 +36,12 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
+const {
+	getTestAccount
+} = require('./signup-flow-helpers');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
 // ─── Log buckets ────────────────────────────────────────────────────────────
 const consoleLogs: string[] = [];
 
@@ -60,7 +66,7 @@ function logCheckpoint(message: string): void {
 }
 
 test.describe('Copy message with embeds', () => {
-	test.skip(skipWithoutCredentials(), 'Missing test account credentials');
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('copied message text should contain human-readable embed preview, not JSON blocks', async ({
 		page,
