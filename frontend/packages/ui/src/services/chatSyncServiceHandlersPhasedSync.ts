@@ -517,21 +517,8 @@ async function storeRecentChats(
         currentUserId,
       );
 
-      // Self-heal: validate encrypted metadata fields after merge.
-      // If server's title/icon/category is corrupted (encrypted with wrong key)
-      // but local version is valid, preserve local and queue re-send to server.
-      if (existingChat) {
-        const wasHealed = await validateAndHealEncryptedMetadata(
-          mergedChat,
-          existingChat,
-          chatId,
-        );
-        if (wasHealed) {
-          console.info(
-            `[ChatSyncService] Phase 2 - Self-healed corrupted metadata for chat ${chatId}`,
-          );
-        }
-      }
+      // NOTE: validateAndHealEncryptedMetadata removed — Phase 2 is metadata-only,
+      // no decryption during sync. Healing happens lazily when chats are rendered.
 
       // Populate in-memory unread badge store from server-authoritative count
       // so badges render correctly without waiting for a per-chat read status event.

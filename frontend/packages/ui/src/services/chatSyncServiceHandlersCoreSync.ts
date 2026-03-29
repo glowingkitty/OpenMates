@@ -5,6 +5,7 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 import { userDB } from "./userDB";
+import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import type {
@@ -320,6 +321,7 @@ export async function handlePhase1LastChatImpl(
       } as Partial<Chat> & { id: string });
       allPhase1Chats.push(lastChat);
       await chatDB.addChat(lastChat);
+      chatListCache.upsertChat(lastChat);
     }
 
     if (payload.recent_chat_metadata) {
@@ -327,6 +329,7 @@ export async function handlePhase1LastChatImpl(
         const chat = buildChat(meta);
         allPhase1Chats.push(chat);
         await chatDB.addChat(chat);
+        chatListCache.upsertChat(chat);
       }
     }
 
