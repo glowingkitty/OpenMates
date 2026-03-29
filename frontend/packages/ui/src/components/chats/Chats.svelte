@@ -130,7 +130,21 @@ let _chatUpdatedFlushPending = false;
 	// When true, legal chats (privacy, terms, imprint) are hidden from the sidebar.
 
 	// --- Reactive Effects ---
-	
+
+	// SAFETY NET: Force-clear "Syncing..." after 60s to prevent infinite syncing indicator.
+	// The service layer and timeout mechanism (30s) should handle this, but if both fail
+	// (e.g., WebSocket flaps, component remount timing), this ensures the UI never gets stuck.
+	const SYNC_SAFETY_TIMEOUT_MS = 60_000;
+	$effect(() => {
+		if (syncing) {
+			const safetyTimeout = setTimeout(() => {
+				console.warn('[Chats] Safety timeout: forced sync complete after 60s');
+				phasedSyncState.markSyncCompleted();
+			}, SYNC_SAFETY_TIMEOUT_MS);
+			return () => clearTimeout(safetyTimeout);
+		}
+	});
+
 	// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
 	// This ensures the chat gets highlighted when loaded via deep link after component mount
 	// IMPORTANT: $effect must be at the top level, not inside onMount (Svelte 5 requirement)
@@ -1018,22 +1032,27 @@ let _chatUpdatedFlushPending = false;
 		*/
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<{ phase: string; timestamp: number }>) => {
 		console.info(`[Chats] Phased sync complete:`, event.detail);
-		
-		// CRITICAL: Update chat list FIRST, before marking sync complete
-		// This ensures the syncing indicator stays visible until chats are actually displayed
-		// PERF: Use non-forced read since Phase 2/3 handlers already upserted into cache
-		await updateChatListFromDB(false);
-		
+
+		try {
+			// Update chat list FIRST, before showing sync complete
+			// This ensures the syncing indicator stays visible until chats are actually displayed
+			// PERF: Use non-forced read since Phase 2/3 handlers already upserted into cache
+			await updateChatListFromDB(false);
+		} catch (error) {
+			console.error(`[Chats] Error updating chat list after sync complete:`, error);
+		}
+
 		// Sync complete — stay on current tier. User clicks "Show more" to expand.
 		console.info(`[Chats] Phased sync complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
-		
-		// NOW mark sync as completed (this hides the syncing indicator)
-		// This prevents redundant syncs when Chats component is remounted
+
+		// Mark sync as completed (this hides the syncing indicator).
+		// The service layer already called markSyncCompleted() before dispatching
+		// this event, so this is a no-op safety net — markSyncCompleted is idempotent.
 		phasedSyncState.markSyncCompleted();
-		
+
 		// Show "Sync complete" message briefly
 		syncComplete = true;
-		
+
 		// Hide the message after 1 second
 		setTimeout(() => {
 			syncComplete = false;

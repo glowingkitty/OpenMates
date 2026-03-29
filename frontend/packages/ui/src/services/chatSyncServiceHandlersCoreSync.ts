@@ -8,6 +8,7 @@ import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import type {
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
@@ -612,6 +613,15 @@ export function handleCachePrimedImpl(
   );
   if (payload.status === "full_sync_ready") {
     serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = true;
+
+    // Mark sync completed in the service layer when cache is primed and sync
+    // was already attempted — this means the server considers data ready.
+    // This guarantees the "Syncing..." indicator clears even if Chats.svelte
+    // is unmounted. The markSyncCompleted call is idempotent.
+    if (serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY) {
+      phasedSyncState.markSyncCompleted();
+    }
+
     serviceInstance.dispatchEvent(new CustomEvent("cachePrimed"));
     if (
       !serviceInstance.isSyncing_FOR_HANDLERS_ONLY &&

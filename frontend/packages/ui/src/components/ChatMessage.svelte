@@ -372,7 +372,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     const query = $searchTextHighlightStore;
     const container = messageContentElement;
     // Track contentReadyCounter so the effect re-runs when ReadOnlyMessage content lands
-    const _contentReady = contentReadyCounter; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const _contentReady = contentReadyCounter;
     if (!container) return;
 
     // Cancel any previously queued (but not-yet-fired) highlight update.
@@ -951,11 +951,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         // Generate human-readable text with embed previews (instead of JSON blocks).
         // Works on the raw markdown string directly — regex-replaces JSON embed blocks
         // with resolved text previews from the EMBED_TEXT_RENDERERS registry.
-        let readableTextPromise: string | Promise<string> = contentToCopy;
-        if (embedAttrs.length > 0) {
-          const { tipTapToReadableMarkdown } = await import('../message_parsing/serializers');
-          readableTextPromise = tipTapToReadableMarkdown(contentToCopy);
-        }
+        //
+        // Always call tipTapToReadableMarkdown unconditionally — the embedAttrs guard
+        // was wrong here. embedAttrs only captures TipTap 'embed' nodes with a
+        // contentRef, but AI-returned message embeds (web search, events search, etc.)
+        // are parsed as 'embedPreviewLarge' nodes, so embedAttrs is always empty for
+        // AI messages. tipTapToReadableMarkdown operates on the raw markdown string
+        // directly via regex, independent of node type — it is safe and cheap to call
+        // when there are no embed blocks (returns the markdown unchanged).
+        const { tipTapToReadableMarkdown } = await import('../message_parsing/serializers');
+        const readableTextPromise: Promise<string> = tipTapToReadableMarkdown(contentToCopy);
 
         // Write embed references + readable text to clipboard using dual-MIME ClipboardItem.
         // When pasted inside OpenMates MessageInput, the paste handler reads the embed

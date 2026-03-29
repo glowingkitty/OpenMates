@@ -1765,7 +1765,13 @@ export class ChatSynchronizationService extends EventTarget {
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );
 
-    // Dispatch the event so +page.svelte and Chats.svelte can mark sync as complete
+    // CRITICAL: Mark sync completed in the service layer to guarantee the
+    // "Syncing..." indicator clears even if Chats.svelte is unmounted or its
+    // event listener missed the event. The component handler is idempotent
+    // (calling markSyncCompleted twice is harmless).
+    phasedSyncState.markSyncCompleted();
+
+    // Dispatch the event so +page.svelte and Chats.svelte can update local UI state
     this.dispatchEvent(
       new CustomEvent("phasedSyncComplete", {
         detail: {

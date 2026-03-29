@@ -25,6 +25,7 @@ import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
+import { phasedSyncState } from "../stores/phasedSyncStateStore";
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -389,6 +390,12 @@ export async function handlePhasedSyncCompleteImpl(
   // This prevents the synthetic timeout event from firing after real completion
   serviceInstance.clearPhasedSyncTimeout();
 
+  // CRITICAL: Mark sync completed in the service layer, not just in Chats.svelte.
+  // If Chats.svelte is unmounted when this event fires (e.g., component remount
+  // during sync), the event listener wouldn't be attached and markSyncCompleted
+  // would never be called — causing an infinite "Syncing..." indicator.
+  phasedSyncState.markSyncCompleted();
+
   serviceInstance.dispatchEvent(
     new CustomEvent("phasedSyncComplete", {
       detail: payload,
@@ -491,7 +498,7 @@ async function storeRecentChats(
 
     for (let i = 0; i < sortedChats.length; i++) {
       const chatItem = sortedChats[i];
-      const { chat_details, messages, server_message_count } = chatItem;
+      const { chat_details, messages, server_message_count: _server_message_count } = chatItem;
       const chatId = chat_details.id;
 
       // Yield to the main thread between non-active chat saves to prevent UI jank
@@ -511,7 +518,7 @@ async function storeRecentChats(
       const existingChat = await chatDB.getChat(chatId);
 
       // Merge server data with local data, preserving higher versions
-      let mergedChat = await mergeServerChatWithLocal(
+      const mergedChat = await mergeServerChatWithLocal(
         chat_details,
         existingChat,
         currentUserId,
