@@ -58,6 +58,17 @@ export function getApiUrl(): string {
       return apiUrls.development;
   }
 }
+
+/**
+ * Check if the app is running against a development server.
+ * Returns true for preview deployments (VITE_ENV=preview), local dev,
+ * and any non-production environment. Used to enable dev-only features
+ * like all-user console log forwarding to OpenObserve.
+ */
+export function isDevEnvironment(): boolean {
+  return import.meta.env.VITE_ENV !== "production";
+}
+
 // Helper to get WebSocket URL
 export function getWebSocketUrl(sessionId?: string, token?: string): string {
   const apiUrl = getApiUrl();
