@@ -201,6 +201,13 @@ test('shows no-results state when search query has no matches', async ({ page }:
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(3000);
 
+	// Ensure sidebar is open (Phase 1a no longer auto-opens a chat, so sidebar may be closed)
+	const sidebarToggle2 = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle2.isVisible().catch(() => false)) {
+		await sidebarToggle2.click();
+		await page.waitForTimeout(1000);
+	}
+
 	// Open search bar
 	const searchIcon = page.locator('.clickable-icon.icon_search.top-button');
 	await expect(searchIcon).toBeVisible({ timeout: 10000 });
@@ -260,6 +267,13 @@ test('closes search bar and clears query when Escape is pressed', async ({
 
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(3000);
+
+	// Ensure sidebar is open (Phase 1a no longer auto-opens a chat, so sidebar may be closed)
+	const sidebarToggle2 = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle2.isVisible().catch(() => false)) {
+		await sidebarToggle2.click();
+		await page.waitForTimeout(1000);
+	}
 
 	// Open search bar
 	const searchIcon = page.locator('.clickable-icon.icon_search.top-button');
