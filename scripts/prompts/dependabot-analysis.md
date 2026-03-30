@@ -21,6 +21,7 @@ For each alert below:
 - If upgrading introduces breaking API changes, note them but still upgrade — security takes priority.
 - If no patch version exists yet, skip the upgrade and note it. Do not downgrade.
 - Do not change unrelated code.
+- **Do NOT use `sessions.py`** — no `sessions.py start`, `deploy`, or `end`. This is a cron-dispatched session; the caller handles Linear task tracking and deployment. Just commit directly with `git commit`.
 
 ## Alerts to Fix
 

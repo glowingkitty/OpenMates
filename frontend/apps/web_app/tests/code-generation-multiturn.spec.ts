@@ -92,7 +92,7 @@ async function waitForCodeEmbedsInMessage(
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 
 	// Wait for at least one code embed to appear
-	const codeEmbeds = targetMessage.locator('.unified-embed-preview[data-app-id="code"]');
+	const codeEmbeds = targetMessage.locator('[data-testid="embed-preview"][data-app-id="code"]');
 	await expect(async () => {
 		const count = await codeEmbeds.count();
 		log(`Code embeds in message ${messageIndex}: ${count}`);
@@ -101,7 +101,7 @@ async function waitForCodeEmbedsInMessage(
 
 	// Wait for at least one to reach "finished"
 	const finishedEmbeds = targetMessage.locator(
-		'.unified-embed-preview[data-app-id="code"][data-status="finished"]'
+		'[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]'
 	);
 	await expect(async () => {
 		const count = await finishedEmbeds.count();
@@ -118,7 +118,7 @@ async function waitForCodeEmbedsInMessage(
  * Wait for AI streaming to complete (typing indicator disappears).
  */
 async function waitForStreamingComplete(page: any, log: any) {
-	const typingIndicator = page.locator('.typing-indicator');
+	const typingIndicator = page.getByTestId('typing-indicator');
 	await expect(typingIndicator).not.toBeVisible({ timeout: 120000 });
 	log('Streaming completed.');
 }
@@ -158,7 +158,7 @@ async function getEmbedFullText(page: any, messageIndex: number): Promise<string
  */
 async function getProseText(page: any, messageIndex: number): Promise<string> {
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
-	const proseMirror = targetMessage.locator('.read-only-message .ProseMirror').first();
+	const proseMirror = targetMessage.locator('[data-testid="read-only-message"] .ProseMirror').first();
 
 	// Wait for ProseMirror content to be visible
 	await expect(proseMirror).toBeVisible({ timeout: 10000 });

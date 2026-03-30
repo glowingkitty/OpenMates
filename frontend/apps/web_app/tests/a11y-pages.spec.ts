@@ -105,7 +105,7 @@ test.describe('Accessibility — authenticated pages', () => {
 		await loginToTestAccount(page);
 
 		// Open settings — click the profile container (settings toggle)
-		const settingsButton = page.locator('.profile-container[role="button"]');
+		const settingsButton = page.locator('[data-testid="profile-container"][role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);

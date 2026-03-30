@@ -59,7 +59,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await loginBtn.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -96,10 +96,10 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
 	}
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 8000 });
 	await activeChatItem.click({ button: 'right' });
-	const deleteBtn = page.locator('.menu-item.delete');
+	const deleteBtn = page.getByTestId('chat-context-delete');
 	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 	await deleteBtn.click();
 	await deleteBtn.click();
@@ -129,7 +129,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	await screenshot(page, 'logged-in');
 
 	// Open a fresh source chat
-	const newChatBtn = page.locator('.icon_create');
+	const newChatBtn = page.getByTestId('new-chat-button');
 	if (await newChatBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatBtn.click();
 		await page.waitForTimeout(2000);
@@ -165,7 +165,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 		};
 	});
 
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(
@@ -173,13 +173,13 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	);
 	await screenshot(page, 'message-typed');
 
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 	log('Message sent.');
 
 	// Wait for AI confirmation + stable source chat URL
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 	await expect(page).toHaveURL(/chat-id=[a-f0-9-]{36}/, { timeout: 15000 });
 
@@ -188,7 +188,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	await screenshot(page, 'ai-confirmation');
 
 	// Record sidebar item count before the reminder fires — used as fallback
-	const sidebarItems = page.locator('.chat-item-wrapper');
+	const sidebarItems = page.getByTestId('chat-item-wrapper');
 	const initialItemCount = await sidebarItems.count();
 	log(`Sidebar item count before reminder: ${initialItemCount}`);
 
@@ -265,7 +265,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	await screenshot(page, 'new-chat-navigated');
 
 	// Assert system message is visible
-	const systemMsg = page.locator('.message-wrapper.system');
+	const systemMsg = page.getByTestId('message-system');
 	// Give the UI time to decrypt and render the message
 	await expect(async () => {
 		expect(await systemMsg.count()).toBeGreaterThan(0);
@@ -296,7 +296,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	await page.waitForTimeout(2000);
 	if (
 		await page
-			.locator('.chat-item-wrapper.active')
+			.locator('[data-testid="chat-item-wrapper"].active')
 			.isVisible({ timeout: 5000 })
 			.catch(() => false)
 	) {

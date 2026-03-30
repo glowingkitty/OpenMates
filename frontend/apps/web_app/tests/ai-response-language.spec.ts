@@ -188,7 +188,7 @@ async function getAssistantProseText(page: any, messageIndex: number): Promise<s
  * reading a pre-existing message before the AI has even started responding.
  */
 async function waitForStreamingStartAndComplete(page: any, log: any) {
-	const typingIndicator = page.locator('.typing-indicator');
+	const typingIndicator = page.getByTestId('typing-indicator');
 
 	// Phase 1: Wait for typing indicator to appear (AI started processing)
 	try {

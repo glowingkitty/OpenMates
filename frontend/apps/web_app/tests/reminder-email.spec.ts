@@ -53,7 +53,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await loginBtn.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -89,10 +89,10 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
 	}
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 8000 });
 	await activeChatItem.click({ button: 'right' });
-	const deleteBtn = page.locator('.menu-item.delete');
+	const deleteBtn = page.getByTestId('chat-context-delete');
 	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 	await deleteBtn.click();
 	await deleteBtn.click();
@@ -101,11 +101,11 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 }
 
 async function enableEmailNotifications(page: any, log: any, screenshot: any): Promise<void> {
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.getByTestId('profile-container');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'settings-menu');
 
@@ -120,10 +120,10 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 	await page.waitForTimeout(800);
 	await screenshot(page, 'notifications-settings');
 
-	const emailSection = page.locator('.email-section');
+	const emailSection = page.getByTestId('email-section');
 	await expect(emailSection).toBeVisible({ timeout: 10000 });
 
-	const toggle = emailSection.locator('.toggle-container').first();
+	const toggle = emailSection.getByTestId('toggle-container').first();
 	await expect(toggle).toBeVisible({ timeout: 8000 });
 
 	const checkbox = toggle.locator('input[type="checkbox"]');
@@ -142,7 +142,7 @@ async function enableEmailNotifications(page: any, log: any, screenshot: any): P
 	await page.waitForTimeout(500);
 	if (
 		await page
-			.locator('.settings-menu.visible')
+			.locator('[data-testid="settings-menu"].visible')
 			.isVisible({ timeout: 500 })
 			.catch(() => false)
 	) {
@@ -201,26 +201,26 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	log('Mailosaur inbox cleared.');
 
 	// Open a fresh chat
-	const newChatBtn = page.locator('.icon_create');
+	const newChatBtn = page.getByTestId('new-chat-button');
 	if (await newChatBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatBtn.click();
 		await page.waitForTimeout(2000);
 	}
 
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(
 		'Set a reminder in this chat for 1 minute from now with the message "email notification test". Just set it, no need to ask questions.'
 	);
 
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 	log('Reminder request sent.');
 
 	// Wait for AI confirmation
-	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 60000 });
 	log('AI confirmed. Closing browser context now.');
 	await screenshot(page, 'before-close');
 
@@ -266,7 +266,7 @@ test('reminder — email: reminder email arrives after browser is closed', async
 
 	await loginTestAccount(cleanupPage, log);
 
-	const activeChat = cleanupPage.locator('.chat-item-wrapper.active');
+	const activeChat = cleanupPage.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChat.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await deleteActiveChat(cleanupPage, log);
 		log('Cleanup chat deleted.');

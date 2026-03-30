@@ -60,7 +60,7 @@ async function navigateToPrivacySettings(
 	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
 	await settingsToggle.click();
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	logFn('Opened settings menu.');
 
@@ -96,7 +96,7 @@ async function closeSettings(page: any): Promise<void> {
 function getDebugLoggingToggle(page: any) {
 	// The toggle is a SettingsItem with hasToggle=true containing the debug logging label text
 	// Look for the toggle input near the "Debug Logging" or "Enable detailed debug logging" text
-	return page.locator('.settings-item:has-text("debug") input[type="checkbox"], .settings-item:has-text("Debug") input[type="checkbox"]').first();
+	return page.locator('[data-testid="settings-item"]:has-text("debug") input[type="checkbox"], [data-testid="settings-item"]:has-text("Debug") input[type="checkbox"]').first();
 }
 
 /**
@@ -104,7 +104,7 @@ function getDebugLoggingToggle(page: any) {
  * Returns the clickable settings item row.
  */
 function getDebugLoggingRow(page: any) {
-	return page.locator('.settings-item:has-text("debug logging"), .settings-item:has-text("Debug Logging"), .settings-item:has-text("Enable detailed debug logging")').first();
+	return page.locator('[data-testid="settings-item"]:has-text("debug logging"), [data-testid="settings-item"]:has-text("Debug Logging"), [data-testid="settings-item"]:has-text("Enable detailed debug logging")').first();
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ test.describe('Debug Logging Settings', () => {
 		logCheckpoint('Debug logging toggle label visible.');
 
 		// Look for the "never collected" disclaimer text
-		const disclaimer = page.locator('.settings-note').last();
+		const disclaimer = page.getByTestId('settings-note').last();
 		await expect(disclaimer).toBeVisible({ timeout: 5000 });
 		logCheckpoint('Debug logging disclaimer note visible.');
 

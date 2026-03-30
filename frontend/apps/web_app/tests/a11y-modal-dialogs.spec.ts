@@ -177,7 +177,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await headerLoginButton.click();
 
 		// Click Login tab to switch from signup to login view
-		const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		const loginTab = page.getByTestId('tab-login');
 		await expect(loginTab).toBeVisible({ timeout: 10000 });
 		await loginTab.click();
 
@@ -210,7 +210,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await loginAndWait(page);
 
 		// Open settings
-		const settingsButton = page.locator('.profile-container[role="button"]');
+		const settingsButton = page.locator('[data-testid="profile-container"][role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);
@@ -253,7 +253,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await loginAndWait(page);
 
 		// Open settings to get a dialog with overlay
-		const settingsButton = page.locator('.profile-container[role="button"]');
+		const settingsButton = page.locator('[data-testid="profile-container"][role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);

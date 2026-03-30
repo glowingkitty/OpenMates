@@ -30,7 +30,7 @@ test.describe('Keyboard navigation — unauthenticated', () => {
 		await page.waitForTimeout(2000);
 
 		// Tab until skip link is focused (may take 1-3 tabs depending on browser chrome)
-		const skipLink = page.locator('.skip-link, a[href="#main-chat"]').first();
+		const skipLink = page.locator('[data-testid="skip-link"], a[href="#main-chat"]').first();
 		let skipLinkFocused = false;
 		for (let i = 0; i < 5; i++) {
 			await page.keyboard.press('Tab');
@@ -155,7 +155,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await headerLoginButton.click();
 
 		// Click Login tab to switch from signup to login view
-		const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		const loginTab = page.getByTestId('tab-login');
 		await expect(loginTab).toBeVisible({ timeout: 10000 });
 		await loginTab.click();
 
@@ -221,7 +221,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await loginAndWait(page);
 
 		// Open settings
-		const settingsButton = page.locator('.profile-container[role="button"]');
+		const settingsButton = page.locator('[data-testid="profile-container"][role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);
@@ -292,7 +292,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await page.waitForTimeout(1500);
 
 		const sidebarOpen = await page
-			.locator('.activity-history-wrapper')
+			.getByTestId('activity-history-wrapper')
 			.isVisible()
 			.catch(() => false);
 		expect(sidebarOpen, 'Sidebar should open after pressing Enter on menu toggle').toBe(true);

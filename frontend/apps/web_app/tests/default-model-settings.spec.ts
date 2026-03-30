@@ -69,7 +69,7 @@ async function navigateToAiAskSettings(
 	await settingsToggle.click();
 	logCheckpoint('Opened settings menu.');
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	await page.waitForTimeout(800);
 	await takeStepScreenshot(page, `${stepLabel}-settings-open`);
@@ -93,7 +93,7 @@ async function navigateToAiAskSettings(
 		logCheckpoint('Clicked AI app menu item.');
 	} else {
 		// Try the app card approach
-		const aiCard = settingsMenu.locator('.app-card').filter({ hasText: /^AI$/i }).first();
+		const aiCard = settingsMenu.getByTestId('app-card-name').filter({ hasText: /^AI$/i }).first();
 		const aiCardVisible = await aiCard.isVisible({ timeout: 3000 }).catch(() => false);
 		if (aiCardVisible) {
 			await aiCard.click();
@@ -128,7 +128,7 @@ async function navigateToAiAskSettings(
 	await page.waitForTimeout(800);
 
 	// 5. Verify AI Ask Settings page loaded
-	const aiAskSettings = page.locator('.ai-ask-settings');
+	const aiAskSettings = page.getByTestId('ai-ask-settings');
 	await expect(aiAskSettings).toBeVisible({ timeout: 8000 });
 	logCheckpoint('AI Ask Settings page loaded.');
 	await takeStepScreenshot(page, `${stepLabel}-ai-ask-settings`);
@@ -142,7 +142,7 @@ async function closeSettings(
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
 	const settingsToggle = page.locator('#settings-menu-toggle');
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	const isSettingsOpen = await settingsMenu.isVisible().catch(() => false);
 
 	if (isSettingsOpen) {
@@ -166,7 +166,7 @@ async function sendMessageAndGetModel(
 	stepLabel: string
 ): Promise<string> {
 	// Type the question
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(withMockMarker(question, 'default_model_settings'));
@@ -191,10 +191,10 @@ async function sendMessageAndGetModel(
 
 	// Wait for the assistant response to complete (generated-by element appears after streaming ends)
 	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.locator('.message-wrapper.assistant').last();
+	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
 
-	const generatedByElement = assistantMessage.locator('.generated-by-container .generated-by');
+	const generatedByElement = assistantMessage.getByTestId('generated-by');
 	await expect(generatedByElement).toBeVisible({ timeout: 90000 });
 	logCheckpoint('Response complete - generated-by element visible.');
 	await takeStepScreenshot(page, `${stepLabel}-response-complete`);
@@ -241,13 +241,13 @@ test('change default model to Mistral Small, verify it is used, then switch back
 
 	// Find the auto-select toggle in the AI Ask settings page.
 	// The toggle wrapper is inside the settings-content of the Default Models section.
-	const settingsMenu = page.locator('.settings-menu.visible');
-	const aiAskSettings = settingsMenu.locator('.ai-ask-settings');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	const aiAskSettings = settingsMenu.getByTestId('ai-ask-settings');
 
 	// The auto-select toggle is a Toggle component wrapped in a clickable div.
 	// The toggle's aria-label is the i18n text for "Auto-select model".
 	// We target the outer clickable wrapper div (parent of the pointer-events:none div).
-	const autoSelectRow = aiAskSettings.locator('.setting-row').first();
+	const autoSelectRow = aiAskSettings.getByTestId('setting-row').first();
 	await expect(autoSelectRow).toBeVisible({ timeout: 5000 });
 
 	// Check if auto-select is currently ON (toggle is checked)
@@ -266,7 +266,7 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	await takeStepScreenshot(page, '02-auto-select-off');
 
 	// Toggling OFF auto-select without changing any values should NOT trigger save/notification
-	const noChangeNotification = page.locator('.notification');
+	const noChangeNotification = page.getByTestId('notification');
 	await page.waitForTimeout(1200);
 	await expect(noChangeNotification).toHaveCount(0);
 	logCheckpoint('No notification after toggling auto-select OFF with unchanged values (expected).');
@@ -285,7 +285,7 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	await takeStepScreenshot(page, '02-mistral-small-selected');
 
 	// Verify success notification appears with descriptive change text
-	const notification2 = page.locator('.notification');
+	const notification2 = page.getByTestId('notification');
 	await expect(notification2).toBeVisible({ timeout: 5000 });
 	await expect(notification2).toContainText(
 		"Changed model for Simple requests from 'Auto' to 'Mistral Small'"
@@ -320,7 +320,7 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	logCheckpoint(`Verified: response was generated by Mistral Small. Text: "${generatedByText1}"`);
 
 	// Verify the response contains the expected answer
-	const assistantMessage1 = page.locator('.message-wrapper.assistant').last();
+	const assistantMessage1 = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage1).toContainText('Berlin', { timeout: 15000 });
 	logCheckpoint('Verified response contains "Berlin".');
 
@@ -337,7 +337,7 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '04');
 
 	// The auto-select toggle should be OFF now. Toggle it back ON.
-	const autoSelectRow2 = aiAskSettings.locator('.setting-row').first();
+	const autoSelectRow2 = aiAskSettings.getByTestId('setting-row').first();
 	await expect(autoSelectRow2).toBeVisible({ timeout: 5000 });
 
 	const toggleInput2 = autoSelectRow2.locator('input[type="checkbox"]');
@@ -354,7 +354,7 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	await takeStepScreenshot(page, '04-auto-select-on');
 
 	// Wait for the success notification with descriptive change text
-	const notification3 = page.locator('.notification');
+	const notification3 = page.getByTestId('notification');
 	await expect(notification3).toBeVisible({ timeout: 5000 });
 	await expect(notification3).toContainText(
 		"Changed model for Simple requests from 'Mistral Small' to 'Auto'"
@@ -397,7 +397,7 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	);
 
 	// Verify the response still contains the expected answer
-	const assistantMessage2 = page.locator('.message-wrapper.assistant').last();
+	const assistantMessage2 = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage2).toContainText('Berlin', { timeout: 15000 });
 	logCheckpoint('Verified response contains "Berlin".');
 

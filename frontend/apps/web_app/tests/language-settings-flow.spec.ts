@@ -61,7 +61,7 @@ const SELECTORS = {
 	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
 
 	// Chat UI (used as "logged-in" signal)
-	messageEditor: '.editor-content.prose',
+	messageEditor: '[data-testid="message-editor"]',
 
 	// Settings navigation
 	// The settings toggle is a .profile-container element with aria-label "Open settings menu"
@@ -203,7 +203,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	await loginButton.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 

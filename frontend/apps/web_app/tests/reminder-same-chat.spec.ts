@@ -47,7 +47,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await loginBtn.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 

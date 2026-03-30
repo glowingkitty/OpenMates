@@ -62,7 +62,7 @@ async function navigateToAiAskSettings(
 	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
 	await settingsToggle.click();
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	logFn('Opened settings menu.');
 	await page.waitForTimeout(800);
@@ -108,7 +108,7 @@ async function navigateToAiAskSettings(
 	await page.waitForTimeout(800);
 
 	// Verify AI Ask settings loaded
-	const aiAskSettings = page.locator('.ai-ask-settings');
+	const aiAskSettings = page.getByTestId('ai-ask-settings');
 	await expect(aiAskSettings).toBeVisible({ timeout: 8000 });
 	logFn('AI Ask Settings page loaded.');
 	await takeStepScreenshot(page, `${stepLabel}-ai-ask-settings`);
@@ -118,7 +118,7 @@ async function navigateToAiAskSettings(
  * Close the settings panel.
  */
 async function closeSettings(page: any, logFn: (msg: string) => void): Promise<void> {
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	const isOpen = await settingsMenu.isVisible().catch(() => false);
 
 	if (isOpen) {
@@ -152,17 +152,17 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		// ── Step 2: Navigate to AI Ask settings ────────────────────────
 		await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '02');
 
-		const settingsMenu = page.locator('.settings-menu.visible');
-		const aiAskSettings = settingsMenu.locator('.ai-ask-settings');
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		const aiAskSettings = settingsMenu.getByTestId('ai-ask-settings');
 
 		// ── Step 3: Find the first model toggle and record initial state ─
 		// Each model in the list has a .model-toggle wrapper containing a Toggle checkbox
-		const modelItems = aiAskSettings.locator('.model-item');
+		const modelItems = aiAskSettings.getByTestId('model-item');
 		const firstModelItem = modelItems.first();
 		await expect(firstModelItem).toBeVisible({ timeout: 5000 });
 
 		// Get the model name for logging
-		const modelName = await firstModelItem.locator('.model-name').textContent();
+		const modelName = await firstModelItem.getByTestId('model-name').textContent();
 		logCheckpoint(`Target model: "${modelName}"`);
 
 		// Get initial toggle state
@@ -172,7 +172,7 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 
 		// Ensure the model starts as enabled (if not, toggle it on first)
 		if (!wasEnabled) {
-			const toggleWrapper = firstModelItem.locator('.model-toggle [role="button"]').first();
+			const toggleWrapper = firstModelItem.getByTestId('model-toggle').locator('[role="button"]').first();
 			await toggleWrapper.click();
 			logCheckpoint('Pre-toggled model ON so we can test disabling it.');
 			await page.waitForTimeout(1000);
@@ -181,7 +181,7 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await takeStepScreenshot(page, '03-before-toggle');
 
 		// ── Step 4: Toggle the model OFF ───────────────────────────────
-		const toggleWrapper = firstModelItem.locator('.model-toggle [role="button"]').first();
+		const toggleWrapper = firstModelItem.getByTestId('model-toggle').locator('[role="button"]').first();
 		await toggleWrapper.click();
 		logCheckpoint('Toggled model OFF.');
 		await page.waitForTimeout(1000);
@@ -203,7 +203,7 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '05');
 
 		// Re-locate the model by name (DOM was destroyed and recreated)
-		const modelItemsAfter = settingsMenu.locator('.ai-ask-settings .model-item');
+		const modelItemsAfter = settingsMenu.getByTestId('ai-ask-settings').getByTestId('model-item');
 		const targetModelAfter = modelItemsAfter.filter({ hasText: modelName! });
 		await expect(targetModelAfter).toBeVisible({ timeout: 5000 });
 
@@ -218,7 +218,7 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await takeStepScreenshot(page, '05-persisted-off');
 
 		// ── Step 6: Cleanup — toggle the model back ON ────────────────
-		const cleanupToggle = targetModelAfter.locator('.model-toggle [role="button"]').first();
+		const cleanupToggle = targetModelAfter.getByTestId('model-toggle').locator('[role="button"]').first();
 		await cleanupToggle.click();
 		logCheckpoint('Cleanup: toggled model back ON.');
 		await page.waitForTimeout(1000);

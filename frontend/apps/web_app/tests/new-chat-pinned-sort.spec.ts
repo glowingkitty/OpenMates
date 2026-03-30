@@ -246,16 +246,21 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await expect(firstChat).toBeVisible({ timeout: 10000 });
 	await firstChat.click();
 	logStep('Opened first chat to leave welcome screen.');
-	await page.waitForTimeout(3000);
+
+	// Wait for chat to actually load (messages visible means we left the welcome screen)
+	const chatMessages = page.locator('.chat-messages-wrapper, .message-wrapper');
+	await expect(chatMessages.first()).toBeVisible({ timeout: 15000 });
+	await page.waitForTimeout(2000);
 
 	await closeSidebar(page, logStep);
 	await clickNewChat(page, logStep);
 
-	// Wait for carousel to load — it populates asynchronously after the welcome screen renders
+	// Wait for carousel to load — it populates asynchronously after the welcome screen renders.
+	// The container may initially be hidden while loadRecentChats runs.
 	const resumeContainer = page.getByTestId('recent-chats-scroll-container').first();
 	await expect(async () => {
 		await expect(resumeContainer).toBeVisible();
-	}).toPass({ timeout: 30000 });
+	}).toPass({ timeout: 45000 });
 	await page.waitForTimeout(2000);
 	await takeStepScreenshot(page, '03-new-chat-screen');
 
