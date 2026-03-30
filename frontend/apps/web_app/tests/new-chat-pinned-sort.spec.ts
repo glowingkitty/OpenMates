@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable playwright/prefer-get-by-test-id */
 /**
  * New chat screen — pinned chats sort order test.
  *
@@ -66,11 +65,9 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-// NOTE: These helpers use CSS class selectors (page.locator) because the
-// corresponding elements don't have data-testid attributes in the deployed app.
 
 async function ensureSidebarOpen(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const activityHistory = page.locator('.activity-history-wrapper');
+	const activityHistory = page.getByTestId('activity-history');
 	const isOpen = await activityHistory.isVisible().catch(() => false);
 	if (isOpen) return;
 	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
@@ -82,7 +79,7 @@ async function ensureSidebarOpen(page: any, logStep: (...args: any[]) => void): 
 }
 
 async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const activityHistory = page.locator('.activity-history-wrapper');
+	const activityHistory = page.getByTestId('activity-history');
 	const isOpen = await activityHistory.isVisible().catch(() => false);
 	if (!isOpen) return;
 	const closeButton = page.getByRole('button', { name: 'Close' });
@@ -119,7 +116,7 @@ async function togglePinViaContextMenu(
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(300);
 		await chatItem.click({ button: 'right' });
-		const menuItem = page.locator(`.menu-item.${action}`);
+		const menuItem = page.getByTestId(`chat-context-${action}`);
 		await expect(menuItem).toBeVisible({ timeout: 3000 });
 		await menuItem.click();
 	}).toPass({ timeout: 20000 });
@@ -132,7 +129,7 @@ async function togglePinViaContextMenu(
  * Returns an array of { title, pinned } for each card (resume + recent).
  */
 async function getCarouselCards(page: any): Promise<Array<{ title: string; pinned: string | null }>> {
-	const container = page.locator('.recent-chats-scroll-container').first();
+	const container = page.getByTestId('recent-chats-scroll-container').first();
 	if (!(await container.isVisible({ timeout: 3000 }).catch(() => false))) {
 		return [];
 	}
@@ -140,7 +137,7 @@ async function getCarouselCards(page: any): Promise<Array<{ title: string; pinne
 	const cards: Array<{ title: string; pinned: string | null }> = [];
 
 	// Resume card (no data-pinned attr — it's the last-opened, always first)
-	const resumeLargeTitle = container.locator('.resume-chat-large-card:not([data-chat-id]) .resume-large-title, .resume-chat-card:not([data-chat-id]) .resume-chat-title').first();
+	const resumeLargeTitle = container.locator('[data-testid="resume-chat-large-card"]:not([data-chat-id]) [data-testid="resume-large-title"], [data-testid="resume-chat-card"]:not([data-chat-id]) [data-testid="resume-chat-title"]').first();
 	if (await resumeLargeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
 		const title = (await resumeLargeTitle.textContent())?.trim() || '';
 		if (title) cards.push({ title, pinned: null });
@@ -152,7 +149,7 @@ async function getCarouselCards(page: any): Promise<Array<{ title: string; pinne
 	for (let i = 0; i < count; i++) {
 		const card = recentCards.nth(i);
 		const pinned = await card.getAttribute('data-pinned');
-		const titleEl = card.locator('.resume-large-title, .resume-chat-title').first();
+		const titleEl = card.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]').first();
 		const title = (await titleEl.textContent())?.trim() || '';
 		if (title) cards.push({ title, pinned });
 	}
@@ -202,7 +199,7 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await ensureSidebarOpen(page, logStep);
 
 	// Wait for chat items to populate after sync
-	const chatItemsLocator = page.locator('.chat-item-wrapper');
+	const chatItemsLocator = page.getByTestId('chat-item-wrapper');
 	await expect(chatItemsLocator.first()).toBeVisible({ timeout: 20000 });
 	// Allow more items to load
 	await page.waitForTimeout(3000);
@@ -214,21 +211,21 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	// Pick the 3rd chat (unlikely to be resume card)
 	const targetIndex = 2;
 	const targetChatItem = chatItemsLocator.nth(targetIndex);
-	const targetTitle = (await targetChatItem.locator('.chat-title').textContent())?.trim() || '';
+	const targetTitle = (await targetChatItem.getByTestId('chat-title').textContent())?.trim() || '';
 	logStep(`Target chat to pin: "${targetTitle}" (index ${targetIndex})`);
 	expect(targetTitle).toBeTruthy();
 
 	// Check if already pinned (has pin-indicator) — if so, skip pinning
-	const alreadyPinned = await targetChatItem.locator('.pin-indicator').isVisible({ timeout: 500 }).catch(() => false);
+	const alreadyPinned = await targetChatItem.getByTestId('pin-indicator').isVisible({ timeout: 500 }).catch(() => false);
 
 	if (!alreadyPinned) {
 		logStep('Pinning target chat...');
 		await togglePinViaContextMenu(page, targetChatItem, 'pin', logStep);
 
 		// After pinning, the chat reorders in the sidebar — find it by title
-		const pinnedChatItem = page.locator('.chat-item-wrapper').filter({ hasText: targetTitle }).first();
+		const pinnedChatItem = page.getByTestId('chat-item-wrapper').filter({ hasText: targetTitle }).first();
 		await expect(async () => {
-			const pinIndicator = pinnedChatItem.locator('.pin-indicator');
+			const pinIndicator = pinnedChatItem.getByTestId('pin-indicator');
 			await expect(pinIndicator).toBeVisible();
 		}).toPass({ timeout: 10000 });
 		logStep('Pin indicator visible.');
@@ -245,7 +242,7 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	logStep('Phase 3: Navigating to new chat screen...');
 	// Ensure sidebar is open, click the first chat to leave the welcome screen
 	await ensureSidebarOpen(page, logStep);
-	const firstChat = page.locator('.chat-item-wrapper').first();
+	const firstChat = page.getByTestId('chat-item-wrapper').first();
 	await expect(firstChat).toBeVisible({ timeout: 10000 });
 	await firstChat.click();
 	logStep('Opened first chat to leave welcome screen.');
@@ -255,7 +252,7 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await clickNewChat(page, logStep);
 
 	// Wait for carousel to load — it populates asynchronously after the welcome screen renders
-	const resumeContainer = page.locator('.recent-chats-scroll-container').first();
+	const resumeContainer = page.getByTestId('recent-chats-scroll-container').first();
 	await expect(async () => {
 		await expect(resumeContainer).toBeVisible();
 	}).toPass({ timeout: 30000 });
@@ -305,13 +302,13 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await ensureSidebarOpen(page, logStep);
 
 	// Find the chat again in sidebar
-	const cleanupChatItem = page.locator('.chat-item-wrapper').filter({ hasText: targetTitle }).first();
+	const cleanupChatItem = page.getByTestId('chat-item-wrapper').filter({ hasText: targetTitle }).first();
 	await expect(cleanupChatItem).toBeVisible({ timeout: 10000 });
 	await togglePinViaContextMenu(page, cleanupChatItem, 'unpin', logStep);
 
 	// Verify pin indicator gone
 	await expect(async () => {
-		const pinIndicator = cleanupChatItem.locator('.pin-indicator');
+		const pinIndicator = cleanupChatItem.getByTestId('pin-indicator');
 		await expect(pinIndicator).not.toBeVisible();
 	}).toPass({ timeout: 10000 });
 	logStep('Cleanup done — chat unpinned.');

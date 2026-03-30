@@ -9432,6 +9432,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {#if resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
                                 <div
                                     class="recent-chats-scroll-container"
+                                    data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
                                     <!-- ── Primary resume card (most recent / last-opened) ── -->
@@ -9443,7 +9444,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {@const IconComponent = getLucideIcon(iconName)}
                                             <button
                                                 bind:this={resumeLargeCardElement}
-                                                class="resume-chat-large-card"
+                                                class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
                                                 style={getResumeLargeCardStyle(gradientColors)}
                                                 onclick={handleResumeLastChat}
@@ -9475,7 +9476,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
                                                     {#if resumeChatSummary}
                                                         <p class="resume-large-summary">{resumeChatSummary}</p>
                                                     {/if}
@@ -9489,7 +9490,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {@const compactIconName = getValidIconName(resumeChatIcon || '', compactCategory)}
                                             {@const CompactIconComponent = getLucideIcon(compactIconName)}
                                             <button
-                                                class="resume-chat-card"
+                                                class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(compactGradientColors)}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
@@ -9510,7 +9511,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                     </div>
                                                     <div class="resume-chat-content">
-                                                        <span class="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                        <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
                                                     </div>
                                                 {/if}
                                                 <div class="resume-chat-arrow">
@@ -9536,7 +9537,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 : bgStyle}
                                             <button
                                                 bind:this={tilt.el}
-                                                class="resume-chat-large-card"
+                                                class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={tilt?.hovering}
                                                 type="button"
                                                 style={cardStyle}
@@ -9570,7 +9571,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                     {#if meta.summary}
                                                         <p class="resume-large-summary">{meta.summary}</p>
                                                     {/if}
@@ -9580,7 +9581,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <!-- Compact card for short viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
-                                                class="resume-chat-card"
+                                                class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
                                                 data-chat-id={meta.chat.chat_id}
                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
@@ -9595,7 +9596,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
-                                                    <span class="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                    <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
                                                     <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
@@ -9635,7 +9636,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 : bgStyle}
                                             <button
                                                 bind:this={tilt.el}
-                                                class="resume-chat-large-card"
+                                                class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={tilt?.hovering}
                                                 type="button"
                                                 style={cardStyle}
@@ -9667,7 +9668,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                     {#if meta.summary}
                                                         <p class="resume-large-summary">{meta.summary}</p>
                                                     {/if}
@@ -9677,7 +9678,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <!-- Compact card for short viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
-                                                class="resume-chat-card"
+                                                class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
@@ -9690,7 +9691,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
-                                                    <span class="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                    <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
                                                     <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
