@@ -2520,7 +2520,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Set to true the first time the user manually scrolls the carousel so
     // that reactive effects don't snap it back to the initial position.
     let recentChatsScrolledByUser = false;
-    const RECENT_CHATS_LIMIT = 10;
+    const RECENT_CHATS_TOTAL = 10;
     // Incremented by event handlers (chatDeleted, chatUpdated, syncComplete,
     // visibilitychange) to trigger the $effect that calls loadRecentChats().
     let carouselInvalidationCounter = $state(0);
@@ -2529,7 +2529,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
-     * Load up to RECENT_CHATS_LIMIT recent real chats from IndexedDB.
+     * Load up to RECENT_CHATS_TOTAL recent real chats from IndexedDB.
      * The first entry (last-opened) is excluded because it's shown as the
      * primary resume card — this list only contains the *remaining* chats.
      */
@@ -2544,10 +2544,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
             const sorted = sortChats(filteredChats, []);
 
-            // Exclude the primary resume chat (it's rendered separately)
+            // Exclude the primary resume chat (it's rendered separately).
+            // The resume card counts toward the total, so fetch one fewer.
             const lastOpenedId = $userProfile.last_opened;
+            const hasResumeChat = lastOpenedId && sorted.some((c) => c.chat_id === lastOpenedId);
             const remaining = sorted.filter((c) => c.chat_id !== lastOpenedId);
-            const topChats = remaining.slice(0, RECENT_CHATS_LIMIT);
+            const limit = hasResumeChat ? RECENT_CHATS_TOTAL - 1 : RECENT_CHATS_TOTAL;
+            const topChats = remaining.slice(0, limit);
 
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map(async (chat) => {
@@ -9536,6 +9539,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 class:hovering={tilt?.hovering}
                                                 type="button"
                                                 style={cardStyle}
+                                                data-chat-id={meta.chat.chat_id}
+                                                data-pinned={meta.chat.pinned ? 'true' : 'false'}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
@@ -9576,6 +9581,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
+                                                data-chat-id={meta.chat.chat_id}
+                                                data-pinned={meta.chat.pinned ? 'true' : 'false'}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
@@ -9596,7 +9603,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {/if}
                                     {/each}
 
-                                    <!-- "+N more" overflow button -->
+                                    <!-- "+N more" overflow button (auth) -->
                                     {#if ($userProfile.total_chat_count ?? 0) > ((resumeChatData ? 1 : 0) + recentChats.length)}
                                         <button
                                             class="recent-chat-overflow"
