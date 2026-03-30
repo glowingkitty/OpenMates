@@ -35,6 +35,8 @@ const {
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const consoleLogs: string[] = [];
@@ -211,6 +213,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 }: {
 	page: any;
 }) => {
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	test.setTimeout(300000); // 5 minutes
 
 	const logStep = createSignupLogger('RESUME_CARD');
