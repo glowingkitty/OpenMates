@@ -1715,22 +1715,12 @@ async def lookup_user(
         # Only default to True for non-existent users (anti-enumeration)
         tfa_enabled = True  # Default to True for security (anti-enumeration for non-existent users)
         if user_id:
-            # CRITICAL: Always verify encrypted_tfa_secret exists, even if cached profile says tfa_enabled=True
-            # This prevents stale cache data from causing 2FA to be required when it's not actually set up
+            # CRITICAL: The source of truth for 2FA status is the encrypted_tfa_secret field in Directus.
+            # If it exists, 2FA is enabled — regardless of what the cache says.
+            # A stale cache entry with tfa_enabled=false must NOT override the DB truth.
             encrypted_tfa_secret_exists = bool(user_data.get("encrypted_tfa_secret"))
-            
-            # Try to get from cached profile first (should be available now after caching above)
-            current_cached_profile = await cache_service.get_user_by_id(user_id)
-            if current_cached_profile and "tfa_enabled" in current_cached_profile:
-                cached_tfa_enabled = current_cached_profile.get("tfa_enabled", False)
-                # Use cached value only if encrypted_tfa_secret actually exists
-                # This prevents stale cache from requiring 2FA when it's not set up
-                tfa_enabled = cached_tfa_enabled if encrypted_tfa_secret_exists else False
-                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled} (verified: encrypted_tfa_secret exists={encrypted_tfa_secret_exists})")
-            else:
-                # Fallback: compute based on encrypted_tfa_secret existence from user_data
-                tfa_enabled = encrypted_tfa_secret_exists
-                logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
+            tfa_enabled = encrypted_tfa_secret_exists
+            logger.info(f"Determined tfa_enabled for user {user_id} from encrypted_tfa_secret: {tfa_enabled}")
 
         # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
         return UserLookupResponse(
