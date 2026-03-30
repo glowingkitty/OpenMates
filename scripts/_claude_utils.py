@@ -368,9 +368,17 @@ def run_claude_session(
 
         # Send email notification (non-fatal)
         if job_type:
+            # Include Zellij attach info in the email context summary
+            email_context = context_summary or ""
+            if zellij_session_name:
+                zellij_info = f"Zellij: zellij attach {zellij_session_name} | http://localhost:8082"
+                email_context = f"{zellij_info}\n{email_context}" if email_context else zellij_info
+            if linear_identifier:
+                email_context = f"Linear: {linear_identifier}\n{email_context}" if email_context else f"Linear: {linear_identifier}"
+
             _notify_session(
                 session_title, job_type, status, session_id,
-                duration, returncode, context_summary, log_prefix,
+                duration, returncode, email_context or None, log_prefix,
             )
 
         # ── Linear task completion ───────────────────────────────────
