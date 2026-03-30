@@ -1925,6 +1925,7 @@
  
 <div
   class="chat-item-wrapper"
+  data-testid="chat-item-wrapper"
   class:active={isActive}
   role="button"
   tabindex="0"
@@ -2088,20 +2089,20 @@
               {#if highlightedTitle}
                 <!-- Search result mode: use pre-highlighted HTML title (has <mark> tags for matched text) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html highlightedTitle}</span>
+                <span class="chat-title" data-testid="chat-title">{@html highlightedTitle}</span>
               {:else if chat.title || cachedMetadata?.title}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+                <span class="chat-title" data-testid="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
-                <span class="chat-title processing-title">{$text('common.processing')}</span>
+                <span class="chat-title processing-title" data-testid="chat-title">{$text('common.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html $text('common.untitled_chat')}</span>
+                <span class="chat-title" data-testid="chat-title">{@html $text('common.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
-                <span class="pin-indicator">
+                <span class="pin-indicator" data-testid="pin-indicator">
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
               {/if}

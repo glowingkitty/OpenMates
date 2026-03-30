@@ -3368,7 +3368,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
   - Provides a "Show more" button if more chats are available (local or server).
   - Shows demo chats for both authenticated and non-authenticated users.
 -->
-<div class="activity-history-wrapper">
+<div class="activity-history-wrapper" data-testid="activity-history">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			{#if searchState.isActive}

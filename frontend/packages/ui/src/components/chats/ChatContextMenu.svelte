@@ -551,6 +551,7 @@
                 {#if chat.pinned}
                     <button
                         class="menu-item unpin"
+                        data-testid="chat-context-unpin"
                         class:disabled={!$authStore.isAuthenticated}
                         disabled={!$authStore.isAuthenticated}
                         onclick={(event) => {
@@ -565,6 +566,7 @@
                 {:else}
                     <button
                         class="menu-item pin"
+                        data-testid="chat-context-pin"
                         class:disabled={!$authStore.isAuthenticated}
                         disabled={!$authStore.isAuthenticated}
                         onclick={(event) => {
