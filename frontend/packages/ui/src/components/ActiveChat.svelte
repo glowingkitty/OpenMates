@@ -1,5 +1,4 @@
 <script lang="ts">
-    /* eslint-disable no-console */
     import MessageInput from './enter_message/MessageInput.svelte';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
@@ -94,7 +93,7 @@
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
-    import { reminderContext } from '../stores/reminderContextStore'; // For passing chat context to reminder settings
+    // reminderContext import removed — unused (was for passing chat context to reminder settings)
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
@@ -9463,6 +9462,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 onmouseleave={handleResumeLargeCardMouseLeave}
                                                 type="button"
                                             >
+                                                {#if resumeChatData.pinned}
+                                                    {@const PinIcon = getLucideIcon('pin')}
+                                                    <div class="resume-card-pin-badge" data-testid="resume-card-pin">
+                                                        <PinIcon size={18} color="white" />
+                                                    </div>
+                                                {/if}
                                                 <div class="resume-large-orbs" aria-hidden="true">
                                                     <div class="resume-orb resume-orb-1"></div>
                                                     <div class="resume-orb resume-orb-2"></div>
@@ -9505,6 +9510,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                {#if resumeChatData.pinned}
+                                                    {@const PinIconCompact = getLucideIcon('pin')}
+                                                    <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
+                                                        <PinIconCompact size={15} color="white" />
+                                                    </div>
+                                                {/if}
                                                 {#if resumeChatIsCreditsError}
                                                     <div class="resume-chat-content resume-chat-credits-content">
                                                         <span class="resume-chat-credits-label">{$text('chat.credits_needed')}</span>
@@ -10008,7 +10019,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results) as any}
+                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results) as ReturnType<typeof getWebSearchResults>}
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}

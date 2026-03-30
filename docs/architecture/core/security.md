@@ -119,6 +119,128 @@ graph TB
 | Passkey Support | WebAuthn with PRF extension | [Passkeys](./passkeys.md) |
 | Device Management | Planned: QR login, remote logout | [Device Sessions](../data/device-sessions.md) |
 
+## Connected Accounts (Planned)
+
+> **Status:** Planned — part of Finance app milestone. Reusable pattern for any app needing user-level provider auth.
+
+Apps can connect to external services on a per-user basis (e.g., Revolut Business, InvoiceNinja). Connected account credentials follow the zero-knowledge principle by default and are treated like other settings/memories — client-side encrypted, with the same lifecycle as chat messages.
+
+### How It Fits the Existing Settings & Memories Pipeline
+
+Connected accounts piggyback on the existing settings/memories infrastructure (`preprocessor.py` → permission request → `app_settings_memories_confirmed_handler.py` → Redis cache → `main_processor.py`). The only difference: **credentials are stripped before LLM context**.
+
+**Existing flow (settings/memories):**
+1. Client sends metadata (available keys) with each message
+2. Preprocessing LLM suggests which keys to load
+3. If not cached → permission request to user → user confirms → client decrypts & sends cleartext
+4. Server Vault-encrypts cleartext → caches in Redis (chat-scoped, 24h TTL)
+5. Main processor decrypts from cache → passes full content to LLM
+
+**Connected accounts flow (same pipeline, one difference at step 5):**
+1. Client sends metadata: `"finance-connected_accounts"` in available keys
+2. Preprocessing LLM suggests loading connected accounts
+3. If not cached → permission request → user confirms → client decrypts & sends full account data (names + credentials)
+4. Server Vault-encrypts → caches in Redis (same chat-scoped, 24h TTL)
+5. Main processor decrypts from cache → **strips credentials** → passes only display names + status to LLM
+6. LLM calls skill: "use Review skill with account Revolut Business EUR"
+7. Skill execution code (not LLM) resolves "Revolut Business EUR" → fetches full credentials from same cache → makes API calls
+
+### LLM Visibility Model
+
+| Stage | What LLM sees | What is hidden |
+|-------|--------------|----------------|
+| **Preprocessor metadata** (always) | "User has N connected accounts for Finance app" | Account names, provider types, all credentials |
+| **After user confirms** (main processor) | Account display names, status, scopes | All credentials (tokens, URLs, keys) — stripped before LLM context |
+| **Skill execution** (application code, not LLM) | N/A — resolves name → full credentials from cache | N/A |
+
+The LLM **never** sees credentials at any stage. When the LLM calls a skill and specifies a connected account by name, the skill execution layer (application code) resolves the name to credentials from the same Vault-encrypted Redis cache.
+
+### Credential Lifecycle
+
+Credentials follow the **same lifecycle as chat messages and other settings/memories**:
+
+1. Client decrypts credentials and submits them when user confirms access in a chat
+2. Server Vault-encrypts and caches in Redis — same chat-scoped, 24h TTL as other settings/memories
+3. When the chat ages out of the recent window (or 24h TTL expires), cached credentials are evicted
+4. Credentials are never persisted server-side in plaintext — only E2E encrypted blobs in Directus
+
+### Default: Client-Side Encrypted (Zero-Knowledge)
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    participant P as External Provider (e.g. Revolut)
+
+    Note over C,P: Initial OAuth Connection
+    C->>P: Redirect to consent screen
+    P->>S: Callback with auth code
+    S->>P: Exchange code → access_token + refresh_token
+    S->>C: Return refresh_token (via WebSocket)
+    Note over S: Server discards tokens immediately
+    C->>C: Encrypt refresh_token with master key
+    C->>S: Store encrypted blob in Directus
+
+    Note over C,P: Using a connected account in chat
+    C->>S: User confirms: "Yes, include my Revolut account"
+    C->>S: Send decrypted credentials (attached to chat context)
+    Note over S: Credentials held in memory (same lifecycle as chat messages)
+    S->>S: LLM calls skill with account name (never sees credentials)
+    S->>S: Skill execution code resolves name → credentials
+    S->>P: Exchange refresh_token → fresh access_token
+    S->>P: Make API calls with access_token
+    S->>C: Return results
+    Note over S: Credentials remain in chat context until chat ages out
+```
+
+- **Credentials stored:** Client-side encrypted in Directus as `connected_accounts` memory field (same encryption as chat messages)
+- **Server access:** Credentials submitted per-chat when user confirms, held in memory with same lifecycle as chat messages, discarded when chat is no longer recent
+- **Server compromise:** Attacker gets only encrypted blobs — cannot access user's external accounts
+- **Token types supported:**
+  - OAuth refresh tokens (Revolut Business) — server exchanges for short-lived access token on each skill call
+  - API keys/tokens (InvoiceNinja) — used directly by skill execution code
+
+### Upgrade: Vault-Hybrid (For Workflows)
+
+When a user enables background features (scheduled reports, webhook-triggered actions, reminders), the system upgrades credential storage:
+
+- User is informed: "To run this workflow while you're offline, we need to store your credentials server-side encrypted"
+- On consent: credentials are additionally stored in Vault under `kv/data/users/{user_id_hash}/providers/{provider_id}`
+- Server can then access credentials for background tasks without user being online
+- User can revoke server-side storage at any time → falls back to client-only mode
+
+### Connected Accounts Memory Field Schema
+
+```yaml
+# In app.yml settings_and_memories
+- id: connected_accounts
+  type: list
+  schema:
+    properties:
+      provider_id:    { type: string }      # e.g. "revolut_business", "invoiceninja"
+      display_name:   { type: string }      # e.g. "Revolut Business (EUR)" — visible to LLM only after user confirms
+      connected_at:   { type: integer }     # Unix timestamp
+      scopes:         { type: string }      # e.g. "READ,WRITE,PAY"
+      status:         { type: string, enum: [connected, expired, revoked] }
+      credentials:    { type: string }      # E2E encrypted JSON blob — NEVER visible to LLM
+      vault_enabled:  { type: boolean }     # true if user consented to server-side storage for workflows
+```
+
+### Provider-Specific Connection Flows
+
+| Provider | Auth Method | Credentials Stored (E2E) | Notes |
+|----------|------------|--------------------------|-------|
+| Revolut Business | OAuth 2.0 | `refresh_token`, `client_id` | Auth code exchanged server-side, refresh_token handed to client for encryption |
+| InvoiceNinja | API Token | `api_token`, `instance_url` | User pastes token + URL in settings UI |
+
+### Security Properties
+
+- **Default posture:** Zero-knowledge — server cannot access external accounts without active user participation
+- **LLM isolation:** LLM sees account names only after user confirms; credentials are resolved by application code, never in LLM context
+- **Chat-scoped retention:** Credentials in server memory follow the same lifecycle as chat messages — discarded when chat is no longer recent
+- **Upgrade path:** Vault-hybrid only with explicit user consent, only for features that require offline/background access
+- **Revocation:** User can disconnect at any time → encrypted blob deleted, Vault entry removed if present
+
 ## Design Assumptions
 
 - **Servers will be compromised** → all user data encrypted with user-controlled keys
