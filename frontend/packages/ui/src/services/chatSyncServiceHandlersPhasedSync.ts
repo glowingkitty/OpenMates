@@ -335,9 +335,11 @@ export async function handleBackgroundMessageSyncImpl(
   serviceInstance: ChatSynchronizationService,
   payload: BackgroundMessageSyncPayload,
 ): Promise<void> {
+  const embedCount = payload.embeds?.length || 0;
+  const keyCount = payload.embed_keys?.length || 0;
   console.info(
-    `[ChatSyncService] Background message sync batch ${payload.batch_number}:`,
-    `${payload.chats?.length || 0} chats, is_last=${payload.is_last_batch}`,
+    `[ChatSyncService] Background sync batch ${payload.batch_number}:`,
+    `${payload.chats?.length || 0} chats, ${embedCount} embeds, ${keyCount} embed_keys, is_last=${payload.is_last_batch}`,
   );
 
   try {
@@ -381,6 +383,16 @@ export async function handleBackgroundMessageSyncImpl(
           await chatDB.addChat({ ...existingChat, messages_v: newV });
         }
       }
+    }
+
+    // Store embed_keys FIRST (needed for embed decryption)
+    if (payload.embed_keys && payload.embed_keys.length > 0) {
+      await storeEmbedKeysBatch(payload.embed_keys, `Phase 3 batch ${payload.batch_number}`);
+    }
+
+    // Store embeds (encrypted — decryption happens on-demand when user opens the chat)
+    if (payload.embeds && payload.embeds.length > 0) {
+      await storeEmbedsBatch(payload.embeds, `Phase 3 batch ${payload.batch_number}`);
     }
 
     // Yield to main thread between batches
