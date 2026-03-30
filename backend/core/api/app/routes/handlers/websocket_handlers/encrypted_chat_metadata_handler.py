@@ -312,7 +312,20 @@ async def handle_encrypted_chat_metadata(
                     chat_update_fields["allow_chat_key_rotation"] = True
                 if chat_key_rotation_reason:
                     chat_update_fields["chat_key_rotation_reason"] = chat_key_rotation_reason
-        
+
+                # CRITICAL: Write encrypted_chat_key to Redis cache SYNCHRONOUSLY before
+                # queuing the Celery persistence task. This closes the race window in the
+                # CHAT_KEY_GUARD (lines 192-222): without this, a second device's K2 can
+                # arrive before the async Celery task writes K1 to cache/Directus, bypassing
+                # the guard and corrupting the chat key permanently. (OPE-109)
+                try:
+                    await cache_service.update_chat_list_item_field(
+                        user_id, chat_id, "encrypted_chat_key", encrypted_chat_key
+                    )
+                    logger.info(f"[CHAT_KEY_GUARD] Synchronously cached encrypted_chat_key for chat {chat_id}")
+                except Exception as e:
+                    logger.warning(f"[CHAT_KEY_GUARD] Failed to sync-cache encrypted_chat_key for chat {chat_id}: {e}")
+
             if chat_update_fields:
                 logger.info(f"Storing encrypted chat metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
             

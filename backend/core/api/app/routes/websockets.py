@@ -915,7 +915,12 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "icon_names": redis_payload.get("icon_names", []), # Include icon names in the client payload
                         # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
                         # When True, this is a continuation after app settings/memories confirmation - user message already persisted
-                        "is_continuation": redis_payload.get("is_continuation", False)
+                        "is_continuation": redis_payload.get("is_continuation", False),
+                        # CRITICAL: Forward encrypted_chat_key so secondary devices can pre-cache
+                        # the correct key (K1) and avoid generating a different key (K2).
+                        # Without this, the key race condition in encrypted_chat_metadata_handler
+                        # can corrupt the chat's encryption key permanently. (OPE-109)
+                        "encrypted_chat_key": redis_payload.get("encrypted_chat_key"),
                     }
 
                     # This event should go to all devices of the user, as it's a UI update.
