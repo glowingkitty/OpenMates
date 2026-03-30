@@ -307,7 +307,7 @@
     height: 24px;
     border-radius: 50%;
     object-fit: cover;
-    background: var(--color-grey-10, #fff);
+    background: white;
     border: 1.5px solid var(--color-grey-20, #e2e2e2);
     box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04);
     flex-shrink: 0;

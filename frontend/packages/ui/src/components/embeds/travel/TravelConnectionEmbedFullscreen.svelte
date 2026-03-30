@@ -291,6 +291,17 @@
     };
   });
 
+  /** Airline logos for the header area (from carrier codes) */
+  let headerAirlineLogos = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    const codes = conn?.carrier_codes;
+    if (!codes || !Array.isArray(codes) || codes.length === 0) return [];
+    return codes.slice(0, 3).map(code => ({
+      code,
+      url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN),
+    }));
+  });
+
   // ---------------------------------------------------------------------------
   // Three-state booking button
   // State: 'idle' -> 'loading' -> 'loaded' (or 'error')
@@ -1289,6 +1300,21 @@
   onMapReady={handleMapReady}
 >
   {#snippet embedHeaderCta()}
+    <!-- Airline logos in header -->
+    {#if headerAirlineLogos.length > 0}
+      <div class="header-airline-logos" data-testid="header-airline-logos">
+        {#each headerAirlineLogos as logo}
+          <img
+            class="header-airline-logo"
+            src={logo.url}
+            alt={logo.code}
+            width="28"
+            height="28"
+            loading="lazy"
+          />
+        {/each}
+      </div>
+    {/if}
     {#if bookingState === 'loaded' && resolvedBookingUrl}
       <button class="cta-button" onclick={handleOpenBookingUrl} data-testid="booking-cta">
         {$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
@@ -1426,6 +1452,11 @@
 {/if}
 
 <style>
+  /* Header airline logos — overlapping circle stack */
+  .header-airline-logos { display: flex; align-items: center; justify-content: center; margin-top: 8px; }
+  .header-airline-logos .header-airline-logo + .header-airline-logo { margin-left: -8px; }
+  .header-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); flex-shrink: 0; }
+
   .cta-button {
     background-color: var(--color-button-primary);
     color: white;
@@ -1471,9 +1502,9 @@
   .segment-center { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; justify-content: space-between; }
   .segment-airport-code { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); }
   .segment-carrier-row { display: flex; align-items: center; gap: 8px; }
-  .segment-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--color-grey-10); border: 1.5px solid var(--color-grey-20); flex-shrink: 0; }
+  .segment-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 1.5px solid var(--color-grey-20); flex-shrink: 0; }
   .segment-carrier-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .carrier-flight { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .carrier-flight { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
   .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
 
   .layover-section { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px; }
