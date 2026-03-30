@@ -7212,12 +7212,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // We set it explicitly here as a fallback, but handleScrollPositionUI will override
             // if it fires (which it should after scroll restoration completes)
             setTimeout(() => {
-                // Ensure currentChat is still valid (might be null if database was deleted)
+                // Ensure currentChat and chatHistoryRef are still valid
+                // (might be null if component unmounted or database was deleted)
                 if (!currentChat?.chat_id) {
                     console.warn('[ActiveChat] currentChat is null in setTimeout - cannot restore scroll position');
                     return;
                 }
-                
+                if (!chatHistoryRef) {
+                    console.debug('[ActiveChat] chatHistoryRef is null in setTimeout - component may have unmounted');
+                    return;
+                }
+
                 // When navigating via ChatHeader arrows, always scroll to top so the
                 // banner is visible (user expects to see the chat from the beginning).
                 if (options?.scrollToTop) {
