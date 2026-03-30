@@ -43,7 +43,7 @@
       "lodash": "^4.17.23",
       "minimatch": "^10.2.3",
       "flatted": "^3.4.0",
-      "serialize-javascript": "^7.0.3",
+      "serialize-javascript": "^7.0.5",
       "picomatch": "4.0.4",
       "yaml": "2.8.3"
     }
