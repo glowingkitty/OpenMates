@@ -641,9 +641,13 @@
   async function handleLoadBookingLink() {
     if (!connection.booking_token || bookingState === 'loading') return;
 
-    // Debug: trace booking_context availability
-    console.debug('[TravelConnectionEmbedFullscreen] booking_context:', connection.booking_context);
-    console.debug('[TravelConnectionEmbedFullscreen] connection keys:', Object.keys(connection));
+    // Debug: trace booking state
+    console.debug('[TravelConnectionEmbedFullscreen] handleLoadBookingLink:', {
+      booking_context: connection.booking_context,
+      booking_token: connection.booking_token?.substring(0, 20),
+      embedId,
+      hashedChatId,
+    });
 
     bookingState = 'loading';
 

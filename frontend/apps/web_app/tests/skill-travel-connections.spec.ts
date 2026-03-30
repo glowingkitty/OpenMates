@@ -218,15 +218,47 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		expect(body.booking_token).toBeTruthy();
 		expect(body.booking_context).toBeTruthy();
 		expect(body.booking_context.departure_id).toBeTruthy();
-		logCheckpoint(`Booking request sent with context: departure_id=${body.booking_context.departure_id}, arrival_id=${body.booking_context.arrival_id}`);
+		// Verify usage is linked to chat (hashed_chat_id must be present)
+		expect(body.hashed_chat_id).toBeTruthy();
+		logCheckpoint(`Booking request: departure_id=${body.booking_context.departure_id}, hashed_chat_id=${body.hashed_chat_id?.substring(0, 12)}...`);
 
-		// Wait for response (loaded or error — either means the request completed)
-		await page.waitForTimeout(3000);
-		await takeStepScreenshot(page, 'booking-button-clicked');
+		// Wait for booking response and check the button transitions to loaded state
+		const bookingResponse = await page.waitForResponse(
+			(resp: any) => resp.url().includes('/v1/apps/travel/booking-link'),
+			{ timeout: 15000 }
+		);
+		const respBody = await bookingResponse.json();
+		logCheckpoint(`Booking response: success=${respBody.success}, has_url=${!!respBody.booking_url}`);
 
-		await takeStepScreenshot(page, 'flight-details-card-verified');
+		// If booking succeeded, verify persistence: close and reopen should show "Book on X"
+		if (respBody.success && respBody.booking_url) {
+			await page.waitForTimeout(2000); // allow persist to complete
 
-		// Navigate back to the search results
+			// Close child fullscreen (back to search grid)
+			await page.keyboard.press('Escape');
+			await page.waitForTimeout(500);
+
+			// Reopen the same connection
+			await firstPreview.click();
+			await page.waitForTimeout(1500);
+
+			const flightCardReopened = page.getByTestId('flight-details-card');
+			await expect(flightCardReopened).toBeVisible({ timeout: 10000 });
+
+			// The CTA should now say "Book on ..." (not "Get booking link")
+			const reopenedCta = page.getByTestId('booking-cta');
+			await expect(reopenedCta).toBeVisible({ timeout: 5000 });
+			const reopenedCtaText = await reopenedCta.textContent();
+			expect(reopenedCtaText?.toLowerCase()).toContain('book on');
+			logCheckpoint(`Persisted booking URL verified: CTA says "${reopenedCtaText}"`);
+
+			await takeStepScreenshot(page, 'booking-persisted-verified');
+		} else {
+			logCheckpoint('Booking lookup returned no URL (SerpAPI may not have it for this route) — skipping persistence check');
+			await takeStepScreenshot(page, 'booking-no-url');
+		}
+
+		// Navigate back to search results
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
 
