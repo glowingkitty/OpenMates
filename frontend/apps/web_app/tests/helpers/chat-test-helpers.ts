@@ -92,12 +92,36 @@ async function loginToTestAccount(
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	// Retry if 429 hit on lookup — wait and try again (max 3 retries)
+	// Retry if 429 hit on lookup — the EmailLookup component hides the form
+	// and shows a rate-limit message for 120s. To retry, we must clear the
+	// rate-limit flag from localStorage and reload the login interface so the
+	// form reappears. Max 3 retries with increasing back-off.
 	for (let retryCount = 0; retryCount < 3 && hit429; retryCount++) {
-		logCheckpoint(`Hit 429 rate limit on lookup, waiting 5s before retry ${retryCount + 1}...`);
+		const waitSec = 5 + retryCount * 5;
+		logCheckpoint(`Hit 429 rate limit on lookup, waiting ${waitSec}s before retry ${retryCount + 1}...`);
 		hit429 = false;
-		await page.waitForTimeout(5000);
+		await page.waitForTimeout(waitSec * 1000);
+
+		// Clear the client-side rate-limit flag so the form reappears
+		await page.evaluate(() => {
+			localStorage.removeItem('emailLookupRateLimit');
+			localStorage.removeItem('loginRateLimit');
+		});
+
+		// Reload the page to reset the EmailLookup component state
+		await page.goto(getE2EDebugUrl('/'));
+		const retrySignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
+		await retrySignupBtn.click();
+		const retryLoginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
+		await retryLoginTab.click();
+
+		const retryEmailInput = page.locator('#login-email-input');
+		await expect(retryEmailInput).toBeVisible({ timeout: 15000 });
+		await retryEmailInput.fill(TEST_EMAIL);
 		await page.getByRole('button', { name: /continue/i }).click();
+		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
 	}
 
 	const passwordInput = page.locator('#login-password-input');
