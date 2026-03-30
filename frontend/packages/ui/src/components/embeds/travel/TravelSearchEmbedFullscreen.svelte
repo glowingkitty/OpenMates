@@ -365,7 +365,16 @@
       booking_url: content.booking_url as string | undefined,
       booking_provider: content.booking_provider as string | undefined,
       booking_token: content.booking_token as string | undefined,
-      booking_context: reconstructBookingContext(content),
+      booking_context: (() => {
+        const ctx = reconstructBookingContext(content);
+        console.debug('[TravelSearch] booking_context reconstruction:', {
+          hasBookingContext: !!content.booking_context,
+          bookingContextType: typeof content.booking_context,
+          hasFlatKeys: !!content.booking_context_departure_id,
+          result: ctx,
+        });
+        return ctx;
+      })(),
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
       departure: content.departure as string | undefined,

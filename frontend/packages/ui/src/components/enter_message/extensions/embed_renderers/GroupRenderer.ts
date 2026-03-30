@@ -3498,7 +3498,7 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
-    const price = decodedContent?.price?.toString() || "";
+    const price = (decodedContent?.total_price ?? decodedContent?.price)?.toString() || "";
     const currency = decodedContent?.currency || "EUR";
     const transportMethod =
       decodedContent?.transport_method ||
@@ -3613,7 +3613,7 @@ export class GroupRenderer implements EmbedRenderer {
   ): Promise<string> {
     const origin = decodedContent?.origin || "";
     const destination = decodedContent?.destination || "";
-    const price = decodedContent?.price || "";
+    const price = (decodedContent?.total_price ?? decodedContent?.price)?.toString() || "";
     const currency = decodedContent?.currency || "EUR";
 
     return `
