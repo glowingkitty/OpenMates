@@ -69,7 +69,7 @@ async function loginToTestAccount(
 	await takeStepScreenshot(page, 'signup-interface-opened');
 
 	// Click the "Login" tab in the login/signup tab bar to switch to the login form
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 	logCheckpoint('Clicked Login tab to switch from signup to login view.');
@@ -121,7 +121,7 @@ async function loginToTestAccount(
 		const retrySignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
 		await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
 		await retrySignupBtn.click();
-		const retryLoginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		const retryLoginTab = page.getByTestId('tab-login');
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
 
@@ -142,7 +142,7 @@ async function loginToTestAccount(
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
+		.getByTestId('error-message')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
 
 	// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
@@ -211,7 +211,7 @@ async function loginToTestAccount(
 		// Reduced from 3000ms — the auth state transition is now reliable (see fix in
 		// PasswordAndTfaOtp.svelte handleSuccessfulLogin Phase 1/Phase 2 split).
 		await page.waitForTimeout(1000);
-		const messageEditor = page.locator('.editor-content.prose');
+		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 20000 });
 		logCheckpoint('Chat interface loaded - message editor visible.');
 	} else {
@@ -222,7 +222,7 @@ async function loginToTestAccount(
 
 /**
  * Start a new chat session by clicking the new chat button.
- * Handles sidebar-closed scenario with multiple fallback selectors.
+ * Uses data-testid and data-action for stable selectors.
  */
 async function startNewChat(
 	page: any,
@@ -233,46 +233,57 @@ async function startNewChat(
 	const currentUrl = page.url();
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
-	const newChatButtonSelectors = [
-		'.new-chat-cta-button',
-		'.icon_create',
-		'button[aria-label*="New"]',
-		'button[aria-label*="new"]'
-	];
-
+	// Try stable selectors in priority order
+	const newChatButton = page.getByTestId('new-chat-button');
 	let clicked = false;
-	for (const selector of newChatButtonSelectors) {
-		const button = page.locator(selector).first();
-		if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-			logCheckpoint(`Found New Chat button with selector: ${selector}`);
-			await button.click();
+
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		logCheckpoint('Found New Chat button via data-testid');
+		await newChatButton.click();
+		clicked = true;
+		await page.waitForTimeout(2000);
+	}
+
+	if (!clicked) {
+		// Fallback: try data-action attribute
+		const actionButton = page.locator('[data-action="new-chat"]').first();
+		if (await actionButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+			logCheckpoint('Found New Chat button via data-action');
+			await actionButton.click();
 			clicked = true;
 			await page.waitForTimeout(2000);
-			break;
+		}
+	}
+
+	if (!clicked) {
+		// Fallback: try aria-label
+		const ariaButton = page.locator('button[aria-label*="New"], button[aria-label*="new"]').first();
+		if (await ariaButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+			logCheckpoint('Found New Chat button via aria-label');
+			await ariaButton.click();
+			clicked = true;
+			await page.waitForTimeout(2000);
 		}
 	}
 
 	if (!clicked) {
 		logCheckpoint('New Chat button not initially visible, trying to trigger it...');
-		const messageEditor = page.locator('.editor-content.prose');
+		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await messageEditor.click();
 			await page.keyboard.type(' ');
 			await page.waitForTimeout(500);
 
-			for (const selector of newChatButtonSelectors) {
-				const button = page.locator(selector).first();
-				if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-					logCheckpoint(`Found New Chat button after typing: ${selector}`);
-					await button.click();
-					clicked = true;
-					await page.waitForTimeout(2000);
-					break;
-				}
+			const retryButton = page.getByTestId('new-chat-button');
+			if (await retryButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+				logCheckpoint('Found New Chat button after typing');
+				await retryButton.click();
+				clicked = true;
+				await page.waitForTimeout(2000);
 			}
 
 			if (clicked) {
-				const newEditor = page.locator('.editor-content.prose');
+				const newEditor = page.getByTestId('message-editor');
 				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
 					await newEditor.click();
 					await page.keyboard.press('Control+A');
@@ -292,7 +303,7 @@ async function startNewChat(
 
 /**
  * Send a message in the chat editor and wait for the send to complete.
- * Uses [data-action="send-message"] for a stable selector.
+ * Uses data-testid and data-action for stable selectors.
  */
 async function sendMessage(
 	page: any,
@@ -301,7 +312,7 @@ async function sendMessage(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	stepLabel: string = 'msg'
 ): Promise<void> {
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(message);
@@ -329,13 +340,13 @@ async function deleteActiveChat(
 	logCheckpoint('Attempting to delete the chat (best-effort cleanup)...');
 
 	try {
-		const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
 		if (await sidebarToggle.isVisible()) {
 			await sidebarToggle.click();
 			await page.waitForTimeout(500);
 		}
 
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
+		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 
 		if (!(await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false))) {
 			logCheckpoint('No active chat item visible - skipping cleanup.');
@@ -343,7 +354,7 @@ async function deleteActiveChat(
 		}
 
 		try {
-			const chatTitle = await activeChatItem.locator('.chat-title').textContent();
+			const chatTitle = await activeChatItem.getByTestId('chat-title').textContent();
 			logCheckpoint(`Active chat title: "${chatTitle}"`);
 
 			if (
@@ -364,7 +375,7 @@ async function deleteActiveChat(
 		logCheckpoint('Opened chat context menu.');
 
 		await page.waitForTimeout(300);
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 
 		if (!(await deleteButton.isVisible({ timeout: 3000 }).catch(() => false))) {
 			logCheckpoint('Delete button not visible in context menu - skipping cleanup.');
@@ -391,7 +402,7 @@ async function deleteActiveChat(
  * Wait for an assistant message to appear in the chat.
  */
 async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any> {
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout });
 	return assistantMessage;
 }

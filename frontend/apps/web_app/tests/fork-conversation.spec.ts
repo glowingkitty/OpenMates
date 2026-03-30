@@ -92,7 +92,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -129,7 +129,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await page.waitForTimeout(5000);
 
 	// Click the new-chat icon to get a clean slate
-	const newChatIcon = page.locator('.icon_create');
+	const newChatIcon = page.getByTestId('new-chat-button');
 	if (await newChatIcon.isVisible()) {
 		log('Clicking new-chat icon.');
 		await newChatIcon.click();
@@ -139,14 +139,14 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 8. Send first message ────────────────────────────────────────────────
 	// Short, deterministic prompt so the response is predictable and quick.
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'));
 	log('Typed first message.');
 	await screenshot(page, 'first-message-typed');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	log('Sent first message.');
@@ -160,7 +160,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 9. Wait for first AI response containing "alpha" ────────────────────
 	log('Waiting for first AI response...');
-	const assistantMessages = page.locator('.message-wrapper.assistant');
+	const assistantMessages = page.getByTestId('message-assistant');
 	await expect(assistantMessages.last()).toContainText('alpha', { timeout: 45000 });
 	log('First response confirmed: contains "alpha".');
 	await screenshot(page, 'first-response');
@@ -183,7 +183,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// continuous DOM updates can discard the context menu state.
 	// The stop-processing-button disappears once the AI finishes; wait for that.
 	log('Waiting for AI to finish streaming (stop-processing-button to disappear)...');
-	const stopButton = page.locator('.stop-processing-button');
+	const stopButton = page.getByTestId('stop-processing-button');
 	// First check if it's currently visible; only wait for disappearance if so
 	if (await stopButton.isVisible()) {
 		await expect(stopButton).not.toBeVisible({ timeout: 30000 });
@@ -207,7 +207,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// We also wait briefly after scrolling so Svelte can re-render any
 	// lazy-loaded content (e.g. decrypted message data) before the click.
 	log('Scrolling first user message into view for right-click...');
-	const userMessageContents = page.locator('.user-message-content');
+	const userMessageContents = page.getByTestId('user-message-content');
 	const firstUserMessage = userMessageContents.first();
 	await expect(firstUserMessage).toBeVisible({ timeout: 10000 });
 	await firstUserMessage.scrollIntoViewIfNeeded();
@@ -220,19 +220,19 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// ── 13. Click "Fork Conversation" in context menu ────────────────────────
 	// The menu is rendered at document.body level (portal pattern).
 	// It is marked .menu-container.show once visible.
-	const forkMenuItem = page.locator('.menu-item.fork');
+	const forkMenuItem = page.getByTestId('chat-context-fork');
 	await expect(forkMenuItem).toBeVisible({ timeout: 8000 });
 	log('Fork menu item visible, clicking...');
 	await forkMenuItem.click();
 	await screenshot(page, 'fork-menu-clicked');
 
 	// ── 14. Verify fork settings panel opens ────────────────────────────────
-	const forkContainer = page.locator('.fork-container');
+	const forkContainer = page.getByTestId('fork-container');
 	await expect(forkContainer).toBeVisible({ timeout: 5000 });
 	log('Fork settings panel is visible.');
 
 	// Verify the fork name input is pre-filled (non-empty)
-	const forkInput = page.locator('.fork-input');
+	const forkInput = page.getByTestId('fork-input');
 	await expect(forkInput).toBeVisible();
 	const forkNameValue = await forkInput.inputValue();
 	expect(forkNameValue.trim()).not.toBe('');
@@ -240,7 +240,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'fork-panel-open');
 
 	// ── 15. Click the Fork button ────────────────────────────────────────────
-	const forkButton = page.locator('.fork-button');
+	const forkButton = page.getByTestId('fork-button');
 	await expect(forkButton).toBeEnabled();
 	await forkButton.click();
 	log('Fork button clicked.');
@@ -255,7 +255,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// Note: the fork panel closes after clicking Fork, the settings panel
 	// dismisses, and then the new chat appears at the top of the sidebar.
 	log('Waiting for forked chat to appear in sidebar...');
-	const chatItems = page.locator('.chat-item-wrapper');
+	const chatItems = page.getByTestId('chat-item-wrapper');
 	const countBefore = await chatItems.count();
 	log(`Sidebar chat count before fork completion: ${countBefore}`);
 
@@ -286,16 +286,16 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// - The forked chat should contain "alpha" in an assistant response
 	// - The forked chat should NOT contain "beta" (that was message 2 in original)
 	log('Verifying forked chat message content...');
-	const allMessages = page.locator('.message-wrapper');
+	const allMessages = page.getByTestId('message-wrapper');
 	await expect(allMessages.first()).toBeVisible({ timeout: 10000 });
 
 	// Check that "alpha" appears somewhere in the chat (from assistant response)
-	const chatContent = page.locator('.mate-message-content');
+	const chatContent = page.getByTestId('mate-message-content');
 	await expect(chatContent.first()).toContainText('alpha', { timeout: 15000 });
 	log('Confirmed "alpha" is present in forked chat.');
 
 	// Verify "beta" is NOT present (fork was before the second message)
-	const betaMessage = page.locator('.mate-message-content', { hasText: 'beta' });
+	const betaMessage = page.getByTestId('mate-message-content').filter({ hasText: 'beta' });
 	await expect(betaMessage).toHaveCount(0);
 	log('Confirmed "beta" is absent from forked chat (correct fork point).');
 	await screenshot(page, 'forked-chat-verified');
@@ -310,11 +310,11 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// ── 20. Clean up: delete forked chat ────────────────────────────────────
 	// The forked chat is currently active. Right-click the active item.
 	log('Cleaning up: deleting forked chat...');
-	const activeForkItem = page.locator('.chat-item-wrapper.active');
+	const activeForkItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeForkItem).toBeVisible();
 	await activeForkItem.scrollIntoViewIfNeeded();
 	await activeForkItem.click({ button: 'right' });
-	const deleteBtn = page.locator('.menu-item.delete');
+	const deleteBtn = page.getByTestId('chat-context-delete');
 	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 	await deleteBtn.click(); // First click: show confirm state
 	await expect(deleteBtn).toContainText(/confirm/i, { timeout: 3000 });
@@ -328,11 +328,11 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await page.goto(originalChatUrl);
 	await page.waitForTimeout(2000);
 
-	const activeOriginalItem = page.locator('.chat-item-wrapper.active');
+	const activeOriginalItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeOriginalItem).toBeVisible({ timeout: 10000 });
 	await activeOriginalItem.scrollIntoViewIfNeeded();
 	await activeOriginalItem.click({ button: 'right' });
-	const deleteBtnOriginal = page.locator('.menu-item.delete');
+	const deleteBtnOriginal = page.getByTestId('chat-context-delete');
 	await expect(deleteBtnOriginal).toBeVisible({ timeout: 5000 });
 	await deleteBtnOriginal.click(); // First click: show confirm state
 	await expect(deleteBtnOriginal).toContainText(/confirm/i, { timeout: 3000 });

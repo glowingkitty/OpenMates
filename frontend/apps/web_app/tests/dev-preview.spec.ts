@@ -30,7 +30,7 @@ test.describe('Component Preview System', () => {
 		await expect(page.locator('h1:has-text("Component Preview")')).toBeVisible();
 
 		// Should show component count (e.g. "273 components")
-		await expect(page.locator('.component-count')).toBeVisible();
+		await expect(page.getByTestId('component-count')).toBeVisible();
 
 		// Search bar should be present
 		await expect(page.locator('input[placeholder="Search components..."]')).toBeVisible();
@@ -60,16 +60,16 @@ test.describe('Component Preview System', () => {
 		expect(moduleErrors).toHaveLength(0);
 
 		// The preview page UI should be present (toolbar with back link)
-		await expect(page.locator('.toolbar')).toBeVisible();
+		await expect(page.getByTestId('preview-toolbar')).toBeVisible();
 
 		// Back link should be present (using specific selector to avoid strict mode)
-		await expect(page.locator('.back-link')).toBeVisible();
+		await expect(page.getByTestId('preview-back-link')).toBeVisible();
 
 		// Component name should appear in breadcrumb
-		await expect(page.locator('.breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
+		await expect(page.getByTestId('breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
 
 		// Status bar should show the component file name
-		await expect(page.locator('.status-bar')).toBeVisible();
+		await expect(page.getByTestId('preview-status-bar')).toBeVisible();
 	});
 
 	test('client-side navigation from index to component works', async ({ page }) => {
@@ -82,12 +82,12 @@ test.describe('Component Preview System', () => {
 		await page.waitForTimeout(500);
 
 		// Click on the component link
-		const componentLink = page.locator('a.tree-file:has-text("WebSearchEmbedPreview")');
+		const componentLink = page.getByTestId('tree-file').filter({ hasText: 'WebSearchEmbedPreview' });
 		await expect(componentLink).toBeVisible();
 		await componentLink.click();
 
 		// Should navigate to the component preview with toolbar
-		await expect(page.locator('.toolbar')).toBeVisible({ timeout: 10000 });
-		await expect(page.locator('.breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
+		await expect(page.getByTestId('preview-toolbar')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
 	});
 });

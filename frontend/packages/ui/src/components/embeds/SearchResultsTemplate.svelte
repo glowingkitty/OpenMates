@@ -267,7 +267,7 @@
     {:else if results.length === 0}
       {#if ctx.isLoadingChildren}
         <!-- Skeleton loading grid -->
-        <div class="search-template-grid" style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};">
+        <div class="search-template-grid" data-testid="search-template-grid" style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};">
           {#each Array.from({ length: skeletonCount }) as _, i (i)}
             <div class="search-template-skeleton">
               <div class="skeleton-body"></div>
@@ -281,7 +281,7 @@
       {/if}
     {:else}
       <!-- Results grid -->
-      <div class="search-template-grid" style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};">
+      <div class="search-template-grid" data-testid="search-template-grid" style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};">
         {#each results as result, i (result.embed_id)}
           {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i) })}
         {/each}

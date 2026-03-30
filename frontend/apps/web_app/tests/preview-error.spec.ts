@@ -18,22 +18,22 @@ test('shows render error for component without preview props', async ({ page }) 
 	await page.waitForTimeout(2000);
 
 	// The toolbar should be visible (page loaded successfully)
-	await expect(page.locator('.toolbar')).toBeVisible();
+	await expect(page.getByTestId('preview-toolbar')).toBeVisible();
 
 	// Should show render error, NOT "Loading component..."
 	const loadingVisible = await page.locator('text=Loading component').isVisible().catch(() => false);
 	expect(loadingVisible).toBe(false);
 
 	// The render error panel should be displayed
-	await expect(page.locator('.render-error')).toBeVisible({ timeout: 5000 });
-	await expect(page.locator('.render-error h2')).toHaveText('Render Error');
+	await expect(page.getByTestId('render-error')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('render-error').locator('h2')).toHaveText('Render Error');
 
 	// Should have actionable buttons
-	await expect(page.locator('.error-btn', { hasText: 'Retry' })).toBeVisible();
-	await expect(page.locator('.error-btn', { hasText: 'Edit Props' })).toBeVisible();
+	await expect(page.getByTestId('error-btn-retry')).toBeVisible();
+	await expect(page.getByTestId('error-btn-edit-props')).toBeVisible();
 
 	// Should mention creating a .preview.ts file (since BaseAppCard doesn't have one)
-	await expect(page.locator('.render-error')).toContainText('.preview.ts');
+	await expect(page.getByTestId('render-error')).toContainText('.preview.ts');
 });
 
 test('retry button re-attempts render after error', async ({ page }) => {
@@ -41,13 +41,13 @@ test('retry button re-attempts render after error', async ({ page }) => {
 	await page.waitForTimeout(2000);
 
 	// Should show render error
-	await expect(page.locator('.render-error')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('render-error')).toBeVisible({ timeout: 5000 });
 
 	// Click retry — it should attempt to mount again and fail again
 	// (since we haven't provided props)
-	await page.locator('.error-btn', { hasText: 'Retry' }).click();
+	await page.getByTestId('error-btn-retry').click();
 	await page.waitForTimeout(2000);
 
 	// Should still show render error after retry (props are still missing)
-	await expect(page.locator('.render-error')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('render-error')).toBeVisible({ timeout: 5000 });
 });

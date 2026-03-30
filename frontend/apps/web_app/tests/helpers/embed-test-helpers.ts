@@ -43,33 +43,33 @@ async function verifyEmbedPreviewPage(
 	await page.waitForTimeout(3000);
 
 	// Not an unknown app
-	await expect(page.locator('div.unknown-app')).not.toBeVisible();
+	await expect(page.getByTestId('unknown-app')).not.toBeVisible();
 
 	// App title visible
-	await expect(page.locator('h1.app-title')).toBeVisible();
+	await expect(page.getByTestId('app-title')).toBeVisible();
 
 	// All sections finish loading
 	await expect(async () => {
-		const loadingCount = await page.locator('p.section-loading').count();
+		const loadingCount = await page.getByTestId('section-loading').count();
 		expect(loadingCount).toBe(0);
 	}).toPass({ timeout: 20_000 });
 	logCheckpoint('All sections loaded');
 
 	// No component load errors
-	const sectionErrors = await page.locator('p.section-error').count();
+	const sectionErrors = await page.getByTestId('section-error').count();
 	expect(sectionErrors, `${app}: found ${sectionErrors} section load error(s)`).toBe(0);
 
 	// All skill sections have expected display types
-	const skillSections = page.locator('section.skill-section');
+	const skillSections = page.getByTestId('skill-section');
 	const sectionCount = await skillSections.count();
 	expect(sectionCount, `${app}: expected at least 1 skill section`).toBeGreaterThan(0);
 
 	for (let i = 0; i < sectionCount; i++) {
 		const section = skillSections.nth(i);
-		const skillLabel = await section.locator('h2.skill-label').textContent();
+		const skillLabel = await section.getByTestId('skill-label').textContent();
 
 		for (const heading of EXPECTED_DT_HEADINGS) {
-			const dtLocator = section.locator(`h3.dt-heading:has-text("${heading}")`);
+			const dtLocator = section.getByTestId('dt-heading').filter({ hasText: heading });
 			const count = await dtLocator.count();
 			expect(count, `${app}/${skillLabel}: missing display type "${heading}"`).toBeGreaterThan(0);
 		}
@@ -77,7 +77,7 @@ async function verifyEmbedPreviewPage(
 	logCheckpoint('Display types verified');
 
 	// At least one embed reached "finished" status
-	const finishedEmbed = page.locator('.unified-embed-preview[data-status="finished"]');
+	const finishedEmbed = page.locator('[data-testid="embed-preview"][data-status="finished"]');
 	const finishedCount = await finishedEmbed.count();
 	expect(finishedCount, `${app}: no embeds reached "finished" status`).toBeGreaterThan(0);
 	logCheckpoint(`${finishedCount} embed(s) finished`);
@@ -99,7 +99,7 @@ async function waitForEmbedFinished(
 	skillId: string,
 	timeout = 90000
 ): Promise<any> {
-	const selector = `.unified-embed-preview[data-app-id="${appId}"][data-skill-id="${skillId}"][data-status="finished"]`;
+	const selector = '[data-testid="embed-preview"][data-app-id="' + appId + '"][data-skill-id="' + skillId + '"][data-status="finished"]';
 	const embed = page.locator(selector);
 	await expect(embed.first()).toBeVisible({ timeout });
 	return embed.first();
@@ -111,7 +111,7 @@ async function waitForEmbedFinished(
  */
 async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 	await embedLocator.click();
-	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
 	await page.waitForTimeout(500); // animation
 	return fullscreenOverlay;
@@ -126,10 +126,10 @@ async function verifySearchGrid(
 	minResults = 1,
 	timeout = 60000
 ): Promise<any> {
-	const resultsGrid = fullscreenOverlay.locator('.search-template-grid');
+	const resultsGrid = fullscreenOverlay.getByTestId('search-template-grid');
 	await expect(resultsGrid).toBeVisible({ timeout });
 
-	const resultCards = resultsGrid.locator('.unified-embed-preview');
+	const resultCards = resultsGrid.getByTestId('embed-preview');
 	await expect(async () => {
 		const count = await resultCards.count();
 		expect(count).toBeGreaterThanOrEqual(minResults);
@@ -143,7 +143,7 @@ async function verifySearchGrid(
  * Verifies the overlay is no longer visible.
  */
 async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
-	const minimizeButton = fullscreenOverlay.locator('.minimize-button');
+	const minimizeButton = fullscreenOverlay.getByTestId('embed-minimize');
 	const hasMinimize = await minimizeButton.isVisible({ timeout: 3000 }).catch(() => false);
 
 	if (hasMinimize) {

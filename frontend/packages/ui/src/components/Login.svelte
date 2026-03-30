@@ -2283,17 +2283,19 @@
                     <div class="content-area" in:fade={{ duration: 400 }}>
                         <!-- Login/Signup tabs - only show on login screen -->
                         {#if showTabs}
-                            <div class="login-tabs">
-                                <button 
+                            <div class="login-tabs" data-testid="login-tabs">
+                                <button
                                     class="tab-button active"
+                                    data-testid="tab-login"
                                     onclick={() => {
                                         // Already on login view, no action needed
                                     }}
                                 >
                                     {$text('login.login')}
                                 </button>
-                                <button 
+                                <button
                                     class="tab-button"
+                                    data-testid="tab-signup"
                                     onclick={switchToSignup}
                                 >
                                     {$text('signup.sign_up')}
@@ -2605,15 +2607,17 @@
                     <div class="content-area" in:fade={{ duration: 200 }}>
                         <!-- Login/Signup tabs - only show during alpha disclaimer and basics steps -->
                         {#if showTabs}
-                            <div class="login-tabs">
-                                <button 
+                            <div class="login-tabs" data-testid="login-tabs">
+                                <button
                                     class="tab-button"
+                                    data-testid="tab-login"
                                     onclick={switchToLogin}
                                 >
                                     {$text('login.login')}
                                 </button>
-                                <button 
+                                <button
                                     class="tab-button active"
+                                    data-testid="tab-signup"
                                     onclick={() => {
                                         // Already on signup view, no action needed
                                     }}

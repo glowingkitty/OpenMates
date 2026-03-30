@@ -88,18 +88,18 @@ async function createTestChat(
 	message: string,
 	logCheckpoint: (msg: string) => void
 ): Promise<void> {
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await newChatButton.click();
 		await page.waitForTimeout(2000);
 	}
 
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
 	await page.keyboard.type(message);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint(`Sent: "${message}"`);
@@ -107,7 +107,7 @@ async function createTestChat(
 	// Wait for chat ID in URL
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	// Wait for some AI response so the chat has content and title
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	// Allow title to be generated
 	await page.waitForTimeout(4000);
@@ -117,10 +117,10 @@ async function createTestChat(
  * Right-click the active chat in the sidebar to open its context menu.
  */
 async function openContextMenuForActiveChat(page: any): Promise<void> {
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 	await activeChatItem.click({ button: 'right' });
-	await expect(page.locator('.menu-container.show')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('context-menu')).toBeVisible({ timeout: 5000 });
 }
 
 /**
@@ -133,14 +133,14 @@ async function submitInlineVaultForm(
 	logCheckpoint: (msg: string) => void
 ): Promise<void> {
 	// Wait for the inline unlock form to appear (the container scrolls to top)
-	const inlineInput = page.locator('.overscroll-unlock-input');
+	const inlineInput = page.getByTestId('vault-unlock-input');
 	await expect(inlineInput).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Inline vault unlock form appeared.');
 
 	await inlineInput.fill(password);
 	logCheckpoint(`Vault password entered (${password.length} chars).`);
 
-	const unlockButton = page.locator('.overscroll-unlock-button');
+	const unlockButton = page.getByTestId('vault-unlock-button');
 	await expect(unlockButton).toBeEnabled({ timeout: 3000 });
 	await unlockButton.click();
 	logCheckpoint('Vault submit clicked.');
@@ -183,9 +183,9 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 	await screenshot(page, 'test-chat-created');
 
 	// Get the active chat item reference before hiding
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	const chatTitleText = await activeChatItem
-		.locator('.chat-title')
+		.getByTestId('chat-title')
 		.textContent()
 		.catch(() => '');
 	log(`Chat title before hide: "${chatTitleText}"`);
@@ -194,7 +194,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 	await openContextMenuForActiveChat(page);
 	await screenshot(page, 'context-menu-open');
 
-	const hideButton = page.locator('.menu-item.hide');
+	const hideButton = page.getByTestId('chat-context-hide');
 	await expect(hideButton).toBeVisible({ timeout: 5000 });
 	log('Clicking "Hide" in context menu...');
 	await hideButton.click();
@@ -212,7 +212,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 	//   3. Sync to server (variable — can take 10-30s on first request)
 	//   4. hiddenChatStore.unlock() → updates chat list
 	// Use a generous timeout to account for server sync latency.
-	const inlineInput = page.locator('.overscroll-unlock-input');
+	const inlineInput = page.getByTestId('vault-unlock-input');
 	await expect(inlineInput).not.toBeAttached({ timeout: 60000 });
 
 	await screenshot(page, 'form-closed');
@@ -262,20 +262,20 @@ test('shows error in inline vault form on wrong password without closing the for
 
 	// Open context menu → Hide
 	await openContextMenuForActiveChat(page);
-	const hideButton = page.locator('.menu-item.hide');
+	const hideButton = page.getByTestId('chat-context-hide');
 	await expect(hideButton).toBeVisible({ timeout: 5000 });
 	await hideButton.click();
 	await screenshot(page, 'after-hide-click');
 
 	// Wait for inline form
-	const inlineInput = page.locator('.overscroll-unlock-input');
+	const inlineInput = page.getByTestId('vault-unlock-input');
 	await expect(inlineInput).toBeVisible({ timeout: 10000 });
 	log('Inline vault unlock form appeared.');
 
 	// Enter a password that's too short to be accepted (< 4 chars) → button stays disabled
 	// The .overscroll-unlock-button is disabled when input.length < 4
 	await inlineInput.fill('abc');
-	const unlockButton = page.locator('.overscroll-unlock-button');
+	const unlockButton = page.getByTestId('vault-unlock-button');
 	await expect(unlockButton).toBeDisabled({ timeout: 3000 });
 	log('Confirmed: unlock button is disabled for short password (< 4 chars).');
 	await screenshot(page, 'short-password-disabled');
@@ -297,12 +297,12 @@ test('shows error in inline vault form on wrong password without closing the for
 	await page.waitForTimeout(4000);
 
 	const errorVisible = await page
-		.locator('.overscroll-unlock-error')
+		.getByTestId('vault-unlock-error')
 		.isVisible({ timeout: 3000 })
 		.catch(() => false);
 	const formStillVisible = await inlineInput.isVisible({ timeout: 2000 }).catch(() => false);
 	const activeChatGone = !(await page
-		.locator('.chat-item-wrapper.active')
+		.locator('[data-testid="chat-item-wrapper"].active')
 		.isVisible({ timeout: 2000 })
 		.catch(() => false));
 
@@ -328,7 +328,7 @@ test('shows error in inline vault form on wrong password without closing the for
 
 	// Clean up — close the inline form if still visible
 	if (formStillVisible) {
-		const closeBtn = page.locator('.overscroll-unlock-close');
+		const closeBtn = page.getByTestId('vault-unlock-close');
 		if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await closeBtn.click();
 			log('Closed inline vault form.');
@@ -336,10 +336,10 @@ test('shows error in inline vault form on wrong password without closing the for
 	}
 
 	// Delete the active chat if still present
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChatItem.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await activeChatItem.click({ button: 'right' });
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 		if (await deleteButton.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await deleteButton.click();
 			await deleteButton.click();
@@ -382,14 +382,14 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 
 	// Hide the chat using the inline vault form
 	await openContextMenuForActiveChat(page);
-	const hideButton = page.locator('.menu-item.hide');
+	const hideButton = page.getByTestId('chat-context-hide');
 	await expect(hideButton).toBeVisible({ timeout: 5000 });
 	await hideButton.click();
 
 	await submitInlineVaultForm(page, VAULT_PASSWORD, log);
 
 	// Wait for form to close and chat to be hidden
-	const inlineInputT3 = page.locator('.overscroll-unlock-input');
+	const inlineInputT3 = page.getByTestId('vault-unlock-input');
 	await expect(inlineInputT3).not.toBeAttached({ timeout: 60000 });
 
 	await screenshot(page, 'chat-hidden');
@@ -402,7 +402,7 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 	await screenshot(page, 'sidebar-after-hide');
 
 	// Look for any chat item with an "unhide" option (hidden chats appear when unlocked)
-	const chatItems = page.locator('.chat-item-wrapper');
+	const chatItems = page.getByTestId('chat-item-wrapper');
 	const count = await chatItems.count();
 	log(`Total chat items visible: ${count}`);
 
@@ -412,13 +412,13 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 		if (!(await item.isVisible({ timeout: 1000 }).catch(() => false))) continue;
 
 		await item.click({ button: 'right' });
-		const menuContainer = page.locator('.menu-container.show');
+		const menuContainer = page.getByTestId('context-menu');
 		if (!(await menuContainer.isVisible({ timeout: 2000 }).catch(() => false))) {
 			await page.keyboard.press('Escape');
 			continue;
 		}
 
-		const unhideBtn = page.locator('.menu-item.unhide');
+		const unhideBtn = page.getByTestId('chat-context-unhide');
 		if (await unhideBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
 			log(`Found unhide option on chat item ${i}.`);
 			await unhideBtn.click();
@@ -476,14 +476,14 @@ test('hides second chat directly without inline form when vault is already unloc
 	await screenshot(page, 'first-chat-created');
 
 	await openContextMenuForActiveChat(page);
-	const hideButton1 = page.locator('.menu-item.hide');
+	const hideButton1 = page.getByTestId('chat-context-hide');
 	await expect(hideButton1).toBeVisible({ timeout: 5000 });
 	await hideButton1.click();
 
 	await submitInlineVaultForm(page, VAULT_PASSWORD, log);
 
 	// Wait for form to close
-	const inlineInputT4 = page.locator('.overscroll-unlock-input');
+	const inlineInputT4 = page.getByTestId('vault-unlock-input');
 	await expect(inlineInputT4).not.toBeAttached({ timeout: 60000 });
 
 	log('First chat hidden. Vault is now unlocked in memory.');
@@ -496,13 +496,13 @@ test('hides second chat directly without inline form when vault is already unloc
 	log('Creating second chat...');
 	// Ensure the create button is visible; after a hide operation the URL may
 	// still be at the chat page or may have changed. Just look for the editor.
-	const newChatBtn = page.locator('.icon_create');
+	const newChatBtn = page.getByTestId('new-chat-button');
 	if (await newChatBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await newChatBtn.click();
 		await page.waitForTimeout(1500);
 	}
 	// Verify editor is accessible; if not, try navigating to a new chat URL
-	const messageEditorCheck = page.locator('.editor-content.prose');
+	const messageEditorCheck = page.getByTestId('message-editor');
 	if (!(await messageEditorCheck.isVisible({ timeout: 5000 }).catch(() => false))) {
 		log('Editor not found directly — navigating to root to start new chat.');
 		await page.goto('/?new=true');
@@ -514,7 +514,7 @@ test('hides second chat directly without inline form when vault is already unloc
 	// Step 3: Try to hide the second chat — since vault is unlocked in memory,
 	// it should hide DIRECTLY without showing the inline unlock form
 	await openContextMenuForActiveChat(page);
-	const hideButton2 = page.locator('.menu-item.hide');
+	const hideButton2 = page.getByTestId('chat-context-hide');
 	await expect(hideButton2).toBeVisible({ timeout: 5000 });
 
 	log('Clicking Hide on second chat (vault already unlocked)...');
@@ -523,7 +523,7 @@ test('hides second chat directly without inline form when vault is already unloc
 	// Wait briefly to see if inline form appears
 	await page.waitForTimeout(2000);
 	const inlineFormVisible = await page
-		.locator('.overscroll-unlock-input')
+		.getByTestId('vault-unlock-input')
 		.isVisible({ timeout: 2000 })
 		.catch(() => false);
 
@@ -535,9 +535,9 @@ test('hides second chat directly without inline form when vault is already unloc
 		log('NOTE: Inline form appeared for second hide — vault may reset between hide operations.');
 
 		// Fill in the vault password again to complete the test
-		const inlineInput = page.locator('.overscroll-unlock-input');
+		const inlineInput = page.getByTestId('vault-unlock-input');
 		await inlineInput.fill(VAULT_PASSWORD);
-		const unlockButton = page.locator('.overscroll-unlock-button');
+		const unlockButton = page.getByTestId('vault-unlock-button');
 		await unlockButton.click();
 		await page.waitForTimeout(3000);
 
@@ -545,7 +545,7 @@ test('hides second chat directly without inline form when vault is already unloc
 		log('Second chat hidden (required form re-entry).');
 	} else {
 		// No form — the chat should disappear immediately (vault was already unlocked)
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
+		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 		await expect(async () => {
 			const stillVisible = await activeChatItem.isVisible();
 			expect(stillVisible).toBe(false);

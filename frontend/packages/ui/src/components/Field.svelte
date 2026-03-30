@@ -165,7 +165,7 @@
     </button>
   {/if}
   {#if error}
-    <p class="error-message" id={id ? `${id}-error` : undefined} role="alert">{error}</p>
+    <p class="error-message" data-testid="error-message" id={id ? `${id}-error` : undefined} role="alert">{error}</p>
   {/if}
 </div>
 

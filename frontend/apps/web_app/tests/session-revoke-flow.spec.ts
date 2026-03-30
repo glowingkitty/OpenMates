@@ -50,7 +50,7 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	await headerLoginButton.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -91,7 +91,7 @@ async function navigateToSessions(page: any, logFn: (msg: string) => void): Prom
 	await openSettingsBtn.click();
 
 	// Wait for the settings menu to actually open
-	await expect(page.locator('.settings-menu.visible')).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
 	logFn('Opened settings menu.');
 
 	// Navigate Account → Security → Active Sessions

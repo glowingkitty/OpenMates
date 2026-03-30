@@ -160,7 +160,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	// ── Step 14: Close fullscreen if still open ───────────────────────────
 	if (await fullscreenOverlay.isVisible().catch(() => false)) {
 		// Try minimize button first, then Escape
-		const minimizeButton = fullscreenOverlay.getByTestId('minimize-button').first();
+		const minimizeButton = fullscreenOverlay.getByTestId('embed-minimize').first();
 		if (await minimizeButton.isVisible().catch(() => false)) {
 			await minimizeButton.click();
 		} else {

@@ -116,7 +116,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 
-	const loginTabs = page.locator('.login-tabs');
+	const loginTabs = page.getByTestId('login-tabs');
 	await expect(loginTabs).toBeVisible();
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
 	await takeStepScreenshot(page, 'signup-alpha');
@@ -189,10 +189,10 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const recoveryConfirmToggle = page.locator('#confirm-storage-toggle-step5');
 	await setToggleChecked(recoveryConfirmToggle, true);
 
-	await expect(page.locator('.credits-package-container .buy-button').first()).toBeVisible({
+	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
 		timeout: 30000
 	});
-	await page.locator('.credits-package-container .buy-button').first().click();
+	await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
 
@@ -209,7 +209,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Filled Stripe card details.');
 
 	// Submit payment and wait for success.
-	await page.locator('.payment-form .buy-button').click();
+	await page.getByTestId('payment-form').getByTestId('buy-button').click();
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
 
@@ -218,9 +218,9 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await takeStepScreenshot(page, 'chat-after-signup');
 
 	// Logout
-	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	const settingsMenuButton = page.getByTestId('profile-container');
 	await settingsMenuButton.click();
-	await expect(page.locator('.settings-menu.visible')).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
 
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
 	await expect(logoutItem).toBeVisible({ timeout: 10000 });
@@ -263,21 +263,21 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	// Navigate to settings > account > delete account.
 	// Password-only users (no 2FA, no passkey) get email OTP verification.
 
-	const settingsMenuForDelete = page.locator('.profile-container[role="button"]');
+	const settingsMenuForDelete = page.getByTestId('profile-container');
 	await settingsMenuForDelete.click();
-	await expect(page.locator('.settings-menu.visible')).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
 
 	// Navigate to Account settings
 	await page.getByRole('menuitem', { name: /account/i }).click();
 	await expect(page.getByRole('menuitem', { name: /delete/i })).toBeVisible();
 	await page.getByRole('menuitem', { name: /delete/i }).click();
-	await expect(page.locator('.delete-account-container')).toBeVisible();
+	await expect(page.getByTestId('delete-account-container')).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account');
 	logSignupCheckpoint('Opened delete account settings.');
 
 	// Confirm data deletion checkbox to enable deletion.
 	const deleteConfirmToggle = page
-		.locator('.delete-account-container input[type="checkbox"]')
+		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
 	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
 	await setToggleChecked(deleteConfirmToggle, true);
@@ -285,22 +285,22 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Confirmed delete account data warning.');
 
 	// Click delete button — should open the auth modal with email OTP (not 2FA).
-	await page.locator('.delete-account-container .delete-button').click();
-	const authModal = page.locator('.auth-modal');
+	await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
+	const authModal = page.getByTestId('auth-modal');
 	await expect(authModal).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'delete-account-auth-email-otp');
 
 	// Verify this is the email OTP flow (not 2FA or passkey).
-	const emailOtpSection = authModal.locator('.auth-email-otp');
+	const emailOtpSection = authModal.getByTestId('auth-email-otp');
 	await expect(emailOtpSection).toBeVisible({ timeout: 10000 });
 	logSignupCheckpoint('Auth modal shows email OTP flow (no 2FA, no passkey).');
 
 	// Verify no 2FA input is shown.
-	const twoFactorSection = authModal.locator('.auth-2fa');
+	const twoFactorSection = authModal.getByTestId('auth-2fa');
 	await expect(twoFactorSection).not.toBeVisible();
 
 	// Click "Send verification code" button.
-	const sendCodeButton = emailOtpSection.locator('.auth-btn');
+	const sendCodeButton = emailOtpSection.getByTestId('auth-btn');
 	const deleteEmailRequestedAt = new Date().toISOString();
 	await sendCodeButton.click();
 	logSignupCheckpoint('Clicked send verification code for account deletion.');
@@ -327,7 +327,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
 	// Wait for success message indicating account was deleted.
-	await expect(page.locator('.delete-account-container .success-message')).toBeVisible({
+	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
 		timeout: 60000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');

@@ -95,7 +95,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// Open settings
 	const settingsMenuButton = page.locator('#settings-menu-toggle');
 	await settingsMenuButton.click();
-	await expect(page.locator('.settings-menu.visible')).toBeVisible();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 	await takeStepScreenshot(page, 'settings-open');
 	logCheckpoint('Opened settings menu.');
 
@@ -111,7 +111,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Navigated to 2FA settings.');
 
 	// Click "Change App" to trigger 2FA re-setup (which regenerates backup codes)
-	const changeAppButton = page.locator('button.btn-primary').filter({ hasText: /change.*app/i });
+	const changeAppButton = page.getByRole('button').filter({ hasText: /change.*app/i });
 	await expect(changeAppButton).toBeVisible({ timeout: 10000 });
 	await changeAppButton.click();
 	await takeStepScreenshot(page, 'tfa-change-triggered');
@@ -120,15 +120,15 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// SecurityAuth modal: enter password
 	const authModal = page.locator('[role="dialog"]');
 	await expect(authModal).toBeVisible({ timeout: 10000 });
-	const authPasswordInput = authModal.locator('.password-input, input[type="password"]');
+	const authPasswordInput = authModal.locator('[data-testid="password-input"], input[type="password"]');
 	await expect(authPasswordInput).toBeVisible();
 	await authPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	await authModal.locator('.auth-btn').click();
+	await authModal.getByTestId('auth-btn').click();
 	await takeStepScreenshot(page, 'auth-password');
 	logCheckpoint('Submitted password in SecurityAuth.');
 
 	// If 2FA required in SecurityAuth, enter OTP
-	const authTfaInput = authModal.locator('.tfa-input');
+	const authTfaInput = authModal.getByTestId('tfa-input');
 	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
 	if (authTfaVisible) {
 		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
@@ -138,12 +138,12 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	}
 
 	// TFA setup step: get new secret and enter OTP
-	const otpSetupInput = page.locator('input.otp-input');
+	const otpSetupInput = page.getByTestId('otp-input');
 	await expect(otpSetupInput).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-setup');
 
 	// Get the new 2FA secret
-	const secretElement = page.locator('.secret-value code');
+	const secretElement = page.getByTestId('secret-value').locator('code');
 	await expect(secretElement).toBeVisible();
 	const newTfaSecret = (await secretElement.textContent()).trim();
 	expect(newTfaSecret, 'Expected a new 2FA secret.').toBeTruthy();
@@ -162,12 +162,12 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 
 	// Wait for verification (auto-submits at 6 digits)
 	// Select app step appears
-	const appItem = page.locator('button.app-item').first();
+	const appItem = page.getByTestId('app-item').first();
 	await expect(appItem).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-select-app');
 	await appItem.click();
 
-	const continueButton = page.locator('button.btn-primary').filter({ hasText: /continue/i });
+	const continueButton = page.getByRole('button').filter({ hasText: /continue/i });
 	await continueButton.click();
 	logCheckpoint('Selected 2FA app and continued.');
 
@@ -176,13 +176,13 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// ========================================================================
 
 	// Wait for backup codes to appear
-	const backupCodesContainer = page.locator('.tfa-backup-codes');
+	const backupCodesContainer = page.getByTestId('tfa-backup-codes');
 	await expect(backupCodesContainer).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'backup-codes-displayed');
 	logCheckpoint('Backup codes displayed.');
 
 	// Read all backup codes from the UI
-	const codeElements = page.locator('.code-item code');
+	const codeElements = page.getByTestId('code-item').locator('code');
 	const codeCount = await codeElements.count();
 	expect(codeCount, 'Expected at least 1 backup code to be displayed.').toBeGreaterThan(0);
 
@@ -203,22 +203,22 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Verified backup code format.');
 
 	// Confirm storage and complete setup
-	const confirmCheckbox = page.locator('.confirm-checkbox input[type="checkbox"]');
+	const confirmCheckbox = page.getByTestId('confirm-checkbox').locator('input[type="checkbox"]');
 	await setToggleChecked(confirmCheckbox, true);
 	await expect(confirmCheckbox).toBeChecked();
 
-	const completeSetupButton = backupCodesContainer.locator('button.btn-primary');
+	const completeSetupButton = backupCodesContainer.getByRole('button').first();
 	await completeSetupButton.click();
 	logCheckpoint('Confirmed backup code storage and completed setup.');
 
 	// Wait for success step
-	const successContainer = page.locator('.tfa-success');
+	const successContainer = page.getByTestId('tfa-success');
 	await expect(successContainer).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-setup-success');
 	logCheckpoint('2FA setup completed successfully.');
 
 	// Click "Done"
-	const doneButton = page.locator('button.btn-primary').filter({ hasText: /done/i });
+	const doneButton = page.getByRole('button').filter({ hasText: /done/i });
 	await doneButton.click();
 	logCheckpoint('Clicked Done on 2FA success.');
 
@@ -233,12 +233,12 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 
 	// Ensure the settings menu is open
 	const settingsVisible = await page
-		.locator('.settings-menu.visible')
+		.locator('[data-testid="settings-menu"].visible')
 		.isVisible()
 		.catch(() => false);
 	if (!settingsVisible) {
 		await settingsMenuButton.click();
-		await expect(page.locator('.settings-menu.visible')).toBeVisible();
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 	}
 
 	// Navigate back to main settings by clicking the header back button repeatedly.
@@ -281,7 +281,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await loginButtonAfterLogout.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTabRelogin = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTabRelogin = page.getByTestId('tab-login');
 	await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
 	await loginTabRelogin.click();
 	logCheckpoint('Opened login dialog after logout.');

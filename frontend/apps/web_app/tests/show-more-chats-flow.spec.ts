@@ -66,7 +66,7 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 
 /** Wait for initial sync to complete (syncing indicator disappears). */
 async function waitForSyncComplete(page: any): Promise<void> {
-	const syncingIndicator = page.locator('.syncing-inline-indicator');
+	const syncingIndicator = page.getByTestId('syncing-indicator');
 	try {
 		await expect(syncingIndicator).not.toBeVisible({ timeout: 30000 });
 	} catch {
@@ -99,7 +99,7 @@ test('show more button reveals additional chats incrementally', async ({
 	await ensureSidebarOpen(page);
 
 	// Step 3: Wait for chat items to appear in sidebar
-	const chatItems = page.locator('.chat-item');
+	const chatItems = page.getByTestId('chat-item');
 	await expect(chatItems.first()).toBeVisible({ timeout: 15000 });
 
 	// Step 4: Count initial chat items — should be limited (INITIAL_USER_CHAT_LIMIT + static)
@@ -120,7 +120,7 @@ test('show more button reveals additional chats incrementally', async ({
 	await showMoreButton.click();
 	await page.waitForTimeout(2000);
 
-	const expandedCount = await page.locator('.chat-item').count();
+	const expandedCount = await page.getByTestId('chat-item').count();
 	console.log(`After first "Show more": ${expandedCount} chats (was ${initialCount})`);
 	expect(expandedCount).toBeGreaterThan(initialCount);
 
@@ -130,7 +130,7 @@ test('show more button reveals additional chats incrementally', async ({
 		await showMoreButton.click();
 		await page.waitForTimeout(2000);
 
-		const secondExpandedCount = await page.locator('.chat-item').count();
+		const secondExpandedCount = await page.getByTestId('chat-item').count();
 		console.log(`After second "Show more": ${secondExpandedCount} chats (was ${expandedCount})`);
 		expect(secondExpandedCount).toBeGreaterThanOrEqual(expandedCount);
 	}
@@ -159,7 +159,7 @@ test('clicking an older chat loads its messages on demand', async ({
 	await ensureSidebarOpen(page);
 
 	// Step 2: Wait for chat items
-	await expect(page.locator('.chat-item').first()).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('chat-item').first()).toBeVisible({ timeout: 15000 });
 
 	// Step 3: Show more chats if button is available
 	const showMoreButton = page.locator('[data-testid="show-more-chats"]');
@@ -171,7 +171,7 @@ test('clicking an older chat loads its messages on demand', async ({
 
 	// Step 4: Click on a chat that is NOT the currently active one
 	// Pick a non-active chat towards the end of the list (likely an older chat)
-	const allChatItems = page.locator('.chat-item:not(.active)');
+	const allChatItems = page.locator('[data-testid="chat-item"]:not(.active)');
 	const olderChatCount = await allChatItems.count();
 
 	if (olderChatCount === 0) {
@@ -182,19 +182,19 @@ test('clicking an older chat loads its messages on demand', async ({
 	// Pick one towards the end (older chat, more likely to need on-demand loading)
 	const targetIndex = Math.min(olderChatCount - 1, 15);
 	const targetChat = allChatItems.nth(targetIndex);
-	const chatTitle = await targetChat.locator('.chat-title').textContent().catch(() => 'unknown');
+	const chatTitle = await targetChat.getByTestId('chat-title').textContent().catch(() => 'unknown');
 	console.log(`Clicking older chat at index ${targetIndex}: "${chatTitle}"`);
 
 	await targetChat.click();
 	await page.waitForTimeout(1000);
 
 	// Step 5: Wait for the chat area to render
-	const chatHistory = page.locator('.chat-history');
-	const messageEditor = page.locator('.editor-content.prose');
+	const chatHistory = page.getByTestId('chat-history');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(chatHistory.or(messageEditor)).toBeVisible({ timeout: 15000 });
 
 	// Step 6: Wait for messages to load (on-demand from server if needed)
-	const messageContainer = page.locator('.message-container, .chat-message');
+	const messageContainer = page.locator('[data-testid="message-container"], [data-testid="chat-message"]');
 	try {
 		await expect(messageContainer.first()).toBeVisible({ timeout: 20000 });
 		const messageCount = await messageContainer.count();

@@ -158,6 +158,7 @@
     <div class="button-wrapper">
       <button
         class="clickable-icon icon_minimize top-button"
+        data-testid="embed-minimize"
         onclick={onClose}
         aria-label="Minimize"
         title="Minimize"

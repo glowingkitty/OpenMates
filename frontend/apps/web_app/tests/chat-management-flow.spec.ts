@@ -71,25 +71,25 @@ async function createTestChat(
 	message: string,
 	logCheckpoint: (msg: string) => void
 ): Promise<void> {
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatButton.click();
 		await page.waitForTimeout(1500);
 	}
 
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
 	await page.keyboard.type(message);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint(`Sent: "${message}"`);
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	// Wait for AI response so the chat has content
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	await page.waitForTimeout(3000); // Allow title to generate
 }
@@ -139,7 +139,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 	await screenshot(page, 'chat-created');
 
 	await ensureSidebarOpen(page);
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// --- PIN ---
@@ -150,7 +150,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(300);
 		await activeChatItem.click({ button: 'right' });
-		const pinButton = page.locator('.menu-item.pin');
+		const pinButton = page.getByTestId('chat-context-pin');
 		await expect(pinButton).toBeVisible({ timeout: 3000 });
 		await pinButton.click();
 	}).toPass({ timeout: 20000 });
@@ -159,7 +159,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 
 	// Wait for pin indicator to appear
 	await expect(async () => {
-		const pinIndicator = activeChatItem.locator('.pin-indicator');
+		const pinIndicator = activeChatItem.getByTestId('pin-indicator');
 		await expect(pinIndicator).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
@@ -177,7 +177,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(300);
 		await activeChatItem.click({ button: 'right' });
-		const unpinButton = page.locator('.menu-item.unpin');
+		const unpinButton = page.getByTestId('chat-context-unpin');
 		await expect(unpinButton).toBeVisible({ timeout: 3000 });
 		await unpinButton.click();
 		unpinClicked = true;
@@ -187,7 +187,7 @@ test('pins a chat via context menu and pin indicator appears, then unpins', asyn
 
 	// Wait for pin indicator to disappear
 	await expect(async () => {
-		const pinIndicator = activeChatItem.locator('.pin-indicator');
+		const pinIndicator = activeChatItem.getByTestId('pin-indicator');
 		await expect(pinIndicator).not.toBeVisible();
 	}).toPass({ timeout: 10000 });
 
@@ -229,23 +229,23 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	await screenshot(page, 'chat-created');
 
 	await ensureSidebarOpen(page);
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Verify no unread badge initially (active chat is read by default)
 	// Note: badge may appear inside active chat item OR the item may lose .active after context menu actions.
 	// We scope to any .unread-badge within .chat-item-wrapper for robustness.
-	const unreadBadgeInPage = page.locator('.chat-item-wrapper .unread-badge').first();
+	const unreadBadgeInPage = page.getByTestId('chat-item-wrapper').locator('[data-testid="unread-badge"]').first();
 	const hasBadgeInitially = await unreadBadgeInPage.isVisible({ timeout: 2000 }).catch(() => false);
 	log(`Unread badge initially visible: ${hasBadgeInitially}`);
 
 	// --- MARK UNREAD ---
 	log('Right-clicking to mark as unread...');
 	await activeChatItem.click({ button: 'right' });
-	const menuContainer = page.locator('.menu-container.show');
+	const menuContainer = page.getByTestId('context-menu');
 	await expect(menuContainer).toBeVisible({ timeout: 5000 });
 
-	const markUnreadButton = page.locator('.menu-item.mark-unread');
+	const markUnreadButton = page.getByTestId('chat-context-mark-unread');
 	await expect(markUnreadButton).toBeVisible({ timeout: 5000 });
 	await markUnreadButton.click();
 	log('Clicked "Mark as Unread".');
@@ -253,7 +253,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	// Verify unread badge appears anywhere in the chat list
 	// (The active chat item may lose .active class after context menu interactions)
 	await expect(async () => {
-		const badge = page.locator('.chat-item-wrapper .unread-badge').first();
+		const badge = page.getByTestId('chat-item-wrapper').locator('[data-testid="unread-badge"]').first();
 		await expect(badge).toBeVisible();
 	}).toPass({ timeout: 15000 });
 
@@ -264,21 +264,21 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	log('Right-clicking to mark as read...');
 	// Try to re-open context menu on the chat item that now shows unread badge
 	const chatItemWithBadge = page
-		.locator('.chat-item-wrapper')
-		.filter({ has: page.locator('.unread-badge') })
+		.getByTestId('chat-item-wrapper')
+		.filter({ has: page.getByTestId('unread-badge') })
 		.first();
 	await chatItemWithBadge.click({ button: 'right' });
 	await expect(menuContainer).toBeVisible({ timeout: 5000 });
 	await screenshot(page, 'context-menu-for-read');
 
-	const markReadButton = page.locator('.menu-item.mark-read');
+	const markReadButton = page.getByTestId('chat-context-mark-read');
 	await expect(markReadButton).toBeVisible({ timeout: 5000 });
 	await markReadButton.click();
 	log('Clicked "Mark as Read".');
 
 	// Verify unread badge disappears
 	await expect(async () => {
-		const badge = page.locator('.chat-item-wrapper .unread-badge').first();
+		const badge = page.getByTestId('chat-item-wrapper').locator('[data-testid="unread-badge"]').first();
 		await expect(badge).not.toBeVisible();
 	}).toPass({ timeout: 10000 });
 
@@ -319,7 +319,7 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	await screenshot(page, 'chat-created');
 
 	await ensureSidebarOpen(page);
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Set up download listener BEFORE clicking download
@@ -327,11 +327,11 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
 
 	await activeChatItem.click({ button: 'right' });
-	const menuContainer = page.locator('.menu-container.show');
+	const menuContainer = page.getByTestId('context-menu');
 	await expect(menuContainer).toBeVisible({ timeout: 5000 });
 	await screenshot(page, 'context-menu-for-download');
 
-	const downloadButton = page.locator('.menu-item.download');
+	const downloadButton = page.getByTestId('chat-context-download');
 	await expect(downloadButton).toBeVisible({ timeout: 5000 });
 	await downloadButton.click();
 	log('Clicked "Download" in context menu.');

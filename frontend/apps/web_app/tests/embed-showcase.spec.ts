@@ -90,7 +90,7 @@ const EXPECTED_DT_HEADINGS = [
  */
 async function waitForAllSectionsLoaded(page: import('@playwright/test').Page) {
 	await expect(async () => {
-		const loadingCount = await page.locator('p.section-loading').count();
+		const loadingCount = await page.getByTestId('section-loading').count();
 		expect(loadingCount).toBe(0);
 	}).toPass({ timeout: SECTION_LOAD_TIMEOUT });
 }
@@ -140,30 +140,30 @@ for (const app of ALL_APPS) {
 
 			// ── CHECK 1: Page structure ─────────────────────────────────────
 			// Not an unknown app
-			await expect(page.locator('div.unknown-app')).not.toBeVisible();
+			await expect(page.getByTestId('unknown-app')).not.toBeVisible();
 
 			// App title heading is visible
-			await expect(page.locator('h1.app-title')).toBeVisible();
+			await expect(page.getByTestId('app-title')).toBeVisible();
 
 			// ── CHECK 2: All sections finish loading ────────────────────────
 			await waitForAllSectionsLoaded(page);
 
 			// ── CHECK 3: No component load errors ──────────────────────────
-			const sectionErrors = await page.locator('p.section-error').count();
+			const sectionErrors = await page.getByTestId('section-error').count();
 			expect(sectionErrors, `${app}: found ${sectionErrors} section load error(s)`).toBe(0);
 
 			// ── CHECK 4: All skill sections have the expected display types ─
-			const skillSections = page.locator('section.skill-section');
+			const skillSections = page.getByTestId('skill-section');
 			const sectionCount = await skillSections.count();
 			expect(sectionCount, `${app}: expected at least 1 skill section`).toBeGreaterThan(0);
 
 			for (let i = 0; i < sectionCount; i++) {
 				const section = skillSections.nth(i);
-				const skillLabel = await section.locator('h2.skill-label').textContent();
+				const skillLabel = await section.getByTestId('skill-label').textContent();
 
 				// Each section must have ALL core display type headings
 				for (const heading of EXPECTED_DT_HEADINGS) {
-					const dtLocator = section.locator(`h3.dt-heading:has-text("${heading}")`);
+					const dtLocator = section.getByTestId('dt-heading').filter({ hasText: heading });
 					const count = await dtLocator.count();
 					expect(count, `${app}/${skillLabel}: missing display type "${heading}"`).toBeGreaterThan(
 						0
@@ -172,7 +172,7 @@ for (const app of ALL_APPS) {
 			}
 
 			// ── CHECK 5: At least one embed reaches "finished" status ───────
-			const finishedEmbeds = page.locator('.unified-embed-preview[data-status="finished"]');
+			const finishedEmbeds = page.locator('[data-testid="embed-preview"][data-status="finished"]');
 			await expect(async () => {
 				const count = await finishedEmbeds.count();
 				expect(count, `${app}: no embed reached data-status="finished"`).toBeGreaterThan(0);
@@ -215,8 +215,8 @@ for (const app of ALL_APPS) {
 
 			// ── CHECK 8: App icon gradient resolves (not transparent/empty) ─
 			const iconGradientOk = await page.evaluate(() => {
-				const circle = document.querySelector('.app-icon-circle, .app-icon-container');
-				if (!circle) return { ok: false, reason: 'no .app-icon-circle found' };
+				const circle = document.querySelector('[data-testid="app-icon-circle"]');
+				if (!circle) return { ok: false, reason: 'no [data-testid="app-icon-circle"] found' };
 				const bg = getComputedStyle(circle).background || getComputedStyle(circle).backgroundImage;
 				// A resolved gradient will contain "rgb" or "rgba" — an unresolved var() produces empty string
 				if (!bg || bg === 'none' || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
@@ -232,18 +232,18 @@ for (const app of ALL_APPS) {
 			// ── CHECK 9: Dark mode toggle works ─────────────────────────────
 			// Read the light-mode background of the showcase body
 			const lightBg = await page.evaluate(() => {
-				const body = document.querySelector('.showcase-body') as HTMLElement | null;
+				const body = document.querySelector('[data-testid="showcase-body"]') as HTMLElement | null;
 				return body ? getComputedStyle(body).backgroundColor : '';
 			});
 
 			// Toggle to dark mode
-			await page.locator('button.theme-btn').click();
+			await page.getByTestId('theme-toggle-btn').click();
 			await page.waitForTimeout(500);
 
 			// After dark mode toggle, the background should have changed
 			// (theme.css inverts --color-grey-0 from #fff to #171717)
 			const darkBg = await page.evaluate(() => {
-				const body = document.querySelector('.showcase-body') as HTMLElement | null;
+				const body = document.querySelector('[data-testid="showcase-body"]') as HTMLElement | null;
 				return body ? getComputedStyle(body).backgroundColor : '';
 			});
 
@@ -255,8 +255,8 @@ for (const app of ALL_APPS) {
 
 			// App icon gradient must still resolve in dark mode
 			const iconGradientDarkOk = await page.evaluate(() => {
-				const circle = document.querySelector('.app-icon-circle, .app-icon-container');
-				if (!circle) return { ok: false, reason: 'no .app-icon-circle found' };
+				const circle = document.querySelector('[data-testid="app-icon-circle"]');
+				if (!circle) return { ok: false, reason: 'no [data-testid="app-icon-circle"] found' };
 				const bg = getComputedStyle(circle).background || getComputedStyle(circle).backgroundImage;
 				if (!bg || bg === 'none' || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
 					return { ok: false, reason: `background resolved to: "${bg}"` };
@@ -269,7 +269,7 @@ for (const app of ALL_APPS) {
 			).toBe(true);
 
 			// Toggle back to light mode
-			await page.locator('button.theme-btn').click();
+			await page.getByTestId('theme-toggle-btn').click();
 			await page.waitForTimeout(300);
 
 			// ── CHECK 10: No JS errors (collected throughout) ───────────────
@@ -295,16 +295,16 @@ test.describe('Search skill fullscreens — 2 result cards per row', () => {
 
 				// Find the skill section for this search skill
 				const skillSection = page
-					.locator('section.skill-section')
-					.filter({ has: page.locator(`h2.skill-label:text-is("${skillLabel}")`) });
+					.getByTestId('skill-section')
+					.filter({ has: page.getByTestId('skill-label').filter({ hasText: new RegExp(`^${skillLabel}$`) }) });
 
 				await expect(skillSection).toBeVisible({
 					timeout: 5_000
 				});
 
 				// Find the Fullscreen display type block within this skill section
-				const fsClip = skillSection.locator('div.fs-clip');
-				await expect(fsClip, `${app}/${skillLabel}: .fs-clip not found`).toBeVisible();
+				const fsClip = skillSection.getByTestId('fs-clip');
+				await expect(fsClip, `${app}/${skillLabel}: fs-clip not found`).toBeVisible();
 
 				// Check the grid inside the fullscreen — it must have ≥ 2 columns
 				// We do this by measuring the rendered positions of result cards.
@@ -313,20 +313,20 @@ test.describe('Search skill fullscreens — 2 result cards per row', () => {
 				const columnCount = await page.evaluate(
 					({ app: _app, skillLabel: _skillLabel }) => {
 						// Find the skill section
-						const sections = [...document.querySelectorAll('section.skill-section')];
+						const sections = [...document.querySelectorAll('[data-testid="skill-section"]')];
 						const section = sections.find((s) => {
-							const label = s.querySelector('h2.skill-label');
+							const label = s.querySelector('[data-testid="skill-label"]');
 							return label?.textContent?.trim() === _skillLabel;
 						});
 						if (!section) return { columns: 0, reason: 'skill section not found' };
 
-						// Find the .fs-clip within this section
-						const fsClip = section.querySelector('div.fs-clip');
-						if (!fsClip) return { columns: 0, reason: '.fs-clip not found' };
+						// Find the fs-clip within this section
+						const fsClip = section.querySelector('[data-testid="fs-clip"]');
+						if (!fsClip) return { columns: 0, reason: 'fs-clip not found' };
 
-						// Find all .unified-embed-preview cards inside the fullscreen grid
+						// Find all embed-preview cards inside the search-template-grid
 						const cards = [
-							...fsClip.querySelectorAll('.search-template-grid .unified-embed-preview')
+							...fsClip.querySelectorAll('[data-testid="search-template-grid"] [data-testid="embed-preview"]')
 						] as HTMLElement[];
 						if (cards.length < 2) {
 							return {

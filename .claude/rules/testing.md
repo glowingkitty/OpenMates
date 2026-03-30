@@ -29,6 +29,14 @@ The daily cron job (`run_tests.py --daily`) runs every night and saves results l
 
 ## Additional Test Rules
 
+- **NEVER use CSS class selectors in tests.** All element targeting MUST use `data-testid` attributes with `page.getByTestId('name')`. CSS classes are styling concerns and break when CSS changes.
+  - Bad: `page.locator('.send-button')`, `page.locator('.chat-title')`
+  - Good: `page.getByTestId('send-button')`, `page.getByTestId('chat-title')`
+  - For scoped queries: `container.getByTestId('name')` or `page.getByTestId('parent').getByTestId('child')`
+  - For elements with state: `page.locator('[data-testid="chat-item-wrapper"].active')` or use data attributes
+  - For elements with data attributes: `page.locator('[data-testid="embed-preview"][data-status="finished"]')`
+  - When adding `data-testid` to components, use kebab-case matching the element's purpose
+  - Acceptable non-class selectors: `#id`, `[data-action="..."]`, `[data-authenticated="..."]`, `getByRole()`, `getByText()`
 - **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/run_tests.py --suite vitest` which dispatches to GitHub Actions.
 - **NEVER run Playwright specs locally or via docker compose.** Always use `python3 scripts/run_tests.py --spec <name>.spec.ts` or `python3 scripts/run_tests.py --suite playwright`. This dispatches specs to GitHub Actions where they run with proper test accounts and infrastructure. The docker compose commands in the testing doc are reference only — they describe what the CI runner executes, not what you should run.
 - **New features require E2E test proposal:** After implementing any auth flow, payment flow, or user-facing feature, propose an E2E test plan (user flow, assertions, which spec to extend). Wait for user confirmation before writing test code.

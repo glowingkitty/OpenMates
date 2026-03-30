@@ -210,7 +210,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// =========================================================================
 	// STEP 2: Start a new chat
 	// =========================================================================
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) {
 		logCheckpoint('Clicking New Chat button.');
 		await newChatButton.click();
@@ -221,13 +221,13 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// =========================================================================
 	// STEP 3: Send first user message
 	// =========================================================================
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type('What is 2 + 2?');
 	await takeStepScreenshot(page, '06-first-message-typed');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint('Sent first message: "What is 2 + 2?"');
@@ -242,7 +242,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 
 	// Wait for first AI response
 	logCheckpoint('Waiting for first AI response...');
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText('4', { timeout: 45000 });
 	await takeStepScreenshot(page, '08-first-response-received');
 	logCheckpoint('Received first AI response containing "4".');
@@ -364,13 +364,13 @@ test('message sync: verifies all messages are synced after sending multiple mess
 		await page.waitForTimeout(500);
 	}
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible();
 	
 	await activeChatItem.click({ button: 'right' });
 	await takeStepScreenshot(page, '13-context-menu');
 
-	const deleteButton = page.locator('.menu-item.delete');
+	const deleteButton = page.getByTestId('chat-context-delete');
 	await expect(deleteButton).toBeVisible();
 	await deleteButton.click(); // First click - enter confirm mode
 	await deleteButton.click(); // Second click - confirm deletion
@@ -406,19 +406,19 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	await page.waitForTimeout(3000);
 
 	// Start new chat
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) {
 		await newChatButton.click();
 		await page.waitForTimeout(2000);
 	}
 
 	// Send message
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type('Hello!');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint('Sent message.');
@@ -443,7 +443,7 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	console.log('📋 Message details after send:', JSON.stringify(stats.messageDetails, null, 2));
 
 	// Wait for AI response to be visible in UI
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	
 	// Wait for AI response to be saved to IndexedDB (at least 2 messages)
@@ -465,10 +465,10 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	expect(stats.messages_v).toBeGreaterThanOrEqual(stats.messageCount);
 
 	// Cleanup
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChatItem.isVisible()) {
 		await activeChatItem.click({ button: 'right' });
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 		if (await deleteButton.isVisible()) {
 			await deleteButton.click();
 			await deleteButton.click();

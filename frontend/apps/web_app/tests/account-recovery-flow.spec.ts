@@ -153,7 +153,7 @@ test('completes full account recovery flow with same password', async ({
 	await takeStepScreenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 	logRecoveryCheckpoint('Opened login dialog.');
@@ -183,7 +183,7 @@ test('completes full account recovery flow with same password', async ({
 	// ========================================================================
 	const cantLoginButton = page.getByRole('button', { name: /can.*login|kann.*nicht.*anmelden/i });
 	// Fallback: use the specific class if accessible name doesn't match
-	const cantLoginFallback = page.locator('.cant-login-button');
+	const cantLoginFallback = page.getByTestId('cant-login-button');
 	const cantLoginTarget = (await cantLoginButton.isVisible().catch(() => false))
 		? cantLoginButton
 		: cantLoginFallback;
@@ -286,7 +286,7 @@ test('completes full account recovery flow with same password', async ({
 	await takeStepScreenshot(page, 'password-filled');
 
 	// Submit password - button text depends on whether 2FA setup is needed
-	const continueOrCompleteButton = page.locator('.step-content button:not(.back-button)').filter({
+	const continueOrCompleteButton = page.locator('[data-testid="step-content"] button:not(.back-button)').filter({
 		hasText: /continue|complete.*reset/i
 	});
 	await continueOrCompleteButton.click();
@@ -305,7 +305,7 @@ test('completes full account recovery flow with same password', async ({
 	let activeTfaSecret: string = OPENMATES_TEST_ACCOUNT_OTP_KEY || '';
 
 	const tfaSetupVisible = await page
-		.locator('.tfa-setup-header')
+		.getByTestId('tfa-setup-header')
 		.isVisible({ timeout: 5000 })
 		.catch(() => false);
 
@@ -314,7 +314,7 @@ test('completes full account recovery flow with same password', async ({
 		await takeStepScreenshot(page, '2fa-setup');
 
 		// Get the 2FA secret from the page
-		const secretKeyElement = page.locator('.secret-key');
+		const secretKeyElement = page.getByTestId('secret-key');
 		await expect(secretKeyElement).toBeVisible();
 		const newTfaSecret = await secretKeyElement.textContent();
 		expect(newTfaSecret, 'Expected a 2FA secret on the setup page.').toBeTruthy();
@@ -341,13 +341,13 @@ test('completes full account recovery flow with same password', async ({
 		logRecoveryCheckpoint('Entered 2FA verification code.');
 
 		// Select a 2FA app
-		const appButton = page.locator('.app-item').first();
+		const appButton = page.getByTestId('app-item').first();
 		await appButton.click();
 		logRecoveryCheckpoint('Selected 2FA app.');
 		await takeStepScreenshot(page, '2fa-completed');
 
 		// Click "Complete reset"
-		const completeResetButton = page.locator('.step-content button:not(.back-button)').filter({
+		const completeResetButton = page.locator('[data-testid="step-content"] button:not(.back-button)').filter({
 			hasText: /complete.*reset/i
 		});
 		await completeResetButton.click();

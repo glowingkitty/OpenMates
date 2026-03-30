@@ -999,9 +999,12 @@
 
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && isAnimatingIn) handleClose(); }} />
+
 <div
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
+  data-testid="embed-fullscreen-overlay"
 >
   <div class="fullscreen-container">
 

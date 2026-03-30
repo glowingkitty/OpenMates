@@ -96,13 +96,13 @@ test.describe('Copy message with embeds', () => {
 
 		// ── Step 3: Wait for AI response with embed ────────────────
 		// Wait for an assistant message to appear (the AI response)
-		const assistantMessage = page.locator('.chat-message.assistant').last();
+		const assistantMessage = page.getByTestId('message-assistant').last();
 		await expect(assistantMessage).toBeVisible({ timeout: 60000 });
 		logCheckpoint('Assistant message appeared.');
 
 		// Wait for at least one embed preview card to appear in the response.
 		// Embed previews are rendered inside the message area as interactive cards.
-		const embedPreview = page.locator('.embed-preview-card, .unified-embed-preview, [data-embed-id]').first();
+		const embedPreview = page.locator('[data-testid="embed-preview"], [data-embed-id]').first();
 		try {
 			await expect(embedPreview).toBeVisible({ timeout: 30000 });
 			logCheckpoint('Embed preview card visible in AI response.');
@@ -121,7 +121,7 @@ test.describe('Copy message with embeds', () => {
 		logCheckpoint('Right-clicked on assistant message.');
 
 		// Click the "Copy" option in the message context menu
-		const copyButton = page.locator('.message-menu-button, [data-action="copy-message"]').filter({
+		const copyButton = page.locator('[data-testid="message-menu-button"], [data-action="copy-message"]').filter({
 			hasText: /copy/i
 		}).first();
 
