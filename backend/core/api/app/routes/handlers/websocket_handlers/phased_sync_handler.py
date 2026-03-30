@@ -782,12 +782,12 @@ async def _handle_phase3_sync(
     phase1_chat_ids: Optional[List[str]] = None
 ):
     """
-    Phase 3: Background message sync — chunked batches of 10 chats.
+    Phase 3: Background message + embed sync — chunked batches of 10 chats.
 
-    PERFORMANCE OVERHAUL: Sends messages for up to 100 chats in batches of 10,
+    Sends messages AND embeds for up to 100 chats in batches of 10,
     each as a separate WS message to avoid congestion. Skips Phase 1b chats
     (already sent) and chats where client version matches (delta sync).
-    No embeds — those are fetched on-demand when user opens a chat.
+    Embeds + embed_keys are included per batch so they're available offline in IndexedDB.
     """
     logger.info(f"Processing Phase 3 (background message sync) for user {user_id}")
     phase3_start = time.perf_counter()
@@ -836,9 +836,11 @@ async def _handle_phase3_sync(
 
         logger.info(f"Phase 3: {len(chats_needing_messages)} chats need message sync (delta-checked)")
 
-        # Send messages in chunked batches of 10
+        # Send messages + embeds in chunked batches of 10
+        import hashlib
         BATCH_SIZE = 10
         total_messages_sent = 0
+        total_embeds_sent = 0
         batch_num = 0
 
         for i in range(0, len(chats_needing_messages), BATCH_SIZE):
@@ -877,21 +879,74 @@ async def _handle_phase3_sync(
                 })
                 total_messages_sent += len(messages_data)
 
+            # Fetch embeds + embed_keys for this batch so they're available offline
+            batch_embeds: List[Dict[str, Any]] = []
+            batch_embed_keys: List[Dict[str, Any]] = []
+            batch_seen_embed_ids: set = set()
+            batch_seen_key_ids: set = set()
+            batch_hashed_ids: List[str] = []
+
+            for chat_id in batch_chat_ids:
+                hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                batch_hashed_ids.append(hashed_id)
+
+                try:
+                    raw_embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
+                    if not raw_embeds:
+                        raw_embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_id)
+                    if raw_embeds:
+                        for embed in raw_embeds:
+                            embed_id = embed.get("embed_id")
+                            embed_status = embed.get("status")
+                            if (embed_id and embed_id not in batch_seen_embed_ids
+                                    and embed_id not in sent_embed_ids
+                                    and embed_status not in ("error", "cancelled")):
+                                batch_embeds.append(embed)
+                                batch_seen_embed_ids.add(embed_id)
+                                sent_embed_ids.add(embed_id)
+                except Exception as e:
+                    logger.warning(f"Phase 3: Error fetching embeds for {chat_id}: {e}")
+
+            # Batch fetch embed_keys for this batch's chats
+            if batch_hashed_ids:
+                try:
+                    keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(batch_hashed_ids)
+                    if keys:
+                        for key_entry in keys:
+                            key_id = key_entry.get("id")
+                            if key_id and key_id not in batch_seen_key_ids:
+                                batch_embed_keys.append(key_entry)
+                                batch_seen_key_ids.add(key_id)
+                except Exception as e:
+                    logger.warning(f"Phase 3: Error batch fetching embed_keys: {e}")
+
+            total_embeds_sent += len(batch_embeds)
+
             # Send each batch as a separate WS message to avoid congestion
+            payload_data: Dict[str, Any] = {
+                "chats": batch_data,
+                "batch_number": batch_num,
+                "is_last_batch": (i + BATCH_SIZE >= len(chats_needing_messages))
+            }
+            # Only include embeds/keys if present (saves bandwidth for chats without embeds)
+            if batch_embeds:
+                payload_data["embeds"] = batch_embeds
+            if batch_embed_keys:
+                payload_data["embed_keys"] = batch_embed_keys
+
             await manager.send_personal_message(
                 {
                     "type": "background_message_sync",
-                    "payload": {
-                        "chats": batch_data,
-                        "batch_number": batch_num,
-                        "is_last_batch": (i + BATCH_SIZE >= len(chats_needing_messages))
-                    }
+                    "payload": payload_data
                 },
                 user_id,
                 device_fingerprint_hash
             )
 
-            logger.debug(f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats)")
+            logger.debug(
+                f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats, "
+                f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys)"
+            )
 
         # Clear sync cache after successful completion
         try:
@@ -909,7 +964,8 @@ async def _handle_phase3_sync(
         phase3_elapsed = time.perf_counter() - phase3_start
         logger.info(
             f"Phase 3 complete for user {user_id} in {phase3_elapsed:.3f}s: "
-            f"{len(chats_needing_messages)} chats, {total_messages_sent} messages in {batch_num} batches"
+            f"{len(chats_needing_messages)} chats, {total_messages_sent} messages, "
+            f"{total_embeds_sent} embeds in {batch_num} batches"
         )
 
     except Exception as e:
