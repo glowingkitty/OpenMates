@@ -124,6 +124,26 @@ class ChatMethods:
         self.directus_service = directus_service_instance
         # encryption_service and cache can be accessed via self.directus_service if needed
 
+    async def get_user_chat_count(self, user_id: str) -> int:
+        """
+        Returns the total number of chats for a user from Directus.
+        Uses aggregate count query for efficiency (no row data transferred).
+        """
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        params = {
+            'filter[hashed_user_id][_eq]': hashed_user_id,
+            'aggregate[count]': '*',
+        }
+        try:
+            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
+            if response and isinstance(response, list) and len(response) > 0:
+                count = response[0].get('count', 0)
+                return int(count)
+            return 0
+        except Exception as e:
+            logger.error(f"Error getting chat count for user {user_id[:8]}...: {e}", exc_info=True)
+            return 0
+
     async def get_chat_list_item_data_from_db(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetches the specific fields required for a chat list item directly from Directus.

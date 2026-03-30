@@ -14,7 +14,7 @@ Architecture:
 - Does NOT return messages (loaded on-demand via get_chat_messages)
 """
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from fastapi import WebSocket
 
@@ -53,7 +53,7 @@ async def handle_load_more_chats(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("load_more_chats", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -64,8 +64,8 @@ async def handle_load_more_chats(
         
             logger.info(f"Loading more chats for user {user_id[:8]}...: offset={offset}, limit={limit}")
         
-            # Get total chat count from Redis sorted set
-            total_count = await _get_total_chat_count(cache_service, user_id)
+            # Get total chat count (Redis + Directus fallback for accuracy)
+            total_count = await _get_total_chat_count(cache_service, user_id, directus_service)
         
             if total_count <= offset:
                 # No more chats available
@@ -175,18 +175,39 @@ async def handle_load_more_chats(
                 _end_span(_otel_span, _otel_token)
             except Exception:
                 pass
-async def _get_total_chat_count(cache_service: CacheService, user_id: str) -> int:
-    """Get the total number of chats for a user from the Redis sorted set."""
+async def _get_total_chat_count(
+    cache_service: CacheService,
+    user_id: str,
+    directus_service: Optional[DirectusService] = None,
+) -> int:
+    """Get the total number of chats for a user.
+
+    The Redis sorted set only contains cached entries (up to 100 from cache warming),
+    so zcard undercounts for users with >100 chats. When directus_service is provided,
+    we query Directus for the authoritative count and return the higher value.
+    """
+    redis_count = 0
     try:
         client = await cache_service.client
-        if not client:
-            return 0
-        key = cache_service._get_user_chat_ids_versions_key(user_id)
-        count = await client.zcard(key)
-        return count or 0
+        if client:
+            key = cache_service._get_user_chat_ids_versions_key(user_id)
+            redis_count = await client.zcard(key) or 0
     except Exception as e:
-        logger.error(f"Error getting total chat count for user {user_id[:8]}...: {e}")
-        return 0
+        logger.error(f"Error getting Redis chat count for user {user_id[:8]}...: {e}")
+
+    # Query Directus for the true total when available
+    if directus_service:
+        try:
+            db_count = await directus_service.chat.get_user_chat_count(user_id)
+            if db_count > redis_count:
+                logger.debug(
+                    f"Chat count for user {user_id[:8]}...: redis={redis_count}, db={db_count} (using db)"
+                )
+                return db_count
+        except Exception as e:
+            logger.warning(f"Error getting Directus chat count for user {user_id[:8]}...: {e}")
+
+    return redis_count
 
 
 def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versions) -> Dict[str, Any]:

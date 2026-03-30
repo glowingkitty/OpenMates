@@ -133,7 +133,7 @@ async def handle_phased_sync_request(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("phased_sync_request", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -656,20 +656,15 @@ async def _handle_phase2_sync(
         # Expand to 100 chats (was 20)
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
 
-        # Get total chat count for "Show more" button
-        total_chat_count = 0
-        try:
-            client = await cache_service.client
-            if client:
-                key = cache_service._get_user_chat_ids_versions_key(user_id)
-                total_chat_count = await client.zcard(key) or 0
-        except Exception as count_error:
-            logger.warning(f"Phase 2: Could not get total chat count: {count_error}")
+        # Get total chat count — uses Directus as authoritative source since
+        # the Redis sorted set only has ~100 entries from cache warming
+        from .load_more_chats_handler import _get_total_chat_count
+        total_chat_count = await _get_total_chat_count(cache_service, user_id, directus_service)
 
         logger.info(f"Phase 2: Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs (total: {total_chat_count})")
 
         if not cached_chat_ids:
-            logger.info(f"Phase 2: No cached chat IDs, falling back to Directus")
+            logger.info("Phase 2: No cached chat IDs, falling back to Directus")
             all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
                 user_id, limit=100
             )
@@ -810,7 +805,7 @@ async def _handle_phase3_sync(
                 cached_chat_ids = []
 
         if not cached_chat_ids:
-            logger.info(f"Phase 3: No chat IDs for background message sync")
+            logger.info("Phase 3: No chat IDs for background message sync")
             # Still trigger app settings sync
             try:
                 await _handle_app_settings_memories_sync(manager, directus_service, user_id, device_fingerprint_hash)
@@ -1089,7 +1084,7 @@ async def handle_sync_status_request(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("sync_status_request", user_id, payload, user_otel_attrs)
     except Exception:
         pass

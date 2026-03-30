@@ -72,7 +72,7 @@ async def handle_sync_metadata_chats(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("sync_metadata_chats", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -80,7 +80,7 @@ async def handle_sync_metadata_chats(
         try:
             existing_chat_ids = set(payload.get("existing_chat_ids", []))
 
-            total_count = await _get_total_chat_count(cache_service, user_id)
+            total_count = await _get_total_chat_count(cache_service, user_id, directus_service)
             metadata_chat_count = min(total_count - 100, MAX_METADATA_CHATS) if total_count > 100 else 0
 
             if metadata_chat_count <= 0:
