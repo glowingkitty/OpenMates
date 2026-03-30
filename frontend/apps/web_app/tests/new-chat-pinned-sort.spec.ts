@@ -200,7 +200,7 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await ensureSidebarOpen(page, logStep);
 
 	// Wait for chat items to populate after sync
-	const chatItemsLocator = page.locator('[data-testid="chat-item-wrapper"]');
+	const chatItemsLocator = page.locator('.chat-item-wrapper');
 	await expect(chatItemsLocator.first()).toBeVisible({ timeout: 20000 });
 	// Allow more items to load
 	await page.waitForTimeout(3000);
@@ -289,7 +289,7 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await ensureSidebarOpen(page, logStep);
 
 	// Find the chat again in sidebar
-	const cleanupChatItem = page.locator('[data-testid="chat-item-wrapper"]').filter({ hasText: targetTitle }).first();
+	const cleanupChatItem = page.locator('.chat-item-wrapper').filter({ hasText: targetTitle }).first();
 	await expect(cleanupChatItem).toBeVisible({ timeout: 10000 });
 	await togglePinViaContextMenu(page, cleanupChatItem, 'unpin', logStep);
 
