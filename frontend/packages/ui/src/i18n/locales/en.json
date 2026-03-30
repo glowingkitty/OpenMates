@@ -1315,6 +1315,14 @@
         }
       }
     },
+    "home": {
+      "search": {
+        "text": "Search",
+        "description": {
+          "text": "Search for apartments, houses, and rooms in Germany."
+        }
+      }
+    },
     "images": {
       "view": {
         "text": "Image",

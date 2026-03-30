@@ -1,0 +1,49 @@
+search:
+  context: Skill name for home search skill
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tim kiem
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sok
+  he: חיפוש
+  verified_by_human: [en, de]
+
+search.description:
+  context: Description for home search skill
+  en: Search for apartments, houses, and rooms in Germany.
+  de: Suche nach Wohnungen, Haeusern und Zimmern in Deutschland.
+  zh: 在德国搜索公寓、房屋和房间。
+  es: Buscar apartamentos, casas y habitaciones en Alemania.
+  fr: Rechercher des appartements, maisons et chambres en Allemagne.
+  pt: Pesquisar apartamentos, casas e quartos na Alemanha.
+  ru: Поиск квартир, домов и комнат в Германии.
+  ja: ドイツでアパート、住宅、部屋を検索。
+  ko: 독일에서 아파트, 주택, 방을 검색하세요.
+  it: Cerca appartamenti, case e stanze in Germania.
+  tr: Almanya'da daire, ev ve oda arayin.
+  vi: Tim kiem can ho, nha va phong tai Duc.
+  id: Cari apartemen, rumah, dan kamar di Jerman.
+  pl: Szukaj mieszkan, domow i pokoi w Niemczech.
+  nl: Zoek appartementen, huizen en kamers in Duitsland.
+  ar: ابحث عن شقق ومنازل وغرف في المانيا.
+  hi: जर्मनी में अपार्टमेंट, घर और कमरे खोजें।
+  th: ค้นหาอพาร์ทเมนต์ บ้าน และห้องในเยอรมนี
+  cs: Hledejte byty, domy a pokoje v Nemecku.
+  sv: Sok efter lagenheter, hus och rum i Tyskland.
+  he: חיפוש דירות, בתים וחדרים בגרמניה.
+  verified_by_human: [en, de]

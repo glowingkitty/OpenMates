@@ -1105,8 +1105,6 @@
     z-index: 100;
     display: flex;
     flex-direction: column;
-    /* Slide-up-from-bottom animation — starts off-screen at the bottom */
-    transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1);
     overflow: hidden;
     /* Promote to compositor layer before the slide-in fires so WebKit/iOS
        doesn't have to rasterize the full subtree (gradient header + blurred
@@ -1117,13 +1115,25 @@
     /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;
-    /* Initial (hidden) state: pushed below the visible area */
+    /* Initial (hidden) state: pushed below the visible area.
+       visibility:hidden ensures Playwright (and assistive tech) treats this
+       as non-visible once the slide-out transition finishes.  The transition
+       on visibility keeps it visible DURING the slide-out animation and flips
+       to hidden only at the end (CSS spec: visibility transitions step at the
+       end when going from visible → hidden). */
     transform: translateY(100%);
+    visibility: hidden;
+    transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1),
+                visibility 320ms step-end;
   }
 
   /* ── Expanded state: slide up to fill the container ── */
   .unified-embed-fullscreen-overlay.animating-in {
     transform: translateY(0);
+    visibility: visible;
+    /* Override: when opening, visibility must flip immediately (step-start) */
+    transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1),
+                visibility 0ms;
   }
 
   /* position: relative so EmbedTopBar (position: absolute) is contained here */

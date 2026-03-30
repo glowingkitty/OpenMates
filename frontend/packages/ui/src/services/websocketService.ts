@@ -1138,7 +1138,15 @@ class WebSocketService extends EventTarget {
         await this.connect(); // Wait for connection
       } catch (_error) {
         if (type !== "ping") {
-          console.error(
+          // Downgrade to warn when user is simply not authenticated — this is
+          // expected on public pages (embed showcase, demo chats) and should
+          // not pollute the console with error-level noise.
+          const isAuthExpected =
+            typeof _error === "string" &&
+            (_error === "User not authenticated" ||
+              _error === "Logout in progress");
+          const logFn = isAuthExpected ? console.warn : console.error;
+          logFn(
             "[WebSocketService] Connection failed, cannot send message:",
             message,
           );
