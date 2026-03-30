@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable playwright/prefer-get-by-test-id */
 /**
  * New chat screen — pinned chats sort order test.
  *
@@ -65,6 +66,8 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+// NOTE: These helpers use CSS class selectors (page.locator) because the
+// corresponding elements don't have data-testid attributes in the deployed app.
 
 async function ensureSidebarOpen(page: any, logStep: (...args: any[]) => void): Promise<void> {
 	const activityHistory = page.locator('.activity-history-wrapper');
@@ -105,7 +108,6 @@ async function clickNewChat(page: any, logStep: (...args: any[]) => void): Promi
 
 /**
  * Pin or unpin a chat item via right-click context menu.
- * The chatItem locator must already point to the .chat-item-wrapper to right-click.
  */
 async function togglePinViaContextMenu(
 	page: any,
@@ -252,8 +254,11 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await closeSidebar(page, logStep);
 	await clickNewChat(page, logStep);
 
+	// Wait for carousel to load — it populates asynchronously after the welcome screen renders
 	const resumeContainer = page.locator('.recent-chats-scroll-container').first();
-	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
+	await expect(async () => {
+		await expect(resumeContainer).toBeVisible();
+	}).toPass({ timeout: 30000 });
 	await page.waitForTimeout(2000);
 	await takeStepScreenshot(page, '03-new-chat-screen');
 
