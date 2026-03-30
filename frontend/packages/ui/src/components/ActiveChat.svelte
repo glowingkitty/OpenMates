@@ -9227,7 +9227,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         {/if}
         
         <div 
-            class="login-wrapper" 
+            class="login-wrapper"
+            data-testid="login-wrapper"
             in:fly={loginTransitionProps} 
             out:fade={{ duration: 200 }}
         >
@@ -9555,7 +9556,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 {#if meta.chat.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge" data-testid="resume-card-pin">
-                                                        <PinIcon size={14} color="white" />
+                                                        <PinIcon size={18} color="white" />
                                                     </div>
                                                 {/if}
                                                 <div class="resume-large-orbs" aria-hidden="true">
@@ -9601,7 +9602,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 {#if meta.chat.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
-                                                        <PinIcon size={12} color="white" />
+                                                        <PinIcon size={15} color="white" />
                                                     </div>
                                                 {/if}
                                                 <div class="resume-chat-compact-icon">
@@ -11571,15 +11572,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Pin badge — top-right corner of large and compact cards */
     .resume-card-pin-badge {
         position: absolute;
-        top: 10px;
-        right: 10px;
+        top: 12px;
+        right: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.22);
         backdrop-filter: blur(4px);
         z-index: 2;
     }
@@ -11588,8 +11589,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         top: 50%;
         right: 38px;
         transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
     }
 
     .resume-card-pin-badge :global(svg) {

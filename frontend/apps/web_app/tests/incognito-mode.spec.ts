@@ -53,7 +53,7 @@ const SELECTORS = {
 	messageEditor: '[data-testid="message-editor"]',
 	sendButton: '[data-action="send-message"]',
 	menuButton: '[data-testid="sidebar-toggle"]',
-	activityHistoryWrapper: '[data-testid="activity-history"]',
+	activityHistoryWrapper: '[data-testid="activity-history-wrapper"]',
 
 	// Settings
 	profileButton: '[data-testid="profile-picture"]',

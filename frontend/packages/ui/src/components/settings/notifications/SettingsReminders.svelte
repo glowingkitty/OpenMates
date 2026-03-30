@@ -200,7 +200,7 @@
 <SettingsPageContainer>
     <!-- Chat context: show which chat the reminder relates to -->
     {#if hasActiveChat}
-        <div class="chat-context">
+        <div class="chat-context" data-testid="chat-context">
             <div class="chat-context-icon">
                 <span class="icon reminder"></span>
             </div>

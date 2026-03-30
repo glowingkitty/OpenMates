@@ -172,7 +172,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
 />
 
 <!-- Compliance note — uses global .settings-note from settings.css -->
-<div class="settings-note">
+<div class="settings-note" data-testid="settings-note">
     <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
 </div>
 

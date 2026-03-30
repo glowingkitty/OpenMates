@@ -313,6 +313,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                             {#if !device.approved_at}
                                 <button
                                     class="btn btn-approve"
+                                    data-testid="device-approve-button"
                                     onclick={() => approveDevice(device.id)}
                                     disabled={processingDeviceId === device.id}
                                 >

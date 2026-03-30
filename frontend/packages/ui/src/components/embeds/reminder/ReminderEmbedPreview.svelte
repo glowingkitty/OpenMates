@@ -224,7 +224,7 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="reminder-preview" class:mobile={isMobileSnippet}>
+    <div class="reminder-preview" data-testid="reminder-embed-preview" class:mobile={isMobileSnippet}>
       {#if status === 'processing'}
         <!-- Processing state: show skeleton -->
         <div class="skeleton-content">

@@ -388,18 +388,18 @@
 <div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
     <!-- Top: "Release to finish" heading -->
     <div class="record-header">
-        <span class="release-text">{@html $text('enter_message.record_audio.release_to_finish')}</span>
+        <span class="release-text" data-testid="release-text">{@html $text('enter_message.record_audio.release_to_finish')}</span>
     </div>
 
     <!-- Bottom controls: timer | cancel hint | mic circle -->
     <div class="record-controls">
         <!-- Red timer pill -->
-        <div class="timer-pill">
+        <div class="timer-pill" data-testid="timer-pill">
             {formatTime(recordingTime)}
         </div>
 
         <!-- "← Slide left to cancel" hint, fades as user drags left -->
-        <div class="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
+        <div class="cancel-hint" data-testid="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
             <span class="cancel-arrow">‹</span>
             <span class="cancel-text">{@html $text('enter_message.record_audio.slide_left_to_cancel')}</span>
         </div>
@@ -407,6 +407,7 @@
         <!-- Green mic circle follows horizontal drag -->
         <div
             class="mic-button"
+            data-testid="mic-button"
             class:recording={isRecording}
             style="transform: translateX({Math.max(-120, dragOffsetX)}px)"
         >

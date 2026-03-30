@@ -408,7 +408,7 @@ When enabled, notifications are sent to the user's login email (from account set
     <!-- ================================================== -->
     <!-- EMAIL NOTIFICATIONS SECTION -->
     <!-- ================================================== -->
-    <div class="email-section">
+    <div class="email-section" data-testid="email-section">
         <SettingsSectionHeading
             title={$text('settings.chat.notifications.email_section')}
             icon="email"

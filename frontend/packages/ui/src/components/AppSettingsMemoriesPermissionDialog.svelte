@@ -219,7 +219,8 @@
         <!-- Action buttons -->
         <div class="dialog-actions">
             <button 
-                class="btn-include" 
+                class="btn-include"
+                data-testid="btn-include"
                 onclick={handleConfirm}
                 disabled={!hasSelection || $permissionDialogLoading}
             >

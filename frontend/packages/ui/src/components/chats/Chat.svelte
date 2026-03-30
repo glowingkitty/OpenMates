@@ -1970,7 +1970,7 @@
           <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
         </div>
       {:else}
-        <div class="chat-with-profile">
+        <div class="chat-with-profile" data-testid="chat-with-profile">
           <div class="mate-profiles-container">
             {#if selectMode}
               <!-- In select mode: show checkbox instead of category circle -->
@@ -2007,7 +2007,7 @@
                     {/if}
                   </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge">
+                      <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
@@ -2034,7 +2034,7 @@
                       <IconComponent size={16} color="white" />
                     </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge">
+                      <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
@@ -2069,7 +2069,7 @@
                       <LucideIcons.HelpCircle size={16} color="white" />
                     </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge">
+                      <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
@@ -2112,7 +2112,7 @@
                    "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
             {#if typingIndicatorInTitleView}
-              <span class="status-message typing-shimmer">
+              <span class="status-message typing-shimmer" data-testid="chat-typing-shimmer">
                 {#if activeSkillInfo}
                   <span class="skill-icon icon_rounded {activeSkillInfo.appId}"></span>
                 {/if}

@@ -642,7 +642,7 @@ Props:
                 
                 <div class="secret-container">
                     <p class="secret-label">{$text('settings.security.tfa_secret_key')}</p>
-                    <div class="secret-value">
+                    <div class="secret-value" data-testid="secret-value">
                         <code>{tfaSecret}</code>
                         <button class="copy-btn" onclick={copySecret}>
                             {showCopiedText ? $text('common.copied') : $text('common.copy')}
@@ -660,6 +660,7 @@ Props:
                         bind:value={verificationCode}
                         placeholder="000000"
                         disabled={isVerifying}
+                        dataTestid="otp-input"
                         hasError={!!errorMessage}
                         onInput={handleCodeInput}
                     />
@@ -792,7 +793,7 @@ Props:
         
     {:else if currentStep === 'success'}
         <!-- Success State -->
-        <div class="tfa-success">
+        <div class="tfa-success" data-testid="tfa-success">
             <div class="success-icon">
                 <span class="icon icon_check_circle"></span>
             </div>

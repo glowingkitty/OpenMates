@@ -165,7 +165,7 @@ async function ensureSidebarOpen(
 	logCheckpoint: (...args: any[]) => void
 ): Promise<void> {
 	// Check if sidebar is already open by looking for the Chats component's wrapper
-	const activityHistory = page.getByTestId('activity-history');
+	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (isSidebarVisible) {
 		logCheckpoint('[Sidebar] Already open.');
@@ -193,7 +193,7 @@ async function ensureSidebarClosed(
 	page: any,
 	logCheckpoint: (...args: any[]) => void
 ): Promise<void> {
-	const activityHistory = page.getByTestId('activity-history');
+	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarVisible) {
 		logCheckpoint('[Sidebar] Already closed.');

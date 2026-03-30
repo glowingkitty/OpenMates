@@ -846,7 +846,7 @@
 
   <!-- Warming Up Indicator -->
   {#if results.isWarmingUp}
-    <div class="warming-up">
+    <div class="warming-up" data-testid="warming-up">
       <span class="clickable-icon icon_reload syncing-icon"></span>
       <span class="warming-up-text">{$text('chats.search.indexing')}</span>
     </div>

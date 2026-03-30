@@ -83,7 +83,7 @@
         inputmode={inputmode}
         aria-label={ariaLabel || placeholder}
         aria-invalid={hasError || undefined}
-        data-testid={dataTestid || undefined}
+        data-testid={dataTestid || 'settings-input'}
         bind:this={inputRef}
         bind:value
         oninput={handleInput}

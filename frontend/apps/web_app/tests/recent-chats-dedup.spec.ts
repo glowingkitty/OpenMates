@@ -89,7 +89,7 @@ async function getSidebarChatTitles(
 ): Promise<string[]> {
 	// Open sidebar
 	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
-	const activityHistory = page.locator('.activity-history-wrapper');
+	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isSidebarOpen = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarOpen) {
 		await expect(menuToggle).toBeVisible({ timeout: 5000 });
@@ -152,7 +152,7 @@ async function clickNewChat(page: any, logStep: (...args: any[]) => void): Promi
  * Close the sidebar if it's open.
  */
 async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const activityHistory = page.locator('.activity-history-wrapper');
+	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isOpen = await activityHistory.isVisible().catch(() => false);
 	if (!isOpen) return;
 	// Try the dedicated Close button first, then the menu toggle (hamburger icon)
@@ -176,8 +176,8 @@ async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promi
  */
 async function getResumeCardTitle(page: any): Promise<string | null> {
 	// Try large card first, then compact card
-	const largeTitle = page.locator('.resume-large-title').first();
-	const compactTitle = page.locator('.resume-chat-title').first();
+	const largeTitle = page.getByTestId('resume-large-title').first();
+	const compactTitle = page.getByTestId('resume-chat-title').first();
 
 	if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
 		return (await largeTitle.textContent())?.trim() || null;
@@ -192,11 +192,11 @@ async function getResumeCardTitle(page: any): Promise<string | null> {
  * Get ALL card titles from the recent-chats-scroll-container (including resume card).
  */
 async function getAllRecentCardTitles(page: any): Promise<string[]> {
-	const container = page.locator('.recent-chats-scroll-container');
+	const container = page.getByTestId('recent-chats-scroll-container');
 	if (!(await container.isVisible({ timeout: 500 }).catch(() => false))) {
 		return [];
 	}
-	const titles = container.locator('.resume-large-title, .resume-chat-title');
+	const titles = container.locator('[data-testid="resume-large-title"], [data-testid="resume-chat-title"]');
 	const count = await titles.count();
 	const result: string[] = [];
 	for (let i = 0; i < count; i++) {
@@ -264,7 +264,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	await takeStepScreenshot(page, '02-new-chat-after-a');
 
 	// Wait for resume card to appear (loadResumeChatFromDB retries for up to 10s)
-	const resumeContainer = page.locator('.recent-chats-scroll-container');
+	const resumeContainer = page.getByTestId('recent-chats-scroll-container');
 	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
 
 	const resumeTitle1 = await getResumeCardTitle(page);

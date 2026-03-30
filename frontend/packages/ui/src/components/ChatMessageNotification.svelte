@@ -405,7 +405,7 @@
                 <div class="mate-profile notification-mate-profile {notification.category}"></div>
             {:else}
                 <!-- Default mate avatar with user icon -->
-                <div class="avatar-placeholder">
+                <div class="avatar-placeholder" data-testid="avatar-placeholder">
                     <span class="clickable-icon icon_user avatar-user-icon"></span>
                 </div>
                 <!-- AI sparkle badge (only for non-mate-profile avatars, mate-profile has its own badge) -->

@@ -56,7 +56,7 @@
 		<span class="avg">avg: {points.avgMs}ms</span>
 	</div>
 	{#if data.length > 1}
-		<svg viewBox="0 0 {WIDTH} {HEIGHT}" class="chart">
+		<svg viewBox="0 0 {WIDTH} {HEIGHT}" class="chart" data-testid="response-time-chart">
 			<!-- Y axis labels -->
 			{#each points.yLabels as label, i}
 				{@const y = PADDING.top + chartH - (i / (points.yLabels.length - 1)) * chartH}

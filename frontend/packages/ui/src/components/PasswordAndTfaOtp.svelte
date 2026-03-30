@@ -1015,7 +1015,7 @@
             <hr />
         </div>
         <div id="cant-login">
-            <button class="login-option-button cant-login-button" onclick={() => showAccountRecovery = true}>
+            <button class="login-option-button cant-login-button" data-testid="cant-login-button" onclick={() => showAccountRecovery = true}>
                 <span class="clickable-icon icon_warning"></span>
                 <mark>{$text('login.cant_login')}</mark>
             </button>

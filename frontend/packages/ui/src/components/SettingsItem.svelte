@@ -282,6 +282,7 @@
                     role="button" 
                     tabindex="0"
                     class="toggle-container"
+                    data-testid="toggle-container"
                 >
                     <Toggle 
                         checked={checked}

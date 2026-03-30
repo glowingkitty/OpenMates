@@ -2159,7 +2159,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
-      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
+      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
+      data-testid="{role === 'user' ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
       oncontextmenu={handleMessageContextMenu}

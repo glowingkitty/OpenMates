@@ -42,7 +42,7 @@
 	<button class="row" onclick={() => { if (service.response_times_7d) expanded = !expanded; }}>
 		<span class="dot" style:background={statusColor(service.status)}></span>
 		<span class="name" data-testid="service-name">{service.name}</span>
-		<span class="status-text" style:color={statusColor(service.status)}>{statusLabel(service.status)}</span>
+		<span class="status-text" data-testid="status-text" style:color={statusColor(service.status)}>{statusLabel(service.status)}</span>
 		<UptimeBar entries={service.uptime_90d} onDayClick={handleDayClick} />
 		<span class="pct">{service.uptime_pct}%</span>
 		{#if service.response_times_7d}

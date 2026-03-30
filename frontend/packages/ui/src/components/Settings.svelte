@@ -2355,6 +2355,7 @@ changes to the documentation (to keep the documentation up to date).
     	<div
 			id="settings-menu-toggle"
      		class="profile-container"
+    		data-testid="profile-container"
     		class:menu-open={isMenuVisible}
     		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
@@ -2374,7 +2375,7 @@ changes to the documentation (to keep the documentation up to date).
                 <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
                      new encrypted proxy endpoint works. Legacy https:// URLs are also
                      passed through by the profileImageService unchanged. -->
-                <div class="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
+                <div class="profile-picture" data-testid="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
                     {#if resolvedProfileImageBlobUrl}
                         <img class="profile-picture-avatar" src={resolvedProfileImageBlobUrl} alt="Profile" />
                     {:else}
@@ -2386,8 +2387,9 @@ changes to the documentation (to keep the documentation up to date).
     </div>
 
         <div class="close-icon-container" class:visible={isMenuVisible}>
-            <button 
+            <button
                 class="icon-button"
+                data-testid="icon-button-close"
                 aria-label={$text('settings.close_settings_menu')}
                 onclick={toggleMenu}
             >
@@ -2400,8 +2402,9 @@ changes to the documentation (to keep the documentation up to date).
 <!-- Dummy element to make linter recognize mobile-overlay class as used -->
 <div class="settings-menu mobile-overlay" style="display: none;"></div>
 
-<div 
-    class="settings-menu" 
+<div
+    class="settings-menu"
+    data-testid="settings-menu"
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
     class:mobile={$isMobileView}

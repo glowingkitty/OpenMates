@@ -56,7 +56,7 @@
 				</svg>
 			</div>
 			<div class="card-content">
-				<span class="card-title">{$text('documentation.api_reference')}</span>
+				<span class="card-title" data-testid="card-title">{$text('documentation.api_reference')}</span>
 				<span class="card-desc">Interactive Swagger UI</span>
 			</div>
 		</a>
@@ -77,7 +77,7 @@
 					{#if FolderCardIcon}<FolderCardIcon size={18} color="white" strokeWidth={2} />{/if}
 				</div>
 				<div class="card-content">
-					<span class="card-title">{folder.title}</span>
+					<span class="card-title" data-testid="card-title">{folder.title}</span>
 					<span class="card-desc"
 						>{$text('documentation.documents_count', { values: { count: fileCount } })}</span
 					>

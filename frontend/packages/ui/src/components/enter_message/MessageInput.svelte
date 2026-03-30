@@ -4429,6 +4429,7 @@
         {#if activeAITaskId || awaitingAITaskStart}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
+                data-testid="stop-processing-button"
                 onclick={handleCancelAITask}
                 use:tooltip
                 title={$text('common.stop')}

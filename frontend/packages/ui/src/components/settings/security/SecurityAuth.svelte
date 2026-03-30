@@ -599,7 +599,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 </div>
             {:else if show2FAInput}
                 <!-- 2FA Input -->
-                <div class="auth-2fa">
+                <div class="auth-2fa" data-testid="auth-2fa">
                     <p>{$text('settings.security.enter_2fa_code')}</p>
                     <SettingsInput
                         type="text"
@@ -639,7 +639,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 </div>
             {:else if showEmailOtpInput}
                 <!-- Email OTP Input -->
-                <div class="auth-email-otp">
+                <div class="auth-email-otp" data-testid="auth-email-otp">
                     {#if !emailOtpSent}
                         <p>{$text('settings.security.email_otp_description')}</p>
                         <button

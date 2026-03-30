@@ -744,7 +744,7 @@
 			{/each}
 		</nav>
 		<div class="toolbar-right">
-			<button class="theme-btn" onclick={toggleTheme} title="Toggle theme">
+			<button class="theme-btn" data-testid="theme-toggle-btn" onclick={toggleTheme} title="Toggle theme">
 				{$theme === 'light' ? '🌙' : '☀️'}
 			</button>
 			<div class="bg-group">
@@ -765,22 +765,22 @@
 	<!-- Scrollable content -->
 	<div class="showcase-body" style={backgroundStyle}>
 		{#if isUnknownApp}
-			<div class="unknown-app">
+			<div class="unknown-app" data-testid="unknown-app">
 				<h2>Unknown app: "{currentApp}"</h2>
 				<p>Available: {ALL_APPS.join(', ')}</p>
 			</div>
 		{:else}
 			<div class="app-heading">
-				<h1 class="app-title">{currentApp}</h1>
+				<h1 class="app-title" data-testid="app-title">{currentApp}</h1>
 				<span class="section-count">{sections.length} skill{sections.length !== 1 ? 's' : ''}</span>
 			</div>
 
 			{#each sections as section, si}
 				{@const s = loadedSections[si]}
 
-				<section class="skill-section">
+				<section class="skill-section" data-testid="skill-section">
 					<div class="skill-header">
-						<h2 class="skill-label">{section.skillLabel}</h2>
+						<h2 class="skill-label" data-testid="skill-label">{section.skillLabel}</h2>
 						{#if s && !s.isLoading && !s.loadError}
 							<div class="skill-actions">
 								{#if Object.keys(s.variants).length > 0}
@@ -813,9 +813,9 @@
 					</div>
 
 					{#if !s || s.isLoading}
-						<p class="section-loading">Loading {section.skillLabel}...</p>
+						<p class="section-loading" data-testid="section-loading">Loading {section.skillLabel}...</p>
 					{:else if s.loadError}
-						<p class="section-error">{s.loadError}</p>
+						<p class="section-error" data-testid="section-error">{s.loadError}</p>
 					{:else}
 						<!-- Props editor -->
 						{#if s.showPropsEditor}
@@ -841,7 +841,7 @@
 
 						<!-- 1. Inline Link (simulated) -->
 						<div class="dt">
-							<h3 class="dt-heading">Inline Link</h3>
+							<h3 class="dt-heading" data-testid="dt-heading">Inline Link</h3>
 							<div class="dt-body dt-body--inline">
 								<span class="inline-ctx">The assistant found </span>
 								<span class="fake-inline">
@@ -861,7 +861,7 @@
 
 						<!-- 2. Quote Block (simulated) -->
 						<div class="dt">
-							<h3 class="dt-heading">Quote Block</h3>
+							<h3 class="dt-heading" data-testid="dt-heading">Quote Block</h3>
 							<div class="dt-body">
 								<blockquote
 									class="fake-quote"
@@ -891,7 +891,7 @@
 							<!-- 3. Group — Small (horizontal scroll of all data variants) -->
 							{#if dataVars.length > 0}
 								<div class="dt">
-									<h3 class="dt-heading">
+									<h3 class="dt-heading" data-testid="dt-heading">
 										Group — Small <span class="size-hint"
 											>{dataVars.length} variant{dataVars.length !== 1 ? 's' : ''} · horizontal scroll</span
 										>
@@ -915,7 +915,7 @@
 								{@const slideIdx = s.largeSlideIndex}
 								{@const [, slideProps] = dataVars[slideIdx]}
 								<div class="dt">
-									<h3 class="dt-heading">
+									<h3 class="dt-heading" data-testid="dt-heading">
 										Group — Large <span class="size-hint"
 											>{dataVars.length} variants · slideshow</span
 										>
@@ -966,7 +966,7 @@
 							{@const [_fsVname, fsProps] = dataVars2[fsIdx]}
 							{@const fsTotal = dataVars2.length}
 							<div class="dt">
-								<h3 class="dt-heading">
+								<h3 class="dt-heading" data-testid="dt-heading">
 									Fullscreen <span class="size-hint"
 										>clipped inline · {fsTotal} variant{fsTotal !== 1 ? 's' : ''}</span
 									>
@@ -987,7 +987,7 @@
 											{/each}
 										</div>
 									{/if}
-									<div class="fs-clip">
+									<div class="fs-clip" data-testid="fs-clip">
 										{#key fsIdx}
 											<Fullscreen
 												{...fsProps}

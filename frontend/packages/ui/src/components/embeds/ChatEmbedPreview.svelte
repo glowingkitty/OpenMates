@@ -183,7 +183,7 @@
     {/if}
 
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    <span class="card-title">{@html title}</span>
+    <span class="card-title" data-testid="card-title">{@html title}</span>
 
     {#if previewText}
       <p class="card-summary">{previewText}</p>

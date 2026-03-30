@@ -3625,7 +3625,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		{/if}
 		
 		{#if !allChats || allChats.length === 0}
-			<div class="no-chats-indicator">{$text('activity.no_chats')}</div>
+			<div class="no-chats-indicator" data-testid="no-chats-indicator">{$text('activity.no_chats')}</div>
 		{:else}
 			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
 			{#if hiddenChatState.isUnlocked}

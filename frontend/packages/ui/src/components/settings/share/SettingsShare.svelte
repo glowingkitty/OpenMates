@@ -1726,6 +1726,7 @@
                 {#each durationOptions as option}
                     <button
                         class="duration-option"
+                        data-testid="duration-option"
                         class:selected={selectedDuration === option.value}
                         class:disabled={isTimeLimitDisabled}
                         onclick={() => {
@@ -1841,6 +1842,7 @@
                             {#each shortLinkTtlOptions as option}
                                 <button
                                     class="short-link-ttl-option"
+                                    data-testid="short-link-ttl-option"
                                     class:selected={shortLinkTtl === option.value}
                                     onclick={() => { shortLinkTtl = option.value; }}
                                 >

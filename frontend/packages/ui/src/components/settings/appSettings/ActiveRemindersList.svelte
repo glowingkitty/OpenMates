@@ -235,6 +235,7 @@
                                 <div class="edit-actions">
                                     <button
                                         class="btn-save"
+                                        data-testid="btn-save"
                                         disabled={editSaving || !editDate || !editTime}
                                         onclick={() => saveEdit(reminder.reminder_id)}
                                     >

@@ -126,7 +126,7 @@
             <div class="banner-content">
                 <span class="clickable-icon icon_announcement banner-icon"></span>
                 <div class="banner-text">
-                    <span class="banner-title">
+                    <span class="banner-title" data-testid="banner-title">
                         {$text('notifications.push.banner_title')}
                     </span>
                     <span class="banner-subtitle">

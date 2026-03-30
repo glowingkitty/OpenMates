@@ -294,6 +294,7 @@
                             {@const avatarUrl = resolvedProfileImageUrl ?? (profileImageUrl?.startsWith('http') ? profileImageUrl : null)}
                             <div
                                 class="profile-picture"
+                                data-testid="profile-picture"
                                 class:profile-picture-img={!!avatarUrl}
                             >
                                 {#if avatarUrl}
