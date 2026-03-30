@@ -640,9 +640,13 @@
    */
   async function handleLoadBookingLink() {
     if (!connection.booking_token || bookingState === 'loading') return;
-    
+
+    // Debug: trace booking_context availability
+    console.debug('[TravelConnectionEmbedFullscreen] booking_context:', connection.booking_context);
+    console.debug('[TravelConnectionEmbedFullscreen] connection keys:', Object.keys(connection));
+
     bookingState = 'loading';
-    
+
     try {
       const response = await fetch(getApiEndpoint('/v1/apps/travel/booking-link'), {
         method: 'POST',
