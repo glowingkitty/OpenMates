@@ -200,10 +200,29 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		expect(isNotTruncated).toBe(true);
 		logCheckpoint(`Carrier text: "${carrierText}" (not truncated: ${isNotTruncated})`);
 
-		// Booking CTA button should exist in fullscreen header
+		// Booking CTA button should exist and be clickable
 		const bookingCta = page.getByTestId('booking-cta');
 		await expect(bookingCta).toBeVisible({ timeout: 5000 });
-		logCheckpoint('Booking CTA button visible.');
+		const ctaText = await bookingCta.textContent();
+		logCheckpoint(`Booking CTA: "${ctaText}"`);
+
+		// Click the booking button and verify it transitions (loading spinner or loaded state)
+		// Listen for the booking-link network request to confirm booking_context is sent
+		const bookingRequest = page.waitForRequest(
+			(req: any) => req.url().includes('/v1/apps/travel/booking-link') && req.method() === 'POST',
+			{ timeout: 10000 }
+		);
+		await bookingCta.click();
+		const req = await bookingRequest;
+		const body = req.postDataJSON();
+		expect(body.booking_token).toBeTruthy();
+		expect(body.booking_context).toBeTruthy();
+		expect(body.booking_context.departure_id).toBeTruthy();
+		logCheckpoint(`Booking request sent with context: departure_id=${body.booking_context.departure_id}, arrival_id=${body.booking_context.arrival_id}`);
+
+		// Wait for response (loaded or error — either means the request completed)
+		await page.waitForTimeout(3000);
+		await takeStepScreenshot(page, 'booking-button-clicked');
 
 		await takeStepScreenshot(page, 'flight-details-card-verified');
 
