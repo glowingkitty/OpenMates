@@ -199,15 +199,19 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	logStep('Phase 2: Finding a chat to pin...');
 	await ensureSidebarOpen(page, logStep);
 
-	const chatItems = page.locator('[data-testid="chat-item"]');
-	const chatCount = await chatItems.count();
+	// Wait for chat items to populate after sync
+	const chatItemsLocator = page.locator('[data-testid="chat-item-wrapper"]');
+	await expect(chatItemsLocator.first()).toBeVisible({ timeout: 20000 });
+	// Allow more items to load
+	await page.waitForTimeout(3000);
+
+	const chatCount = await chatItemsLocator.count();
 	logStep(`Sidebar shows ${chatCount} chats.`);
 	expect(chatCount).toBeGreaterThanOrEqual(3);
 
 	// Pick the 3rd chat (unlikely to be resume card)
 	const targetIndex = 2;
-	const targetChatItem = chatItems.nth(targetIndex);
-	const targetWrapper = targetChatItem.locator('..').locator('.chat-item-wrapper').first();
+	const targetChatItem = chatItemsLocator.nth(targetIndex);
 	const targetTitle = (await targetChatItem.locator('.chat-title').textContent())?.trim() || '';
 	logStep(`Target chat to pin: "${targetTitle}" (index ${targetIndex})`);
 	expect(targetTitle).toBeTruthy();
@@ -285,7 +289,7 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	await ensureSidebarOpen(page, logStep);
 
 	// Find the chat again in sidebar
-	const cleanupChatItem = page.locator('[data-testid="chat-item"]').filter({ hasText: targetTitle }).first();
+	const cleanupChatItem = page.locator('[data-testid="chat-item-wrapper"]').filter({ hasText: targetTitle }).first();
 	await expect(cleanupChatItem).toBeVisible({ timeout: 10000 });
 	await togglePinViaContextMenu(page, cleanupChatItem, 'unpin', logStep);
 

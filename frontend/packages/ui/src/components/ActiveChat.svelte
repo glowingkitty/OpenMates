@@ -9203,6 +9203,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
 <div
     class="active-chat-container"
+    data-testid="active-chat-container"
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
     class:ai-typing={isAssistantTyping}
     class:dimmed={isDimmed}
@@ -9754,8 +9755,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Right side container for message input -->
                 <div class="message-input-wrapper">
                     {#if typingIndicatorLines.length > 0}
-                        <div 
+                        <div
                             class="typing-indicator"
+                            data-testid="typing-indicator"
                             class:status-sending={typingIndicatorStatusType === 'sending'}
                             class:status-processing={typingIndicatorStatusType === 'processing'}
                             class:status-typing={typingIndicatorStatusType === 'typing'}
