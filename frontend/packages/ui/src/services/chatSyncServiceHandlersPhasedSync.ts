@@ -302,6 +302,22 @@ export async function handlePhase3FullSyncImpl(
         },
       }),
     );
+
+    // Trigger metadata sync for chats 101–1000 if the user has more than 100 chats.
+    // This runs after Phase 3 so the sidebar can display up to 1000 chat titles
+    // and search can index them. Metadata-only chats are stored in IndexedDB (no messages).
+    if (total_chat_count && total_chat_count > 100) {
+      try {
+        const existingIds = await chatDB.getMetadataOnlyChatIds();
+        console.info(
+          `[ChatSyncService] Phase 3: Triggering metadata sync for chats 101–1000 ` +
+          `(total=${total_chat_count}, existing_metadata=${existingIds.length})`
+        );
+        await serviceInstance.sendSyncMetadataChats(existingIds);
+      } catch (err) {
+        console.error("[ChatSyncService] Failed to trigger metadata sync after Phase 3:", err);
+      }
+    }
   } catch (error) {
     console.error(
       "[ChatSyncService] Error handling Phase 3 completion:",

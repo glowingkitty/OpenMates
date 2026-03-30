@@ -6954,6 +6954,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.debug(`[ActiveChat] Database unavailable for messages, using empty array:`, error);
                     newMessages = [];
                 }
+
+                // On-demand message loading: if this chat has no messages locally (metadata-only
+                // or older chat not in IndexedDB), request messages from the server.
+                // The server response (chat_content_batch_response) saves messages to IndexedDB
+                // and dispatches chatUpdated with messagesUpdated=true, which triggers
+                // handleChatUpdated to reload messages from IDB into the view.
+                if (newMessages.length === 0 && currentChat.chat_id && !isDemoChat(currentChat.chat_id)) {
+                    console.info(`[ActiveChat] No local messages for ${currentChat.chat_id} — requesting from server (on-demand loading)`);
+                    try {
+                        await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([currentChat.chat_id]);
+                    } catch (err) {
+                        console.error(`[ActiveChat] Failed to request messages from server for ${currentChat.chat_id}:`, err);
+                    }
+                }
             }
         }
         

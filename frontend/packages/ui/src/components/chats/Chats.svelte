@@ -75,12 +75,12 @@ let _chatUpdatedFlushPending = false;
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
-	// Phased Loading State — 3-tier progressive display:
-	// Tier 1 ('initial'): Show first 11 chats (10 recent + 1 last-opened, matching Phase 1a)
-	// Tier 2 ('all_local'): Show all ~100 chats from IndexedDB (after user clicks "Show more")
-	// Tier 3 ('loading_server'): Fetching additional older chats from server on demand
+	// Phased Loading State — progressive display with incremental pagination:
+	// Display starts at 11 user chats, each "Show more" click reveals 20 more.
+	// When all local chats (from IndexedDB) are shown, server pagination kicks in.
+	// loadTier tracks server fetch state: 'initial'→'all_local'→'loading_server'
 	let loadTier: 'initial' | 'all_local' | 'loading_server' = $state('initial');
-	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond initial 100, in-memory only (NOT in IndexedDB)
+	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond IndexedDB, in-memory only
 	let hasMoreOnServer = $state(false); // Whether the server has more chats beyond what's been loaded
 	let serverPaginationOffset = $state(100); // Next offset for fetching older chats from server
 	let loadingMoreChats = $state(false); // True while a "load more" request is in-flight
@@ -564,18 +564,19 @@ let _chatUpdatedFlushPending = false;
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
 	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'legal'];
 
-	// Display limit for tier 1: matches Phase 1a (10 recent + 1 last-opened).
+	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
 	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
-	const TIER_1_USER_CHAT_LIMIT = 11;
+	const INITIAL_USER_CHAT_LIMIT = 11;
+	// Each "Show more" click adds this many chats to the visible limit
+	const SHOW_MORE_INCREMENT = 20;
 
-	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
-	// Tier 1 ('initial'): Show first 11 USER chats (matching Phase 1a), plus all static chats
-	// Tier 2+ ('all_local', 'loading_server'): Show all chats (IndexedDB + server-loaded)
+	// Progressive display limit for user chats. Starts at 11, increases by 20 per click.
+	// Static chats (intro, examples, legal) are always shown regardless of this limit.
+	let visibleUserChatLimit = $state(INITIAL_USER_CHAT_LIMIT);
+
+	// Apply display limit for progressive loading.
+	// User chats are capped at visibleUserChatLimit; static chats always shown.
 	let chatsForDisplay = $derived((() => {
-		if (loadTier !== 'initial') {
-			return sortedAllChatsFiltered;
-		}
-		// Tier 1: Separate user chats from static chats, limit only user chats
 		const userChats: ChatType[] = [];
 		const staticChats: ChatType[] = [];
 		for (const chat of sortedAllChatsFiltered) {
@@ -585,24 +586,21 @@ let _chatUpdatedFlushPending = false;
 				userChats.push(chat);
 			}
 		}
-		return [...userChats.slice(0, TIER_1_USER_CHAT_LIMIT), ...staticChats];
+		return [...userChats.slice(0, visibleUserChatLimit), ...staticChats];
 	})());
 
-	// Determine if "Show more" button should be visible
-	// Tier 1 ('initial'): Show if there are more user chats than the tier 1 limit
-	// Tier 2 ('all_local'): Show if server has more chats beyond what's loaded
-	// Tier 3 ('loading_server'): Keep visible (disabled) while fetching
+	// Determine if "Show more" button should be visible.
+	// Show when there are more user chats locally than currently displayed,
+	// OR when the server has more chats that haven't been loaded yet.
 	let showMoreButtonVisible = $derived((() => {
-		if (loadTier === 'initial') {
-			const userChatCount = sortedAllChatsFiltered.filter(
-				c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-			).length;
-			return userChatCount > TIER_1_USER_CHAT_LIMIT;
-		}
-		if (loadTier === 'loading_server') {
-			return true; // Keep button visible while loading
-		}
-		// 'all_local' — show if server has more chats
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length;
+		// More local chats to show
+		if (totalUserChats > visibleUserChatLimit) return true;
+		// Loading from server in progress
+		if (loadTier === 'loading_server') return true;
+		// Server has more chats beyond what we've loaded locally
 		return hasMoreOnServer;
 	})());
 
@@ -1143,25 +1141,29 @@ let _chatUpdatedFlushPending = false;
 	}
 
 	/**
-	 * Handles "Show more" button click — 3-tier progressive loading:
-	 * Tier 1 → 2: Expands from 11 to all ~100 local chats from IndexedDB
-	 * Tier 2 → 3: Requests additional older chats from the server (20 at a time, in-memory only)
+	 * Handles "Show more" button click — incremental progressive loading:
+	 * 1. Increase visible limit by 20 to show more local chats from IndexedDB
+	 * 2. If all local chats are already shown and server has more, fetch 20 from server
 	 */
 	const handleShowMoreClick = async () => {
-		if (loadTier === 'initial') {
-			// Tier 1 → Tier 2: Show all local chats
-			loadTier = 'all_local';
-			console.debug('[Chats] User clicked "Show more" — expanding to show all local chats.');
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length;
+
+		// If there are more local chats to reveal, just increase the limit
+		if (visibleUserChatLimit < totalUserChats) {
+			visibleUserChatLimit += SHOW_MORE_INCREMENT;
+			console.debug(`[Chats] Show more: increased limit to ${visibleUserChatLimit} (${totalUserChats} local user chats available).`);
 			return;
 		}
 
-		// Tier 2 → Tier 3: Fetch older chats from server
+		// All local chats are shown — fetch more from server if available
 		if (hasMoreOnServer && !loadingMoreChats) {
 			loadingMoreChats = true;
 			loadTier = 'loading_server';
-			console.debug(`[Chats] User clicked "Show more" — requesting older chats from server (offset=${serverPaginationOffset}).`);
+			console.debug(`[Chats] Show more: requesting older chats from server (offset=${serverPaginationOffset}).`);
 			try {
-				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, 20);
+				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, SHOW_MORE_INCREMENT);
 			} catch (error) {
 				console.error('[Chats] Error requesting more chats:', error);
 				loadingMoreChats = false;
@@ -1199,6 +1201,40 @@ let _chatUpdatedFlushPending = false;
 		serverPaginationOffset = offset + chats.length;
 		loadingMoreChats = false;
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
+
+		// Increase visible limit to include the newly loaded server chats
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length + (chats.length);
+		if (visibleUserChatLimit < totalUserChats) {
+			visibleUserChatLimit = totalUserChats;
+		}
+	};
+
+	/**
+	 * Handles 'metadata_chats_ready' events from chatSyncService.
+	 * These are metadata-only chats (positions 101–1000) now saved to IndexedDB.
+	 * Refresh the chat list so they appear in the sidebar.
+	 */
+	const handleMetadataChatsReadyEvent = async (event: CustomEvent<{
+		chat_count: number;
+		total_count: number;
+	}>) => {
+		const { chat_count, total_count } = event.detail;
+		console.info(`[Chats] Metadata chats ready: ${chat_count} chats saved to IndexedDB (total=${total_count}).`);
+
+		if (chat_count > 0) {
+			// Update total count and pagination state
+			if (total_count > 0) {
+				totalServerChatCount = total_count;
+				hasMoreOnServer = total_count > 1000; // Beyond 1000, server pagination needed
+				serverPaginationOffset = Math.min(total_count, 1000); // Next offset after metadata chats
+			}
+
+			// Refresh chat list from IndexedDB to include newly saved metadata chats
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+		}
 	};
 
 	/**
@@ -1519,6 +1555,7 @@ let _chatUpdatedFlushPending = false;
 			
 			// Reset display state to show all demo chats
 			loadTier = 'all_local';
+			visibleUserChatLimit = INITIAL_USER_CHAT_LIMIT;
 			olderChatsFromServer = [];
 			hasMoreOnServer = false;
 			serverPaginationOffset = 100;
@@ -1610,6 +1647,7 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.addEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
+		chatSyncService.addEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -1977,6 +2015,7 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.removeEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
+		chatSyncService.removeEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -3792,6 +3831,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
+							data-testid="show-more-chats"
 							disabled={loadingMoreChats}
 							onclick={handleShowMoreClick}
 						>
