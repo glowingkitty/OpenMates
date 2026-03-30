@@ -180,7 +180,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 
 	// Wait for reconnect and sync - the AI response should eventually arrive
 	logCheckpoint('Waiting for AI response to arrive after reconnect...');
-	await expect(assistantMessage.last()).toContainText(/\w{20,}/, { timeout: 60000 });
+	await expect(assistantMessage.last()).toContainText(/(\w+\s*){5,}/, { timeout: 60000 });
 	await takeStepScreenshot(page, 'response-recovered');
 	logCheckpoint('AI response recovered after connection drop.');
 

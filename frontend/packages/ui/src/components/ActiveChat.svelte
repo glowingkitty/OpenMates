@@ -9286,6 +9286,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <button
                                         class="new-chat-cta-button"
                                         data-action="new-chat"
+                                        data-testid="new-chat-button"
                                         aria-label={$text('common.new_chat')}
                                         onclick={handleNewChatClick}
                                         in:fade={{ duration: 300 }}

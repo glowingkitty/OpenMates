@@ -276,7 +276,7 @@ test.describe('Status page — service groups', () => {
 
 		// Status labels — "Operational" appears multiple times, just verify at least one
 		await expect(page.getByText('Operational').first()).toBeVisible();
-		await expect(page.getByText('Degraded')).toBeVisible();
+		await expect(page.locator('.status-text', { hasText: 'Degraded' })).toBeVisible();
 
 		// Uptime percentages
 		await expect(page.getByText('99.9%').first()).toBeVisible();
