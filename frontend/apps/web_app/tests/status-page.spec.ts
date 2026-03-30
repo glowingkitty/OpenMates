@@ -271,12 +271,12 @@ test.describe('Status page — service groups', () => {
 
 		// AI Providers services — use .name selector to avoid strict mode violations
 		// (service names also appear in the incidents section)
-		await expect(page.locator('.name', { hasText: 'Anthropic' })).toBeVisible();
-		await expect(page.locator('.name', { hasText: 'Groq' })).toBeVisible();
+		await expect(page.getByTestId('service-name').filter({ hasText: 'Anthropic' })).toBeVisible();
+		await expect(page.getByTestId('service-name').filter({ hasText: 'Groq' })).toBeVisible();
 
 		// Status labels — "Operational" appears multiple times, just verify at least one
 		await expect(page.getByText('Operational').first()).toBeVisible();
-		await expect(page.locator('.status-text', { hasText: 'Degraded' })).toBeVisible();
+		await expect(page.getByTestId('status-text').filter({ hasText: 'Degraded' })).toBeVisible();
 
 		// Uptime percentages
 		await expect(page.getByText('99.9%').first()).toBeVisible();
@@ -320,7 +320,7 @@ test.describe('Status page — response time chart', () => {
 		await expect(page.getByText(/avg: \d+ms/)).toBeVisible();
 
 		// SVG chart should be rendered
-		await expect(page.locator('svg.chart')).toBeVisible();
+		await expect(page.getByTestId('response-time-chart')).toBeVisible();
 	});
 
 	test('clicking a service without response_times_7d does not expand a chart', async ({
@@ -354,9 +354,9 @@ test.describe('Status page — E2E tests section', () => {
 
 		// Use .cat-name selectors to avoid strict mode violations —
 		// "Chat" appears in both the category name and individual spec names
-		await expect(page.locator('.cat-name', { hasText: 'Chat' })).toBeVisible();
-		await expect(page.locator('.cat-name', { hasText: 'Payment' })).toBeVisible();
-		await expect(page.locator('.cat-name', { hasText: 'Signup' })).toBeVisible();
+		await expect(page.getByTestId('cat-name').filter( { hasText: 'Chat' })).toBeVisible();
+		await expect(page.getByTestId('cat-name').filter( { hasText: 'Payment' })).toBeVisible();
+		await expect(page.getByTestId('cat-name').filter( { hasText: 'Signup' })).toBeVisible();
 	});
 
 	test('categories with failures are auto-expanded and show FAILED badges', async ({
@@ -370,7 +370,7 @@ test.describe('Status page — E2E tests section', () => {
 		// "Chat" category has 1 failure — should be auto-expanded,
 		// meaning its test specs are visible without clicking
 		await expect(page.getByText('message-sync')).toBeVisible();
-		const failedBadges = page.locator('.badge-failed');
+		const failedBadges = page.getByTestId('badge-failed');
 		// Two failed tests total: message-sync (Chat) and saved-payment-invoice (Payment)
 		await expect(failedBadges).toHaveCount(2);
 

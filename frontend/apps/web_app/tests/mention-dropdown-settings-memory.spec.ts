@@ -76,13 +76,13 @@ async function openSettings(
 	takeStepScreenshot: (page: any, label: string) => Promise<void>
 ): Promise<void> {
 	// Find the profile picture / settings button
-	const settingsButton = page.locator('.profile-picture').first();
+	const settingsButton = page.getByTestId('profile-picture').first();
 	await expect(settingsButton).toBeVisible({ timeout: 10000 });
 	await settingsButton.click();
 	logCheckpoint('Clicked profile/settings button to open settings menu.');
 
 	// Wait for the settings menu to appear
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Settings menu is visible.');
 	await takeStepScreenshot(page, 'settings-open');
@@ -96,8 +96,7 @@ async function closeSettings(
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
 	const closeButton = page
-		.locator('.icon-button')
-		.filter({ has: page.locator('.icon_close') })
+		.getByTestId('icon-button-close')
 		.first();
 	if (await closeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await closeButton.click();
@@ -162,11 +161,11 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// STEP 3: Navigate to App Store
 	// ======================================================================
 	logCheckpoint('Navigating to App Store...');
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 
 	// Click on "App Store" menu item (it's a SettingsItem with .menu-item class)
 	const appStoreItem = settingsMenu
-		.locator('.menu-item')
+		.getByTestId('menu-item')
 		.filter({ hasText: /app store/i })
 		.first();
 	await expect(appStoreItem).toBeVisible({ timeout: 10000 });
@@ -182,7 +181,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	logCheckpoint('Navigating to Show all apps...');
 	// "Show all apps" is a SettingsItem with .menu-item and text "Show all apps"
 	const showAllAppsItem = settingsMenu
-		.locator('.menu-item')
+		.getByTestId('menu-item')
 		.filter({ hasText: /show all apps/i })
 		.first();
 	await expect(showAllAppsItem).toBeVisible({ timeout: 10000 });
@@ -199,8 +198,8 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	logCheckpoint('Looking for Travel app card...');
 	// AppStoreCard renders with class .app-store-card and h3.app-card-name
 	const travelAppCard = settingsMenu
-		.locator('.app-store-card')
-		.filter({ has: page.locator('.app-card-name', { hasText: /^Travel$/i }) })
+		.getByTestId('app-store-card')
+		.filter({ has: page.getByTestId('app-card-name').filter({ hasText: /^Travel$/i }) })
 		.first();
 	await expect(travelAppCard).toBeVisible({ timeout: 10000 });
 	await travelAppCard.click();
@@ -217,8 +216,8 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// Find the Trips card - the card name comes from the name_translation_key "app_settings_memories.travel.trips"
 	// which translates to "Trips" in English
 	const tripsCard = settingsMenu
-		.locator('.app-store-card')
-		.filter({ has: page.locator('.app-card-name', { hasText: /^Trips$/i }) })
+		.getByTestId('app-store-card')
+		.filter({ has: page.getByTestId('app-card-name').filter({ hasText: /^Trips$/i }) })
 		.first();
 	await expect(tripsCard).toBeVisible({ timeout: 10000 });
 	await tripsCard.click();
@@ -233,7 +232,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// The AppSettingsMemoriesCategory component shows a SettingsItem with title "Add entry"
 	const addEntryButton = settingsMenu
-		.locator('.menu-item')
+		.getByTestId('menu-item')
 		.filter({ hasText: /add entry/i })
 		.first();
 	await expect(addEntryButton).toBeVisible({ timeout: 10000 });
@@ -286,7 +285,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 		// Dump page content for debugging
 		const formContent = await settingsMenu
-			.locator('.form-container, .app-settings-memories-create')
+			.locator('[data-testid="form-container"], [data-testid="app-settings-memories-create"]')
 			.first()
 			.textContent()
 			.catch(() => 'not found');
@@ -319,7 +318,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 		.first();
 
 	// Alternatively, look for any button in the form-actions area
-	const formActions = settingsMenu.locator('.form-actions button').last();
+	const formActions = settingsMenu.locator('[data-testid="form-actions"] button').last();
 
 	const submitVisible = await submitButton.isVisible({ timeout: 3000 }).catch(() => false);
 	const formActionsVisible = await formActions.isVisible({ timeout: 3000 }).catch(() => false);
@@ -372,7 +371,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// After creating, the form dispatches 'openSettings' back to the category page
 	// The category page should now show the new entry
 	const tripEntry = settingsMenu
-		.locator('.menu-item')
+		.getByTestId('menu-item')
 		.filter({ hasText: TRIP_DESTINATION })
 		.first();
 	await expect(tripEntry).toBeVisible({ timeout: 15000 });
@@ -391,7 +390,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	logCheckpoint('Testing @ mention dropdown with "trips" query...');
 
 	// Click on the message editor
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
 
@@ -400,7 +399,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	logCheckpoint('Typed "@trips" in message editor.');
 
 	// Wait for the mention dropdown to appear
-	const mentionDropdown = page.locator('.mention-dropdown');
+	const mentionDropdown = page.getByTestId('mention-dropdown');
 	await expect(mentionDropdown).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Mention dropdown is visible.');
 	await takeStepScreenshot(page, 'mention-dropdown-trips-query');
@@ -414,7 +413,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// The result will have a .result-name showing the translated "Trips" name
 	// and the expand button showing the entry count
 	const tripsResult = mentionDropdown
-		.locator('.mention-result')
+		.locator('[data-testid="mention-result"]')
 		.filter({ hasText: /trips/i })
 		.first();
 	await expect(tripsResult).toBeVisible({ timeout: 10000 });
@@ -424,13 +423,13 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// Verify it's a settings_memory result (MUST have an expand button with entry count ≥ 1).
 	// This is the key assertion for the bug fix: entries loaded from IndexedDB at startup
 	// must appear in the @ mention dropdown after a fresh page reload.
-	const expandButton = tripsResult.locator('.expand-button');
+	const expandButton = tripsResult.getByTestId('mention-expand-button');
 	await expect(expandButton).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Expand button is visible on Trips result.');
 
 	// Check the entry count is at least 1
 	const entryCount = await expandButton
-		.locator('.entry-count')
+		.getByTestId('mention-entry-count')
 		.textContent()
 		.catch(() => '0');
 	logCheckpoint(`Entry count on Trips expand button: "${entryCount}"`);
@@ -447,7 +446,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// Verify our newly created trip entry appears
 	const tripEntryInDropdown = mentionDropdown
-		.locator('.mention-result.entry-item')
+		.locator('[data-testid="mention-result"].entry-item')
 		.filter({ hasText: new RegExp(TRIP_DESTINATION, 'i') })
 		.first();
 	await expect(tripEntryInDropdown).toBeVisible({ timeout: 10000 });
@@ -466,7 +465,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// The inserted mention chip should show the trip destination name, NOT a UUID fragment
 	// Bug fix verification: previously showed "Travel-Trips-fe5acefa" instead of "Travel-Trips-TestCity"
-	const mentionChip = messageEditor.locator('.generic-mention.mention-settings-memory_entry').first();
+	const mentionChip = messageEditor.locator('[data-testid="mention-chip"].mention-settings-memory_entry').first();
 	const chipVisible = await mentionChip.isVisible({ timeout: 5000 }).catch(() => false);
 	if (chipVisible) {
 		const chipText = await mentionChip.textContent();
@@ -508,7 +507,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	await takeStepScreenshot(page, 'after-send-with-mention');
 
 	// Check that NO permission dialog appeared (no "Include" button visible)
-	const includeButton = page.locator('.btn-include').first();
+	const includeButton = page.getByTestId('btn-include').first();
 	const includeVisible = await includeButton.isVisible({ timeout: 2000 }).catch(() => false);
 	logCheckpoint(`Permission dialog "Include" button visible: ${includeVisible}`);
 
@@ -517,7 +516,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// Verify AI response started (typing indicator or response content appeared)
 	const aiResponse = page.locator('[data-role="assistant"]').last();
-	const typingIndicator = page.locator('.typing-indicator, .ai-typing').first();
+	const typingIndicator = page.locator('[data-testid="typing-indicator"], [data-testid="ai-typing"]').first();
 	const aiStarted = await aiResponse.isVisible({ timeout: 15000 }).catch(() => false)
 		|| await typingIndicator.isVisible({ timeout: 1000 }).catch(() => false);
 	logCheckpoint(`AI response started (no permission dialog blocked it): ${aiStarted}`);
@@ -542,7 +541,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	logCheckpoint('Testing direct entry search by destination name...');
 
 	// Click on the message editor
-	const messageEditorRefresh = page.locator('.editor-content.prose');
+	const messageEditorRefresh = page.getByTestId('message-editor');
 	await expect(messageEditorRefresh).toBeVisible({ timeout: 10000 });
 	await messageEditorRefresh.click();
 
@@ -557,7 +556,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// Check if the trip destination or trips category appears in results
 	const directSearchResult = mentionDropdown
-		.locator('.mention-result')
+		.locator('[data-testid="mention-result"]')
 		.filter({ hasText: new RegExp(TRIP_DESTINATION.substring(0, 4), 'i') })
 		.first();
 
@@ -571,7 +570,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 		await takeStepScreenshot(page, 'trip-entry-found-directly');
 	} else {
 		// Log all visible results for debugging
-		const allResults = mentionDropdown.locator('.mention-result');
+		const allResults = mentionDropdown.locator('[data-testid="mention-result"]');
 		const resultCount = await allResults.count();
 		logCheckpoint(`Total results shown: ${resultCount}`);
 		for (let i = 0; i < Math.min(resultCount, 8); i++) {
@@ -600,7 +599,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 		// Navigate back to Trips category
 		const cleanupAppStoreItem = page
-			.locator('.settings-menu.visible .menu-item')
+			.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"]')
 			.filter({ hasText: /app store/i })
 			.first();
 		await expect(cleanupAppStoreItem).toBeVisible({ timeout: 10000 });
@@ -609,7 +608,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 		// Click "Show all apps" button (SettingsItem .menu-item)
 		const cleanupShowAllAppsItem = page
-			.locator('.settings-menu.visible .menu-item')
+			.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"]')
 			.filter({ hasText: /show all apps/i })
 			.first();
 		await expect(cleanupShowAllAppsItem).toBeVisible({ timeout: 10000 });
@@ -618,8 +617,8 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 		// Click the Travel app card (AppStoreCard .app-store-card)
 		const cleanupTravelCard = page
-			.locator('.settings-menu.visible .app-store-card')
-			.filter({ has: page.locator('.app-card-name', { hasText: /^Travel$/i }) })
+			.locator('[data-testid="settings-menu"].visible [data-testid="app-store-card"]')
+			.filter({ has: page.getByTestId('app-card-name').filter({ hasText: /^Travel$/i }) })
 			.first();
 		await expect(cleanupTravelCard).toBeVisible({ timeout: 10000 });
 		await cleanupTravelCard.click();
@@ -627,8 +626,8 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 		// Click the Trips category card (AppStoreCard .app-store-card)
 		const cleanupTripsCard = page
-			.locator('.settings-menu.visible .app-store-card')
-			.filter({ has: page.locator('.app-card-name', { hasText: /^Trips$/i }) })
+			.locator('[data-testid="settings-menu"].visible [data-testid="app-store-card"]')
+			.filter({ has: page.getByTestId('app-card-name').filter({ hasText: /^Trips$/i }) })
 			.first();
 		await expect(cleanupTripsCard).toBeVisible({ timeout: 10000 });
 		await cleanupTripsCard.click();
@@ -636,7 +635,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 		// Click on the trip entry to open it
 		const entryToDelete = page
-			.locator('.settings-menu.visible .menu-item')
+			.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"]')
 			.filter({ hasText: TRIP_DESTINATION })
 			.first();
 
@@ -646,7 +645,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 			// Look for a delete button in the entry detail view
 			const deleteButton = page
-				.locator('.settings-menu.visible button')
+				.locator('[data-testid="settings-menu"].visible button')
 				.filter({ hasText: /delete|remove/i })
 				.first();
 
@@ -656,7 +655,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 				// Confirm deletion if a confirmation dialog appears
 				const confirmButton = page
-					.locator('.settings-menu.visible button')
+					.locator('[data-testid="settings-menu"].visible button')
 					.filter({ hasText: /confirm|yes|delete/i })
 					.first();
 				if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {

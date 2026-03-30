@@ -63,14 +63,14 @@ async function setupAndFocusMessageField(page: any) {
 	await page.waitForTimeout(3000);
 
 	// The message field should be visible for unauthenticated users (demo chat)
-	const messageField = page.locator('.message-field');
+	const messageField = page.getByTestId('message-field');
 	await expect(messageField).toBeVisible({ timeout: 20000 });
 
 	// Click the editor content area to focus it — this sets isMessageFieldFocused=true
 	// and makes ActionButtons visible via shouldShowActionButtons.
 	// Use `.editor-content.prose` to target the main message input field specifically,
 	// since demo chat messages also have `.editor-content` elements on the page.
-	const editorContent = page.locator('.editor-content.prose');
+	const editorContent = page.getByTestId('message-editor');
 	if (await editorContent.isVisible()) {
 		await editorContent.click();
 	} else {
@@ -89,7 +89,7 @@ async function setupAndFocusMessageField(page: any) {
  * Falls back to class selector if aria-label not found.
  */
 function getMicButton(page: any) {
-	return page.locator('.clickable-icon.icon_recordaudio');
+	return page.getByTestId('record-audio-button');
 }
 
 /**
@@ -99,17 +99,17 @@ async function waitForMicButton(page: any) {
 	const micButton = getMicButton(page);
 
 	// Check if action buttons wrapper exists at all
-	const actionButtonsWrapper = page.locator('.action-buttons');
+	const actionButtonsWrapper = page.getByTestId('action-buttons');
 	const actionButtonsVisible = await actionButtonsWrapper.isVisible().catch(() => false);
 	if (!actionButtonsVisible) {
 		// Take screenshot for debugging
 		await page.screenshot({ path: '/tmp/pw-results/debug-no-action-buttons.png' });
-		console.log('[DEBUG] .action-buttons not visible. Dumping relevant DOM...');
+		console.log('[DEBUG] action-buttons not visible. Dumping relevant DOM...');
 		const html = await page
-			.locator('.message-field')
+			.getByTestId('message-field')
 			.innerHTML()
 			.catch(() => 'NOT FOUND');
-		console.log('[DEBUG] .message-field innerHTML (first 500 chars):', html.substring(0, 500));
+		console.log('[DEBUG] message-field innerHTML (first 500 chars):', html.substring(0, 500));
 	}
 
 	await expect(micButton).toBeVisible({ timeout: 20000 });
@@ -129,12 +129,12 @@ test('single tap on mic button does not start recording', async ({ page }) => {
 	await micButton.click({ delay: 50 });
 
 	// Recording overlay should NOT appear
-	const overlay = page.locator('.record-overlay');
+	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).not.toBeVisible({ timeout: 1000 });
 
 	// The inline "Press & hold to record" label should be visible
 	// (either already shown or force-shown via highlight)
-	const pressHoldLabel = page.locator('.press-hold-label');
+	const pressHoldLabel = page.getByTestId('press-hold-label');
 	await expect(pressHoldLabel).toBeVisible({ timeout: 2000 });
 
 	console.log('[TEST] Single tap: no overlay, press-hold label visible');
@@ -153,24 +153,24 @@ test('press and hold mic button shows recording overlay', async ({ page }) => {
 	await micButton.dispatchEvent('mousedown', { button: 0 });
 
 	// Wait for the recording overlay to appear (200ms hold threshold + mount time)
-	const overlay = page.locator('.record-overlay');
+	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 
 	// Verify overlay contains expected UI elements
 	// 1. "Release to finish" heading
-	const releaseText = overlay.locator('.release-text');
+	const releaseText = overlay.getByTestId('release-text');
 	await expect(releaseText).toBeVisible();
 
 	// 2. Timer pill (showing 00:00 or 00:01)
-	const timerPill = overlay.locator('.timer-pill');
+	const timerPill = overlay.getByTestId('timer-pill');
 	await expect(timerPill).toBeVisible();
 
 	// 3. Cancel hint ("Slide left to cancel")
-	const cancelHint = overlay.locator('.cancel-hint');
+	const cancelHint = overlay.getByTestId('cancel-hint');
 	await expect(cancelHint).toBeVisible();
 
 	// 4. Green mic circle
-	const micCircle = overlay.locator('.mic-button');
+	const micCircle = overlay.getByTestId('mic-button');
 	await expect(micCircle).toBeVisible();
 
 	console.log('[TEST] Press & hold: overlay visible with all UI elements');
@@ -190,7 +190,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	const micButton = await waitForMicButton(page);
 
 	// Count existing recording embeds before
-	const embedCountBefore = await page.locator('.recording-preview').count();
+	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
 	// Press and hold using page.mouse so that both mousedown AND mouseup are OS-level events
 	// that properly trigger all event listeners (including document-level ones in RecordAudio).
@@ -203,7 +203,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	await page.mouse.down();
 
 	// Wait for overlay to appear and recorder to start
-	const overlay = page.locator('.record-overlay');
+	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 
 	// Hold for a bit so some audio data is captured by the fake device
@@ -219,7 +219,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	// Give it a moment for the embed insertion to complete.
 	await page.waitForTimeout(2000);
 
-	const embedCountAfter = await page.locator('.recording-preview').count();
+	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBeGreaterThan(embedCountBefore);
 
 	console.log('[TEST] Press hold release: audio embed inserted');
@@ -235,13 +235,13 @@ test('press hold then escape cancels recording', async ({ page }) => {
 	const micButton = await waitForMicButton(page);
 
 	// Count existing recording embeds before
-	const embedCountBefore = await page.locator('.recording-preview').count();
+	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
 	// Press and hold
 	await micButton.dispatchEvent('mousedown', { button: 0 });
 
 	// Wait for overlay to appear
-	const overlay = page.locator('.record-overlay');
+	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 
 	// Hold briefly, then press Escape to cancel
@@ -253,7 +253,7 @@ test('press hold then escape cancels recording', async ({ page }) => {
 
 	// No new recording embed should have been inserted
 	await page.waitForTimeout(1000);
-	const embedCountAfter = await page.locator('.recording-preview').count();
+	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBe(embedCountBefore);
 
 	console.log('[TEST] Press hold escape: recording cancelled, no embed');

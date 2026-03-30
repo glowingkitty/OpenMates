@@ -141,8 +141,8 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	expect(previewText!.trim().length).toBeGreaterThan(0);
 
 	// Check for mate profile or avatar placeholder (still CSS since they're dynamic class variants)
-	const mateProfile = notification.locator('.mate-profile');
-	const avatarPlaceholder = notification.locator('.avatar-placeholder');
+	const mateProfile = notification.getByTestId('mate-profile');
+	const avatarPlaceholder = notification.getByTestId('avatar-placeholder');
 	const hasProfile = await mateProfile.isVisible().catch(() => false);
 	const hasPlaceholder = await avatarPlaceholder.isVisible().catch(() => false);
 	logStep(`Avatar: mateProfile=${hasProfile}, placeholder=${hasPlaceholder}`);
@@ -170,7 +170,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// Wait for TipTap to initialize after the reply section expands.
 	await page.waitForTimeout(500);
 	const replyEditor = page.locator(
-		'.notification-reply-input .ProseMirror[contenteditable="true"]'
+		'[data-testid="notification-reply-input"] .ProseMirror[contenteditable="true"]'
 	);
 	await expect(replyEditor).toBeVisible({ timeout: 5000 });
 	await replyEditor.click();
@@ -255,7 +255,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	}
 
 	// Active chat item — use data-testid + active class for specificity
-	const activeChatItem = page.locator('[data-testid="chat-item"].active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Right-click → delete (click once for confirm mode, click again to confirm)

@@ -80,7 +80,7 @@ async function loginAndNavigateToChat(
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
 	// Start a fresh chat if possible
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) {
 		logCheckpoint('Clicking New Chat button.');
 		await newChatButton.click();
@@ -98,12 +98,12 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
 ): Promise<string> {
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(message);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint(`Sent message: "${message}"`);
@@ -124,10 +124,10 @@ async function deleteActiveChat(
 	page: any,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
 ): Promise<void> {
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChatItem.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await activeChatItem.click({ button: 'right' });
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 		await expect(deleteButton).toBeVisible();
 		await deleteButton.click();
 		await deleteButton.click(); // confirm
@@ -160,7 +160,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 	await takeStepScreenshot(page, 'message-sent');
 
 	// Wait briefly for streaming to start
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 30000 });
 	logCheckpoint('Assistant message placeholder appeared, streaming likely started.');
 
@@ -227,7 +227,7 @@ test('delivers AI response after page reload during processing', async ({ page }
 	const currentUrl = page.url();
 	if (!currentUrl.includes(chatId)) {
 		logCheckpoint(`Navigating back to chat ${chatId}...`);
-		const chatItem = page.locator(`.chat-item-wrapper[data-chat-id="${chatId}"]`);
+		const chatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 		if (await chatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await chatItem.click();
 			await page.waitForTimeout(2000);
@@ -235,7 +235,7 @@ test('delivers AI response after page reload during processing', async ({ page }
 	}
 
 	// The assistant response should arrive
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.last()).toContainText('Paris', { timeout: 60000 });
 	await takeStepScreenshot(page, 'response-after-reload');
 	logCheckpoint('AI response received after page reload. Contains "Paris".');
@@ -310,7 +310,7 @@ test('orphaned streaming messages are cleaned up on reconnect', async ({ page, c
 	const chatId = await sendMessageAndGetChatId(page, 'Hello there!', logCheckpoint);
 
 	// Wait for response
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.last()).toContainText(/\w+/, { timeout: 45000 });
 	logCheckpoint('Initial response received.');
 

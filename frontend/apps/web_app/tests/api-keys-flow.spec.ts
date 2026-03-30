@@ -68,7 +68,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 		.filter({ hasText: /^api keys$/i })
 		.first();
 	const apiKeysItemFallback = settingsMenu
-		.locator('.menu-item[role="menuitem"]')
+		.getByRole('menuitem')
 		.filter({ hasText: 'Create and manage API keys' })
 		.first();
 	const apiKeysVisible = await apiKeysItem.isVisible({ timeout: 5000 }).catch(() => false);
@@ -424,17 +424,17 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Navigated to Devices page.');
 	await screenshot(page, 'devices-page');
 
-	const devicesContainer = page.locator('.devices-container');
+	const devicesContainer = page.getByTestId('devices-container');
 	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
 
 	await page.waitForTimeout(2000);
 
-	const pendingCard = page.locator('.device-card.pending').first();
+	const pendingCard = page.locator('[data-testid="device-card"].pending').first();
 	await expect(pendingCard).toBeVisible({ timeout: 15000 });
 	log('Found pending device card.');
 	await screenshot(page, 'pending-device');
 
-	const approveButton = pendingCard.locator('.btn-approve');
+	const approveButton = pendingCard.getByTestId('device-approve-button');
 	await expect(approveButton).toBeVisible({ timeout: 5000 });
 	await approveButton.click();
 	log('Clicked Approve button.');
@@ -442,7 +442,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await expect(pendingCard).not.toBeVisible({ timeout: 10000 });
 	log('Pending device card is gone — device approved.');
 
-	const approvedBadge = devicesContainer.locator('.status-badge.approved').first();
+	const approvedBadge = devicesContainer.locator('[data-testid="status-badge"].approved').first();
 	await expect(approvedBadge).toBeVisible({ timeout: 8000 });
 	log('Confirmed: Approved status badge is visible.');
 	await screenshot(page, 'device-approved');

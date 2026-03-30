@@ -86,7 +86,7 @@ const SCREENSHOT_APPS: Record<string, Array<{ label: string; slug: string }>> = 
  */
 async function waitForAllSectionsLoaded(page: import('@playwright/test').Page) {
 	await expect(async () => {
-		const loadingCount = await page.locator('p.section-loading').count();
+		const loadingCount = await page.locator('[data-testid="section-loading"]').count();
 		expect(loadingCount).toBe(0);
 	}).toPass({ timeout: SECTION_LOAD_TIMEOUT });
 }
@@ -122,7 +122,7 @@ for (const [app, skills] of Object.entries(SCREENSHOT_APPS)) {
 			await page.waitForTimeout(2_000);
 
 			// Process each skill section
-			const skillSections = page.locator('section.skill-section');
+			const skillSections = page.locator('[data-testid="skill-section"]');
 			const sectionCount = await skillSections.count();
 
 			for (const skill of skills) {
@@ -130,7 +130,7 @@ for (const [app, skills] of Object.entries(SCREENSHOT_APPS)) {
 				let targetSection = null;
 				for (let i = 0; i < sectionCount; i++) {
 					const section = skillSections.nth(i);
-					const labelEl = section.locator('h2.skill-label, h3.skill-label');
+					const labelEl = section.locator('[data-testid="skill-label"]');
 					const labelText = await labelEl.textContent();
 					if (labelText?.trim() === skill.label) {
 						targetSection = section;
@@ -146,7 +146,7 @@ for (const [app, skills] of Object.entries(SCREENSHOT_APPS)) {
 				const outputDir = ensureOutputDir(app, skill.slug);
 
 				// Screenshot the "Preview — Large" display type (.large-container)
-				const largeContainer = targetSection.locator('.large-container').first();
+				const largeContainer = targetSection.locator('[data-testid="large-container"]').first();
 				if ((await largeContainer.count()) > 0) {
 					await largeContainer.scrollIntoViewIfNeeded();
 					await page.waitForTimeout(500);
@@ -173,7 +173,7 @@ for (const [app, skills] of Object.entries(SCREENSHOT_APPS)) {
 				}
 
 				// Screenshot the "Fullscreen" display type (.fs-clip)
-				const fsClip = targetSection.locator('.fs-clip').first();
+				const fsClip = targetSection.locator('[data-testid="fs-clip"]').first();
 				if ((await fsClip.count()) > 0) {
 					await fsClip.scrollIntoViewIfNeeded();
 					await page.waitForTimeout(500);
@@ -198,7 +198,7 @@ for (const [app, skills] of Object.entries(SCREENSHOT_APPS)) {
 				}
 
 				// Screenshot the "Group — Small" display type for processing state
-				const groupSmall = targetSection.locator('.dt-body--group-small .group-scroll-item').first();
+				const groupSmall = targetSection.locator('[data-testid="group-small"] [data-testid="group-scroll-item"]').first();
 				if ((await groupSmall.count()) > 0) {
 					await groupSmall.scrollIntoViewIfNeeded();
 					await page.waitForTimeout(500);

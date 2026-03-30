@@ -130,7 +130,7 @@ async function waitForStreamingComplete(page: any, log: any) {
 async function getCodePreviewText(page: any, messageIndex: number): Promise<string> {
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 	const codeElement = targetMessage
-		.locator('.unified-embed-preview[data-app-id="code"][data-status="finished"]')
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
 		.first()
 		.locator('pre.code-preview code');
 
@@ -146,7 +146,7 @@ async function getCodePreviewText(page: any, messageIndex: number): Promise<stri
 async function getEmbedFullText(page: any, messageIndex: number): Promise<string> {
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
 	const embed = targetMessage
-		.locator('.unified-embed-preview[data-app-id="code"][data-status="finished"]')
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
 		.first();
 
 	const text = await embed.textContent().catch(() => '');
@@ -418,7 +418,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	// Use data-testid for message scoping + data-app-id/status for embed targeting
 	const allFinishedEmbeds = page
 		.getByTestId('message-assistant')
-		.locator('.unified-embed-preview[data-app-id="code"][data-status="finished"]');
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]');
 	const totalFinished = await allFinishedEmbeds.count();
 	log(`Total finished code embeds across all messages: ${totalFinished}`);
 	expect(totalFinished).toBeGreaterThanOrEqual(3);
@@ -426,14 +426,14 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	// Verify no embeds are stuck in "processing" or "error" state
 	const processingEmbeds = page
 		.getByTestId('message-assistant')
-		.locator('.unified-embed-preview[data-app-id="code"][data-status="processing"]');
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="processing"]');
 	const processingCount = await processingEmbeds.count();
 	log(`Code embeds still processing: ${processingCount}`);
 	expect(processingCount).toBe(0);
 
 	const errorEmbeds = page
 		.getByTestId('message-assistant')
-		.locator('.unified-embed-preview[data-app-id="code"][data-status="error"]');
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="error"]');
 	const errorCount = await errorEmbeds.count();
 	log(`Code embeds in error state: ${errorCount}`);
 	expect(errorCount).toBe(0);

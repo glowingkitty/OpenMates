@@ -97,7 +97,7 @@ async function subscribeViaUI(page: any, email: string, log: any): Promise<void>
 	await subscribeBtn.click();
 	log(`Clicked Subscribe for: ${email}`);
 
-	const successMsg = page.locator('.success-message');
+	const successMsg = page.getByTestId('success-message');
 	await expect(successMsg).toBeVisible({ timeout: 15000 });
 	const successText = await successMsg.innerText();
 	log(`Subscribe success message: "${successText}"`);

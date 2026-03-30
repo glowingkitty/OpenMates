@@ -71,15 +71,15 @@ test('reminder redesign — UI shows single toggle, no note field', async ({
 	await loginTestAccount(page, log);
 
 	// Create a chat so the reminder button appears
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15000 });
 	await editor.click();
 	await page.keyboard.type('Hello, testing reminder UI.');
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 	log('Chat established.');
 
@@ -96,7 +96,7 @@ test('reminder redesign — UI shows single toggle, no note field', async ({
 
 	// Verify: "Remind me about this chat" mode is default (single toggle)
 	// There should be a dropdown with mode options, NOT separate target + response toggles
-	const modeDropdown = page.locator('.settings-dropdown').first();
+	const modeDropdown = page.getByTestId('settings-dropdown').first();
 	await expect(modeDropdown).toBeVisible({ timeout: 5000 });
 	log('Mode dropdown is visible.');
 
@@ -125,7 +125,7 @@ test('reminder redesign — UI shows single toggle, no note field', async ({
 	await screenshot(page, 'ui-new-task-mode');
 
 	// Verify submit button is disabled without action prompt
-	const submitButton = page.locator('.settings-button.primary');
+	const submitButton = page.getByTestId('settings-button-primary');
 	const { date, time } = getMinutesFromNow(5);
 	await dateInput.fill(date);
 	const timeInput = page.locator('#settings-reminder-time');
@@ -170,21 +170,21 @@ test('reminder redesign — Type A: notification in existing chat, no new chat c
 	await loginTestAccount(page, log);
 
 	// Create a chat
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15000 });
 	await editor.click();
 	await page.keyboard.type('Test chat for Type A reminder — notification only.');
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 	log('Chat established.');
 	await screenshot(page, 'chat-established');
 
 	// Count sidebar chats before setting reminder
-	const sidebarItems = page.locator('.chat-item-wrapper');
+	const sidebarItems = page.getByTestId('chat-item-wrapper');
 	const chatCountBefore = await sidebarItems.count();
 	log(`Sidebar chats before: ${chatCountBefore}`);
 
@@ -205,14 +205,14 @@ test('reminder redesign — Type A: notification in existing chat, no new chat c
 	await timeInput.fill(time);
 
 	// Submit
-	const submitButton = page.locator('.settings-button.primary');
+	const submitButton = page.getByTestId('settings-button-primary');
 	await expect(submitButton).toBeEnabled();
 	await submitButton.click();
 	log('Form submitted.');
 	await page.waitForTimeout(2000);
 
 	// Verify success message
-	const successBox = page.locator('.settings-info-box.success');
+	const successBox = page.getByTestId('settings-info-box-success');
 	await expect(successBox).toBeVisible({ timeout: 10000 });
 	log('Success message displayed.');
 	await screenshot(page, 'success-message');
@@ -223,7 +223,7 @@ test('reminder redesign — Type A: notification in existing chat, no new chat c
 
 	// Wait for the reminder to fire (up to 4 minutes)
 	log('Waiting for reminder system message (up to 4 min)...');
-	const systemMsg = page.locator('.message-wrapper.system');
+	const systemMsg = page.getByTestId('message-system');
 	const pollStart = Date.now();
 	while (Date.now() - pollStart < 240000) {
 		if ((await systemMsg.count()) >= 1) break;
@@ -270,15 +270,15 @@ test('reminder redesign — edit and delete reminder from settings', async ({
 	await loginTestAccount(page, log);
 
 	// Create a chat
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15000 });
 	await editor.click();
 	await page.keyboard.type('Test chat for reminder edit/delete test.');
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 	log('Chat established.');
 
@@ -297,12 +297,12 @@ test('reminder redesign — edit and delete reminder from settings', async ({
 	await dateInput.fill(date);
 	await timeInput.fill(time);
 
-	const submitButton = page.locator('.settings-button.primary');
+	const submitButton = page.getByTestId('settings-button-primary');
 	await expect(submitButton).toBeEnabled();
 	await submitButton.click();
 	await page.waitForTimeout(2000);
 
-	const successBox = page.locator('.settings-info-box.success');
+	const successBox = page.getByTestId('settings-info-box-success');
 	await expect(successBox).toBeVisible({ timeout: 10000 });
 	log('Reminder created.');
 	await screenshot(page, 'reminder-created');
@@ -320,8 +320,8 @@ test('reminder redesign — edit and delete reminder from settings', async ({
 	await page.waitForTimeout(500);
 
 	// Inline edit form should appear with date/time inputs
-	const editDateInput = page.locator('.edit-input[type="date"]');
-	const editTimeInput = page.locator('.edit-input[type="time"]');
+	const editDateInput = page.locator('[data-testid="edit-input"][type="date"]');
+	const editTimeInput = page.locator('[data-testid="edit-input"][type="time"]');
 	await expect(editDateInput).toBeVisible({ timeout: 5000 });
 	await expect(editTimeInput).toBeVisible({ timeout: 5000 });
 	log('Edit form visible.');
@@ -331,7 +331,7 @@ test('reminder redesign — edit and delete reminder from settings', async ({
 	await editDateInput.fill(newDate);
 	await editTimeInput.fill(newTime);
 
-	const saveBtn = page.locator('.btn-save');
+	const saveBtn = page.getByTestId('btn-save');
 	await expect(saveBtn).toBeEnabled();
 	await saveBtn.click();
 	await page.waitForTimeout(2000);

@@ -221,7 +221,7 @@ test.describe('CLI PDF Skills', () => {
 		await loginBtn.click();
 
 		// Click Login tab to switch from signup to login view
-		const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		const loginTab = page.getByTestId('tab-login');
 		await expect(loginTab).toBeVisible({ timeout: 10000 });
 		await loginTab.click();
 
@@ -269,11 +269,11 @@ test.describe('CLI PDF Skills', () => {
 		logCheckpoint(`CLI pair token: ${token}`);
 
 		await page.goto(`${baseUrl}/#pair=${token}`);
-		const allowBtn = page.locator('.btn-allow');
+		const allowBtn = page.getByTestId('pair-allow-button');
 		await expect(allowBtn).toBeVisible({ timeout: 15000 });
 		await allowBtn.click();
 
-		const pinDisplay = page.locator('.pin-display');
+		const pinDisplay = page.getByTestId('pair-pin-display');
 		await expect(pinDisplay).toBeVisible({ timeout: 15000 });
 		const pinText = await pinDisplay.textContent();
 		const pin = (pinText || '').replace(/\s/g, '').trim();
@@ -303,7 +303,7 @@ test.describe('CLI PDF Skills', () => {
 		}
 
 		// Ensure editor is ready
-		const messageEditor = page.locator('.editor-content.prose');
+		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		logCheckpoint('Editor ready.');
 
@@ -315,15 +315,11 @@ test.describe('CLI PDF Skills', () => {
 		await takeScreenshot(page, 'pdf-attached');
 
 		// Wait for the PDF upload embed to appear and finish processing
-		const embedWrapper = page.locator(
-			'.editor-content .embed-full-width-wrapper[data-embed-type="pdf"]'
-		);
+		const embedWrapper = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"][data-embed-type="pdf"]');
 		await expect(embedWrapper.first()).toBeVisible({ timeout: 30000 });
 		logCheckpoint('PDF embed appeared (processing).');
 
-		const embedFinished = page.locator(
-			'.editor-content .embed-full-width-wrapper[data-embed-type="pdf"][data-embed-status="finished"]'
-		);
+		const embedFinished = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"][data-embed-type="pdf"][data-embed-status="finished"]');
 		await expect(embedFinished.first()).toBeVisible({ timeout: 120_000 });
 		logCheckpoint('PDF upload finished — pages processed by server.');
 		await takeScreenshot(page, 'pdf-upload-finished');
@@ -341,9 +337,7 @@ test.describe('CLI PDF Skills', () => {
 		logCheckpoint('Message sent. Waiting for AI response...');
 
 		// Wait for AI response with pdf/read skill embed
-		const aiPdfEmbed = page.locator(
-			'.message-wrapper.assistant .unified-embed-preview[data-app-id="pdf"]'
-		);
+		const aiPdfEmbed = page.getByTestId('message-assistant').locator('[data-testid="embed-preview"][data-app-id="pdf"]');
 		await expect(aiPdfEmbed.first()).toBeVisible({ timeout: 120_000 });
 		logCheckpoint('AI used pdf/read skill — embed visible in assistant response.');
 		await takeScreenshot(page, 'ai-read-response');

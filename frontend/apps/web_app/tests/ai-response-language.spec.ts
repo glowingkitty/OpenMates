@@ -166,7 +166,7 @@ function detectLanguage(text: string): 'de' | 'en' | 'unknown' {
  */
 async function getAssistantProseText(page: any, messageIndex: number): Promise<string> {
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
-	const proseMirror = targetMessage.locator('.read-only-message .ProseMirror').first();
+	const proseMirror = targetMessage.getByTestId('message-content').first();
 
 	await expect(proseMirror).toBeVisible({ timeout: 10000 });
 

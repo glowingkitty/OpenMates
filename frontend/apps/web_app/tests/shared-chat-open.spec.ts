@@ -127,14 +127,14 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	await takeStepScreenshot(page, 'redirected-to-main-app');
 
 	// Step 3: Wait for the chat history container to be visible
-	await expect(page.locator('.chat-history-container')).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 30000 });
 	logCheckpoint('Chat history container visible');
 	await takeStepScreenshot(page, 'chat-history-visible');
 
 	// Step 4: Verify chat title appears in the sidebar
 	// There may be multiple elements with the title (sidebar + active chat header)
 	const chatTitle = page
-		.locator('.chat-title')
+		.getByTestId('chat-title')
 		.filter({ hasText: 'Explain web app security essentials' })
 		.first();
 	await expect(chatTitle).toBeVisible({ timeout: 15000 });
@@ -143,13 +143,13 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	// Step 5: Find the specific chat item in the sidebar and verify its category icon and circle
 	const chatItem = page
-		.locator('.chat-with-profile')
+		.getByTestId('chat-with-profile')
 		.filter({ hasText: 'Explain web app security essentials' })
 		.first();
 	await expect(chatItem).toBeVisible();
 
 	// Verify the shield icon (security category) within this specific chat item
-	const categoryIcon = chatItem.locator('.category-icon');
+	const categoryIcon = chatItem.getByTestId('category-icon');
 	await expect(categoryIcon).toBeVisible();
 	const iconSvg = categoryIcon.locator('svg');
 	await expect(iconSvg).toBeVisible();
@@ -158,7 +158,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	logCheckpoint('Security category shield icon verified');
 
 	// Verify the category circle has the correct gradient (security blue colors)
-	const categoryCircle = chatItem.locator('.category-circle');
+	const categoryCircle = chatItem.getByTestId('category-circle');
 	await expect(categoryCircle).toBeVisible();
 	const circleStyle = await categoryCircle.getAttribute('style');
 	expect(circleStyle).toMatch(/linear-gradient.*rgb\(21.*93.*145\).*rgb\(66.*171.*244\)/);
@@ -167,14 +167,14 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	// Step 6: Wait for messages to be present and decrypt
 	// Messages are rendered in .message-wrapper elements
-	const userMessageWrapper = page.locator('.message-wrapper.user').first();
-	const assistantMessageWrapper = page.locator('.message-wrapper.assistant').first();
+	const userMessageWrapper = page.getByTestId('message-user').first();
+	const assistantMessageWrapper = page.getByTestId('message-assistant').first();
 
 	await expect(userMessageWrapper).toBeVisible({ timeout: 20000 });
 	await expect(assistantMessageWrapper).toBeVisible({ timeout: 20000 });
 
-	const userMessageCount = await page.locator('.message-wrapper.user').count();
-	const assistantMessageCount = await page.locator('.message-wrapper.assistant').count();
+	const userMessageCount = await page.getByTestId('message-user').count();
+	const assistantMessageCount = await page.getByTestId('message-assistant').count();
 
 	logCheckpoint('Messages loaded', {
 		userCount: userMessageCount,
@@ -191,7 +191,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	logCheckpoint('Waiting for message content to decrypt and render...');
 
 	// Wait for user message content to render inside ProseMirror
-	const userMessageProseMirror = userMessageWrapper.locator('.read-only-message .ProseMirror');
+	const userMessageProseMirror = userMessageWrapper.locator('[data-testid="read-only-message"] .ProseMirror');
 	await expect(userMessageProseMirror).toBeVisible({ timeout: 15000 });
 
 	// Wait for the actual text to appear (decryption complete)
@@ -202,7 +202,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 			return el && el.textContent && el.textContent.includes(expectedText);
 		},
 		[
-			'.message-wrapper.user .read-only-message .ProseMirror',
+			'[data-testid="message-user"] [data-testid="read-only-message"] .ProseMirror',
 			'Explain web app security essentials'
 		],
 		{ timeout: 20000 }
@@ -217,7 +217,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	// Step 8: Wait for assistant message content to render
 	const assistantMessageProseMirror = assistantMessageWrapper.locator(
-		'.read-only-message .ProseMirror'
+		'[data-testid="read-only-message"] .ProseMirror'
 	);
 	await expect(assistantMessageProseMirror).toBeVisible({ timeout: 15000 });
 
@@ -228,7 +228,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 			return el && el.textContent && el.textContent.includes(expectedText);
 		},
 		[
-			'.message-wrapper.assistant .read-only-message .ProseMirror',
+			'[data-testid="message-assistant"] [data-testid="read-only-message"] .ProseMirror',
 			'Web application security is crucial'
 		],
 		{ timeout: 20000 }
