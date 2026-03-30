@@ -396,7 +396,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
 	const settingsToggle = page.locator('#settings-menu-toggle');
 	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
+	const closeIcon = page.locator('#settings-menu-toggle [data-testid="close-icon-container"].visible').first();
 	if (await closeIcon.isVisible().catch(() => false)) {
 		await closeIcon.click();
 		await page.waitForTimeout(500);

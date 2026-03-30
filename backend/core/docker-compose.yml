@@ -1540,7 +1540,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 1536M
     environment:
       ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_ROOT_EMAIL}"
       ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_ROOT_PASSWORD}"

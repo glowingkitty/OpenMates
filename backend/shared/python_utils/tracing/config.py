@@ -81,10 +81,13 @@ def setup_tracing(service_name: str = "api") -> None:
     # Create resource identifying this service
     resource = Resource.create({"service.name": service_name})
 
-    # Create OTLP HTTP exporter targeting OpenObserve
+    # Create OTLP HTTP exporter targeting OpenObserve.
+    # Timeout raised from default 10s to 30s — OpenObserve can be slow under
+    # memory pressure during heavy trace ingestion (e.g. daily test runs).
     otlp_exporter = OTLPSpanExporter(
         endpoint=OTLP_ENDPOINT,
         headers={"Authorization": _build_auth_header()},
+        timeout=30,
     )
 
     # Wrap the OTLP exporter with the privacy filter

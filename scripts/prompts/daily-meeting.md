@@ -8,55 +8,85 @@ Three subagent reports have been prepared for you. Read all three files now:
 2. `scripts/.tmp/daily-meeting-work.md` — Yesterday's work (commits, nightly jobs, issues, sessions)
 3. `scripts/.tmp/daily-meeting-linear.md` — Linear backlog (priority review, proposed top 3)
 
-Also read the previous meeting state:
+Also read:
 4. `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
+5. `scripts/.tmp/daily-meeting-summary-*.md` — Previous meeting summary (most recent date)
 
 ---
 
-## Meeting Agenda
+## Meeting Flow
 
-Run through these sections in order. Be honest and direct — this is a working standup, not a status report.
+Run through these sections **one at a time**. Present each section, then **wait for the user's input** before moving to the next. This is a conversation, not a report dump.
 
-### 1. YESTERDAY REVIEW
+Use emojis for scanability: ✅ done, 🔄 in progress, ❌ not started/failed, ⚠️ warning, 🔥 urgent, 🧊 stale, 📊 stats.
 
-Using the work report and Linear report:
-- Summarize what was accomplished yesterday (commits grouped by area)
-- Review yesterday's 3 daily priorities: DONE / IN PROGRESS / NOT STARTED with brief explanation
-- **Honest assessment:** What went well? What didn't? What took longer than expected?
-- If 0 of 3 priorities were done, flag it. If this is 2+ days in a row (check state file), call it out as a systemic pattern.
+### Step 1: STATUS CLEANUP 🧹
 
-### 2. SYSTEM HEALTH
+Query Linear for ALL tasks not in Done/Canceled state. Flag:
+- 🧊 **Stale In Progress**: tasks In Progress > 3 days without recent commits
+- 🧊 **Stale In Review**: tasks In Review > 2 days
+- ⚠️ **Ghost tasks**: In Progress with `claude-is-working` label but no active session
+- ⚠️ **Missing metadata**: No milestone, no priority, or no labels assigned
+
+Present as a table. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
+
+Wait for user input. Update Linear statuses based on their answers before proceeding.
+
+### Step 2: YESTERDAY REVIEW 📋
+
+Using the work report, Linear report, and previous meeting summary:
+- Summarize what was accomplished (commits grouped by area, with counts)
+- Review yesterday's 3 daily priorities:
+  - ✅ DONE / 🔄 IN PROGRESS / ❌ NOT STARTED — with brief explanation each
+- **Honest assessment:** What went well? What didn't?
+- If 0/3 done, flag it. If 2+ days in a row (check state file + previous summary), call out the pattern.
+
+Wait for user input (they may have corrections or context).
+
+### Step 3: SYSTEM HEALTH 🏥
 
 Using the health report:
-- Lead with anything broken or degraded (outages, failed tests, top errors)
-- Only mention healthy systems if everything is green ("All systems healthy")
-- Flag any data sources that were unavailable
-- If a data source failed, check Linear for an existing task about it. If none exists, create one with HIGH priority using the Linear MCP tools.
+- Lead with anything broken or degraded
+- Test results with emojis:
+  - ✅ `53/94 passing` → show as: `📊 Tests: 53/94 (56%) — ⚠️ 41 failures`
+  - Group failures by root cause with counts
+- ⚠️ Flag data sources that were unavailable or stale
+- If "no errors" is reported but seems unlikely, flag it as potentially unreliable (OTel gap)
+- If a broken item has no Linear task, create one with HIGH priority
 
-### 3. PROJECT TRAJECTORY
+Wait for user input (they may know about issues the data missed).
 
-Using the work report (session quality + nightly findings) and milestone state:
+### Step 4: PROJECT TRAJECTORY 🗺️
+
+Using work report + milestone state:
 - Current milestone progress
-- Are we on track? Any scope concerns?
-- Session quality trend — are sessions productive or spinning?
-- Anything shipped worth announcing/promoting?
+- Scope/timeline concerns
+- Session quality trend
+- Anything worth announcing
 
-### 4. TODAY'S PRIORITIES
+Brief section — only flag if something is off track. Say "On track" if it is.
+
+Wait for user input.
+
+### Step 5: TODAY'S PRIORITIES 🎯
 
 Using the Linear report's proposed top 3:
-- Present the 3 proposed priorities with rationale
-- Adjust if the health report revealed urgent issues that should take precedence
-- For each: Linear ID, title, rationale, estimated effort
+- Present each with: Linear ID, title, rationale, estimated effort
+- Adjust if health report revealed urgent issues
+- For each: 🔥 urgent / ⚡ high / 📋 medium
 
 Then ask: **"These are today's 3 priorities. Confirm, or tell me what to adjust."**
 
-### 5. CONFIRM & CLOSE
+Wait for user to confirm or adjust.
 
-After the user confirms (or after auto-confirm timeout):
-- Remove the `daily-priority` label from yesterday's tasks (if they're not in today's list)
-- Add the `daily-priority` label to today's 3 selected tasks
-- Post a comment on each: "Daily priority for {{DATE}} — Rationale: <reason>"
-- Save the meeting state to `scripts/.daily-meeting-state.json`
+### Step 6: CONFIRM & CLOSE ✅
+
+After the user confirms:
+1. Remove `daily-priority` label from yesterday's tasks (if not in today's list)
+2. Add `daily-priority` label to today's 3 selected tasks
+3. Post a comment on each: "Daily priority for {{DATE}} — Rationale: <reason>"
+4. Save state to `scripts/.daily-meeting-state.json`
+5. Write meeting summary to `scripts/.tmp/daily-meeting-summary-{{DATE}}.md`
 
 Use this JSON structure for the state file:
 ```json
@@ -72,8 +102,41 @@ Use this JSON structure for the state file:
   "confirmed_at": "<ISO timestamp>",
   "session_id": "{{SESSION_ID}}",
   "data_failures": [],
-  "auto_created_tasks": []
+  "auto_created_tasks": [],
+  "status_updates": []
 }
+```
+
+Use this structure for the meeting summary MD:
+```markdown
+# Daily Meeting Summary — {{DATE}}
+
+## Status Cleanup
+- <tasks updated, with old → new status>
+
+## Yesterday's Priorities
+| # | Task | Result |
+|---|------|--------|
+| 1 | OPE-XX: Title | ✅/🔄/❌ + brief |
+
+## Key Accomplishments
+- <bullet points>
+
+## System Health
+- Tests: X/Y (Z%)
+- Providers: <status>
+- Errors: <count or "none (⚠️ OTel unreliable)">
+
+## Today's Priorities
+| # | Task | Effort |
+|---|------|--------|
+| 1 | OPE-XX: Title | est |
+
+## Decisions & Notes
+- <anything discussed or decided during the meeting>
+
+## Open Questions
+- <unresolved items carried to next meeting>
 ```
 
 ---
@@ -82,19 +145,23 @@ Use this JSON structure for the state file:
 
 Do NOT end the meeting until all items are checked:
 
-- [ ] All 3 subagent reports read
+- [ ] Previous meeting summary read (if exists)
+- [ ] Status cleanup done (stale/ghost tasks reviewed)
 - [ ] Yesterday's priorities reviewed
-- [ ] System health assessed (all data sources checked)
+- [ ] System health assessed (data gaps flagged)
 - [ ] Project trajectory discussed
-- [ ] Today's 3 priorities proposed
-- [ ] Priorities confirmed (user or auto)
+- [ ] Today's 3 priorities confirmed
 - [ ] Linear labels updated (old removed, new added)
 - [ ] Linear comments posted on selected tasks
 - [ ] State file saved
+- [ ] Meeting summary MD written
 
 ## Rules
 
 - Use the Linear MCP tools (`mcp__linear__save_issue`, `mcp__linear__save_comment`, `mcp__linear__list_issues`) for all Linear operations.
-- Be concise. Each section should be 5-10 lines, not paragraphs.
-- Be honest about failures and missed priorities. Don't sugarcoat.
-- If the user doesn't respond within the session, present the meeting output and end. The auto-confirm timer handles the rest externally.
+- **Step by step.** Present ONE section at a time. Wait for user input after each.
+- Use emojis consistently for scanability (✅🔄❌⚠️🔥🧊📊🎯).
+- Be honest about failures. Don't sugarcoat.
+- Flag "no errors" as suspicious when the user has reported otherwise — OTel gaps are known.
+- ALL Linear tasks not Done/Canceled must be considered, not just recent ones.
+- If the user doesn't respond within the session, present all sections and auto-close. The auto-confirm timer handles the rest externally.

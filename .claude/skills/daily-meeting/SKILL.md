@@ -7,7 +7,7 @@ argument-hint: "[dry-run]"
 
 ## Instructions
 
-You are running the OpenMates daily standup meeting. This is a structured meeting with 5 sections that must all be completed before the meeting ends.
+You are running the OpenMates daily standup meeting. This is a **step-by-step conversation**, not a report dump. Present one section at a time and wait for user input before proceeding.
 
 ### Step 1: Run Data Gathering + Subagents
 
@@ -35,20 +35,22 @@ scripts/.tmp/daily-meeting-work.md
 scripts/.tmp/daily-meeting-linear.md
 ```
 
-Also read the previous meeting state:
+Also read:
 ```
-scripts/.daily-meeting-state.json
+scripts/.daily-meeting-state.json          # yesterday's priorities
+scripts/.tmp/daily-meeting-summary-*.md    # previous meeting summary (most recent)
 ```
 
-### Step 3: Run the Meeting
+### Step 3: Run the Meeting (Step by Step)
 
-Follow the meeting agenda from `scripts/prompts/daily-meeting.md`. Present each section concisely:
+Follow the meeting agenda from `scripts/prompts/daily-meeting.md`. **Present ONE section at a time**, wait for user response, then proceed:
 
-1. **YESTERDAY REVIEW** — commits, priority achievement, honest assessment
-2. **SYSTEM HEALTH** — outages, test failures, top errors, security alerts
-3. **PROJECT TRAJECTORY** — milestone progress, session quality
-4. **TODAY'S PRIORITIES** — present top 3, ask for confirmation
-5. **CONFIRM & CLOSE** — apply Linear labels, save state
+1. **STATUS CLEANUP 🧹** — stale/ghost tasks, ask user to confirm status changes
+2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
+3. **SYSTEM HEALTH 🏥** — outages, test failures, errors, data gaps
+4. **PROJECT TRAJECTORY 🗺️** — milestone progress, session quality
+5. **TODAY'S PRIORITIES 🎯** — present top 3, ask for confirmation
+6. **CONFIRM & CLOSE ✅** — apply labels, save state, write summary
 
 ### Step 4: Apply Priorities
 
@@ -56,16 +58,26 @@ After the user confirms (or adjusts) the 3 priorities:
 
 1. Query Linear for tasks with `daily-priority` label (yesterday's) — remove the label from tasks no longer selected
 2. Add `daily-priority` label to today's 3 tasks
-3. Post a comment on each: `"Daily priority for <DATE> — Rationale: <reason>"`
-4. Save the meeting state to `scripts/.daily-meeting-state.json`
+3. **Set all daily priority tasks to Urgent priority** — daily priorities are always Urgent
+4. Post a comment on each: `"Daily priority for <DATE> — Rationale: <reason>"`
+5. Save the meeting state to `scripts/.daily-meeting-state.json`
+6. Write meeting summary to `scripts/.tmp/daily-meeting-summary-<DATE>.md`
+
+### Priority Rules
+
+- **Daily priority tasks MUST be set to Urgent priority.** If a task was lower priority before selection, escalate it when adding the `daily-priority` label.
+- When a task is removed from daily priorities (next meeting), restore its original priority only if the user explicitly says to de-escalate.
 
 ### Completion Checklist
 
 Do NOT end the meeting until all items are done:
-- [ ] All 3 reports read
+- [ ] All 3 reports read + previous summary
+- [ ] Status cleanup done (stale/ghost tasks reviewed)
 - [ ] Yesterday's priorities reviewed
 - [ ] System health presented
 - [ ] Project trajectory assessed
 - [ ] Today's 3 priorities confirmed
+- [ ] Daily priority tasks set to Urgent
 - [ ] Linear labels updated
 - [ ] State file saved
+- [ ] Meeting summary MD written

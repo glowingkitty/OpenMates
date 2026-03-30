@@ -1,0 +1,22 @@
+{
+  "last_meeting": "2026-03-30T10:50:00.000000+00:00",
+  "date": "2026-03-30",
+  "priorities": [
+    {"linear_id": "OPE-75", "title": "Confirm OTel/OpenObserve is working reliably (includes OPE-96)", "status_at_selection": "In Progress"},
+    {"linear_id": "OPE-30", "title": "Fix broken create reminder", "status_at_selection": "Backlog"},
+    {"linear_id": "OPE-114", "title": "Embed fullscreen close broken — wrong selector + missing Escape handler", "status_at_selection": "In Progress"}
+  ],
+  "confirmed_by": "user",
+  "confirmed_at": "2026-03-30T10:50:00.000000+00:00",
+  "session_id": null,
+  "data_failures": ["openobserve_errors_unreliable"],
+  "auto_created_tasks": [],
+  "status_updates": [
+    {"linear_id": "OPE-74", "from": "In Progress", "to": "Done"},
+    {"linear_id": "OPE-80", "from": "In Progress", "to": "Done"},
+    {"linear_id": "OPE-31", "from": "In Progress", "to": "Done"},
+    {"linear_id": "OPE-75", "from": "In Review", "to": "In Progress"},
+    {"linear_id": "OPE-96", "from": "Backlog", "to": "In Progress", "note": "merged as sub-task of OPE-75"},
+    {"linear_id": "OPE-30", "priority_change": "High → Urgent"}
+  ]
+}

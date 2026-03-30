@@ -118,7 +118,7 @@ async def proxy_traces(
     content_type = request.headers.get("content-type", "application/x-protobuf")
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
                 OPENOBSERVE_TRACES_URL,
                 content=body,
@@ -126,6 +126,14 @@ async def proxy_traces(
                     "Content-Type": content_type,
                     "Authorization": auth_header,
                 },
+            )
+
+        if response.status_code == 503:
+            # OpenObserve memory pressure — expected transient failure, don't alarm
+            logger.debug("[Telemetry] OpenObserve returned 503 (memory pressure), dropping batch")
+            return JSONResponse(
+                status_code=202,
+                content={"status": "dropped", "detail": "Telemetry backend temporarily unavailable"},
             )
 
         if response.status_code >= 400:
@@ -141,11 +149,11 @@ async def proxy_traces(
 
         return {"status": "ok"}
 
-    except httpx.ConnectError:
-        logger.warning("[Telemetry] Cannot reach OpenObserve at %s", OPENOBSERVE_TRACES_URL)
+    except (httpx.ConnectError, httpx.ReadTimeout):
+        logger.debug("[Telemetry] OpenObserve unreachable/timeout — dropping batch")
         return JSONResponse(
-            status_code=502,
-            content={"status": "error", "detail": "Telemetry backend unreachable"},
+            status_code=202,
+            content={"status": "dropped", "detail": "Telemetry backend unreachable"},
         )
     except Exception as exc:
         logger.error("[Telemetry] Unexpected error forwarding traces: %s", exc, exc_info=True)
