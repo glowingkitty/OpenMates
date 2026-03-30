@@ -137,11 +137,12 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		const previewDetails = firstPreview.getByTestId('connection-preview-details');
 		await expect(previewDetails).toBeVisible({ timeout: 5000 });
 
-		// Price should be visible and green (success color)
+		// Price should be visible and contain a currency amount (catches total_price vs price bug)
 		const priceEl = previewDetails.getByTestId('connection-price');
 		await expect(priceEl).toBeVisible();
 		const priceText = await priceEl.textContent();
 		expect(priceText).toBeTruthy();
+		expect(priceText).toMatch(/\d/); // Must contain at least one digit
 		logCheckpoint(`Preview price: ${priceText}`);
 
 		// Route should show origin → destination
@@ -188,6 +189,21 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		const depCodeText = await depCode.textContent();
 		expect(depCodeText).toBeTruthy();
 		logCheckpoint(`First segment departure: ${depCodeText}`);
+
+		// Carrier text should be fully visible (not truncated — catches overflow:hidden bug)
+		const carrierEl = flightCard.locator('.carrier-flight').first();
+		await expect(carrierEl).toBeVisible();
+		const carrierText = await carrierEl.textContent();
+		expect(carrierText).toBeTruthy();
+		// Verify no CSS text-overflow is applied (scrollWidth should equal clientWidth)
+		const isNotTruncated = await carrierEl.evaluate((el: HTMLElement) => el.scrollWidth <= el.clientWidth + 1);
+		expect(isNotTruncated).toBe(true);
+		logCheckpoint(`Carrier text: "${carrierText}" (not truncated: ${isNotTruncated})`);
+
+		// Booking CTA button should exist in fullscreen header
+		const bookingCta = page.getByTestId('booking-cta');
+		await expect(bookingCta).toBeVisible({ timeout: 5000 });
+		logCheckpoint('Booking CTA button visible.');
 
 		await takeStepScreenshot(page, 'flight-details-card-verified');
 
