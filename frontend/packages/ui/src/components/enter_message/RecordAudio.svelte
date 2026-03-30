@@ -385,7 +385,7 @@
   pointer-events: none on the overlay itself so clicks/taps fall through to
   document-level listeners — no need to intercept on the div.
 -->
-<div class="record-overlay" transition:fade={{ duration: 150 }}>
+<div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
     <!-- Top: "Release to finish" heading -->
     <div class="record-header">
         <span class="release-text">{@html $text('enter_message.record_audio.release_to_finish')}</span>

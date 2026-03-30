@@ -633,7 +633,7 @@ Props:
             {:else if qrCodeSvg}
                 <div class="qr-container">
                     {#if showQrCode}
-                        <div class="qr-code">
+                        <div class="qr-code" data-testid="qr-code">
                             <!-- QR code SVG is generated client-side by qrcode-svg library (safe) -->
                             {@html qrCodeSvg}
                         </div>

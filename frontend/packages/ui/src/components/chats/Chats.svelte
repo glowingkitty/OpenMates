@@ -3567,6 +3567,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 										type="password"
 										autocomplete="off"
 										class="overscroll-unlock-input"
+							data-testid="vault-unlock-input"
 										class:error={!!inlineUnlockError}
 										bind:value={inlineUnlockCode}
 										oninput={(e) => {
@@ -3708,6 +3709,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							role="button"
 							tabindex="0"
 							class="chat-item"
+							data-testid="chat-item"
 							class:active={selectedChatId === chat.chat_id}
 							class:incognito={chat.is_incognito}
 							onclick={(event) => {

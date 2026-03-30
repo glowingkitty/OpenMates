@@ -1117,7 +1117,7 @@
             
             <!-- Success message -->
             {#if newsletterSuccessMessage}
-                <div class="newsletter-message success-message" role="alert">
+                <div class="newsletter-message success-message" data-testid="success-message" role="alert">
                     {newsletterSuccessMessage}
                 </div>
             {/if}

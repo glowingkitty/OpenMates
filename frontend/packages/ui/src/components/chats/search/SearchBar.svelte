@@ -136,6 +136,7 @@
     bind:value={query}
     type="search"
     class="search-input"
+    data-testid="search-input"
     placeholder={$text('chats.search.placeholder')}
     oninput={handleInput}
     onkeydown={handleKeyDown}

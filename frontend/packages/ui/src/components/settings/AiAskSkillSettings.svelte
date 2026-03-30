@@ -377,7 +377,7 @@
     ]);
 </script>
 
-<div class="ai-ask-settings">
+<div class="ai-ask-settings" data-testid="ai-ask-settings">
     <!-- Description section -->
     <div class="description-section">
         <p class="skill-description">{$text('settings.ai_ask.ai_ask_settings.description')}</p>

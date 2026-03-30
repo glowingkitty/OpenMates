@@ -327,6 +327,7 @@
 {#if isClickable}
 <div
     class="menu-item settings-item clickable"
+    data-testid="menu-item"
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
@@ -345,6 +346,7 @@
 <!-- Non-clickable variant: presentation role, no tabindex -->
 <div
     class="menu-item settings-item"
+    data-testid="menu-item"
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}

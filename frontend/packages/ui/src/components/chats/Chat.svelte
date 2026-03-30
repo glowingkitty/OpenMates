@@ -1936,7 +1936,7 @@
   ontouchcancel={handleTouchCancel}
 >
   {#if chat}
-    <div class="chat-item">
+    <div class="chat-item" data-testid="chat-item">
       {#if hasWaitingForUser && !currentTypingMateInfo}
         <!-- Waiting for user action (e.g., insufficient credits): draft-like layout with label + message preview -->
         <div class="draft-only-layout">

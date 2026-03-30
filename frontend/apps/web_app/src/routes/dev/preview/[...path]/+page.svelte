@@ -514,7 +514,7 @@
 						could be null when the $effect runs after a retry.
 					-->
 					{#if renderError}
-						<div class="preview-state render-error">
+						<div class="preview-state render-error" data-testid="render-error">
 							<h2>Render Error</h2>
 							<p class="error-message">{renderError}</p>
 							<p class="hint">

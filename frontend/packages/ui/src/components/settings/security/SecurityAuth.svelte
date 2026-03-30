@@ -537,6 +537,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
 
 <div
     class="auth-modal-overlay"
+    data-testid="auth-modal"
     role="presentation"
     onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
 >
@@ -580,6 +581,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     {/if}
                     <button
                         class="auth-btn"
+                        data-testid="auth-btn"
                         onclick={handlePasswordAuth}
                         disabled={isPasswordLoading || !password.trim()}
                     >
@@ -622,6 +624,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     {/if}
                     <button
                         class="auth-btn"
+                        data-testid="auth-btn"
                         onclick={handlePasskeyAuth}
                         disabled={isAuthenticating}
                     >
@@ -641,6 +644,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         <p>{$text('settings.security.email_otp_description')}</p>
                         <button
                             class="auth-btn"
+                            data-testid="auth-btn"
                             onclick={handleSendEmailOtp}
                             disabled={isEmailOtpSending}
                         >

@@ -112,7 +112,7 @@
         </div>
 
         <!-- Stacked buttons with "or" separator line between them -->
-        <div class="not-found-actions">
+        <div class="not-found-actions" data-testid="not-found-actions">
             <button onclick={handleSearch} type="button">
                 <span class="btn-icon btn-icon-search" aria-hidden="true"></span>
                 {$text('common.not_found.search_label', { values: { query } })}

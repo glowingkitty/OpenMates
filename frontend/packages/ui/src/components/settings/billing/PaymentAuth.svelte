@@ -286,6 +286,7 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
                         placeholder="000000"
                         disabled={isAuthenticating}
                         class="tfa-input"
+                        data-testid="tfa-input"
                     />
                     {#if errorMessage}
                         <p class="error-message">{errorMessage}</p>

@@ -314,7 +314,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 </script>
 
-<div class="delete-account-container">
+<div class="delete-account-container" data-testid="delete-account-container">
     {#if isCheckingStatus || isLoadingPreview}
         <div class="loading-message">
             <p>{$text('settings.account.delete_account_loading_preview')}</p>

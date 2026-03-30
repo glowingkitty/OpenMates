@@ -361,7 +361,7 @@
         </div>
         
         <!-- App name aligned right next to the icon -->
-        <h3 class="app-card-name">{appName}</h3>
+        <h3 class="app-card-name" data-testid="app-card-name">{appName}</h3>
     </div>
     
     <!-- App description below — aria-hidden since card has aria-label={appName} -->
