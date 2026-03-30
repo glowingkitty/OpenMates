@@ -237,8 +237,18 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 
 	// =========================================================================
 	// PHASE 3: Navigate to new chat screen and verify sort order
+	// Open the first chat in sidebar so we leave the welcome screen,
+	// then click "New Chat" to return with a fresh carousel.
 	// =========================================================================
 	logStep('Phase 3: Navigating to new chat screen...');
+	// Ensure sidebar is open, click the first chat to leave the welcome screen
+	await ensureSidebarOpen(page, logStep);
+	const firstChat = page.locator('.chat-item-wrapper').first();
+	await expect(firstChat).toBeVisible({ timeout: 10000 });
+	await firstChat.click();
+	logStep('Opened first chat to leave welcome screen.');
+	await page.waitForTimeout(3000);
+
 	await closeSidebar(page, logStep);
 	await clickNewChat(page, logStep);
 
