@@ -606,8 +606,9 @@ export interface Phase1bChatContentPayload {
 }
 
 /**
- * Background message sync — chunked batch of messages (Phase 3).
- * Each batch has messages for up to 10 chats, sent as separate WS messages.
+ * Background message + embed sync — chunked batch (Phase 3).
+ * Each batch has messages + embeds for up to 10 chats, sent as separate WS messages.
+ * Embeds + embed_keys are included so they're available offline in IndexedDB.
  */
 export interface BackgroundMessageSyncPayload {
   chats: Array<{
@@ -618,6 +619,10 @@ export interface BackgroundMessageSyncPayload {
   }>;
   batch_number: number;
   is_last_batch: boolean;
+  /** Embeds for this batch's chats — stored in IndexedDB for offline access */
+  embeds?: SyncEmbed[];
+  /** Embed encryption keys for this batch's chats */
+  embed_keys?: EmbedKeyEntry[];
 }
 
 export interface CachePrimedPayload {
