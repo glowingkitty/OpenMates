@@ -124,17 +124,29 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await expect(authPasswordInput).toBeVisible();
 	await authPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await authModal.getByTestId('auth-btn').click();
-	await takeStepScreenshot(page, 'auth-password');
 	logCheckpoint('Submitted password in SecurityAuth.');
 
-	// If 2FA required in SecurityAuth, enter OTP
+	// Wait for SecurityAuth to either show 2FA input or close (auth succeeded without 2FA).
+	// The async handlePasswordAuth calls the login endpoint — if it returns tfa_required,
+	// the 2FA input appears; otherwise onSuccess is called and the modal unmounts.
 	const authTfaInput = authModal.getByTestId('tfa-input');
-	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
+	const authTfaVisible = await Promise.race([
+		authTfaInput.waitFor({ state: 'visible', timeout: 10000 }).then(() => true),
+		authModal.waitFor({ state: 'hidden', timeout: 10000 }).then(() => false),
+	]).catch(() => false);
+
+	await takeStepScreenshot(page, 'auth-password');
+
 	if (authTfaVisible) {
 		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
 		await authTfaInput.fill(authOtp);
 		// Auto-submits on 6 digits
 		logCheckpoint('Entered OTP in SecurityAuth.');
+		// Wait for SecurityAuth to close after OTP verification
+		await authModal.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+		logCheckpoint('SecurityAuth closed after OTP.');
+	} else {
+		logCheckpoint('SecurityAuth closed without 2FA (password was sufficient).');
 	}
 
 	// TFA setup step: get new secret and enter OTP
