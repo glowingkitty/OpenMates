@@ -68,25 +68,59 @@ Brief section — only flag if something is off track. Say "On track" if it is.
 
 Wait for user input.
 
-### Step 5: TODAY'S PRIORITIES 🎯
+### Step 5: CONTEXT QUESTIONS 🔍
 
-Using the Linear report's proposed top 3:
+Before suggesting priorities, ask **5 targeted questions — one at a time, one per round**. Wait for the user's answer after each question before asking the next. These questions help you make an educated recommendation rather than relying purely on data.
+
+Adapt questions based on what you've learned from the reports and the conversation so far. Pick from these categories (don't repeat a category):
+
+1. **Focus & energy** — "What kind of work are you in the mood for today? Deep technical work, cleanup, or quick wins?"
+2. **Blockers & friction** — "Is anything blocking you right now? Waiting on someone, stuck on a problem, or dreading a task?"
+3. **External commitments** — "Do you have any meetings, demos, or deadlines today that constrain your available time?"
+4. **Unfinished business** — "Is there anything from yesterday you want to finish first, or are you ready for a clean slate?"
+5. **Strategic direction** — "Are there any bigger-picture goals or areas you want to push forward this week that should influence today?"
+
+Rules for asking:
+- Ask ONE question per round, then STOP and wait for the answer
+- Adapt follow-up questions based on previous answers (don't ask about blockers if they already mentioned them)
+- Keep questions conversational and short — this is a standup, not an interview
+- If the user gives a short/dismissive answer, accept it and move on — don't probe further on that topic
+- After all 5 questions, briefly summarize what you learned: "Based on your answers, I'm factoring in: X, Y, Z"
+
+### Step 6: TODAY'S PRIORITIES 🎯
+
+Using the Linear report's proposed top 3 **combined with the user's answers from Step 5**:
 - Present each with: Linear ID, title, rationale, estimated effort
 - Adjust if health report revealed urgent issues
+- Adjust based on user's stated energy, blockers, time constraints, and strategic focus
 - For each: 🔥 urgent / ⚡ high / 📋 medium
+- Briefly explain how user's answers influenced your recommendations (e.g., "Picked this over OPE-XX because you mentioned wanting deep work today")
 
 Then ask: **"These are today's 3 priorities. Confirm, or tell me what to adjust."**
 
 Wait for user to confirm or adjust.
 
-### Step 6: CONFIRM & CLOSE ✅
+### Step 7: MILESTONE CHECK 📐
 
-After the user confirms:
+Based on everything gathered (reports + user context), evaluate whether any milestone changes are warranted:
+
+- **New milestone needed?** — If the user mentioned a new strategic direction, or if trajectory data shows scope has shifted significantly
+- **Update existing milestone?** — If timeline is slipping, scope should be cut, or priorities have clearly changed
+- **No changes needed** — Say so explicitly. Don't force changes.
+
+If suggesting changes, present them as proposals with rationale. Ask: **"Should I make these milestone changes, or leave things as-is?"**
+
+Wait for user input.
+
+### Step 8: CONFIRM & CLOSE ✅
+
+After the user confirms priorities and milestone changes (if any):
 1. Remove `daily-priority` label from yesterday's tasks (if not in today's list)
 2. Add `daily-priority` label to today's 3 selected tasks
 3. Post a comment on each: "Daily priority for {{DATE}} — Rationale: <reason>"
-4. Save state to `scripts/.daily-meeting-state.json`
-5. Write meeting summary to `scripts/.tmp/daily-meeting-summary-{{DATE}}.md`
+4. Apply any confirmed milestone changes (create new milestones, update existing ones)
+5. Save state to `scripts/.daily-meeting-state.json`
+6. Write meeting summary to `scripts/.tmp/daily-meeting-summary-{{DATE}}.md`
 
 Use this JSON structure for the state file:
 ```json
@@ -101,6 +135,14 @@ Use this JSON structure for the state file:
   "confirmed_by": "user",
   "confirmed_at": "<ISO timestamp>",
   "session_id": "{{SESSION_ID}}",
+  "context_answers": {
+    "focus_energy": "",
+    "blockers": "",
+    "external_commitments": "",
+    "unfinished_business": "",
+    "strategic_direction": ""
+  },
+  "milestone_changes": [],
   "data_failures": [],
   "auto_created_tasks": [],
   "status_updates": []
@@ -122,6 +164,12 @@ Use this structure for the meeting summary MD:
 ## Key Accomplishments
 - <bullet points>
 
+## Context (from Q&A)
+- Focus/energy: <summary>
+- Blockers: <summary or "none">
+- Time constraints: <summary or "full day available">
+- Strategic direction: <summary>
+
 ## System Health
 - Tests: X/Y (Z%)
 - Providers: <status>
@@ -131,6 +179,9 @@ Use this structure for the meeting summary MD:
 | # | Task | Effort |
 |---|------|--------|
 | 1 | OPE-XX: Title | est |
+
+## Milestone Changes
+- <changes made, or "None">
 
 ## Decisions & Notes
 - <anything discussed or decided during the meeting>
@@ -150,7 +201,9 @@ Do NOT end the meeting until all items are checked:
 - [ ] Yesterday's priorities reviewed
 - [ ] System health assessed (data gaps flagged)
 - [ ] Project trajectory discussed
-- [ ] Today's 3 priorities confirmed
+- [ ] 5 context questions asked and answered (one per round)
+- [ ] Today's 3 priorities confirmed (informed by user's answers)
+- [ ] Milestone changes evaluated and applied (if any)
 - [ ] Linear labels updated (old removed, new added)
 - [ ] Linear comments posted on selected tasks
 - [ ] State file saved

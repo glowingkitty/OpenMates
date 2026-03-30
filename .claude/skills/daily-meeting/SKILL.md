@@ -49,19 +49,22 @@ Follow the meeting agenda from `scripts/prompts/daily-meeting.md`. **Present ONE
 2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
 3. **SYSTEM HEALTH 🏥** — outages, test failures, errors, data gaps
 4. **PROJECT TRAJECTORY 🗺️** — milestone progress, session quality
-5. **TODAY'S PRIORITIES 🎯** — present top 3, ask for confirmation
-6. **CONFIRM & CLOSE ✅** — apply labels, save state, write summary
+5. **CONTEXT QUESTIONS 🔍** — 5 rounds of targeted questions (one per round, wait for answer each time) to understand the user's current focus, blockers, energy, and upcoming commitments before suggesting priorities
+6. **TODAY'S PRIORITIES 🎯** — present top 3 informed by all data + user answers, ask for confirmation
+7. **MILESTONE CHECK 📐** — based on gathered context, suggest milestone changes (create new, update existing) if warranted
+8. **CONFIRM & CLOSE ✅** — apply labels, save state, write summary
 
-### Step 4: Apply Priorities
+### Step 4: Apply Priorities & Milestone Changes
 
-After the user confirms (or adjusts) the 3 priorities:
+After the user confirms (or adjusts) the 3 priorities and any milestone changes:
 
 1. Query Linear for tasks with `daily-priority` label (yesterday's) — remove the label from tasks no longer selected
 2. Add `daily-priority` label to today's 3 tasks
 3. **Set all daily priority tasks to Urgent priority** — daily priorities are always Urgent
 4. Post a comment on each: `"Daily priority for <DATE> — Rationale: <reason>"`
-5. Save the meeting state to `scripts/.daily-meeting-state.json`
-6. Write meeting summary to `scripts/.tmp/daily-meeting-summary-<DATE>.md`
+5. Apply confirmed milestone changes (create new, update existing) via Linear MCP tools
+6. Save the meeting state to `scripts/.daily-meeting-state.json`
+7. Write meeting summary to `scripts/.tmp/daily-meeting-summary-<DATE>.md`
 
 ### Priority Rules
 
@@ -76,7 +79,9 @@ Do NOT end the meeting until all items are done:
 - [ ] Yesterday's priorities reviewed
 - [ ] System health presented
 - [ ] Project trajectory assessed
-- [ ] Today's 3 priorities confirmed
+- [ ] 5 context questions asked (one per round, answers collected)
+- [ ] Today's 3 priorities confirmed (informed by user answers)
+- [ ] Milestone changes evaluated and applied (if any)
 - [ ] Daily priority tasks set to Urgent
 - [ ] Linear labels updated
 - [ ] State file saved
