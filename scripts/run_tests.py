@@ -1162,6 +1162,22 @@ class ReportGenerator:
         """
         success_dir = self.REPORTS_DIR / "success"
         failed_dir = self.REPORTS_DIR / "failed"
+
+        # Archive existing daily reports before overwriting.
+        # If reports/failed/ has content and a daily-run JSON exists for today,
+        # copy reports to reports/daily-YYYY-MM-DD/ so they survive reruns.
+        if failed_dir.is_dir() and any(failed_dir.iterdir()):
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            daily_archive = self.REPORTS_DIR / f"daily-{today}"
+            if not daily_archive.is_dir():
+                daily_archive.mkdir(parents=True, exist_ok=True)
+                for subdir_name in ("failed", "success"):
+                    src = self.REPORTS_DIR / subdir_name
+                    dst = daily_archive / subdir_name
+                    if src.is_dir():
+                        shutil.copytree(str(src), str(dst), dirs_exist_ok=True)
+                _log(f"Archived daily reports to reports/daily-{today}/")
+
         success_dir.mkdir(parents=True, exist_ok=True)
         failed_dir.mkdir(parents=True, exist_ok=True)
 

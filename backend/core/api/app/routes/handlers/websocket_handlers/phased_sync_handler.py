@@ -146,7 +146,7 @@ async def handle_phased_sync_request(
             client_suggestions_count = payload.get("client_suggestions_count", 0)
             # Client sends the embed IDs it already has stored in IndexedDB so the server
             # can skip re-sending those embeds (cross-session deduplication).
-            client_embed_ids: List[str] = payload.get("client_embed_ids", [])
+            client_embed_ids: set = set(payload.get("client_embed_ids", []))
         
             logger.info(
                 f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
@@ -172,7 +172,7 @@ async def handle_phased_sync_request(
             if (sync_phase == "phase1" or sync_phase == "all") and phase1_chat_ids:
                 await _handle_phase1b_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    phase1_chat_ids, client_chat_versions, sent_embed_ids
+                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids
                 )
 
             # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
@@ -484,7 +484,8 @@ async def _handle_phase1b_sync(
     device_fingerprint_hash: str,
     phase1_chat_ids: List[str],
     client_chat_versions: Dict[str, Dict[str, int]],
-    sent_embed_ids: set
+    sent_embed_ids: set,
+    client_embed_ids: Optional[set] = None
 ):
     """
     Phase 1b: Messages + embeds for the 11 Phase 1a chats (separate WS message).
@@ -580,6 +581,7 @@ async def _handle_phase1b_sync(
                         embed_status = embed.get("status")
                         if (embed_id and embed_id not in seen_embed_ids
                                 and embed_id not in sent_embed_ids
+                                and embed_id not in (client_embed_ids or set())
                                 and embed_status not in ("error", "cancelled")):
                             all_embeds.append(embed)
                             seen_embed_ids.add(embed_id)
@@ -900,6 +902,7 @@ async def _handle_phase3_sync(
                             embed_status = embed.get("status")
                             if (embed_id and embed_id not in batch_seen_embed_ids
                                     and embed_id not in sent_embed_ids
+                                    and embed_id not in (client_embed_ids or set())
                                     and embed_status not in ("error", "cancelled")):
                                 batch_embeds.append(embed)
                                 batch_seen_embed_ids.add(embed_id)
