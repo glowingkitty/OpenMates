@@ -129,66 +129,15 @@ def fetch_open_issues(admin_api_key: str, lookback_hours: int = ISSUES_LOOKBACK_
     return recent_issues
 
 
-def _load_admin_key_from_vault(project_root: str) -> str | None:
-    """
-    Retrieve the admin debug API key from Vault via a running backend container.
-
-    Tries 'api' first, then falls back to 'app-ai' (always running).
-    Vault path: kv/data/providers/admin, key: debug_cli__api_key
-    Returns None if no container is reachable or the key is missing.
-    """
-    fetch_script = (
-        "import asyncio\n"
-        "from backend.core.api.app.utils.secrets_manager import SecretsManager\n"
-        "async def main():\n"
-        "    sm = SecretsManager()\n"
-        "    await sm.initialize()\n"
-        "    key = await sm.get_secret('kv/data/providers/admin', 'debug_cli__api_key')\n"
-        "    print(key or '', end='')\n"
-        "asyncio.run(main())\n"
-    )
-    for container in ("api", "app-ai"):
-        try:
-            result = subprocess.run(
-                ["docker", "exec", container, "python3", "-c", fetch_script],
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            key = result.stdout.strip()
-            if key:
-                return key
-        except Exception:
-            continue
-
-    print("[issues-checker] WARNING: Vault lookup failed — no reachable container", file=sys.stderr)
-    return None
-
-
-# Marker value written by vault-setup after importing a secret
-_VAULT_PLACEHOLDER = "IMPORTED_TO_VAULT"
-
-
 def get_admin_api_key(project_root: str) -> str | None:
     """
-    Resolve the admin API key: env var → .env → Vault (via api container).
+    Resolve the admin API key from env vars or .env file.
 
-    Skips .env values that are the IMPORTED_TO_VAULT placeholder and falls
-    back to reading from Vault directly.
+    Returns the key string, or None if not found.
     """
-    # 1. Check env var (may be set by the calling shell)
-    key = os.environ.get(ADMIN_KEY_ENV_VAR, "")
-    if key and key != _VAULT_PLACEHOLDER:
-        return key
-
-    # 2. Check .env file (skip placeholder)
     dot_env = _read_env_file(project_root)
-    key = dot_env.get(ADMIN_KEY_ENV_VAR, "")
-    if key and key != _VAULT_PLACEHOLDER:
-        return key
-
-    # 3. Fetch from Vault via the running api container
-    return _load_admin_key_from_vault(project_root)
+    key = os.environ.get(ADMIN_KEY_ENV_VAR) or dot_env.get(ADMIN_KEY_ENV_VAR, "")
+    return key or None
 
 
 def _check_issue_in_git(issue_id: str, project_root: str) -> str | None:

@@ -129,131 +129,6 @@ _IATA_TO_GL: Dict[str, str] = {
 }
 
 
-def _get_airport_country_code(iata_code: str) -> Optional[str]:
-    """
-    Look up airport ISO 3166-1 alpha-2 country code by IATA code.
-
-    Returns uppercase country code (e.g., 'DE', 'TH') or None if unknown.
-    Used for flag emoji display in the frontend (e.g., 'DE' → 🇩🇪).
-    """
-    if not iata_code or len(iata_code) != 3:
-        return None
-    try:
-        results = _airport_db.get_airport_by_iata(iata_code)
-        if results and len(results) > 0:
-            code = results[0].get("country_code")
-            if code:
-                return code.upper()
-    except (ValueError, KeyError, TypeError) as e:
-        logger.debug(f"Could not look up country code for IATA '{iata_code}': {e}")
-    return None
-
-
-def _get_airport_timezone(iata_code: str) -> Optional[str]:
-    """
-    Look up airport timezone name by IATA code using airports-py.
-
-    Returns IANA timezone string (e.g., 'Europe/Berlin') or None if unknown.
-    """
-    if not iata_code or len(iata_code) != 3:
-        return None
-    try:
-        results = _airport_db.get_airport_by_iata(iata_code)
-        if results and len(results) > 0:
-            return results[0].get("time")
-    except (ValueError, KeyError, TypeError) as e:
-        logger.debug(f"Could not look up timezone for IATA '{iata_code}': {e}")
-    return None
-
-
-def _is_daytime(
-    iso_time: str,
-    latitude: Optional[float],
-    longitude: Optional[float],
-    timezone_name: Optional[str],
-) -> Optional[bool]:
-    """
-    Determine if a given time is between sunrise and sunset at a location.
-
-    Uses a simplified solar position calculation (accurate to ~5 minutes)
-    based on the NOAA solar calculator algorithm. No external library needed.
-
-    Args:
-        iso_time: Time in ISO 8601 or "YYYY-MM-DD HH:MM" format.
-        latitude: Airport latitude in degrees.
-        longitude: Airport longitude in degrees.
-        timezone_name: IANA timezone (e.g., 'Europe/Berlin').
-
-    Returns:
-        True if daytime (between sunrise and sunset), False if night,
-        None if calculation not possible (missing data).
-    """
-    import math
-    from datetime import datetime
-
-    if not iso_time or latitude is None or longitude is None or not timezone_name:
-        return None
-
-    try:
-        import pytz
-
-        # Parse the time string (SerpAPI format: "YYYY-MM-DD HH:MM" or ISO 8601)
-        time_str = iso_time.replace("T", " ").split("+")[0].split("Z")[0]
-        if len(time_str) == 16:  # "YYYY-MM-DD HH:MM"
-            dt_naive = datetime.strptime(time_str, "%Y-%m-%d %H:%M")
-        elif len(time_str) >= 19:  # "YYYY-MM-DD HH:MM:SS"
-            dt_naive = datetime.strptime(time_str[:19], "%Y-%m-%d %H:%M:%S")
-        else:
-            return None
-
-        tz = pytz.timezone(timezone_name)
-        dt_local = tz.localize(dt_naive)
-
-        # Day of year for solar calculations
-        day_of_year = dt_local.timetuple().tm_yday
-
-        # Solar declination (simplified, accurate to ~0.5°)
-        declination = 23.45 * math.sin(math.radians(360 / 365 * (day_of_year - 81)))
-        decl_rad = math.radians(declination)
-        lat_rad = math.radians(latitude)
-
-        # Hour angle at sunrise/sunset (cos(ha) = -tan(lat) * tan(decl))
-        cos_ha = -math.tan(lat_rad) * math.tan(decl_rad)
-
-        # Handle polar day/night (midnight sun / polar night)
-        if cos_ha < -1:
-            return True  # Midnight sun — always daytime
-        if cos_ha > 1:
-            return False  # Polar night — always dark
-
-        hour_angle = math.degrees(math.acos(cos_ha))
-
-        # Solar noon in UTC hours (approximate using longitude)
-        solar_noon_utc = 12.0 - (longitude / 15.0)
-
-        # Sunrise/sunset in UTC hours
-        sunrise_utc = solar_noon_utc - (hour_angle / 15.0)
-        sunset_utc = solar_noon_utc + (hour_angle / 15.0)
-
-        # Convert the local time to UTC fractional hours for comparison
-        dt_utc = dt_local.astimezone(pytz.utc)
-        current_utc_hours = dt_utc.hour + dt_utc.minute / 60.0
-
-        # Normalize all to 0-24 range
-        sunrise_utc = sunrise_utc % 24
-        sunset_utc = sunset_utc % 24
-
-        if sunrise_utc < sunset_utc:
-            return sunrise_utc <= current_utc_hours <= sunset_utc
-        else:
-            # Wraps around midnight UTC
-            return current_utc_hours >= sunrise_utc or current_utc_hours <= sunset_utc
-
-    except Exception as e:
-        logger.debug(f"Daytime calculation failed for '{iso_time}' at ({latitude}, {longitude}): {e}")
-        return None
-
-
 def _get_airport_coords(iata_code: str) -> Tuple[Optional[float], Optional[float]]:
     """
     Look up airport coordinates by IATA code using the airports-py package.
@@ -962,14 +837,6 @@ class SerpApiProvider(BaseTransportProvider):
             dep_lat, dep_lng = _get_airport_coords(dep_iata)
             arr_lat, arr_lng = _get_airport_coords(arr_iata)
 
-            # Country codes and daytime indicators for frontend display
-            dep_country = _get_airport_country_code(dep_iata)
-            arr_country = _get_airport_country_code(arr_iata)
-            dep_tz = _get_airport_timezone(dep_iata)
-            arr_tz = _get_airport_timezone(arr_iata)
-            dep_daytime = _is_daytime(dep_time, dep_lat, dep_lng, dep_tz)
-            arr_daytime = _is_daytime(arr_time, arr_lat, arr_lng, arr_tz)
-
             segments.append(SegmentResult(
                 carrier=airline,
                 carrier_code=carrier_code if carrier_code else None,
@@ -983,10 +850,6 @@ class SerpApiProvider(BaseTransportProvider):
                 arrival_latitude=arr_lat,
                 arrival_longitude=arr_lng,
                 duration=_format_duration_minutes(duration),
-                departure_country_code=dep_country,
-                arrival_country_code=arr_country,
-                departure_is_daytime=dep_daytime,
-                arrival_is_daytime=arr_daytime,
                 airplane=airplane,
                 airline_logo=airline_logo,
                 legroom=legroom,
@@ -1081,10 +944,6 @@ class SerpApiProvider(BaseTransportProvider):
         # Primary airline logo (flight group level)
         group_airline_logo = flight_group.get("airline_logo")
 
-        # Derive origin/destination country codes from first/last segment
-        origin_cc = segments[0].departure_country_code if segments else None
-        dest_cc = segments[-1].arrival_country_code if segments else None
-
         return ConnectionResult(
             transport_method="airplane",
             total_price=str(price) if price is not None else None,
@@ -1097,8 +956,6 @@ class SerpApiProvider(BaseTransportProvider):
             booking_context=booking_context,
             validating_airline_code=validating_code,
             legs=[leg],
-            origin_country_code=origin_cc,
-            destination_country_code=dest_cc,
             airline_logo=group_airline_logo,
             co2_kg=round(co2_this / 1000) if co2_this else None,
             co2_typical_kg=round(co2_typical / 1000) if co2_typical else None,

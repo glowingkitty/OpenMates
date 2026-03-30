@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-03-30T04:31:58Z",
+  "last_run": "2026-03-27T04:30:02Z",
   "processed": [
     {
       "ghsa_id": "GHSA-wfv2-pwc8-crg5",
@@ -239,7 +239,7 @@
       "first_seen_at": "2026-03-27T04:30:02Z",
       "last_dispatched_at": "2026-03-27T04:30:02Z",
       "re_dispatch_count": 0,
-      "resolved_via_commit": "ad30adf8d"
+      "resolved_via_commit": null
     },
     {
       "ghsa_id": "GHSA-c2c7-rcm5-vvqj",
@@ -252,7 +252,7 @@
       "first_seen_at": "2026-03-27T04:30:02Z",
       "last_dispatched_at": "2026-03-27T04:30:02Z",
       "re_dispatch_count": 0,
-      "resolved_via_commit": "5f9210449"
+      "resolved_via_commit": null
     },
     {
       "ghsa_id": "GHSA-3v7f-55p6-f55p",
@@ -265,32 +265,6 @@
       ],
       "first_seen_at": "2026-03-27T04:30:02Z",
       "last_dispatched_at": "2026-03-27T04:30:02Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": "5f9210449"
-    },
-    {
-      "ghsa_id": "GHSA-f886-m6hf-6m8v",
-      "severity": "medium",
-      "package": "brace-expansion",
-      "summary": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion",
-      "alert_numbers": [
-        120
-      ],
-      "first_seen_at": "2026-03-28T04:30:02Z",
-      "last_dispatched_at": "2026-03-28T04:30:02Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": "a9503bb22"
-    },
-    {
-      "ghsa_id": "GHSA-qj8w-gfj5-8c6v",
-      "severity": "medium",
-      "package": "serialize-javascript",
-      "summary": "Serialize JavaScript has CPU Exhaustion Denial of Service via crafted array-like objects",
-      "alert_numbers": [
-        123
-      ],
-      "first_seen_at": "2026-03-30T04:31:58Z",
-      "last_dispatched_at": "2026-03-30T04:31:58Z",
       "re_dispatch_count": 0,
       "resolved_via_commit": null
     }

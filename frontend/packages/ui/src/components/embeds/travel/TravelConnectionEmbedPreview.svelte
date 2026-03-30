@@ -65,6 +65,8 @@
     price,
     currency = 'EUR',
     transportMethod = 'airplane',
+    // tripType is accepted as a prop but not currently displayed in the preview card
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     tripType = 'one_way',
     origin,
     destination,
@@ -75,8 +77,7 @@
     carriers: carriersProp = [],
     carrierCodes: carrierCodesProp = [],
     bookableSeats,
-    // isCheapest not used in redesigned preview — price is always green
-    isCheapest: _isCheapest = false,
+    isCheapest = false,
     status = 'finished',
     isMobile = false,
     onFullscreen
@@ -109,35 +110,18 @@
     }
   }
   
-  // departureTime is displayed by BasicInfosBar via routeDisplay + skillName
+  let departureTime = $derived(formatTime(departure));
+  let arrivalTime = $derived(formatTime(arrival));
   
-  // Format departure date for display (e.g., "Sat, Mar 28")
+  // Format departure date for display (e.g., "Fri, Mar 7, 2026")
   let departureDate = $derived.by(() => {
     if (!departure) return '';
     try {
       const date = new Date(departure);
-      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
       return '';
     }
-  });
-
-  // Trip type label for price display
-  let tripTypeLabel = $derived.by(() => {
-    switch (tripType) {
-      case 'round_trip': return 'Round trip';
-      case 'multi_city': return 'Multi-city';
-      default: return 'One way';
-    }
-  });
-
-  // Combined meta line: "Sat, Mar 28 · 31h 20m · 2 stops"
-  let metaLine = $derived.by(() => {
-    const parts: string[] = [];
-    if (departureDate) parts.push(departureDate);
-    if (duration) parts.push(duration);
-    parts.push(stopsLabel);
-    return parts.join(' · ');
   });
   
   // Generate airline logo URLs from carrier codes via image proxy
@@ -157,7 +141,12 @@
     return `${stops} stops`;
   });
   
-  // Carriers array is used for props but display is now in the meta line
+  // Carrier display (join with comma, max 2)
+  let carrierDisplay = $derived.by(() => {
+    if (!carriers || carriers.length === 0) return '';
+    if (carriers.length <= 2) return carriers.join(', ');
+    return `${carriers.slice(0, 2).join(', ')} +${carriers.length - 2}`;
+  });
   
   // Route display for BasicInfosBar title
   let routeDisplay = $derived.by(() => {
@@ -201,42 +190,58 @@
   showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
-      <!-- Price row: green price + trip type + airline logos -->
+    <div class="connection-details" class:mobile={isMobileLayout}>
+      <!-- Price row with airline logos -->
       <div class="price-row">
         {#if formattedPrice}
-          <span class="connection-price" data-testid="connection-price">{formattedPrice}</span>
-          <span class="trip-type-separator">|</span>
-          <span class="trip-type-label">{tripTypeLabel}</span>
+          <div class="connection-price" class:cheapest={isCheapest}>{formattedPrice}</div>
+        {/if}
+        {#if airlineLogos.length > 0}
+          <div class="airline-logos">
+            {#each airlineLogos as logo}
+              <img
+                class="airline-logo"
+                src={logo.url}
+                alt={logo.code}
+                width="22"
+                height="22"
+                loading="lazy"
+              />
+            {/each}
+          </div>
         {/if}
       </div>
-
-      <!-- Airline logos row -->
-      {#if airlineLogos.length > 0}
-        <div class="airline-logos" data-testid="airline-logos">
-          {#each airlineLogos as logo}
-            <img
-              class="airline-logo"
-              src={logo.url}
-              alt={logo.code}
-              width="22"
-              height="22"
-              loading="lazy"
-            />
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Route: "Berlin (BER) → Bangkok (BKK)" -->
-      {#if origin && destination}
-        <div class="connection-route" data-testid="connection-route">
+      
+      <!-- Route -->
+      <div class="connection-route">
+        {#if origin && destination}
           <span class="route-text">{origin} → {destination}</span>
-        </div>
+        {/if}
+      </div>
+      
+      <!-- Trip date -->
+      {#if departureDate}
+        <div class="connection-date">{departureDate}</div>
       {/if}
-
-      <!-- Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" -->
-      <div class="connection-meta" data-testid="connection-meta">{metaLine}</div>
-
+      
+      <!-- Time and duration row -->
+      <div class="connection-times">
+        {#if departureTime && arrivalTime}
+          <span class="time-range">{departureTime} – {arrivalTime}</span>
+        {/if}
+        {#if duration}
+          <span class="duration">{duration}</span>
+        {/if}
+      </div>
+      
+      <!-- Stops and carrier info -->
+      <div class="connection-meta">
+        <span class="stops" class:direct={stops === 0}>{stopsLabel}</span>
+        {#if carrierDisplay}
+          <span class="carrier">{carrierDisplay}</span>
+        {/if}
+      </div>
+      
       <!-- Seats remaining warning -->
       {#if bookableSeats !== undefined && bookableSeats > 0 && bookableSeats <= 4}
         <div class="seats-warning">
@@ -249,106 +254,133 @@
 
 <style>
   /* ===========================================
-     Connection Preview — Redesigned Card Layout
-     Matches Figma: node 4950-44635 (preview section)
+     Connection Details Content
      =========================================== */
-
+  
   .connection-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     height: 100%;
     justify-content: center;
     padding: 2px 0;
   }
-
+  
   .connection-details.mobile {
     justify-content: flex-start;
   }
-
-  /* Price row: "1.111 EUR | One way" */
+  
+  /* Price row with airline logos */
   .price-row {
     display: flex;
-    align-items: baseline;
-    gap: 6px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
-
+  
+  /* Price - prominent display */
   .connection-price {
-    font-size: 1.25rem;
+    font-size: 18px;
     font-weight: 700;
-    color: var(--color-success, #00a313);
+    color: var(--color-grey-100);
     line-height: 1.2;
   }
-
+  
+  .connection-price.cheapest {
+    color: var(--color-success, #22c55e);
+  }
+  
   .connection-details.mobile .connection-price {
-    font-size: 1.1rem;
+    font-size: 16px;
   }
-
-  .trip-type-separator {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .trip-type-label {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .connection-details.mobile .trip-type-separator,
-  .connection-details.mobile .trip-type-label {
-    font-size: 1.1rem;
-  }
-
-  /* Airline logos — overlapping circle stack */
+  
+  /* Airline logos */
   .airline-logos {
     display: flex;
     align-items: center;
+    gap: -4px;
+    margin-left: auto;
   }
 
+  /* Stack logos with slight overlap for a compact circle group */
   .airline-logos .airline-logo + .airline-logo {
     margin-left: -6px;
   }
-
+  
   .airline-logo {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     object-fit: cover;
     background: var(--color-grey-10, #fff);
-    border: 1.5px solid var(--color-grey-20, #e2e2e2);
+    border: 1.5px solid var(--color-grey-30, #e2e2e2);
     box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04);
     flex-shrink: 0;
   }
-
-  /* Route: "Berlin (BER) → Bangkok (BKK)" */
+  
+  /* Trip date */
+  .connection-date {
+    font-size: 12px;
+    color: var(--color-grey-60);
+    line-height: 1.3;
+  }
+  
+  /* Route */
   .connection-route {
-    font-size: 0.875rem;
-    color: var(--color-font-primary);
+    font-size: 13px;
+    color: var(--color-grey-80);
     line-height: 1.3;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
+  
   .route-text {
-    font-weight: 600;
+    font-weight: 500;
   }
-
-  /* Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" */
+  
+  /* Times and duration */
+  .connection-times {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-grey-70);
+    line-height: 1.3;
+  }
+  
+  .time-range {
+    font-weight: 500;
+    color: var(--color-grey-80);
+  }
+  
+  .duration {
+    color: var(--color-grey-60);
+  }
+  
+  /* Stops and carrier */
   .connection-meta {
-    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
     color: var(--color-grey-60);
     line-height: 1.3;
   }
-
+  
+  .stops.direct {
+    color: var(--color-success, #22c55e);
+    font-weight: 500;
+  }
+  
+  .carrier {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
   /* Seats warning */
   .seats-warning {
-    font-size: 0.75rem;
+    font-size: 11px;
     color: var(--color-warning, #f59e0b);
     font-weight: 600;
     margin-top: 1px;

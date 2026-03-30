@@ -11,27 +11,17 @@ logger = logging.getLogger(__name__)
 async def verify_allowed_origin(request: Request):
     """
     Security dependency to verify the request originates from an allowed origin.
-    Prevents CSRF by rejecting requests with a *wrong* Origin header.
-
-    Missing Origin is allowed because:
-    - Browsers ALWAYS send Origin on cross-origin POST/PUT/DELETE (the CSRF vector)
-    - Non-browser clients (CLI, curl, server-to-server) legitimately omit Origin
-    - Blocking missing Origin would break CLI pair login and API key flows
+    This prevents direct API access to auth endpoints that should only be used by the frontend.
     """
     origin = request.headers.get("origin")
     allowed_origins = request.app.state.allowed_origins
-
-    # No Origin header → non-browser client (CLI, curl, server-to-server). Allow it.
-    # CSRF attacks come from browsers which always include the Origin header.
-    if not origin:
-        return True
-
-    if origin not in allowed_origins:
+    
+    if not origin or origin not in allowed_origins:
         # Log detailed error information for debugging
         logger.error(
             f"🚨 CORS BLOCKED: Unauthorized origin access\n"
             f"   Endpoint: {request.url.path}\n"
-            f"   Origin: {origin}\n"
+            f"   Origin: {origin or '(MISSING)'}\n"
             f"   Allowed Origins: {', '.join(allowed_origins) if allowed_origins else '(NONE CONFIGURED)'}\n"
             f"   Method: {request.method}\n"
             f"   ⚠️  This usually means FRONTEND_URLS/PRODUCTION_URL is missing the origin URL"
@@ -39,11 +29,11 @@ async def verify_allowed_origin(request: Request):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                f"Access denied: Origin '{origin}' is not in the allowed origins list. "
+                f"Access denied: Origin '{origin or '(missing)'}' is not in the allowed origins list. "
                 f"Please check that FRONTEND_URLS (dev) or PRODUCTION_URL (prod) includes this origin."
             )
         )
-
+    
     return True
 
 def get_cookie_domain(request: Request) -> Optional[str]:

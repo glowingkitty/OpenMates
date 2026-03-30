@@ -110,6 +110,18 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await takeStepScreenshot(page, 'tfa-overview');
 	logCheckpoint('Navigated to 2FA settings.');
 
+	// Diagnostic: check what the frontend thinks about tfa_enabled before SecurityAuth
+	const tfaDiag = await page.evaluate(() => {
+		// @ts-ignore - accessing Svelte store internals for diagnostics
+		const profileStore = (window as any).__openmates_debug?.userProfile;
+		const profile = profileStore ? profileStore : null;
+		return {
+			tfa_enabled: profile?.tfa_enabled ?? 'store_not_found',
+			tfa_app_name: profile?.tfa_app_name ?? 'store_not_found'
+		};
+	}).catch(() => ({ tfa_enabled: 'eval_failed', tfa_app_name: 'eval_failed' }));
+	logCheckpoint(`Diagnostic: frontend tfa_enabled=${tfaDiag.tfa_enabled}, tfa_app_name=${tfaDiag.tfa_app_name}`);
+
 	// Click "Change App" to trigger 2FA re-setup (which regenerates backup codes)
 	const changeAppButton = page.getByRole('button').filter({ hasText: /change.*app/i });
 	await expect(changeAppButton).toBeVisible({ timeout: 10000 });
@@ -124,8 +136,22 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await expect(authPasswordInput).toBeVisible();
 	await authPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 
+	// Intercept the login response to diagnose SecurityAuth behavior
+	const loginResponsePromise = page.waitForResponse(
+		(resp: any) => resp.url().includes('/auth/login') && resp.request().method() === 'POST',
+		{ timeout: 15000 }
+	).catch(() => null);
+
 	await authModal.getByTestId('auth-btn').click();
 	logCheckpoint('Submitted password in SecurityAuth.');
+
+	const loginResp = await loginResponsePromise;
+	if (loginResp) {
+		const loginBody = await loginResp.json().catch(() => ({}));
+		logCheckpoint(`SecurityAuth login response: success=${loginBody.success}, tfa_required=${loginBody.tfa_required}, tfa_enabled=${loginBody.user?.tfa_enabled}`);
+	} else {
+		logCheckpoint('SecurityAuth login response: NOT CAPTURED (no /auth/login call detected)');
+	}
 
 	// Wait for SecurityAuth to either show 2FA input or close (auth succeeded without 2FA).
 	// The async handlePasswordAuth calls the login endpoint — if it returns tfa_required,

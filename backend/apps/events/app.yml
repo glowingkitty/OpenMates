@@ -34,16 +34,10 @@ skills:
       networking events, parties, concerts, or any community gathering. Use ONLY this
       skill for event searches — do NOT additionally call web.search or any other
       search skill for the same query.
-      Pick providers per request based on location and query type:
-      - "meetup": Global. General events, tech meetups, social gatherings.
-      - "luma": Global. Tech events, conferences, social gatherings.
-      - "google_events": Global. Aggregates Eventbrite, Ticketmaster, etc.
-      - "resident_advisor": Global. Electronic music, clubs, nightlife, DJ events.
-      - "siegessaeule": Berlin ONLY. LGBTQ+ events, queer nightlife, pride.
-      Include "resident_advisor" when user asks about clubs, DJs, electronic music.
-      Include "siegessaeule" ONLY for Berlin LGBTQ+ queries.
-      For general queries, use ["meetup", "luma", "google_events"].
-      If unsure, omit the providers field — the system will auto-select based on region.
+      Sources: Meetup, Luma, Google Events, Resident Advisor (electronic music/clubs),
+      and Siegessäule (Berlin LGBTQ+ events). Use 'auto' provider for best coverage.
+      Use 'Resident Advisor' when user asks about clubs, DJs, electronic music, raves,
+      or techno events. Use 'Siegessäule' when user asks about LGBTQ+ events in Berlin.
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
       When the user explicitly asks for online or virtual events, use ONLINE filter.
       Always limit results to 10 (default) unless the user explicitly requests more.
@@ -58,27 +52,15 @@ skills:
         credits: 5
     providers:
       - name: Meetup
-        id: meetup
         no_api_key: true
-        scope: global
       - name: Luma
-        id: luma
         no_api_key: true
-        scope: global
       - name: Google Events
-        id: google_events
         api_key_vault_path: kv/data/providers/serpapi
-        scope: global
       - name: Resident Advisor
-        id: resident_advisor
         no_api_key: true
-        scope: global
       - name: Siegessäule
-        id: siegessaeule
         no_api_key: true
-        scope: city
-        region: Berlin
-        proxy_required: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
@@ -94,6 +76,20 @@ skills:
     tool_schema:
       type: object
       properties:
+        provider:
+          type: string
+          description: >
+            The event provider to use. 'auto' (default) queries all providers in
+            parallel for best coverage. Use specific providers when the user asks
+            about a particular type: 'Resident Advisor' for electronic music/clubs,
+            'Siegessäule' for Berlin LGBTQ+ events.
+          enum:
+            - "auto"
+            - "Meetup"
+            - "Luma"
+            - "Google Events"
+            - "Resident Advisor"
+            - "Siegessäule"
         requests:
           type: array
           description: |
@@ -144,22 +140,6 @@ skills:
                 minimum: 1
                 maximum: 50
                 default: 10
-              providers:
-                type: array
-                description: >
-                  Which event platforms to search for this request. Pick based on location and query type.
-                  If omitted, all region-applicable providers are searched automatically.
-                  Available: "meetup" (global, general), "luma" (global, tech/social),
-                  "google_events" (global, aggregator), "resident_advisor" (global, electronic music/clubs),
-                  "siegessaeule" (Berlin only, LGBTQ+).
-                items:
-                  type: string
-                  enum:
-                    - "meetup"
-                    - "luma"
-                    - "google_events"
-                    - "resident_advisor"
-                    - "siegessaeule"
             required:
               - query
               - location

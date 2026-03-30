@@ -36,12 +36,6 @@ class SegmentResult(BaseModel):
     arrival_latitude: Optional[float] = Field(default=None, description="Arrival location latitude")
     arrival_longitude: Optional[float] = Field(default=None, description="Arrival location longitude")
     duration: str = Field(description="Segment duration (e.g., '2h 30m')")
-    # Country codes for flag emoji display (ISO 3166-1 alpha-2, e.g., 'DE', 'TH')
-    departure_country_code: Optional[str] = Field(default=None, description="ISO 3166-1 alpha-2 country code of departure airport")
-    arrival_country_code: Optional[str] = Field(default=None, description="ISO 3166-1 alpha-2 country code of arrival airport")
-    # Daytime indicators for time badge color coding (sunrise/sunset-aware)
-    departure_is_daytime: Optional[bool] = Field(default=None, description="True if departure is between sunrise and sunset at the airport")
-    arrival_is_daytime: Optional[bool] = Field(default=None, description="True if arrival is between sunrise and sunset at the airport")
     # Rich metadata from Google Flights via SerpAPI
     airplane: Optional[str] = Field(default=None, description="Aircraft type (e.g., 'Airbus A321neo', 'Boeing 787')")
     airline_logo: Optional[str] = Field(default=None, description="URL to airline logo image")
@@ -98,9 +92,6 @@ class ConnectionResult(BaseModel):
         default=None, description="IATA code of the validating/ticketing airline (e.g., 'LH')"
     )
     legs: List[LegResult] = Field(default_factory=list, description="Ordered list of trip legs")
-    # Country codes for route header flag emojis (ISO 3166-1 alpha-2)
-    origin_country_code: Optional[str] = Field(default=None, description="ISO 3166-1 alpha-2 country code of origin airport")
-    destination_country_code: Optional[str] = Field(default=None, description="ISO 3166-1 alpha-2 country code of final destination airport")
     # Rich metadata from Google Flights via SerpAPI
     airline_logo: Optional[str] = Field(default=None, description="URL to primary airline logo image")
     co2_kg: Optional[int] = Field(default=None, description="CO2 emissions in kg for this connection")
