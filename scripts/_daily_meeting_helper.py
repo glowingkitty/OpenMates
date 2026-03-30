@@ -637,6 +637,7 @@ def run_subagent(name: str, prompt: str, today: str) -> tuple[str, int, str | No
         allowed_tools=allowed_tools + ["Write"],
         timeout=300,
         job_type=None,  # No email for subagents
+        linear_task=False,  # Internal subagents don't need their own Linear issues
     )
 
     return name, returncode, session_id

@@ -1855,10 +1855,13 @@ def _linear_start_integration(
     label_ids = issue_data.get("label_ids", [])
     add_label(linear_issue_id, current_label_ids=label_ids)
 
-    # Post pickup comment
+    # Post pickup comment (include Zellij attach info)
     post_comment(
         linear_issue_id,
-        f"Picked up by Claude session `{sid}`\n\nResume: `claude --resume {sid}`",
+        f"Picked up by Claude session `{sid}`\n\n"
+        f"Resume: `claude --resume {sid}`\n"
+        f"Zellij: `zellij attach session-{sid}`\n"
+        f"Web UI: http://localhost:8082",
     )
 
     # Display issue context in session output
@@ -2038,6 +2041,17 @@ def cmd_start(args: argparse.Namespace) -> None:
     linear_issue_id = getattr(args, "linear_issue", None)
     _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
 
+    # ── Zellij integration ────────────────────────────────────────────────
+    try:
+        from _zellij_utils import create_session, _sanitize_session_name
+
+        zellij_name = f"session-{sid}"
+        if create_session(zellij_name):
+            data["sessions"][sid]["zellij_session"] = _sanitize_session_name(zellij_name)
+            _save_sessions(data)
+    except Exception:
+        pass  # Zellij is optional — don't break session start
+
     # ===================================================================
     # Output context for Claude (mode-aware, structured with box sections)
     # ===================================================================
@@ -2077,6 +2091,9 @@ def cmd_start(args: argparse.Namespace) -> None:
     ]
     if linear_linked:
         header_lines.append(f"  Linear: {linear_linked}")
+    zellij_name = data["sessions"][sid].get("zellij_session")
+    if zellij_name:
+        header_lines.append(f"  Zellij: `zellij attach {zellij_name}` | http://localhost:8082")
 
     # Git status line
     if mode in ("feature", "bug", "testing"):
@@ -2505,6 +2522,16 @@ def cmd_end(args: argparse.Namespace) -> None:
 
     # ── Linear completion ─────────────────────────────────────────────────
     _linear_complete_session(sid, session)
+
+    # ── Zellij cleanup ───────────────────────────────────────────────────
+    zellij_name = session.get("zellij_session")
+    if zellij_name:
+        try:
+            from _zellij_utils import kill_session
+            kill_session(zellij_name)
+            print(f"  Zellij: session '{zellij_name}' killed")
+        except Exception:
+            pass
 
     # Remove session
     del data["sessions"][sid]
@@ -3042,7 +3069,7 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
             print(f"  - docs/architecture/{doc}")
         print()
 
-    # Test coverage check — warn about source files with no tests
+    # Test coverage check with verdicts
     source_files = [
         f for f in modified
         if any(f.endswith(ext) for ext in (".py", ".ts", ".svelte"))
@@ -3053,17 +3080,30 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         and not f.endswith(".spec.ts")
     ]
     if source_files:
-        untested = []
+        verdicts = {"covered": 0, "partial": 0, "none": 0}
+        all_specs: list[str] = []
+        untested: list[str] = []
         for filepath in source_files:
             result = _find_tests_for_file(filepath)
-            if not result["unit_tests"] and not result["e2e_tests"]:
+            verdict = result["verdict"]
+            verdicts[verdict] += 1
+            for spec in result.get("e2e_specs", []):
+                if spec not in all_specs:
+                    all_specs.append(spec)
+            if verdict == "none":
                 untested.append(filepath)
+
+        print(f"Test coverage: ✅ {verdicts['covered']}  ⚠️ {verdicts['partial']}  ❌ {verdicts['none']}")
         if untested:
-            print(f"WARNING — no tests found for {len(untested)} file(s):")
             for f in untested:
-                print(f"  ? {f}")
+                print(f"  ❌ {f}")
+        if all_specs:
+            print("  Related specs:")
+            for spec in sorted(all_specs):
+                print(f"    python3 scripts/run_tests.py --spec {spec}")
+        if untested:
             print("  Run: sessions.py check-tests --session <id>")
-            print()
+        print()
 
     # Suggest commands
     if to_commit:
@@ -3165,6 +3205,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"  Warning: validate:locales exited {rc} (check manually)", file=sys.stderr)
         else:
             print("Translations: PASSED")
+
+    # 1c. Test enforcement gate — warn if related specs exist but weren't run
+    skip_tests_reason = getattr(args, "skip_tests_reason", None)
+    _run_test_enforcement_gate(to_commit, skip_tests_reason)
 
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
@@ -3555,13 +3599,21 @@ _DOCS_DIRS = {
 def _find_tests_for_file(filepath: str) -> dict:
     """
     Search for existing unit and E2E tests related to a source file.
-    Returns dict with 'unit_tests', 'e2e_tests', and 'suggestions'.
+
+    Returns dict with 'unit_tests', 'e2e_tests', 'e2e_specs' (spec filenames
+    for run_tests.py), 'verdict' (covered/partial/none), and 'suggestions'.
     """
     path = Path(filepath)
     stem = path.stem  # e.g., "chatStore" from "chatStore.ts"
     suffix = path.suffix  # e.g., ".ts"
     parent = str(path.parent)  # e.g., "frontend/packages/ui/src/stores"
-    result = {"unit_tests": [], "e2e_tests": [], "suggestions": []}
+    result = {
+        "unit_tests": [],
+        "e2e_tests": [],
+        "e2e_specs": [],
+        "verdict": "none",
+        "suggestions": [],
+    }
 
     # --- Search for unit tests ---
     patterns = _TEST_LOCATIONS.get(suffix, [])
@@ -3597,9 +3649,10 @@ def _find_tests_for_file(filepath: str) -> dict:
 
     # --- Search for E2E tests referencing this file/component ---
     if _E2E_SPEC_DIR.exists():
-        # Search by component name in spec files
+        # Build search terms: stem, kebab-case, parent directory context
         search_terms = [stem]
-        # Also search for kebab-case version of camelCase names
+
+        # kebab-case version of camelCase names
         kebab = ""
         for i, c in enumerate(stem):
             if c.isupper() and i > 0:
@@ -3608,17 +3661,48 @@ def _find_tests_for_file(filepath: str) -> dict:
         if kebab != stem.lower():
             search_terms.append(kebab)
 
+        # Add contextual terms from the file path for filename matching
+        # (e.g., "events" from backend/apps/events/ matches skill-events-*.spec.ts)
+        filename_terms = _extract_context_terms(filepath)
+
         for spec_file in sorted(_E2E_SPEC_DIR.glob("*.spec.ts")):
             try:
-                content = spec_file.read_text(errors="replace")
-                for term in search_terms:
-                    if term.lower() in content.lower():
-                        rel = str(spec_file.relative_to(PROJECT_ROOT))
-                        if rel not in result["e2e_tests"]:
-                            result["e2e_tests"].append(rel)
-                        break
+                spec_name_lower = spec_file.stem.replace(".spec", "").lower()
+
+                # 1. Check spec filename for app/domain terms (high precision)
+                filename_match = any(
+                    term in spec_name_lower for term in filename_terms
+                )
+
+                # 2. Check spec content for stem/kebab terms (exact component ref)
+                content_match = False
+                if not filename_match:
+                    content = spec_file.read_text(errors="replace")
+                    content_lower = content.lower()
+                    for term in search_terms:
+                        if term.lower() in content_lower:
+                            content_match = True
+                            break
+
+                if filename_match or content_match:
+                    rel = str(spec_file.relative_to(PROJECT_ROOT))
+                    spec_name = spec_file.name
+                    if rel not in result["e2e_tests"]:
+                        result["e2e_tests"].append(rel)
+                    if spec_name not in result["e2e_specs"]:
+                        result["e2e_specs"].append(spec_name)
             except OSError:
                 pass
+
+    # --- Compute verdict ---
+    has_unit = bool(result["unit_tests"])
+    has_e2e = bool(result["e2e_tests"])
+    if has_unit and has_e2e:
+        result["verdict"] = "covered"
+    elif has_unit or has_e2e:
+        result["verdict"] = "partial"
+    else:
+        result["verdict"] = "none"
 
     # --- Build suggestions ---
     if not result["unit_tests"]:
@@ -3649,6 +3733,55 @@ def _find_tests_for_file(filepath: str) -> dict:
         )
 
     return result
+
+
+def _extract_context_terms(filepath: str) -> list:
+    """Extract meaningful context terms from a file path for E2E spec matching.
+
+    Splits camelCase/snake_case stems and parent directory names into domain
+    keywords (e.g., 'chatSyncService' -> ['chat', 'sync']).  Short or generic
+    terms are filtered out.
+    """
+    import re
+
+    path = Path(filepath)
+    stem = path.stem
+    terms = []
+
+    _GENERIC_TERMS = {
+        "service", "services", "store", "stores", "utils", "util",
+        "helper", "helpers", "handler", "handlers", "component",
+        "components", "index", "main", "base", "app", "core", "api",
+        "src", "routes", "models", "schemas", "types", "mixin",
+        "skill", "skills", "search", "embed", "embeds", "flow",
+        "settings", "config", "data", "test", "tests", "chat",
+        "message", "messages", "user", "users", "event", "events",
+        "task", "tasks", "list", "item", "items", "view",
+    }
+
+    # Split camelCase and snake_case from stem
+    parts = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)", stem)
+    parts += stem.split("_")
+
+    for part in parts:
+        part_lower = part.lower()
+        # Require >= 5 chars to avoid overly broad matches
+        if len(part_lower) >= 5 and part_lower not in _GENERIC_TERMS:
+            if part_lower not in terms:
+                terms.append(part_lower)
+
+    # Always add the app name from the path (e.g., "events" from
+    # backend/apps/events/) — this bypasses the generic filter because
+    # app names are strong signals for spec filename matching.
+    path_parts = path.parts
+    if "apps" in path_parts:
+        idx = list(path_parts).index("apps")
+        if idx + 1 < len(path_parts):
+            app_name = path_parts[idx + 1].lower()
+            if app_name not in terms and len(app_name) >= 3:
+                terms.append(app_name)
+
+    return terms
 
 
 def _find_docs_for_file(filepath: str) -> dict:
@@ -3743,6 +3876,101 @@ def _find_docs_for_file(filepath: str) -> dict:
     return result
 
 
+def _run_test_enforcement_gate(
+    files_to_commit: list[str],
+    skip_reason: str | None = None,
+) -> None:
+    """Check test coverage for files being deployed and warn if specs exist but
+    weren't verified.  Called from cmd_deploy.
+
+    This is a WARNING gate, not a hard block — it prints actionable info and
+    continues.  Use --skip-tests "reason" to suppress the warning entirely.
+    """
+    if skip_reason:
+        print(f"Test gate: SKIPPED ({skip_reason})")
+        return
+
+    # Filter to source files only (skip tests, configs, docs, etc.)
+    source_files = [
+        f for f in files_to_commit
+        if any(f.endswith(ext) for ext in (".py", ".ts", ".svelte"))
+        and "/tests/" not in f
+        and "/__tests__/" not in f
+        and not Path(f).name.startswith("test_")
+        and not f.endswith(".test.ts")
+        and not f.endswith(".spec.ts")
+    ]
+
+    if not source_files:
+        return
+
+    # Exempt file patterns (docs-only, i18n, config — no spec needed)
+    _EXEMPT_PATTERNS = (
+        "i18n/sources/", "docs/", ".md", "Caddyfile",
+        "docker-compose", ".yml", ".yaml", ".json",
+    )
+    non_exempt = [
+        f for f in source_files
+        if not any(pat in f for pat in _EXEMPT_PATTERNS)
+    ]
+    if not non_exempt:
+        return
+
+    all_specs: list[str] = []
+    uncovered: list[str] = []
+
+    for filepath in non_exempt:
+        result = _find_tests_for_file(filepath)
+        for spec in result.get("e2e_specs", []):
+            if spec not in all_specs:
+                all_specs.append(spec)
+        if result["verdict"] == "none":
+            uncovered.append(filepath)
+
+    # Check if any related specs were run in the current session
+    # by looking at test-results/last-run.json
+    specs_run_recently: set[str] = set()
+    last_run_path = PROJECT_ROOT / "test-results" / "last-run.json"
+    if last_run_path.exists():
+        try:
+            import json as _json
+            last_run = _json.loads(last_run_path.read_text())
+            pw_tests = last_run.get("suites", {}).get("playwright", {}).get("tests", [])
+            if isinstance(pw_tests, list):
+                for t in pw_tests:
+                    name = t.get("name") or t.get("file") or ""
+                    if name:
+                        specs_run_recently.add(name)
+        except (OSError, ValueError):
+            pass
+
+    unrun_specs = [s for s in all_specs if s not in specs_run_recently]
+
+    # Print gate results
+    if not unrun_specs and not uncovered:
+        print("Test gate: PASSED")
+        return
+
+    print("── TEST ENFORCEMENT GATE ──")
+    if uncovered:
+        print(f"  ⚠️  {len(uncovered)} file(s) with NO test coverage:")
+        for f in uncovered[:5]:
+            print(f"      {f}")
+        if len(uncovered) > 5:
+            print(f"      ... and {len(uncovered) - 5} more")
+
+    if unrun_specs:
+        print(f"  ⚠️  {len(unrun_specs)} related spec(s) not run this session:")
+        for spec in sorted(unrun_specs)[:5]:
+            print(f"      python3 scripts/run_tests.py --spec {spec}")
+        if len(unrun_specs) > 5:
+            print(f"      ... and {len(unrun_specs) - 5} more")
+
+    print("  To suppress: deploy --skip-tests \"reason\"")
+    print("── END TEST GATE ──")
+    print()
+
+
 def cmd_check_tests(args: argparse.Namespace) -> None:
     """Search for existing unit and E2E tests related to session files or a specific file."""
     files_to_check = []
@@ -3767,6 +3995,11 @@ def cmd_check_tests(args: argparse.Namespace) -> None:
     print("== TEST COVERAGE CHECK ==")
     print()
 
+    # Track verdicts and all related specs for summary
+    verdicts = {"covered": 0, "partial": 0, "none": 0}
+    all_e2e_specs: list[str] = []
+    checked_count = 0
+
     for filepath in sorted(files_to_check):
         # Skip test files themselves and non-source files
         if "/tests/" in filepath or "/__tests__/" in filepath or filepath.startswith("test_"):
@@ -3774,31 +4007,54 @@ def cmd_check_tests(args: argparse.Namespace) -> None:
         if not any(filepath.endswith(ext) for ext in (".py", ".ts", ".svelte")):
             continue
 
+        checked_count += 1
         result = _find_tests_for_file(filepath)
-        print(f"📁 {filepath}")
+        verdict = result["verdict"]
+        verdicts[verdict] += 1
+
+        # Collect unique spec names for the run command suggestion
+        for spec in result.get("e2e_specs", []):
+            if spec not in all_e2e_specs:
+                all_e2e_specs.append(spec)
+
+        verdict_icon = {"covered": "✅", "partial": "⚠️", "none": "❌"}[verdict]
+        print(f"{verdict_icon} [{verdict.upper()}] {filepath}")
 
         if result["unit_tests"]:
             for t in result["unit_tests"]:
-                print(f"  ✅ Unit test: {t}")
-        else:
-            print("  ❌ No unit tests found")
+                print(f"    Unit: {t}")
 
         if result["e2e_tests"]:
             for t in result["e2e_tests"]:
-                print(f"  ✅ E2E test: {t}")
-        else:
-            if any(filepath.endswith(ext) for ext in (".svelte", ".ts")):
-                print("  ❌ No E2E test references found")
+                print(f"    E2E:  {t}")
 
-        if result["suggestions"]:
-            for s in result["suggestions"]:
-                lines = s.split("\n")
-                print(f"  → INSTRUCTION: {lines[0]}")
-                for line in lines[1:]:
-                    print(f"  {line}")
+        if verdict == "none":
+            if result["suggestions"]:
+                for s in result["suggestions"]:
+                    lines = s.split("\n")
+                    print(f"    → {lines[0]}")
+                    for line in lines[1:]:
+                        print(f"    {line}")
 
         print()
 
+    # --- Summary ---
+    print("── SUMMARY ──")
+    print(f"  Files checked: {checked_count}")
+    print(f"  Covered: {verdicts['covered']}  Partial: {verdicts['partial']}  None: {verdicts['none']}")
+
+    if all_e2e_specs:
+        print()
+        print("  Related E2E specs to run:")
+        for spec in sorted(all_e2e_specs):
+            print(f"    python3 scripts/run_tests.py --spec {spec}")
+
+    if verdicts["none"] > 0:
+        print()
+        print("  ⚠️  Test-first enforcement: propose E2E tests for uncovered files")
+        print("     before deploying. See testing.md 'Test-First Enforcement'.")
+
+    print()
     print("== END TEST COVERAGE CHECK ==")
 
 
@@ -4666,6 +4922,13 @@ def main() -> None:
         dest="no_verify",
         help="Bypass pre-commit hooks (git commit --no-verify). Use only when a "
         "pre-existing hook bug prevents deploy. WARNING printed to stderr.",
+    )
+    p_deploy.add_argument(
+        "--skip-tests",
+        dest="skip_tests_reason",
+        metavar="REASON",
+        help="Skip test enforcement gate with an explicit reason "
+        "(e.g., 'hotfix, will add test in follow-up'). Reason is logged.",
     )
 
     # lint (run linter on tracked files without deploying)
