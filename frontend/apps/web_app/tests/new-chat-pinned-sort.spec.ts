@@ -223,9 +223,10 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 		logStep('Pinning target chat...');
 		await togglePinViaContextMenu(page, targetChatItem, 'pin', logStep);
 
-		// Verify pin indicator appeared
+		// After pinning, the chat reorders in the sidebar — find it by title
+		const pinnedChatItem = page.locator('.chat-item-wrapper').filter({ hasText: targetTitle }).first();
 		await expect(async () => {
-			const pinIndicator = targetChatItem.locator('.pin-indicator');
+			const pinIndicator = pinnedChatItem.locator('.pin-indicator');
 			await expect(pinIndicator).toBeVisible();
 		}).toPass({ timeout: 10000 });
 		logStep('Pin indicator visible.');
