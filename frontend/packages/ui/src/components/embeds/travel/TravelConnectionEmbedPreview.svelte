@@ -1,13 +1,13 @@
 <!--
   frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
-  
+
   Preview component for a single travel connection (child embed).
-  Uses UnifiedEmbedPreview as base and displays connection summary:
-  - Price (prominent)
+  Uses UnifiedEmbedPreview as base and displays redesigned connection card:
+  - Price (green) + trip type
+  - Flag emojis + airline logos
   - Duration and stops
-  - Departure/arrival times
-  - Carrier names
-  
+  - Route display with origin/destination
+
   Similar to WebsiteEmbedPreview but with travel-specific layout.
   This component is rendered inside TravelSearchEmbedFullscreen's grid.
 -->
@@ -238,10 +238,8 @@
 </UnifiedEmbedPreview>
 
 <style>
-  /* ===========================================
-     Connection Preview — Redesigned Card Layout
-     Matches Figma: node 4950-44635 (preview section)
-     =========================================== */
+  /* Connection Preview — Redesigned Card Layout
+     Matches Figma: node 4950-44635 (preview section) */
 
   .connection-details {
     display: flex;
