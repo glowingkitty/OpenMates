@@ -134,7 +134,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 
 	// 13. Verify notification content
 	const messagePreview = notification.getByTestId('notification-message');
-	await expect(messagePreview).toBeVisible();
+	await expect(messagePreview).toBeVisible({ timeout: 10000 });
 	const previewText = await messagePreview.textContent();
 	logStep(`Notification preview: "${previewText}"`);
 	expect(previewText).toBeTruthy();

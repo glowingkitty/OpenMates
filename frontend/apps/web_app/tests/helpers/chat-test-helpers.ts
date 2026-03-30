@@ -49,6 +49,14 @@ async function loginToTestAccount(
 	page.on('response', on429);
 
 	await page.goto(getE2EDebugUrl('/'));
+
+	// Clear any rate-limit flags from previous test runs that would hide the login form
+	await page.evaluate(() => {
+		localStorage.removeItem('emailLookupRateLimit');
+		localStorage.removeItem('loginRateLimit');
+		localStorage.removeItem('passwordTfaRateLimit');
+	});
+
 	await takeStepScreenshot(page, 'home');
 
 	// Header button now opens the signup interface (not login directly).

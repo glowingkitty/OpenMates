@@ -401,7 +401,8 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		await closeIcon.click();
 		await page.waitForTimeout(500);
 	}
-	await settingsToggle.dispatchEvent('click');
+	await settingsToggle.click();
+	await page.waitForTimeout(500);
 
 	const settingsMenu2 = page.locator('.settings-menu.visible');
 	await expect(settingsMenu2).toBeVisible({ timeout: 8000 });
