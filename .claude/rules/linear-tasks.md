@@ -1,75 +1,78 @@
 ---
-description: Linear task workflow — reading, updating status, and completing issues via Linear MCP
+description: Linear task workflow — automated via sessions.py, with manual MCP for deep context
 globs:
 ---
 
 ## Every Session Needs a Linear Task
 
-Every Claude session MUST be linked to a Linear task — no exceptions. This includes features, bugs, refactors, research, docs, and questions. If the user provides a task ID, use it. If not, create one.
+Every Claude session MUST be linked to a Linear task — no exceptions. `sessions.py` handles the mechanical parts automatically:
 
-## When a Linear Issue Is Provided
+- **`--linear-issue OPE-42`**: Fetches issue, marks In Progress, adds `claude-is-working` label, posts pickup comment
+- **No `--linear-issue` but `--task` given**: Auto-creates a new issue with mode-based prefix (Feat/Fix/Docs/Research/Test)
+- **`sessions.py end` / `deploy --end`**: Posts completion comment, removes label, updates status to In Review or Done
 
-When given a Linear issue (ID like OPE-42, URL, or title), you MUST follow every step below. Do not skip status updates — they are mandatory, not optional.
+If `sessions.py` printed `Linear: OPE-XX` in the session header, the routine status/label/comment operations are already handled.
 
-### Step 1: Read the Issue (before any code work)
+## Step 1: Read the Issue (before any code work)
+
+`sessions.py` displays a summary, but you should still read the full issue for deep context:
 
 1. **Read the issue** — call `mcp__linear__get_issue` with the issue ID for full context (title, description, status, labels)
 2. **View images** — call `mcp__linear__extract_images` on the description markdown. Most bug reports include screenshots — always check.
 3. **Read comments** — call `mcp__linear__list_comments` for prior discussion and follow-ups
-
-### Step 2: Mark as In Progress (before any code work)
-
-4. **Move to In Progress** — call `mcp__linear__save_issue` with `id: "OPE-XX"`, `state: "In Progress"`, `labels: ["claude-is-working"]`. This MUST happen before you write any code.
-5. **Post pickup comment** — call `mcp__linear__save_comment` with the `claude --resume <session-id>` command so the task can be resumed later. Get the session ID from `sessions.py start` output.
 
 ### Design References
 
 - **Figma URLs** in description: use Figma MCP to inspect the designs — check components, layout, spacing, colors to match the implementation
 - **Other design links**: ask the user for screenshots or specs
 
-### Step 3: During Work
+## Step 2: During Work
 
 - Post a `mcp__linear__save_comment` on **significant milestones only** — "Found root cause in X", "Fix implemented, testing". Not every step.
 - If blocked or have questions: post a comment asking the user. Leave status as In Progress.
 
-### Step 4: Complete the Task (after deploy)
+## Step 3: Completion (automated)
 
-This step is MANDATORY. Never finish a task without updating Linear.
+`sessions.py end` or `deploy --end` automatically:
+- Posts a summary comment with session ID, commit SHA, and changed files
+- Removes `claude-is-working` label
+- Updates status: `In Review` (feature/bug/testing) or `Done` (docs/question)
 
-1. **Post a summary comment** — call `mcp__linear__save_comment`:
-   - What was done (1-3 sentences)
-   - Key files changed
-   - Commit hash (if any)
+**Manual override:** If you need to set a different status or add extra context to the completion comment, call the MCP tools directly before `sessions.py end`.
 
-2. **Update status** — call `mcp__linear__save_issue` with `id: "OPE-XX"` and remove `claude-is-working` label:
-   - `state: "In Review"` — code needs review
-   - `state: "Done"` — confirmed complete or self-contained (docs, config)
+## Fallback: No sessions.py or Linear API Key Missing
 
-## When No Linear Issue Is Provided
+If `sessions.py` printed a warning about Linear, handle it manually:
 
-If the user requests work without referencing a Linear issue, you MUST create one before starting:
+1. **Create/link issue** — call `mcp__linear__save_issue` with title, `state: "In Progress"`, `labels: ["claude-is-working"]`
+2. **Post pickup comment** — call `mcp__linear__save_comment` with `claude --resume <session-id>`
+3. **At completion** — call `mcp__linear__save_issue` to update status and remove label
 
-1. **Create a new issue** — call `mcp__linear__save_issue` with:
-   - `title`: concise description of the work (e.g., "Research: WebSocket reconnection strategies", "Fix: settings page crash on mobile")
-   - `state`: "In Progress"
-   - `labels`: ["claude-is-working"]
-2. **Post pickup comment** — call `mcp__linear__save_comment` with the `claude --resume <session-id>` command
-3. **Tell the user** — mention the created task ID (e.g., "Created OPE-XX to track this work")
-4. Follow Steps 3-4 from the existing task workflow as normal
+## Archiving / Deleting Issues
 
-**Title conventions by session mode:**
-- `feature` → "Feat: ..."
-- `bug` → "Fix: ..."
-- `docs` → "Docs: ..."
-- `question` / research → "Research: ..."
-- `testing` → "Test: ..."
+The Linear MCP tools do NOT support archiving or deleting issues. Use `_linear_client.py` directly:
+
+```python
+from scripts._linear_client import _graphql
+
+# 1. Get the internal UUID from the identifier
+data = _graphql('query($id: String!) { issue(id: $id) { id } }', {'id': 'OPE-42'})
+uuid = data['issue']['id']
+
+# 2. Archive the issue
+_graphql('mutation($id: String!) { issueArchive(id: $id) { success } }', {'id': uuid})
+
+# 3. Delete permanently (use sparingly — prefer archive)
+_graphql('mutation($id: String!) { issueDelete(id: $id) { success } }', {'id': uuid})
+```
+
+When asked to "clear" or "clean up" Done tasks, archive them — don't change their state.
 
 ## Rules
 
-- **Every session needs a task.** No exceptions — features, bugs, research, docs, questions. Create one if not provided.
 - **Always check images.** Call `mcp__linear__extract_images` before starting work.
-- **Always update status.** Mark "In Progress" at start, "Done"/"In Review" at end. No exceptions.
-- **Don't over-comment.** Max 3 comments per task: pickup, milestone/question, completion.
+- **Don't over-comment.** Max 3 comments per task: pickup (auto), milestone/question, completion (auto).
 - **Keep comments concise.** No boilerplate. Just state what happened.
-- **Status is source of truth.** Always update it — don't leave tasks stale.
-- **Use exact MCP tool names.** All Linear operations use `mcp__linear__*` tools. If Linear MCP is not connected, tell the user immediately — do not silently skip status updates.
+- **Status is source of truth.** `sessions.py` handles start/end status. Only intervene if you need a non-standard state.
+- **Use exact MCP tool names.** All manual Linear operations use `mcp__linear__*` tools. If Linear MCP is not connected, tell the user immediately.
+- **For archive/delete:** Use `_linear_client._graphql()` with `issueArchive` or `issueDelete` mutations — the MCP tools don't support these operations.

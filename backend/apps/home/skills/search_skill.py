@@ -99,6 +99,13 @@ class SearchResponse(BaseModel):
         description="List of result groups, each with 'id' and 'results' array.",
     )
     provider: str = Field(default="Multi")
+    providers: List[str] = Field(
+        default_factory=list,
+        description=(
+            "List of provider names that actually contributed results "
+            "(e.g. ['ImmoScout24', 'Kleinanzeigen']). Empty if no results."
+        ),
+    )
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_llm: Optional[List[str]] = Field(
@@ -175,12 +182,23 @@ class SearchSkill(BaseSkill):
             logger=logger,
         )
 
-        # 4. Build and return response
+        # 4. Collect unique provider names from actual results
+        contributing_providers: List[str] = []
+        seen_providers: set = set()
+        for gr in grouped_results:
+            for item in gr.get("results", []):
+                p = item.get("provider")
+                if p and p not in seen_providers:
+                    seen_providers.add(p)
+                    contributing_providers.append(p)
+
+        # 5. Build and return response
         return self._build_response_with_errors(
             response_class=SearchResponse,
             grouped_results=grouped_results,
             errors=errors,
             provider="Multi",
+            providers=contributing_providers,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )

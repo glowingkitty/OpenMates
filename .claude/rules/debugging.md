@@ -33,7 +33,13 @@ All commands support `--production` and `--json` flags.
 ```bash
 # Unified browser + backend timeline from OpenObserve (now includes OTel trace spans)
 docker exec api python /app/backend/scripts/debug.py issue <id> --timeline
-# Metadata, decrypted fields, S3 YAML
+# Compact timeline — extracts KEY SIGNALS (errors, decryption/IndexedDB anomalies), last 50 events
+# Use this when full timeline is too large (>10KB triggers tool output truncation)
+docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --compact
+# List N most recent unprocessed issues (default 5), optionally with timeline
+docker exec api python /app/backend/scripts/debug.py issue --recent 5
+docker exec api python /app/backend/scripts/debug.py issue --recent 3 --timeline --compact
+# Metadata, decrypted fields, S3 YAML (includes shared link key validation)
 docker exec api python /app/backend/scripts/debug.py issue <id>
 # Production issues
 docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --production

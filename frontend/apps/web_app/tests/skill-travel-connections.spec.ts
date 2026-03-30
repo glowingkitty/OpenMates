@@ -7,6 +7,8 @@
  * Phase 2: CLI direct skill command (openmates apps travel search_connections --json)
  * Phase 3: CLI chat send triggers skill
  * Phase 4: Web UI chat triggers skill with embed rendering + fullscreen grid
+ *          + verifies redesigned preview (green price, route, meta) and
+ *          flight details card (segment cards, time badges, flag emojis)
  *
  * Note: Travel dates must be in the future — uses dynamic date calculation.
  *
@@ -127,7 +129,71 @@ test.describe('App: Travel / Skill: search_connections', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		logCheckpoint(`Found ${await resultCards.count()} connection result(s).`);
+		const cardCount = await resultCards.count();
+		logCheckpoint(`Found ${cardCount} connection result(s).`);
+
+		// ── Verify redesigned preview card elements ──
+		const firstPreview = resultCards.first();
+		const previewDetails = firstPreview.getByTestId('connection-preview-details');
+		await expect(previewDetails).toBeVisible({ timeout: 5000 });
+
+		// Price should be visible and green (success color)
+		const priceEl = previewDetails.getByTestId('connection-price');
+		await expect(priceEl).toBeVisible();
+		const priceText = await priceEl.textContent();
+		expect(priceText).toBeTruthy();
+		logCheckpoint(`Preview price: ${priceText}`);
+
+		// Route should show origin → destination
+		const routeEl = previewDetails.getByTestId('connection-route');
+		await expect(routeEl).toBeVisible();
+		const routeText = await routeEl.textContent();
+		expect(routeText).toContain('→');
+		logCheckpoint(`Preview route: ${routeText}`);
+
+		// Meta line should show duration/stops info
+		const metaEl = previewDetails.getByTestId('connection-meta');
+		await expect(metaEl).toBeVisible();
+		const metaText = await metaEl.textContent();
+		expect(metaText).toContain('·');
+		logCheckpoint(`Preview meta: ${metaText}`);
+
+		await takeStepScreenshot(page, 'preview-card-verified');
+
+		// ── Open a child connection fullscreen to verify flight details card ──
+		await firstPreview.click();
+		await page.waitForTimeout(1000);
+
+		// The flight details card should be visible
+		const flightCard = page.getByTestId('flight-details-card');
+		await expect(flightCard).toBeVisible({ timeout: 15000 });
+
+		// Route header with flags should be visible
+		const routeHeader = flightCard.getByTestId('route-header');
+		await expect(routeHeader).toBeVisible();
+		const routeHeaderText = await routeHeader.textContent();
+		expect(routeHeaderText).toContain('→');
+		logCheckpoint(`Flight card route: ${routeHeaderText}`);
+
+		// At least one segment card should be present
+		const segmentCards = flightCard.getByTestId('segment-card');
+		await expect(segmentCards.first()).toBeVisible({ timeout: 5000 });
+		const segCount = await segmentCards.count();
+		expect(segCount).toBeGreaterThanOrEqual(1);
+		logCheckpoint(`Flight card has ${segCount} segment card(s).`);
+
+		// Segment should show departure code with airport IATA
+		const depCode = flightCard.getByTestId('departure-code').first();
+		await expect(depCode).toBeVisible();
+		const depCodeText = await depCode.textContent();
+		expect(depCodeText).toBeTruthy();
+		logCheckpoint(`First segment departure: ${depCodeText}`);
+
+		await takeStepScreenshot(page, 'flight-details-card-verified');
+
+		// Navigate back to the search results
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(500);
 
 		await closeFullscreen(page, fullscreenOverlay);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-connections');

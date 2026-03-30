@@ -349,13 +349,19 @@ async def search_events_async(
     total_available = len(events)
 
     # Client-side keyword filtering (for queries that don't map to sections).
-    # Uses word-boundary matching to avoid substring false positives (e.g.
-    # "ai" matching "entertainment", "again", "paid").
+    # Short tokens (≤3 chars, e.g. "AI", "KI") use case-insensitive substring
+    # match because word-boundary regex misses them inside compound words.
+    # Longer tokens use word-boundary matching to avoid false positives.
     if query and not section:
-        token_patterns = [
-            re.compile(r"\b" + re.escape(token) + r"\b", re.IGNORECASE)
-            for token in query.lower().split()
-        ]
+        token_patterns = []
+        for token in query.lower().split():
+            escaped = re.escape(token)
+            if len(token) <= 3:
+                token_patterns.append(re.compile(escaped, re.IGNORECASE))
+            else:
+                token_patterns.append(
+                    re.compile(r"\b" + escaped + r"\b", re.IGNORECASE)
+                )
         events = [
             e for e in events
             if any(
