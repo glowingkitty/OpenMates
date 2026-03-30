@@ -609,6 +609,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         bind:value={tfaCode}
                         placeholder="000000"
                         disabled={isAuthenticating}
+                        dataTestid="tfa-input"
                         onInput={handle2FAInput}
                     />
                     {#if errorMessage}
