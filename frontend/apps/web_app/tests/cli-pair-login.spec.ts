@@ -295,7 +295,7 @@ test.describe('CLI Pair Login', () => {
 		await page.goto(pairUrl);
 
 		// Wait for the pair confirmation page to load (Allow/Deny buttons)
-		const allowButton = page.locator('.btn-allow');
+		const allowButton = page.getByTestId('btn-allow');
 		await expect(allowButton).toBeVisible({ timeout: 15000 });
 		logCheckpoint('Pair confirmation page visible — Allow button found.');
 		await takeStepScreenshot(page, 'pair-confirm');
@@ -307,7 +307,7 @@ test.describe('CLI Pair Login', () => {
 		await allowButton.click();
 
 		// Wait for PIN display to appear
-		const pinDisplay = page.locator('.pin-display');
+		const pinDisplay = page.getByTestId('pin-display');
 		await expect(pinDisplay).toBeVisible({ timeout: 15000 });
 		logCheckpoint('PIN display visible.');
 		await takeStepScreenshot(page, 'pair-pin-shown');

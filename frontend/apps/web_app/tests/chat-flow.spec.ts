@@ -165,7 +165,7 @@ async function ensureSidebarOpen(
 	logCheckpoint: (...args: any[]) => void
 ): Promise<void> {
 	// Check if sidebar is already open by looking for the Chats component's wrapper
-	const activityHistory = page.locator('.activity-history-wrapper');
+	const activityHistory = page.getByTestId('activity-history');
 	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (isSidebarVisible) {
 		logCheckpoint('[Sidebar] Already open.');
@@ -193,7 +193,7 @@ async function ensureSidebarClosed(
 	page: any,
 	logCheckpoint: (...args: any[]) => void
 ): Promise<void> {
-	const activityHistory = page.locator('.activity-history-wrapper');
+	const activityHistory = page.getByTestId('activity-history');
 	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarVisible) {
 		logCheckpoint('[Sidebar] Already closed.');
@@ -231,11 +231,11 @@ async function assertChatDecryptedCorrectly(
 	// ── Open sidebar explicitly ─────────────────────────────────────────────
 	await ensureSidebarOpen(page, logCheckpoint);
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Title must be real — not a placeholder and not empty
-	const chatTitle = activeChatItem.locator('.chat-title');
+	const chatTitle = activeChatItem.getByTestId('chat-title');
 	await expect(chatTitle).toBeVisible({ timeout: 15000 });
 	// Must not still be in "processing" loading state
 	await expect(chatTitle).not.toHaveClass(/processing-title/, { timeout: 5000 });
@@ -247,9 +247,9 @@ async function assertChatDecryptedCorrectly(
 	expect(titleText!.toLowerCase()).not.toContain('processing');
 
 	// Category circle must exist and must NOT be the grey "missing-category" fallback
-	const categoryCircle = activeChatItem.locator('.category-circle');
+	const categoryCircle = activeChatItem.getByTestId('category-circle');
 	await expect(categoryCircle).toBeVisible({ timeout: 10000 });
-	const missingCategory = activeChatItem.locator('.category-circle.missing-category');
+	const missingCategory = activeChatItem.locator('[data-testid="category-circle"].missing-category');
 	await expect(missingCategory).not.toBeVisible();
 
 	logCheckpoint(`[${phase}] Sidebar: title and category look healthy.`);
@@ -259,8 +259,8 @@ async function assertChatDecryptedCorrectly(
 
 	// ── Message area assertions ─────────────────────────────────────────────
 	// Verify the user message and the assistant message are visible.
-	const userMsg = page.locator('.message-wrapper.user').first();
-	const assistantMsg = page.locator('.message-wrapper.assistant').last();
+	const userMsg = page.getByTestId('message-user').first();
+	const assistantMsg = page.getByTestId('message-assistant').last();
 	await expect(userMsg).toBeVisible({ timeout: 10000 });
 	await expect(assistantMsg).toBeVisible({ timeout: 10000 });
 
@@ -271,14 +271,14 @@ async function assertChatDecryptedCorrectly(
 	// Check for error-state inline styles: opacity 0.7 + error border.
 	// This is the only indicator that a message failed to decrypt/process.
 	const errorMessages = await page.evaluate(() => {
-		const wrappers = Array.from(document.querySelectorAll('.message-wrapper'));
+		const wrappers = Array.from(document.querySelectorAll('[data-testid="message-user"], [data-testid="message-assistant"]'));
 		return wrappers
 			.filter((el: any) => {
 				const style = el.getAttribute('style') || '';
 				return style.includes('opacity: 0.7') || style.includes('color-error');
 			})
 			.map((el: any) => ({
-				role: el.classList.contains('user') ? 'user' : 'assistant',
+				role: el.getAttribute('data-testid') === 'message-user' ? 'user' : 'assistant',
 				style: el.getAttribute('style')
 			}));
 	});
@@ -313,7 +313,7 @@ async function performLogin(
 	await takeStepScreenshot(page, `${screenshotPrefix}-login-dialog`);
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -459,12 +459,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Verify at least one chat group (time-grouped section like "Today") is visible.
 	// The .chat-group container with .group-title is the time-grouped section header.
-	const chatGroups = page.locator('.chat-group');
+	const chatGroups = page.getByTestId('chat-group');
 	const chatGroupCount = await chatGroups.count().catch(() => 0);
 	logChatCheckpoint(`Found ${chatGroupCount} chat group section(s) in sidebar.`);
 
 	// Verify at least one real chat item is visible (not just demo/empty state)
-	const chatItems = page.locator('.chat-item-wrapper');
+	const chatItems = page.getByTestId('chat-item-wrapper');
 	const chatItemCount = await chatItems.count().catch(() => 0);
 	logChatCheckpoint(`Found ${chatItemCount} chat item(s) in sidebar.`);
 
@@ -472,7 +472,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// If the sidebar shows zero chat items, sync failed to load data
 	if (chatItemCount === 0) {
 		// Check if we see the empty state indicator
-		const noChats = page.locator('.no-chats-indicator');
+		const noChats = page.getByTestId('no-chats-indicator');
 		const hasNoChats = await noChats.isVisible().catch(() => false);
 		if (hasNoChats) {
 			logChatCheckpoint(
@@ -482,7 +482,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	}
 
 	// Verify syncing indicator is NOT stuck (it should disappear after sync completes)
-	const syncingIndicator = page.locator('.syncing-inline-indicator');
+	const syncingIndicator = page.getByTestId('syncing-indicator');
 	try {
 		// Wait up to 20s for the syncing indicator to disappear (sync should complete)
 		await expect(syncingIndicator).not.toBeVisible({ timeout: 20000 });
@@ -518,7 +518,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('No database deletion errors detected in console.');
 
 	// Click "New Chat" button for a fresh start (visible in the main chat area)
-	const newChatButton = page.locator('.new-chat-cta-button, .icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (
 		await newChatButton
 			.first()
@@ -531,7 +531,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	}
 
 	// Send message
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(withMockMarker('Capital of Germany?', 'chat_flow_capital'));
@@ -563,7 +563,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Wait for assistant response containing "Berlin"
 	logChatCheckpoint('Waiting for assistant response...');
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText('Berlin', { timeout: 45000 });
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
@@ -624,7 +624,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Capture the chat title from the ChatHeader component for later comparison
 	// (the header is always visible regardless of sidebar state).
-	const chatHeaderTitle = page.locator('.chat-header-content .chat-header-title');
+	const chatHeaderTitle = page.getByTestId('chat-header-title');
 	let headerTitleText = '';
 	try {
 		await expect(chatHeaderTitle).toBeVisible({ timeout: 5000 });
@@ -655,7 +655,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	);
 
 	// Click the "New Chat" button to navigate away from the current chat
-	const newChatCta = page.locator('.new-chat-cta-button, .icon_create');
+	const newChatCta = page.getByTestId('new-chat-button');
 	if (
 		await newChatCta
 			.first()
@@ -682,11 +682,11 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// The first user chat in the sidebar should be our just-created chat.
 	// User chats are grouped under time sections (e.g., "Today").
 	// Find the first chat item that is NOT a demo/intro/legal chat.
-	const firstUserChat = page.locator('.chat-item-wrapper').first();
+	const firstUserChat = page.getByTestId('chat-item-wrapper').first();
 	await expect(firstUserChat).toBeVisible({ timeout: 10000 });
 
 	// Verify the first chat has a real title (not a placeholder)
-	const firstChatTitle = firstUserChat.locator('.chat-title');
+	const firstChatTitle = firstUserChat.getByTestId('chat-title');
 	await expect(firstChatTitle).toBeVisible({ timeout: 15000 });
 	await expect(firstChatTitle).not.toHaveClass(/processing-title/, { timeout: 5000 });
 	const firstChatTitleText = (await firstChatTitle.textContent())?.trim() || '';
@@ -704,9 +704,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	}
 
 	// Verify the first chat has a category circle (not the grey "missing" fallback)
-	const firstChatCategory = firstUserChat.locator('.category-circle');
+	const firstChatCategory = firstUserChat.getByTestId('category-circle');
 	await expect(firstChatCategory).toBeVisible({ timeout: 5000 });
-	const firstChatMissingCategory = firstUserChat.locator('.category-circle.missing-category');
+	const firstChatMissingCategory = firstUserChat.locator('[data-testid="category-circle"].missing-category');
 	await expect(firstChatMissingCategory).not.toBeVisible();
 	logChatCheckpoint('First chat in sidebar has valid title and category — Phase 4.5 passed.');
 
@@ -733,7 +733,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
 
 	// Wait for the chat messages to render (key derivation + sync after reload)
-	const userMsgAfterReload = page.locator('.message-wrapper.user').first();
+	const userMsgAfterReload = page.getByTestId('message-user').first();
 	await expect(userMsgAfterReload).toBeVisible({ timeout: 30000 });
 
 	logChatCheckpoint('Verifying chat after tab reload...');
@@ -808,7 +808,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Wait for the chat to actually load — the user message must be visible.
 	// This can take longer after a fresh login (key derivation + phased sync).
-	const userMsgAfterRelogin = page.locator('.message-wrapper.user').first();
+	const userMsgAfterRelogin = page.getByTestId('message-user').first();
 	await expect(userMsgAfterRelogin).toBeVisible({ timeout: 30000 });
 
 	await takeStepScreenshot(page, '09-after-relogin');
@@ -852,7 +852,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Ensure sidebar is open for the delete operation (it's closed by default)
 	await ensureSidebarOpen(page, logChatCheckpoint);
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Right-click to open context menu
@@ -861,7 +861,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Opened chat context menu.');
 
 	// Click delete (first click = confirm mode, second click = confirm deletion)
-	const deleteButton = page.locator('.menu-item.delete');
+	const deleteButton = page.getByTestId('chat-context-delete');
 	await expect(deleteButton).toBeVisible();
 	await deleteButton.click();
 	await takeStepScreenshot(page, '12-delete-confirm-mode');

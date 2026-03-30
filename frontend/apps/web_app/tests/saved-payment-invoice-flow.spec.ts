@@ -124,19 +124,17 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 	// ─── Step 2: Open Settings ───────────────────────────────────────────────────
 
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.getByTestId('profile-container');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
 	// Wait for settings menu items to load (confirms authenticated state fully propagated).
-	// The credits-container is rendered inside SettingsMainHeader, which may not be queried
-	// directly — instead wait for the Billing menu item to appear as a loaded-state signal.
 	await expect(
-		page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first()
+		page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first()
 	).toBeVisible({ timeout: 15000 });
 
 	await screenshot(page, 'settings-menu-open');
@@ -144,7 +142,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// ─── Step 3: Navigate to Settings → Billing → Buy Credits ─────────────────────
 
 	const billingItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /billing/i });
 	await expect(billingItem).toBeVisible({ timeout: 10000 });
 	await billingItem.click();
@@ -152,7 +150,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	await screenshot(page, 'billing-page');
 
 	const buyCreditsItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /buy credits/i });
 	await expect(buyCreditsItem).toBeVisible({ timeout: 10000 });
 	await buyCreditsItem.click();
@@ -162,13 +160,13 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// ─── Step 4: Select first pricing tier ────────────────────────────────────────
 
 	await expect(async () => {
-		const tierItems = page.locator('.settings-menu.visible .menu-item[role="menuitem"]');
+		const tierItems = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
 		const count = await tierItems.count();
 		expect(count).toBeGreaterThanOrEqual(3);
 	}).toPass({ timeout: 15000 });
 	log('Pricing tiers visible.');
 
-	const firstTier = page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first();
+	const firstTier = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first();
 	await expect(firstTier).toBeVisible({ timeout: 5000 });
 	await firstTier.click();
 	log('Selected first pricing tier.');
@@ -184,7 +182,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 	await page.waitForTimeout(3000); // Allow payment component to load and detect saved methods
 
-	const savedMethodItem = page.locator('.payment-method-item').first();
+	const savedMethodItem = page.getByTestId('payment-method-item').first();
 	const hasSavedMethods = await savedMethodItem.isVisible({ timeout: 10000 }).catch(() => false);
 
 	if (!hasSavedMethods) {
@@ -244,7 +242,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 		// Navigate back to Buy Credits
 		const buyCreditsItemAgain = page
-			.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+			.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 			.filter({ hasText: /buy credits/i });
 		await expect(buyCreditsItemAgain).toBeVisible({ timeout: 10000 });
 		await buyCreditsItemAgain.click();
@@ -253,13 +251,13 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 		// Select first tier again
 		await expect(async () => {
-			const tierItemsAgain = page.locator('.settings-menu.visible .menu-item[role="menuitem"]');
+			const tierItemsAgain = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
 			const countAgain = await tierItemsAgain.count();
 			expect(countAgain).toBeGreaterThanOrEqual(3);
 		}).toPass({ timeout: 15000 });
 
 		const firstTierAgain = page
-			.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+			.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 			.first();
 		await expect(firstTierAgain).toBeVisible({ timeout: 5000 });
 		await firstTierAgain.click();
@@ -269,7 +267,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	}
 
 	// At this point the test account should have a saved Stripe method.
-	const savedMethodItemNow = page.locator('.payment-method-item').first();
+	const savedMethodItemNow = page.getByTestId('payment-method-item').first();
 	await expect(savedMethodItemNow).toBeVisible({ timeout: 15000 });
 	log('Saved payment methods detected.');
 	await screenshot(page, 'saved-methods-list');
@@ -301,7 +299,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// The app may require re-authentication before processing the payment.
 	// PaymentAuth supports OTP and passkey. We handle OTP here.
 
-	const authModal = page.locator('.payment-auth-overlay, .auth-modal');
+	const authModal = page.locator('[data-testid="payment-auth-overlay"], [data-testid="auth-modal"]');
 	const authModalVisible = await authModal.isVisible({ timeout: 5000 }).catch(() => false);
 
 	if (authModalVisible) {
@@ -361,7 +359,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 
 	// Click "Invoices" menu item in billing submenu
 	const invoicesItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /invoices/i });
 	await expect(invoicesItem).toBeVisible({ timeout: 10000 });
 	await invoicesItem.click();
@@ -374,13 +372,13 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// finished) or as a pending/generating invoice (optimistic UI).
 
 	// Wait for at least one invoice item to be visible
-	const invoiceItem = page.locator('.invoice-item').first();
+	const invoiceItem = page.getByTestId('invoice-item').first();
 	await expect(invoiceItem).toBeVisible({ timeout: 30000 });
 	log('At least one invoice is visible.');
 	await screenshot(page, 'invoice-visible');
 
 	// Verify the most recent invoice shows today's date
-	const invoiceDate = invoiceItem.locator('.invoice-date');
+	const invoiceDate = invoiceItem.getByTestId('invoice-date');
 	const dateText = await invoiceDate.textContent();
 	log('Most recent invoice date: ' + dateText);
 
@@ -394,7 +392,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	// We wait for the enabled download button to appear.
 
 	const downloadBtn = invoiceItem.locator(
-		'button.download-button:not([disabled]):not(.processing)'
+		'[data-testid="download-button"]:not([disabled]):not(.processing)'
 	);
 
 	await expect(downloadBtn).toBeVisible({ timeout: 60000 });
@@ -447,7 +445,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 	}
 
 	// Verify no error notification appeared
-	const errorNotification = page.locator('.notification.error, .notification-error');
+	const errorNotification = page.locator('[data-testid="notification"].error, [data-testid="notification-error"]');
 	const hasError = await errorNotification.isVisible({ timeout: 2000 }).catch(() => false);
 	expect(hasError).toBe(false);
 

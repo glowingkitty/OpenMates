@@ -297,11 +297,11 @@ def gather_openobserve_errors(production: bool = False) -> str:
         "/app/backend/scripts/debug.py", "logs",
         "--o2",
         "--sql", (
-            'SELECT log, COUNT(*) as count FROM "default" '
+            'SELECT message, service, level, COUNT(*) as count FROM "default" '
             "WHERE compose_project = 'openmates-core' "
-            "AND (LOWER(log) LIKE '%error%' OR LOWER(log) LIKE '%exception%' "
-            "OR LOWER(log) LIKE '%traceback%') "
-            "GROUP BY log ORDER BY count DESC LIMIT 10"
+            "AND (level = 'ERROR' OR level = 'CRITICAL' "
+            "OR LOWER(message) LIKE '%traceback%') "
+            "GROUP BY message, service, level ORDER BY count DESC LIMIT 15"
         ),
         "--json", "--quiet-health",
     ]

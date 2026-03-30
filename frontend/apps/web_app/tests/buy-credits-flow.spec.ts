@@ -79,18 +79,18 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
 	// Wait for authenticated settings entries to load before navigating.
 	await expect(
-		page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first()
+		page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first()
 	).toBeVisible({ timeout: 15000 });
 	await screenshot(page, 'settings-menu-open');
 
 	// Click "billing" settings item (visible only for authenticated users)
 	const billingItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /billing/i });
 	await expect(billingItem).toBeVisible({ timeout: 10000 });
 	await billingItem.click();
@@ -99,7 +99,7 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 
 	// Click "Buy Credits" submenu item
 	const buyCreditsItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /buy credits/i });
 	await expect(buyCreditsItem).toBeVisible({ timeout: 10000 });
 	await buyCreditsItem.click();
@@ -108,9 +108,9 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 
 	// Verify pricing tiers are rendered as SettingsItem submenu elements
 	// Each tier shows a credit amount (e.g. "1.000") and a price (e.g. "€9")
-	// They render as .menu-item[role="menuitem"] with credit + price text
+	// They render as [data-testid="menu-item"][role="menuitem"] with credit + price text
 	await expect(async () => {
-		const tierItems = page.locator('.settings-menu.visible .menu-item[role="menuitem"]');
+		const tierItems = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
 		const count = await tierItems.count();
 		log(`Pricing tier items visible: ${count}`);
 		expect(count).toBeGreaterThanOrEqual(3); // Expect at least 3 pricing tiers
@@ -120,7 +120,7 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	log('At least 3 pricing tiers are visible.');
 
 	// Click the first pricing tier
-	const firstTier = page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first();
+	const firstTier = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first();
 	await expect(firstTier).toBeVisible({ timeout: 5000 });
 	log('Clicking first pricing tier...');
 	await firstTier.click();
@@ -146,7 +146,7 @@ test('navigates to buy credits, shows pricing tiers, and loads payment form on s
 	await assertNoMissingTranslations(page);
 
 	// Use the back button to go back without paying
-	const backButton = page.locator('.settings-menu.visible .icon_back.visible, button.nav-button');
+	const backButton = page.locator('#settings-back-button');
 	if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await backButton.click();
 		log('Navigated back from payment form.');
@@ -179,7 +179,7 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 	await screenshot(page, 'settings-open');
 
@@ -187,7 +187,7 @@ test('shows current credit balance in settings main menu', async ({ page }: { pa
 	// Credits location can vary slightly by layout/theme revisions.
 	const creditsAmount = page
 		.locator(
-			'.settings-menu.visible .credits-amount, .settings-menu.visible [class*="credits-amount"]'
+			'[data-testid="settings-menu"].visible [data-testid="credits-amount"]'
 		)
 		.first();
 	await expect(creditsAmount).toBeVisible({ timeout: 20000 });

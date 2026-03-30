@@ -50,27 +50,27 @@ const SELECTORS = {
 	submitLoginButton: 'button[type="submit"]:text-matches("log in|login", "i")',
 
 	// Chat UI
-	messageEditor: '.editor-content.prose',
-	sendButton: '.send-button',
+	messageEditor: '[data-testid="message-editor"]',
+	sendButton: '[data-action="send-message"]',
 	menuButton: '[data-testid="sidebar-toggle"]',
-	activityHistoryWrapper: '.activity-history-wrapper',
+	activityHistoryWrapper: '[data-testid="activity-history"]',
 
 	// Settings
-	profileButton: '.profile-picture',
-	settingsMenuVisible: '.settings-menu.visible',
+	profileButton: '[data-testid="profile-picture"]',
+	settingsMenuVisible: '[data-testid="settings-menu"].visible',
 
 	// Incognito controls
 	incognitoToggleWrapper: '[data-testid="incognito-toggle-wrapper"]',
 	incognitoActivateButton: '[data-testid="incognito-activate-button"]',
 
 	// Incognito visual indicators
-	incognitoBanner: '.incognito-pill',
+	incognitoBanner: '[data-testid="incognito-pill"]',
 	// The incognito group header is an h2.group-title rendered inside the INCOGNITO chat group.
 	// It replaces the old per-chat .incognito-label badge (removed in favour of a single group header).
-	incognitoGroupHeader: 'h2.group-title',
+	incognitoGroupHeader: '[data-testid="group-title"]',
 
 	// Chat list
-	chatItems: '.chat-item'
+	chatItems: '[data-testid="chat-item"]'
 };
 
 // ---------------------------------------------------------------------------
@@ -114,7 +114,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await headerLoginButton.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -123,9 +123,9 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await takeStepScreenshot(page, '02-login-dialog');
 
 	// Diagnostic: dump DOM state to understand what rendered
-	const loginWrapperCount = await page.locator('.login-wrapper').count();
+	const loginWrapperCount = await page.getByTestId('login-wrapper').count();
 	const emailInputCount = await page.locator(SELECTORS.emailInput).count();
-	const activeChatLoginMode = await page.locator('.active-chat-container.login-mode').count();
+	const activeChatLoginMode = await page.locator('[data-testid="active-chat-container"].login-mode').count();
 	// Check the actual store value from inside the page context
 	const storeValues = await page.evaluate(() => {
 		// Try to access the Svelte store via window (if exported)
@@ -331,7 +331,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 		await loginButtonAfterReload.click();
 
 		// Click Login tab to switch from signup to login view
-		const loginTabRelogin = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+		const loginTabRelogin = page.getByTestId('tab-login');
 		await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
 		await loginTabRelogin.click();
 
@@ -387,7 +387,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	}
 	await expect(incognitoGroupHeader.first()).toBeVisible({ timeout: 15000 });
 	// Verify the incognito chat items under the group match the expected count
-	const incognitoChatItems = page.locator('.chat-item.incognito');
+	const incognitoChatItems = page.locator('[data-testid="chat-item"].incognito');
 	const itemCount = await incognitoChatItems.count();
 	expect(itemCount).toBe(chatCountAfter);
 	logCheckpoint(

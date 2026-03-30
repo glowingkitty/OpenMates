@@ -117,7 +117,7 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	await headerLoginButton.click();
 
 	// Click Login tab to switch from signup to login view
-	const loginTab = page.locator('.login-tabs .tab-button', { hasText: /^login$/i });
+	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
@@ -154,8 +154,7 @@ async function startNewChat(page: any, logFn: (msg: string) => void): Promise<vo
 
 	// Multiple fallback selectors — sidebar-closed may show .new-chat-cta-button
 	const newChatButtonSelectors = [
-		'.new-chat-cta-button',
-		'.icon_create',
+		'[data-testid="new-chat-button"]',
 		'button[aria-label*="New"]',
 		'button[aria-label*="new"]'
 	];
@@ -176,7 +175,7 @@ async function startNewChat(page: any, logFn: (msg: string) => void): Promise<vo
 	}
 
 	// Wait for editor to appear regardless of which path we took
-	await expect(page.locator('.editor-content.prose')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
 	logFn('Editor visible.');
 }
 
@@ -187,12 +186,12 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logFn: (msg: string) => void
 ): Promise<string> {
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
 	await page.keyboard.type(message);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled({ timeout: 10000 });
 	await sendButton.click();
 	logFn(`Message sent: "${message}"`);
@@ -218,7 +217,7 @@ async function waitForAssistantResponse(
 	timeoutMs: number = AI_RESPONSE_TIMEOUT_MS
 ): Promise<void> {
 	logFn(`Waiting for assistant response containing "${expectedText}"...`);
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText(expectedText, { timeout: timeoutMs });
 	logFn(`Got assistant response with "${expectedText}".`);
 }
@@ -238,8 +237,8 @@ async function waitForChatInSidebarAndClick(
 ): Promise<void> {
 	logFn(`Waiting for chat with title containing "${expectedTitleFragment}" to appear in sidebar...`);
 
-	const chatItem = page.locator('.chat-item-wrapper', {
-		has: page.locator('.chat-title', {
+	const chatItem = page.getByTestId('chat-item-wrapper').filter({
+		has: page.getByTestId('chat-title').filter({
 			hasText: new RegExp(expectedTitleFragment, 'i')
 		})
 	});
@@ -269,7 +268,7 @@ async function assertChatDecryptedCorrectly(
 ): Promise<void> {
 	logFn(`Asserting chat is decrypted correctly in ${sessionLabel}...`);
 
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	if (typeof expectedAssistantText === 'string') {
 		await expect(assistantMsgs.last()).toContainText(expectedAssistantText, { timeout: 30000 });
 	} else {
@@ -316,14 +315,14 @@ async function assertChatDecryptedCorrectly(
 async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promise<void> {
 	logFn('Deleting active chat via context menu...');
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (!(await activeChatItem.isVisible())) {
 		logFn('No active chat item visible -- skipping delete.');
 		return;
 	}
 
 	await activeChatItem.click({ button: 'right' });
-	const deleteButton = page.locator('.menu-item.delete');
+	const deleteButton = page.getByTestId('chat-context-delete');
 	await expect(deleteButton).toBeVisible({ timeout: 5000 });
 	await deleteButton.click(); // Enter confirm mode
 	await deleteButton.click(); // Confirm deletion

@@ -159,16 +159,16 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 
 	// ─── Open Settings ───────────────────────────────────────────────────────────
 
-	const profileContainer = page.locator('.profile-container');
+	const profileContainer = page.getByTestId('profile-container');
 	await expect(profileContainer).toBeVisible({ timeout: 10000 });
 	await profileContainer.click();
 	log('Opened settings menu.');
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
 	// Wait for credits balance — confirms authenticated state fully loaded.
-	await expect(page.locator('.settings-menu.visible .credits-container')).toBeVisible({
+	await expect(page.locator('[data-testid="settings-menu"].visible [data-testid="credits-container"]')).toBeVisible({
 		timeout: 15000
 	});
 	await screenshot(page, 'settings-menu-open');
@@ -176,7 +176,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 	// ─── Navigate: Settings → Billing → Buy Credits ───────────────────────────────
 
 	const billingItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /billing/i });
 	await expect(billingItem).toBeVisible({ timeout: 10000 });
 	await billingItem.click();
@@ -184,7 +184,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 	await screenshot(page, 'billing-page');
 
 	const buyCreditsItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /buy credits/i });
 	await expect(buyCreditsItem).toBeVisible({ timeout: 10000 });
 	await buyCreditsItem.click();
@@ -193,7 +193,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 
 	// Verify pricing tiers are rendered
 	await expect(async () => {
-		const tierItems = page.locator('.settings-menu.visible .menu-item[role="menuitem"]');
+		const tierItems = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
 		const count = await tierItems.count();
 		expect(count).toBeGreaterThanOrEqual(3);
 	}).toPass({ timeout: 15000 });
@@ -202,7 +202,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 
 	// ─── Select first pricing tier ────────────────────────────────────────────────
 
-	const firstTier = page.locator('.settings-menu.visible .menu-item[role="menuitem"]').first();
+	const firstTier = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first();
 	await expect(firstTier).toBeVisible({ timeout: 5000 });
 	await firstTier.click();
 	log('Selected first pricing tier.');
@@ -236,7 +236,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 	// ─── Polar pay button ─────────────────────────────────────────────────────────
 	// After switching, Payment.svelte renders a .polar-pay-button (no Stripe fields).
 
-	const polarBuyButton = page.locator('.polar-pay-button');
+	const polarBuyButton = page.getByTestId('polar-pay-button');
 	await expect(polarBuyButton).toBeVisible({ timeout: 20000 });
 	await screenshot(page, 'polar-pay-button-visible');
 	log('Polar pay button visible.');
