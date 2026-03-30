@@ -22,6 +22,21 @@ Notification preferences have moved to the top-level Notifications hub.
             title: $text('apps.ai')
         });
     }
+
+    /**
+     * Navigate to the Chat Notifications sub-page (push + email preferences).
+     * Kept here as a convenience shortcut so users who expect notification
+     * preferences under Chat can still find them — the canonical hub lives
+     * at Settings > Notifications, but this direct link skips the hub.
+     */
+    function navigateToNotifications() {
+        dispatch('openSettings', {
+            settingsPath: 'notifications/chat',
+            direction: 'forward',
+            icon: 'notification',
+            title: $text('settings.notifications.chat')
+        });
+    }
 </script>
 
 <div class="chat-settings-container">
@@ -33,8 +48,13 @@ Notification preferences have moved to the top-level Notifications hub.
         onClick={navigateToAiAppSettings}
     />
 
-    <!-- Future: Additional chat settings can be added here -->
-    <!-- Examples: Chat appearance, message bubbles, typing indicators, etc. -->
+    <SettingsItem
+        type="submenu"
+        icon="notification"
+        title={$text('settings.notifications.chat')}
+        subtitle={$text('settings.notifications.description')}
+        onClick={navigateToNotifications}
+    />
 </div>
 
 <style>

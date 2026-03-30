@@ -326,7 +326,7 @@
 <!-- Clickable variant: interactive role with keyboard support -->
 {#if isClickable}
 <div
-    class="menu-item clickable"
+    class="menu-item settings-item clickable"
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
@@ -344,7 +344,7 @@
 {:else}
 <!-- Non-clickable variant: presentation role, no tabindex -->
 <div
-    class="menu-item"
+    class="menu-item settings-item"
     class:disabled={disabled}
     class:heading={type === 'heading'}
     class:submenu={type === 'submenu'}
