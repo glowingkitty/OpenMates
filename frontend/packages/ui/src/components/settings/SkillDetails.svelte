@@ -361,6 +361,7 @@
                     {#each skillModels as model (model.id)}
                         <div
                             class="model-item"
+                            data-testid="model-item"
                             role="button"
                             tabindex="0"
                             onclick={() => handleModelClick(model)}
@@ -374,7 +375,7 @@
                                 />
                             </div>
                             <div class="model-info">
-                                <span class="model-name">{model.name}</span>
+                                <span class="model-name" data-testid="model-name">{model.name}</span>
                                 <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
                             </div>
                             <!-- Chevron to indicate clickability -->

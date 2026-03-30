@@ -67,7 +67,7 @@ test.afterEach(async ({}, testInfo: any) => {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 async function ensureSidebarOpen(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const activityHistory = page.getByTestId('activity-history');
+	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isOpen = await activityHistory.isVisible().catch(() => false);
 	if (isOpen) return;
 	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
@@ -79,7 +79,7 @@ async function ensureSidebarOpen(page: any, logStep: (...args: any[]) => void): 
 }
 
 async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promise<void> {
-	const activityHistory = page.getByTestId('activity-history');
+	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isOpen = await activityHistory.isVisible().catch(() => false);
 	if (!isOpen) return;
 	const closeButton = page.getByRole('button', { name: 'Close' });
@@ -283,6 +283,13 @@ test('pinned chats appear before non-pinned in new chat carousel (OPE-105)', asy
 	const targetInCarousel = cards.some(c => c.title === targetTitle);
 	expect(targetInCarousel).toBe(true);
 	logStep(`PASS: Pinned chat "${targetTitle}" found in carousel.`);
+
+	// ASSERTION 4: Pinned cards show a pin badge icon
+	const pinBadges = page.locator('[data-testid="resume-card-pin"]');
+	const pinBadgeCount = await pinBadges.count();
+	logStep(`Pin badges visible: ${pinBadgeCount}`);
+	expect(pinBadgeCount).toBeGreaterThanOrEqual(1);
+	logStep('PASS: Pin badge visible on pinned card(s).');
 
 	await takeStepScreenshot(page, '03-verified');
 

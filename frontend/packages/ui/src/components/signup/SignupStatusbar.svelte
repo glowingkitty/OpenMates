@@ -104,7 +104,7 @@
 
 </script>
 
-<div class="status-bar" transition:fade>
+<div class="status-bar" data-testid="preview-status-bar" transition:fade>
     {#each activeSequence as step}
         <div class="status-dot" class:active={step === currentStepName}></div>
     {/each}

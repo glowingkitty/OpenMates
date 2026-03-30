@@ -428,7 +428,7 @@ Supports both saved payment methods and new payment form
         
         <div class="payment-methods-list">
             {#each paymentMethods as paymentMethod (paymentMethod.id)}
-                <div class="payment-method-item">
+                <div class="payment-method-item" data-testid="payment-method-item">
                     <div class="payment-method-info">
                         <div class="card-brand">{formatCardBrand(paymentMethod.card.brand)}</div>
                         <div class="card-details">

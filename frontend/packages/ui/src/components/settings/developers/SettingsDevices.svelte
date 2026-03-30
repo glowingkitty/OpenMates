@@ -223,7 +223,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     }
 </script>
 
-<div class="devices-container">
+<div class="devices-container" data-testid="devices-container">
     <h2 class="page-title">{$text('common.devices')}</h2>
     <p class="page-description">{$text('settings.developers_devices_description')}</p>
 

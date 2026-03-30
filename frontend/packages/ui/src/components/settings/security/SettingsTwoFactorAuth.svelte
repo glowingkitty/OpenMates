@@ -700,6 +700,7 @@ Props:
                 {#each tfaApps as app}
                     <button
                         class="app-item"
+                        data-testid="app-item"
                         class:selected={selectedApp === app}
                         onclick={() => selectedApp = app}
                     >
@@ -737,13 +738,13 @@ Props:
         
     {:else if currentStep === 'backup-codes'}
         <!-- Backup Codes -->
-        <div class="tfa-backup-codes">
+        <div class="tfa-backup-codes" data-testid="tfa-backup-codes">
             <h3>{isResetBackupCodesFlow ? $text('settings.security.tfa_new_backup_codes') : $text('settings.security.tfa_backup_codes')}</h3>
             <p class="description">{$text('settings.security.tfa_backup_codes_description')}</p>
             
             <div class="codes-container">
                 {#each backupCodes as code, i}
-                    <div class="code-item">
+                    <div class="code-item" data-testid="code-item">
                         <span class="code-number">{i + 1}.</span>
                         <code>{code}</code>
                     </div>
@@ -754,7 +755,7 @@ Props:
                 {showCopiedText ? $text('common.copied') : $text('settings.security.tfa_copy_codes')}
             </button>
             
-            <div class="confirm-checkbox">
+            <div class="confirm-checkbox" data-testid="confirm-checkbox">
                 <label>
                     <input type="checkbox" bind:checked={codesConfirmed} />
                     {$text('settings.security.tfa_confirm_codes_stored')}

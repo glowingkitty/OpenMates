@@ -113,7 +113,7 @@
     }
 </script>
 
-<div class="credits-package-container">
+<div class="credits-package-container" data-testid="credits-package">
     {#if isGift}
         <!-- Gift Badge -->
         <div class="recommended-badge gift-badge">

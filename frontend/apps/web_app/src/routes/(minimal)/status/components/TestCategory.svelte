@@ -27,7 +27,7 @@
 <div class="category">
 	<button class="cat-header" onclick={() => expanded = !expanded}>
 		<span class="expand-icon">{expanded ? '▾' : '▸'}</span>
-		<span class="cat-name">{category.name}</span>
+		<span class="cat-name" data-testid="cat-name">{category.name}</span>
 		<span class="cat-count">({category.total} tests)</span>
 		<span class="cat-summary" class:has-failures={category.failed > 0}>
 			{category.passed}/{category.total} passing

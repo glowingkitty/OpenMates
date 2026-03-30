@@ -340,6 +340,7 @@
             <div class="modal-actions">
                 <button
                     class="btn-cancel"
+                    data-testid="api-key-cancel-button"
                     onclick={() => showCreateForm = false}
                     disabled={creatingKey}
                 >
@@ -347,6 +348,7 @@
                 </button>
                 <button
                     class="btn-create-confirm"
+                    data-testid="api-key-create-confirm"
                     onclick={createApiKey}
                     disabled={creatingKey || !newKeyName.trim()}
                 >
@@ -380,6 +382,7 @@
                 <code class="created-key" data-testid="api-key-created-value">{createdKey}</code>
                 <button
                     class="btn-copy"
+                    data-testid="api-key-copy-button"
                     onclick={() => copyToClipboard(createdKey)}
                 >
                     Copy
@@ -389,6 +392,7 @@
             <div class="modal-actions">
                 <button
                     class="btn-done"
+                    data-testid="api-key-done-button"
                     onclick={() => showCreatedKey = false}
                 >
                     I've copied the key

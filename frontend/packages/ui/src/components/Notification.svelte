@@ -150,6 +150,7 @@
 <div
     bind:this={notificationElement}
     class="notification"
+    data-testid="notification"
     class:notification-auto-logout={notification.type === 'auto_logout'}
     class:notification-connection={notification.type === 'connection'}
     class:notification-software-update={notification.type === 'software_update'}

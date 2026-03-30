@@ -456,7 +456,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
             <button class="btn btn-deny" onclick={() => deny()}>
                 {$text('settings.sessions.pair_confirm_deny')}
             </button>
-            <button class="btn btn-allow" onclick={() => allow()}>
+            <button class="btn btn-allow" data-testid="pair-allow-button" onclick={() => allow()}>
                 {$text('settings.sessions.pair_confirm_allow')}
             </button>
         </div>
@@ -468,7 +468,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         <p class="page-description">{$text('settings.sessions.pair_confirm_pin_hint')}</p>
 
         <div class="pin-display-row">
-            <span class="pin-display">{displayPin}</span>
+            <span class="pin-display" data-testid="pair-pin-display">{displayPin}</span>
             <button
                 class="btn-copy"
                 onclick={copyPin}

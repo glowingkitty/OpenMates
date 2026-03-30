@@ -84,7 +84,7 @@
             />
           </div>
           <div class="model-text">
-            <span class="model-name">{model.name}</span>
+            <span class="model-name" data-testid="model-name">{model.name}</span>
             <span class="model-provider">{model.provider_name}</span>
           </div>
         </button>

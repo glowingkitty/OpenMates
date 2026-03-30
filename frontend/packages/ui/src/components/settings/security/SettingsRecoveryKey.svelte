@@ -420,7 +420,7 @@ Users should store them securely (offline, in a safe place).
         </div>
     {:else if currentStep === 'save'}
         <!-- Save Step - User chooses how to save, then confirms via toggle -->
-        <div class="save-container" in:fade>
+        <div class="save-container" data-testid="save-container" in:fade>
             <div class="header">
                 <div class="icon header_size warning"></div>
                 <h2>{$text('settings.security.recovery_key_download_title')}</h2>
@@ -439,6 +439,7 @@ Users should store them securely (offline, in a safe place).
                     <!-- Download button -->
                     <button
                         class="save-button"
+                        data-testid="save-button"
                         class:used={hasDownloaded}
                         onclick={handleDownload}
                     >
@@ -509,6 +510,7 @@ Users should store them securely (offline, in a safe place).
                 </button>
                 <button
                     class="primary-button"
+                    data-testid="primary-button"
                     onclick={saveRecoveryKey}
                     disabled={!canContinue}
                 >
@@ -567,7 +569,7 @@ Users should store them securely (offline, in a safe place).
                 {/if}
 
                 <div class="action-section">
-                    <button class="primary-button" onclick={startRegeneration}>
+                    <button class="primary-button" data-testid="primary-button" onclick={startRegeneration}>
                         {#if hasRecoveryKey}
                             {$text('settings.security.recovery_key_regenerate_button')}
                         {:else}

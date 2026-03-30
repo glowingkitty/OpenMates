@@ -3368,7 +3368,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
   - Provides a "Show more" button if more chats are available (local or server).
   - Shows demo chats for both authenticated and non-authenticated users.
 -->
-<div class="activity-history-wrapper" data-testid="activity-history">
+<div class="activity-history-wrapper" data-testid="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			{#if searchState.isActive}
@@ -3423,6 +3423,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<!-- Search button + close button -->
 						<button
 							class="clickable-icon icon_search top-button"
+							data-testid="search-button"
 							aria-label="Search"
 							onclick={() => openSearch()}
 							use:tooltip
@@ -3522,7 +3523,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
 		{#if syncing}
 			<div class="show-hidden-chats-container">
-				<div class="syncing-inline-indicator" aria-live="polite">
+				<div class="syncing-inline-indicator" data-testid="syncing-indicator" aria-live="polite">
 					<span class="clickable-icon icon_reload syncing-icon"></span>
 					<span class="syncing-text">{$text('activity.syncing')}</span>
 				</div>
@@ -3584,12 +3585,13 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 										disabled={inlineUnlockLoading}
 									/>
 									{#if inlineUnlockError}
-										<div class="overscroll-unlock-error">{inlineUnlockError}</div>
+										<div class="overscroll-unlock-error" data-testid="vault-unlock-error">{inlineUnlockError}</div>
 									{/if}
 								</div>
 								<button
 									type="submit"
 									class="overscroll-unlock-button"
+									data-testid="vault-unlock-button"
 									disabled={inlineUnlockLoading || inlineUnlockCode.length < 4 || inlineUnlockCode.length > 30}
 								>
 									{#if inlineUnlockLoading}
@@ -3608,6 +3610,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<button
 							type="button"
 							class="clickable-icon icon_close_up overscroll-unlock-close"
+							data-testid="vault-unlock-close"
 							onclick={() => {
 								showInlineUnlock = false;
 								inlineUnlockCode = '';
@@ -3701,7 +3704,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
 			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
 				{#if groupItems.length > 0}
-					<div class="chat-group">
+					<div class="chat-group" data-testid="chat-group">
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
@@ -3815,7 +3818,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/if}
 			{/snippet}
 			
-			<div class="chat-groups">
+			<div class="chat-groups" data-testid="chat-history">
 				<!-- 1. Incognito chat group — shown at the top so active session chats are immediately visible.
 				     Only rendered when incognito mode is active and there are incognito chats. -->
 				{#each orderedStaticChatGroups.filter(([k]) => k === 'incognito') as [groupKey, groupItems] (groupKey)}

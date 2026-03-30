@@ -153,7 +153,7 @@
 <div class="preview-index">
 	<header class="preview-header">
 		<h1>Component Preview</h1>
-		<p class="component-count">{componentPaths.length} components</p>
+		<p class="component-count" data-testid="component-count">{componentPaths.length} components</p>
 	</header>
 
 	<!-- Embed App Showcases — quick links to /dev/preview/embeds/<app> -->
@@ -185,6 +185,7 @@
 				{#if node.isFile}
 					<a
 						class="tree-file"
+						data-testid="tree-file"
 						href={getPreviewUrl(node.path)}
 						style="padding-left: {depth * 16 + 12}px"
 					>

@@ -1115,6 +1115,7 @@
                         <button
                             type="button"
                             class="app-item"
+                            data-testid="app-item"
                             class:selected={tfaAppName === app}
                             onclick={() => tfaAppName = app}
                             disabled={isVerifying2FA}

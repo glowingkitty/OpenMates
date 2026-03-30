@@ -81,7 +81,7 @@
     }
 </script>
 
-<div class="payment-form" in:fade={{ duration: 300 }}>
+<div class="payment-form" data-testid="payment-form" in:fade={{ duration: 300 }}>
     <form onsubmit={handleSubmit}>
         {#if paymentError}
             <div class="error-message" role="alert">

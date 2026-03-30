@@ -2120,7 +2120,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+        <span class="system-message-text" data-testid="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
         {#if status === 'waiting_for_user'}
           <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
           <button
@@ -2149,10 +2149,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         aria-label={displayName}
         title={displayName}
       >
-        <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+        <div class="mate-profile {category || 'default'}" data-testid="mate-profile" class:mate-profile-small-mobile={shouldStackMobile}></div>
       </button>
     {:else}
-      <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+      <div class="mate-profile {category || 'default'}" data-testid="mate-profile" class:mate-profile-small-mobile={shouldStackMobile}></div>
     {/if}
   {/if}
 
@@ -2173,10 +2173,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <button
             type="button"
             class="chat-mate-name chat-mate-name-link"
+            data-testid="chat-mate-name"
             onclick={openMateSettings}
           >{displayName}</button>
         {:else}
-          <div class="chat-mate-name">{displayName}</div>
+          <div class="chat-mate-name" data-testid="chat-mate-name">{displayName}</div>
         {/if}
       {/if}
 
@@ -2319,7 +2320,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <button class="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}

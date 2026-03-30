@@ -337,6 +337,7 @@ Uses SecurityAuth component for passkey/2FA verification.
             <div class="action-buttons">
                 <button
                     class="delete-button"
+                    data-testid="delete-button"
                     onclick={handleDeleteUncompletedAccount}
                     disabled={isLoadingDeletion}
                 >
@@ -407,6 +408,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         <div class="action-buttons">
             <button
                 class="delete-button"
+                data-testid="delete-button"
                 onclick={startDeletion}
                 disabled={!canProceed || isLoadingDeletion}
             >

@@ -1113,6 +1113,7 @@
 
                 <button
                     class="buy-button polar-pay-button"
+                    data-testid="polar-pay-button"
                     onclick={handlePolarCheckout}
                 >
                     {$text('signup.buy_for')

@@ -9552,6 +9552,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
                                             >
+                                                {#if meta.chat.pinned}
+                                                    {@const PinIcon = getLucideIcon('pin')}
+                                                    <div class="resume-card-pin-badge" data-testid="resume-card-pin">
+                                                        <PinIcon size={14} color="white" />
+                                                    </div>
+                                                {/if}
                                                 <div class="resume-large-orbs" aria-hidden="true">
                                                     <div class="resume-orb resume-orb-1"></div>
                                                     <div class="resume-orb resume-orb-2"></div>
@@ -9592,6 +9598,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                {#if meta.chat.pinned}
+                                                    {@const PinIcon = getLucideIcon('pin')}
+                                                    <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
+                                                        <PinIcon size={12} color="white" />
+                                                    </div>
+                                                {/if}
                                                 <div class="resume-chat-compact-icon">
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
@@ -11554,6 +11566,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-chat-card:focus {
         outline: 2px solid rgba(255, 255, 255, 0.5);
         outline-offset: 2px;
+    }
+
+    /* Pin badge — top-right corner of large and compact cards */
+    .resume-card-pin-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(4px);
+        z-index: 2;
+    }
+
+    .resume-card-pin-badge.compact {
+        top: 50%;
+        right: 38px;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+    }
+
+    .resume-card-pin-badge :global(svg) {
+        transform: rotate(45deg);
     }
 
     .resume-chat-compact-icon {

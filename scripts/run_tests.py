@@ -2011,6 +2011,13 @@ class TestOrchestrator:
         )
         return runner.run_all_batches()
 
+    # Specs excluded from daily / all-spec runs.
+    # These are utility specs (e.g. account provisioning) that should only be
+    # triggered manually via --spec.
+    EXCLUDED_SPECS = {
+        "create-test-account.spec.ts",
+    }
+
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
         if self.spec:
@@ -2024,9 +2031,9 @@ class TestOrchestrator:
                 _log(f"Found {len(specs)} previously failed spec(s)")
             return specs
 
-        # All specs
+        # All specs, minus excluded utility specs
         spec_files = sorted(SPEC_DIR.glob("*.spec.ts"))
-        return [f.name for f in spec_files]
+        return [f.name for f in spec_files if f.name not in self.EXCLUDED_SPECS]
 
     def _daily_gate(self) -> bool:
         """Check if daily run should proceed. Returns False to skip."""

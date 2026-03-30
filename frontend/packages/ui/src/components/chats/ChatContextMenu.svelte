@@ -381,6 +381,7 @@
 {#if show}
     <div
         class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
+        data-testid="context-menu"
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
@@ -478,6 +479,7 @@
             {#if !hideDownload}
                 <button
                     class="menu-item download"
+                    data-testid="chat-context-download"
                     class:downloading={downloading}
                     disabled={downloading}
                     onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
@@ -518,6 +520,7 @@
             {#if chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item hide"
+                    data-testid="chat-context-hide"
                     class:disabled={!$authStore.isAuthenticated}
                     disabled={!$authStore.isAuthenticated}
                     onclick={(event) => {
@@ -534,6 +537,7 @@
             {#if chat && chat.is_hidden}
                 <button
                     class="menu-item unhide"
+                    data-testid="chat-context-unhide"
                     class:disabled={!$authStore.isAuthenticated}
                     disabled={!$authStore.isAuthenticated}
                     onclick={(event) => {
@@ -585,6 +589,7 @@
                 {#if isUnread}
                     <button
                         class="menu-item mark-read"
+                        data-testid="chat-context-mark-read"
                         onclick={(event) => handleButtonClick('markRead', event)}
                     >
                         <div class="clickable-icon icon_mail"></div>
@@ -593,6 +598,7 @@
                 {:else}
                     <button
                         class="menu-item mark-unread"
+                        data-testid="chat-context-mark-unread"
                         onclick={(event) => handleButtonClick('markUnread', event)}
                     >
                         <div class="clickable-icon icon_mail"></div>

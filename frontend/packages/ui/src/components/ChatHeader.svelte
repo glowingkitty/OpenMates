@@ -368,7 +368,7 @@
       <!-- Title (20px, white, bold) -->
       <!-- SECURITY: Use plain text interpolation — chat titles are AI-generated from user input
            and must never be rendered as HTML to prevent stored XSS via prompt injection. -->
-      <span class="loaded-title">{title}</span>
+      <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
       <!-- Summary: fades in with max-height expand when available -->
       {#if showSummary}

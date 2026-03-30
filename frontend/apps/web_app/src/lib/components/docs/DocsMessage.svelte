@@ -132,7 +132,7 @@
 		<div class="mate-profile openmates_official" style="animation: none; opacity: 1;"></div>
 
 		<div class="message-align-left">
-			<div class="mate-message-content" role="article">
+			<div class="mate-message-content" data-testid="mate-message-content" role="article">
 				<div class="chat-mate-name">{$text('documentation.sender_name')}</div>
 				<div class="chat-message-text">
 					<ReadOnlyMessage {content} role="assistant" selectable={true} />

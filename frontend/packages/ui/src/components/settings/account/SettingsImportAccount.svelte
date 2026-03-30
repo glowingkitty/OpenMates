@@ -173,7 +173,7 @@
 
     {#if importResults}
         <!-- ── Success State ─────────────────────────────────────────────── -->
-        <div class="results-container">
+        <div class="results-container" data-testid="import-results-container">
             <div class="success-banner">
                 <div class="icon icon_check"></div>
                 <span>{$text('settings.account.import_success')}</span>
@@ -181,7 +181,7 @@
 
             <ul class="results-list">
                 {#each importResults as result}
-                    <li class="result-item">
+                    <li class="result-item" data-testid="import-result-item">
                         <div class="result-title">{result.title || $text('common.untitled_chat')}</div>
                         <div class="result-stats">
                             <span>{result.messages_imported} {$text('settings.account.import_messages_imported')}</span>
@@ -241,7 +241,7 @@
 
         <!-- ── Chat Selection ─────────────────────────────────────────────── -->
         {#if parsedChats.length > 0 && !isImporting}
-            <div class="select-section">
+            <div class="select-section" data-testid="import-select-section">
                 <div class="select-header">
                     <h3>{$text('settings.account.import_select_chats')}</h3>
                     <div class="select-all-controls">

@@ -365,6 +365,7 @@
     <div
         bind:this={dropdownElement}
         class="mention-dropdown"
+        data-testid="mention-dropdown"
         class:position-below={positionDirection === 'below'}
         style="{positionDirection === 'below' ? 'top' : 'bottom'}: {positionY}px;"
         transition:fade={{ duration: 150 }}

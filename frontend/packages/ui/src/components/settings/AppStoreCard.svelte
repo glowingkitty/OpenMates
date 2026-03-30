@@ -300,6 +300,7 @@
 
 <div
     class="app-store-card app-card"
+    data-testid="app-store-card"
     class:app-unavailable={isUnavailable}
     role="menuitem"
     tabindex="0"

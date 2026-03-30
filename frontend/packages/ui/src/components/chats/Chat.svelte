@@ -1994,11 +1994,12 @@
             {:else if currentTypingMateInfo?.isTyping && categoryGradientColors}
               <!-- New category circle with gradient and icon -->
               <div class="category-circle-wrapper">
-                <div 
-                  class="category-circle" 
+                <div
+                  class="category-circle"
+                  data-testid="category-circle"
                   style="background: linear-gradient(135deg, {categoryGradientColors.start}, {categoryGradientColors.end})"
                 >
-                  <div class="category-icon">
+                  <div class="category-icon" data-testid="category-icon">
                     {#if categoryIconNames.length > 0 || currentTypingMateInfo?.category}
 {@const validIconName = getValidIconName(categoryIconNames, currentTypingMateInfo?.category || 'general_knowledge')}
 {@const IconComponent = getLucideIcon(validIconName)}
@@ -2024,11 +2025,12 @@
                 {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
                 {@const IconComponent = getLucideIcon(chatIconName)}
                 <div class="category-circle-wrapper">
-                   <div 
-                    class="category-circle" 
+                   <div
+                    class="category-circle"
+                    data-testid="category-circle"
                     style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: #cccccc'}
                   >
-                    <div class="category-icon">
+                    <div class="category-icon" data-testid="category-icon">
                       <IconComponent size={16} color="white" />
                     </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
@@ -2063,7 +2065,7 @@
                     style="background: #cccccc"
                     title="Category not set by server"
                   >
-                    <div class="category-icon">
+                    <div class="category-icon" data-testid="category-icon">
                       <LucideIcons.HelpCircle size={16} color="white" />
                     </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
