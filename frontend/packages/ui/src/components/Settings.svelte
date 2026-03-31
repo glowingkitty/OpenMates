@@ -2173,6 +2173,12 @@ changes to the documentation (to keep the documentation up to date).
                 // The parameters remain in window.location.hash for sub-components to read.
                 const cleanPath = settingsPath.split('&')[0];
 
+                // Set window flag for deep-link parameters so sub-components can read them
+                // after the hash is cleaned. SettingsUsage reads __openmates_usage_deeplink.
+                if (settingsPath.includes('&usage')) {
+                    (window as any).__openmates_usage_deeplink = true;
+                }
+
                 // Determine the icon and title based on the path
                 // For nested paths like 'shared/share', use the last segment for icon
                 const pathParts = cleanPath.split('/');

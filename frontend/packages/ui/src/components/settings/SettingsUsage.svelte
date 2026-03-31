@@ -1469,6 +1469,8 @@ Usage Settings - View usage statistics and export usage data
     // Deep-link support: when URL hash contains "&usage", auto-open the latest usage entry.
     // Used by E2E tests to quickly navigate to the usage detail view.
     // Example: #settings/billing&usage
+    // The flag is also set on window.__openmates_usage_deeplink by the deep-link handler
+    // because Settings.svelte strips &params from the hash before routing.
     async function autoSelectLatestUsageEntry() {
         if (!dailyOverview.length) return;
 
@@ -1494,8 +1496,16 @@ Usage Settings - View usage statistics and export usage data
         // "Deleted chat" for usage entries linked to recordings that were never sent.
         draftAudioChatIds = getAllDraftAudioChatIds();
 
-        // Check for &usage deep-link parameter
-        const shouldAutoOpenUsage = typeof window !== 'undefined' && window.location.hash.includes('&usage');
+        // Check for &usage deep-link parameter from the URL hash or from the window flag
+        // (Settings.svelte strips &params before routing, so the hash may no longer contain it)
+        const shouldAutoOpenUsage = typeof window !== 'undefined' && (
+            window.location.hash.includes('&usage') ||
+            (window as any).__openmates_usage_deeplink === true
+        );
+        // Clear the flag after reading
+        if (typeof window !== 'undefined') {
+            (window as any).__openmates_usage_deeplink = false;
+        }
 
         // Load initial data based on default tab (overview)
         const initialLoad = activeTab === 'overview'
