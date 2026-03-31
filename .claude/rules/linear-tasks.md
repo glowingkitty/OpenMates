@@ -3,9 +3,9 @@ description: Linear task workflow — reading, updating status, and completing i
 globs:
 ---
 
-## Every Session Needs a Linear Task
+## Linear Task Workflow
 
-Every Claude session MUST be linked to a Linear task — no exceptions. This includes features, bugs, refactors, research, docs, and questions. If the user provides a task ID, use it. If not, create one.
+Every session should be linked to a Linear task when possible — but **never auto-create**. Always search for an existing task first.
 
 ## When a Linear Issue Is Provided
 
@@ -45,28 +45,38 @@ This step is MANDATORY. Never finish a task without updating Linear.
    - `state: "In Review"` — code needs review
    - `state: "Done"` — confirmed complete or self-contained (docs, config)
 
-## When No Linear Issue Is Provided
+## When No Linear Issue Is Provided — Search First
 
-If the user requests work without referencing a Linear issue, you MUST create one before starting:
+**NEVER auto-create a new task.** Always search for an existing task that this work belongs to.
 
-1. **Create a new issue** — call `mcp__linear__save_issue` with:
-   - `title`: concise description of the work (e.g., "Research: WebSocket reconnection strategies", "Fix: settings page crash on mobile")
-   - `state`: "In Progress"
-   - `labels`: ["claude-is-working"]
-2. **Post pickup comment** — call `mcp__linear__save_comment` with the `claude --resume <session-id>` command
-3. **Tell the user** — mention the created task ID (e.g., "Created OPE-XX to track this work")
-4. Follow Steps 3-4 from the existing task workflow as normal
+### Step 0: Search for an existing task (MANDATORY — before any code work)
 
-**Title conventions by session mode:**
-- `feature` → "Feat: ..."
-- `bug` → "Fix: ..."
-- `docs` → "Docs: ..."
-- `question` / research → "Research: ..."
-- `testing` → "Test: ..."
+1. **Ask the user** — "Is there an existing Linear task for this work?"
+2. **If user doesn't know or says no** — search Linear for related tasks:
+   - Call `mcp__linear__list_issues` with states "In Progress", "Todo", and "Backlog" to find candidates
+   - Look for tasks with related titles, descriptions, or labels
+3. **Match found and clearly related** — use it. Update the task's description to append a checkbox for this sub-work:
+   - Call `mcp__linear__get_issue` to read the current description
+   - Append a checkbox item to the description via `mcp__linear__save_issue` with `id` + updated `description`
+   - Then follow Steps 1-4 from "When a Linear Issue Is Provided"
+4. **Match found but unclear** — ask the user: "Should this be added to OPE-XX (title) as a sub-task, or is it separate work?"
+5. **No match found** — ask the user if they want a new task created, or if they know an existing task ID. Only create after explicit confirmation.
+
+### Checkbox format when appending sub-tasks to existing descriptions
+
+Append to the end of the existing description:
+
+```markdown
+
+## Sub-tasks
+- [ ] Description of the new work
+```
+
+If a `## Sub-tasks` section already exists, append the new checkbox item to it.
 
 ## Rules
 
-- **Every session needs a task.** No exceptions — features, bugs, research, docs, questions. Create one if not provided.
+- **Always search for an existing task first.** Never auto-create without asking the user.
 - **Always check images.** Call `mcp__linear__extract_images` before starting work.
 - **Always update status.** Mark "In Progress" at start, "Done"/"In Review" at end. No exceptions.
 - **Don't over-comment.** Max 3 comments per task: pickup, milestone/question, completion.
