@@ -1397,7 +1397,7 @@ changes to the documentation (to keep the documentation up to date).
                 // All other navigation (forward or backward) always scrolls to top.
                 settingsContentElement.scrollTo({
                     top: 0,
-                    behavior: 'smooth'
+                    behavior: 'instant'
                 });
             }
         }
@@ -1638,7 +1638,7 @@ changes to the documentation (to keep the documentation up to date).
             // Wait for the DOM to update with the main view content before scrolling.
             await tick();
             if (settingsContentElement) {
-                settingsContentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                settingsContentElement.scrollTo({ top: 0, behavior: 'instant' });
             }
         }
     }
