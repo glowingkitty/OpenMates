@@ -176,6 +176,7 @@ logs/
 
 # Agent trigger files (written by Docker sidecar, consumed by host watcher)
 scripts/.agent-triggers/
+scripts/.agent-triggers-processed/
 scripts/.tmp/
 processed_websites/
 temp_data

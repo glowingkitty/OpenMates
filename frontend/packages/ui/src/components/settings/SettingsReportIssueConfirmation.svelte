@@ -5,35 +5,36 @@
     Displays a clear success message and the copyable issue ID so the user can
     reference it when following up.
 
-    The issue ID is read from submittedIssueIdStore, written by SettingsReportIssue
-    on success. The store is cleared when this component is destroyed.
+    The issue ID is read once from submittedIssueIdStore (via get()) at mount time.
+    Written by SettingsReportIssue on success; overwritten on the next submission.
 
     Navigation:
     - "Submit another report" button dispatches 'navigateBack' to go back to the form.
 -->
 <script lang="ts">
-    import { onDestroy, createEventDispatcher } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
+    import { get } from 'svelte/store';
     import { text } from '@repo/ui';
     import { submittedIssueIdStore } from '../../stores/reportIssueStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
 
-    /** The issue ID received from the submission — read from the shared store. */
-    let issueId = $state('');
+    /**
+     * The issue ID received from the submission — read once from the shared store.
+     *
+     * We use get() instead of subscribe() because Settings.svelte's settingsViews
+     * is a $derived object that can re-evaluate when reactive dependencies change
+     * (auth state, user profile). This causes the {#each} block in
+     * CurrentSettingsPage to re-render, which destroys and recreates this component.
+     * A subscribe + onDestroy(clear) pattern would lose the ID on re-mount.
+     *
+     * get() captures the value once at creation time — immune to re-mounts.
+     */
+    const issueId = get(submittedIssueIdStore);
+
     /** True for 2 seconds after the user copies the issue ID. */
     let issueIdCopied = $state(false);
-
-    // Subscribe to the store and keep local state in sync.
-    const unsubscribe = submittedIssueIdStore.subscribe((id) => {
-        issueId = id;
-    });
-
-    // Clear the store when this page is destroyed so stale IDs don't persist.
-    onDestroy(() => {
-        unsubscribe();
-        submittedIssueIdStore.set('');
-    });
 
     /** Copy the issue ID to the clipboard and show a brief confirmation. */
     async function handleCopyIssueId() {

@@ -32,14 +32,119 @@ LINEAR_API_URL = "https://api.linear.app/graphql"
 LINEAR_TEAM_ID = "8fcbd114-657d-4a68-8c27-f18c9bf7ce7b"
 LINEAR_REQUEST_TIMEOUT = 15  # seconds
 
-# Linear label ID for user-reported issues (created manually in Linear workspace).
-# If this label doesn't exist yet, the task will create the issue without it.
-LINEAR_LABEL_USER_REPORTED_ID = None  # Set after creating the label in Linear
+# Linear label name to apply to user-reported issues.
+# Looked up by name at runtime via the Linear GraphQL API so it survives
+# workspace migrations without hardcoded UUIDs.
+LINEAR_BUG_LABEL_NAME = "Bug"
+
+# Linear state name for newly created issue reports.
+# "Todo" keeps them visible in the backlog (not "Triage" which can be overlooked).
+LINEAR_ISSUE_STATE_NAME = "Todo"
 
 
 def _get_linear_api_key() -> Optional[str]:
     """Read LINEAR_API_KEY from environment (injected via .env → docker-compose)."""
     return os.environ.get("LINEAR_API_KEY")
+
+
+async def _find_label_id_by_name(
+    client: httpx.AsyncClient,
+    api_key: str,
+    label_name: str,
+) -> Optional[str]:
+    """
+    Look up a Linear label UUID by its display name within the team.
+
+    Args:
+        client: Active httpx client
+        api_key: Linear API key
+        label_name: Label name to search for (case-insensitive match)
+
+    Returns:
+        Label UUID if found, None otherwise.
+    """
+    query = """
+    query TeamLabels($teamId: String!) {
+        team(id: $teamId) {
+            labels {
+                nodes {
+                    id
+                    name
+                }
+            }
+        }
+    }
+    """
+    try:
+        resp = await client.post(
+            LINEAR_API_URL,
+            json={"query": query, "variables": {"teamId": LINEAR_TEAM_ID}},
+            headers={"Authorization": api_key, "Content-Type": "application/json"},
+        )
+        resp.raise_for_status()
+        result = resp.json()
+        nodes = (
+            result.get("data", {})
+            .get("team", {})
+            .get("labels", {})
+            .get("nodes", [])
+        )
+        for node in nodes:
+            if node.get("name", "").lower() == label_name.lower():
+                return node["id"]
+    except Exception as e:
+        logger.warning(f"Failed to look up Linear label '{label_name}': {e}")
+    return None
+
+
+async def _find_state_id_by_name(
+    client: httpx.AsyncClient,
+    api_key: str,
+    state_name: str,
+) -> Optional[str]:
+    """
+    Look up a Linear workflow state UUID by its display name within the team.
+
+    Args:
+        client: Active httpx client
+        api_key: Linear API key
+        state_name: State name to search for (case-insensitive match)
+
+    Returns:
+        State UUID if found, None otherwise.
+    """
+    query = """
+    query TeamStates($teamId: String!) {
+        team(id: $teamId) {
+            states {
+                nodes {
+                    id
+                    name
+                }
+            }
+        }
+    }
+    """
+    try:
+        resp = await client.post(
+            LINEAR_API_URL,
+            json={"query": query, "variables": {"teamId": LINEAR_TEAM_ID}},
+            headers={"Authorization": api_key, "Content-Type": "application/json"},
+        )
+        resp.raise_for_status()
+        result = resp.json()
+        nodes = (
+            result.get("data", {})
+            .get("team", {})
+            .get("states", {})
+            .get("nodes", [])
+        )
+        for node in nodes:
+            if node.get("name", "").lower() == state_name.lower():
+                return node["id"]
+    except Exception as e:
+        logger.warning(f"Failed to look up Linear state '{state_name}': {e}")
+    return None
 
 
 async def _create_linear_issue(
@@ -86,12 +191,21 @@ async def _create_linear_issue(
         "priority": priority,
     }
 
-    # Add label if configured
-    if LINEAR_LABEL_USER_REPORTED_ID:
-        input_data["labelIds"] = [LINEAR_LABEL_USER_REPORTED_ID]
-
     try:
         async with httpx.AsyncClient(timeout=LINEAR_REQUEST_TIMEOUT) as client:
+            # Look up "Bug" label and "Todo" state by name (resilient to workspace changes)
+            bug_label_id = await _find_label_id_by_name(client, api_key, LINEAR_BUG_LABEL_NAME)
+            if bug_label_id:
+                input_data["labelIds"] = [bug_label_id]
+            else:
+                logger.warning(f"Could not find Linear label '{LINEAR_BUG_LABEL_NAME}' — creating issue without label")
+
+            todo_state_id = await _find_state_id_by_name(client, api_key, LINEAR_ISSUE_STATE_NAME)
+            if todo_state_id:
+                input_data["stateId"] = todo_state_id
+            else:
+                logger.warning(f"Could not find Linear state '{LINEAR_ISSUE_STATE_NAME}' — using default state")
+
             resp = await client.post(
                 LINEAR_API_URL,
                 json={"query": mutation, "variables": {"input": input_data}},
@@ -116,7 +230,7 @@ async def _create_linear_issue(
 
             issue = data["issue"]
             logger.info(
-                f"Created Linear issue {issue['identifier']} for user-reported bug: {title[:60]}"
+                f"Created Linear issue {issue['identifier']} with Bug label for user-reported bug: {title[:60]}"
             )
             return {
                 "id": issue["id"],
