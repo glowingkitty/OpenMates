@@ -145,22 +145,12 @@
         if (event) event.stopPropagation();
 
         const isLogsView = viewName === 'logs';
-        dispatch('openSettings', { 
-            settingsPath: viewName, 
+        dispatch('openSettings', {
+            settingsPath: viewName,
             direction: 'forward',
             icon: isLogsView ? 'server' : viewName,
             title: isLogsView ? 'Logs' : $text(`settings.${viewName}`)
         });
-        
-        // Find settings content element and scroll to top
-        // Fixed: Use document.querySelector instead of document.closest
-        const settingsContent = document.querySelector('.settings-content-wrapper');
-        if (settingsContent) {
-            settingsContent.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
     }
     
     // Routes that are accessible only via deep link (e.g. from the chat context menu)
