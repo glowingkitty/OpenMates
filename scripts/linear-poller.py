@@ -2,10 +2,11 @@
 """
 scripts/linear-poller.py
 
-Polls Linear for issues with 'claude-plan' or 'claude-fix' labels and spawns
-Claude Code sessions in Zellij for each one.
+Polls Linear for issues with 'claude-plan', 'claude-research', or 'claude-fix'
+labels and spawns Claude Code sessions in Zellij for each one.
 
 - claude-plan: spawns a plan-mode session (read-only research, posts findings)
+- claude-research: spawns a research session (codebase + web analysis, posts findings as comments)
 - claude-fix: spawns an execute-mode session (implements fix, deploys)
 
 Designed to run every 30s by the linear-poller systemd service (see
@@ -199,12 +200,17 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
     update_issue_status(full_issue["id"], "In Progress")
 
     # Post session info comment
+    mode_desc = {
+        "plan": "plan (read-only investigation)",
+        "research": "research (codebase + web analysis)",
+        "execute": "execute (implementing fix)",
+    }.get(mode, mode)
     post_comment(
         full_issue["id"],
         f"**Claude {mode} session started:** `{session_name}`\n\n"
         f"**Attach:** `zellij attach {session_name}`\n"
         f"**Web UI:** http://localhost:8082\n\n"
-        f"Mode: {{'plan': 'plan (read-only investigation)', 'research': 'research (codebase + web analysis)', 'execute': 'execute (implementing fix)'}.get(mode, mode)}"
+        f"Mode: {mode_desc}"
     )
 
     print(f"{LOG_PREFIX} {identifier}: spawned '{session_name}' ({mode} mode)")
@@ -242,11 +248,12 @@ def poll_and_spawn(dry_run: bool = False) -> None:
     for issue, mode in candidates:
         active = count_active_sessions()
         if active >= MAX_CONCURRENT_SESSIONS:
+            label_name = {"plan": "plan", "research": "research", "execute": "fix"}.get(mode, mode)
             post_comment(
                 issue["id"],
                 f"**Queued** — session limit reached ({active}/{MAX_CONCURRENT_SESSIONS}). "
                 f"This task will auto-start when a slot opens. "
-                f"The `claude-{{'plan': 'plan', 'research': 'research', 'execute': 'fix'}.get(mode, mode)}` label is retained for retry."
+                f"The `claude-{label_name}` label is retained for retry."
             )
             print(f"{LOG_PREFIX} {issue['identifier']}: queued (limit {active}/{MAX_CONCURRENT_SESSIONS})")
             continue

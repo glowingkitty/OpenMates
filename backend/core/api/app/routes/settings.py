@@ -2391,13 +2391,16 @@ class IssueReportRequest(BaseModel):
             "merge OTel trace spans into the log timeline."
         )
     )
-    submit_to_agent: bool = Field(
-        False,
+    agent_action: str = Field(
+        "none",
         description=(
-            "Admin-only flag. When True, triggers a Claude Code plan-mode investigation session "
-            "for this issue via the admin sidecar. Only honoured when the reporter is an "
-            "authenticated admin user — non-admin requests are silently ignored."
-        )
+            "Admin-only field controlling agent behavior on issue submission. "
+            "Values: 'none' (default, no agent), 'research' (codebase + web research only, "
+            "posts findings as comments), 'fix' (research + direct fix attempt). "
+            "Only honoured when the reporter is an authenticated admin user — "
+            "non-admin requests are silently ignored."
+        ),
+        pattern="^(none|research|fix)$",
     )
 
 
@@ -2418,14 +2421,18 @@ async def _trigger_agent_issue_investigation(
     console_logs: Optional[str],
     action_history: Optional[str],
     screenshot_presigned_url: Optional[str],
+    agent_action: str = "fix",
 ) -> None:
     """
-    Fire-and-forget: ask the admin sidecar to start a Claude Code plan-mode session
+    Fire-and-forget: ask the admin sidecar to start a Claude Code session
     investigating this issue.
+
+    Args:
+        agent_action: 'research' for read-only analysis, 'fix' for full investigation + fix.
 
     Called only when:
     - The reporter is a verified admin user (``is_from_admin`` is True)
-    - ``issue_data.submit_to_agent`` is True
+    - ``issue_data.agent_action`` is 'research' or 'fix'
 
     The sidecar runs on the host where claude is installed; the API runs inside
     Docker, so we delegate via an authenticated HTTP call to
@@ -2468,6 +2475,7 @@ async def _trigger_agent_issue_investigation(
         "screenshot_presigned_url": screenshot_presigned_url or "",
         "environment": environment,
         "domain": domain,
+        "agent_action": agent_action,
     }
 
     endpoint = f"{core_sidecar_url}/admin/claude-investigate"
@@ -3002,9 +3010,9 @@ async def report_issue(
                 exc_info=True
             )
 
-        # Admin-only: trigger claude plan-mode investigation if requested.
+        # Admin-only: trigger agent investigation if requested.
         # Only honoured when the reporter is a verified admin user.
-        if is_from_admin and issue_data.submit_to_agent:
+        if is_from_admin and issue_data.agent_action in ("research", "fix"):
             try:
                 await _trigger_agent_issue_investigation(
                     request=request,
@@ -3015,6 +3023,7 @@ async def report_issue(
                     console_logs=console_logs_str,
                     action_history=action_history_str,
                     screenshot_presigned_url=screenshot_presigned_url,
+                    agent_action=issue_data.agent_action,
                 )
             except Exception as _agent_err:
                 # Never block the issue report response if agent trigger fails

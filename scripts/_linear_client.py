@@ -38,6 +38,7 @@ STATE_IDS: Dict[str, str] = {
 LABEL_CLAUDE_WORKING_ID = "4223e874-eb1f-4588-be6e-e28b013b8f49"
 LABEL_CLAUDE_PLAN_ID = "6d87065f-9480-4a57-a08c-a9f4cbc38e03"
 LABEL_CLAUDE_FIX_ID = "d692b6f7-62e0-45a9-89c6-9f666709ebd3"
+LABEL_CLAUDE_RESEARCH_ID = "69644332-fa66-4ac2-8588-9fa71abd72e3"
 
 # Mode → Linear title prefix mapping
 MODE_PREFIX: Dict[str, str] = {
@@ -358,7 +359,7 @@ def list_issues_with_label(label_name: str) -> List[Dict[str, Any]]:
     state, labels, label_ids, updated_at. Returns empty list on failure.
     """
     query = """
-    query ListIssuesWithLabel($teamId: String!, $labelName: String!) {
+    query ListIssuesWithLabel($teamId: ID!, $labelName: String!) {
         issues(filter: {
             team: { id: { eq: $teamId } },
             labels: { name: { eq: $labelName } },
@@ -434,6 +435,219 @@ def get_issues_batch(identifiers: List[str]) -> Dict[str, Dict[str, str]]:
                 "state": issue["state"]["name"] if issue.get("state") else "Unknown",
             }
     return result
+
+
+def delete_issue(identifier: str) -> bool:
+    """
+    Soft-delete an issue (moves to trash, recoverable for 30 days).
+
+    Args:
+        identifier: Issue identifier (e.g., "OPE-42") or UUID.
+    """
+    # Resolve identifier → UUID if needed
+    uuid = identifier
+    if "-" in identifier and not _is_uuid(identifier):
+        issue = get_issue(identifier)
+        if not issue:
+            return False
+        uuid = issue["id"]
+
+    query = """
+    mutation DeleteIssue($id: String!) {
+        issueDelete(id: $id) {
+            success
+        }
+    }
+    """
+    data = _graphql(query, {"id": uuid})
+    return bool(data and data.get("issueDelete", {}).get("success"))
+
+
+def batch_delete_issues(identifiers: List[str]) -> Dict[str, bool]:
+    """
+    Delete multiple issues. Returns dict mapping identifier → success boolean.
+
+    Args:
+        identifiers: List of issue identifiers (e.g., ["OPE-42", "OPE-155"])
+    """
+    results: Dict[str, bool] = {}
+    for ident in identifiers:
+        success = delete_issue(ident)
+        results[ident] = success
+        status = "deleted" if success else "FAILED"
+        print(f"  {ident}: {status}", file=sys.stderr)
+    return results
+
+
+def set_priority(issue_id: str, priority: int) -> bool:
+    """
+    Set an issue's priority.
+
+    Args:
+        issue_id: The issue's UUID (not OPE-XX identifier)
+        priority: 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
+    """
+    if priority not in (0, 1, 2, 3, 4):
+        print(f"Warning: Invalid priority {priority}. Must be 0-4.", file=sys.stderr)
+        return False
+
+    query = """
+    mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) {
+            success
+        }
+    }
+    """
+    data = _graphql(query, {"id": issue_id, "input": {"priority": priority}})
+    return bool(data and data.get("issueUpdate", {}).get("success"))
+
+
+def set_labels(issue_id: str, label_ids: List[str]) -> bool:
+    """
+    Replace all labels on an issue with the given set.
+
+    Args:
+        issue_id: The issue's UUID
+        label_ids: Complete list of label UUIDs to set (replaces existing)
+    """
+    query = """
+    mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) {
+            success
+        }
+    }
+    """
+    data = _graphql(query, {"id": issue_id, "input": {"labelIds": label_ids}})
+    return bool(data and data.get("issueUpdate", {}).get("success"))
+
+
+def add_labels(issue_id: str, label_ids_to_add: List[str], current_label_ids: Optional[List[str]] = None) -> bool:
+    """
+    Add labels to an issue without removing existing ones.
+
+    Args:
+        issue_id: The issue's UUID
+        label_ids_to_add: Label UUIDs to add
+        current_label_ids: Existing label IDs (fetched automatically if None)
+    """
+    if current_label_ids is None:
+        # Fetch current labels
+        query = """
+        query GetIssueLabels($id: String!) {
+            issue(id: $id) {
+                labels { nodes { id } }
+            }
+        }
+        """
+        data = _graphql(query, {"id": issue_id})
+        if not data or not data.get("issue"):
+            return False
+        current_label_ids = [l["id"] for l in data["issue"].get("labels", {}).get("nodes", [])]
+
+    merged = list(set(current_label_ids + label_ids_to_add))
+    return set_labels(issue_id, merged)
+
+
+def set_project(issue_id: str, project_id: Optional[str]) -> bool:
+    """
+    Assign an issue to a project (or unassign by passing None).
+
+    Args:
+        issue_id: The issue's UUID
+        project_id: Project UUID, or None to unassign
+    """
+    query = """
+    mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) {
+            success
+        }
+    }
+    """
+    data = _graphql(query, {"id": issue_id, "input": {"projectId": project_id}})
+    return bool(data and data.get("issueUpdate", {}).get("success"))
+
+
+def list_open_issues(states: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """
+    Fetch all open issues in the OpenMates team filtered by workflow state.
+
+    Args:
+        states: List of state names to include (default: ["Todo", "Backlog"]).
+                Use None for the default set.
+
+    Returns list of dicts with: id, identifier, title, description, url,
+    state, labels, label_ids, updated_at, priority. Returns empty list on failure.
+    """
+    if states is None:
+        states = ["Todo", "Backlog"]
+
+    query = """
+    query ListOpenIssues($teamId: ID!) {
+        issues(filter: {
+            team: { id: { eq: $teamId } },
+            state: { type: { nin: ["canceled", "completed"] } }
+        }, first: 100, orderBy: updatedAt) {
+            nodes {
+                id
+                identifier
+                title
+                description
+                url
+                updatedAt
+                priority
+                state { name }
+                labels { nodes { id name } }
+            }
+        }
+    }
+    """
+    data = _graphql(query, {"teamId": TEAM_ID})
+    if not data or not data.get("issues"):
+        return []
+
+    results = []
+    for issue in data["issues"].get("nodes", []):
+        state_name = issue["state"]["name"] if issue.get("state") else "Unknown"
+        if state_name not in states:
+            continue
+        results.append({
+            "id": issue["id"],
+            "identifier": issue["identifier"],
+            "title": issue["title"],
+            "description": issue.get("description") or "",
+            "url": issue.get("url") or "",
+            "state": state_name,
+            "labels": [lbl["name"] for lbl in issue.get("labels", {}).get("nodes", [])],
+            "label_ids": [lbl["id"] for lbl in issue.get("labels", {}).get("nodes", [])],
+            "updated_at": issue.get("updatedAt") or "",
+            "priority": issue.get("priority") or 0,
+        })
+    return results
+
+
+def update_issue_description(issue_id: str, description: str) -> bool:
+    """
+    Replace an issue's description with new content.
+
+    Args:
+        issue_id: The issue's UUID (not OPE-XX identifier)
+        description: New markdown description
+    """
+    query = """
+    mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) {
+            success
+        }
+    }
+    """
+    data = _graphql(query, {"id": issue_id, "input": {"description": description}})
+    return bool(data and data.get("issueUpdate", {}).get("success"))
+
+
+def _is_uuid(s: str) -> bool:
+    """Check if a string looks like a UUID (contains only hex and dashes, 36 chars)."""
+    import re
+    return bool(re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", s))
 
 
 def get_issue_updated_at(identifier: str) -> Optional[str]:

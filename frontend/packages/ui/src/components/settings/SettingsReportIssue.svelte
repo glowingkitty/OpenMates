@@ -57,11 +57,12 @@
     let includeEmailToggle = $state(true);
 
     /**
-     * Admin-only: whether to submit this report to the Claude Code agent for an
-     * automatic plan-mode investigation session. Only shown when isAdminUser is true.
-     * Defaults to true so the admin gets an investigation started immediately.
+     * Admin-only: what agent action to trigger on submit.
+     * - 'none': no agent investigation (default)
+     * - 'research': research-only session (codebase + web analysis, posts findings)
+     * - 'fix': full investigation + direct fix attempt
      */
-    let submitToAgent = $state(true);
+    let agentAction = $state<'none' | 'research' | 'fix'>('none');
 
     /**
      * Whether the current context has an active chat or embed that can be shared.
@@ -571,9 +572,9 @@
                     // Recent OTel trace IDs for issue-to-trace correlation.
                     // Empty array if tracing is not active.
                     trace_ids: recentTraceIds,
-                    // Admin-only: trigger Claude Code plan-mode investigation.
+                    // Admin-only: trigger agent action on submit.
                     // Only honoured server-side when reporter is a verified admin.
-                    submit_to_agent: isAdminUser && submitToAgent
+                    agent_action: isAdminUser ? agentAction : 'none'
                 }),
                 credentials: 'include'
             });
@@ -994,7 +995,7 @@
             chatOrEmbedUrl,
             contactEmail,
             includeEmailToggle,
-            submitToAgent,
+            agentAction,
             pickedElementHtml,
             screenshotDataUrl
         });
@@ -1466,7 +1467,7 @@
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
             includeEmailToggle = draft.includeEmailToggle;
-            if (draft.submitToAgent !== undefined) submitToAgent = draft.submitToAgent;
+            if (draft.agentAction !== undefined) agentAction = draft.agentAction;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
             // Clear the draft now that it has been consumed
@@ -1639,24 +1640,50 @@
             </div>
         {/if}
 
-        <!-- Submit to Agent toggle — admin only -->
-        <!-- Triggers a Claude Code plan-mode investigation session for this issue. -->
+        <!-- Agent action selector — admin only -->
+        <!-- Controls what Claude Code does with this issue report. -->
         {#if isAdminUser}
-            <div class="toggle-group">
-                <div class="toggle-row">
-                    <label for="submit-to-agent-toggle">{$text('settings.report_issue.submit_to_agent_label')}</label>
-                    <Toggle
-                        id="submit-to-agent-toggle"
-                        bind:checked={submitToAgent}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.submit_to_agent_label')}
-                    />
+            <div class="input-group">
+                <p class="input-label">{$text('settings.report_issue.agent_action_label')}</p>
+                <div class="agent-action-options">
+                    <label class="radio-option" class:selected={agentAction === 'none'}>
+                        <input
+                            type="radio"
+                            name="agent-action"
+                            value="none"
+                            bind:group={agentAction}
+                            disabled={isSubmitting}
+                        />
+                        <span class="radio-label">{$text('settings.report_issue.agent_action_none')}</span>
+                    </label>
+                    <label class="radio-option" class:selected={agentAction === 'research'}>
+                        <input
+                            type="radio"
+                            name="agent-action"
+                            value="research"
+                            bind:group={agentAction}
+                            disabled={isSubmitting}
+                        />
+                        <span class="radio-label">{$text('settings.report_issue.agent_action_research')}</span>
+                    </label>
+                    <label class="radio-option" class:selected={agentAction === 'fix'}>
+                        <input
+                            type="radio"
+                            name="agent-action"
+                            value="fix"
+                            bind:group={agentAction}
+                            disabled={isSubmitting}
+                        />
+                        <span class="radio-label">{$text('settings.report_issue.agent_action_fix')}</span>
+                    </label>
                 </div>
                 <p class="input-hint">
-                    {#if submitToAgent}
-                        {$text('settings.report_issue.submit_to_agent_hint_on')}
+                    {#if agentAction === 'none'}
+                        {$text('settings.report_issue.agent_action_hint_none')}
+                    {:else if agentAction === 'research'}
+                        {$text('settings.report_issue.agent_action_hint_research')}
                     {:else}
-                        {$text('settings.report_issue.submit_to_agent_hint_off')}
+                        {$text('settings.report_issue.agent_action_hint_fix')}
                     {/if}
                 </p>
             </div>
@@ -1934,6 +1961,40 @@
     }
     
     
+    .agent-action-options {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+
+    .radio-option:hover {
+        background-color: var(--color-grey-3);
+    }
+
+    .radio-option.selected {
+        background-color: var(--color-grey-4);
+    }
+
+    .radio-option input[type="radio"] {
+        accent-color: var(--color-primary);
+        margin: 0;
+    }
+
+    .radio-label {
+        font-size: 0.875rem;
+        color: var(--color-font-primary);
+    }
+
     .signal-reminder {
         padding: 12px;
         background-color: var(--color-info-light, #e3f2fd);

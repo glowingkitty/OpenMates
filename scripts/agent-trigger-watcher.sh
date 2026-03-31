@@ -53,10 +53,11 @@ process_trigger() {
     filename="$(basename "$trigger_file")"
 
     # Parse JSON fields using python3 (always available on the host)
-    local issue_id session_title prompt
+    local issue_id session_title prompt agent_action
     issue_id="$(python3 -c "import json,sys; print(json.load(sys.stdin)['issue_id'])" < "$trigger_file")"
     session_title="$(python3 -c "import json,sys; print(json.load(sys.stdin)['session_title'])" < "$trigger_file")"
     prompt="$(python3 -c "import json,sys; print(json.load(sys.stdin)['prompt'])" < "$trigger_file")"
+    agent_action="$(python3 -c "import json,sys; print(json.load(sys.stdin).get('agent_action', 'fix'))" < "$trigger_file")"
 
     if [[ -z "$issue_id" || -z "$prompt" ]]; then
         log "ERROR: Trigger file $filename missing issue_id or prompt — skipping"
@@ -64,7 +65,7 @@ process_trigger() {
         return 1
     fi
 
-    log "Processing trigger: issue_id=$issue_id title='$session_title'"
+    log "Processing trigger: issue_id=$issue_id title='$session_title' action=$agent_action"
 
     # Write prompt to a temp file for spawn-chat --prompt-file
     local prompt_file="$SCRIPT_DIR/.tmp/agent-prompt-${issue_id}.txt"
@@ -72,12 +73,16 @@ process_trigger() {
     echo "$prompt" > "$prompt_file"
 
     # Spawn a Claude Code session in a new Zellij tab
-    # Use --mode execute so the agent can investigate and apply fixes
+    # Use plan mode for research-only, execute mode for fix attempts
+    local session_mode="execute"
+    if [[ "$agent_action" == "research" ]]; then
+        session_mode="plan"
+    fi
     local session_name="investigate-${issue_id:0:8}"
     if python3 "$SCRIPT_DIR/sessions.py" spawn-chat \
         --prompt-file "$prompt_file" \
         --name "$session_name" \
-        --mode execute 2>&1 | tee -a "$LOG_FILE"; then
+        --mode "$session_mode" 2>&1 | tee -a "$LOG_FILE"; then
         log "Spawned session '$session_name' for issue $issue_id"
     else
         log "ERROR: Failed to spawn session for issue $issue_id (exit code $?)"

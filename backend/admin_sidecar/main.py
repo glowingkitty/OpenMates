@@ -895,6 +895,7 @@ class _InvestigateRequest(BaseModel):
     screenshot_presigned_url: str = ""
     environment: str = "development"
     domain: str = ""
+    agent_action: str = "fix"  # 'research' = read-only analysis, 'fix' = full investigation + fix
 
 
 def _build_investigate_prompt(data: _InvestigateRequest) -> str:
@@ -926,7 +927,7 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
 
     date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    return (
+    prompt = (
         template
         .replace("{{ISSUE_ID}}", data.issue_id)
         .replace("{{ISSUE_TITLE}}", data.issue_title)
@@ -939,6 +940,26 @@ def _build_investigate_prompt(data: _InvestigateRequest) -> str:
         .replace("{{DOMAIN}}", data.domain or "(unknown)")
         .replace("{{DATE}}", date_str)
     )
+
+    # Prepend mode-specific instructions based on agent_action
+    if data.agent_action == "research":
+        mode_prefix = (
+            "IMPORTANT: This is a RESEARCH-ONLY session. "
+            "You MUST NOT edit, write, or create any files. "
+            "Only read, search, and analyze code + search the web. "
+            "Post your findings as a structured summary — do NOT implement any changes.\n\n"
+        )
+        prompt = mode_prefix + prompt
+    else:
+        mode_prefix = (
+            "IMPORTANT: This is an EXECUTE session. "
+            "You have full access to read, edit, and create files. "
+            "Investigate the issue and implement the fix directly. "
+            "Use sessions.py deploy to commit and push when done.\n\n"
+        )
+        prompt = mode_prefix + prompt
+
+    return prompt
 
 
 def _write_agent_trigger(data: _InvestigateRequest) -> str:
@@ -969,6 +990,7 @@ def _write_agent_trigger(data: _InvestigateRequest) -> str:
         "session_title": session_title,
         "environment": data.environment,
         "domain": data.domain,
+        "agent_action": data.agent_action,
         "created_at": datetime.datetime.utcnow().isoformat() + "Z",
     }
 
