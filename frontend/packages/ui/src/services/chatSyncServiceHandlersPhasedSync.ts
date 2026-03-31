@@ -428,6 +428,10 @@ export async function handlePhasedSyncCompleteImpl(
   // would never be called — causing an infinite "Syncing..." indicator.
   phasedSyncState.markSyncCompleted();
 
+  // OPE-216: Mark that a full sync has completed this session so that transient
+  // WS disconnects (pong timeout, brief network blip) skip redundant re-syncs.
+  serviceInstance.markInitialSyncCompleted();
+
   serviceInstance.dispatchEvent(
     new CustomEvent("phasedSyncComplete", {
       detail: payload,
