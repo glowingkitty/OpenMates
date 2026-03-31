@@ -553,10 +553,20 @@
 			// Fallback: check current hash (might have been modified)
 			hashChatIdToLoad = window.location.hash.startsWith('#chat-id=')
 				? window.location.hash.substring('#chat-id='.length)
-				: window.location.hash.startsWith('#chat-id=')
-					? window.location.hash.substring('#chat-id='.length)
-					: null;
+				: null;
 			console.debug('[+page.svelte] Using CURRENT hash chat ID (fallback):', hashChatIdToLoad);
+		}
+
+		// OPE-215: Skip public/demo chats (like demo-for-everyone) as hash overrides for
+		// authenticated users. These get into the hash when: (a) forced logout sets it during
+		// missing-master-key cleanup, or (b) non-auth welcome chat sets it before the user logs in.
+		// After login, the user should land on their last-opened chat, not the demo.
+		if (hashChatIdToLoad && isPublicChat(hashChatIdToLoad) && $authStore.isAuthenticated) {
+			console.debug(
+				'[+page.svelte] Skipping public/demo chat hash override for authenticated user:',
+				hashChatIdToLoad
+			);
+			hashChatIdToLoad = null;
 		}
 
 		if (hashChatIdToLoad) {
@@ -600,7 +610,9 @@
 		}
 
 		// PRIORITY 2: Skip if hash is a chat (hash chat takes precedence)
-		if (originalHashChatId) {
+		// OPE-215: Don't skip for public/demo chats when user is authenticated — those are
+		// just defaults from the non-auth state, not intentional deep links
+		if (originalHashChatId && !(isPublicChat(originalHashChatId) && $authStore.isAuthenticated)) {
 			console.debug(
 				'[+page.svelte] [PRIORITY 2] Skipping last_opened chat - hash chat has priority:',
 				originalHashChatId

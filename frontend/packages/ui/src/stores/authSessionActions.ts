@@ -1283,6 +1283,25 @@ export function setAuthenticatedState(): void {
     "Reset phased sync state for new login (preserving user navigation choices) - syncing indicator will show",
   );
 
+  // OPE-215: Clear the demo-for-everyone hash that was set during non-auth state or forced logout.
+  // Without this, the sync completion handler in +page.svelte reads the stale hash and
+  // auto-navigates to the demo chat instead of the user's last-opened chat.
+  if (
+    typeof window !== "undefined" &&
+    window.location.hash === "#chat-id=demo-for-everyone"
+  ) {
+    // Use replaceState to avoid triggering hashchange events
+    history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+    activeChatStore.clearActiveChat();
+    console.debug(
+      "[setAuthenticatedState] Cleared demo-for-everyone hash on login",
+    );
+  }
+
   authStore.update((state) => ({
     ...state,
     isAuthenticated: true,
