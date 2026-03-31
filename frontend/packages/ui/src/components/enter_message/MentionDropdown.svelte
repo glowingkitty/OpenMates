@@ -393,6 +393,7 @@
             {#each results as result, index (result.id)}
                 <div
                     class="mention-result"
+                    data-testid="mention-result"
                     class:selected={getFlatIndex(index) === selectedIndex}
                     role="option"
                     tabindex="-1"
@@ -480,6 +481,7 @@
                             {#each entriesToShow as entry, entryIdx (entry.id)}
                                 <div
                                     class="mention-result entry-item"
+                                    data-testid="mention-result"
                                     class:selected={getFlatIndex(index, entryIdx) === selectedIndex}
                                     role="option"
                                     tabindex="-1"

@@ -399,7 +399,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// The inserted mention chip should show the trip destination name, NOT a UUID fragment
 	// Bug fix verification: previously showed "Travel-Trips-fe5acefa" instead of "Travel-Trips-TestCity"
-	const mentionChip = messageEditor.locator('[data-testid="mention-chip"].mention-settings-memory_entry').first();
+	const mentionChip = messageEditor.locator('[data-type="generic-mention"].mention-settings-memory_entry').first();
 	const chipVisible = await mentionChip.isVisible({ timeout: 5000 }).catch(() => false);
 	if (chipVisible) {
 		const chipText = await mentionChip.textContent();
