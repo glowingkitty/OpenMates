@@ -58,5 +58,6 @@ Produce a structured work report in markdown. Use this exact format:
 Rules:
 - Be factual and concise. No suggestions or analysis — just data.
 - If a section has no data, say so explicitly (e.g., "No commits in the last 24h.").
-- For dependabot, focus on severity counts and re-dispatch status.
+- Include ALL nightly jobs in the report — not just the 4 legacy ones. New jobs appear dynamically.
+- For dependabot/security jobs with security_disclosure info: include package names, severities, CVE/GHSA IDs, and whether the vulnerability affects end users.
 - For user issues, include the issue ID so the meeting can reference them.

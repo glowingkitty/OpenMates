@@ -73,6 +73,15 @@ TOTAL=$(grep -c "^ses_" "$CANDIDATES_FILE" 2>/dev/null || echo "0")
 if [ "$TOTAL" -eq 0 ]; then
     echo "No sessions to delete — nothing to do."
     rm -f "$CANDIDATES_FILE"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PYTHONPATH="$SCRIPT_DIR" python3 -c "
+from _nightly_report import write_nightly_report
+write_nightly_report(
+    job='session-cleanup',
+    status='ok',
+    summary='No sessions to delete — all recent or have TODO.',
+)
+"
     echo ""
     echo "Done."
     exit 0
@@ -109,3 +118,20 @@ DB_SIZE=$(du -sh "$DB_PATH" | cut -f1)
 echo "DB size now: $DB_SIZE"
 echo "=========================================="
 echo ""
+
+# Write nightly report for daily meeting consumption
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHONPATH="$SCRIPT_DIR" python3 -c "
+from _nightly_report import write_nightly_report
+write_nightly_report(
+    job='session-cleanup',
+    status='ok' if ${FAILED} == 0 else 'warning',
+    summary='Session cleanup: ${DELETED} deleted, ${FAILED} failed (of ${TOTAL} candidates). DB size: ${DB_SIZE}.',
+    details={
+        'deleted': ${DELETED},
+        'failed': ${FAILED},
+        'total_candidates': ${TOTAL},
+        'db_size': '${DB_SIZE}',
+    },
+)
+"

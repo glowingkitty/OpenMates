@@ -105,6 +105,15 @@ echo "[dependabot] Fetched $ALERT_COUNT open alert(s)."
 
 if [[ "$ALERT_COUNT" -eq 0 ]]; then
   echo "[dependabot] No open Dependabot alerts — done."
+  # Write nightly report (no alerts = clean)
+  PYTHONPATH="$SCRIPT_DIR" python3 -c "
+from _nightly_report import write_nightly_report
+write_nightly_report(
+    job='dependabot',
+    status='ok',
+    summary='No open Dependabot alerts.',
+)
+"
   # Update last_run in tracking file
   python3 - <<'PYEOF'
 import json, os, sys

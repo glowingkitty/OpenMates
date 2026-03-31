@@ -72,3 +72,18 @@ echo ""
 echo "Note: Volumes and containers were NOT touched."
 echo "If you need more space, you can manually review and remove specific unused images."
 
+# Write nightly report for daily meeting consumption
+DISK_AFTER=$(df -h / | tail -1 | awk '{print $4}')
+PYTHONPATH="$(dirname "$0")" python3 -c "
+from _nightly_report import write_nightly_report
+write_nightly_report(
+    job='docker-cleanup',
+    status='ok',
+    summary='Docker cleanup completed. Removed dangling images, unused images (>7d), and build cache. Free disk: ${DISK_AFTER}.',
+    details={
+        'dangling_images_found': ${DANGLING_COUNT},
+        'free_disk_after': '${DISK_AFTER}',
+    },
+)
+"
+

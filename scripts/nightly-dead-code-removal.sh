@@ -80,6 +80,14 @@ fi
 
 if [[ "$FORCE" != "true" && -n "$LAST_SHA" && "$LAST_SHA" == "$CURRENT_SHA" ]]; then
   echo "[dead-code] HEAD SHA unchanged since last run ($CURRENT_SHA) — skipping (use --force to override)."
+  PYTHONPATH="$SCRIPT_DIR" python3 -c "
+from _nightly_report import write_nightly_report
+write_nightly_report(
+    job='dead-code',
+    status='skipped',
+    summary='HEAD SHA unchanged since last run ($CURRENT_SHA) — skipped.',
+)
+"
   exit 0
 fi
 

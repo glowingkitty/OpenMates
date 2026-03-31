@@ -42,6 +42,7 @@ import os
 import subprocess
 
 from _claude_utils import run_claude_session
+from _nightly_report import write_nightly_report
 import sys
 from datetime import datetime, timezone
 
@@ -235,6 +236,11 @@ def process_alerts() -> None:
 
     if not deduplicated:
         print("[dependabot] No processable alerts after filtering — done.")
+        write_nightly_report(
+            job="dependabot",
+            status="ok",
+            summary="No processable alerts after severity filtering.",
+        )
         return
 
     # Step 2: Load tracking state
@@ -337,6 +343,7 @@ def process_alerts() -> None:
 
     if not to_dispatch:
         print("[dependabot] Nothing to dispatch — done.")
+        _write_dependabot_report(tracking, "ok", "All alerts resolved or within grace period.")
         return
 
     # Sort by severity for the prompt
@@ -378,6 +385,71 @@ def process_alerts() -> None:
         job_type="dependabot",
         context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
         kill_on_exit=True,  # fully automated — no review needed
+    )
+
+    # Write nightly report with security disclosure details
+    _write_dependabot_report(
+        tracking,
+        "warning" if any(a["severity"] in ("critical", "high") for a in to_dispatch) else "ok",
+        f"Dispatched {len(to_dispatch)} alert(s) for fix. "
+        f"{resolve_count} resolved in git, {skip_count} in grace period.",
+        dispatched=to_dispatch,
+    )
+
+
+def _write_dependabot_report(
+    tracking: dict,
+    status: str,
+    summary: str,
+    dispatched: list[dict] | None = None,
+) -> None:
+    """Write a dependabot nightly report with security disclosure info."""
+    processed = tracking.get("processed", [])
+    severity_counts: dict[str, int] = {}
+    unresolved = 0
+    for item in processed:
+        sev = item.get("severity", "unknown")
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        if not item.get("resolved_via_commit"):
+            unresolved += 1
+
+    details = {
+        "total_tracked": len(processed),
+        "unresolved": unresolved,
+        "by_severity": severity_counts,
+        "last_run": tracking.get("last_run", "unknown"),
+    }
+
+    # Security disclosure: include package update details for dispatched alerts
+    security_disclosure = None
+    if dispatched:
+        packages_updated = []
+        for alert in dispatched:
+            packages_updated.append({
+                "name": alert.get("package", "unknown"),
+                "ghsa_id": alert.get("ghsa_id", "unknown"),
+                "severity": alert.get("severity", "unknown"),
+                "summary": alert.get("summary", ""),
+                "used_in_project": True,  # Dependabot only alerts on used packages
+                "user_risk": (
+                    "high" if alert.get("severity") in ("critical", "high")
+                    else "low"
+                ),
+            })
+        security_disclosure = {
+            "packages_updated": packages_updated,
+            "risk_summary": (
+                f"{len(dispatched)} package vulnerability alert(s) dispatched for fix. "
+                f"Severity breakdown: {severity_counts}."
+            ),
+        }
+
+    write_nightly_report(
+        job="dependabot",
+        status=status,
+        summary=summary,
+        details=details,
+        security_disclosure=security_disclosure,
     )
 
 

@@ -343,59 +343,76 @@ def gather_large_files(project_root: str) -> str:
 
 
 def gather_nightly_state_files() -> dict:
-    """Source F: nightly job state files (compact summaries, not raw dumps)."""
+    """Source F: auto-discover all nightly job reports from logs/nightly-reports/.
 
-    # Dependabot: summarize by severity counts
-    def _summarize_dependabot() -> str:
-        path = SCRIPTS_DIR / "dependabot-processed.json"
-        try:
-            if not path.is_file():
-                return "(No dependabot state file.)"
-            data = json.loads(path.read_text())
-            processed = data.get("processed", [])
-            last_run = data.get("last_run", "unknown")
-            severity_counts: dict[str, int] = {}
-            unresolved = 0
-            for item in processed:
-                sev = item.get("severity", "unknown")
-                severity_counts[sev] = severity_counts.get(sev, 0) + 1
-                if not item.get("resolved_via_commit"):
-                    unresolved += 1
-            return (
-                f"Last run: {last_run}\n"
-                f"Total tracked: {len(processed)}\n"
-                f"Unresolved: {unresolved}\n"
-                f"By severity: {json.dumps(severity_counts)}"
-            )
-        except Exception as e:
-            return f"[DATA UNAVAILABLE: dependabot — {e}]"
+    Each cron job writes a standardized JSON report via _nightly_report.py.
+    This function reads all of them and returns a dict with:
+    - One key per discovered job (e.g. "dependabot", "dead-code", "security-audit")
+    - A special "_consolidated" key with a human-readable summary of all jobs
+    """
+    from _nightly_report import read_all_reports
 
-    # Dead code: just summary stats, not all 272 items
-    def _summarize_dead_code() -> str:
-        path = SCRIPTS_DIR / ".dead-code-removal-state.json"
-        try:
-            if not path.is_file():
-                return "(No dead code state file.)"
-            data = json.loads(path.read_text())
-            items = data.get("removed", data.get("items", []))
-            last_run = data.get("last_run", data.get("last_run_sha", "unknown"))
-            return (
-                f"Last run: {last_run}\n"
-                f"Total items tracked: {len(items) if isinstance(items, list) else 'N/A'}"
-            )
-        except Exception as e:
-            return f"[DATA UNAVAILABLE: dead code — {e}]"
+    reports = read_all_reports()
 
-    return {
-        "dependabot": _summarize_dependabot(),
-        "dead_code": _summarize_dead_code(),
-        "security": _safe_json_read(
-            PROJECT_ROOT / ".claude" / "security-audit-state.json", "security audit state"
-        ),
-        "audit": _safe_json_read(
-            SCRIPTS_DIR / ".audit-state.json", "codebase audit state"
-        ),
+    if not reports:
+        return {
+            "_consolidated": "(No nightly reports found in logs/nightly-reports/.)",
+        }
+
+    # Build per-job summaries for backwards-compatible template vars
+    result: dict[str, str] = {}
+    consolidated_lines: list[str] = []
+
+    for job_name, report in sorted(reports.items()):
+        status = report.get("status", "unknown")
+        summary = report.get("summary", "No summary.")
+        ran_at = report.get("ran_at", "unknown")
+        details = report.get("details", {})
+        disclosure = report.get("security_disclosure")
+
+        # Per-job entry (compact text for template substitution)
+        lines = [f"Status: {status}", f"Last run: {ran_at}", f"Summary: {summary}"]
+        if details:
+            # Include key details but cap to avoid bloating the prompt
+            details_str = json.dumps(details, indent=2)
+            if len(details_str) > 1000:
+                details_str = details_str[:1000] + "\n  ...(truncated)"
+            lines.append(f"Details:\n{details_str}")
+        if disclosure:
+            risk = disclosure.get("risk_summary", "")
+            packages = disclosure.get("packages_updated", [])
+            if risk:
+                lines.append(f"Security disclosure: {risk}")
+            if packages:
+                for pkg in packages[:10]:  # Cap at 10 packages
+                    pkg_line = (
+                        f"  - {pkg.get('name', '?')}: {pkg.get('severity', '?')} "
+                        f"({pkg.get('ghsa_id', '?')}) — {pkg.get('summary', '')[:100]}"
+                    )
+                    lines.append(pkg_line)
+
+        result[job_name] = "\n".join(lines)
+
+        # Consolidated one-liner for the combined section
+        status_emoji = {"ok": "OK", "warning": "WARN", "error": "ERR", "skipped": "SKIP"}.get(
+            status, status.upper()
+        )
+        consolidated_lines.append(f"- **{job_name}** [{status_emoji}]: {summary}")
+
+    result["_consolidated"] = "\n".join(consolidated_lines)
+
+    # Backwards-compatible keys (mapped from new job names)
+    compat_map = {
+        "dependabot": "dependabot",
+        "dead_code": "dead-code",
+        "security": "security-audit",
+        "audit": "codebase-audit",
     }
+    for old_key, new_key in compat_map.items():
+        if old_key not in result and new_key in result:
+            result[old_key] = result[new_key]
+
+    return result
 
 
 def gather_session_quality(yesterday: str) -> str:
@@ -579,15 +596,21 @@ def build_work_prompt(data: dict, today: str, yesterday: str) -> str:
     template = PROMPT_WORK.read_text()
     nightly = data.get("nightly_states", {})
 
+    # Build consolidated nightly reports section from all auto-discovered reports
+    nightly_text = nightly.get("_consolidated", "N/A")
+    # Also append per-job detail blocks for jobs with security disclosures
+    for job_name, job_text in sorted(nightly.items()):
+        if job_name.startswith("_"):
+            continue
+        if "Security disclosure:" in job_text:
+            nightly_text += f"\n\n#### {job_name} (security details)\n{job_text}"
+
     return (
         template
         .replace("{{DATE}}", today)
         .replace("{{YESTERDAY}}", yesterday)
         .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
-        .replace("{{DEPENDABOT_STATE}}", nightly.get("dependabot", "N/A"))
-        .replace("{{DEAD_CODE_STATE}}", nightly.get("dead_code", "N/A"))
-        .replace("{{SECURITY_STATE}}", nightly.get("security", "N/A"))
-        .replace("{{AUDIT_STATE}}", nightly.get("audit", "N/A"))
+        .replace("{{NIGHTLY_REPORTS}}", nightly_text)
         .replace("{{SESSION_DIGESTS}}", data.get("session_quality", "N/A"))
         .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
     )

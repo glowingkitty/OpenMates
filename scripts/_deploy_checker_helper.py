@@ -48,6 +48,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 import httpx  # noqa: E402
 from _claude_utils import run_claude_session  # noqa: E402
+from _nightly_report import write_nightly_report  # noqa: E402
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -372,6 +373,23 @@ def run() -> None:
         _log(f"Session share URL: {session_id}")
     else:
         _log("No share URL found in claude output.")
+
+    write_nightly_report(
+        job="deploy-checker",
+        status="error" if returncode != 0 else "warning",
+        summary=(
+            f"Vercel deployment {deploy_id} failed ({state_val}). "
+            f"Claude session dispatched to fix. Commit: {git_sha} — {commit_msg}"
+        ),
+        details={
+            "deploy_id": deploy_id,
+            "deploy_state": state_val,
+            "git_sha": git_sha,
+            "commit_msg": commit_msg,
+            "session_id": session_id,
+            "claude_exit_code": returncode,
+        },
+    )
 
     _log(f"Deploy checker complete at {_now_iso()}")
 
