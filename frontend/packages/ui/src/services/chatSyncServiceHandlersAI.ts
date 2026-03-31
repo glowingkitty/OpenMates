@@ -2025,9 +2025,11 @@ async function aggregateAndUpdateTopRecommendedApps(
 ): Promise<void> {
   try {
     const { chatDB } = await import("./db");
+    const { chatListCache } = await import("./chatListCache");
 
-    // Get last 20 chats sorted by last_edited_overall_timestamp
-    const allChats = await chatDB.getAllChats();
+    // OPE-216: Prefer in-memory cache to avoid redundant IDB reads.
+    const allChats =
+      chatListCache.getCache() ?? (await chatDB.getAllChats());
     const sortedChats = allChats
       .filter((chat) => chat.last_edited_overall_timestamp)
       .sort(
