@@ -148,6 +148,65 @@ def get_issue(identifier: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def get_issue_with_comments(identifier: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch an issue with its 10 most recent comments.
+
+    Returns the same dict as get_issue() plus a "comments" key containing
+    a list of {body, created_at, author} dicts.
+    """
+    query = """
+    query GetIssueWithComments($identifier: String!) {
+        issue(id: $identifier) {
+            id
+            identifier
+            title
+            description
+            url
+            state { name }
+            assignee { name displayName }
+            labels { nodes { id name } }
+            comments(first: 10) {
+                nodes {
+                    body
+                    createdAt
+                    user { displayName }
+                }
+            }
+        }
+    }
+    """
+    data = _graphql(query, {"identifier": identifier})
+    if not data or not data.get("issue"):
+        print(f"Warning: Linear issue {identifier} not found.", file=sys.stderr)
+        return None
+
+    issue = data["issue"]
+    comments = []
+    for c in issue.get("comments", {}).get("nodes", []):
+        comments.append({
+            "body": c.get("body") or "",
+            "created_at": c.get("createdAt") or "",
+            "author": c.get("user", {}).get("displayName") or "Unknown",
+        })
+
+    return {
+        "id": issue["id"],
+        "identifier": issue["identifier"],
+        "title": issue["title"],
+        "description": issue.get("description") or "",
+        "url": issue.get("url") or "",
+        "state": issue["state"]["name"] if issue.get("state") else "Unknown",
+        "assignee": (
+            issue["assignee"].get("displayName") or issue["assignee"].get("name")
+            if issue.get("assignee") else None
+        ),
+        "labels": [label["name"] for label in issue.get("labels", {}).get("nodes", [])],
+        "label_ids": [label["id"] for label in issue.get("labels", {}).get("nodes", [])],
+        "comments": comments,
+    }
+
+
 def create_issue(title: str, description: str = "", mode: str = "feature") -> Optional[Dict[str, Any]]:
     """
     Create a new issue in the OpenMates team.

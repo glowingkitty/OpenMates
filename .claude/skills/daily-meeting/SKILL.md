@@ -71,6 +71,21 @@ After the user confirms (or adjusts) the 3 priorities and any milestone changes:
 - **Daily priority tasks MUST be set to Urgent priority.** If a task was lower priority before selection, escalate it when adding the `daily-priority` label.
 - When a task is removed from daily priorities (next meeting), restore its original priority only if the user explicitly says to de-escalate.
 
+### Step 5: Spawn Planning Sessions
+
+After all labels are applied and state is saved, ask the user:
+
+**"Want me to spawn planning sessions for today's 3 priorities? Each will run in a separate Zellij tab researching and drafting an implementation plan."**
+
+If the user confirms:
+```bash
+python3 scripts/_daily_meeting_helper.py spawn-planning
+```
+
+Present the attach commands from the output. Sessions are visible at http://localhost:8082.
+
+If the user declines, skip this step.
+
 ### Completion Checklist
 
 Do NOT end the meeting until all items are done:
@@ -86,3 +101,4 @@ Do NOT end the meeting until all items are done:
 - [ ] Linear labels updated
 - [ ] State file saved
 - [ ] Meeting summary MD written
+- [ ] Planning sessions offered (spawn if user confirms)

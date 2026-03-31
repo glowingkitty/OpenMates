@@ -4682,6 +4682,74 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
+# spawn-chat
+# ---------------------------------------------------------------------------
+
+
+def cmd_spawn_chat(args: argparse.Namespace) -> None:
+    """Spawn a new Claude Code session in a separate Zellij tab.
+
+    Creates an interactive Claude session visible in the Zellij web UI
+    (localhost:8082) and attachable via `zellij attach <name>`.
+
+    Default is plan mode (read-only). Use --mode execute for full edit access.
+    """
+    # Resolve prompt text
+    if args.prompt_file:
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.is_file():
+            print(f"Error: prompt file not found: {args.prompt_file}", file=sys.stderr)
+            sys.exit(1)
+        prompt = (
+            f"Read {args.prompt_file} in full and follow all the instructions precisely."
+        )
+    elif args.prompt:
+        # Write inline prompt to temp file so claude reads it (avoids arg length issues)
+        tmp_dir = PROJECT_ROOT / "scripts" / ".tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
+        prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
+        prompt_file.write_text(args.prompt, encoding="utf-8")
+        rel_path = prompt_file.relative_to(PROJECT_ROOT)
+        prompt = f"Read {rel_path} in full and follow all the instructions precisely."
+    else:
+        print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine session name
+    session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
+
+    # Determine permission mode
+    permission_mode = args.mode or "plan"
+
+    try:
+        from _zellij_utils import spawn_claude_session
+    except ImportError:
+        # Add scripts dir to path for import
+        scripts_dir = str(PROJECT_ROOT / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from _zellij_utils import spawn_claude_session
+
+    success = spawn_claude_session(
+        session_name=session_name,
+        prompt=prompt,
+        cwd=str(PROJECT_ROOT),
+        permission_mode=permission_mode,
+    )
+
+    if success:
+        mode_label = "execute (full access)" if permission_mode == "execute" else "plan (read-only)"
+        print(f"Session spawned: {session_name}")
+        print(f"Mode: {mode_label}")
+        print(f"Attach: zellij attach {session_name}")
+        print("Web UI: http://localhost:8082")
+    else:
+        print("Error: failed to spawn session. Is Zellij running?", file=sys.stderr)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -5101,6 +5169,31 @@ def main() -> None:
     p_task_ac.add_argument("--add", "-a", metavar="TEXT", help="Add a new acceptance criterion")
     p_task_ac.add_argument("--done", "-d", type=int, metavar="N", help="Mark AC N as done")
 
+    # spawn-chat
+    p_spawn = sub.add_parser(
+        "spawn-chat",
+        help="Spawn a Claude Code session in a separate Zellij tab",
+    )
+    p_spawn.add_argument(
+        "--prompt",
+        help="Prompt text to send to Claude (written to temp file internally)",
+    )
+    p_spawn.add_argument(
+        "--prompt-file",
+        help="Path to a prompt file (Claude reads it directly)",
+    )
+    p_spawn.add_argument(
+        "--name", "-n",
+        help="Session name (default: auto-generated from timestamp)",
+    )
+    p_spawn.add_argument(
+        "--mode",
+        choices=["plan", "execute"],
+        default="plan",
+        help="Permission mode: 'plan' (read-only, default) or "
+        "'execute' (full edit access via --dangerously-skip-permissions)",
+    )
+
     # task-show
     p_task_show = sub.add_parser(
         "task-show",
@@ -5174,6 +5267,7 @@ def main() -> None:
         "task-list": cmd_task_list,
         "task-update": cmd_task_update,
         "task-track": cmd_task_track,
+        "spawn-chat": cmd_spawn_chat,
     }
 
     cmd_func = commands.get(args.command)

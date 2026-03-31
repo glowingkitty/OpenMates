@@ -59,6 +59,7 @@ PROMPT_HEALTH = SCRIPTS_DIR / "prompts" / "daily-meeting-health.md"
 PROMPT_WORK = SCRIPTS_DIR / "prompts" / "daily-meeting-work.md"
 PROMPT_LINEAR = SCRIPTS_DIR / "prompts" / "daily-meeting-linear.md"
 PROMPT_MEETING = SCRIPTS_DIR / "prompts" / "daily-meeting.md"
+PROMPT_PLANNING = SCRIPTS_DIR / "prompts" / "daily-planning-task.md"
 
 # Internal API for provider status
 INTERNAL_API_URL = os.environ.get("INTERNAL_API_URL", "http://localhost:8000")
@@ -841,6 +842,123 @@ def cmd_auto_confirm() -> None:
     print(f"{LOG_PREFIX} Auto-confirm complete. Linear labels should be applied in next meeting session.")
 
 
+# ── Spawn planning sessions ─────────────────────────────────────────────────
+
+
+def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) -> str:
+    """Fill the planning prompt template with Linear issue data and meeting context."""
+    template = PROMPT_PLANNING.read_text()
+
+    # Format comments
+    comments_text = "(No comments.)"
+    if issue_data.get("comments"):
+        lines = []
+        for c in issue_data["comments"]:
+            lines.append(f"**{c['author']}** ({c['created_at'][:10]}):\n{c['body']}")
+        comments_text = "\n\n---\n\n".join(lines)
+
+    return (
+        template
+        .replace("{{LINEAR_ID}}", issue_data.get("identifier", "?"))
+        .replace("{{TASK_TITLE}}", issue_data.get("title", "?"))
+        .replace("{{TASK_DESCRIPTION}}", issue_data.get("description") or "(No description.)")
+        .replace("{{TASK_COMMENTS}}", comments_text)
+        .replace("{{TASK_STATUS}}", issue_data.get("state", "?"))
+        .replace("{{TASK_LABELS}}", ", ".join(issue_data.get("labels", [])) or "none")
+        .replace("{{MEETING_CONTEXT}}", meeting_summary or "(No meeting context available.)")
+        .replace("{{DATE}}", today)
+    )
+
+
+def cmd_spawn_planning() -> None:
+    """Spawn planning sessions for today's confirmed priorities.
+
+    Reads the meeting state file, fetches Linear context for each priority,
+    and spawns a Claude Code planning session in a separate Zellij tab.
+    """
+    from _zellij_utils import spawn_claude_session
+
+    state = load_meeting_state()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Validate state
+    if state.get("date") != today:
+        print(f"{LOG_PREFIX} No confirmed priorities for today ({today}). Run the meeting first.", file=sys.stderr)
+        sys.exit(1)
+
+    priorities = state.get("priorities", [])
+    if not priorities:
+        print(f"{LOG_PREFIX} No priorities in state file.", file=sys.stderr)
+        sys.exit(1)
+
+    # Load meeting summary for context
+    meeting_summary = ""
+    summary_pattern = TMP_DIR / f"daily-meeting-summary-{today}.md"
+    if summary_pattern.is_file():
+        meeting_summary = summary_pattern.read_text(errors="replace")[:3000]
+
+    # Fetch Linear context and spawn sessions
+    try:
+        from _linear_client import get_issue_with_comments
+    except ImportError:
+        print(f"{LOG_PREFIX} WARNING: _linear_client not available — spawning with minimal context.", file=sys.stderr)
+        get_issue_with_comments = None
+
+    spawned = []
+    for priority in priorities:
+        linear_id = priority.get("linear_id", "")
+        if not linear_id:
+            continue
+
+        session_name = f"plan-{linear_id}-{today}"
+        print(f"{LOG_PREFIX} Spawning planning session for {linear_id}...")
+
+        # Fetch issue context
+        issue_data = None
+        if get_issue_with_comments:
+            issue_data = get_issue_with_comments(linear_id)
+
+        if not issue_data:
+            # Minimal fallback
+            issue_data = {
+                "identifier": linear_id,
+                "title": priority.get("title", "Unknown"),
+                "description": "",
+                "state": priority.get("status_at_selection", "Unknown"),
+                "labels": [],
+                "comments": [],
+            }
+
+        # Build prompt, write to temp file
+        prompt = build_planning_prompt(issue_data, meeting_summary, today)
+        prompt_file = TMP_DIR / f"planning-prompt-{linear_id}.txt"
+        prompt_file.write_text(prompt, encoding="utf-8")
+
+        # Spawn via Zellij layout
+        rel_path = prompt_file.relative_to(PROJECT_ROOT)
+        claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
+
+        success = spawn_claude_session(
+            session_name=session_name,
+            prompt=claude_prompt,
+            cwd=str(PROJECT_ROOT),
+            permission_mode="plan",
+        )
+
+        if success:
+            spawned.append((linear_id, session_name))
+            print(f"{LOG_PREFIX}   → {session_name} (attach: zellij attach {session_name})")
+        else:
+            print(f"{LOG_PREFIX}   → FAILED to spawn for {linear_id}", file=sys.stderr)
+
+    # Summary
+    print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning sessions.")
+    if spawned:
+        print(f"{LOG_PREFIX} Web UI: http://localhost:8082")
+        for linear_id, name in spawned:
+            print(f"{LOG_PREFIX}   zellij attach {name}")
+
+
 # ── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -854,7 +972,7 @@ def main() -> None:
         yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     if not args:
-        print(f"Usage: {sys.argv[0]} <dry-run|gather|run-meeting|auto-confirm>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <dry-run|gather|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
         sys.exit(1)
 
     command = args[0]
@@ -866,9 +984,11 @@ def main() -> None:
         cmd_run_meeting(yesterday)
     elif command == "auto-confirm":
         cmd_auto_confirm()
+    elif command == "spawn-planning":
+        cmd_spawn_planning()
     else:
         print(f"{LOG_PREFIX} Unknown command: {command}", file=sys.stderr)
-        print(f"Usage: {sys.argv[0]} <dry-run|gather|run-meeting|auto-confirm>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <dry-run|gather|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
         sys.exit(1)
 
 

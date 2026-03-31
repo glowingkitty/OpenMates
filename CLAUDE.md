@@ -61,6 +61,30 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 
 ---
 
+## Parallel Work — Spawning Separate Sessions
+
+You can suggest spawning parallel Claude Code sessions for independent tasks.
+**Always ask the user for confirmation before spawning.**
+
+```bash
+# Spawn a planning/research session (default: plan mode, read-only)
+python3 scripts/sessions.py spawn-chat --prompt "Research how X works" --name "research-X"
+
+# Spawn with a prompt file
+python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/prompt.txt --name "plan-task"
+
+# Spawn with full edit access (only when user explicitly requests direct fix/implementation)
+python3 scripts/sessions.py spawn-chat --prompt-file scripts/.tmp/fix-prompt.txt --name "fix-OPE-42" --mode execute
+```
+
+The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
+
+**When to suggest:** Multiple independent tasks, post-meeting planning, parallel research.
+**When NOT to:** Tasks with file conflicts, sequential dependencies, or when the user prefers focused work.
+**Default is plan mode.** Only use `--mode execute` when the user makes it very clear the task should be directly implemented by the spawned session.
+
+---
+
 ## Research Before New Integrations
 
 Before any new app, skill, API integration, or significant feature:
