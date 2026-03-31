@@ -2466,33 +2466,170 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 break;
             }
             case 'hide': {
-                // Dispatch to the existing hide infrastructure
-                window.dispatchEvent(new CustomEvent('resumeCardHideChat', { detail: chat.chat_id }));
+                try {
+                    const { hiddenChatService } = await import('../services/hiddenChatService');
+                    if (!hiddenChatService.isUnlocked()) {
+                        window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', {
+                            detail: { chatId: chat.chat_id }
+                        }));
+                        resumeCardContextMenuShow = false;
+                        break;
+                    }
+                    let chatKey = await chatKeyManager.getKey(chat.chat_id);
+                    if (!chatKey && chat.encrypted_chat_key) {
+                        const result = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
+                        if (result.chatKey) {
+                            chatKey = result.chatKey;
+                            chatDB.setChatKey(chat.chat_id, chatKey);
+                            if (result.isHidden) {
+                                notificationStore.success('Chat is already hidden');
+                                resumeCardContextMenuShow = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (!chatKey) {
+                        notificationStore.error('Failed to hide chat. Chat key not found.');
+                        resumeCardContextMenuShow = false;
+                        break;
+                    }
+                    const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCombinedSecret(chatKey);
+                    if (!encryptedChatKey) {
+                        notificationStore.error('Failed to hide chat. Encryption failed.');
+                        resumeCardContextMenuShow = false;
+                        break;
+                    }
+                    await chatDB.updateChat({ ...chat, encrypted_chat_key: encryptedChatKey });
+                    chatListCache.markDirty();
+                    await chatSyncService.sendUpdateEncryptedChatKey(chat.chat_id, encryptedChatKey);
+                    try { await chatDB.hideNewChatSuggestionsForChat(chat.chat_id); } catch (_e) { /* non-fatal */ }
+                    window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chat.chat_id } }));
+                    if (resumeChatData?.chat_id === chat.chat_id) resumeChatData = null;
+                    recentChats = recentChats.filter(rc => rc.chat.chat_id !== chat.chat_id);
+                    notificationStore.success('Chat hidden successfully');
+                } catch (err) {
+                    console.error('[ActiveChat] Hide failed:', err);
+                    notificationStore.error('Failed to hide chat');
+                }
                 resumeCardContextMenuShow = false;
                 break;
             }
             case 'unhide': {
-                window.dispatchEvent(new CustomEvent('resumeCardUnhideChat', { detail: chat.chat_id }));
+                try {
+                    const { hiddenChatService } = await import('../services/hiddenChatService');
+                    if (!hiddenChatService.isUnlocked()) {
+                        notificationStore.error('Please unlock hidden chats first to unhide this chat.');
+                        resumeCardContextMenuShow = false;
+                        break;
+                    }
+                    const success = await hiddenChatService.unhideChat(chat.chat_id);
+                    if (success) {
+                        try { await chatDB.unhideNewChatSuggestionsForChat(chat.chat_id); } catch (_e) { /* non-fatal */ }
+                        chatListCache.markDirty();
+                        window.dispatchEvent(new CustomEvent('chatUnhidden', { detail: { chat_id: chat.chat_id } }));
+                        notificationStore.success('Chat unhidden successfully');
+                    } else {
+                        notificationStore.error('Failed to unhide chat.');
+                    }
+                } catch (err) {
+                    console.error('[ActiveChat] Unhide failed:', err);
+                    notificationStore.error('Failed to unhide chat');
+                }
                 resumeCardContextMenuShow = false;
                 break;
             }
             case 'pin': {
-                window.dispatchEvent(new CustomEvent('resumeCardPinChat', { detail: chat.chat_id }));
+                try {
+                    const chatId = chat.chat_id;
+                    const updatedChat = { ...chat, pinned: true };
+                    await chatDB.updateChat(updatedChat);
+                    chatListCache.markDirty();
+                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
+                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+                        detail: { chat_id: chatId, pinned: true }
+                    }));
+                    const { webSocketService } = await import('../services/websocketService');
+                    if (webSocketService.isConnected()) {
+                        webSocketService.sendMessage('update_chat', { chat_id: chatId, pinned: true });
+                    }
+                    // Update local UI state so pin badge appears immediately
+                    if (resumeChatData?.chat_id === chatId) {
+                        resumeChatData = updatedChat;
+                    }
+                    recentChats = recentChats.map(rc =>
+                        rc.chat.chat_id === chatId ? { ...rc, chat: { ...rc.chat, pinned: true } } : rc
+                    );
+                } catch (err) {
+                    console.error('[ActiveChat] Pin failed:', err);
+                    notificationStore.error('Failed to pin chat');
+                }
                 resumeCardContextMenuShow = false;
                 break;
             }
             case 'unpin': {
-                window.dispatchEvent(new CustomEvent('resumeCardUnpinChat', { detail: chat.chat_id }));
+                try {
+                    const chatId = chat.chat_id;
+                    const updatedChat = { ...chat, pinned: false };
+                    await chatDB.updateChat(updatedChat);
+                    chatListCache.markDirty();
+                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
+                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+                        detail: { chat_id: chatId, pinned: false }
+                    }));
+                    const { webSocketService } = await import('../services/websocketService');
+                    if (webSocketService.isConnected()) {
+                        webSocketService.sendMessage('update_chat', { chat_id: chatId, pinned: false });
+                    }
+                    // Update local UI state so pin badge disappears immediately
+                    if (resumeChatData?.chat_id === chatId) {
+                        resumeChatData = updatedChat;
+                    }
+                    recentChats = recentChats.map(rc =>
+                        rc.chat.chat_id === chatId ? { ...rc, chat: { ...rc.chat, pinned: false } } : rc
+                    );
+                } catch (err) {
+                    console.error('[ActiveChat] Unpin failed:', err);
+                    notificationStore.error('Failed to unpin chat');
+                }
                 resumeCardContextMenuShow = false;
                 break;
             }
             case 'markUnread': {
-                window.dispatchEvent(new CustomEvent('resumeCardMarkUnread', { detail: chat.chat_id }));
+                try {
+                    const chatId = chat.chat_id;
+                    const { unreadMessagesStore } = await import('../stores/unreadMessagesStore');
+                    unreadMessagesStore.clearUnread(chatId);
+                    unreadMessagesStore.incrementUnread(chatId);
+                    await chatDB.updateChat({ ...chat, unread_count: 1 });
+                    chatListCache.markDirty();
+                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
+                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+                        detail: { chat_id: chatId, unread_count: 1 }
+                    }));
+                    await chatSyncService.sendChatReadStatus(chatId, 1);
+                } catch (err) {
+                    console.error('[ActiveChat] Mark unread failed:', err);
+                    notificationStore.error('Failed to mark chat as unread');
+                }
                 resumeCardContextMenuShow = false;
                 break;
             }
             case 'markRead': {
-                window.dispatchEvent(new CustomEvent('resumeCardMarkRead', { detail: chat.chat_id }));
+                try {
+                    const chatId = chat.chat_id;
+                    const { unreadMessagesStore } = await import('../stores/unreadMessagesStore');
+                    unreadMessagesStore.clearUnread(chatId);
+                    await chatDB.updateChat({ ...chat, unread_count: 0 });
+                    chatListCache.markDirty();
+                    const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../services/drafts/draftConstants');
+                    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+                        detail: { chat_id: chatId, unread_count: 0 }
+                    }));
+                    await chatSyncService.sendChatReadStatus(chatId, 0);
+                } catch (err) {
+                    console.error('[ActiveChat] Mark read failed:', err);
+                    notificationStore.error('Failed to mark chat as read');
+                }
                 resumeCardContextMenuShow = false;
                 break;
             }
