@@ -143,6 +143,7 @@ def run_claude_session(
     linear_task=True,
     linear_mode="feature",
     kill_on_exit=False,
+    model=None,
 ):
     """
     Run a Claude Code session, writing the prompt to a temp file to avoid the
@@ -173,6 +174,8 @@ def run_claude_session(
         kill_on_exit: Destroy the Zellij session after the command completes
                       (default: False). Use for fully automated jobs like
                       dependabot where no review is needed.
+        model: Override the default model (claude-sonnet-4-6). Use for
+               cost-optimised jobs (e.g. "claude-haiku-4-5-20251001").
 
     Returns:
         (returncode: int, session_id: str | None)
@@ -194,10 +197,11 @@ def run_claude_session(
         # Short message — well under the 128KB per-arg kernel limit
         message = f"Read {relative_path} in full and follow all the instructions precisely."
 
+        effective_model = model or "claude-sonnet-4-6"
         cmd = [
             "claude",
             "-p", message,
-            "--model", "claude-sonnet-4-6",
+            "--model", effective_model,
             "--name", session_title,
             "--output-format", "json",
         ]

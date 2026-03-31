@@ -32,6 +32,7 @@ if _SCRIPTS_DIR not in sys.path:
 from _linear_client import (
     LABEL_CLAUDE_FIX_ID,
     LABEL_CLAUDE_PLAN_ID,
+    LABEL_CLAUDE_RESEARCH_ID,
     LABEL_CLAUDE_WORKING_ID,
     add_label,
     get_issue_with_comments,
@@ -91,7 +92,17 @@ def _build_prompt(issue: Dict, mode: str, session_name: str) -> str:
     identifier = issue.get("identifier", "?")
     comments_text = _format_comments(issue.get("comments", []))
 
-    if mode == "plan":
+    if mode == "research":
+        mode_instructions = (
+            "IMPORTANT: This is a RESEARCH session. "
+            "You MUST NOT edit, write, or create any files. "
+            "Only read, search, and analyze code + search the web. "
+            "Research this task thoroughly: identify relevant code, estimate complexity, "
+            "find related patterns, and note potential pitfalls. "
+            "Post your findings as a structured comment on the Linear issue using "
+            "mcp__linear__save_comment. Do NOT implement anything."
+        )
+    elif mode == "plan":
         mode_instructions = (
             "IMPORTANT: This is a PLAN-ONLY session. "
             "You MUST NOT edit, write, or create any files. "
@@ -138,8 +149,14 @@ def _build_prompt(issue: Dict, mode: str, session_name: str) -> str:
 def _spawn_for_issue(issue: Dict, mode: str) -> bool:
     """Spawn a Claude session for a single Linear issue. Returns True on success."""
     identifier = issue["identifier"]
-    session_name = f"{'plan' if mode == 'plan' else 'fix'}-{identifier}"
-    trigger_label_id = LABEL_CLAUDE_PLAN_ID if mode == "plan" else LABEL_CLAUDE_FIX_ID
+    mode_prefix = {"plan": "plan", "research": "research", "execute": "fix"}
+    session_name = f"{mode_prefix.get(mode, mode)}-{identifier}"
+    trigger_label_map = {
+        "plan": LABEL_CLAUDE_PLAN_ID,
+        "research": LABEL_CLAUDE_RESEARCH_ID,
+        "execute": LABEL_CLAUDE_FIX_ID,
+    }
+    trigger_label_id = trigger_label_map[mode]
 
     # Fetch full context with comments
     full_issue = get_issue_with_comments(identifier)
@@ -156,11 +173,13 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
     rel_path = prompt_file.relative_to(PROJECT_ROOT)
     claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
 
+    # Research sessions use plan permission mode (read-only)
+    permission = "plan" if mode in ("plan", "research") else "execute"
     success = spawn_claude_session(
         session_name=session_name,
         prompt=claude_prompt,
         cwd=str(PROJECT_ROOT),
-        permission_mode=mode if mode == "plan" else "execute",
+        permission_mode=permission,
     )
 
     if not success:
@@ -185,7 +204,7 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
         f"**Claude {mode} session started:** `{session_name}`\n\n"
         f"**Attach:** `zellij attach {session_name}`\n"
         f"**Web UI:** http://localhost:8082\n\n"
-        f"Mode: {'plan (read-only investigation)' if mode == 'plan' else 'execute (implementing fix)'}"
+        f"Mode: {{'plan': 'plan (read-only investigation)', 'research': 'research (codebase + web analysis)', 'execute': 'execute (implementing fix)'}.get(mode, mode)}"
     )
 
     print(f"{LOG_PREFIX} {identifier}: spawned '{session_name}' ({mode} mode)")
@@ -195,17 +214,22 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
 def poll_and_spawn(dry_run: bool = False) -> None:
     """Poll Linear for claude-plan/claude-fix issues and spawn sessions."""
 
-    # Collect candidates from both labels
+    # Collect candidates from all trigger labels
     candidates: List[Tuple[Dict, str]] = []  # (issue, mode)
 
-    # claude-fix takes priority (execute > plan)
+    # claude-fix takes priority (execute > research > plan)
     for issue in list_issues_with_label("claude-fix"):
         if "claude-is-working" not in issue["labels"]:
             candidates.append((issue, "execute"))
 
+    for issue in list_issues_with_label("claude-research"):
+        if "claude-is-working" not in issue["labels"]:
+            existing_ids = {c[0]["identifier"] for c in candidates}
+            if issue["identifier"] not in existing_ids:
+                candidates.append((issue, "research"))
+
     for issue in list_issues_with_label("claude-plan"):
         if "claude-is-working" not in issue["labels"]:
-            # Skip if already queued as claude-fix
             existing_ids = {c[0]["identifier"] for c in candidates}
             if issue["identifier"] not in existing_ids:
                 candidates.append((issue, "plan"))
@@ -222,7 +246,7 @@ def poll_and_spawn(dry_run: bool = False) -> None:
                 issue["id"],
                 f"**Queued** — session limit reached ({active}/{MAX_CONCURRENT_SESSIONS}). "
                 f"This task will auto-start when a slot opens. "
-                f"The `claude-{mode if mode == 'plan' else 'fix'}` label is retained for retry."
+                f"The `claude-{{'plan': 'plan', 'research': 'research', 'execute': 'fix'}.get(mode, mode)}` label is retained for retry."
             )
             print(f"{LOG_PREFIX} {issue['identifier']}: queued (limit {active}/{MAX_CONCURRENT_SESSIONS})")
             continue
