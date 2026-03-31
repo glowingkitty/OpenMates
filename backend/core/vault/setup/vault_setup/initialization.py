@@ -336,23 +336,9 @@ class VaultInitializer:
 
             encoded_token = update_data["encoded_root_token"]
 
-            # Step 4: Decode the encoded token using the OTP
-            decode_resp = await self.client._client.put(
-                f"{self.client.vault_addr}/v1/sys/generate-root/attempt",
-                json={"encoded_token": encoded_token, "otp": otp},
-            )
-
-            # The decode endpoint may not exist in all Vault versions.
-            # Fall back to XOR decoding if necessary.
-            if decode_resp.status_code == 200:
-                decoded = decode_resp.json()
-                if decoded.get("encoded_root_token"):
-                    # Some Vault versions return the decoded token here
-                    root_token = decoded["encoded_root_token"]
-                else:
-                    root_token = self._xor_decode_root_token(encoded_token, otp)
-            else:
-                root_token = self._xor_decode_root_token(encoded_token, otp)
+            # Step 4: Decode the encoded token using the OTP via XOR.
+            # Vault 1.x returns base64url(xor(token, otp)) — decode client-side.
+            root_token = self._xor_decode_root_token(encoded_token, otp)
 
             if root_token:
                 logger.info("Generated temporary root token for secret sync.")
