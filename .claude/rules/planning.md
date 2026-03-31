@@ -3,11 +3,23 @@ description: Task planning, acceptance criteria, and debugging attempt limits
 globs:
 ---
 
-## State Understanding Before Acting
+## Proactive Clarifying Questions (Mandatory)
 
-Before planning or writing code, state your interpretation of the task and wait for confirmation:
-- For bugs: expected vs actual behavior, which system is responsible
-- For features: what it does, how it fits the architecture
+Before planning, debugging, or writing code — ask questions first. Do not assume context.
+
+**Protocol:** Ask up to 5 clarifying questions, **one question per message**. Wait for the user's response before asking the next question. Stop early if context is sufficiently clear to proceed confidently.
+
+**What to ask about** (adapt naturally to the task):
+- Expected vs actual behavior, reproduction steps
+- Scope boundaries — what's in, what's explicitly out
+- User-facing vs internal change
+- Which devices, browsers, or environments matter
+- Existing attempts, recent changes, or known constraints
+- Priority and urgency (affects approach choice)
+
+**When to skip:** Trivial tasks with zero ambiguity (typo fix, single-line config change, explicit "just do it" from user).
+
+**After questions are answered:** State your understanding in 2-3 sentences and get a final confirmation before starting work.
 
 ## Acceptance Criteria Before Implementing
 
