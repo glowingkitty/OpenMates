@@ -278,10 +278,8 @@ shared/cache/pending_reminders_backup.json
 shared/cache/inspiration_cache_backup.json
 shared/cache/pending_orders_backup.json
 
-# Script auto-generated state files
-scripts/.dead-code-removal-state.json
-scripts/.deploy-checker-state.json
-scripts/.workflow-review-state.json
+# Script auto-generated state files (all dot-files in scripts/ are ephemeral)
+scripts/.*
 scripts/dependabot-processed.json
 scripts/dependabot-processed.json.bak
 
