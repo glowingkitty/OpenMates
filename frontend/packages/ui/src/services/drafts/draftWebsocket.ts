@@ -425,7 +425,11 @@ export function registerWebSocketHandlers() {
     // Ask the server for the current draft_v of each. The response handler
     // (handleDraftVersionsResponse) will clear any whose server draft_v is 0.
     try {
-      const allChats = await chatDB.getAllChats();
+      // OPE-216: Prefer in-memory cache to avoid redundant IDB reads on reconnect.
+      // Fall back to IDB only if cache is empty (cold boot / first load).
+      const { chatListCache } = await import("../chatListCache");
+      const allChats =
+        chatListCache.getCache() ?? (await chatDB.getAllChats());
       const draftyChats = allChats.filter(
         (c) => c.encrypted_draft_md && (c.draft_v ?? 0) > 0,
       );
