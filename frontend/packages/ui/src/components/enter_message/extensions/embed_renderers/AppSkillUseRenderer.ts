@@ -1970,6 +1970,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || ""; // For individual skill cancellation
+    // Extract URL from decoded content — the processing placeholder includes the
+    // YouTube URL from request metadata so metadata fetch can start immediately.
+    const url = decodedContent?.url || "";
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -2004,6 +2007,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           taskId,
           skillTaskId, // For individual skill cancellation
+          url, // YouTube URL from placeholder metadata — enables early metadata fetch
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
         },
