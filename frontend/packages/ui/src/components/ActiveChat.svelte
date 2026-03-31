@@ -2513,6 +2513,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         category: string | null;
         icon: string | null;
         summary: string | null;
+        /** Decrypted draft preview text — set only for draft-only chats (no title, no messages). */
+        draftPreview: string | null;
     };
     let recentChats = $state<RecentChatMeta[]>([]);
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
@@ -2543,24 +2545,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const filteredChats = chats.filter((c) => !isPublicChat(c.chat_id));
             const sorted = sortChats(filteredChats, []);
 
-            // Exclude the primary resume chat (it's rendered separately).
-            // The resume card counts toward the total, so fetch one fewer.
+            // Exclude the primary resume chat (it's rendered separately)
+            // and the currently active/open chat (avoid showing a draft that's
+            // already visible in the message input).
             const lastOpenedId = $userProfile.last_opened;
+            const currentActiveChatId = activeChatStore.get();
             const hasResumeChat = lastOpenedId && sorted.some((c) => c.chat_id === lastOpenedId);
-            const remaining = sorted.filter((c) => c.chat_id !== lastOpenedId);
+            const remaining = sorted.filter((c) =>
+                c.chat_id !== lastOpenedId && c.chat_id !== currentActiveChatId
+            );
             const limit = hasResumeChat ? RECENT_CHATS_TOTAL - 1 : RECENT_CHATS_TOTAL;
             const topChats = remaining.slice(0, limit);
 
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map(async (chat) => {
+                    // Draft-only chat: no title, has encrypted draft content
+                    // Decrypt the preview so the carousel can show "Draft: {preview}"
+                    // instead of "Untitled chat"
+                    const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
+                    let draftPreview: string | null = null;
+
+                    if (isDraftOnly) {
+                        try {
+                            // Prefer the shorter preview; fall back to full draft markdown
+                            const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
+                            if (toDecrypt) {
+                                draftPreview = await decryptWithMasterKey(toDecrypt);
+                            }
+                        } catch {
+                            draftPreview = null;
+                        }
+                    }
+
                     if (chat.title) {
-                        return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null };
+                        return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, draftPreview };
                     }
                     try {
                         const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-                        return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null };
+                        return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
                     } catch {
-                        return { chat, title: null, category: null, icon: null, summary: null };
+                        return { chat, title: null, category: null, icon: null, summary: null, draftPreview };
                     }
                 })
             );
@@ -2604,6 +2628,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 category: translated.metadata.category ?? null,
                 icon: translated.metadata.icon_names?.[0] ?? null,
                 summary: translated.description ?? null,
+                draftPreview: null,
             };
         });
 
@@ -2614,6 +2639,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             category: chat.category ?? null,
             icon: chat.icon?.split(',')[0] ?? null,
             summary: chat.chat_summary ?? null,
+            draftPreview: null,
         }));
 
         return [...introMetas, ...communityMetas];
@@ -9544,11 +9570,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                          duplicates when loadRecentChats and resumeChatData use different sources -->
                                     {#each recentChats.filter(m => m.chat.chat_id !== resumeChatData?.chat_id) as meta, i (meta.chat.chat_id)}
                                         {@const tilt = recentChatTiltStates[i]}
+                                        {@const isDraft = !!meta.draftPreview && !meta.title}
                                         {@const category = meta.category || 'general_knowledge'}
-                                        {@const gradientColors = getCategoryGradientColors(category)}
-                                        {@const iconName = getValidIconName(meta.icon || '', category)}
-                                        {@const IconComponent = getLucideIcon(iconName)}
-                                        {#if isTallViewport}
+                                        {@const gradientColors = isDraft ? null : getCategoryGradientColors(category)}
+                                        {@const iconName = isDraft ? '' : getValidIconName(meta.icon || '', category)}
+                                        {@const IconComponent = isDraft ? null : getLucideIcon(iconName)}
+                                        {#if isDraft}
+                                            <!-- Draft-only card: matches sidebar draft-only-layout (label + preview) -->
+                                            <button
+                                                class="resume-chat-card resume-chat-draft-card" data-testid="resume-chat-draft-card"
+                                                data-chat-id={meta.chat.chat_id}
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
+                                                type="button"
+                                            >
+                                                <div class="resume-chat-content resume-chat-draft-content">
+                                                    <span class="resume-chat-draft-label">{$text('enter_message.draft')}</span>
+                                                    <span class="resume-chat-draft-preview">{meta.draftPreview.length > 80 ? meta.draftPreview.slice(0, 80) + '…' : meta.draftPreview}</span>
+                                                </div>
+                                            </button>
+                                        {:else if isTallViewport}
                                             {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
                                             {@const cardStyle = tilt?.tiltTransform
                                                 ? `${bgStyle}; transform: ${tilt.tiltTransform}`
@@ -11584,6 +11628,40 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-chat-card:focus {
         outline: 2px solid rgba(255, 255, 255, 0.5);
         outline-offset: 2px;
+    }
+
+    /* Draft-only card: matches sidebar draft-only-layout (label + preview, no gradient) */
+    .resume-chat-draft-card {
+        background: var(--color-grey-4);
+        border-color: var(--color-grey-10);
+    }
+
+    .resume-chat-draft-card:hover {
+        background: var(--color-grey-6);
+        border-color: var(--color-grey-15);
+    }
+
+    .resume-chat-draft-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .resume-chat-draft-label {
+        font-size: var(--font-size-p);
+        color: var(--color-grey-60);
+        font-weight: 400;
+    }
+
+    .resume-chat-draft-preview {
+        font-size: var(--font-size-p);
+        font-weight: 500;
+        color: var(--color-font-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* Pin badge — top-right corner of large and compact cards */
