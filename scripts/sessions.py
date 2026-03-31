@@ -560,11 +560,21 @@ def _get_dirty_files() -> set[str]:
     Without -uall, git collapses untracked dirs to "?? dir/" and
     individual file paths never appear in the dirty set.
     """
-    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain", "-uall"])
+    # Call subprocess directly instead of _run_cmd to preserve leading whitespace.
+    # _run_cmd calls .strip() on stdout which removes the leading space from the
+    # first line's porcelain status code (e.g., " M file" becomes "M file"),
+    # breaking the fixed-offset parsing at line[3:].
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "-uall"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     dirty = set()
-    if rc != 0 or not stdout:
+    if result.returncode != 0 or not result.stdout:
         return dirty
-    for line in stdout.splitlines():
+    for line in result.stdout.splitlines():
         if len(line) < 4:
             continue
         # Porcelain v1 format: XY<space>path
@@ -4953,28 +4963,49 @@ def cmd_restore(args: argparse.Namespace) -> None:
             print("No recent interrupted sessions found.")
             return
 
+        # Extract OPE identifiers and fetch Linear titles in batch
+        import re
+        ope_ids_per_session = []
+        all_ope_ids = set()
+        for s in sessions:
+            ope_match = re.search(r"OPE-\d+", s["first_user_msg"] or "")
+            ope_id = ope_match.group(0) if ope_match else None
+            ope_ids_per_session.append(ope_id)
+            if ope_id:
+                all_ope_ids.add(ope_id)
+
+        # Batch-fetch Linear titles (graceful — returns {} on failure)
+        linear_titles: dict[str, dict[str, str]] = {}
+        if all_ope_ids:
+            try:
+                from _linear_client import get_issues_batch
+                linear_titles = get_issues_batch(list(all_ope_ids))
+            except Exception:
+                pass  # Linear unavailable — fall back to ID-only display
+
         print(f"{'#':<3} {'Last Active':<17} {'Status':<6} {'Session ID':<38} Task")
         print("-" * 110)
         for i, s in enumerate(sessions, 1):
             status = "DONE?" if s["likely_complete"] else "INTR"
-            # Extract task hint from prompt filename (e.g., spawn-prompt-fix-OPE-174.txt)
-            import re
-            ope_match = re.search(r"OPE-\d+", s["first_user_msg"] or "")
-            if ope_match:
-                # Also extract the action prefix (fix, verify, investigate, plan, test)
+            ope_id = ope_ids_per_session[i - 1]
+            if ope_id:
+                # Extract action prefix (fix, verify, investigate, plan, test)
                 action_match = re.search(r"spawn-prompt-(\w+)-OPE", s["first_user_msg"] or "")
                 if not action_match:
                     action_match = re.search(r"planning-prompt-OPE", s["first_user_msg"] or "")
                     action = "plan" if action_match else ""
                 else:
                     action = action_match.group(1)
-                task_hint = f"{ope_match.group(0)} ({action})" if action else ope_match.group(0)
+                # Append Linear title if available
+                linear_info = linear_titles.get(ope_id)
+                title_suffix = f" — {linear_info['title']}" if linear_info else ""
+                task_hint = f"{ope_id} ({action}){title_suffix}" if action else f"{ope_id}{title_suffix}"
             else:
                 task_hint = s["last_assistant_msg"][:60] if s["last_assistant_msg"] else "(unknown)"
             print(f"{i:<3} {s['last_modified']:<17} {status:<6} {s['session_id']:<38} {task_hint}")
 
-        print(f"\nRestore with: python3 scripts/sessions.py restore <session-id>")
-        print(f"  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
+        print("\nRestore with: python3 scripts/sessions.py restore <session-id>")
+        print("  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
         return
 
     # Single session restore

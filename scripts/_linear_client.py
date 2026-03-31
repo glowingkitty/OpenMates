@@ -390,11 +390,50 @@ def list_issues_with_label(label_name: str) -> List[Dict[str, Any]]:
             "description": issue.get("description") or "",
             "url": issue.get("url") or "",
             "state": issue["state"]["name"] if issue.get("state") else "Unknown",
-            "labels": [l["name"] for l in issue.get("labels", {}).get("nodes", [])],
-            "label_ids": [l["id"] for l in issue.get("labels", {}).get("nodes", [])],
+            "labels": [lbl["name"] for lbl in issue.get("labels", {}).get("nodes", [])],
+            "label_ids": [lbl["id"] for lbl in issue.get("labels", {}).get("nodes", [])],
             "updated_at": issue.get("updatedAt") or "",
         })
     return results
+
+
+def get_issues_batch(identifiers: List[str]) -> Dict[str, Dict[str, str]]:
+    """
+    Fetch title and state for multiple issues in a single GraphQL request.
+
+    Args:
+        identifiers: List of issue identifiers (e.g., ["OPE-42", "OPE-155"])
+
+    Returns dict mapping identifier → {"title": ..., "state": ...}.
+    Missing issues are silently omitted from the result.
+    """
+    if not identifiers:
+        return {}
+
+    # Build aliased GraphQL query — one alias per identifier
+    fragments = []
+    variables = {}
+    for i, ident in enumerate(identifiers):
+        alias = f"i{i}"
+        fragments.append(f'{alias}: issue(id: ${alias}id) {{ identifier title state {{ name }} }}')
+        variables[f"{alias}id"] = ident
+
+    var_decl = ", ".join(f"${alias}id: String!" for alias in (f"i{i}" for i in range(len(identifiers))))
+    query = f"query BatchIssues({var_decl}) {{ {' '.join(fragments)} }}"
+
+    data = _graphql(query, variables)
+    if not data:
+        return {}
+
+    result: Dict[str, Dict[str, str]] = {}
+    for i in range(len(identifiers)):
+        issue = data.get(f"i{i}")
+        if issue:
+            result[issue["identifier"]] = {
+                "title": issue.get("title") or "",
+                "state": issue["state"]["name"] if issue.get("state") else "Unknown",
+            }
+    return result
 
 
 def get_issue_updated_at(identifier: str) -> Optional[str]:
