@@ -381,6 +381,103 @@ def spawn_claude_session(
     return False
 
 
+def resume_claude_session(
+    session_name: str,
+    claude_session_id: str,
+    cwd: str,
+    prompt: str = "The server crashed and this session was interrupted. Continue where you left off.",
+) -> bool:
+    """
+    Resume a previous Claude Code session in a new Zellij session.
+
+    Creates a KDL layout that launches Claude with --resume <session_id>
+    and a continuation prompt as a positional argument.
+
+    Args:
+        session_name: Display name for the Zellij session (will be sanitized).
+        claude_session_id: The Claude Code session UUID to resume.
+        cwd: Working directory for the Claude session.
+        prompt: Continuation prompt sent as positional arg (interactive mode).
+
+    Returns True if the session was created, False otherwise.
+    """
+    session_name = _sanitize_session_name(session_name)
+
+    # Clean up any existing EXITED session with the same name
+    result = _run_zellij(["list-sessions", "--no-formatting"])
+    if result and result.returncode == 0:
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(session_name + " ") or stripped == session_name:
+                if "EXITED" in stripped:
+                    _run_zellij(["delete-session", session_name])
+                else:
+                    print(f"Warning: Zellij session '{session_name}' already exists.", file=sys.stderr)
+                    return False
+
+    # Escape double quotes for KDL strings
+    escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
+    escaped_cwd = cwd.replace("\\", "\\\\").replace('"', '\\"')
+
+    # Build KDL layout with --resume flag
+    args_line = (
+        f'        args "--dangerously-skip-permissions" '
+        f'"--resume" "{claude_session_id}" '
+        f'"{escaped_prompt}"'
+    )
+
+    layout_content = (
+        "layout {\n"
+        '    pane command="claude" {\n'
+        f"{args_line}\n"
+        f'        cwd "{escaped_cwd}"\n'
+        "        focus true\n"
+        "    }\n"
+        "}\n"
+    )
+
+    # Write layout to temp file
+    tmp_dir = Path(cwd) / "scripts" / ".tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    layout_path = tmp_dir / f"{session_name}.kdl"
+
+    try:
+        layout_path.write_text(layout_content, encoding="utf-8")
+    except Exception as e:
+        print(f"Warning: failed to write KDL layout: {e}", file=sys.stderr)
+        return False
+
+    # Launch the session (TTY panic from Popen is cosmetic — session still starts)
+    try:
+        subprocess.Popen(
+            [ZELLIJ_BIN, "--new-session-with-layout", str(layout_path), "-s", session_name],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=os.environ.copy(),
+        )
+    except FileNotFoundError:
+        print("Warning: zellij binary not found — skipping.", file=sys.stderr)
+        layout_path.unlink(missing_ok=True)
+        return False
+    except Exception as e:
+        print(f"Warning: zellij session launch failed: {e}", file=sys.stderr)
+        layout_path.unlink(missing_ok=True)
+        return False
+
+    # Brief wait to let session initialize, then clean up layout file
+    import time
+    time.sleep(2)
+    layout_path.unlink(missing_ok=True)
+
+    # Verify session was created
+    check = _run_zellij(["list-sessions", "--no-formatting"])
+    if check and session_name in check.stdout:
+        return True
+
+    print(f"Warning: session '{session_name}' not found after launch.", file=sys.stderr)
+    return False
+
+
 def format_attach_command(session_name: str) -> str:
     """Return the zellij attach command for a session."""
     return f"zellij attach {_sanitize_session_name(session_name)}"
