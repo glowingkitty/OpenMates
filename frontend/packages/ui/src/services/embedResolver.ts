@@ -482,18 +482,9 @@ export function extractEmbedReferences(
           embed_id: parsed.embed_id,
           version: parsed.version, // Optional version number
         });
-        console.debug("[embedResolver] Extracted embed reference:", {
-          type: parsed.type,
-          embed_id: parsed.embed_id,
-          version: parsed.version,
-        });
       }
-    } catch (error) {
-      // Not a valid JSON embed reference, skip
-      console.debug(
-        "[embedResolver] JSON block is not an embed reference:",
-        error,
-      );
+    } catch {
+      // Not a valid embed reference — expected for non-embed JSON blocks
     }
   }
 
