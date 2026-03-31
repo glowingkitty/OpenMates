@@ -6,7 +6,7 @@ Three subagent reports have been prepared for you. Read all three files now:
 
 1. `scripts/.tmp/daily-meeting-health.md` — System health (tests, providers, errors, large files)
 2. `scripts/.tmp/daily-meeting-work.md` — Yesterday's work (commits, nightly jobs, issues, sessions)
-3. `scripts/.tmp/daily-meeting-linear.md` — Linear backlog (priority review, proposed top 3)
+3. `scripts/.tmp/daily-meeting-linear.md` — Linear backlog (priority review, proposed top 10)
 
 Also read:
 4. `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
@@ -36,7 +36,7 @@ Wait for user input. Update Linear statuses based on their answers before procee
 
 Using the work report, Linear report, and previous meeting summary:
 - Summarize what was accomplished (commits grouped by area, with counts)
-- Review yesterday's 3 daily priorities:
+- Review yesterday's daily priorities:
   - ✅ DONE / 🔄 IN PROGRESS / ❌ NOT STARTED — with brief explanation each
 - **Honest assessment:** What went well? What didn't?
 - If 0/3 done, flag it. If 2+ days in a row (check state file + previous summary), call out the pattern.
@@ -89,14 +89,18 @@ Rules for asking:
 
 ### Step 6: TODAY'S PRIORITIES 🎯
 
-Using the Linear report's proposed top 3 **combined with the user's answers from Step 5**:
-- Present each with: Linear ID, title, rationale, estimated effort
+Using the Linear report's proposed top 10 **combined with the user's answers from Step 5**:
+- Present a **ranked list of up to 10 tasks** for the day
+- The **top 3 are the "must complete" targets** — the clear goal is to finish at least these 3
+- Tasks 4-10 define what to pick up next (via `/next-task`) once the top 3 are done
+- Present each with: rank, Linear ID, title, rationale, estimated effort
 - Adjust if health report revealed urgent issues
 - Adjust based on user's stated energy, blockers, time constraints, and strategic focus
 - For each: 🔥 urgent / ⚡ high / 📋 medium
-- Briefly explain how user's answers influenced your recommendations (e.g., "Picked this over OPE-XX because you mentioned wanting deep work today")
+- Briefly explain how user's answers influenced your recommendations
+- **Note:** Only 4 sessions can run simultaneously — the rest queue automatically
 
-Then ask: **"These are today's 3 priorities. Confirm, or tell me what to adjust."**
+Then ask: **"These are today's 10 priorities (goal: complete at least the top 3). Confirm, or tell me what to adjust."**
 
 Wait for user to confirm or adjust.
 
@@ -116,11 +120,15 @@ Wait for user input.
 
 After the user confirms priorities and milestone changes (if any):
 1. Remove `daily-priority` label from yesterday's tasks (if not in today's list)
-2. Add `daily-priority` label to today's 3 selected tasks
-3. Post a comment on each: "Daily priority for {{DATE}} — Rationale: <reason>"
+2. Add `daily-priority` label to today's selected tasks (all confirmed, up to 10)
+3. Post a comment on the **top 3** only: "Daily priority for {{DATE}} — Rationale: <reason>"
 4. Apply any confirmed milestone changes (create new milestones, update existing ones)
 5. Save state to `scripts/.daily-meeting-state.json`
 6. Write meeting summary to `scripts/.tmp/daily-meeting-summary-{{DATE}}.md`
+
+**Important:** Save ALL confirmed priorities (up to 10) in the state file, ranked by priority.
+Only the first 4 will be spawned as planning sessions (MAX_CONCURRENT_SESSIONS=4).
+The rest are picked up via `/next-task` as sessions finish.
 
 Use this JSON structure for the state file:
 ```json
@@ -202,7 +210,7 @@ Do NOT end the meeting until all items are checked:
 - [ ] System health assessed (data gaps flagged)
 - [ ] Project trajectory discussed
 - [ ] 5 context questions asked and answered (one per round)
-- [ ] Today's 3 priorities confirmed (informed by user's answers)
+- [ ] Today's priorities confirmed (up to 10 ranked, goal: complete top 3)
 - [ ] Milestone changes evaluated and applied (if any)
 - [ ] Linear labels updated (old removed, new added)
 - [ ] Linear comments posted on selected tasks

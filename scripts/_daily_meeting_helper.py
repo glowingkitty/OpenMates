@@ -678,6 +678,7 @@ def run_subagent(name: str, prompt: str, today: str) -> tuple[str, int, str | No
         timeout=300,
         job_type=None,  # No email for subagents
         linear_task=False,  # Internal subagents don't need their own Linear issues
+        use_zellij=False,  # Subagents are headless — Zellij adds overhead and fails silently
     )
 
     return name, returncode, session_id
@@ -855,10 +856,10 @@ def cmd_auto_confirm() -> None:
 
     report_content = linear_report.read_text()
 
-    # Parse OPE-XX IDs from the "Proposed Top 3" section
+    # Parse OPE-XX IDs from the "Proposed Top 10" section (up to 10)
     import re
     proposed_ids = re.findall(r'\*\*OPE-\d+:', report_content)
-    proposed_ids = [pid.strip("*:") for pid in proposed_ids[:3]]
+    proposed_ids = [pid.strip("*:") for pid in proposed_ids[:10]]
 
     if not proposed_ids:
         print(f"{LOG_PREFIX} WARNING: Could not extract proposed priorities from Linear report.")
@@ -914,8 +915,9 @@ def cmd_spawn_planning() -> None:
 
     Reads the meeting state file, fetches Linear context for each priority,
     and spawns a Claude Code planning session in a separate Zellij tab.
+    Respects MAX_CONCURRENT_SESSIONS — stops spawning once the cap is hit.
     """
-    from _zellij_utils import spawn_claude_session
+    from _zellij_utils import spawn_claude_session, count_active_sessions, MAX_CONCURRENT_SESSIONS
 
     state = load_meeting_state()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -944,9 +946,20 @@ def cmd_spawn_planning() -> None:
         get_issue_with_comments = None
 
     spawned = []
+    skipped = []
     for priority in priorities:
         linear_id = priority.get("linear_id", "")
         if not linear_id:
+            continue
+
+        # Enforce hard cap — stop spawning once we hit the limit
+        active = count_active_sessions()
+        if active >= MAX_CONCURRENT_SESSIONS:
+            skipped.append(linear_id)
+            print(
+                f"{LOG_PREFIX} Skipping {linear_id} — "
+                f"{active} active sessions (max {MAX_CONCURRENT_SESSIONS})"
+            )
             continue
 
         session_name = f"plan-{linear_id}-{today}"
@@ -992,6 +1005,9 @@ def cmd_spawn_planning() -> None:
 
     # Summary
     print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning sessions.")
+    if skipped:
+        print(f"{LOG_PREFIX} Skipped {len(skipped)} due to session cap ({MAX_CONCURRENT_SESSIONS}): {', '.join(skipped)}")
+        print(f"{LOG_PREFIX} Use /next-task or sessions.py spawn-chat to pick these up later.")
     if spawned:
         print(f"{LOG_PREFIX} Web UI: http://localhost:8082")
         for linear_id, name in spawned:

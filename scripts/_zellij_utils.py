@@ -26,6 +26,11 @@ from typing import List, Optional
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
 
+# Hard cap on concurrent Claude sessions to prevent system overload.
+# The daily meeting may define up to 10 priorities, but only this many
+# sessions can run simultaneously. Subsequent tasks wait or are skipped.
+MAX_CONCURRENT_SESSIONS = 4
+
 # Timeout for Zellij CLI commands (not the session process itself)
 _CMD_TIMEOUT = 10
 
@@ -231,7 +236,7 @@ def kill_session(session_name: str) -> bool:
 
 def list_sessions() -> List[str]:
     """
-    List all active Zellij session names.
+    List all active (non-EXITED) Zellij session names.
     Returns empty list on failure.
     """
     result = _run_zellij(["list-sessions", "--no-formatting"])
@@ -241,12 +246,17 @@ def list_sessions() -> List[str]:
     sessions = []
     for line in result.stdout.splitlines():
         stripped = line.strip()
-        if stripped:
+        if stripped and "EXITED" not in stripped:
             # Session name is the first word
             name = stripped.split()[0] if stripped.split() else ""
             if name:
                 sessions.append(name)
     return sessions
+
+
+def count_active_sessions() -> int:
+    """Count non-EXITED Zellij sessions. Returns 0 on failure."""
+    return len(list_sessions())
 
 
 def cleanup_exited_sessions() -> int:
