@@ -480,13 +480,13 @@
         
         <!-- Word count centered above transcript -->
         {#if totalWordCount > 0}
-          <div class="word-count-header">
+          <div class="word-count-header" data-testid="transcript-word-count">
             {totalWordCount.toLocaleString()} words:
           </div>
         {/if}
-        
+
         <!-- Transcript content box with styled timestamps -->
-        <div class="transcript-box">
+        <div class="transcript-box" data-testid="transcript-box">
           {#if parsedTranscriptHtml}
             <!-- Render transcript with styled timestamps using @html -->
             <div class="transcript-content">{@html parsedTranscriptHtml}</div>
