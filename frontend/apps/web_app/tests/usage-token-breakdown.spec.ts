@@ -61,28 +61,29 @@ test.describe('Usage Token Breakdown', () => {
 	});
 
 	test('token breakdown adds up: system_prompt + user_input ≈ input_tokens', async ({ page }, testInfo) => {
-		const logger = createSignupLogger(testInfo);
-		const takeScreenshot = createStepScreenshotter(testInfo);
-		await archiveExistingScreenshots(testInfo);
+		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
+		const logStep = createSignupLogger('USAGE_TOKENS');
+		const takeScreenshot = createStepScreenshotter(logStep, { filenamePrefix: 'usage-token-breakdown' });
+		await archiveExistingScreenshots(logStep);
 
 		// Step 1: Login
-		await loginToTestAccount(page, logger.logCheckpoint, takeScreenshot);
-		logger.logCheckpoint('Logged in successfully');
+		await loginToTestAccount(page, logStep, takeScreenshot);
+		logStep('Logged in successfully');
 
 		// Step 2: Start a new chat and send a message
-		await startNewChat(page, logger.logCheckpoint, takeScreenshot);
-		logger.logCheckpoint('Started new chat');
+		await startNewChat(page, logStep, takeScreenshot);
+		logStep('Started new chat');
 
 		// Send a simple message that triggers AI inference with tool definitions
-		await sendMessage(page, 'What is the capital of France?', logger.logCheckpoint, takeScreenshot);
-		logger.logCheckpoint('Message sent, waiting for AI response');
+		await sendMessage(page, 'What is the capital of France?', logStep, takeScreenshot);
+		logStep('Message sent, waiting for AI response');
 
 		// Wait for AI response to complete (final message appears)
 		const aiResponse = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
 		await expect(aiResponse).toBeVisible({ timeout: 60000 });
 		// Wait for the response to finish streaming (status becomes synced)
 		await page.waitForTimeout(3000);
-		logger.logCheckpoint('AI response received');
+		logStep('AI response received');
 		await takeScreenshot(page, 'ai-response-received');
 
 		// Step 3: Navigate to usage detail via deep-link
@@ -90,12 +91,12 @@ test.describe('Usage Token Breakdown', () => {
 		await page.evaluate(() => {
 			window.location.hash = '#settings/billing&usage';
 		});
-		logger.logCheckpoint('Navigating to billing/usage via deep-link');
+		logStep('Navigating to billing/usage via deep-link');
 
 		// Wait for the usage detail view to appear (auto-selected by &usage deep-link)
 		const usageDetailView = page.getByTestId('usage-detail-view');
 		await expect(usageDetailView).toBeVisible({ timeout: 30000 });
-		logger.logCheckpoint('Usage detail view is visible');
+		logStep('Usage detail view is visible');
 		await takeScreenshot(page, 'usage-detail-view');
 
 		// Step 4: Extract token values from the detail view
@@ -105,27 +106,27 @@ test.describe('Usage Token Breakdown', () => {
 		// Extract numeric values from the displayed text
 		const inputTokensText = await inputTokensRow.locator('.entry-detail-value').textContent();
 		const inputTokens = parseInt((inputTokensText || '0').replace(/[.,\s]/g, ''), 10);
-		logger.logCheckpoint(`Input tokens: ${inputTokens}`);
+		logStep(`Input tokens: ${inputTokens}`);
 
 		// Output tokens should also be visible
 		const outputTokensRow = page.getByTestId('usage-output-tokens');
 		await expect(outputTokensRow).toBeVisible({ timeout: 5000 });
 		const outputTokensText = await outputTokensRow.locator('.entry-detail-value').textContent();
 		const outputTokens = parseInt((outputTokensText || '0').replace(/[.,\s]/g, ''), 10);
-		logger.logCheckpoint(`Output tokens: ${outputTokens}`);
+		logStep(`Output tokens: ${outputTokens}`);
 
 		// System prompt tokens and user input tokens should be visible for AI Ask
 		const systemPromptRow = page.getByTestId('usage-system-prompt-tokens');
 		await expect(systemPromptRow).toBeVisible({ timeout: 5000 });
 		const systemPromptText = await systemPromptRow.locator('.entry-detail-value').textContent();
 		const systemPromptTokens = parseInt((systemPromptText || '0').replace(/[.,\s]/g, ''), 10);
-		logger.logCheckpoint(`System prompt tokens: ${systemPromptTokens}`);
+		logStep(`System prompt tokens: ${systemPromptTokens}`);
 
 		const userInputRow = page.getByTestId('usage-user-input-tokens');
 		await expect(userInputRow).toBeVisible({ timeout: 5000 });
 		const userInputText = await userInputRow.locator('.entry-detail-value').textContent();
 		const userInputTokens = parseInt((userInputText || '0').replace(/[.,\s]/g, ''), 10);
-		logger.logCheckpoint(`User input tokens: ${userInputTokens}`);
+		logStep(`User input tokens: ${userInputTokens}`);
 
 		await takeScreenshot(page, 'token-values-extracted');
 
@@ -137,11 +138,11 @@ test.describe('Usage Token Breakdown', () => {
 		expect(userInputTokens).toBeGreaterThan(0);
 
 		// The sum of system_prompt_tokens + user_input_tokens should be close to input_tokens.
-		// We allow up to 20% deviation because tiktoken estimates won't perfectly match
+		// We allow up to 30% deviation because tiktoken estimates won't perfectly match
 		// the provider's native tokenizer (different tokenization algorithms).
 		const breakdownSum = systemPromptTokens + userInputTokens;
 		const ratio = breakdownSum / inputTokens;
-		logger.logCheckpoint(
+		logStep(
 			`Token breakdown: system(${systemPromptTokens}) + user(${userInputTokens}) = ${breakdownSum} vs input(${inputTokens}), ratio=${ratio.toFixed(3)}`
 		);
 
@@ -153,7 +154,7 @@ test.describe('Usage Token Breakdown', () => {
 
 		// Log a warning if the ratio is outside the ideal range (0.9–1.1) but still passing
 		if (ratio < 0.9 || ratio > 1.1) {
-			logger.logCheckpoint(
+			logStep(
 				`WARNING: Token ratio ${ratio.toFixed(3)} is outside ideal 0.9-1.1 range. ` +
 				`This may indicate remaining estimation drift.`
 			);
@@ -170,7 +171,7 @@ test.describe('Usage Token Breakdown', () => {
 		// Press Escape to close settings if still open
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
-		await deleteActiveChat(page, logger.logCheckpoint, takeScreenshot);
-		logger.logCheckpoint('Test chat deleted');
+		await deleteActiveChat(page, logStep, takeScreenshot);
+		logStep('Test chat deleted');
 	});
 });
