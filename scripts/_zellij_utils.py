@@ -29,7 +29,7 @@ ZELLIJ_WEB_URL = "http://localhost:8082"
 # Hard cap on concurrent Claude sessions to prevent system overload.
 # The daily meeting may define up to 10 priorities, but only this many
 # sessions can run simultaneously. Subsequent tasks wait or are skipped.
-MAX_CONCURRENT_SESSIONS = 4
+MAX_CONCURRENT_SESSIONS = 10
 
 # Timeout for Zellij CLI commands (not the session process itself)
 _CMD_TIMEOUT = 10

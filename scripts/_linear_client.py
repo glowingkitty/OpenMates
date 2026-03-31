@@ -36,6 +36,8 @@ STATE_IDS: Dict[str, str] = {
 }
 
 LABEL_CLAUDE_WORKING_ID = "4223e874-eb1f-4588-be6e-e28b013b8f49"
+LABEL_CLAUDE_PLAN_ID = "6d87065f-9480-4a57-a08c-a9f4cbc38e03"
+LABEL_CLAUDE_FIX_ID = "d692b6f7-62e0-45a9-89c6-9f666709ebd3"
 
 # Mode → Linear title prefix mapping
 MODE_PREFIX: Dict[str, str] = {
@@ -346,3 +348,95 @@ def post_comment(issue_id: str, body: str) -> bool:
     """
     data = _graphql(query, {"input": {"issueId": issue_id, "body": body}})
     return bool(data and data.get("commentCreate", {}).get("success"))
+
+
+def list_issues_with_label(label_name: str) -> List[Dict[str, Any]]:
+    """
+    Fetch all non-archived, non-completed issues that carry a specific label.
+
+    Returns list of dicts with: id, identifier, title, description, url,
+    state, labels, label_ids, updated_at. Returns empty list on failure.
+    """
+    query = """
+    query ListIssuesWithLabel($teamId: String!, $labelName: String!) {
+        issues(filter: {
+            team: { id: { eq: $teamId } },
+            labels: { name: { eq: $labelName } },
+            state: { type: { nin: ["canceled", "completed"] } }
+        }, first: 50) {
+            nodes {
+                id
+                identifier
+                title
+                description
+                url
+                updatedAt
+                state { name }
+                labels { nodes { id name } }
+            }
+        }
+    }
+    """
+    data = _graphql(query, {"teamId": TEAM_ID, "labelName": label_name})
+    if not data or not data.get("issues"):
+        return []
+
+    results = []
+    for issue in data["issues"].get("nodes", []):
+        results.append({
+            "id": issue["id"],
+            "identifier": issue["identifier"],
+            "title": issue["title"],
+            "description": issue.get("description") or "",
+            "url": issue.get("url") or "",
+            "state": issue["state"]["name"] if issue.get("state") else "Unknown",
+            "labels": [l["name"] for l in issue.get("labels", {}).get("nodes", [])],
+            "label_ids": [l["id"] for l in issue.get("labels", {}).get("nodes", [])],
+            "updated_at": issue.get("updatedAt") or "",
+        })
+    return results
+
+
+def get_issue_updated_at(identifier: str) -> Optional[str]:
+    """
+    Fetch the updatedAt timestamp of an issue by its identifier (e.g., "OPE-42").
+
+    Returns ISO 8601 timestamp string, or None on failure.
+    """
+    query = """
+    query GetIssueUpdatedAt($identifier: String!) {
+        issue(id: $identifier) {
+            updatedAt
+        }
+    }
+    """
+    data = _graphql(query, {"identifier": identifier})
+    if not data or not data.get("issue"):
+        return None
+    return data["issue"].get("updatedAt")
+
+
+def remove_specific_label(
+    issue_id: str,
+    label_id_to_remove: str,
+    current_label_ids: Optional[List[str]] = None,
+) -> bool:
+    """
+    Remove a specific label from an issue by label UUID.
+
+    Args:
+        issue_id: The issue's UUID
+        label_id_to_remove: UUID of the label to remove
+        current_label_ids: Existing label IDs on the issue
+    """
+    label_ids = [lid for lid in (current_label_ids or []) if lid != label_id_to_remove]
+
+    query = """
+    mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) {
+            success
+        }
+    }
+    """
+    data = _graphql(query, {"id": issue_id, "input": {"labelIds": label_ids}})
+    return bool(data and data.get("issueUpdate", {}).get("success"))

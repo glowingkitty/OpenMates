@@ -5208,6 +5208,12 @@ def main() -> None:
         help="Permission mode: 'plan' (read-only, default) or "
         "'execute' (full edit access via --dangerously-skip-permissions)",
     )
+    p_spawn.add_argument(
+        "--linear-issue", "--linear",
+        metavar="ISSUE_ID",
+        help="Linear issue to link (e.g., OPE-42). Auto-marks In Progress, "
+        "adds claude-is-working label, and injects Linear update instructions.",
+    )
 
     # task-show
     p_task_show = sub.add_parser(
