@@ -49,7 +49,7 @@ import re
 import secrets
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -4812,6 +4812,216 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
+# restore — Resume interrupted Claude Code sessions in Zellij
+# ---------------------------------------------------------------------------
+
+# Path to Claude Code's session storage for the OpenMates project
+_CLAUDE_SESSIONS_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-projects-OpenMates"
+
+
+def _discover_interrupted_sessions(
+    max_age_hours: int = 24,
+    limit: int = 15,
+) -> list[dict[str, any]]:
+    """
+    Scan Claude Code JSONL session files and return sessions that appear
+    interrupted (have recent activity but no completion signal).
+
+    Returns a list of dicts with keys:
+        session_id, last_modified, first_user_msg, last_assistant_msg
+    sorted by last_modified descending.
+    """
+    import json as _json
+    import re as _re
+
+    sessions_dir = _CLAUDE_SESSIONS_DIR
+    if not sessions_dir.is_dir():
+        return []
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    results = []
+
+    # Collect JSONL files sorted by mtime descending
+    jsonl_files = sorted(
+        sessions_dir.glob("*.jsonl"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )[:limit]
+
+    for path in jsonl_files:
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        if mtime < cutoff:
+            continue
+
+        session_id = path.stem
+        first_user = None
+        last_assistant = None
+
+        try:
+            with open(path, encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+
+                    msg_type = obj.get("type", "")
+                    msg = obj.get("message", {})
+                    content = msg.get("content", "")
+
+                    # Normalise content list → string
+                    if isinstance(content, list):
+                        texts = [
+                            c.get("text", "")
+                            for c in content
+                            if isinstance(c, dict) and c.get("type") == "text"
+                        ]
+                        content = " ".join(texts)
+                    if not isinstance(content, str):
+                        continue
+
+                    # Strip system-reminder / command tags
+                    content = _re.sub(
+                        r"<system-reminder>.*?</system-reminder>", "", content, flags=_re.DOTALL
+                    )
+                    content = _re.sub(
+                        r"<local-command.*?</local-command-stdout>", "", content, flags=_re.DOTALL
+                    )
+                    content = _re.sub(
+                        r"<command-.*?>.*?</command-.*?>", "", content, flags=_re.DOTALL
+                    )
+                    content = content.strip()
+
+                    if msg_type == "user" and not first_user and len(content) > 10:
+                        first_user = content[:250]
+                    if msg_type == "assistant" and content:
+                        last_assistant = content[:250]
+        except Exception:
+            continue
+
+        # Only include spawned sessions (started via spawn-chat with a prompt file)
+        if not first_user or "Read scripts/.tmp/" not in first_user:
+            continue
+
+        # Detect completion signals in last assistant message
+        completed = False
+        if last_assistant:
+            completion_phrases = [
+                "all implementation is complete",
+                "deployed as",
+                "task summary",
+                "successfully deployed",
+                "session ended",
+            ]
+            lower = last_assistant.lower()
+            completed = any(phrase in lower for phrase in completion_phrases)
+            # "Committed X and pushed to dev" is a deploy confirmation
+            if not completed and "committed" in lower and "pushed" in lower:
+                completed = True
+
+        results.append({
+            "session_id": session_id,
+            "last_modified": mtime.strftime("%Y-%m-%d %H:%M"),
+            "first_user_msg": first_user or "(no user message found)",
+            "last_assistant_msg": last_assistant or "(no output)",
+            "likely_complete": completed,
+        })
+
+    return results
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    """Restore an interrupted Claude Code session in a new Zellij tab.
+
+    Resumes the session with --resume and sends a continuation prompt.
+    If --list is passed, discovers and prints recent interrupted sessions.
+    """
+    scripts_dir = str(PROJECT_ROOT / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from _zellij_utils import resume_claude_session
+
+    # --list mode: discover and print interrupted sessions
+    if getattr(args, "list", False):
+        sessions = _discover_interrupted_sessions(
+            max_age_hours=getattr(args, "hours", 24),
+        )
+        if not sessions:
+            print("No recent interrupted sessions found.")
+            return
+
+        print(f"{'#':<3} {'Last Active':<17} {'Status':<6} {'Session ID':<38} Task")
+        print("-" * 110)
+        for i, s in enumerate(sessions, 1):
+            status = "DONE?" if s["likely_complete"] else "INTR"
+            # Extract task hint from prompt filename (e.g., spawn-prompt-fix-OPE-174.txt)
+            import re
+            ope_match = re.search(r"OPE-\d+", s["first_user_msg"] or "")
+            if ope_match:
+                # Also extract the action prefix (fix, verify, investigate, plan, test)
+                action_match = re.search(r"spawn-prompt-(\w+)-OPE", s["first_user_msg"] or "")
+                if not action_match:
+                    action_match = re.search(r"planning-prompt-OPE", s["first_user_msg"] or "")
+                    action = "plan" if action_match else ""
+                else:
+                    action = action_match.group(1)
+                task_hint = f"{ope_match.group(0)} ({action})" if action else ope_match.group(0)
+            else:
+                task_hint = s["last_assistant_msg"][:60] if s["last_assistant_msg"] else "(unknown)"
+            print(f"{i:<3} {s['last_modified']:<17} {status:<6} {s['session_id']:<38} {task_hint}")
+
+        print(f"\nRestore with: python3 scripts/sessions.py restore <session-id>")
+        print(f"  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
+        return
+
+    # Single session restore
+    session_id = args.session_id
+    if not session_id:
+        print("Error: session ID is required. Use --list to discover sessions.", file=sys.stderr)
+        sys.exit(1)
+
+    # Resolve short IDs (prefix match)
+    if len(session_id) < 36:
+        matches = list(_CLAUDE_SESSIONS_DIR.glob(f"{session_id}*.jsonl"))
+        if len(matches) == 1:
+            session_id = matches[0].stem
+        elif len(matches) > 1:
+            print(f"Error: ambiguous prefix '{session_id}' matches {len(matches)} sessions:", file=sys.stderr)
+            for m in matches:
+                print(f"  {m.stem}", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(f"Error: no session found matching '{session_id}'.", file=sys.stderr)
+            sys.exit(1)
+
+    # Determine Zellij session name
+    zellij_name = getattr(args, "name", None) or f"restore-{session_id[:8]}"
+    prompt = getattr(args, "prompt", None) or (
+        "The server crashed and this session was interrupted. "
+        "Continue where you left off."
+    )
+
+    success = resume_claude_session(
+        session_name=zellij_name,
+        claude_session_id=session_id,
+        cwd=str(PROJECT_ROOT),
+        prompt=prompt,
+    )
+
+    if success:
+        print(f"Session restored: {zellij_name}")
+        print(f"Claude session: {session_id}")
+        print(f"Attach: zellij attach {zellij_name}")
+        print("Web UI: http://localhost:8082")
+    else:
+        print("Error: failed to restore session. Is Zellij running?", file=sys.stderr)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -5262,6 +5472,36 @@ def main() -> None:
         "adds claude-is-working label, and injects Linear update instructions.",
     )
 
+    # restore
+    p_restore = sub.add_parser(
+        "restore",
+        help="Restore an interrupted Claude Code session in a Zellij tab",
+    )
+    p_restore.add_argument(
+        "session_id",
+        nargs="?",
+        help="Claude Code session UUID (or prefix) to resume",
+    )
+    p_restore.add_argument(
+        "--list", "-l",
+        action="store_true",
+        help="Discover and list recent interrupted sessions",
+    )
+    p_restore.add_argument(
+        "--name", "-n",
+        help="Zellij session name (default: restore-<id-prefix>)",
+    )
+    p_restore.add_argument(
+        "--prompt",
+        help="Custom continuation prompt (default: 'continue where you left off')",
+    )
+    p_restore.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="How far back to scan for sessions (default: 24h, used with --list)",
+    )
+
     # task-show
     p_task_show = sub.add_parser(
         "task-show",
@@ -5336,6 +5576,7 @@ def main() -> None:
         "task-update": cmd_task_update,
         "task-track": cmd_task_track,
         "spawn-chat": cmd_spawn_chat,
+        "restore": cmd_restore,
     }
 
     cmd_func = commands.get(args.command)
