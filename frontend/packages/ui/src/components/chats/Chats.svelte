@@ -1955,10 +1955,12 @@ let _chatUpdatedFlushPending = false;
 			return;
 		}
 
-		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount
-		// This cache persists across component instances (when sidebar closes/opens)
-		// Only used for authenticated users - unauthenticated users are handled above
-		const cached = chatListCache.getCache(false);
+		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount.
+		// Pass isComponentRemount=true so the cache returns null when the sidebar was
+		// destroyed since the last full setCache(). While unmounted, event listeners
+		// are inactive, so new chats (e.g. drafts created while sidebar was closed)
+		// would be missing from the cache. Forcing a DB re-read ensures they appear.
+		const cached = chatListCache.getCache(false, /* isComponentRemount */ true);
 		if (cached) {
 			console.debug("[Chats] Using cached chats on initialize, skipping DB read");
 			allChatsFromDB = cached;
@@ -1995,6 +1997,13 @@ let _chatUpdatedFlushPending = false;
 	}
 
 	onDestroy(() => {
+		// Notify cache that sidebar was destroyed — event listeners are about to be
+		// removed, so any chatUpdated / LOCAL_CHAT_LIST_CHANGED_EVENT that fires while
+		// unmounted will not update the cache. The next getCache(_, isComponentRemount=true)
+		// call on remount will force a fresh DB read to pick up missed changes (e.g. new
+		// draft chats created while sidebar was closed).
+		chatListCache.notifySidebarDestroyed();
+
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);

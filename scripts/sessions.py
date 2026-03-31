@@ -4832,7 +4832,7 @@ _CLAUDE_SESSIONS_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-pr
 def _discover_interrupted_sessions(
     max_age_hours: int = 24,
     limit: int = 15,
-) -> list[dict[str, any]]:
+) -> list[dict]:
     """
     Scan Claude Code JSONL session files and return sessions that appear
     interrupted (have recent activity but no completion signal).
@@ -4974,38 +4974,114 @@ def cmd_restore(args: argparse.Namespace) -> None:
             if ope_id:
                 all_ope_ids.add(ope_id)
 
-        # Batch-fetch Linear titles (graceful — returns {} on failure)
-        linear_titles: dict[str, dict[str, str]] = {}
+        # Batch-fetch Linear titles and states (graceful — returns {} on failure)
+        linear_info_map: dict[str, dict[str, str]] = {}
         if all_ope_ids:
             try:
                 from _linear_client import get_issues_batch
-                linear_titles = get_issues_batch(list(all_ope_ids))
+                linear_info_map = get_issues_batch(list(all_ope_ids))
             except Exception:
                 pass  # Linear unavailable — fall back to ID-only display
 
-        print(f"{'#':<3} {'Last Active':<17} {'Status':<6} {'Session ID':<38} Task")
-        print("-" * 110)
-        for i, s in enumerate(sessions, 1):
-            status = "DONE?" if s["likely_complete"] else "INTR"
-            ope_id = ope_ids_per_session[i - 1]
+        # Check git log for commits mentioning each OPE ID (recent 200 commits)
+        ope_has_commits: dict[str, bool] = {}
+        if all_ope_ids:
+            try:
+                import subprocess as _sp
+                git_log = _sp.run(
+                    ["git", "log", "--oneline", "-200", "--all"],
+                    capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+                    timeout=5,
+                ).stdout
+                for ope_id in all_ope_ids:
+                    ope_has_commits[ope_id] = ope_id in git_log
+            except Exception:
+                pass  # git unavailable — skip commit check
+
+        # Closed Linear states that mean the task is done
+        _CLOSED_STATES = {"Done", "Cancelled", "Duplicate"}
+        _REVIEW_STATES = {"In Review"}
+
+        # Classify sessions and split into open vs closed
+        open_sessions = []
+        closed_sessions = []
+
+        for i, s in enumerate(sessions):
+            ope_id = ope_ids_per_session[i]
+
+            # Extract action prefix (fix, verify, investigate, plan, test)
             if ope_id:
-                # Extract action prefix (fix, verify, investigate, plan, test)
                 action_match = re.search(r"spawn-prompt-(\w+)-OPE", s["first_user_msg"] or "")
                 if not action_match:
                     action_match = re.search(r"planning-prompt-OPE", s["first_user_msg"] or "")
                     action = "plan" if action_match else ""
                 else:
                     action = action_match.group(1)
-                # Append Linear title if available
-                linear_info = linear_titles.get(ope_id)
+            else:
+                action = ""
+
+            # Determine status from Linear state + git commits + heuristic
+            linear_info = linear_info_map.get(ope_id) if ope_id else None
+            linear_state = linear_info["state"] if linear_info else None
+            has_commits = ope_has_commits.get(ope_id, False) if ope_id else False
+
+            if linear_state in _CLOSED_STATES:
+                status = "DONE"
+            elif linear_state in _REVIEW_STATES:
+                status = "REVIEW"
+            elif has_commits and s["likely_complete"]:
+                status = "DONE?"
+            elif s["likely_complete"]:
+                status = "DONE?"
+            else:
+                status = "INTR"
+
+            # Build task hint
+            if ope_id:
                 title_suffix = f" — {linear_info['title']}" if linear_info else ""
                 task_hint = f"{ope_id} ({action}){title_suffix}" if action else f"{ope_id}{title_suffix}"
             else:
                 task_hint = s["last_assistant_msg"][:60] if s["last_assistant_msg"] else "(unknown)"
-            print(f"{i:<3} {s['last_modified']:<17} {status:<6} {s['session_id']:<38} {task_hint}")
 
-        print("\nRestore with: python3 scripts/sessions.py restore <session-id>")
-        print("  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
+            entry = {
+                **s,
+                "ope_id": ope_id,
+                "status": status,
+                "task_hint": task_hint,
+                "linear_state": linear_state,
+                "has_commits": has_commits,
+            }
+
+            if status in ("DONE", "REVIEW", "DONE?"):
+                closed_sessions.append(entry)
+            else:
+                open_sessions.append(entry)
+
+        show_all = getattr(args, "show_all", False)
+
+        # Print open sessions (always shown)
+        if open_sessions:
+            print(f"{'#':<3} {'Last Active':<17} {'Status':<8} {'Session ID':<38} Task")
+            print("-" * 110)
+            for i, entry in enumerate(open_sessions, 1):
+                print(f"{i:<3} {entry['last_modified']:<17} {entry['status']:<8} {entry['session_id']:<38} {entry['task_hint']}")
+        else:
+            print("No open sessions found — all tasks appear completed.")
+
+        # Print closed/review sessions (summary only, unless --all)
+        if closed_sessions:
+            if show_all:
+                print(f"\n--- Completed/In Review ({len(closed_sessions)}) ---")
+                for entry in closed_sessions:
+                    state_tag = f"[{entry['linear_state']}]" if entry["linear_state"] else f"[{entry['status']}]"
+                    commits_tag = " +commits" if entry["has_commits"] else ""
+                    print(f"  {state_tag}{commits_tag}  {entry['session_id'][:8]}  {entry['task_hint']}")
+            else:
+                print(f"\n  Filtered out {len(closed_sessions)} completed session(s). Use --all to show them.")
+
+        if open_sessions:
+            print("\nRestore with: python3 scripts/sessions.py restore <session-id>")
+            print("  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
         return
 
     # Single session restore
@@ -5531,6 +5607,12 @@ def main() -> None:
         type=int,
         default=24,
         help="How far back to scan for sessions (default: 24h, used with --list)",
+    )
+    p_restore.add_argument(
+        "--all", "-a",
+        action="store_true",
+        dest="show_all",
+        help="Show completed/in-review sessions too (default: hidden)",
     )
 
     # task-show
