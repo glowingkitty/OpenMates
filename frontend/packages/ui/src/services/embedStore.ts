@@ -34,6 +34,15 @@ const embedCache = new Map<string, EmbedStoreEntry>();
 // In-memory cache for unwrapped embed keys (for performance)
 const embedKeyCache = new Map<string, Uint8Array>();
 
+// Cache chatId → SHA256(chatId) to avoid recomputing per-embed in unwrapChatKeyEntry().
+// Without this, resolving N embed keys across M chats requires N*M SHA256 operations.
+const chatIdHashCache = new Map<string, string>();
+
+// Negative cache for embed key lookups that returned null.
+// Prevents repeated IDB + SHA256 searches for embeds whose keys are genuinely missing.
+// Cleared when new embed keys are stored (storeEmbedKeys) so retries succeed after sync.
+const embedKeyNegativeCache = new Set<string>();
+
 // In-memory index: embed_ref (short slug) → { embedId, appId }.
 // Populated in handleSendEmbedDataImpl() when plaintext TOON arrives from the server.
 // NEVER persisted to IndexedDB — zero-knowledge compliant (slugs like "ryanair-0600"
@@ -514,11 +523,6 @@ export class EmbedStore {
 
     // Store in memory cache
     embedCache.set(contentRef, entry);
-    console.debug("[EmbedStore] ✅ Stored embed in memory cache:", contentRef, {
-      type,
-      dataLength: entry.data?.length || 0,
-      wasEncrypted: !!encryptedData,
-    });
 
     try {
       // Store in IndexedDB
@@ -615,10 +619,6 @@ export class EmbedStore {
             app_id: preExtractedMetadata.app_id,
             skill_id: preExtractedMetadata.skill_id,
           };
-          console.debug(
-            "[EmbedStore] Using pre-extracted app metadata:",
-            appMetadata,
-          );
         } else if (plaintextContent) {
           // Extract from plaintext content (preferred - no decryption needed)
           const decodedContent = await decodeToonContentLocal(plaintextContent);
@@ -632,10 +632,6 @@ export class EmbedStore {
                   ? decoded.skill_id
                   : undefined,
             };
-            console.debug(
-              "[EmbedStore] Extracted app metadata from plaintext content:",
-              appMetadata,
-            );
             // Also register embed_ref if present (covers finalization path)
             const embedRefPlain = decoded.embed_ref;
             if (typeof embedRefPlain === "string" && embedRefPlain) {
@@ -916,29 +912,9 @@ export class EmbedStore {
     if (entry.encrypted_content) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        console.debug(
-          "[EmbedStore] Attempting to decrypt encrypted_content for:",
-          embedId,
-          {
-            hasHashedChatId: !!entry.hashed_chat_id,
-            encryptedContentLength: entry.encrypted_content?.length || 0,
-            encryptedContentPreview:
-              entry.encrypted_content?.substring(0, 50) + "...",
-          },
-        );
-
         const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
-          console.debug(
-            "[EmbedStore] Found embed key, attempting decryption:",
-            {
-              embedId,
-              keyLength: embedKey.length,
-              encryptedContentLength: entry.encrypted_content.length,
-            },
-          );
-
           // Clean the base64 string before decryption (trim whitespace only).
           // NOTE: Do NOT apply decodeURIComponent here — encrypted base64 ciphertext
           // can contain '%XX' sequences (e.g. '%2F', '%3D') that decodeURIComponent
@@ -953,10 +929,6 @@ export class EmbedStore {
           );
           if (decryptedContent) {
             embed.content = decryptedContent;
-            console.debug(
-              "[EmbedStore] ✅ Successfully decrypted embed content from separate fields:",
-              embedId,
-            );
             // Re-register embed_ref → embed_id on reload/IDB read.
             // embed_ref is stored only inside the encrypted TOON content (zero-knowledge).
             // On page reload the in-memory embedRefToIdIndex is empty; we reconstruct it
@@ -972,9 +944,6 @@ export class EmbedStore {
                     embedId,
                     typeof appId === "string" ? appId : null,
                   );
-                  console.debug(
-                    `[EmbedStore] Re-registered embed_ref on IDB read: "${ref}" → ${embedId}`,
-                  );
                 }
               }
             } catch {
@@ -982,9 +951,6 @@ export class EmbedStore {
               // resolution; the embed itself will still display correctly.
             }
           } else {
-            console.warn(
-              `[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields - decryptWithEmbedKey returned null. embed_id=${embedId} field=encrypted_content`,
-            );
             embed._decryptionFailed = true;
             embed.status = "error";
             embed.content = null;
@@ -1000,12 +966,6 @@ export class EmbedStore {
             /* eslint-enable @typescript-eslint/no-explicit-any */
           }
         } else {
-          console.warn(
-            `[EmbedStore] No embed key found for separate fields format: embed_id=${embedId}`,
-            {
-              hashedChatId: entry.hashed_chat_id?.substring(0, 16) + "...",
-            },
-          );
           embed._decryptionFailed = true;
           embed.status = "error";
           embed.content = null;
@@ -1064,9 +1024,6 @@ export class EmbedStore {
                     ref,
                     embedId,
                     typeof appId === "string" ? appId : null,
-                  );
-                  console.debug(
-                    `[EmbedStore] Re-registered embed_ref (data-field path) on IDB read: "${ref}" → ${embedId}`,
                   );
                 }
               }
@@ -1152,13 +1109,8 @@ export class EmbedStore {
   async get(
     contentRef: string,
   ): Promise<Record<string, unknown> | string | undefined> {
-    console.debug("[EmbedStore] get() called for:", contentRef);
-
     // Check memory cache first
     let entry = embedCache.get(contentRef);
-    if (entry) {
-      console.debug("[EmbedStore] Found in memory cache:", contentRef);
-    }
 
     // If not in cache, try to load from IndexedDB
     if (!entry) {
@@ -1178,40 +1130,7 @@ export class EmbedStore {
         );
 
         if (entry) {
-          // Cache in memory for future access
           embedCache.set(contentRef, entry);
-          console.debug(
-            "[EmbedStore] Loaded embed from IndexedDB:",
-            contentRef,
-          );
-        } else {
-          // DEBUG: Log when embed is not found to help diagnose sync issues
-          console.warn(
-            "[EmbedStore] Embed not found in IndexedDB:",
-            contentRef,
-          );
-          // Try to list all embeds to see what's actually stored
-          try {
-            const allEntries = await new Promise<EmbedStoreEntry[]>(
-              (resolve, reject) => {
-                const request = store.getAll();
-                request.onsuccess = () => resolve(request.result || []);
-                request.onerror = () => reject(request.error);
-              },
-            );
-            console.debug(
-              "[EmbedStore] Total embeds in IndexedDB:",
-              allEntries.length,
-            );
-            if (allEntries.length > 0) {
-              console.debug(
-                "[EmbedStore] Sample embed keys:",
-                allEntries.slice(0, 5).map((e) => e.contentRef),
-              );
-            }
-          } catch (listError) {
-            console.warn("[EmbedStore] Failed to list embeds:", listError);
-          }
         }
       } catch (error) {
         if (
@@ -1238,10 +1157,6 @@ export class EmbedStore {
       entry.encrypted_content !== undefined ||
       (entry.embed_id && !entry.data)
     ) {
-      console.debug(
-        "[EmbedStore] Loading embed from new format (separate fields):",
-        contentRef,
-      );
       return await this.getFromSeparateFields(entry, contentRef);
     }
 
@@ -1374,19 +1289,6 @@ export class EmbedStore {
             );
 
             if (embedKey) {
-              // Decrypt content with embed key
-              console.debug("[EmbedStore] Attempting decrypt with embed key:", {
-                embedId,
-                keyLength: embedKey.length,
-                contentLength:
-                  typeof parsed.encrypted_content === "string"
-                    ? parsed.encrypted_content.length
-                    : 0,
-                contentPreview:
-                  typeof parsed.encrypted_content === "string"
-                    ? parsed.encrypted_content.substring(0, 50) + "..."
-                    : "N/A",
-              });
               const decryptedContent = await decryptWithEmbedKey(
                 parsed.encrypted_content as string,
                 embedKey,
@@ -1394,27 +1296,13 @@ export class EmbedStore {
               );
               if (decryptedContent) {
                 parsed.content = decryptedContent;
-                console.debug(
-                  "[EmbedStore] ✅ Successfully decrypted embed content with embed key:",
-                  embedId,
-                );
               } else {
-                console.warn(
-                  `[EmbedStore] ❌ Failed to decrypt encrypted_content with embed key - decrypt returned null: embed_id=${embedId} field=encrypted_content`,
-                );
                 decryptionFailed = true;
               }
             } else {
-              console.warn(
-                `[EmbedStore] No embed key found for: embed_id=${embedId} field=encrypted_content`,
-              );
               decryptionFailed = true;
             }
-          } catch (error) {
-            console.warn(
-              `[EmbedStore] Error decrypting encrypted_content field: embed_id=${embedIdForDecrypt} field=encrypted_content`,
-              error,
-            );
+          } catch {
             decryptionFailed = true;
           }
 
@@ -1423,11 +1311,7 @@ export class EmbedStore {
           if (decryptionFailed && !parsed.content) {
             parsed._decryptionFailed = true;
             parsed.status = "error";
-            // Provide minimal content to prevent crashes in TOON decoder
             parsed.content = null;
-            console.warn(
-              `[EmbedStore] Embed decryption failed, setting error status for: embed_id=${embedIdForDecrypt} contentRef=${contentRef}`,
-            );
           }
         }
       }
@@ -1455,10 +1339,6 @@ export class EmbedStore {
             if (decryptedType) {
               parsed.type = decryptedType;
               parsed.embed_type = decryptedType;
-              console.debug(
-                "[EmbedStore] Successfully decrypted embed type with embed key:",
-                embedIdForType,
-              );
             }
           }
           // If type decryption fails, use a default type to prevent crashes
@@ -1590,21 +1470,6 @@ export class EmbedStore {
     };
 
     embedCache.set(contentRef, entry);
-    console.info(
-      "[EmbedStore] 🔄 Set embed in memory cache only (not persisted):",
-      contentRef,
-      {
-        type: entry.type,
-        status: embedData.status,
-        skill_id: embedData.skill_id,
-        app_id: embedData.app_id,
-        query:
-          typeof embedData.query === "string"
-            ? embedData.query.substring(0, 30)
-            : undefined,
-        hasContent: !!embedData.content,
-      },
-    );
   }
 
   /**
@@ -1791,14 +1656,13 @@ export class EmbedStore {
     // Check cache first
     const cacheKey = `${normalizedEmbedId}:${hashedChatId || "master"}`;
     if (embedKeyCache.has(cacheKey)) {
-      const cachedKey = embedKeyCache.get(cacheKey)!;
-      console.debug(
-        "[EmbedStore] ✅ Found embed key in cache:",
-        normalizedEmbedId,
-        "cacheKey:",
-        cacheKey,
-      );
-      return cachedKey;
+      return embedKeyCache.get(cacheKey)!;
+    }
+
+    // Negative cache: skip the full IDB + SHA256 search for keys we already
+    // know are missing. Cleared when storeEmbedKeys() receives new keys.
+    if (embedKeyNegativeCache.has(cacheKey)) {
+      return null;
     }
 
     // Fallback: If hashedChatId was provided but cache lookup failed, try 'master' cache key
@@ -1806,12 +1670,7 @@ export class EmbedStore {
       const masterCacheKey = `${normalizedEmbedId}:master`;
       if (embedKeyCache.has(masterCacheKey)) {
         const masterKey = embedKeyCache.get(masterCacheKey)!;
-        // Also cache it with the hashedChatId for future lookups
         embedKeyCache.set(cacheKey, masterKey);
-        console.debug(
-          "[EmbedStore] Found embed key in master cache, also cached with hashedChatId:",
-          normalizedEmbedId,
-        );
         return masterKey;
       }
     }
@@ -1836,79 +1695,36 @@ export class EmbedStore {
         if (parentKey) {
           embedKeyCache.set(cacheKey, parentKey);
           embedKeyCache.set(`${normalizedEmbedId}:master`, parentKey);
-          console.debug(
-            "[EmbedStore] ✅ Reused parent embed key for child embed:",
-            normalizedEmbedId,
-            "parent:",
-            normalizedParentEmbedId,
-          );
           return parentKey;
         }
       }
-    } catch (error) {
-      console.debug(
-        "[EmbedStore] Child embed key fallback failed (will try direct keys):",
-        error,
-      );
+    } catch {
+      // Child embed key fallback failed — will try direct keys below
     }
 
     try {
       // Compute hashed_embed_id for lookup
       const hashedEmbedId = await computeSHA256(normalizedEmbedId);
-      console.debug(
-        "[EmbedStore] Looking up embed keys with hashedEmbedId:",
-        hashedEmbedId.substring(0, 16) + "...",
-        "for embedId:",
-        normalizedEmbedId,
-      );
 
       // Try to load embed keys from IndexedDB (ONLY for parent embeds)
       const keys = await this.getEmbedKeyEntries(hashedEmbedId);
 
       if (keys && keys.length > 0) {
-        console.debug(
-          "[EmbedStore] Found",
-          keys.length,
-          "embed key entries for:",
-          embedId,
-          "types:",
-          keys.map((k) => k.key_type),
-        );
-
         // Try master key first (for owner access)
         const masterKeyEntry = keys.find((k) => k.key_type === "master");
         if (masterKeyEntry) {
-          console.debug(
-            "[EmbedStore] Attempting master key unwrap for:",
-            embedId,
-          );
           const embedKey = await unwrapEmbedKeyWithMasterKey(
             masterKeyEntry.encrypted_embed_key,
             normalizedEmbedId,
           );
           if (embedKey) {
             embedKeyCache.set(cacheKey, embedKey);
-            console.debug(
-              "[EmbedStore] ✅ Unwrapped embed key with master key:",
-              embedId,
-            );
             return embedKey;
-          } else {
-            console.warn(
-              "[EmbedStore] ❌ Master key unwrap failed (returned null) for:",
-              embedId,
-            );
           }
-        } else {
-          console.debug("[EmbedStore] No master key entry found for:", embedId);
         }
 
         // If master key failed and we have a hashed_chat_id, try chat key
         if (hashedChatId) {
-          console.debug(
-            "[EmbedStore] Trying chat key unwrap with provided hashedChatId for:",
-            embedId,
-          );
           const chatKeyEntry = keys.find(
             (k) => k.key_type === "chat" && k.hashed_chat_id === hashedChatId,
           );
@@ -1919,33 +1735,13 @@ export class EmbedStore {
             );
             if (embedKey) {
               embedKeyCache.set(cacheKey, embedKey);
-              console.debug(
-                "[EmbedStore] ✅ Unwrapped embed key with chat key (matched hashedChatId):",
-                embedId,
-              );
               return embedKey;
-            } else {
-              console.warn(
-                "[EmbedStore] ❌ Chat key unwrap failed for:",
-                embedId,
-              );
             }
-          } else {
-            console.debug(
-              "[EmbedStore] No matching chat key entry for hashedChatId:",
-              hashedChatId?.substring(0, 16) + "...",
-            );
           }
         }
 
         // Try any available chat key entries as fallback
         const chatKeyEntries = keys.filter((k) => k.key_type === "chat");
-        console.debug(
-          "[EmbedStore] Trying",
-          chatKeyEntries.length,
-          "chat key entries as fallback for:",
-          embedId,
-        );
         for (const entry of chatKeyEntries) {
           const embedKey = await this.unwrapChatKeyEntry(
             entry,
@@ -1953,19 +1749,9 @@ export class EmbedStore {
           );
           if (embedKey) {
             embedKeyCache.set(cacheKey, embedKey);
-            console.debug(
-              "[EmbedStore] ✅ Unwrapped embed key with fallback chat key:",
-              embedId,
-              "keyLength:",
-              embedKey.length,
-            );
             return embedKey;
           }
         }
-        console.debug(
-          "[EmbedStore] All chat key fallback attempts failed for:",
-          embedId,
-        );
       }
 
       // No direct key found - this should not happen for child embeds (they're handled at the start)
@@ -1973,16 +1759,14 @@ export class EmbedStore {
 
       // Missing keys are expected during as-is sync (Phase 3) when embed keys
       // haven't been synced yet - use debug level to avoid log spam
-      console.debug(
-        "[EmbedStore] Could not unwrap embed key (no valid key wrapper found and no parent key available):",
-        embedId,
-      );
+      embedKeyNegativeCache.add(cacheKey);
       return null;
     } catch (error) {
       console.error(
         `[EmbedStore] Error getting embed key: embed_id=${normalizedEmbedId}`,
         error,
       );
+      embedKeyNegativeCache.add(cacheKey);
       return null;
     }
   }
@@ -2004,7 +1788,14 @@ export class EmbedStore {
     try {
       const allChats = await chatDB.getAllChats();
       for (const chat of allChats) {
-        const chatIdHash = await computeSHA256(chat.chat_id);
+        // Use cached hash to avoid O(n*m) SHA256 recomputation across embed keys.
+        // Without this cache, resolving 100 embed keys across 100 chats would
+        // require 10,000 async SHA256 operations.
+        let chatIdHash = chatIdHashCache.get(chat.chat_id);
+        if (!chatIdHash) {
+          chatIdHash = await computeSHA256(chat.chat_id);
+          chatIdHashCache.set(chat.chat_id, chatIdHash);
+        }
         if (chatIdHash === entry.hashed_chat_id) {
           const chatKey = await chatKeyManager.getKey(chat.chat_id);
           if (chatKey) {
@@ -2078,12 +1869,9 @@ export class EmbedStore {
   async storeEmbedKeys(entries: EmbedKeyEntry[]): Promise<void> {
     if (entries.length === 0) return;
 
-    // Count key types for logging
-    const masterKeys = entries.filter((e) => e.key_type === "master").length;
-    const chatKeys = entries.filter((e) => e.key_type === "chat").length;
-    console.debug(
-      `[EmbedStore] Storing ${entries.length} embed key entries (${masterKeys} master, ${chatKeys} chat)`,
-    );
+    // New keys arrived — clear negative cache so embeds that previously failed
+    // key lookup will retry and succeed now that keys are available.
+    embedKeyNegativeCache.clear();
 
     try {
       const transaction = await chatDB.getTransaction(
@@ -2103,7 +1891,7 @@ export class EmbedStore {
       }
 
       console.info(
-        `[EmbedStore] ✅ Successfully stored ${entries.length} embed key entries (${masterKeys} master, ${chatKeys} chat)`,
+        `[EmbedStore] Stored ${entries.length} embed key entries`,
       );
     } catch (error) {
       console.error("[EmbedStore] Failed to store embed keys:", error);
@@ -2156,6 +1944,8 @@ export class EmbedStore {
    */
   clearEmbedKeyCache(): void {
     embedKeyCache.clear();
+    chatIdHashCache.clear();
+    embedKeyNegativeCache.clear();
     console.debug("[EmbedStore] Cleared embed key cache");
   }
 

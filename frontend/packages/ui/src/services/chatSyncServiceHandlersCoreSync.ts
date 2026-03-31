@@ -37,8 +37,7 @@ export async function handleInitialSyncResponseImpl(
   payload: InitialSyncResponsePayload,
 ): Promise<void> {
   console.info(
-    "[ChatSyncService:CoreSync] Received initial_sync_response (delta_sync_data):",
-    payload,
+    `[ChatSyncService:CoreSync] Received initial_sync_response: ${payload.chats_to_add_or_update?.length || 0} chats to update, ${payload.chat_ids_to_delete?.length || 0} to delete`,
   );
   let transaction: IDBTransaction | null = null;
 
@@ -63,16 +62,17 @@ export async function handleInitialSyncResponseImpl(
           )
         : payload.chats_to_add_or_update;
 
-    // Process chats with async decryption
+    // Process chats with async decryption — aggregate errors instead of per-chat logging
+    let keyDecryptOk = 0;
+    let keyDecryptFail = 0;
+    let titleDecryptFail = 0;
+    let missingKey = 0;
+
     const chatsToUpdate: Chat[] = await Promise.all(
       chatsToProcess.map(async (serverChat) => {
         // Decrypt encrypted title from server for in-memory use using chat-specific key
         let cleartextTitle: string | null = null;
         if (serverChat.encrypted_title && serverChat.encrypted_chat_key) {
-          console.log(
-            `[CLIENT_DECRYPT] ✅ Chat ${serverChat.chat_id} has encrypted_chat_key: ` +
-              `${serverChat.encrypted_chat_key.substring(0, 20)}... (length: ${serverChat.encrypted_chat_key.length})`,
-          );
           // Decrypt the chat key from server — receiveKeyFromServer() bypasses
           // the immutability guard so the server key always wins over stale
           // bulk_init keys (fixes iPad Safari IDB-deletion-blocked scenario).
@@ -82,43 +82,22 @@ export async function handleInitialSyncResponseImpl(
           );
 
           if (chatKey) {
-            console.log(
-              `[CLIENT_DECRYPT] ✅ Decrypted and cached chat key for ${serverChat.chat_id} ` +
-                `(key length: ${chatKey.length} bytes)`,
-            );
-
-            // Now decrypt the title with the chat key
+            keyDecryptOk++;
             cleartextTitle = await decryptWithChatKey(
               serverChat.encrypted_title,
               chatKey,
             );
-            if (cleartextTitle) {
-              console.log(
-                `[CLIENT_DECRYPT] ✅ Successfully decrypted title for chat ${serverChat.chat_id}: "${cleartextTitle.substring(0, 50)}..."`,
-              );
-            } else {
-              console.warn(
-                `[CLIENT_DECRYPT] ❌ Failed to decrypt title for chat ${serverChat.chat_id}`,
-              );
-              cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+            if (!cleartextTitle) {
+              titleDecryptFail++;
+              cleartextTitle = serverChat.encrypted_title;
             }
           } else {
-            console.error(
-              `[CLIENT_DECRYPT] ❌ CRITICAL: Failed to decrypt chat key for chat ${serverChat.chat_id} - ` +
-                `chat will not be decryptable!`,
-            );
-            cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+            keyDecryptFail++;
+            cleartextTitle = serverChat.encrypted_title;
           }
         } else if (serverChat.encrypted_title) {
-          console.error(
-            `[CLIENT_DECRYPT] ❌ CRITICAL: Chat ${serverChat.chat_id} missing encrypted_chat_key - ` +
-              `cannot decrypt title or messages!`,
-          );
+          missingKey++;
           cleartextTitle = serverChat.encrypted_title;
-        } else {
-          console.warn(
-            `[CLIENT_DECRYPT] ⚠️ Chat ${serverChat.chat_id} has no encrypted_title or encrypted_chat_key`,
-          );
         }
 
         const chat: Chat = {
@@ -152,6 +131,17 @@ export async function handleInitialSyncResponseImpl(
         return chat;
       }),
     );
+
+    // Aggregate summary instead of per-chat logging (50 chats = 5 lines → 1 line)
+    if (keyDecryptFail > 0 || missingKey > 0) {
+      console.warn(
+        `[ChatSyncService:CoreSync] Chat key decrypt: ${keyDecryptOk} ok, ${keyDecryptFail} key-failed, ${titleDecryptFail} title-failed, ${missingKey} missing-key`,
+      );
+    } else {
+      console.info(
+        `[ChatSyncService:CoreSync] Decrypted ${keyDecryptOk} chat keys successfully`,
+      );
+    }
 
     const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(
       (chat) =>
@@ -553,42 +543,46 @@ export async function handlePhase1bChatContentImpl(
       }
     }
 
-    // Store embeds
+    // Store embeds — use batch write (single IDB transaction) instead of
+    // individual putEncrypted() calls. Matches the Phase 3 optimisation that
+    // reduced 1300-embed sync on iPhone Safari from ~15s to ~1s.
     if (payload.embeds && payload.embeds.length > 0) {
       try {
         const { embedStore } = await import("./embedStore");
-        for (const embed of payload.embeds) {
-          if (!embed.embed_id) continue;
-          if (embed.status === "error" || embed.status === "cancelled") continue;
+        const validEmbeds = payload.embeds.filter(
+          (embed) =>
+            embed.embed_id &&
+            embed.status !== "error" &&
+            embed.status !== "cancelled",
+        );
 
-          const contentRef = `embed:${embed.embed_id}`;
-          await embedStore.putEncrypted(
-            contentRef,
-            {
-              encrypted_content: embed.encrypted_content,
-              encrypted_type: embed.encrypted_type,
-              embed_id: embed.embed_id,
-              status: embed.status || "finished",
-              hashed_chat_id: embed.hashed_chat_id,
-              hashed_user_id: embed.hashed_user_id,
-              embed_ids: embed.embed_ids,
-              parent_embed_id: embed.parent_embed_id,
-              version_number: embed.version_number,
-              encrypted_diff: embed.encrypted_diff,
-              file_path: embed.file_path,
-              content_hash: embed.content_hash,
-              text_length_chars: embed.text_length_chars,
-              is_private: embed.is_private ?? false,
-              is_shared: embed.is_shared ?? false,
-              createdAt: embed.createdAt || embed.created_at,
-              updatedAt: embed.updatedAt || embed.updated_at,
-            },
-            (embed.encrypted_type
-              ? "app-skill-use"
-              : embed.embed_type || "app-skill-use") as EmbedType,
-            undefined,
-            undefined,
-            { skipMetadataExtraction: true },
+        if (validEmbeds.length > 0) {
+          await embedStore.putEncryptedBatch(
+            validEmbeds.map((embed) => ({
+              contentRef: `embed:${embed.embed_id}`,
+              data: {
+                encrypted_content: embed.encrypted_content,
+                encrypted_type: embed.encrypted_type,
+                embed_id: embed.embed_id,
+                status: embed.status || "finished",
+                hashed_chat_id: embed.hashed_chat_id,
+                hashed_user_id: embed.hashed_user_id,
+                embed_ids: embed.embed_ids,
+                parent_embed_id: embed.parent_embed_id,
+                version_number: embed.version_number,
+                encrypted_diff: embed.encrypted_diff,
+                file_path: embed.file_path,
+                content_hash: embed.content_hash,
+                text_length_chars: embed.text_length_chars,
+                is_private: embed.is_private ?? false,
+                is_shared: embed.is_shared ?? false,
+                createdAt: embed.createdAt || embed.created_at,
+                updatedAt: embed.updatedAt || embed.updated_at,
+              },
+              type: (embed.encrypted_type
+                ? "app-skill-use"
+                : embed.embed_type || "app-skill-use") as EmbedType,
+            })),
           );
         }
       } catch (e) {
@@ -640,8 +634,7 @@ export function handleCacheStatusResponseImpl(
   payload: CacheStatusResponsePayload,
 ): void {
   console.info(
-    "[ChatSyncService:CoreSync] Received 'cache_status_response':",
-    payload,
+    `[ChatSyncService:CoreSync] Received cache_status_response: primed=${payload.is_primed}, chats=${payload.chat_count}`,
   );
 
   // Validate required fields - no silent failures!

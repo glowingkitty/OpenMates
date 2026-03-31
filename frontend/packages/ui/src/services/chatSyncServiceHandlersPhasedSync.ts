@@ -186,7 +186,11 @@ export async function handlePhase3FullSyncImpl(
   serviceInstance: ChatSynchronizationService,
   payload: Phase3FullSyncPayload,
 ): Promise<void> {
-  console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const embedCount = (payload as any).embeds?.length || 0;
+  console.info(
+    `[ChatSyncService] Phase 3 complete: ${payload.chats?.length || 0} chats, ${embedCount} embeds`,
+  );
 
   try {
     // Phase3FullSyncPayload may have additional fields (embeds, embed_keys) not in the type definition
@@ -412,7 +416,7 @@ export async function handlePhasedSyncCompleteImpl(
   serviceInstance: ChatSynchronizationService,
   payload: PhasedSyncCompletePayload,
 ): Promise<void> {
-  console.log("[ChatSyncService] Phased sync complete:", payload);
+  console.info("[ChatSyncService] Phased sync complete");
 
   // CRITICAL: Clear the timeout since sync completed successfully
   // This prevents the synthetic timeout event from firing after real completion
@@ -438,7 +442,7 @@ export async function handleSyncStatusResponseImpl(
   serviceInstance: ChatSynchronizationService,
   payload: SyncStatusResponsePayload,
 ): Promise<void> {
-  console.log("[ChatSyncService] Sync status response:", payload);
+  console.info(`[ChatSyncService] Sync status: primed=${payload.is_primed}`);
 
   // Backend sends 'is_primed', not 'cache_primed'
   const { is_primed, chat_count, timestamp } = payload;
@@ -608,14 +612,7 @@ async function storeRecentChats(
         chatListCache.upsertChat(mergedChat);
 
         if (shouldSyncMessages && preparedMessages.length > 0) {
-          console.info(
-            `[CLIENT_SYNC] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
-              `(server v${serverMessagesV}, local v${localMessagesV})`,
-          );
           await chatDB.batchSaveMessages(preparedMessages);
-          console.log(
-            `[CLIENT_SYNC] ✅ Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`,
-          );
         }
         processedChatIds.add(chatId);
       } catch (saveError) {
@@ -692,23 +689,13 @@ async function storeAllChats(
 
       // Skip chats that are pending server deletion - do not re-add them
       if (pendingDeletions.has(chatId)) {
-        console.info(
-          `[ChatSyncService] Phase 3 - Skipping chat ${chatId}: pending server deletion`,
-        );
         continue;
       }
 
       // Skip chats already fully processed in Phase 2 (same server data, same merge result)
       if (phase2ChatIds?.has(chatId)) {
-        console.debug(
-          `[ChatSyncService] Phase 3 - Skipping chat ${chatId} (already processed in Phase 2)`,
-        );
         continue;
       }
-
-      console.debug(
-        `[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`,
-      );
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
@@ -757,11 +744,6 @@ async function storeAllChats(
       ) {
         const localMessageCount = await chatDB.getMessageCountForChat(chatId);
 
-        console.debug(
-          `[ChatSyncService] Phase 3 - Message count validation for chat ${chatId}: ` +
-            `server_count=${server_message_count}, local_count=${localMessageCount}`,
-        );
-
         // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
         if (localMessageCount < server_message_count) {
           console.warn(
@@ -802,24 +784,11 @@ async function storeAllChats(
         const localMessageCount = await chatDB.getMessageCountForChat(chatId);
         const serverMessageCount = messages?.length || 0;
 
-        console.debug(
-          `[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}, serverCount=${serverMessageCount}`,
-        );
-
         if (localMessageCount === serverMessageCount && localMessageCount > 0) {
           shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message counts match (${localMessageCount})`,
-          );
         } else if (localMessageCount === 0 && serverMessageCount === 0) {
           shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Skipping message sync for chat ${chatId} - no messages on server or client`,
-          );
         } else {
-          console.debug(
-            `[ChatSyncService] Message count mismatch for chat ${chatId}: local=${localMessageCount}, server=${serverMessageCount}. Syncing to fix...`,
-          );
           if (existingChat) {
             mergedChat.messages_v = serverMessagesV;
           }
@@ -836,9 +805,6 @@ async function storeAllChats(
       try {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
-        console.debug(
-          `[ChatSyncService] Phase 3 - Saved chat ${chatId} to IndexedDB`,
-        );
 
         if (shouldSyncMessages && messages && messages.length > 0) {
           const preparedMessages = prepareMessagesForStorage(
@@ -848,14 +814,7 @@ async function storeAllChats(
           );
 
           if (preparedMessages.length > 0) {
-            console.log(
-              `[CLIENT_SYNC] Phase 3 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
-                `(server v${serverMessagesV}, local v${localMessagesV})`,
-            );
             await chatDB.batchSaveMessages(preparedMessages);
-            console.log(
-              `[CLIENT_SYNC] ✅ Phase 3 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`,
-            );
           }
         }
       } catch (saveError) {
