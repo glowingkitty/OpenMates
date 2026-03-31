@@ -194,6 +194,12 @@ async function sendMessageAndGetModel(
 	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
 
+	// Wait for substantive content before checking for generated-by
+	await expect(async () => {
+		const msgText = await assistantMessage.textContent();
+		expect((msgText || '').trim().length).toBeGreaterThan(5);
+	}).toPass({ timeout: 60000, intervals: [2000, 3000, 5000] });
+
 	const generatedByElement = assistantMessage.getByTestId('generated-by');
 	await expect(generatedByElement).toBeVisible({ timeout: 90000 });
 	logCheckpoint('Response complete - generated-by element visible.');
@@ -261,6 +267,11 @@ test('change default model to Mistral Small, verify it is used, then switch back
 		await toggleWrapper.click();
 		logCheckpoint('Toggled auto-select OFF.');
 		await page.waitForTimeout(1000);
+
+		// Verify the toggle actually changed state (checkbox should now be unchecked)
+		const isNowOff = await toggleInput.evaluate((el: HTMLInputElement) => !el.checked);
+		logCheckpoint(`Toggle state after click: ${isNowOff ? 'OFF (expected)' : 'still ON (unexpected)'}`);
+		expect(isNowOff).toBe(true);
 	}
 
 	await takeStepScreenshot(page, '02-auto-select-off');
@@ -271,9 +282,16 @@ test('change default model to Mistral Small, verify it is used, then switch back
 	await expect(noChangeNotification).toHaveCount(0);
 	logCheckpoint('No notification after toggling auto-select OFF with unchanged values (expected).');
 
-	// The model dropdowns should now be visible
-	const simpleDropdown = aiAskSettings.locator('#default-simple-select');
-	await expect(simpleDropdown).toBeVisible({ timeout: 5000 });
+	// The model dropdowns should now be visible.
+	// Use page-level locator (not scoped through settingsMenu chain) to avoid issues
+	// if the .visible class on the settings menu flickers during Svelte re-render.
+	// Also scroll into view since the dropdowns render below the toggle and may be
+	// below the settings panel fold.
+	const simpleDropdown = page.locator('#default-simple-select');
+	// Wait for the {#if} block to render the select element
+	await expect(simpleDropdown).toBeAttached({ timeout: 10000 });
+	await simpleDropdown.scrollIntoViewIfNeeded();
+	await expect(simpleDropdown).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Simple requests dropdown is visible.');
 
 	// Select "Mistral Small" in the Simple requests dropdown.

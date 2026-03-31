@@ -4719,8 +4719,23 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     # Determine session name
     session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
 
-    # Determine permission mode
+    # Determine mode and prepend behavioral instructions to the prompt
     permission_mode = args.mode or "plan"
+    if permission_mode == "plan":
+        mode_prefix = (
+            "IMPORTANT: This is a PLAN-ONLY session. "
+            "You MUST NOT edit, write, or create any files. "
+            "Only read, search, and analyze code. "
+            "Present your findings and proposed fix as a summary — do not implement it.\n\n"
+        )
+    else:
+        mode_prefix = (
+            "IMPORTANT: This is an EXECUTE session. "
+            "You have full access to read, edit, and create files. "
+            "Investigate the issue and implement the fix directly. "
+            "Use sessions.py deploy to commit and push when done.\n\n"
+        )
+    prompt = mode_prefix + prompt
 
     try:
         from _zellij_utils import spawn_claude_session
@@ -4739,7 +4754,7 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
     )
 
     if success:
-        mode_label = "execute (full access)" if permission_mode == "execute" else "plan (read-only)"
+        mode_label = "execute (full access, skip-permissions)" if permission_mode == "execute" else "plan (research only, skip-permissions)"
         print(f"Session spawned: {session_name}")
         print(f"Mode: {mode_label}")
         print(f"Attach: zellij attach {session_name}")

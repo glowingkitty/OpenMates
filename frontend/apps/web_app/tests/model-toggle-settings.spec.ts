@@ -172,7 +172,8 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 
 		// Ensure the model starts as enabled (if not, toggle it on first)
 		if (!wasEnabled) {
-			const toggleWrapper = firstModelItem.getByTestId('model-toggle').locator('[role="button"]').first();
+			// model-toggle div itself has role="button" and onclick — click it directly
+			const toggleWrapper = firstModelItem.getByTestId('model-toggle');
 			await toggleWrapper.click();
 			logCheckpoint('Pre-toggled model ON so we can test disabling it.');
 			await page.waitForTimeout(1000);
@@ -181,7 +182,8 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await takeStepScreenshot(page, '03-before-toggle');
 
 		// ── Step 4: Toggle the model OFF ───────────────────────────────
-		const toggleWrapper = firstModelItem.getByTestId('model-toggle').locator('[role="button"]').first();
+		// model-toggle div itself has role="button" and onclick — click it directly
+		const toggleWrapper = firstModelItem.getByTestId('model-toggle');
 		await toggleWrapper.click();
 		logCheckpoint('Toggled model OFF.');
 		await page.waitForTimeout(1000);
@@ -218,7 +220,8 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await takeStepScreenshot(page, '05-persisted-off');
 
 		// ── Step 6: Cleanup — toggle the model back ON ────────────────
-		const cleanupToggle = targetModelAfter.getByTestId('model-toggle').locator('[role="button"]').first();
+		// model-toggle div itself has role="button" and onclick — click it directly
+		const cleanupToggle = targetModelAfter.getByTestId('model-toggle');
 		await cleanupToggle.click();
 		logCheckpoint('Cleanup: toggled model back ON.');
 		await page.waitForTimeout(1000);

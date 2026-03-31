@@ -298,8 +298,9 @@ def spawn_claude_session(
         session_name: Display name for the Zellij session (will be sanitized).
         prompt: The prompt text to send to Claude (passed as positional arg).
         cwd: Working directory for the Claude session.
-        permission_mode: "plan" for read-only (default) or "execute" for
-                         full edit access (--dangerously-skip-permissions).
+        permission_mode: "plan" or "execute". Both use --dangerously-skip-permissions
+                         since Zellij sessions cannot switch permission modes interactively.
+                         Plan vs execute behavior is enforced via prompt instructions.
 
     Returns True if the session was created, False otherwise.
     """
@@ -317,11 +318,9 @@ def spawn_claude_session(
                     print(f"Warning: Zellij session '{session_name}' already exists.", file=sys.stderr)
                     return False
 
-    # Build KDL layout — Claude with prompt as positional arg
-    if permission_mode == "execute":
-        args_line = '        args "--dangerously-skip-permissions" '
-    else:
-        args_line = '        args "--permission-mode" "plan" '
+    # Build KDL layout — always skip permissions (Zellij can't switch modes)
+    # Plan vs execute behavior is enforced via prompt instructions instead
+    args_line = '        args "--dangerously-skip-permissions" '
 
     # Escape double quotes in the prompt for KDL string
     escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
