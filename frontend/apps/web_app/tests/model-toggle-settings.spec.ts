@@ -152,7 +152,7 @@ async function closeSettings(page: any, logFn: (msg: string) => void): Promise<v
 // ─── Test ────────────────────────────────────────────────────────────────────
 
 test.describe('Model toggle persistence (OPE-53)', () => {
-	test.describe.configure({ timeout: 120000 });
+	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('disabling a model persists after closing and re-opening settings', async ({ page }) => {
@@ -218,14 +218,23 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		logCheckpoint('Model item has disabled class.');
 		await takeStepScreenshot(page, '04-toggled-off');
 
-		// ── Step 5: Close settings, re-open, verify persistence ───────
-		await closeSettings(page, logCheckpoint);
-		await page.waitForTimeout(1000);
+		// ── Step 5: Reload page and verify persistence ──────────────
+		// A full page reload is a stronger persistence test than close/reopen —
+		// it forces IndexedDB reads and confirms the toggle was actually saved.
+		logCheckpoint('Reloading page to verify persistence...');
+		await page.reload({ waitUntil: 'networkidle' });
+		await page.waitForTimeout(2000);
+
+		// Wait for the app to re-authenticate and load
+		const authSignal = page.locator('[data-authenticated="true"]');
+		await expect(authSignal).toBeVisible({ timeout: 20000 });
+		logCheckpoint('Page reloaded, authenticated.');
 
 		await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '05');
 
 		// Re-locate the model by name (DOM was destroyed and recreated)
-		const modelItemsAfter = settingsMenu.getByTestId('ai-ask-settings').getByTestId('model-item');
+		const settingsMenuAfter = page.locator('[data-testid="settings-menu"].visible');
+		const modelItemsAfter = settingsMenuAfter.getByTestId('ai-ask-settings').getByTestId('model-item');
 		const targetModelAfter = modelItemsAfter.filter({ hasText: modelName! });
 		await expect(targetModelAfter).toBeVisible({ timeout: 5000 });
 
