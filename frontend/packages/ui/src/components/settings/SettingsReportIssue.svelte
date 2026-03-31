@@ -27,23 +27,9 @@
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { userProfile } from '../../stores/userProfile';
-    import SettingsItem from '../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
 
-    /**
-     * Navigate to the Share Debug Logs sub-page.
-     * Available to authenticated users for temporary log sharing.
-     */
-    function navigateToShareDebugLogs() {
-        dispatch('openSettings', {
-            settingsPath: 'report_issue/share-debug-logs',
-            direction: 'forward',
-            icon: 'report_issue',
-            title: $text('settings.report_issue.share_debug_logs_title')
-        });
-    }
-    
     // Form state
     let issueTitle = $state('');  // "Short description" — multi-line, mandatory
     // Structured description fields — all three are optional.
@@ -93,7 +79,6 @@
     });
     
     // Input references for warnings
-    let userFlowInput = $state<HTMLTextAreaElement>();
     let emailInput = $state<HTMLInputElement>();
     
     // Validation state (description fields are all optional, no per-field errors needed)
@@ -1894,20 +1879,6 @@
         </div>
     </div>
 
-    <!-- Share Debug Logs — intentionally below the form so users discover it after scrolling -->
-    {#if $authStore.isAuthenticated}
-        <div class="share-debug-logs-settings-section">
-            <SettingsItem
-                type="submenu"
-                icon="report_issue"
-                title={$text('settings.report_issue.share_debug_logs_title')}
-                onClick={navigateToShareDebugLogs}
-            />
-            {#if isAdminUser}
-                <p class="share-debug-logs-admin-note">{$text('settings.report_issue.share_debug_logs_admin_notice')}</p>
-            {/if}
-        </div>
-    {/if}
 </div>
 
 <style>
@@ -1921,17 +1892,6 @@
         gap: 16px;
     }
 
-    .share-debug-logs-settings-section {
-        margin-top: 20px;
-    }
-
-    .share-debug-logs-admin-note {
-        margin: 8px 4px 0;
-        font-size: 12px;
-        line-height: 1.4;
-        color: var(--color-font-secondary, #666);
-    }
-    
     .input-group {
         display: flex;
         flex-direction: column;

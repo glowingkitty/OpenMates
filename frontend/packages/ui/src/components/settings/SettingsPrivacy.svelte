@@ -65,6 +65,22 @@ Based on Figma design: settings/privacy (node 1895:20576)
     }
 
     /**
+     * Navigate to the "Share Debug Logs" sub-page where users can temporarily
+     * share browser console logs with the support team.
+     */
+    function navigateToShareDebugLogs() {
+        dispatch('openSettings', {
+            settingsPath: 'privacy/share-debug-logs',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.privacy.share_debug_logs_title')
+        });
+    }
+
+    /** Admin check for the debug logs admin notice. */
+    let isAdminUser = $derived($userProfile.is_admin === true);
+
+    /**
      * Navigate to the auto-deletion editing sub-page for a specific category.
      */
     function navigateToAutoDeletion(category: string) {
@@ -198,5 +214,18 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <div class="settings-note">
     <p>{$text('settings.privacy.debug_logging_never_collected')}</p>
 </div>
+
+<!-- Share Debug Logs — temporary log sharing with support team -->
+<SettingsItem
+    type="submenu"
+    icon="log"
+    title={$text('settings.privacy.share_debug_logs_title')}
+    onClick={navigateToShareDebugLogs}
+/>
+{#if isAdminUser}
+    <div class="settings-note">
+        <p>{$text('settings.privacy.share_debug_logs_admin_notice')}</p>
+    </div>
+{/if}
 
 <!-- All styles moved to global settings.css: .settings-description, .settings-gradient-link, .settings-note -->

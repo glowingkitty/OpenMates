@@ -36,6 +36,7 @@ import SettingsAddBirthday from "./privacy/SettingsAddBirthday.svelte";
 import SettingsAddCustomEntry from "./privacy/SettingsAddCustomEntry.svelte";
 import EditPersonalDataEntryWrapper from "./privacy/EditPersonalDataEntryWrapper.svelte";
 import SettingsAutoDeletion from "./privacy/SettingsAutoDeletion.svelte";
+import SettingsShareDebugLogs from "./SettingsShareDebugLogs.svelte";
 
 // Account & Security
 import SettingsAccount from "./SettingsAccount.svelte";
@@ -101,7 +102,6 @@ import SettingsSupportMonthly from "./support/SettingsSupportMonthly.svelte";
 import SettingsNewsletter from "./SettingsNewsletter.svelte";
 import SettingsReportIssue from "./SettingsReportIssue.svelte";
 import SettingsReportIssueConfirmation from "./SettingsReportIssueConfirmation.svelte";
-import SettingsShareDebugLogs from "./SettingsShareDebugLogs.svelte";
 
 // Developers
 import SettingsDevelopers from "./SettingsDevelopers.svelte";
@@ -160,6 +160,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "privacy/auto-deletion/chats": SettingsAutoDeletion,
   "privacy/auto-deletion/files": SettingsAutoDeletion,
   "privacy/auto-deletion/usage_data": SettingsAutoDeletion,
+  "privacy/share-debug-logs": SettingsShareDebugLogs,
   // App Store
   app_store: SettingsAppStore,
   "app_store/all": SettingsAllApps,
@@ -240,7 +241,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Report Issue
   report_issue: SettingsReportIssue,
   "report_issue/confirmation": SettingsReportIssueConfirmation,
-  "report_issue/share-debug-logs": SettingsShareDebugLogs,
 };
 
 /**

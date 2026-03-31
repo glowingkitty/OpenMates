@@ -2446,6 +2446,54 @@ debug_logging_toggle_label:
   sv: Aktivera detaljerad felsökningsloggning
   he: אפשר רישום ניפוי שגיאות מפורט
   verified_by_human: []
+share_debug_logs_title:
+  context: Label for the privacy sub-setting that opens temporary debug log sharing controls
+  en: Share Debug Logs
+  de: Debug-Protokolle teilen
+  zh: 分享调试日志
+  es: Compartir registros de depuración
+  fr: Partager les journaux de débogage
+  pt: Compartilhar logs de depuração
+  ru: Поделиться журналами отладки
+  ja: デバッグログを共有
+  ko: 디버그 로그 공유
+  it: Condividi i log di debug
+  tr: Hata ayıklama günlüklerini paylaş
+  vi: Chia sẻ nhật ký gỡ lỗi
+  id: Bagikan log debug
+  pl: Udostępnij logi debugowania
+  nl: Debuglogboeken delen
+  ar: مشاركة سجلات التصحيح
+  hi: डिबग लॉग साझा करें
+  th: แชร์บันทึกดีบัก
+  cs: Sdílet ladicí protokoly
+  sv: Dela felsökningsloggar
+  he: שיתוף יומני דיבאג
+  verified_by_human: []
+share_debug_logs_admin_notice:
+  context: Helper text shown to admins under the Share Debug Logs sub-setting in privacy settings
+  en: You are an admin. Therefore your debug logs are automatically shared already. Regular users can turn on/off debug logs sharing here.
+  de: Sie sind Administrator. Daher werden Ihre Debug-Protokolle bereits automatisch geteilt. Normale Nutzer können die Freigabe von Debug-Protokollen hier ein- und ausschalten.
+  zh: 您是管理员，因此您的调试日志已自动共享。普通用户可以在此开启或关闭调试日志共享。
+  es: Eres administrador. Por ello, tus registros de depuración ya se comparten automáticamente. Los usuarios normales pueden activar o desactivar aquí el uso compartido de registros de depuración.
+  fr: Vous êtes administrateur. Vos journaux de débogage sont donc déjà partagés automatiquement. Les utilisateurs réguliers peuvent activer ou désactiver ici le partage des journaux de débogage.
+  pt: Você é administrador. Portanto, seus logs de depuração já são compartilhados automaticamente. Usuários regulares podem ativar ou desativar aqui o compartilhamento de logs de depuração.
+  ru: Вы администратор. Поэтому ваши журналы отладки уже автоматически передаются. Обычные пользователи могут включать или выключать передачу журналов отладки здесь.
+  ja: あなたは管理者です。そのため、あなたのデバッグログはすでに自動的に共有されています。通常ユーザーはここでデバッグログ共有のオン/オフを切り替えられます。
+  ko: 귀하는 관리자입니다. 따라서 디버그 로그는 이미 자동으로 공유됩니다. 일반 사용자는 여기에서 디버그 로그 공유를 켜거나 끌 수 있습니다.
+  it: Sei un amministratore. Pertanto i tuoi log di debug sono già condivisi automaticamente. Gli utenti normali possono attivare o disattivare qui la condivisione dei log di debug.
+  tr: Siz bir yöneticisiniz. Bu nedenle hata ayıklama günlükleriniz zaten otomatik olarak paylaşılır. Normal kullanıcılar hata ayıklama günlüğü paylaşımını burada açıp kapatabilir.
+  vi: Bạn là quản trị viên. Vì vậy nhật ký gỡ lỗi của bạn đã được tự động chia sẻ. Người dùng thông thường có thể bật hoặc tắt chia sẻ nhật ký gỡ lỗi tại đây.
+  id: Anda adalah admin. Karena itu, log debug Anda sudah otomatis dibagikan. Pengguna biasa dapat menyalakan atau mematikan berbagi log debug di sini.
+  pl: Jesteś administratorem. Dlatego Twoje logi debugowania są już automatycznie udostępniane. Zwykli użytkownicy mogą tutaj włączać lub wyłączać udostępnianie logów debugowania.
+  nl: Je bent een beheerder. Daarom worden je debuglogboeken al automatisch gedeeld. Gewone gebruikers kunnen hier het delen van debuglogboeken in- of uitschakelen.
+  ar: أنت مسؤول، لذلك تتم مشاركة سجلات التصحيح الخاصة بك تلقائيًا بالفعل. يمكن للمستخدمين العاديين تشغيل أو إيقاف مشاركة سجلات التصحيح هنا.
+  hi: आप एक एडमिन हैं। इसलिए आपके डिबग लॉग पहले से ही स्वचालित रूप से साझा किए जाते हैं। सामान्य उपयोगकर्ता यहां डिबग लॉग साझा करना चालू/बंद कर सकते हैं।
+  th: คุณเป็นผู้ดูแลระบบ ดังนั้นบันทึกดีบักของคุณจึงถูกแชร์โดยอัตโนมัติอยู่แล้ว ผู้ใช้ทั่วไปสามารถเปิดหรือปิดการแชร์บันทึกดีบักได้ที่นี่
+  cs: Jste administrátor. Proto jsou vaše ladicí protokoly již automaticky sdíleny. Běžní uživatelé zde mohou sdílení ladicích protokolů zapnout nebo vypnout.
+  sv: Du är administratör. Därför delas dina felsökningsloggar redan automatiskt. Vanliga användare kan slå på eller av delning av felsökningsloggar här.
+  he: אתה מנהל מערכת, ולכן יומני הדיבאג שלך כבר משותפים אוטומטית. משתמשים רגילים יכולים להפעיל או לכבות כאן את שיתוף יומני הדיבאג.
+  verified_by_human: []
 auth.description:
   context: Description shown in the identity verification modal before editing a personal data entry
   en: To protect your private data, please confirm your identity before editing.
