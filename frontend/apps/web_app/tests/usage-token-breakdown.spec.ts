@@ -46,12 +46,12 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
-// Use slot 1 — needs a reliable account with credits for AI inference.
+// Default test account — needs credits for AI inference.
 const {
 	email: TEST_EMAIL,
 	password: TEST_PASSWORD,
 	otpKey: TEST_OTP_KEY
-} = getTestAccount(1);
+} = getTestAccount();
 
 test.describe('Usage Token Breakdown', () => {
 	test.beforeEach(async ({ page }, testInfo) => {
