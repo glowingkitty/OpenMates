@@ -125,7 +125,7 @@ class WebSocketService extends EventTarget {
   private pingIntervalId: NodeJS.Timeout | null = null;
   private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
-  private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
+  private readonly PONG_TIMEOUT = 10000; // 10 seconds to wait for pong (5s was too aggressive for dev server)
   private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
   private hasEverConnected = false; // Tracks whether a WebSocket connection was ever established (suppresses initial network change event)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
@@ -535,6 +535,9 @@ class WebSocketService extends EventTarget {
           }
           try {
             const rawMessage = JSON.parse(event.data as string);
+            // Track activity on every incoming message (including pong) so the
+            // pong-timeout "recent activity" check works during idle periods.
+            this.lastActivityTimestamp = Date.now();
             // Only log if not ping/pong
             if (rawMessage.type !== "ping" && rawMessage.type !== "pong") {
               console.debug(

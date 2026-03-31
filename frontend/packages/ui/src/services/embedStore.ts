@@ -1786,7 +1786,10 @@ export class EmbedStore {
     }
 
     try {
-      const allChats = await chatDB.getAllChats();
+      // OPE-216: Prefer in-memory cache to avoid redundant IDB reads.
+      const { chatListCache } = await import("./chatListCache");
+      const allChats =
+        chatListCache.getCache() ?? (await chatDB.getAllChats());
       for (const chat of allChats) {
         // Use cached hash to avoid O(n*m) SHA256 recomputation across embed keys.
         // Without this cache, resolving 100 embed keys across 100 chats would
