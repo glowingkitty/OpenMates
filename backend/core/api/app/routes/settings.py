@@ -2555,16 +2555,51 @@ async def report_issue(
         else:
             logger.info("Issue report submitted by non-authenticated user")
         
-        # SECURITY: Sanitize user inputs to prevent XSS attacks
-        # HTML escape title and description to prevent injection of malicious HTML/JavaScript
-        sanitized_title = escape(issue_data.title.strip())
+        # SECURITY: Two-layer sanitization before any processing
+        # Layer 1: Remove invisible Unicode characters (ASCII smuggling protection)
+        # This runs BEFORE html.escape() so hidden characters don't bypass XSS filtering
+        from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+
+        raw_title = issue_data.title.strip()
+        ascii_cleaned_title, title_ascii_stats = sanitize_text_for_ascii_smuggling(
+            raw_title, log_prefix="[report_issue/title] ", include_stats=True
+        )
+        if title_ascii_stats.get("removed_count", 0) > 0:
+            logger.warning(
+                f"[report_issue] ASCII smuggling chars removed from title: "
+                f"{title_ascii_stats['removed_count']} chars "
+                f"(hidden_ascii={title_ascii_stats.get('hidden_ascii_detected', False)})"
+            )
+
+        raw_description = issue_data.description.strip() if issue_data.description else None
+        ascii_cleaned_description = None
+        description_ascii_suspicious = False
+        if raw_description:
+            ascii_cleaned_description, desc_ascii_stats = sanitize_text_for_ascii_smuggling(
+                raw_description, log_prefix="[report_issue/description] ", include_stats=True
+            )
+            if desc_ascii_stats.get("removed_count", 0) > 0:
+                logger.warning(
+                    f"[report_issue] ASCII smuggling chars removed from description: "
+                    f"{desc_ascii_stats['removed_count']} chars "
+                    f"(hidden_ascii={desc_ascii_stats.get('hidden_ascii_detected', False)})"
+                )
+            description_ascii_suspicious = desc_ascii_stats.get("hidden_ascii_detected", False)
+
+        # Track whether ASCII smuggling was detected (used to flag the Linear issue)
+        ascii_smuggling_detected = (
+            title_ascii_stats.get("hidden_ascii_detected", False) or description_ascii_suspicious
+        )
+
+        # Layer 2: HTML escape to prevent XSS attacks
+        sanitized_title = escape(ascii_cleaned_title)
         
         # Add '(Admin): ' prefix to title if reported by an admin user
         if is_from_admin and not sanitized_title.startswith("(Admin): "):
             sanitized_title = f"(Admin): {sanitized_title}"
         
         # Description is optional - only sanitize if provided
-        sanitized_description = escape(issue_data.description.strip()) if issue_data.description else None
+        sanitized_description = escape(ascii_cleaned_description) if ascii_cleaned_description else None
         
         # SECURITY: Validate and sanitize URL if provided
         sanitized_url = None
@@ -2952,6 +2987,7 @@ async def report_issue(
                     "chat_or_embed_url": sanitized_url,
                     "is_from_admin": is_from_admin,
                     "contact_email": sanitized_email if sanitized_email else None,
+                    "ascii_smuggling_detected": ascii_smuggling_detected,
                 },
                 queue='email'
             )
