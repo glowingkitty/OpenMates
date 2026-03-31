@@ -55,7 +55,7 @@ const {
 
 test.describe('Usage Token Breakdown', () => {
 	test.beforeEach(async ({ page }, testInfo) => {
-		skipWithoutCredentials(testInfo);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		attachConsoleListeners(page, testInfo);
 		attachNetworkListeners(page, testInfo);
 	});
