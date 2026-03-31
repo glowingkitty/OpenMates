@@ -79,10 +79,10 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Message sent, waiting for AI response');
 
 		// Wait for AI response to complete (final message appears)
-		const aiResponse = page.locator('[data-testid="chat-message"][data-role="assistant"]').last();
+		const aiResponse = page.getByTestId('message-assistant').last();
 		await expect(aiResponse).toBeVisible({ timeout: 60000 });
 		// Wait for the response to finish streaming (status becomes synced)
-		await page.waitForTimeout(3000);
+		await page.waitForTimeout(5000);
 		logStep('AI response received');
 		await takeScreenshot(page, 'ai-response-received');
 
