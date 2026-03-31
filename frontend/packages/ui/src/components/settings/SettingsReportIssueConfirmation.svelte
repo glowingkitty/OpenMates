@@ -147,12 +147,13 @@
         max-width: 360px;
         border-radius: var(--border-radius-md, 6px);
         padding: 12px 16px;
+        background: var(--color-grey-10);
     }
 
     .issue-id-label {
         font-size: 12px;
         font-weight: 500;
-        color: var(--color-font-secondary);
+        color: var(--color-grey-100);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -168,7 +169,7 @@
     .issue-id-value {
         font-family: monospace;
         font-size: 13px;
-        color: var(--color-font-primary);
+        color: var(--color-grey-100);
         word-break: break-all;
     }
 
