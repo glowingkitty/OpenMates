@@ -77,6 +77,35 @@ EOF
 
 echo "[OK] Created linear-archive.service + linear-archive.timer"
 
+# --- 3. Session Cleanup Service + Timer (every 5 minutes) ---
+
+cat > "$SYSTEMD_DIR/session-cleanup.service" << EOF
+[Unit]
+Description=OpenMates Stale Session Cleanup
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$PROJECT_ROOT
+EnvironmentFile=$PROJECT_ROOT/.env
+ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/session-cleanup.py
+EOF
+
+cat > "$SYSTEMD_DIR/session-cleanup.timer" << EOF
+[Unit]
+Description=Clean stale Claude sessions every 5 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+echo "[OK] Created session-cleanup.service + session-cleanup.timer"
+
 # --- Reload and enable ---
 
 systemctl --user daemon-reload
@@ -88,6 +117,9 @@ echo "[OK] linear-poller.service enabled and started"
 systemctl --user enable --now linear-archive.timer
 echo "[OK] linear-archive.timer enabled and started"
 
+systemctl --user enable --now session-cleanup.timer
+echo "[OK] session-cleanup.timer enabled and started"
+
 echo ""
 echo "=== Service Status ==="
 echo ""
@@ -97,4 +129,7 @@ echo ""
 echo "--- linear-archive.timer ---"
 systemctl --user status linear-archive.timer --no-pager || true
 echo ""
-echo "Done. Both services are running."
+echo "--- session-cleanup.timer ---"
+systemctl --user status session-cleanup.timer --no-pager || true
+echo ""
+echo "Done. All services are running."

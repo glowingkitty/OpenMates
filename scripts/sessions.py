@@ -2594,9 +2594,11 @@ def cmd_status(args: argparse.Namespace) -> None:
             writing_str = f" WRITING: {writing}" if writing else ""
             linked_task = info.get("task_id")
             task_str = f" [task: {linked_task}]" if linked_task else ""
+            linear_id = info.get("linear_issue_id")
+            linear_str = f" [{linear_id}]" if linear_id else ""
             print(
                 f"  [{sid}] {info.get('task', '?')} "
-                f"(modified: {mod_count} files){task_str}{writing_str}"
+                f"(modified: {mod_count} files){task_str}{linear_str}{writing_str}"
             )
             if info.get("modified_files"):
                 for f in info["modified_files"]:
@@ -4735,7 +4737,52 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Investigate the issue and implement the fix directly. "
             "Use sessions.py deploy to commit and push when done.\n\n"
         )
-    prompt = mode_prefix + prompt
+
+    # Handle Linear issue linking
+    linear_issue_id = getattr(args, "linear_issue", None)
+    linear_suffix = ""
+    if linear_issue_id:
+        try:
+            scripts_dir = str(PROJECT_ROOT / "scripts")
+            if scripts_dir not in sys.path:
+                sys.path.insert(0, scripts_dir)
+            from _linear_client import get_issue, update_issue_status, add_label, post_comment
+            issue_data = get_issue(linear_issue_id)
+            if issue_data:
+                # Mark In Progress + add claude-is-working label
+                update_issue_status(issue_data["id"], "In Progress")
+                add_label(issue_data["id"], issue_data.get("label_ids", []))
+                # Post pickup comment
+                post_comment(
+                    issue_data["id"],
+                    f"**Claude session started:** `{session_name}`\n\n"
+                    f"**Mode:** {permission_mode}\n"
+                    f"**Attach:** `zellij attach {session_name}`\n"
+                    f"**Web UI:** http://localhost:8082"
+                )
+                print(f"Linear: {linear_issue_id} → In Progress + claude-is-working")
+
+                # Build Linear MCP instructions for the prompt
+                linear_suffix = (
+                    f"\n\nLINEAR TASK TRACKING (REQUIRED):\n"
+                    f"This session is linked to Linear issue {issue_data['identifier']}.\n"
+                    f"Use the Linear MCP tools to keep the task updated:\n"
+                    f"- Post SHORT progress comments (1-2 lines) on significant milestones:\n"
+                    f'  mcp__linear__save_comment with issueId: "{issue_data["identifier"]}" and body: "your update"\n'
+                    f"- Good examples: 'Found root cause in file.ts:245 — race condition on X'\n"
+                    f"  or 'Fix deployed: commit abc123, updated key derivation'\n"
+                    f"- At END: update status via mcp__linear__save_issue with\n"
+                    f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
+                    f"  and post a final comment with resume commands:\n"
+                    f"  zellij attach {session_name}\n"
+                    f"  claude --resume <your-session-id>\n"
+                )
+            else:
+                print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Linear integration failed: {e}", file=sys.stderr)
+
+    prompt = mode_prefix + prompt + linear_suffix
 
     try:
         from _zellij_utils import spawn_claude_session
