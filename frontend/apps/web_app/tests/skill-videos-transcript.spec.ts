@@ -142,7 +142,7 @@ test.describe('App: Videos / Skill: get_transcript', () => {
 		await sendMessage(
 			page,
 			withLiveMockMarker(
-				`Summarize the transcript of this YouTube video: ${TEST_VIDEO_URL}`,
+				`Get the transcript of this video: ${TEST_VIDEO_URL}`,
 				'videos_transcript_web'
 			),
 			logCheckpoint, takeStepScreenshot, 'videos-transcript'
