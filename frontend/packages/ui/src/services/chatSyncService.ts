@@ -71,6 +71,10 @@ export class ChatSynchronizationService extends EventTarget {
   private webSocketConnected = false;
   private cachePrimed = false;
   private initialSyncAttempted = false;
+  // Tracks whether a full phased sync has ever completed this session.
+  // When true, reconnects skip the full re-sync and only re-verify cache status.
+  // Reset on logout/forced-logout — NOT on transient WS disconnects.
+  private hasCompletedInitialSync = false;
   private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
@@ -218,11 +222,12 @@ export class ChatSynchronizationService extends EventTarget {
         }
       } else {
         console.warn(
-          "[ChatSyncService] WebSocket disconnected or error. Resetting sync state.",
+          "[ChatSyncService] WebSocket disconnected or error.",
+          { hasCompletedInitialSync: this.hasCompletedInitialSync },
         );
-        this.cachePrimed = false;
+
+        // Always clear in-progress sync state
         this.isSyncing = false;
-        this.initialSyncAttempted = false;
         if (this.cacheStatusRequestTimeout) {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
@@ -231,16 +236,38 @@ export class ChatSynchronizationService extends EventTarget {
         // Clear cache status retry polling to prevent stale retries after reconnect
         this.clearCacheStatusRetry();
 
-        // CRITICAL: Reset phased sync state on disconnect so that when the device
-        // reconnects (especially after a long sleep/offline period), a fresh sync
-        // cycle runs properly. Without this reset, stale flags like initialSyncCompleted,
-        // initialChatLoaded, and userMadeExplicitChoice could persist across reconnections
-        // and prevent Phase 1 auto-selection or skip the sync entirely.
-        phasedSyncState.reset();
-
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
         this.clearPhasedSyncTimeout();
+
+        // During logout, always do a full reset so the next login starts fresh.
+        const isLoggingOutNow =
+          get(forcedLogoutInProgress) || get(isLoggingOut);
+
+        if (this.hasCompletedInitialSync && !isLoggingOutNow) {
+          // SHORT DISCONNECT (pong timeout, brief network blip): Sync already completed
+          // this session. Keep cachePrimed and initialSyncAttempted so reconnect skips
+          // a redundant full phased sync. The reconnect path (connected=true) will
+          // re-verify cache status and only re-sync if the server cache went cold.
+          console.info(
+            "[ChatSyncService] Preserving sync state — initial sync already completed this session.",
+          );
+        } else {
+          // Reset hasCompletedInitialSync on logout so re-login does a full sync.
+          if (isLoggingOutNow) {
+            this.hasCompletedInitialSync = false;
+          }
+          // FIRST CONNECT or PRE-SYNC DISCONNECT: Full reset so the next connect
+          // starts a fresh sync cycle.
+          this.cachePrimed = false;
+          this.initialSyncAttempted = false;
+          // Reset phased sync state on disconnect so that when the device reconnects
+          // (especially after a long sleep/offline period), a fresh sync cycle runs
+          // properly. Without this reset, stale flags like initialSyncCompleted,
+          // initialChatLoaded, and userMadeExplicitChoice could persist and prevent
+          // Phase 1 auto-selection or skip the sync entirely.
+          phasedSyncState.reset();
+        }
 
         // Start periodic retry for pending messages when connection is lost
         // This ensures messages are automatically retried every few seconds.
@@ -1146,6 +1173,10 @@ export class ChatSynchronizationService extends EventTarget {
   public set initialSyncAttempted_FOR_HANDLERS_ONLY(value: boolean) {
     this.initialSyncAttempted = value;
   }
+  /** Mark that a full phased sync completed this session. Reconnects will skip re-sync. */
+  public markInitialSyncCompleted(): void {
+    this.hasCompletedInitialSync = true;
+  }
   public get serverChatOrder_FOR_HANDLERS_ONLY(): string[] {
     return this.serverChatOrder;
   }
@@ -1788,6 +1819,12 @@ export class ChatSynchronizationService extends EventTarget {
     // event listener missed the event. The component handler is idempotent
     // (calling markSyncCompleted twice is harmless).
     phasedSyncState.markSyncCompleted();
+
+    // OPE-216: Also mark initial sync as completed so reconnects skip re-sync.
+    // Skip for logout-in-progress — we want a fresh sync after re-login.
+    if (reason !== "logout-in-progress") {
+      this.hasCompletedInitialSync = true;
+    }
 
     // Dispatch the event so +page.svelte and Chats.svelte can update local UI state
     this.dispatchEvent(
