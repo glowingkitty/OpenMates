@@ -86,16 +86,57 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('AI response received');
 		await takeScreenshot(page, 'ai-response-received');
 
-		// Step 3: Navigate to usage detail via deep-link
-		// The &usage parameter triggers auto-selection of the latest usage entry
-		await page.evaluate(() => {
-			window.location.hash = '#settings/billing&usage';
-		});
-		logStep('Navigating to billing/usage via deep-link');
+		// Step 3: Navigate to billing settings via UI
+		const settingsToggle = page.locator('#settings-menu-toggle');
+		await expect(settingsToggle).toBeVisible({ timeout: 10000 });
+		await settingsToggle.click();
+		logStep('Opened settings menu');
 
-		// Wait for the usage detail view to appear (auto-selected by &usage deep-link)
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 8000 });
+
+		// Wait for menu items to load
+		await expect(
+			settingsMenu.locator('[data-testid="menu-item"][role="menuitem"]').first()
+		).toBeVisible({ timeout: 15000 });
+
+		// Click billing
+		const billingItem = settingsMenu
+			.locator('[data-testid="menu-item"][role="menuitem"]')
+			.filter({ hasText: /billing/i });
+		await expect(billingItem).toBeVisible({ timeout: 10000 });
+		await billingItem.click();
+		logStep('Navigated to Billing');
+		await takeScreenshot(page, 'billing-page');
+
+		// Wait for usage overview to load (the "Usage" section in billing)
+		// The overview shows daily items — wait for at least one entry to appear
+		await page.waitForTimeout(3000); // Allow API fetch to complete
+
+		// Click the first usage item in the overview (most recent chat)
+		// These are SettingsItem components rendered as clickable menu items
+		const usageSection = settingsMenu.locator('.usage-overview-section, .overview-section').first();
+		// The daily overview items are rendered as SettingsItem with onClick
+		// Find the first clickable entry after the "Usage" heading
+		const firstUsageEntry = settingsMenu
+			.locator('[data-testid="menu-item"][role="menuitem"]')
+			.filter({ hasText: /request/ })
+			.first();
+		await expect(firstUsageEntry).toBeVisible({ timeout: 15000 });
+		await firstUsageEntry.click();
+		logStep('Clicked first usage entry (drill into chat entries)');
+		await takeScreenshot(page, 'chat-entries-list');
+
+		// Wait for chat entries to load, then click the first entry to see detail
+		await page.waitForTimeout(2000);
+		const firstChatEntry = settingsMenu.locator('button.detail-entry.clickable').first();
+		await expect(firstChatEntry).toBeVisible({ timeout: 10000 });
+		await firstChatEntry.click();
+		logStep('Clicked first chat entry to see detail view');
+
+		// Wait for usage detail view to appear
 		const usageDetailView = page.getByTestId('usage-detail-view');
-		await expect(usageDetailView).toBeVisible({ timeout: 30000 });
+		await expect(usageDetailView).toBeVisible({ timeout: 10000 });
 		logStep('Usage detail view is visible');
 		await takeScreenshot(page, 'usage-detail-view');
 
