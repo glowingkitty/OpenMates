@@ -281,6 +281,8 @@ shared/cache/pending_orders_backup.json
 scripts/.*
 scripts/dependabot-processed.json
 scripts/dependabot-processed.json.bak
+scripts/eu-vuln-processed.json
+scripts/eu-vuln-processed.json.tmp
 
 # Test output artifacts
 backend/tests/output/

@@ -11,21 +11,9 @@ Your job: summarize yesterday's work and nightly job results into a compact repo
 
 {{GIT_LOG}}
 
-### Dependabot State
+### Nightly Job Reports
 
-{{DEPENDABOT_STATE}}
-
-### Dead Code Removal State
-
-{{DEAD_CODE_STATE}}
-
-### Security Audit State
-
-{{SECURITY_STATE}}
-
-### Codebase Audit State
-
-{{AUDIT_STATE}}
+{{NIGHTLY_REPORTS}}
 
 ### Session Quality (Workflow Review)
 
@@ -50,11 +38,10 @@ Produce a structured work report in markdown. Use this exact format:
 <!-- Total commit count. -->
 
 ### Nightly Job Results
-<!-- For each job that ran: 1-line status summary -->
-- **Dependabot:** X open alerts (Y critical, Z high). N resolved recently.
-- **Dead Code:** N items removed / N items found.
-- **Security Audit:** [last run date] — key findings or "clean"
-- **Codebase Audit:** [last run date] — key findings or "clean"
+<!-- For EACH job in the nightly reports: 1-line status summary -->
+<!-- Include ALL jobs — dependabot, dead-code, security-audit, red-teaming, -->
+<!-- codebase-audit, deploy-checker, docker-cleanup, session-cleanup, etc. -->
+<!-- If a job has security_disclosure info, highlight it clearly. -->
 
 ### User-Reported Issues
 <!-- Count + brief per-issue summary (id, title, 1-line description). -->
