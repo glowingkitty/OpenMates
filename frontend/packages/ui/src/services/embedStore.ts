@@ -2553,13 +2553,6 @@ export class EmbedStore {
     // up the new appId — e.g. EmbedInlineLink components that rendered in
     // grey because this ref wasn't registered yet at their initial render time.
     embedRefIndexVersion.update((n) => n + 1);
-    console.debug(
-      "[EmbedStore] Registered embed_ref → { embedId, appId }:",
-      embedRef,
-      "→",
-      embedId,
-      appId ? `(appId: ${appId})` : "(no appId)",
-    );
   }
 
   /**
