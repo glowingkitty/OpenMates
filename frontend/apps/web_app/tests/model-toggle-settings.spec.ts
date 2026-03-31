@@ -58,12 +58,23 @@ async function navigateToAiAskSettings(
 	takeStepScreenshot: (page: any, label: string) => Promise<void>,
 	stepLabel: string
 ): Promise<void> {
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	await settingsToggle.click();
+	// Dismiss any overlays (notifications, tooltips) that might block clicks
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
 
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	// Only click the settings toggle if the menu isn't already open
+	const settingsMenu = page.getByTestId('settings-menu');
+	const alreadyOpen = await settingsMenu.isVisible().catch(() => false);
+	if (!alreadyOpen) {
+		const settingsToggle = page.locator('#settings-menu-toggle');
+		await expect(settingsToggle).toBeVisible({ timeout: 10000 });
+		await settingsToggle.click({ timeout: 10000 });
+	} else {
+		logFn('Settings menu already open, skipping toggle click.');
+	}
+
+	const settingsMenuVisible = page.locator('[data-testid="settings-menu"].visible');
+	await expect(settingsMenuVisible).toBeVisible({ timeout: 10000 });
 	logFn('Opened settings menu.');
 	await page.waitForTimeout(800);
 
@@ -116,16 +127,25 @@ async function navigateToAiAskSettings(
 
 /**
  * Close the settings panel.
+ * Uses data-testid only (not the .visible CSS class) to avoid false negatives
+ * when Svelte re-renders cause the class to flicker after model toggle interactions.
  */
 async function closeSettings(page: any, logFn: (msg: string) => void): Promise<void> {
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	const isOpen = await settingsMenu.isVisible().catch(() => false);
+	// Check if the settings content is visible (more reliable than .visible CSS class)
+	const settingsContent = page.getByTestId('settings-menu');
+	const isOpen = await settingsContent.isVisible().catch(() => false);
 
 	if (isOpen) {
 		const settingsToggle = page.locator('#settings-menu-toggle');
-		await settingsToggle.click();
+		// Dismiss any potential overlays (notifications, tooltips) before clicking
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(300);
+		await settingsToggle.click({ timeout: 10000 });
 		logFn('Closed settings.');
-		await page.waitForTimeout(500);
+		// Wait for close animation to complete
+		await page.waitForTimeout(800);
+	} else {
+		logFn('Settings already closed (not detected as open).');
 	}
 }
 
