@@ -200,11 +200,9 @@ _backup
 
 # Deployment configuration
 # Allow template/example files, but ignore environment-specific overrides
-deployment/dev_server
-deployment/prod_server
+*.tf
+deployment/prod_server/prod-cloud-config.yaml
 
-# Preview server Caddyfile (keep Caddyfile.example, ignore actual config)
-backend/preview/Caddyfile
 # Legacy .deployment directory (kept for backward compatibility, but gitignored)
 .deployment
 
@@ -297,3 +295,4 @@ backend/tests/output/
 .claude/memory/
 .claude/tasks/
 .claude/backlog.json
+
