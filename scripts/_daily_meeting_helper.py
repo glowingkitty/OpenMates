@@ -25,7 +25,7 @@ Data sources:
     E. check-file-sizes.sh --ci         — subprocess
     F. Nightly job state files          — file reads
     G. Workflow review (session quality) — import from _workflow_review_helper
-    H. User-reported issues             — import from _issues_checker
+    H. User-reported issues             — docker exec debug_issue.py (Vault key)
     I. Linear tasks                     — gathered by linear subagent (MCP)
     J. Milestone state                  — file read (.planning/)
 
@@ -418,22 +418,61 @@ def gather_session_quality(yesterday: str) -> str:
 
 
 def gather_user_issues(project_root: str) -> str:
-    """Source H: user-reported issues from admin debug API."""
+    """Source H: user-reported issues via debug_issue.py inside Docker.
+
+    Runs inside the api container so it has Vault access for the admin API key.
+    Uses --list --json for structured output, then formats for the subagent.
+    """
+    cmd = [
+        "docker", "exec", "api", "python",
+        "/app/backend/scripts/debug_issue.py",
+        "--list", "--json", "--list-limit", "15",
+    ]
     try:
-        from _issues_checker import fetch_open_issues, get_admin_api_key
-        admin_key = get_admin_api_key(project_root)
-        if not admin_key:
-            return "[DATA UNAVAILABLE: user issues — admin API key not configured]"
-        issues = fetch_open_issues(admin_key, lookback_hours=24)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            stderr = result.stderr.strip()[:300]
+            return f"[DATA UNAVAILABLE: user issues — docker exec exit code {result.returncode}: {stderr}]"
+
+        output = result.stdout.strip()
+        if not output:
+            return "No user-reported issues in the last 24h."
+
+        data = json.loads(output)
+        issues = data.get("issues", [])
         if not issues:
             return "No user-reported issues in the last 24h."
+
+        # Filter to last 24h
+        since_dt = datetime.now(timezone.utc) - timedelta(hours=24)
         lines = []
-        for issue in issues[:15]:
+        for issue in issues:
+            # Check age — skip issues older than 24h
+            created_str = issue.get("created_at") or issue.get("timestamp", "")
+            if created_str:
+                try:
+                    created_clean = str(created_str).replace("Z", "+00:00")
+                    created_at = datetime.fromisoformat(created_clean)
+                    if created_at < since_dt:
+                        continue
+                except (ValueError, TypeError):
+                    pass  # Include if unparseable (conservative)
+
             issue_id = issue.get("id", "?")
-            title = issue.get("title", "(no title)")
-            desc = (issue.get("description", "") or "")[:200]
+            title = issue.get("title") or issue.get("decrypted", {}).get("title", "(no title)")
+            desc = (issue.get("description") or issue.get("decrypted", {}).get("description", "") or "")[:200]
             lines.append(f"- **{issue_id}**: {title}\n  {desc}")
+
+        if not lines:
+            return "No user-reported issues in the last 24h."
         return "\n".join(lines)
+
+    except subprocess.TimeoutExpired:
+        return "[DATA UNAVAILABLE: user issues — docker exec timed out after 30s]"
+    except json.JSONDecodeError as e:
+        return f"[DATA UNAVAILABLE: user issues — invalid JSON from debug_issue.py: {e}]"
     except Exception as e:
         return f"[DATA UNAVAILABLE: user issues — {e}]"
 
