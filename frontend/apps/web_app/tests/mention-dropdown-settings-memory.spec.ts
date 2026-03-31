@@ -256,52 +256,23 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// The form generates inputs for each non-auto_generated property based on the field name
 	// For "destination" field: id="destination", placeholder="City or country"
 	// For "start_date" field: id="start_date", placeholder="Start date (YYYY-MM-DD)"
-	// Find by label text first (most reliable)
-	const destinationLabel = settingsMenu.locator('label[for="destination"]').first();
-	const startDateLabel = settingsMenu.locator('label[for="start_date"]').first();
+	// The component uses SettingsSectionHeading (not <label>) so detect form by input#destination directly
+	const destInput = settingsMenu.locator('#destination').first();
+	await expect(destInput).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Schema-based form detected via #destination input.');
 
-	const hasSchemaForm = await destinationLabel.isVisible({ timeout: 5000 }).catch(() => false);
-	logCheckpoint(`Schema-based form visible: ${hasSchemaForm}`);
+	// Fill destination
+	await destInput.fill(TRIP_DESTINATION);
+	logCheckpoint(`Filled destination: "${TRIP_DESTINATION}"`);
 
-	if (hasSchemaForm) {
-		// Fill destination
-		const destInput = settingsMenu.locator('#destination').first();
-		await expect(destInput).toBeVisible({ timeout: 5000 });
-		await destInput.fill(TRIP_DESTINATION);
-		logCheckpoint(`Filled destination: "${TRIP_DESTINATION}"`);
-
-		// Fill start_date
-		const startDateVisible = await startDateLabel.isVisible({ timeout: 3000 }).catch(() => false);
-		if (startDateVisible) {
-			const sdInput = settingsMenu.locator('#start_date').first();
-			await sdInput.fill(TRIP_START_DATE);
-			logCheckpoint(`Filled start_date: "${TRIP_START_DATE}"`);
-		} else {
-			logCheckpoint('start_date field not visible, skipping.');
-		}
+	// Fill start_date
+	const sdInput = settingsMenu.locator('#start_date').first();
+	const startDateVisible = await sdInput.isVisible({ timeout: 3000 }).catch(() => false);
+	if (startDateVisible) {
+		await sdInput.fill(TRIP_START_DATE);
+		logCheckpoint(`Filled start_date: "${TRIP_START_DATE}"`);
 	} else {
-		// Fallback: try finding any visible text input in the form area
-		logCheckpoint('Schema form not visible, looking for any visible input...');
-
-		// Dump page content for debugging
-		const formContent = await settingsMenu
-			.locator('[data-testid="form-container"], [data-testid="app-settings-memories-create"]')
-			.first()
-			.textContent()
-			.catch(() => 'not found');
-		logCheckpoint(`Form container content: ${formContent?.substring(0, 200)}`);
-
-		// Try to find inputs by placeholder
-		const allInputs = settingsMenu.locator('input[type="text"], input:not([type])');
-		const inputCount = await allInputs.count();
-		logCheckpoint(`Found ${inputCount} text inputs in settings menu`);
-
-		if (inputCount > 0) {
-			await allInputs.first().fill(TRIP_DESTINATION);
-			logCheckpoint(`Filled first available input with: "${TRIP_DESTINATION}"`);
-		} else {
-			throw new Error('No input fields found in the trip creation form');
-		}
+		logCheckpoint('start_date field not visible, skipping.');
 	}
 
 	await takeStepScreenshot(page, 'trip-form-filled');
@@ -311,53 +282,16 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	// ======================================================================
 	logCheckpoint('Submitting the trip creation form...');
 
-	// The create form has a submit button with text "Add entry" or "Creating..."
+	// The create form has a button.create-btn with text "Add entry" (from i18n common.add_entry)
+	// The form footer is <div class="form-footer"> (no data-testid), button class is "create-btn"
 	const submitButton = settingsMenu
-		.locator('button[type="submit"], .create-button, .save-button')
-		.filter({ hasText: /add entry|create|save/i })
+		.locator('button.create-btn, button.create-button')
+		.filter({ hasText: /add entry|create/i })
 		.first();
 
-	// Alternatively, look for any button in the form-actions area
-	const formActions = settingsMenu.locator('[data-testid="form-actions"] button').last();
-
-	const submitVisible = await submitButton.isVisible({ timeout: 3000 }).catch(() => false);
-	const formActionsVisible = await formActions.isVisible({ timeout: 3000 }).catch(() => false);
-
-	logCheckpoint(
-		`Submit button visible: ${submitVisible}, Form actions button visible: ${formActionsVisible}`
-	);
-
-	if (submitVisible) {
-		await submitButton.click();
-		logCheckpoint('Clicked submit button.');
-	} else if (formActionsVisible) {
-		await formActions.click();
-		logCheckpoint('Clicked form actions last button.');
-	} else {
-		// Fallback: look for any button containing "add" or "create"
-		const anyAddButton = settingsMenu
-			.locator('button')
-			.filter({ hasText: /add entry|add|create/i })
-			.last();
-		const anyAddVisible = await anyAddButton.isVisible({ timeout: 3000 }).catch(() => false);
-		if (anyAddVisible) {
-			await anyAddButton.click();
-			logCheckpoint('Clicked fallback add button.');
-		} else {
-			// Dump all buttons for debugging
-			const allButtons = settingsMenu.locator('button');
-			const buttonCount = await allButtons.count();
-			logCheckpoint(`Found ${buttonCount} buttons total`);
-			for (let i = 0; i < Math.min(buttonCount, 10); i++) {
-				const btnText = await allButtons
-					.nth(i)
-					.textContent()
-					.catch(() => '');
-				logCheckpoint(`  Button ${i}: "${btnText?.trim()}"`);
-			}
-			throw new Error('Could not find a submit button for the trip creation form');
-		}
-	}
+	await expect(submitButton).toBeVisible({ timeout: 5000 });
+	await submitButton.click();
+	logCheckpoint('Clicked create/submit button.');
 
 	// Wait for navigation back to the trips category page
 	await page.waitForTimeout(2000);
