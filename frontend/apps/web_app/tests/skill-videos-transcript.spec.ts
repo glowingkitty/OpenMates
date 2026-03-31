@@ -40,6 +40,13 @@ const {
 
 /** Short, stable YouTube video used across all phases. */
 const TEST_VIDEO_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+/**
+ * URL wrapped in backticks for web UI tests.
+ * TipTap auto-embeds bare YouTube URLs as video previews, which the AI
+ * sees as an embed reference instead of a plain URL. Backtick-wrapping
+ * renders the URL as inline code, preserving it as readable text.
+ */
+const TEST_VIDEO_URL_CODE = '`' + TEST_VIDEO_URL + '`';
 
 test.describe('App: Videos / Skill: get_transcript', () => {
 	test.setTimeout(120_000);
@@ -142,7 +149,7 @@ test.describe('App: Videos / Skill: get_transcript', () => {
 		await sendMessage(
 			page,
 			withLiveMockMarker(
-				`Get the transcript of this video: ${TEST_VIDEO_URL}`,
+				`Get the transcript of this video: ${TEST_VIDEO_URL_CODE}`,
 				'videos_transcript_web'
 			),
 			logCheckpoint, takeStepScreenshot, 'videos-transcript'
