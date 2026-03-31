@@ -174,6 +174,50 @@ def run_in_session(
         return False
 
 
+def launch_in_session(
+    session_name: str,
+    command: List[str],
+    cwd: str,
+) -> bool:
+    """
+    Launch a command inside a Zellij session without blocking.
+
+    Unlike run_in_session(), this returns immediately and the pane stays
+    alive after the command finishes. Used for interactive sessions where
+    the user can attach later.
+
+    Returns True if launched, False otherwise.
+    """
+    session_name = _sanitize_session_name(session_name)
+    inner_cmd = f"cd {shlex.quote(cwd)} && {shlex.join(command)}"
+
+    args = [
+        "run",
+        "--name", session_name,
+        "--cwd", cwd,
+        "--",
+        "sh", "-c", inner_cmd,
+    ]
+
+    env = os.environ.copy()
+    env["ZELLIJ_SESSION_NAME"] = session_name
+
+    try:
+        subprocess.Popen(
+            [ZELLIJ_BIN] + args,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except FileNotFoundError:
+        print("Warning: zellij binary not found — skipping.", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Warning: Zellij launch failed: {e}", file=sys.stderr)
+        return False
+
+
 def kill_session(session_name: str) -> bool:
     """
     Kill (destroy) a Zellij session by name.

@@ -463,11 +463,12 @@ export async function handleNewChatMessageImpl(
         (payload.encrypted_title || payload.encrypted_category)
       ) {
         try {
-          const chatKey = await decryptChatKeyWithMasterKey(
+          // Use receiveKeyFromServer() so server key wins over stale bulk_init keys
+          const chatKey = await chatKeyManager.receiveKeyFromServer(
+            payload.chat_id,
             payload.encrypted_chat_key,
           );
           if (chatKey) {
-            chatDB.setChatKey(payload.chat_id, chatKey);
             // Flush any regular messages and system messages queued before this key was available
             await flushPendingMessagesForChat(payload.chat_id);
             await flushPendingSystemMessagesForChat(payload.chat_id);
@@ -520,11 +521,11 @@ export async function handleNewChatMessageImpl(
       // KEYS-04: getKeySync acceptable here -- guard prevents redundant key decryption (key establishment, not content decrypt)
       if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
         try {
-          const chatKey = await decryptChatKeyWithMasterKey(
+          const chatKey = await chatKeyManager.receiveKeyFromServer(
+            payload.chat_id,
             payload.encrypted_chat_key,
           );
           if (chatKey) {
-            chatDB.setChatKey(payload.chat_id, chatKey);
             // Flush any regular messages and system messages queued before this key was set
             await flushPendingMessagesForChat(payload.chat_id);
             await flushPendingSystemMessagesForChat(payload.chat_id);
@@ -560,11 +561,11 @@ export async function handleNewChatMessageImpl(
     ) {
       // Existing chat without cached key - try to decrypt and cache for immediate encryption
       try {
-        const chatKey = await decryptChatKeyWithMasterKey(
+        const chatKey = await chatKeyManager.receiveKeyFromServer(
+          payload.chat_id,
           payload.encrypted_chat_key,
         );
         if (chatKey) {
-          chatDB.setChatKey(payload.chat_id, chatKey);
           console.info(
             `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for existing chat ${payload.chat_id}`,
           );
@@ -1565,9 +1566,11 @@ export async function handleEncryptedChatMetadataImpl(
         // another device). Decrypt the key, cache it, and flush any messages that were
         // queued while waiting for this key to arrive.
         try {
-          const rawKey = await decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
+          const rawKey = await chatKeyManager.receiveKeyFromServer(
+            payload.chat_id,
+            payload.encrypted_chat_key,
+          );
           if (rawKey) {
-            chatDB.setChatKey(payload.chat_id, rawKey);
             console.info(
               `[ChatSyncService:ChatUpdates] First-time key delivery for chat ${payload.chat_id} — ` +
                 `decrypted and cached key, flushing pending messages`,

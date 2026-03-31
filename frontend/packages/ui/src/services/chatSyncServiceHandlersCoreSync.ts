@@ -3,7 +3,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
-import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
+
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
@@ -73,14 +73,15 @@ export async function handleInitialSyncResponseImpl(
             `[CLIENT_DECRYPT] ✅ Chat ${serverChat.chat_id} has encrypted_chat_key: ` +
               `${serverChat.encrypted_chat_key.substring(0, 20)}... (length: ${serverChat.encrypted_chat_key.length})`,
           );
-          // First, decrypt the chat key from encrypted_chat_key using master key
-          const chatKey = await decryptChatKeyWithMasterKey(
+          // Decrypt the chat key from server — receiveKeyFromServer() bypasses
+          // the immutability guard so the server key always wins over stale
+          // bulk_init keys (fixes iPad Safari IDB-deletion-blocked scenario).
+          const chatKey = await chatKeyManager.receiveKeyFromServer(
+            serverChat.chat_id,
             serverChat.encrypted_chat_key,
           );
 
           if (chatKey) {
-            // Cache the decrypted chat key for future use
-            chatDB.setChatKey(serverChat.chat_id, chatKey);
             console.log(
               `[CLIENT_DECRYPT] ✅ Decrypted and cached chat key for ${serverChat.chat_id} ` +
                 `(key length: ${chatKey.length} bytes)`,
@@ -350,8 +351,10 @@ export async function handlePhase1LastChatImpl(
       try {
         let chatKey = await chatKeyManager.getKey(chat.chat_id);
         if (!chatKey && chat.encrypted_chat_key) {
-          chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-          if (chatKey) chatDB.setChatKey(chat.chat_id, chatKey);
+          chatKey = await chatKeyManager.receiveKeyFromServer(
+            chat.chat_id,
+            chat.encrypted_chat_key,
+          );
         }
         if (chatKey) {
           if (chat.encrypted_title) {

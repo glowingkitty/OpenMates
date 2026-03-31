@@ -377,6 +377,7 @@ def process_alerts() -> None:
         timeout=1800,
         job_type="dependabot",
         context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
+        kill_on_exit=True,  # fully automated — no review needed
     )
 
 

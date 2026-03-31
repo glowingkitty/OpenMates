@@ -142,6 +142,7 @@ def run_claude_session(
     use_zellij=True,
     linear_task=True,
     linear_mode="feature",
+    kill_on_exit=False,
 ):
     """
     Run a Claude Code session, writing the prompt to a temp file to avoid the
@@ -169,6 +170,9 @@ def run_claude_session(
                      status on completion (default: True).
         linear_mode: Session mode for Linear title prefix — one of
                      "feature", "bug", "docs", "question", "testing".
+        kill_on_exit: Destroy the Zellij session after the command completes
+                      (default: False). Use for fully automated jobs like
+                      dependabot where no review is needed.
 
     Returns:
         (returncode: int, session_id: str | None)
@@ -269,7 +273,7 @@ def run_claude_session(
 
         if zellij_session_name:
             try:
-                from _zellij_utils import run_in_session, kill_session
+                from _zellij_utils import run_in_session
 
                 output_file = str(tmp_dir / f"claude-output-{timestamp}-{pid}.json")
 
@@ -301,8 +305,11 @@ def run_claude_session(
                         print(f"{log_prefix} WARNING: output file not found after Zellij session exit.", file=sys.stderr)
                         returncode = 1
 
-                    # Kill the Zellij session after command completes
-                    kill_session(session_title)
+                    if kill_on_exit:
+                        from _zellij_utils import kill_session
+                        kill_session(session_title)
+                    # Otherwise leave session alive (EXITED state) so admin
+                    # can review output or claude --resume the session.
             except Exception as e:
                 print(f"{log_prefix} WARNING: Zellij session failed: {e} — falling back to direct subprocess.", file=sys.stderr)
 
@@ -391,3 +398,145 @@ def run_claude_session(
             tmp_path.unlink(missing_ok=True)
         except Exception:
             pass
+
+
+def spawn_interactive_session(
+    prompt,
+    session_title,
+    project_root,
+    log_prefix,
+    timeout=1800,
+    allowed_tools=None,
+    job_type=None,
+    linear_task=True,
+    linear_mode="feature",
+):
+    """
+    Spawn a Claude session in a Zellij pane that runs headless planning
+    (Opus, plan mode), then transitions to an interactive session the
+    user can attach to and continue working in.
+
+    Returns immediately after launching. The session runs in the background.
+
+    Two-phase flow inside the Zellij pane:
+      1. claude -p (headless, Opus, plan mode) — plans the work
+      2. claude --resume (interactive) — stays alive for user to attach
+
+    Linear is updated automatically:
+      - "In Progress" when session starts
+      - "In Review" when planning completes (with zellij attach command)
+
+    Args:
+        prompt: Full prompt text for the planning phase.
+        session_title: Display name for the session.
+        project_root: Working directory.
+        log_prefix: Prefix for log messages.
+        timeout: Max seconds for the headless planning phase (default: 1800).
+        allowed_tools: Optional list of tool specs for --allowedTools
+                       (extends plan mode capabilities).
+        job_type: Category for email notification. If None, no email.
+        linear_task: Create a Linear task (default: True).
+        linear_mode: Linear title prefix mode (default: "feature").
+
+    Returns:
+        (zellij_session_name: str | None,
+         linear_identifier: str | None,
+         linear_issue_id: str | None)
+    """
+    # ── Write prompt to temp file ───────────────────────────────────
+    tmp_dir = Path(project_root) / _TMP_DIR_NAME
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = int(time.time())
+    pid = os.getpid()
+    tmp_filename = f"claude-prompt-{timestamp}-{pid}.txt"
+    tmp_path = tmp_dir / tmp_filename
+    relative_path = f"{_TMP_DIR_NAME}/{tmp_filename}"
+
+    tmp_path.write_text(prompt, encoding="utf-8")
+
+    # ── Build claude command for headless phase ─────────────────────
+    message = f"Read {relative_path} in full and follow all the instructions precisely."
+    claude_cmd = [
+        "claude", "-p", message,
+        "--model", "claude-opus-4-6",
+        "--name", session_title,
+        "--output-format", "json",
+        "--permission-mode", "plan",
+    ]
+    if allowed_tools:
+        claude_cmd += ["--allowedTools"] + allowed_tools
+
+    # ── Create Zellij session ───────────────────────────────────────
+    try:
+        from _zellij_utils import create_session, launch_in_session, _sanitize_session_name
+
+        zellij_session_name = _sanitize_session_name(session_title)
+        if not create_session(session_title):
+            print(f"{log_prefix} WARNING: Could not create Zellij session.", file=sys.stderr)
+            tmp_path.unlink(missing_ok=True)
+            return None, None, None
+
+        print(f"{log_prefix} Zellij: session '{zellij_session_name}' created")
+    except Exception as e:
+        print(f"{log_prefix} WARNING: Zellij unavailable: {e}", file=sys.stderr)
+        tmp_path.unlink(missing_ok=True)
+        return None, None, None
+
+    # ── Create Linear task ──────────────────────────────────────────
+    linear_issue_id = "none"
+    linear_identifier = "none"
+    if linear_task:
+        try:
+            from _linear_client import (
+                create_issue, update_issue_status, add_label,
+                post_comment as linear_comment,
+            )
+
+            issue = create_issue(title=session_title, mode=linear_mode)
+            if issue:
+                linear_issue_id = issue["id"]
+                linear_identifier = issue["identifier"]
+                update_issue_status(linear_issue_id, "In Progress")
+                add_label(linear_issue_id)
+                linear_comment(
+                    linear_issue_id,
+                    f"**Session started:** `{session_title}`\n\n"
+                    f"**Attach:** `zellij attach {zellij_session_name}`\n"
+                    f"**Web UI:** http://localhost:8082\n\n"
+                    f"Phase 1 (headless planning) in progress. "
+                    f"Linear will be updated when review is needed.",
+                )
+                print(f"{log_prefix} Linear: {linear_identifier} created → In Progress")
+        except Exception as e:
+            print(f"{log_prefix} WARNING: Linear task creation failed: {e} (non-fatal)", file=sys.stderr)
+
+    # ── Launch wrapper in Zellij (non-blocking) ─────────────────────
+    wrapper_path = str(Path(project_root) / "scripts" / "cron-interactive-wrapper.sh")
+    wrapper_cmd = [
+        "bash", wrapper_path,
+        str(tmp_path),
+        project_root,
+        linear_issue_id,
+        linear_identifier,
+        zellij_session_name,
+        str(timeout),
+    ] + claude_cmd
+
+    launched = launch_in_session(
+        session_name=session_title,
+        command=wrapper_cmd,
+        cwd=project_root,
+    )
+
+    if launched:
+        print(f"{log_prefix} Session launched: zellij attach {zellij_session_name}")
+    else:
+        print(f"{log_prefix} WARNING: Failed to launch in Zellij.", file=sys.stderr)
+        tmp_path.unlink(missing_ok=True)
+
+    return (
+        zellij_session_name,
+        linear_identifier if linear_identifier != "none" else None,
+        linear_issue_id if linear_issue_id != "none" else None,
+    )
