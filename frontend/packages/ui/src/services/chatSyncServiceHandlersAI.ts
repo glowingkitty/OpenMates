@@ -23,7 +23,6 @@ import {
 } from "./encryption/MessageEncryptor";
 import {
   encryptChatKeyWithMasterKey,
-  decryptChatKeyWithMasterKey,
   encryptWithMasterKey,
   generateEmbedKey,
   deriveEmbedKeyFromChatKey,
@@ -1061,11 +1060,12 @@ export async function handleAITypingStartedImpl( // Changed to async
         !chatKeyManager.getKeySync(payload.chat_id)
       ) {
         try {
-          const decryptedKey = await decryptChatKeyWithMasterKey(
+          // Use receiveKeyFromServer() so server key wins over stale bulk_init keys
+          const decryptedKey = await chatKeyManager.receiveKeyFromServer(
+            payload.chat_id,
             payloadWithKey.encrypted_chat_key,
           );
           if (decryptedKey) {
-            chatDB.setChatKey(payload.chat_id, decryptedKey);
             console.info(
               `[ChatSyncService:AI] Cached chat key from ai_typing_started for chat ${payload.chat_id}`,
             );
