@@ -2169,23 +2169,27 @@ changes to the documentation (to keep the documentation up to date).
 
             // After a brief delay to ensure menu is open, navigate to the requested settings path
             setTimeout(() => {
+                // Strip deep-link parameters (e.g. "&usage") from the path before routing.
+                // The parameters remain in window.location.hash for sub-components to read.
+                const cleanPath = settingsPath.split('&')[0];
+
                 // Determine the icon and title based on the path
                 // For nested paths like 'shared/share', use the last segment for icon
-                const pathParts = settingsPath.split('/');
+                const pathParts = cleanPath.split('/');
                 const icon = pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
                 
                 // Build translation key from full path
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 let translationKey;
-                if (settingsPath === 'shared/share') {
+                if (cleanPath === 'shared/share') {
                     translationKey = 'settings.share';
-            } else if (settingsPath === 'incognito/info') {
+            } else if (cleanPath === 'incognito/info') {
                 // Incognito info page: use the incognito icon and the top-level "Incognito" title.
                 // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
                 // which does not exist in translations.
                 activeSubMenuIcon = 'incognito';
                 activeSubMenuTitleKey = 'settings.incognito';
-            } else if (settingsPath.startsWith('account/storage/')) {
+            } else if (cleanPath.startsWith('account/storage/')) {
                     // Storage category pages use the storage_category_* keys in storage.yml
                     const deepLinkStorageCategoryKeyMap: Record<string, string> = {
                         images:   'settings.storage.storage_category_images',
@@ -2198,17 +2202,17 @@ changes to the documentation (to keep the documentation up to date).
                         archives: 'settings.storage.storage_category_archives',
                         other:    'settings.storage.storage_category_other',
                     };
-                    const deepLinkCategory = settingsPath.split('/').pop() ?? '';
+                    const deepLinkCategory = cleanPath.split('/').pop() ?? '';
                     translationKey = deepLinkStorageCategoryKeyMap[deepLinkCategory] ?? 'settings.storage.storage_category_other';
                 } else {
-                    const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+                    const translationKeyParts = cleanPath.split('/').map(segment => segment.replace(/-/g, '_'));
                     translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
                 const title = $text(translationKey);
 
                 handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {
-                        settingsPath,
+                        settingsPath: cleanPath,
                         direction: 'forward',
                         icon,
                         title

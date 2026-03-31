@@ -1466,17 +1466,47 @@ Usage Settings - View usage statistics and export usage data
         return groupsWithTotals;
     });
 
+    // Deep-link support: when URL hash contains "&usage", auto-open the latest usage entry.
+    // Used by E2E tests to quickly navigate to the usage detail view.
+    // Example: #settings/billing&usage
+    async function autoSelectLatestUsageEntry() {
+        if (!dailyOverview.length) return;
+
+        // Find the first chat item in the most recent day
+        for (const day of dailyOverview) {
+            for (const item of day.items) {
+                if (item.type === 'chat' && item.chat_id) {
+                    // Drill into this chat's entries
+                    overviewSelectedChatId = item.chat_id;
+                    await fetchChatEntries(item.chat_id);
+                    // Auto-select the most recent entry (first in the list)
+                    if (overviewChatEntries.length > 0) {
+                        overviewSelectedEntry = overviewChatEntries[0];
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
     onMount(() => {
         // Load draft audio chat IDs from localStorage so we can display "Unsent draft" instead of
         // "Deleted chat" for usage entries linked to recordings that were never sent.
         draftAudioChatIds = getAllDraftAudioChatIds();
 
+        // Check for &usage deep-link parameter
+        const shouldAutoOpenUsage = typeof window !== 'undefined' && window.location.hash.includes('&usage');
+
         // Load initial data based on default tab (overview)
-        const initialLoad = activeTab === 'overview' 
+        const initialLoad = activeTab === 'overview'
             ? fetchDailyOverview(loadedDays)
             : fetchUsageSummaries(activeTab, loadedMonths);
-        initialLoad.then(() => {
+        initialLoad.then(async () => {
             hasInitialized = true;
+            // Auto-open latest entry if &usage deep-link is present
+            if (shouldAutoOpenUsage) {
+                await autoSelectLatestUsageEntry();
+            }
         });
         
         // Check hidden chats unlock status on mount
@@ -1546,8 +1576,8 @@ Usage Settings - View usage statistics and export usage data
                 : entryAppName || selEntry.type || $text('settings.usage.unknown_activity')}
             {@const entryIconName = getEntryIcon(selEntry)}
             
-            <div class="usage-detail-view">
-                <button 
+            <div class="usage-detail-view" data-testid="usage-detail-view">
+                <button
                     class="back-button"
                     onclick={() => overviewSelectedEntry = null}
                 >
@@ -1627,25 +1657,25 @@ Usage Settings - View usage statistics and export usage data
                     {/if}
                     <!-- Token breakdown - only for AI Ask entries -->
                     {#if selEntry.system_prompt_tokens}
-                        <div class="entry-detail-row">
+                        <div class="entry-detail-row" data-testid="usage-system-prompt-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.user_input_tokens}
-                        <div class="entry-detail-row">
+                        <div class="entry-detail-row" data-testid="usage-user-input-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.user_input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.input_tokens}
-                        <div class="entry-detail-row">
+                        <div class="entry-detail-row" data-testid="usage-input-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.input_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.output_tokens}
-                        <div class="entry-detail-row">
+                        <div class="entry-detail-row" data-testid="usage-output-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.output_tokens_label')}</span>
                             <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
                         </div>

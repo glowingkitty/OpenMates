@@ -604,8 +604,8 @@ async def invoke_google_ai_studio_chat_completions(
         logger.info(f"{log_prefix} Stream connection initiated.")
         
         # Calculate token breakdown from input messages (estimate)
-        token_breakdown = calculate_token_breakdown(messages, model_id)
-        
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
         stream_iterator = None
         output_buffer = ""
         thinking_buffer = ""
@@ -800,8 +800,8 @@ async def invoke_google_ai_studio_chat_completions(
     else:
         try:
             # Calculate token breakdown from input messages (estimate)
-            token_breakdown = calculate_token_breakdown(messages, model_id)
-            
+            token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
             response = await google_genai_client.aio.models.generate_content(
                 model=normalized_model_id,
                 contents=contents,
@@ -981,8 +981,8 @@ async def invoke_google_chat_completions(
         logger.info(f"{log_prefix} Stream connection initiated.")
         
         # Calculate token breakdown from input messages (estimate)
-        token_breakdown = calculate_token_breakdown(messages, model_id)
-        
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
         stream_iterator = None
         output_buffer = ""
         thinking_buffer = ""

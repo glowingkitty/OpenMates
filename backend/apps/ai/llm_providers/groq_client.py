@@ -284,7 +284,7 @@ async def _invoke_groq_direct_api(
                         # Handle usage metadata (usually in final chunk)
                         if hasattr(chunk, 'usage') and chunk.usage:
                             # Calculate token breakdown from input messages (estimate)
-                            breakdown = calculate_token_breakdown(messages, model_id)
+                            breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
                             usage_info = {
                                 "prompt_tokens": chunk.usage.prompt_tokens if hasattr(chunk.usage, 'prompt_tokens') else 0,
                                 "completion_tokens": chunk.usage.completion_tokens if hasattr(chunk.usage, 'completion_tokens') else 0,
@@ -324,7 +324,7 @@ async def _invoke_groq_direct_api(
             usage_metadata = None
             if hasattr(response, 'usage') and response.usage:
                 # Calculate token breakdown from input messages (estimate)
-                breakdown = calculate_token_breakdown(messages, model_id)
+                breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
                 usage_metadata = OpenAIUsageMetadata(
                     input_tokens=response.usage.prompt_tokens if hasattr(response.usage, 'prompt_tokens') else 0,
                     output_tokens=response.usage.completion_tokens if hasattr(response.usage, 'completion_tokens') else 0,
