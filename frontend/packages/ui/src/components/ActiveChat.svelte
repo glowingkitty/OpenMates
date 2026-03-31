@@ -93,7 +93,7 @@
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
-    // reminderContext import removed — unused (was for passing chat context to reminder settings)
+    import { reminderContext } from '../stores/reminderContextStore';
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
@@ -6111,9 +6111,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleOpenReminders() {
         console.debug("[ActiveChat] Reminders button clicked, opening reminder settings");
 
-        // Set the active chat so SettingsReminders can access the chat context
+        // Store chat context so SettingsReminders can render the chat preview
         if (currentChat?.chat_id) {
             activeChatStore.setActiveChat(currentChat.chat_id);
+            reminderContext.set({ chatId: currentChat.chat_id });
         }
 
         settingsMenuVisible.set(true);
@@ -9360,7 +9361,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
-                            {#if !showWelcome}
+                            {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_reminder top-button"
