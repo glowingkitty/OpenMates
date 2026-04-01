@@ -2882,7 +2882,7 @@ changes to the documentation (to keep the documentation up to date).
         inset: 0;
         overflow: hidden;
         pointer-events: none;
-        z-index: 2;
+        z-index: 0;
         transition: opacity 0.28s ease;
     }
 
