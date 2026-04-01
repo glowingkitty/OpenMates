@@ -170,8 +170,11 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// Without this, subsequent runs fail at Phase 1 because the OTP key no longer matches.
 	try {
 		const nodefs = require('fs');
-		nodefs.mkdirSync('/workspace/artifacts', { recursive: true });
-		nodefs.writeFileSync('/workspace/artifacts/new_otp_key.txt', newTfaSecret, 'utf8');
+		const nodepath = require('path');
+		// CI uploads from frontend/apps/web_app/artifacts/ — resolve relative to test cwd
+		const artifactsDir = nodepath.resolve(process.cwd(), 'artifacts');
+		nodefs.mkdirSync(artifactsDir, { recursive: true });
+		nodefs.writeFileSync(nodepath.join(artifactsDir, 'new_otp_key.txt'), newTfaSecret, 'utf8');
 		console.log(`NEW OPENMATES_TEST_ACCOUNT_OTP_KEY: ${newTfaSecret}`);
 		logCheckpoint('New 2FA secret saved to artifacts/new_otp_key.txt');
 	} catch (artifactErr) {

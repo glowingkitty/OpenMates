@@ -4620,14 +4620,39 @@ def _normalize_skill_arguments(
     
     # Preserve metadata keys (underscore-prefixed) at the top level
     normalized = {k: v for k, v in arguments.items() if k.startswith("_")}
-    normalized["requests"] = [flat_request]
-    
-    logger.info(
-        f"{log_prefix} [NORMALIZE] Wrapped flat arguments into 'requests' array for "
-        f"'{app_id}.{skill_id}'. Original keys: {list(flat_request.keys())}. "
-        f"LLM sent flat args instead of {{\"requests\": [...]}} format."
-    )
-    
+
+    # Handle common LLM mistake: sending plural array field (e.g. "urls": ["a", "b"])
+    # when the schema expects singular field per request item (e.g. "url": "a").
+    # Unpack the array into individual request items so each gets its own request.
+    # Known case: Gemini sends {"urls": ["https://..."]} for web-read which expects
+    # {"requests": [{"url": "https://..."}]}.
+    items_schema = schema_properties.get("requests", {}).get("items", {})
+    items_props = items_schema.get("properties", {})
+    unpacked = False
+    for key, value in list(flat_request.items()):
+        singular_key = key.rstrip("s")  # "urls" → "url", "queries" → "query"
+        if (isinstance(value, list) and len(value) > 0
+                and singular_key != key  # Only if key is actually plural
+                and singular_key in items_props  # Schema has the singular form
+                and key not in items_props):  # Schema does NOT have the plural form
+            # Unpack: each array element becomes a separate request item
+            normalized["requests"] = [{singular_key: item} for item in value]
+            logger.info(
+                f"{log_prefix} [NORMALIZE] Unpacked plural field '{key}' ({len(value)} items) "
+                f"into individual request items with singular field '{singular_key}' for "
+                f"'{app_id}.{skill_id}'. LLM sent array instead of per-item format."
+            )
+            unpacked = True
+            break
+
+    if not unpacked:
+        normalized["requests"] = [flat_request]
+        logger.info(
+            f"{log_prefix} [NORMALIZE] Wrapped flat arguments into 'requests' array for "
+            f"'{app_id}.{skill_id}'. Original keys: {list(flat_request.keys())}. "
+            f"LLM sent flat args instead of {{\"requests\": [...]}} format."
+        )
+
     return normalized
 
 

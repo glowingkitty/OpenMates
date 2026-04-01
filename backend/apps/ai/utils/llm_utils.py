@@ -1130,8 +1130,15 @@ async def call_preprocessing_llm(
         ]
         if any(indicator in error_lower for indicator in billing_indicators):
             return True
-        # Non-retryable errors: 401 (auth), 400 (bad request)
-        non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
+        # Auth errors (401/unauthorized): the API key for THIS provider is invalid, expired,
+        # or suspended. A different fallback provider has its own key and may work fine.
+        # Always retry with fallback — same logic as billing errors.
+        auth_indicators = ["401", "unauthorized"]
+        if any(indicator in error_lower for indicator in auth_indicators):
+            return True
+        # Non-retryable errors: 400 (bad request) — the request itself is malformed,
+        # sending the same request to another provider won't help.
+        non_retryable_indicators = ["bad request", "400"]
         if any(indicator in error_lower for indicator in non_retryable_indicators):
             return False
         # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500,
@@ -1334,10 +1341,17 @@ async def call_main_llm_stream(
         ]
         if any(indicator in error_lower for indicator in billing_indicators):
             return True
-        # Non-retryable errors: 401 (auth), 400 (bad request) - these won't be fixed by trying another server
+        # Auth errors (401/unauthorized): the API key for THIS provider is invalid, expired,
+        # or suspended. A different fallback provider has its own key and may work fine.
+        # Always retry with fallback — same logic as billing errors.
+        auth_indicators = ["401", "unauthorized"]
+        if any(indicator in error_lower for indicator in auth_indicators):
+            return True
+        # Non-retryable errors: 400 (bad request) - the request itself is malformed,
+        # sending the same request to another provider won't help.
         # EXCEPTION: "thought signature is not valid" is a special 400 that CAN be fixed by stripping
         # stale thought signatures and retrying (handled separately via _is_thought_signature_error).
-        non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
+        non_retryable_indicators = ["bad request", "400"]
         if any(indicator in error_lower for indicator in non_retryable_indicators):
             return False
         # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500, 404 (not found),

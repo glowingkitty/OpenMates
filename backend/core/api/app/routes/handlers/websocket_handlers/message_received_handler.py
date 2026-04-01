@@ -62,7 +62,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     # ws_span_helper extracts W3C traceparent from payload automatically.
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("message_received", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -426,17 +426,21 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         extracted_code_embeds: List[Dict[str, Any]] = []
         hashed_user_id_for_embeds = hashlib.sha256(user_id.encode()).hexdigest()
         
-        # Check if client already extracted code blocks (modern client)
+        # Check if client already extracted code blocks or sent embed references (modern client).
+        # Embed references are JSON blocks like: ```json\n{"type": "video", "embed_id": "...", "url": "..."}\n```
+        # These must NOT be treated as code snippets for extraction — they are structured references
+        # that get resolved later by resolve_embed_references_in_content().
+        # Bug history: Only checking for "type": "code" caused video/map/etc embed references to be
+        # extracted as code blocks, destroying the embed reference and breaking skill routing.
         client_already_extracted = False
         if isinstance(content_plain, str):
-            # Look for embed reference JSON blocks with type "code"
-            if '"type": "code"' in content_plain or '"type":"code"' in content_plain:
-                # Verify it's an embed reference, not just coincidental text
-                import re
-                embed_ref_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"code"\s*,\s*"embed_id"\s*:\s*"[^"]+"\s*\}'
-                if re.search(embed_ref_pattern, content_plain):
-                    client_already_extracted = True
-                    logger.debug(f"Message {message_id} contains client-extracted code embed references - skipping server extraction")
+            import re
+            # Match ANY embed reference JSON block: {"type": "...", "embed_id": "..."}
+            # This covers all embed types: code, video, map, image, health, travel, etc.
+            embed_ref_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"[^"]+"\s*,\s*"embed_id"\s*:\s*"[^"]+"\s*'
+            if re.search(embed_ref_pattern, content_plain):
+                client_already_extracted = True
+                logger.debug(f"Message {message_id} contains client embed references - skipping server-side code extraction")
         
         if not client_already_extracted and isinstance(content_plain, str) and '```' in content_plain:
             # FALLBACK: Server-side extraction for older clients
