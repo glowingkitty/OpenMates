@@ -64,19 +64,12 @@
     let tfaCode = $state('');
     let isBackupMode = $state(false);
 
-    // Local state for tfa_required - initialized from prop value at component mount
-    // 
-    // The tfa_required prop comes from the /lookup response which correctly indicates
-    // whether the user has actually set up 2FA (based on encrypted_tfa_secret existence).
-    // 
-    // IMPORTANT: We use the prop value for initialization, NOT a hardcoded default.
-    // - If user has 2FA set up: tfa_required=true → show 2FA input initially
-    // - If user has NOT set up 2FA: tfa_required=false → don't show 2FA input
-    // 
-    // Anti-enumeration protection still works because:
-    // - The backend /login endpoint returns tfa_required=true for non-existent accounts
-    // - handleSubmit() logic updates tfaRequiredState based on server response
-    // - This only affects the INITIAL display, which is based on verified user data from /lookup
+    // Local state for tfa_required - initialized from prop value at component mount.
+    //
+    // The /lookup endpoint always returns tfa_enabled=true for anti-enumeration.
+    // The login handler independently checks the actual 2FA status and skips
+    // TFA validation for users without 2FA — so showing the OTP field always
+    // is safe and prevents account-existence oracles.
     let tfaRequiredState = $state(tfa_required);
 
     // Input references using Svelte 5 runes

@@ -2391,8 +2391,8 @@
                                                     preferredLoginMethod = e.detail.preferredLoginMethod;
                                                     stayLoggedIn = e.detail.stayLoggedIn;
                                                     tfaAppName = e.detail.tfa_app_name;
-                                                    // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
-                                                    // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
+                                                    // tfa_enabled is always true from lookup (anti-enumeration).
+                                                    // The login handler independently checks actual 2FA status.
                                                     tfaEnabled = e.detail.tfa_enabled || false;
                                                     // Use the helper function to safely set the login step
                                                     // Always go to password step after email lookup

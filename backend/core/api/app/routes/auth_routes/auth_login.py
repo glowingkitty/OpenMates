@@ -1710,17 +1710,16 @@ async def lookup_user(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # Get tfa_enabled status from cached profile or compute it
-        # CRITICAL: For existing users, compute actual tfa_enabled based on encrypted_tfa_secret existence
-        # Only default to True for non-existent users (anti-enumeration)
-        tfa_enabled = True  # Default to True for security (anti-enumeration for non-existent users)
-        if user_id:
-            # CRITICAL: The source of truth for 2FA status is the encrypted_tfa_secret field in Directus.
-            # If it exists, 2FA is enabled — regardless of what the cache says.
-            # A stale cache entry with tfa_enabled=false must NOT override the DB truth.
-            encrypted_tfa_secret_exists = bool(user_data.get("encrypted_tfa_secret"))
-            tfa_enabled = encrypted_tfa_secret_exists
-            logger.info(f"Determined tfa_enabled for user {user_id} from encrypted_tfa_secret: {tfa_enabled}")
+        # ANTI-ENUMERATION: Always return tfa_enabled=True from the lookup endpoint.
+        #
+        # Returning different values for existing-without-2FA (false) vs non-existing (true)
+        # creates an oracle that lets attackers determine if an account exists.
+        #
+        # The login handler independently verifies the actual 2FA status from the user
+        # profile and encrypted_tfa_secret existence, so this lookup value does NOT
+        # affect security — it only controls whether the frontend shows the OTP input.
+        # Showing it always is correct anti-enumeration behavior.
+        tfa_enabled = True
 
         # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
         return UserLookupResponse(
