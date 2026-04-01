@@ -16,7 +16,7 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
 from fastapi import APIRouter, Request, Depends
@@ -142,24 +142,36 @@ async def get_default_inspirations(
         )
 
     # ---- Fetch today's defaults from daily_inspiration_defaults table -----
+    # Fall back to yesterday if today's defaults are missing (e.g. celery beat
+    # restarted after the 06:30 UTC scheduled run and missed the task).
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    yesterday_str = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    try:
-        defaults = await directus_service.inspiration_defaults.get_defaults_for_date(
-            date_str=today_str,
-            language=lang,
-        )
-    except Exception as e:
-        logger.error(
-            "[DefaultInspirations] Failed to fetch defaults for date=%s lang=%s: %s",
-            today_str,
-            lang,
-            e,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500, detail="Failed to fetch default inspirations"
-        )
+    defaults = None
+    for date_str in (today_str, yesterday_str):
+        try:
+            defaults = await directus_service.inspiration_defaults.get_defaults_for_date(
+                date_str=date_str,
+                language=lang,
+            )
+            if defaults:
+                if date_str == yesterday_str:
+                    logger.info(
+                        "[DefaultInspirations] No defaults for today (%s), "
+                        "using yesterday's (%s) for lang=%s",
+                        today_str,
+                        yesterday_str,
+                        lang,
+                    )
+                break
+        except Exception as e:
+            logger.error(
+                "[DefaultInspirations] Failed to fetch defaults for date=%s lang=%s: %s",
+                date_str,
+                lang,
+                e,
+                exc_info=True,
+            )
 
     if not defaults:
         return {"inspirations": []}

@@ -18,6 +18,7 @@
 
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { getProviderIconUrl } from '../../../data/providerIcons';
 
@@ -273,28 +274,11 @@
     {/if}
   {/snippet}
 
-  {#snippet ctaContent()}
+  {#snippet embedHeaderCta()}
     {#if activeAppointment.booking_url}
-      <!-- Jameda: direct booking URL for this specific slot -->
-      <a
-        class="booking-link jameda-link"
-        href={activeAppointment.booking_url}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {$text('embeds.health.book_on_jameda')}
-      </a>
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Jameda')} href={activeAppointment.booking_url} />
     {:else if activeAppointment.practice_url}
-      <!-- Doctolib: practice page with live availability -->
-      <a
-        class="booking-link doctolib-link"
-        href={activeAppointment.practice_url}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <img src={getProviderIconUrl('icons/doctolib.svg')} alt="" class="doctolib-btn-icon" />
-        {$text('embeds.health.book_on_doctolib')}
-      </a>
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Doctolib')} href={activeAppointment.practice_url} />
     {/if}
   {/snippet}
 </EntryWithMapTemplate>
@@ -421,53 +405,5 @@
     color: var(--color-font-primary);
   }
 
-  /* Shared booking link base */
-  .booking-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    text-decoration: none;
-    padding: 10px 20px;
-    border-radius: 20px;
-    transition: background-color 0.15s;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  .jameda-link {
-    background-color: #00a98f;
-    border: 1.5px solid #00a98f;
-  }
-  .jameda-link:hover {
-    background-color: #009880;
-  }
-  .doctolib-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 14px;
-    font-weight: 600;
-    background-color: var(--color-primary);
-    color: #fff;
-    text-decoration: none;
-    padding: 10px 20px;
-    border-radius: 20px;
-    border: 1.5px solid var(--color-primary);
-    transition: background-color 0.15s;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  .doctolib-link:hover {
-    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.85);
-  }
-  .doctolib-btn-icon {
-    height: 14px;
-    width: auto;
-    flex-shrink: 0;
-    filter: brightness(0) invert(1);
-  }
+
 </style>

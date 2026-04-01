@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -138,11 +139,9 @@
     {/if}
   {/snippet}
 
-  {#snippet ctaContent()}
+  {#snippet embedHeaderCta()}
     {#if googleMapsUrl}
-      <button class="open-maps-button" onclick={handleOpenInGoogleMaps}>
-        {$text('embeds.maps_location.open_in_google_maps')}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Maps')} onclick={handleOpenInGoogleMaps} />
     {/if}
   {/snippet}
 </EntryWithMapTemplate>
@@ -179,29 +178,5 @@
     word-break: break-word;
   }
 
-  .open-maps-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 24px;
-    background: var(--color-primary);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-    width: 100%;
-    max-width: 320px;
-  }
 
-  .open-maps-button:hover {
-    opacity: 0.9;
-  }
-
-  .open-maps-button:active {
-    opacity: 0.8;
-    transform: scale(0.98);
-  }
 </style>

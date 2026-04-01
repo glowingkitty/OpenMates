@@ -1307,6 +1307,30 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Redis Pub/Sub listener for preprocessing step events as a background task...")
     app.state.preprocessing_stream_listener_task = asyncio.create_task(listen_for_preprocessing_streams(app))
 
+    # --- Ensure today's daily inspiration defaults exist ---
+    # If celery beat restarted after 06:30 UTC it will have missed the daily
+    # selection task.  Dispatch it now so the public endpoint doesn't return
+    # empty for the rest of the day.
+    try:
+        from datetime import datetime as _dt, timezone as _tz
+        _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+        _today_defaults = await app.state.directus_service.inspiration_defaults.get_defaults_for_date(
+            date_str=_today, language="en",
+        )
+        if not _today_defaults:
+            logger.warning(
+                "[Startup] No daily inspiration defaults for today (%s) — dispatching select_defaults task",
+                _today,
+            )
+            celery_app.send_task(
+                name="daily_inspiration.select_defaults",
+                queue="persistence",
+            )
+        else:
+            logger.info("[Startup] Daily inspiration defaults already exist for today (%s)", _today)
+    except Exception as _e:
+        logger.error("[Startup] Failed to check/trigger daily inspiration defaults: %s", _e, exc_info=True)
+
     yield  # This is where FastAPI serves requests
     
     # Shutdown logic

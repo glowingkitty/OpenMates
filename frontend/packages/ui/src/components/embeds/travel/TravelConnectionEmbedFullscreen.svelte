@@ -19,6 +19,7 @@
 
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { onDestroy } from 'svelte';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -1324,21 +1325,13 @@
       </div>
     {/if}
     {#if bookingState === 'loaded' && resolvedBookingUrl}
-      <button class="cta-button" onclick={handleOpenBookingUrl} data-testid="booking-cta">
-        {$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
     {:else if bookingState === 'loading'}
-      <div class="cta-button cta-loading">
-        <span class="cta-spinner"></span>
-      </div>
+      <EmbedHeaderCtaButton label="" variant="loading" />
     {:else if bookingState === 'error'}
-      <button class="cta-button cta-fallback" onclick={handleOpenGoogleFlights}>
-        {$text('embeds.open_google_flights')}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
     {:else if connection.booking_token && bookingState === 'idle'}
-      <button class="cta-button" onclick={handleLoadBookingLink} data-testid="booking-cta">
-        {$text('embeds.get_booking_link')}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
     {/if}
   {/snippet}
 
@@ -1431,26 +1424,27 @@
           Track: <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer">Flightradar24</a>
         </div>
       {/if}
-    </div>
-  {/snippet}
 
-  {#snippet ctaContent()}
-    <div class="booking-info">
-      {#if connection.bookable_seats !== undefined && connection.bookable_seats > 0}
-        <div class="booking-item" class:warning={connection.bookable_seats <= 4}>
-          {connection.bookable_seats} {connection.bookable_seats === 1 ? 'seat' : 'seats'} remaining
-        </div>
-      {/if}
-      {#if connection.last_ticketing_date}
-        <div class="booking-item">
-          Book by {connection.last_ticketing_date}
-        </div>
-      {/if}
-      {#if connection.co2_kg != null}
-        <div class="co2-badge" class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}>
-          {connection.co2_kg} kg CO2
-          {#if connection.co2_difference_percent != null}
-            ({connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical)
+      <!-- Booking info (seats, deadlines, CO2) -->
+      {#if (connection.bookable_seats !== undefined && connection.bookable_seats > 0) || connection.last_ticketing_date || connection.co2_kg != null}
+        <div class="booking-info">
+          {#if connection.bookable_seats !== undefined && connection.bookable_seats > 0}
+            <div class="booking-item" class:warning={connection.bookable_seats <= 4}>
+              {connection.bookable_seats} {connection.bookable_seats === 1 ? 'seat' : 'seats'} remaining
+            </div>
+          {/if}
+          {#if connection.last_ticketing_date}
+            <div class="booking-item">
+              Book by {connection.last_ticketing_date}
+            </div>
+          {/if}
+          {#if connection.co2_kg != null}
+            <div class="co2-badge" class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}>
+              {connection.co2_kg} kg CO2
+              {#if connection.co2_difference_percent != null}
+                ({connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical)
+              {/if}
+            </div>
           {/if}
         </div>
       {/if}
@@ -1464,34 +1458,6 @@
   .header-airline-logos { display: flex; align-items: center; justify-content: center; margin-top: 8px; }
   .header-airline-logos .header-airline-logo + .header-airline-logo { margin-left: -8px; }
   .header-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); flex-shrink: 0; }
-
-  .cta-button {
-    background-color: var(--color-button-primary);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 12px 30px;
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 0.938rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
-    margin-top: 16px;
-    min-width: 200px;
-    height: 46px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .cta-button:hover { background-color: var(--color-button-primary-hover); scale: 1.02; }
-  .cta-button:active { background-color: var(--color-button-primary-pressed); scale: 0.98; filter: none; }
-  .cta-fallback { background-color: var(--color-grey-70, #555); }
-  .cta-fallback:hover { background-color: var(--color-grey-80, #444); }
-  .cta-loading { background-color: var(--color-grey-30, #e0e0e0); cursor: default; filter: none; }
-  .cta-loading:hover { background-color: var(--color-grey-30, #e0e0e0); scale: 1; }
-  .cta-spinner { width: 20px; height: 20px; border: 2.5px solid var(--color-grey-50, #999); border-top-color: var(--color-grey-80, #444); border-radius: 50%; animation: cta-spin 0.8s linear infinite; }
-  @keyframes cta-spin { to { transform: rotate(360deg); } }
 
   .flight-card { display: flex; flex-direction: column; gap: 12px; }
   .route-header-pill { background: var(--color-grey-10); border-radius: 11px; padding: 8px 14px; font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }

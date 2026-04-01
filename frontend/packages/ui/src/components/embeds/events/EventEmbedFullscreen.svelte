@@ -12,6 +12,7 @@
 
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
 
@@ -297,6 +298,12 @@
   {mapMarkers}
   currentEmbedId={embedId}
 >
+  {#snippet embedHeaderCta()}
+    {#if event.url && openButtonText}
+      <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} />
+    {/if}
+  {/snippet}
+
   {#snippet detailContent(_ctx)}
     {#if eventImageUrl}
       <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
@@ -354,13 +361,6 @@
         <div class="section-label">Organizer</div>
         <div class="section-value">{event.organizer.name}</div>
       </div>
-    {/if}
-
-    <!-- Primary CTA (kept above About to avoid requiring scroll before action) -->
-    {#if event.url}
-      <button onclick={handleOpenEvent}>
-        {openButtonText}
-      </button>
     {/if}
 
     <!-- Description -->

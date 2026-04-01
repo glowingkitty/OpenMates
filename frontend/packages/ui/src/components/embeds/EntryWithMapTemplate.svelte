@@ -90,8 +90,6 @@
     // ── Consumer snippets ──
     /** The detail content to show in the left card (wide) or below map (narrow) */
     detailContent: Snippet<[ChildEmbedContext]>;
-    /** Optional CTA area at the bottom of the detail card */
-    ctaContent?: Snippet;
     /** Optional: custom content for the EmbedHeader CTA area */
     embedHeaderCta?: Snippet;
   }
@@ -136,7 +134,6 @@
 
     // Snippets
     detailContent,
-    ctaContent,
     embedHeaderCta,
   }: Props = $props();
 
@@ -212,12 +209,6 @@
         <div class="detail-content">
           {@render detailContent(childEmbedContext)}
         </div>
-
-        {#if ctaContent}
-          <div class="detail-cta">
-            {@render ctaContent()}
-          </div>
-        {/if}
       </div>
     </div>
   {/snippet}
@@ -286,10 +277,6 @@
     gap: 16px;
   }
 
-  .detail-cta {
-    padding: 0 20px 20px;
-  }
-
   /* ── Narrow layout (<=600px container): stacked map + detail ── */
   @container fullscreen (max-width: 600px) {
     .entry-map-layout {
@@ -334,8 +321,5 @@
       padding: 20px 16px;
     }
 
-    .detail-cta {
-      padding: 0 16px 120px;
-    }
   }
 </style>
