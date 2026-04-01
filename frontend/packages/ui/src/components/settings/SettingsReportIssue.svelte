@@ -1499,7 +1499,7 @@
     });
 </script>
 
-<div class="report-issue-settings" data-section="report-issue">
+<div class="report-issue-settings" data-section="report-issue" data-testid="report-issue-form">
     <p>{$text('settings.report_issue.description')}</p>
     
     <!-- Issue Report Form -->
@@ -1510,6 +1510,7 @@
                 onclick={handleSubmit}
                 disabled={!isFormValid || isSubmitting}
                 aria-label={$text('settings.report_issue.submit_button')}
+                data-testid="report-issue-submit"
             >
                 {#if isSubmitting}
                     {$text('settings.report_issue.submitting')}
@@ -1525,6 +1526,7 @@
             <SettingsTextarea
                 bind:value={issueTitle}
                 id="issue-title"
+                dataTestid="report-issue-title"
                 placeholder={$text('settings.report_issue.title_placeholder')}
                 disabled={isSubmitting}
                 ariaLabel={$text('settings.report_issue.title_label')}

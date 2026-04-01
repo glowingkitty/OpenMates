@@ -56,7 +56,7 @@
     }
 </script>
 
-<div class="confirmation-wrapper">
+<div class="confirmation-wrapper" data-testid="report-issue-confirmation">
     <!-- Checkmark icon -->
     <div class="confirmation-icon" aria-hidden="true">✓</div>
 

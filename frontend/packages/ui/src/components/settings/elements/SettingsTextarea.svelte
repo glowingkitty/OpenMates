@@ -14,18 +14,22 @@
         placeholder = '',
         disabled = false,
         name = '',
+        id = '',
         ariaLabel = '',
         rows = 6,
         maxlength = undefined,
+        dataTestid = '',
         onInput = undefined,
     }: {
         value?: string;
         placeholder?: string;
         disabled?: boolean;
         name?: string;
+        id?: string;
         ariaLabel?: string;
         rows?: number;
         maxlength?: number | undefined;
+        dataTestid?: string;
         onInput?: ((value: string) => void) | undefined;
     } = $props();
 
@@ -40,11 +44,13 @@
     <textarea
         class="settings-textarea"
         {name}
+        id={id || undefined}
         {placeholder}
         {disabled}
         {rows}
         maxlength={maxlength}
         aria-label={ariaLabel || placeholder}
+        data-testid={dataTestid || undefined}
         bind:value
         oninput={handleInput}
     ></textarea>
