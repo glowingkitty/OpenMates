@@ -64,8 +64,8 @@ def _build_settings_url(path: str) -> str:
     Uses the /#settings/{path} hash routing convention.
     See docs/architecture/web-app.md for deep-link handling details.
     """
-    base_url = os.getenv("FRONTEND_URL", "https://openmates.org").rstrip("/")
-    return f"{base_url}/#settings/{path}"
+    from backend.shared.python_utils.frontend_url import get_frontend_base_url
+    return f"{get_frontend_base_url()}/#settings/{path}"
 
 
 # ---------------------------------------------------------------------------

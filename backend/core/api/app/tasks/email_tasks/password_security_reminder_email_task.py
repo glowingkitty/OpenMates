@@ -56,8 +56,8 @@ def _parse_iso_datetime(value: str | None) -> datetime | None:
 
 
 def _build_settings_url(path: str) -> str:
-    base_url = os.getenv("FRONTEND_URL", "https://openmates.org").rstrip("/")
-    return f"{base_url}/#settings/{path}"
+    from backend.shared.python_utils.frontend_url import get_frontend_base_url
+    return f"{get_frontend_base_url()}/#settings/{path}"
 
 
 async def _async_process_password_security_reminders(task: BaseServiceTask) -> dict:
