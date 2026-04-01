@@ -7,7 +7,7 @@ uvicorn[standard]==0.40.0
 
 # HTTP client for fetching external resources
 httpx==0.28.1
-aiohttp==3.13.3
+aiohttp==3.13.4
 
 # Brotli decompression support (for Accept-Encoding: br)
 brotli==1.2.0
