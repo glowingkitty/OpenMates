@@ -339,6 +339,12 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                 logger.debug("Using 'openai/llama-3.1-8b-instant' for Groq health check (fallback)")
                 return "openai/llama-3.1-8b-instant"
         
+        # For OpenRouter, use Mistral Small 3.2 — avoids upstream rate limits from models
+        # that OpenRouter routes through other providers (e.g., OSS safeguard → Groq)
+        if server_id == "openrouter":
+            logger.debug("Using 'mistralai/mistral-small-3.2-24b-instruct' for OpenRouter health check")
+            return "mistral/mistral-small-3.2-24b-instruct"
+
         # For other servers, find the cheapest model by comparing input costs
         cheapest_candidate = None
         cheapest_cost = float('inf')
@@ -515,6 +521,53 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                 logger.error(f"Exception during Groq health check test request: {e}", exc_info=True)
                 return False, str(e), response_time_ms
         
+        # Special case: For OpenRouter health checks, call the OpenRouter client directly
+        # with Mistral Small 3.2 to avoid upstream rate limits from models that OpenRouter
+        # routes through other providers (e.g., gpt-oss-safeguard-20b → Groq → 429)
+        if provider_id == "openrouter":
+            logger.debug("Using direct OpenRouter API call for health check with model 'mistralai/mistral-small-3.2-24b-instruct'")
+            provider_client = _get_provider_client("openrouter")
+            if not provider_client:
+                return False, "OpenRouter provider client not found", None
+
+            test_messages = [
+                {"role": "system", "content": "Answer short"},
+                {"role": "user", "content": "1+2?"}
+            ]
+
+            start_time = time.time()
+            try:
+                response = await asyncio.wait_for(
+                    provider_client(
+                        task_id="health_check",
+                        model_id="mistralai/mistral-small-3.2-24b-instruct",
+                        messages=test_messages,
+                        secrets_manager=secrets_manager,
+                        tools=None,
+                        tool_choice=None,
+                        stream=False,
+                        temperature=0.0
+                    ),
+                    timeout=15.0
+                )
+                response_time_ms = (time.time() - start_time) * 1000
+
+                if hasattr(response, 'success'):
+                    if response.success:
+                        return True, None, response_time_ms
+                    else:
+                        error_msg = getattr(response, 'error_message', 'Unknown error')
+                        return False, error_msg, response_time_ms
+                else:
+                    return False, f"Unexpected response type: {type(response)}", response_time_ms
+            except asyncio.TimeoutError:
+                response_time_ms = (time.time() - start_time) * 1000 if 'start_time' in locals() else None
+                return False, "Request timeout", response_time_ms
+            except Exception as e:
+                response_time_ms = (time.time() - start_time) * 1000 if 'start_time' in locals() else None
+                logger.error(f"Exception during OpenRouter health check test request: {e}", exc_info=True)
+                return False, str(e), response_time_ms
+
         # Normal flow for other providers/models
         # Resolve model_id to get actual server and transformed model_id
         default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
