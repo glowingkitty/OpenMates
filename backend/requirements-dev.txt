@@ -7,7 +7,7 @@ yamllint==1.37.1
 # These packages are installed in Docker containers via backend/core/api/requirements.txt
 # but must also be available in the local backend/.venv for `run-tests.sh --suite pytest`.
 # When adding a new import to production code that unit tests exercise, add it here too.
-aiohttp==3.13.3
+aiohttp==3.13.4
 pynacl==1.6.2
 prometheus-client==0.21.1
 slowapi==0.1.9
