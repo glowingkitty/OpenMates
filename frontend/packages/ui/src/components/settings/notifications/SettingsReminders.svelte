@@ -375,6 +375,7 @@
 		variant="primary"
 		loading={isSubmitting}
 		disabled={!date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
+		dataTestid="settings-button-primary"
 		onClick={handleSubmit}
 	>
 		{isSubmitting ? $text('reminder.panel.setting') : $text('reminder.settings.create_title')}
