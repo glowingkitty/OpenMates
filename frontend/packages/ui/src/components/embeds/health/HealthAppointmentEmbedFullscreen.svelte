@@ -182,6 +182,20 @@
   );
 
   let addressLines = $derived(getAddressLines(activeAppointment?.address));
+
+  /** Header title: formatted appointment date/time (most important info at a glance) */
+  let headerTitle = $derived.by(() => {
+    if (effectiveSlotDatetime) return formatSlot(effectiveSlotDatetime);
+    return activeAppointment?.name || activeAppointment?.speciality || 'Appointment';
+  });
+
+  /** Header subtitle: doctor name + speciality (secondary context) */
+  let headerSubtitle = $derived.by(() => {
+    const parts: string[] = [];
+    if (effectiveSlotDatetime && activeAppointment?.name) parts.push(activeAppointment.name);
+    if (activeAppointment?.speciality) parts.push(activeAppointment.speciality);
+    return parts.join(' · ') || undefined;
+  });
 </script>
 
 {#if activeAppointment}
@@ -190,7 +204,8 @@
   skillId="appointment"
   {onClose}
   skillIconName="health"
-  embedHeaderTitle={activeAppointment.name || activeAppointment.speciality || 'Doctor'}
+  embedHeaderTitle={headerTitle}
+  embedHeaderSubtitle={headerSubtitle}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
