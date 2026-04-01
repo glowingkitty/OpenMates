@@ -39,6 +39,10 @@ Your job: summarize system health data into a compact report (<3000 tokens).
 
 {{LARGE_FILES}}
 
+### Server Stats (Yesterday)
+
+{{SERVER_STATS}}
+
 ---
 
 ## Your Task
@@ -63,6 +67,14 @@ Produce a structured health report in markdown. Use this exact format:
 
 ### Large Files
 <!-- New violations only (not grandfathered). Or "No new violations." -->
+
+### Server Stats
+<!-- Key metrics: total users, messages sent, revenue, page loads, unique visits. -->
+<!-- Flag anomalies: zero messages, zero page loads, negative liability, missing stats. -->
+
+### Data Health
+<!-- daily_inspiration_defaults row count. Flag if today < 60 or total > 200. -->
+<!-- Any other data integrity warnings from the server stats output. -->
 
 ### Data Availability
 <!-- List any data sources that failed to load with the error message. -->

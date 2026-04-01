@@ -28,6 +28,7 @@ Data sources:
     H. User-reported issues             — docker exec debug_issue.py (Vault key)
     I. Linear tasks                     — gathered by linear subagent (MCP)
     J. Milestone state                  — file read (.planning/)
+    K. Server stats                     — docker exec server_stats_query.py
 
 Importable from other helpers:
     gather_all_data(project_root: str, yesterday: str) → dict
@@ -325,6 +326,27 @@ def gather_openobserve_errors(production: bool = False) -> str:
         return f"[DATA UNAVAILABLE: OpenObserve {env_label} — {e}]"
 
 
+def gather_server_stats() -> str:
+    """Source K: server stats from Directus (users, revenue, engagement, data health)."""
+    cmd = [
+        "docker", "exec", "api", "python3",
+        "/app/backend/scripts/server_stats_query.py",
+    ]
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30,
+        )
+        output = result.stdout.strip()
+        if result.returncode != 0:
+            stderr = result.stderr.strip()[:500]
+            return f"[DATA UNAVAILABLE: server stats — exit code {result.returncode}: {stderr}]"
+        return output if output else "(No server stats available.)"
+    except subprocess.TimeoutExpired:
+        return "[DATA UNAVAILABLE: server stats — query timed out after 30s]"
+    except Exception as e:
+        return f"[DATA UNAVAILABLE: server stats — {e}]"
+
+
 def gather_large_files(project_root: str) -> str:
     """Source E: large file check via check-file-sizes.sh --ci."""
     script = os.path.join(project_root, "scripts", "check-file-sizes.sh")
@@ -525,10 +547,10 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     data = {}
     failures = []
 
-    print(f"{LOG_PREFIX} Gathering data from 10 sources...")
+    print(f"{LOG_PREFIX} Gathering data from 11 sources...")
 
     # Run independent data sources in parallel
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=7) as pool:
         futures = {
             pool.submit(gather_git_log, project_root): "git_log",
             pool.submit(gather_test_results): "test_results",
@@ -538,6 +560,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
             pool.submit(gather_large_files, project_root): "large_files",
             pool.submit(gather_user_issues, project_root): "user_issues",
             pool.submit(gather_session_quality, yesterday): "session_quality",
+            pool.submit(gather_server_stats): "server_stats",
         }
 
         for future in as_completed(futures):
@@ -589,6 +612,7 @@ def build_health_prompt(data: dict, today: str) -> str:
         .replace("{{OPENOBSERVE_DEV}}", data.get("openobserve_dev", "N/A"))
         .replace("{{OPENOBSERVE_PROD}}", data.get("openobserve_prod", "N/A"))
         .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
+        .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
     )
 
 

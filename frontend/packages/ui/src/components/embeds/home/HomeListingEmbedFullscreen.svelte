@@ -16,6 +16,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
 
@@ -150,6 +151,7 @@
   embedHeaderTitle={displayTitle}
   embedHeaderSubtitle={price_label}
   skillIconName="home"
+  showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
@@ -161,9 +163,7 @@
   {onShowChat}
 >
   {#snippet embedHeaderCta()}
-    <button class="cta-button" onclick={handleOpenOnPlatform}>
-      Open on {hostname}
-    </button>
+    <EmbedHeaderCtaButton label="Open on {hostname}" onclick={handleOpenOnPlatform} />
   {/snippet}
 
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
@@ -274,31 +274,6 @@
     object-fit: cover;
   }
 
-  /* CTA Button */
-  .cta-button {
-    background-color: var(--color-button-primary);
-    color: white;
-    border: none;
-    border-radius: 15px;
-    padding: 12px 24px;
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.15s;
-    min-width: 200px;
-  }
-
-  .cta-button:hover {
-    background-color: var(--color-button-primary-hover);
-    transform: translateY(-1px);
-  }
-
-  .cta-button:active {
-    background-color: var(--color-button-primary-pressed);
-    transform: translateY(0);
-  }
-
   /* Address */
   .listing-address {
     font-family: 'Lexend Deca', sans-serif;
@@ -354,11 +329,6 @@
 
     .header-image-container {
       border-radius: 20px;
-    }
-
-    .cta-button {
-      padding: 10px 20px;
-      min-width: 160px;
     }
 
     .metadata-grid {
