@@ -234,17 +234,23 @@ async def get_status(request: Request):
 
         groups.append({"name": group_name, "services": group_services})
 
-    # Overall status
-    if all(s == "operational" for s in all_statuses):
+    # Overall status — ignore "unknown" (unconfigured/unmonitored) services.
+    # Only consider services that have actual health data.
+    known_statuses = [s for s in all_statuses if s != "unknown"]
+    if not known_statuses:
+        overall_status = "unknown"
+    elif all(s == "operational" for s in known_statuses):
         overall_status = "operational"
-    elif any(s == "down" for s in all_statuses):
+    elif any(s == "down" for s in known_statuses):
         overall_status = "down"
-    elif any(s == "degraded" for s in all_statuses):
+    elif any(s == "degraded" for s in known_statuses):
         overall_status = "degraded"
     else:
         overall_status = "unknown"
 
-    uptime_values = [s["uptime_pct"] for g in groups for s in g["services"]]
+    # Exclude unknown services from uptime calculation so unmonitored services
+    # don't drag the aggregate number down.
+    uptime_values = [s["uptime_pct"] for g in groups for s in g["services"] if s["status"] != "unknown"]
     overall_uptime = round(sum(uptime_values) / len(uptime_values), 1) if uptime_values else 100.0
 
     # Test results
