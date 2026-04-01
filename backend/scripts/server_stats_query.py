@@ -87,9 +87,11 @@ async def query_stats() -> str:
         # Engagement
         messages = _int(stats.get("messages_sent"))
         chats = _int(stats.get("chats_created"))
+        embeds = _int(stats.get("embeds_created"))
         lines.append("**Engagement**")
         lines.append(f"- Messages sent: {messages}")
         lines.append(f"- Chats created: {chats}")
+        lines.append(f"- Embeds created: {embeds}")
 
         # Revenue
         income_cents = _int(stats.get("income_eur_cents"))
