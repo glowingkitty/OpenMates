@@ -104,7 +104,7 @@ async def get_active_reminders(
         
         for reminder in reminders:
             try:
-                reminder_id = reminder.get("reminder_id", "")
+                reminder_id = reminder.get("id") or reminder.get("reminder_id", "")
                 vault_key_id = reminder.get("vault_key_id")
                 encrypted_prompt = reminder.get("encrypted_prompt", "")
                 trigger_at = reminder.get("trigger_at", 0)

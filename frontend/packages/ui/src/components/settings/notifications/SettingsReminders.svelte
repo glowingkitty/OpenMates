@@ -201,6 +201,15 @@
 				return;
 			}
 
+			// The external API wraps the skill response: { success, data: { success, error, ... } }
+			const result = await response.json();
+			const skillData = result.data || result;
+			if (skillData.success === false) {
+				errorMessage = skillData.error || $text('reminder.panel.error_generic');
+				console.error('[SettingsReminders] Skill error:', skillData.error);
+				return;
+			}
+
 			// Navigate to the reminder app store page so the user sees
 			// their new reminder in the ActiveRemindersList.
 			dispatch('openSettings', {
