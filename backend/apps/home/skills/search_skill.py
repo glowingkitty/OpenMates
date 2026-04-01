@@ -99,6 +99,10 @@ class SearchResponse(BaseModel):
         description="List of result groups, each with 'id' and 'results' array.",
     )
     provider: str = Field(default="Multi")
+    providers: List[str] = Field(
+        default_factory=list,
+        description="Names of providers that successfully returned results.",
+    )
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_llm: Optional[List[str]] = Field(
@@ -175,7 +179,17 @@ class SearchSkill(BaseSkill):
             logger=logger,
         )
 
-        # 4. Build and return response
+        # 4. Collect unique provider names from results that actually returned listings
+        successful_providers: List[str] = []
+        seen_providers: set = set()
+        for group in grouped_results:
+            for listing in group.get("results", []):
+                prov = listing.get("provider")
+                if prov and prov not in seen_providers:
+                    seen_providers.add(prov)
+                    successful_providers.append(prov)
+
+        # 5. Build and return response
         return self._build_response_with_errors(
             response_class=SearchResponse,
             grouped_results=grouped_results,
@@ -183,6 +197,7 @@ class SearchSkill(BaseSkill):
             provider="Multi",
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
+            providers=successful_providers,
         )
 
     async def _process_single_request(

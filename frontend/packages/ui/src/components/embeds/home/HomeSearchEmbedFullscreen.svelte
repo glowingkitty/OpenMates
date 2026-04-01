@@ -88,6 +88,7 @@
   // Local reactive state for streaming updates
   let localQuery = $state('');
   let localProvider = $state('Multi');
+  let localProviders = $state<string[]>([]);
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
@@ -96,14 +97,30 @@
   $effect(() => {
     localQuery = previewData?.query || queryProp || '';
     localProvider = previewData?.provider || providerProp || 'Multi';
+    localProviders = (previewData as Record<string, unknown>)?.providers as string[] || [];
     localStatus = (previewData?.status as typeof localStatus) || statusProp || 'finished';
     localErrorMessage = errorMessageProp || '';
   });
 
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let providers = $derived(localProviders);
   let legacyResults = $derived(previewData?.results || resultsProp || []);
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+
+  // "via {provider}" subtitle — use providers list when available for multi-source display
+  let viaProvider = $derived.by(() => {
+    const via = $text('embeds.via');
+    if (providers.length > 0) {
+      if (providers.length <= 2) {
+        return `${via} ${providers.join(', ')}`;
+      }
+      return `${via} ${providers[0]}, ${providers[1]} +${providers.length - 2}`;
+    }
+    if (provider && provider !== 'Multi') {
+      return `${via} ${provider}`;
+    }
+    return '';
+  });
 
   /**
    * Transform raw embed content to HomeListingResult format.
@@ -164,6 +181,7 @@
     const c = data.decodedContent;
     if (typeof c.query === 'string') localQuery = c.query;
     if (typeof c.provider === 'string') localProvider = c.provider;
+    if (Array.isArray(c.providers)) localProviders = c.providers as string[];
     if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
     if (typeof c.error === 'string') localErrorMessage = c.error;
   }
