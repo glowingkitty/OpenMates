@@ -220,7 +220,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await setToggleChecked(confirmCheckbox, true);
 	await expect(confirmCheckbox).toBeChecked();
 
-	const completeSetupButton = backupCodesContainer.getByRole('button').first();
+	const completeSetupButton = backupCodesContainer.getByRole('button', { name: /complete.*setup/i });
 	await completeSetupButton.click();
 	logCheckpoint('Confirmed backup code storage and completed setup.');
 
