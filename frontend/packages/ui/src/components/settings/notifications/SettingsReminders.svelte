@@ -106,6 +106,14 @@
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	});
 
+	/** When the selected date is today, set min time to current time + 1 minute */
+	let minTime = $derived.by(() => {
+		if (!date || date !== todayStr) return '';
+		const now = new Date();
+		now.setMinutes(now.getMinutes() + 1);
+		return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+	});
+
 	let showCustomRepeat = $derived(repeatType === 'custom');
 
 	let repeatOptions = $derived([
@@ -310,6 +318,7 @@
 			class="native-input"
 			type="time"
 			bind:value={time}
+			min={minTime || undefined}
 		/>
 	</div>
 

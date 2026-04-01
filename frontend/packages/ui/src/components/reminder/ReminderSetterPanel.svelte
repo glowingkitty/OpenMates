@@ -64,6 +64,14 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
+  /** When the selected date is today, set min time to current time + 1 minute */
+  let minTime = $derived(() => {
+    if (!date || date !== todayStr()) return '';
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
+
   // ─── Submission ────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: SubmitEvent) {
@@ -182,6 +190,7 @@
           class="field-input"
           type="time"
           bind:value={time}
+          min={minTime() || undefined}
           required
         />
       </div>
