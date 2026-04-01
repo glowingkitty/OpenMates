@@ -2,14 +2,14 @@
   SettingsReminders.svelte
 
   Reminder creation page within the Reminders app settings.
-  Uses canonical settings design elements (SettingsItem headings + SettingsDropdown).
+  Uses canonical settings design elements (SettingsSectionHeading + SettingsDropdown).
 
   Opened via chat top bar reminder button (deep link: app_store/reminder/create).
-  Reads the active chat from activeChatStore to show context and allow "Chat reminder"
-  as a target option.
+  Reads chat context from reminderContext store (set by ActiveChat bell button handler)
+  and loads decrypted metadata from chatMetadataCache for the preview.
 
   Layout follows Figma designs (nodes 5206:44369 and 5228:44720):
-  Reminder type → explainer → Task (if task) → Day → Time → Repeat → Button
+  Reminder type → explainer → chat preview / Task textarea → Day → Time → Repeat → Button
 
   API: POST /v1/apps/reminder/skills/set-reminder (creation)
 
@@ -20,15 +20,14 @@
 	import { text } from '@repo/ui';
 	import { userProfile } from '../../../stores/userProfile';
 	import { activeChatStore } from '../../../stores/activeChatStore';
-	import { chatListCache } from '../../../services/chatListCache';
+	import { reminderContext } from '../../../stores/reminderContextStore';
 	import { getApiUrl } from '../../../config/api';
 	import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
-	import SettingsPageHeader from '../elements/SettingsPageHeader.svelte';
 	import SettingsTextarea from '../elements/SettingsTextarea.svelte';
 	import SettingsDropdown from '../elements/SettingsDropdown.svelte';
 	import SettingsButton from '../elements/SettingsButton.svelte';
 	import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
-	import SettingsItem from '../../SettingsItem.svelte';
+	import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
 	import { chatMetadataCache } from '../../../services/chatMetadataCache';
 	import { chatDB } from '../../../services/db';
 	import {
@@ -41,42 +40,36 @@
 
 	// ─── Chat context ──────────────────────────────────────────────────────────
 
-	/** Active chat ID from store (set by ActiveChat before opening this page) */
-	let activeChatId = $derived($activeChatStore);
+	/** Chat ID from reminderContext store (set by bell button), fallback to activeChatStore */
+	let contextChatId = $derived($reminderContext?.chatId || $activeChatStore || null);
 
-	/** Look up the chat title from the chat list cache */
-	let activeChatTitle = $derived.by(() => {
-		if (!activeChatId) return '';
-		const chats = chatListCache.getCache();
-		if (!chats) return '';
-		const chat = chats.find((c) => c.chat_id === activeChatId);
-		return chat?.title || '';
-	});
+	// ─── Chat metadata (title, category, icon — all from decrypted metadata) ──
 
-	let hasActiveChat = $derived(!!activeChatId && !!activeChatTitle);
-
-	// ─── Chat metadata (category + icon for gradient circle preview) ──────────
-
+	let chatTitle = $state<string | null>(null);
 	let chatCategory = $state<string | null>(null);
 	let chatIcon = $state<string | null>(null);
 
-	/** Load decrypted metadata for the active chat */
+	/** Load decrypted metadata for the context chat */
 	$effect(() => {
-		if (!activeChatId) {
+		if (!contextChatId) {
+			chatTitle = null;
 			chatCategory = null;
 			chatIcon = null;
 			return;
 		}
 		(async () => {
-			const chat = await chatDB.getChat(activeChatId);
+			const chat = await chatDB.getChat(contextChatId);
 			if (!chat) return;
 			const meta = await chatMetadataCache.getDecryptedMetadata(chat);
 			if (meta) {
+				chatTitle = meta.title;
 				chatCategory = meta.category;
 				chatIcon = meta.icon;
 			}
 		})();
 	});
+
+	let hasActiveChat = $derived(!!contextChatId && !!chatTitle);
 
 	let categoryGradient = $derived(
 		getCategoryGradientColors(chatCategory || 'general_knowledge')
@@ -100,13 +93,6 @@
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
 	let successMessage = $state('');
-
-	// Default to new_task if no active chat context
-	$effect(() => {
-		if (!hasActiveChat) {
-			reminderMode = 'new_task';
-		}
-	});
 
 	// ─── Derived ───────────────────────────────────────────────────────────────
 
@@ -159,7 +145,6 @@
 		isSubmitting = true;
 
 		try {
-			// Map single toggle to backend fields
 			const isNewTask = reminderMode === 'new_task';
 			const targetType = isNewTask ? 'new_chat' : 'existing_chat';
 			const responseType = isNewTask ? 'full' : 'simple';
@@ -177,8 +162,8 @@
 				response_type: responseType
 			};
 
-			if (targetType === 'existing_chat' && activeChatId) {
-				body._chat_id = activeChatId;
+			if (targetType === 'existing_chat' && contextChatId) {
+				body._chat_id = contextChatId;
 			} else {
 				body.target_type = 'new_chat';
 				body.new_chat_title = prompt.slice(0, 50);
@@ -216,12 +201,11 @@
 				return;
 			}
 
-			// Success — reset form
 			successMessage = $text('reminder.settings.success');
 			date = '';
 			time = '';
 			actionPrompt = '';
-			reminderMode = hasActiveChat ? 'this_chat' : 'new_task';
+			reminderMode = 'this_chat';
 			repeatType = 'none';
 			customInterval = '1';
 			customUnit = 'days';
@@ -240,16 +224,8 @@
 </script>
 
 <SettingsPageContainer>
-	<SettingsPageHeader
-		title={$text('reminder.settings.create_title')}
-		description={reminderMode === 'this_chat'
-			? $text('reminder.settings.description_this_chat')
-			: $text('reminder.settings.description_new_chat')}
-	/>
-
 	<!-- 1. Reminder type -->
-	<SettingsItem
-		type="heading"
+	<SettingsSectionHeading
 		icon="reminder"
 		title={$text('reminder.settings.type_heading')}
 	/>
@@ -270,7 +246,7 @@
 		{/if}
 	</div>
 
-	<!-- 3. Chat context preview (clickable, shown when chat reminder + active chat) -->
+	<!-- 3. Chat context preview (clickable, when chat reminder + active chat) -->
 	{#if hasActiveChat && reminderMode === 'this_chat'}
 		<button
 			class="chat-context"
@@ -288,14 +264,13 @@
 			>
 				<CategoryIcon size={16} color="white" />
 			</div>
-			<span class="chat-context-title">{activeChatTitle}</span>
+			<span class="chat-context-title">{chatTitle}</span>
 		</button>
 	{/if}
 
-	<!-- 4. Task prompt (only for new_task mode) — before Day/Time per Figma -->
+	<!-- 4. Task prompt (only for new_task mode) -->
 	{#if reminderMode === 'new_task'}
-		<SettingsItem
-			type="heading"
+		<SettingsSectionHeading
 			icon="task"
 			title={$text('reminder.settings.task_prompt_label')}
 		/>
@@ -308,8 +283,7 @@
 	{/if}
 
 	<!-- 5. Day? -->
-	<SettingsItem
-		type="heading"
+	<SettingsSectionHeading
 		icon="calendar"
 		title={$text('reminder.settings.day_heading')}
 	/>
@@ -324,8 +298,7 @@
 	</div>
 
 	<!-- 6. Time? -->
-	<SettingsItem
-		type="heading"
+	<SettingsSectionHeading
 		icon="time"
 		title={$text('reminder.settings.time_heading')}
 	/>
@@ -339,8 +312,7 @@
 	</div>
 
 	<!-- 7. Repeat? -->
-	<SettingsItem
-		type="heading"
+	<SettingsSectionHeading
 		icon="reminder"
 		title={$text('reminder.settings.repeat_heading')}
 	/>
@@ -351,8 +323,7 @@
 	/>
 
 	{#if showCustomRepeat}
-		<SettingsItem
-			type="heading"
+		<SettingsSectionHeading
 			icon="reminder"
 			title={$text('reminder.panel.repeat_every')}
 		/>
@@ -377,8 +348,7 @@
 	{/if}
 
 	{#if repeatType !== 'none'}
-		<SettingsItem
-			type="heading"
+		<SettingsSectionHeading
 			icon="calendar"
 			title={$text('reminder.panel.end_date')}
 		/>
@@ -495,7 +465,7 @@
 		white-space: nowrap;
 	}
 
-	/* Wrapper to match SettingsInput/SettingsDropdown horizontal padding */
+	/* Wrapper to match SettingsDropdown horizontal padding */
 	.native-input-wrapper {
 		padding: 0 0.625rem;
 	}

@@ -632,6 +632,11 @@
         // All operations after this point are non-critical and must not block the UI transition.
         console.debug('[PasswordAndTfaOtp] [5/5] Dispatching loginSuccess event (inSignupFlow=' + inSignupFlow + ')');
 
+        // Capture email before dispatching — the parent (Login.svelte) clears its
+        // email variable in the loginSuccess handler, which reactively updates this
+        // prop to '' before Phase 2 async code below can use it.
+        const emailForStorage = email;
+
         // Clear sensitive data before dispatching
         password = '';
         tfaCode = '';
@@ -657,7 +662,7 @@
 
             // Save email encrypted with master key for payment processing
             try {
-                const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
+                const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(emailForStorage, false);
                 if (!emailStoredSuccessfully) {
                     console.error('[PasswordAndTfaOtp] Failed to encrypt and store email with master key during login');
                 }
