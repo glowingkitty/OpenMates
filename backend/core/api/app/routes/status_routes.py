@@ -34,12 +34,13 @@ router = APIRouter(
 
 SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ("Core Platform", [
-        ("Web App", ["web_app"]),
-        ("API Server", ["core_api"]),
-        ("Upload Server", ["upload_server"]),
-        ("Preview Server", ["preview_server"]),
+        # These map to health_check:external:{id} keys written by check_external_services task.
+        # vercel and api_server are only checked when their env vars are configured.
+        ("Web App (Vercel)", ["vercel"]),
+        ("API Server", ["api_server"]),
     ]),
     ("AI Providers", [
+        # These map to health_check:provider:{id} keys written by check_all_providers task.
         ("Anthropic", ["anthropic"]),
         ("OpenAI", ["openai"]),
         ("Groq", ["groq"]),
@@ -51,10 +52,10 @@ SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("AWS Bedrock", ["aws_bedrock"]),
     ]),
     ("Search & Data", [
-        ("Brave Search", ["brave", "brave_search"]),
+        # brave is a provider key; the rest are external service keys
+        ("Brave Search", ["brave"]),
         ("SerpAPI", ["serpapi"]),
         ("Firecrawl", ["firecrawl"]),
-        ("Context7", ["context7"]),
         ("YouTube", ["youtube"]),
         ("Google Maps", ["google_maps"]),
     ]),

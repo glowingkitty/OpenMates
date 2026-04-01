@@ -1613,13 +1613,17 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
         else:
             logger.error(f"Health check: Error checking AWS Bedrock: {e}", exc_info=True)
 
-    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}bedrock"
+    # Write under "aws_bedrock" to match SERVICE_GROUPS in status_routes.py.
+    # Also write the legacy "bedrock" key for backwards compatibility with the
+    # independent status service (backend/status/) until it is migrated.
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}aws_bedrock"
+    legacy_cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}bedrock"
     current_timestamp = int(time.time())
 
     # Record health event if status changed (for historical tracking)
     await _record_health_event_if_changed(
         service_type="external",
-        service_id="bedrock",
+        service_id="aws_bedrock",
         new_status=status,
         error_message=last_error,
         response_time_ms=response_time_ms
@@ -1636,7 +1640,9 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
     try:
         client = await cache_service.client
         if client:
-            await client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+            health_json = json.dumps(health_data)
+            await client.set(cache_key, health_json, ex=HEALTH_CHECK_CACHE_TTL)
+            await client.set(legacy_cache_key, health_json, ex=HEALTH_CHECK_CACHE_TTL)
     except Exception as e:
         logger.error(f"Health check: Failed to store AWS Bedrock health status in cache: {e}")
 
@@ -1780,6 +1786,120 @@ async def _check_api_server_health() -> Dict[str, Any]:
         logger.error(f"Health check: Failed to store API server health status in cache: {e}")
 
     return health_data
+
+
+async def _check_external_service_http(
+    service_id: str,
+    url: str,
+    display_name: str,
+    *,
+    method: str = "HEAD",
+    timeout: float = 10.0,
+    accept_statuses: tuple = (200, 301, 302, 307, 308, 400, 401, 403, 404, 405, 422),
+) -> Dict[str, Any]:
+    """Generic HTTP health check for external services.
+
+    Checks reachability by sending a HEAD (or GET) request to the service's
+    public API endpoint.  Any response that proves the server is alive counts
+    as healthy — we accept 4xx client errors (400-405, 422) because many APIs
+    reject unauthenticated requests or return 404 on root paths, but the
+    server is still running.  Only 5xx errors indicate actual problems.
+
+    Args:
+        service_id: Redis key suffix (e.g. "serpapi", "firecrawl").
+        url: Full URL to probe.
+        display_name: Human-readable name for log messages.
+        method: HTTP method ("HEAD" or "GET").
+        timeout: Request timeout in seconds.
+        accept_statuses: HTTP status codes considered healthy.
+
+    Returns:
+        Dict with status, last_check, last_error, response_times_ms.
+    """
+    logger.info(f"Health check: Checking {display_name}...")
+    cache_service = CacheService()
+    status = "unhealthy"
+    last_error: Optional[str] = None
+    response_time_ms: Optional[float] = None
+
+    try:
+        start_time = time.time()
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            if method == "HEAD":
+                response = await client.head(url)
+            else:
+                response = await client.get(url)
+            response_time_ms = (time.time() - start_time) * 1000
+
+            if response.status_code < 500 and (response.status_code in accept_statuses or response.status_code < 400):
+                status = "healthy"
+                logger.info(f"Health check: {display_name} is healthy ({response_time_ms:.1f}ms, HTTP {response.status_code})")
+            else:
+                last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                logger.error(f"Health check: {display_name} returned {response.status_code}")
+    except httpx.TimeoutException:
+        response_time_ms = (time.time() - start_time) * 1000 if 'start_time' in locals() else None
+        last_error = "timeout"
+        logger.error(f"Health check: {display_name} timeout")
+    except Exception as e:
+        response_time_ms = (time.time() - start_time) * 1000 if 'start_time' in locals() else None
+        last_error = _sanitize_error_message(str(e))
+        logger.error(f"Health check: {display_name} error: {e}")
+
+    cache_key = f"{HEALTH_CHECK_EXTERNAL_CACHE_KEY_PREFIX}{service_id}"
+    current_timestamp = int(time.time())
+
+    await _record_health_event_if_changed(
+        service_type="external",
+        service_id=service_id,
+        new_status=status,
+        error_message=last_error,
+        response_time_ms=response_time_ms,
+    )
+
+    health_data = {
+        "status": status,
+        "last_check": current_timestamp,
+        "last_error": last_error,
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {},
+    }
+
+    try:
+        redis_client = await cache_service.client
+        if redis_client:
+            await redis_client.set(cache_key, json.dumps(health_data), ex=HEALTH_CHECK_CACHE_TTL)
+    except Exception as e:
+        logger.error(f"Health check: Failed to store {display_name} health status in cache: {e}")
+
+    return health_data
+
+
+# ── External service health check definitions ────────────────────────────────
+# Each returns a coroutine suitable for asyncio.gather() inside
+# check_external_services_health.  Services that require API keys skip
+# gracefully when the key is absent.
+
+EXTERNAL_HTTP_SERVICES: list[Dict[str, Any]] = [
+    # Search & Data
+    {"service_id": "serpapi", "url": "https://serpapi.com", "display_name": "SerpAPI"},
+    {"service_id": "firecrawl", "url": "https://api.firecrawl.dev", "display_name": "Firecrawl"},
+    {"service_id": "youtube", "url": "https://www.googleapis.com/youtube/v3", "display_name": "YouTube Data API"},
+    {"service_id": "google_maps", "url": "https://places.googleapis.com", "display_name": "Google Maps/Places"},
+    # Image & Media
+    {"service_id": "fal", "url": "https://fal.run", "display_name": "FAL (Flux)"},
+    {"service_id": "recraft", "url": "https://external.api.recraft.ai", "display_name": "Recraft"},
+    # Events & Health
+    {"service_id": "doctolib", "url": "https://www.doctolib.de", "display_name": "Doctolib"},
+    {"service_id": "meetup", "url": "https://www.meetup.com", "display_name": "Meetup"},
+    {"service_id": "luma", "url": "https://api2.luma.com", "display_name": "Luma Events"},
+    # Travel
+    {"service_id": "travelpayouts", "url": "https://api.travelpayouts.com", "display_name": "Travelpayouts"},
+    {"service_id": "transitous", "url": "https://api.transitous.org", "display_name": "Transitous"},
+    {"service_id": "flightradar24", "url": "https://fr24api.flightradar24.com", "display_name": "FlightRadar24"},
+    # Payment
+    {"service_id": "polar", "url": "https://api.polar.sh", "display_name": "Polar"},
+    {"service_id": "revolut", "url": "https://merchant.revolut.com", "display_name": "Revolut"},
+]
 
 
 @app.task(name="health_check.check_all_apps", bind=True)
@@ -2157,6 +2277,14 @@ def check_external_services_health(self):
             # Check API server external reachability (skipped if not configured)
             tasks.append(_check_api_server_health())
 
+            # Check all HTTP-based external services (search, image, events, travel, payment)
+            for svc in EXTERNAL_HTTP_SERVICES:
+                tasks.append(_check_external_service_http(
+                    service_id=svc["service_id"],
+                    url=svc["url"],
+                    display_name=svc["display_name"],
+                ))
+
             # Run all checks concurrently
             logger.info(f"Health check: Executing {len(tasks)} external service health check(s) concurrently...")
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -2176,12 +2304,10 @@ def check_external_services_health(self):
 
             # Log details for unhealthy services
             if unhealthy_count > 0:
-                service_names = ["stripe", "sightengine", "brevo", "bedrock", "vercel", "api_server"]
-                for i, result in enumerate(results):
+                for result in results:
                     if isinstance(result, dict) and result.get("status") == "unhealthy":
-                        service_name = service_names[i] if i < len(service_names) else f"unknown_{i}"
                         logger.warning(
-                            f"Health check: External service '{service_name}' is unhealthy. "
+                            f"Health check: External service is unhealthy. "
                             f"Last error: {result.get('last_error', 'Unknown')}"
                         )
         finally:

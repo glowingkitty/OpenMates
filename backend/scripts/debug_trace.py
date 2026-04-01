@@ -579,6 +579,16 @@ def main(argv: Optional[List[str]] = None) -> None:
     auth = _get_auth(args.production)
     use_json = getattr(args, "json_output", False)
 
+    if args.production and (not auth[0] or not auth[1]):
+        print(
+            "Production OpenObserve not configured. "
+            "Set OPENOBSERVE_PROD_URL, OPENOBSERVE_PROD_EMAIL, "
+            "OPENOBSERVE_PROD_PASSWORD env vars.",
+            file=sys.stderr,
+        )
+        print("No trace data found.")
+        return
+
     # Default lookback for commands that don't have --last
     default_lookback_s = 3600  # 1 hour
 

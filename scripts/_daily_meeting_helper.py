@@ -297,6 +297,7 @@ def gather_openobserve_errors(production: bool = False) -> str:
         "docker", "exec", "api", "python",
         "/app/backend/scripts/debug.py", "logs",
         "--o2",
+        "--since", "1440",  # 24 hours — matches the report heading
         "--sql", (
             'SELECT message, service, level, COUNT(*) as count FROM "default" '
             "WHERE compose_project = 'openmates-core' "
