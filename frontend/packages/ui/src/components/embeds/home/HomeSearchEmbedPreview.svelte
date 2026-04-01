@@ -208,7 +208,7 @@
   }
 
   let skillName = $derived($text('common.search'));
-  const skillIconName = 'home';
+  const skillIconName = 'search';
 
   // "via {provider}" subtitle — use providers list when available for multi-source display
   let viaProvider = $derived.by(() => {

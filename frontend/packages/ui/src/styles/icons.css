@@ -871,6 +871,20 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.shopping {
+  background: var(--color-app-shopping);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/shopping.svg");
+  }
+}
+
+.icon_rounded.home {
+  background: var(--color-app-home);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/home.svg");
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;

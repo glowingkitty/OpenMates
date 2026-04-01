@@ -2,25 +2,25 @@
   frontend/packages/ui/src/components/embeds/home/HomeListingEmbedPreview.svelte
 
   Child listing preview card for Home Search results.
-  Renders as a compact card in the SearchResultsTemplate grid.
+  Uses UnifiedEmbedPreview as the base card (unified with all other embed previews).
+  Renders listing image on the right side when available (matching WebsiteEmbedPreview pattern).
 
   Shows:
-  - Listing image (top, with fallback placeholder)
-  - Title (1-2 lines, truncated)
-  - Price label (prominent, colored)
+  - Price label (prominent)
+  - Title (2 lines, truncated)
   - Address line
-  - Metadata: size (m2) + rooms + provider badge
+  - Metadata: size (m²) + rooms + move-in date
+  - Provider badge overlaid on image
+  - Listing image on right side (or placeholder)
 
   Clicking the card calls onSelect() to open the fullscreen listing view.
 -->
 
 <script lang="ts">
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
 
-  /**
-   * Props for a single listing preview card.
-   */
   interface Props {
     /** Child embed ID */
     embed_id: string;
@@ -46,10 +46,12 @@
     available_from?: string;
     /** Click handler to open fullscreen view */
     onSelect: () => void;
+    /** Whether to use mobile layout */
+    isMobile?: boolean;
   }
 
   let {
-    embed_id: _embedId,
+    embed_id,
     title,
     price_label,
     size_sqm,
@@ -59,172 +61,130 @@
     provider,
     listing_type: _listingType,
     available_from,
-    onSelect
+    onSelect,
+    isMobile = false
   }: Props = $props();
 
   let imageError = $state(false);
 
-  /** Proxied image URL for the listing photo */
   let proxiedImageUrl = $derived(
     image_url && !imageError
       ? proxyImage(image_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
       : null
   );
 
-  /** Format size with unit */
   let sizeDisplay = $derived(
     size_sqm ? `${size_sqm} m\u00B2` : undefined
   );
 
-  /** Format rooms count */
   let roomsDisplay = $derived(
     rooms ? `${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : undefined
   );
 
-  /** Format available_from for compact display */
   let availableDisplay = $derived(
     available_from ? `from ${available_from}` : undefined
   );
 
-  /** Build metadata line from available fields */
   let metadataItems = $derived(
     [sizeDisplay, roomsDisplay, availableDisplay].filter(Boolean)
   );
+
+  function handleStop() {
+    // Listing cards are not cancellable
+  }
 </script>
 
-<button
-  class="listing-card"
-  onclick={onSelect}
-  type="button"
+<UnifiedEmbedPreview
+  id={embed_id}
+  appId="home"
+  skillId="search"
+  skillIconName="search"
+  status="finished"
+  skillName={title || 'Listing'}
+  {isMobile}
+  onFullscreen={onSelect}
+  onStop={handleStop}
+  showStatus={false}
+  showSkillIcon={false}
+  hasFullWidthImage={!!proxiedImageUrl && !title && !price_label}
 >
-  <!-- Image area -->
-  <div class="listing-image-container">
-    {#if proxiedImageUrl}
-      <img
-        src={proxiedImageUrl}
-        alt={title || 'Listing'}
-        class="listing-image"
-        loading="lazy"
-        crossorigin="anonymous"
-        onerror={(e) => {
-          imageError = true;
-          handleImageError(e.currentTarget as HTMLImageElement);
-        }}
-      />
-    {:else}
-      <div class="listing-image-placeholder">
-        <div class="placeholder-icon clickable-icon icon_home"></div>
+  {#snippet details({ isMobile: isMobileLayout })}
+    <div class="listing-details" class:mobile={isMobileLayout}>
+      <div class="listing-content-row">
+        <!-- Text content (left side) -->
+        <div class="listing-text">
+          {#if price_label}
+            <div class="listing-price">{price_label}</div>
+          {/if}
+
+          {#if title}
+            <div class="listing-title">{title}</div>
+          {/if}
+
+          {#if address}
+            <div class="listing-address">{address}</div>
+          {/if}
+
+          {#if metadataItems.length > 0}
+            <div class="listing-metadata">
+              {metadataItems.join(' \u00B7 ')}
+            </div>
+          {/if}
+        </div>
+
+        <!-- Image (right side) -->
+        {#if proxiedImageUrl && !isMobileLayout}
+          <div class="listing-preview-image">
+            {#if provider}
+              <span class="provider-badge">{provider}</span>
+            {/if}
+            <img
+              src={proxiedImageUrl}
+              alt={title || 'Listing'}
+              loading="lazy"
+              crossorigin="anonymous"
+              onerror={(e) => {
+                imageError = true;
+                handleImageError(e.currentTarget as HTMLImageElement);
+              }}
+            />
+          </div>
+        {/if}
       </div>
-    {/if}
-
-    <!-- Provider badge overlay -->
-    {#if provider}
-      <span class="provider-badge">{provider}</span>
-    {/if}
-  </div>
-
-  <!-- Content area -->
-  <div class="listing-content">
-    <!-- Price (prominent) -->
-    {#if price_label}
-      <div class="listing-price">{price_label}</div>
-    {/if}
-
-    <!-- Title -->
-    {#if title}
-      <div class="listing-title">{title}</div>
-    {/if}
-
-    <!-- Address -->
-    {#if address}
-      <div class="listing-address">{address}</div>
-    {/if}
-
-    <!-- Metadata line: size + rooms -->
-    {#if metadataItems.length > 0}
-      <div class="listing-metadata">
-        {metadataItems.join(' \u00B7 ')}
-      </div>
-    {/if}
-  </div>
-</button>
+    </div>
+  {/snippet}
+</UnifiedEmbedPreview>
 
 <style>
-  .listing-card {
+  .listing-details {
     display: flex;
     flex-direction: column;
-    border-radius: 16px;
-    overflow: hidden;
-    background-color: var(--color-grey-0);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    border: none;
-    padding: 0;
-    text-align: left;
-    width: 100%;
-    font-family: 'Lexend Deca', sans-serif;
-  }
-
-  .listing-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  .listing-card:active {
-    transform: translateY(0);
-  }
-
-  /* Image area */
-  .listing-image-container {
-    position: relative;
-    width: 100%;
-    height: 160px;
-    overflow: hidden;
-    background-color: var(--color-grey-20);
-  }
-
-  .listing-image {
-    width: 100%;
     height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .listing-image-placeholder {
     width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    background-color: var(--color-grey-20);
   }
 
-  .placeholder-icon {
-    width: 40px;
-    height: 40px;
-    opacity: 0.3;
+  .listing-details.mobile {
+    justify-content: flex-start;
   }
 
-  /* Provider badge in top-right corner of image */
-  .provider-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    padding: 3px 8px;
-    border-radius: 8px;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: var(--color-grey-0);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    white-space: nowrap;
+  .listing-content-row {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
   }
 
-  /* Content area */
-  .listing-content {
-    padding: 12px;
+  .listing-text {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+    flex: 0 1 55%;
+    min-width: 0;
+    align-self: center;
+    padding: 4px 0;
   }
 
   .listing-price {
@@ -245,6 +205,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+    word-break: break-word;
   }
 
   .listing-address {
@@ -264,5 +225,35 @@
     color: var(--color-grey-60);
     line-height: 1.3;
     margin-top: 2px;
+  }
+
+  /* Image on right side */
+  .listing-preview-image {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 171px;
+    transform: translateX(20px);
+  }
+
+  .listing-preview-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .provider-badge {
+    position: absolute;
+    top: 8px;
+    right: 28px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: var(--color-grey-0);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1;
   }
 </style>

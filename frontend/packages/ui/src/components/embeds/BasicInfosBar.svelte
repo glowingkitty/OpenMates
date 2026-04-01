@@ -335,7 +335,52 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
     mask-image: url('@openmates/ui/static/icons/mail.svg');
   }
-  
+
+  .basic-infos-bar .skill-icon[data-skill-icon="home"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/home.svg');
+    mask-image: url('@openmates/ui/static/icons/home.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="coding"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
+    mask-image: url('@openmates/ui/static/icons/coding.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="travel"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
+    mask-image: url('@openmates/ui/static/icons/travel.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="website"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
+    mask-image: url('@openmates/ui/static/icons/web.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="text"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
+    mask-image: url('@openmates/ui/static/icons/text.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="transcript"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="docs"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/docs.svg');
+    mask-image: url('@openmates/ui/static/icons/docs.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="video"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="math"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/math.svg');
+    mask-image: url('@openmates/ui/static/icons/math.svg');
+  }
+
   /* Status text container */
   .basic-infos-bar.desktop .status-text {
     display: flex;
