@@ -235,6 +235,9 @@
 			</div>
 		{:else}
 			<!-- Edit mode -->
+			<SettingsSectionHeading icon="reminder" title={$text('reminder.panel.title')} />
+			<div class="detail-value">{reminder.prompt_preview || '—'}</div>
+
 			<SettingsSectionHeading icon="calendar" title={$text('reminder.settings.day_heading')} />
 			<div class="native-input-wrapper">
 				<input
