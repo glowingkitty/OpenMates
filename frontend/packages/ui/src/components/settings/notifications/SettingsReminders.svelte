@@ -25,7 +25,6 @@
 	import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
 	import SettingsTextarea from '../elements/SettingsTextarea.svelte';
 	import SettingsDropdown from '../elements/SettingsDropdown.svelte';
-	import SettingsButton from '../elements/SettingsButton.svelte';
 	import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
 	import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
 	import { chatMetadataCache } from '../../../services/chatMetadataCache';
@@ -299,7 +298,7 @@
 
 	<!-- 6. Time? -->
 	<SettingsSectionHeading
-		icon="time"
+		icon="clock"
 		title={$text('reminder.settings.time_heading')}
 	/>
 	<div class="native-input-wrapper">
@@ -313,7 +312,7 @@
 
 	<!-- 7. Repeat? -->
 	<SettingsSectionHeading
-		icon="reminder"
+		icon="reload"
 		title={$text('reminder.settings.repeat_heading')}
 	/>
 	<SettingsDropdown
@@ -324,7 +323,7 @@
 
 	{#if showCustomRepeat}
 		<SettingsSectionHeading
-			icon="reminder"
+			icon="reload"
 			title={$text('reminder.panel.repeat_every')}
 		/>
 		<div class="custom-repeat-row">
@@ -371,15 +370,13 @@
 		<SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
 	{/if}
 
-	<SettingsButton
-		variant="primary"
-		loading={isSubmitting}
-		disabled={!date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
-		dataTestid="settings-button-primary"
-		onClick={handleSubmit}
+	<button
+		data-testid="settings-button-primary"
+		disabled={isSubmitting || !date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
+		onclick={handleSubmit}
 	>
 		{isSubmitting ? $text('reminder.panel.setting') : $text('reminder.settings.create_title')}
-	</SettingsButton>
+	</button>
 </SettingsPageContainer>
 
 <style>
