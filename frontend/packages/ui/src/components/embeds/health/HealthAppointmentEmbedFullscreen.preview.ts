@@ -114,26 +114,4 @@ export const variants = {
     onClose: () => {},
   },
 
-  /** Legacy per-doctor format with multiple slots (backward compat) */
-  legacyMultiSlot: {
-    appointment: {
-      embed_id: "preview-health-appointment-fs-legacy",
-      name: "Dr. Hans Braun",
-      speciality: "Dermatologist",
-      address: "Sendlinger Straße 8\n80331 Munich",
-      gps_coordinates: { latitude: 48.1351, longitude: 11.5820 },
-      slots_count: 3,
-      next_slot: "2026-04-03T10:30:00",
-      slots: [
-        { datetime: "2026-04-03T10:30:00" },
-        { datetime: "2026-04-03T14:00:00" },
-        { datetime: "2026-04-07T09:15:00" },
-      ],
-      insurance: "public",
-      telehealth: false,
-      practice_url: "https://www.doctolib.de/dermatologe/munich/hans-braun",
-      provider: "Doctolib",
-    },
-    onClose: () => {},
-  },
 };

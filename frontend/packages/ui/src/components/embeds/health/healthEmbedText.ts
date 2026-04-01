@@ -17,7 +17,7 @@ export function renderHealthSearch(
 	if (children && children.length > 0) {
 		lines.push(`${children.length} appointments:`);
 		for (const r of children.slice(0, 5)) {
-			const slotDt = str(r.slot_datetime) ?? str(r.next_slot) ?? str(r.date) ?? '';
+			const slotDt = str(r.slot_datetime) ?? str(r.date) ?? '';
 			const name = str(r.name) ?? str(r.doctor_name) ?? str(r.title) ?? '';
 			const speciality = str(r.speciality) ?? '';
 			if (slotDt) lines.push(`  ${slotDt}`);
@@ -34,7 +34,7 @@ export function renderHealthSearch(
 /** health-appointment — individual */
 export function renderAppointment(c: Record<string, unknown>): string {
 	const name = str(c.name) ?? str(c.doctor_name) ?? str(c.title) ?? '';
-	const slotDt = str(c.slot_datetime) ?? str(c.next_slot) ?? str(c.date) ?? '';
+	const slotDt = str(c.slot_datetime) ?? str(c.date) ?? '';
 	const lines: string[] = [];
 	if (name) lines.push(`**${name}**`);
 	if (slotDt) lines.push(slotDt);

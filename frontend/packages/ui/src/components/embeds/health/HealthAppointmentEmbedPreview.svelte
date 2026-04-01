@@ -48,11 +48,6 @@
     isMobile?: boolean;
     /** Click handler to open fullscreen detail view */
     onFullscreen: () => void;
-    // Legacy backward-compat props (old per-doctor cached embeds)
-    /** @deprecated Use slotDatetime instead */
-    nextSlot?: string;
-    /** @deprecated No longer used */
-    slotsCount?: number;
   }
 
   let {
@@ -69,7 +64,6 @@
     status = 'finished',
     isMobile = false,
     onFullscreen,
-    nextSlot,
   }: Props = $props();
 
   /** Format ISO slot datetime as human-readable short date + time */
@@ -85,8 +79,7 @@
     }
   }
 
-  // Use slotDatetime (new per-slot format), fall back to nextSlot (legacy per-doctor format)
-  let effectiveSlotDatetime = $derived(slotDatetime || nextSlot);
+  let effectiveSlotDatetime = $derived(slotDatetime);
   let slotDisplay = $derived(formatSlot(effectiveSlotDatetime));
 
   // Short display name used in the BasicInfosBar title area

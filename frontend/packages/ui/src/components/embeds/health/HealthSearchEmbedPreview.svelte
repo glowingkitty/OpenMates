@@ -37,9 +37,6 @@
     address?: string;
     insurance?: string;
     telehealth?: boolean;
-    // Legacy backward-compat (old per-doctor cached embeds)
-    slots_count?: number;
-    next_slot?: string;
   }
 
   interface Props {
@@ -179,9 +176,6 @@
             address: (c.address as string) || undefined,
             insurance: (c.insurance as string) || undefined,
             telehealth: (c.telehealth as boolean) || false,
-            // Legacy backward-compat
-            slots_count: (c.slots_count as number) || 0,
-            next_slot: (c.next_slot as string) || undefined,
           } as AppointmentResult;
         }));
 
@@ -221,10 +215,9 @@
   let totalAppointments = $derived(flatResults.length);
 
   // Earliest available slot across all results
-  // New format: slot_datetime; legacy: next_slot
   let earliestSlot = $derived.by(() => {
     const slots = flatResults
-      .map(r => r.slot_datetime || r.next_slot)
+      .map(r => r.slot_datetime)
       .filter((s): s is string => !!s)
       .sort();
     return slots[0] || null;

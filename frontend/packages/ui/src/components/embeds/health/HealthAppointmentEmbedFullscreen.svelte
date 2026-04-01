@@ -22,11 +22,6 @@
   import { text } from '@repo/ui';
   import { getProviderIconUrl } from '../../../data/providerIcons';
 
-  interface SlotData {
-    datetime: string;
-    booking_url?: string;
-  }
-
   interface AppointmentData {
     embed_id: string;
     /** ISO datetime for this specific appointment slot */
@@ -46,10 +41,6 @@
     rating_count?: number;
     price?: number;
     service_name?: string;
-    // Legacy backward-compat (old per-doctor cached embeds)
-    slots_count?: number;
-    next_slot?: string;
-    slots?: SlotData[];
   }
 
   interface Props {
@@ -69,10 +60,6 @@
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
     onNavigateNext?: () => void;
-    // Legacy backward-compat
-    slots_count?: number;
-    next_slot?: string;
-    slots?: SlotData[];
   }
 
   let {
@@ -92,9 +79,6 @@
     hasNextEmbed = false,
     onNavigatePrevious,
     onNavigateNext,
-    slots_count,
-    next_slot,
-    slots: slotsProp,
   }: Props = $props();
 
   function isNonEmptyString(value: unknown): value is string {
@@ -117,7 +101,6 @@
       isNonEmptyString(speciality) ||
       isNonEmptyString(address) ||
       isNonEmptyString(slot_datetime) ||
-      isNonEmptyString(next_slot) ||
       isNonEmptyString(practice_url);
 
     if (!hasFlatData) return undefined;
@@ -133,10 +116,6 @@
       telehealth,
       practice_url,
       provider,
-      // Legacy backward-compat
-      slots_count,
-      next_slot,
-      slots: slotsProp,
     } as AppointmentData;
   });
 
@@ -149,20 +128,7 @@
     } catch { return iso; }
   }
 
-  // Effective slot datetime: new per-slot format, or legacy per-doctor format
-  let effectiveSlotDatetime = $derived(
-    activeAppointment?.slot_datetime || activeAppointment?.next_slot || null
-  );
-
-  // Legacy support: old per-doctor embeds may have multiple slots
-  function getLegacySlots(appt: AppointmentData | undefined): SlotData[] {
-    if (!appt) return [];
-    if (appt.slots && Array.isArray(appt.slots) && appt.slots.length > 0) return appt.slots;
-    return [];
-  }
-
-  let legacySlots = $derived(getLegacySlots(activeAppointment));
-  let isLegacyMultiSlot = $derived(!activeAppointment?.slot_datetime && legacySlots.length > 1);
+  let effectiveSlotDatetime = $derived(activeAppointment?.slot_datetime || null);
 
   // Map data from gps_coordinates
   let mapCenter = $derived(
@@ -272,19 +238,7 @@
       {/if}
     </div>
 
-    <!-- Legacy: old per-doctor embeds with multiple slots -->
-    {#if isLegacyMultiSlot}
-      <div class="slots-section">
-        <div class="slots-grid">
-          {#each legacySlots as slot}
-            <div class="slot-card">
-              <span class="slot-datetime">{formatSlot(slot.datetime)}</span>
-            </div>
-          {/each}
-        </div>
-        <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
-      </div>
-    {:else if effectiveSlotDatetime}
+    {#if effectiveSlotDatetime}
       <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
     {/if}
   {/snippet}
@@ -359,25 +313,6 @@
     text-transform: capitalize;
   }
 
-  .slots-section { display: flex; flex-direction: column; gap: 8px; }
-  .slots-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .slot-card {
-    display: flex;
-    align-items: center;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background-color: var(--color-grey-5, #f9f9f9);
-    border: 1px solid var(--color-grey-20);
-  }
-  .slot-datetime {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-font-primary);
-  }
   .slots-disclaimer {
     font-size: 11px;
     color: var(--color-font-secondary);

@@ -21,14 +21,6 @@
   import { text } from '@repo/ui';
 
   /**
-   * A single appointment slot (legacy format).
-   */
-  interface SlotData {
-    datetime: string;
-    booking_url?: string;
-  }
-
-  /**
    * Appointment result — one appointment slot with doctor metadata.
    */
   interface AppointmentResult {
@@ -51,11 +43,6 @@
     rating_count?: number;
     price?: number;
     service_name?: string;
-    // Legacy backward-compat (old per-doctor cached embeds)
-    slots_count?: number;
-    next_slot?: string;
-    next_slot_url?: string;
-    slots?: SlotData[];
   }
 
   interface Props {
@@ -152,42 +139,7 @@
     return { latitude, longitude };
   }
 
-  function parseSlots(content: Record<string, unknown>): SlotData[] {
-    if (Array.isArray(content.slots)) {
-      return (content.slots as Array<Record<string, unknown>>)
-        .map((slot) => ({
-          datetime: asString(slot.datetime) || '',
-          booking_url: asString(slot.booking_url),
-        }))
-        .filter((slot) => slot.datetime.length > 0);
-    }
-
-    const flattenedSlots: SlotData[] = [];
-    for (let i = 0; i < 20; i++) {
-      const datetime = asString(content[`slots_${i}_datetime`]);
-      if (!datetime) break;
-      flattenedSlots.push({
-        datetime,
-        booking_url: asString(content[`slots_${i}_booking_url`]),
-      });
-    }
-
-    if (flattenedSlots.length > 0) return flattenedSlots;
-
-    const pipeJoinedSlots = asString(content.slots);
-    if (!pipeJoinedSlots) return [];
-
-    return pipeJoinedSlots
-      .split('|')
-      .map((datetime) => datetime.trim())
-      .filter((datetime) => datetime.length > 0)
-      .map((datetime) => ({ datetime }));
-  }
-
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
-    const slots = parseSlots(content);
-    const slotsCount = asNumber(content.slots_count) ?? slots.length;
-
     return {
       embed_id: asString(content.embed_id) || embedId,
       type: asString(content.type) || 'appointment',
@@ -201,17 +153,11 @@
       practice_url: asString(content.practice_url),
       provider: asString(content.provider),
       provider_platform: asString(content.provider_platform),
-      // Jameda-specific fields
       booking_url: asString(content.booking_url),
       rating: asNumber(content.rating),
       rating_count: asNumber(content.rating_count),
       price: asNumber(content.price),
       service_name: asString(content.service_name),
-      // Legacy backward-compat
-      slots_count: slotsCount,
-      next_slot: asString(content.next_slot),
-      next_slot_url: asString(content.next_slot_url),
-      slots,
     };
   }
 
@@ -298,8 +244,6 @@
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}
-      nextSlot={result.next_slot}
-      slotsCount={result.slots_count}
     />
   {/snippet}
 
