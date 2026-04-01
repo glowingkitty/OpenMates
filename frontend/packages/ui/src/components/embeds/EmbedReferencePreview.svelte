@@ -53,7 +53,7 @@
   const CHILD_TYPE_OVERRIDES = new Set([
     'image_result', 'web_result', 'news_result', 'video_result',
     'location', 'flight', 'stay', 'event', 'product', 'job',
-    'health_result', 'recipe', 'price_calendar_result',
+    'health_result', 'recipe', 'price_calendar_result', 'listing',
   ]);
 
   function buildAttrs(
