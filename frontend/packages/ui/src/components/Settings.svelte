@@ -761,7 +761,8 @@ changes to the documentation (to keep the documentation up to date).
      */
     let isAppSubPage = $derived(
         (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
-         activeSettingsView === 'app_store/reminder/create') &&
+         activeSettingsView === 'app_store/reminder/create' ||
+         /^app_store\/reminder\/entry\//.test(activeSettingsView)) &&
         !isModelDetailPage
     );
 
@@ -874,6 +875,23 @@ changes to the documentation (to keep the documentation up to date).
             return {
                 appId: 'reminder',
                 itemName: $text('reminder.settings.create_title'),
+                itemTypeLabel: '',
+                description: '',
+                iconName,
+                iconType: 'skill',
+            };
+        }
+
+        // Reminder entry detail/edit page
+        if (/^app_store\/reminder\/entry\//.test(activeSettingsView)) {
+            const appMeta = appSkillsStore.getState().apps['reminder'];
+            if (!appMeta) return null;
+            const rawIcon = appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const isEdit = activeSettingsView.endsWith('/edit');
+            return {
+                appId: 'reminder',
+                itemName: isEdit ? $text('common.edit') : $text('apps.reminder.active_reminders.title'),
                 itemTypeLabel: '',
                 description: '',
                 iconName,
@@ -1183,6 +1201,14 @@ changes to the documentation (to keep the documentation up to date).
             // Trigger reactivity by reassigning the Set
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
             // Dynamically registered model detail route: settingsPath
+        }
+
+        // Check if this is a dynamic reminder entry route that needs to be registered
+        // Pattern: app_store/reminder/entry/{reminder_id}[/edit]
+        const reminderEntryPattern = /^app_store\/reminder\/entry\/[^/]+(\/edit)?$/;
+        if (reminderEntryPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
         // Check if this is a dynamic personal data edit route that needs to be registered

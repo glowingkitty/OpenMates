@@ -236,7 +236,7 @@
         {#if isAuthenticated && appId === 'reminder'}
             <div class="section">
                 <SettingsSectionHeading title={$text('apps.reminder.active_reminders.title')} icon="reminder" />
-                <ActiveRemindersList />
+                <ActiveRemindersList on:openSettings={handleOpenSettings} />
             </div>
         {/if}
         

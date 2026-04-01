@@ -2395,9 +2395,27 @@ export async function handleReminderFiredImpl(
       }),
     );
 
-    // Show in-app notification for the reminder
-    // This ensures the user sees a toast notification even if they're in a different chat
-    const notificationTitle = chat_title || "Reminder";
+    // Show in-app notification for the reminder.
+    // For existing_chat: use the decrypted chat title and category so the user
+    // can immediately identify which chat the reminder is about.
+    // For new_chat: use the chat_title from the payload (the reminder prompt excerpt).
+    let notificationTitle = chat_title || "Reminder";
+    let notificationCategory: string | undefined;
+
+    if (target_type === "existing_chat") {
+      try {
+        const { chatMetadataCache } = await import("./chatMetadataCache");
+        const existingChat = await chatDB.getChat(chat_id);
+        if (existingChat) {
+          const meta = await chatMetadataCache.getDecryptedMetadata(existingChat);
+          if (meta?.title) notificationTitle = meta.title;
+          if (meta?.category) notificationCategory = meta.category;
+        }
+      } catch {
+        // Best-effort — fall back to payload chat_title
+      }
+    }
+
     // Extract the prompt from the reminder message content (strip the markdown formatting)
     const promptMatch = content.match(/\*\*Reminder\*\*\n\n([\s\S]*?)\n\n---/);
     const notificationPreview = promptMatch
@@ -2408,6 +2426,7 @@ export async function handleReminderFiredImpl(
       notificationTitle,
       notificationPreview,
       undefined,
+      notificationCategory,
     );
 
     console.info(
