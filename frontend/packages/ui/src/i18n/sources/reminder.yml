@@ -1097,3 +1097,103 @@ settings.select_time:
   sv: Välj tid
   he: בחר שעה
   verified_by_human: [en, de]
+
+settings.type_heading:
+  context: Heading label for the reminder type selector dropdown (Chat reminder vs Task)
+  en: Reminder type
+  de: Erinnerungstyp
+  zh: 提醒类型
+  es: Tipo de recordatorio
+  fr: Type de rappel
+  pt: Tipo de lembrete
+  ru: Тип напоминания
+  ja: リマインダーの種類
+  ko: 알림 유형
+  it: Tipo di promemoria
+  tr: Hatırlatıcı türü
+  vi: Loại nhắc nhở
+  id: Jenis pengingat
+  pl: Typ przypomnienia
+  nl: Type herinnering
+  ar: نوع التذكير
+  hi: अनुस्मारक प्रकार
+  th: ประเภทการแจ้งเตือน
+  cs: Typ připomínky
+  sv: Påminnelsetyp
+  he: סוג תזכורת
+  verified_by_human: [en, de]
+
+settings.day_heading:
+  context: Heading label for the day/date picker field
+  en: Day?
+  de: Tag?
+  zh: 哪天？
+  es: ¿Día?
+  fr: Jour ?
+  pt: Dia?
+  ru: День?
+  ja: 日?
+  ko: 날?
+  it: Giorno?
+  tr: Gün?
+  vi: Ngày?
+  id: Hari?
+  pl: Dzień?
+  nl: Dag?
+  ar: اليوم؟
+  hi: दिन?
+  th: วัน?
+  cs: Den?
+  sv: Dag?
+  he: יום?
+  verified_by_human: [en, de]
+
+settings.time_heading:
+  context: Heading label for the time picker field
+  en: Time?
+  de: Uhrzeit?
+  zh: 时间？
+  es: ¿Hora?
+  fr: Heure ?
+  pt: Hora?
+  ru: Время?
+  ja: 時間?
+  ko: 시간?
+  it: Ora?
+  tr: Saat?
+  vi: Thời gian?
+  id: Waktu?
+  pl: Czas?
+  nl: Tijd?
+  ar: الوقت؟
+  hi: समय?
+  th: เวลา?
+  cs: Čas?
+  sv: Tid?
+  he: שעה?
+  verified_by_human: [en, de]
+
+settings.repeat_heading:
+  context: Heading label for the repeat frequency selector
+  en: Repeat?
+  de: Wiederholen?
+  zh: 重复？
+  es: ¿Repetir?
+  fr: Répéter ?
+  pt: Repetir?
+  ru: Повторять?
+  ja: 繰り返し?
+  ko: 반복?
+  it: Ripetere?
+  tr: Tekrarla?
+  vi: Lặp lại?
+  id: Ulangi?
+  pl: Powtarzać?
+  nl: Herhalen?
+  ar: تكرار؟
+  hi: दोहराएं?
+  th: ทำซ้ำ?
+  cs: Opakovat?
+  sv: Upprepa?
+  he: חזרה?
+  verified_by_human: [en, de]
