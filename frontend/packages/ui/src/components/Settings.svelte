@@ -874,8 +874,8 @@ changes to the documentation (to keep the documentation up to date).
             return {
                 appId: 'reminder',
                 itemName: $text('reminder.settings.create_title'),
-                itemTypeLabel: $text('reminder.settings.title'),
-                description: $text('reminder.settings.description_new_chat'),
+                itemTypeLabel: '',
+                description: '',
                 iconName,
                 iconType: 'skill',
             };
