@@ -36,6 +36,9 @@
 	} from '../../../utils/categoryUtils';
 	import { settingsMenuVisible } from '../../Settings.svelte';
 	import { panelState } from '../../../stores/panelStateStore';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	// ─── Chat context ──────────────────────────────────────────────────────────
 
@@ -91,7 +94,6 @@
 
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
-	let successMessage = $state('');
 
 	// ─── Derived ───────────────────────────────────────────────────────────────
 
@@ -130,7 +132,6 @@
 
 	async function handleSubmit() {
 		errorMessage = '';
-		successMessage = '';
 
 		if (!date || !time) return;
 
@@ -200,19 +201,12 @@
 				return;
 			}
 
-			successMessage = $text('reminder.settings.success');
-			date = '';
-			time = '';
-			actionPrompt = '';
-			reminderMode = 'this_chat';
-			repeatType = 'none';
-			customInterval = '1';
-			customUnit = 'days';
-			endDate = '';
-
-			setTimeout(() => {
-				successMessage = '';
-			}, 5000);
+			// Navigate to the reminder app store page so the user sees
+			// their new reminder in the ActiveRemindersList.
+			dispatch('openSettings', {
+				settingsPath: 'app_store/reminder',
+				direction: 'forward'
+			});
 		} catch (err) {
 			errorMessage = $text('reminder.panel.error_generic');
 			console.error('[SettingsReminders] fetch error:', err);
