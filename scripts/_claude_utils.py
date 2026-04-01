@@ -287,6 +287,7 @@ def run_claude_session(
                     cwd=project_root,
                     output_file=output_file,
                     timeout=timeout,
+                    env=run_env,
                 )
 
                 if ran:

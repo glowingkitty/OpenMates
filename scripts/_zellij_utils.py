@@ -19,7 +19,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
@@ -118,6 +118,7 @@ def run_in_session(
     cwd: str,
     output_file: Optional[str] = None,
     timeout: Optional[int] = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> bool:
     """
     Run a command inside a Zellij session. Creates the session if needed.
@@ -132,17 +133,28 @@ def run_in_session(
         cwd: Working directory for the command.
         output_file: If set, redirects stdout+stderr to this file.
         timeout: Max seconds to wait (None = no limit).
+        env: Optional environment variables for the subprocess. If provided,
+             PATH and other vars are exported inside the inner shell so the
+             command sees them (cron PATH is minimal and may miss binaries).
 
     Returns True if the command ran (regardless of exit code), False if
     Zellij setup failed.
     """
     session_name = _sanitize_session_name(session_name)
 
+    # Build PATH export prefix so the inner shell finds the right binaries.
+    # Cron jobs have a minimal PATH that may not include ~/.local/bin where
+    # claude is installed, causing "unknown option" errors when a stale
+    # system-level binary is found instead.
+    path_prefix = ""
+    if env and "PATH" in env:
+        path_prefix = f"export PATH={shlex.quote(env['PATH'])} && "
+
     # Build the inner command — optionally redirect to output file
     if output_file:
-        inner_cmd = f"cd {shlex.quote(cwd)} && {shlex.join(command)} > {shlex.quote(output_file)} 2>&1"
+        inner_cmd = f"{path_prefix}cd {shlex.quote(cwd)} && {shlex.join(command)} > {shlex.quote(output_file)} 2>&1"
     else:
-        inner_cmd = f"cd {shlex.quote(cwd)} && {shlex.join(command)}"
+        inner_cmd = f"{path_prefix}cd {shlex.quote(cwd)} && {shlex.join(command)}"
 
     # Use ZELLIJ_SESSION_NAME to target the session, run command in a pane
     args = [
@@ -156,8 +168,8 @@ def run_in_session(
     ]
 
     run_timeout = timeout + 60 if timeout else 7200  # default 2h cap
-    env = os.environ.copy()
-    env["ZELLIJ_SESSION_NAME"] = session_name
+    run_env = env.copy() if env else os.environ.copy()
+    run_env["ZELLIJ_SESSION_NAME"] = session_name
 
     try:
         subprocess.run(
@@ -165,7 +177,7 @@ def run_in_session(
             capture_output=True,
             text=True,
             timeout=run_timeout,
-            env=env,
+            env=run_env,
         )
         return True
     except subprocess.TimeoutExpired:
@@ -183,6 +195,7 @@ def launch_in_session(
     session_name: str,
     command: List[str],
     cwd: str,
+    env: Optional[Dict[str, str]] = None,
 ) -> bool:
     """
     Launch a command inside a Zellij session without blocking.
@@ -191,10 +204,23 @@ def launch_in_session(
     alive after the command finishes. Used for interactive sessions where
     the user can attach later.
 
+    Args:
+        session_name: Name for the Zellij session (will be sanitized).
+        command: Command and arguments to run.
+        cwd: Working directory for the command.
+        env: Optional environment variables. PATH is exported inside the
+             inner shell so the command resolves the correct binaries.
+
     Returns True if launched, False otherwise.
     """
     session_name = _sanitize_session_name(session_name)
-    inner_cmd = f"cd {shlex.quote(cwd)} && {shlex.join(command)}"
+
+    # Export PATH inside the inner shell (same reason as run_in_session)
+    path_prefix = ""
+    if env and "PATH" in env:
+        path_prefix = f"export PATH={shlex.quote(env['PATH'])} && "
+
+    inner_cmd = f"{path_prefix}cd {shlex.quote(cwd)} && {shlex.join(command)}"
 
     args = [
         "run",
@@ -204,13 +230,13 @@ def launch_in_session(
         "sh", "-c", inner_cmd,
     ]
 
-    env = os.environ.copy()
-    env["ZELLIJ_SESSION_NAME"] = session_name
+    run_env = env.copy() if env else os.environ.copy()
+    run_env["ZELLIJ_SESSION_NAME"] = session_name
 
     try:
         subprocess.Popen(
             [ZELLIJ_BIN] + args,
-            env=env,
+            env=run_env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
