@@ -19,7 +19,7 @@ import os
 import re
 from typing import Dict, Any, List, Optional
 
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
+from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 # Import ASCII smuggling sanitization
@@ -344,12 +344,14 @@ async def _sanitize_text_chunk(
         
         # Call LLM for prompt injection detection
         logger.info(f"[{task_id}] Calling LLM for prompt injection detection on chunk {chunk_index+1}/{total_chunks}")
+        sanitization_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
         result: LLMPreprocessingCallResult = await call_preprocessing_llm(
             task_id=f"{task_id}_chunk_{chunk_index}",
             model_id=model_id,
             message_history=message_history,
             tool_definition=tool_definition,
-            secrets_manager=secrets_manager
+            secrets_manager=secrets_manager,
+            fallback_models=sanitization_fallbacks,
         )
         
         # Log sanitization response
@@ -740,12 +742,14 @@ async def sanitize_message_for_import(
                 f"model: {model_id}, chars: {len(chunk)}"
             )
 
+            import_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
             result: LLMPreprocessingCallResult = await call_preprocessing_llm(
                 task_id=f"{task_id}_chunk_{i}",
                 model_id=model_id,
                 message_history=message_history,
                 tool_definition=tool_definition,
                 secrets_manager=secrets_manager,
+                fallback_models=import_fallbacks,
             )
 
             if result.error_message or not result.arguments:
