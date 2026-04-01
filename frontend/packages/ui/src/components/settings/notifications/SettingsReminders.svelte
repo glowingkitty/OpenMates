@@ -163,7 +163,7 @@
 			};
 
 			if (targetType === 'existing_chat' && contextChatId) {
-				body._chat_id = contextChatId;
+				body.chat_id = contextChatId;
 			} else {
 				body.target_type = 'new_chat';
 				body.new_chat_title = prompt.slice(0, 50);

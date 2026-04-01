@@ -100,8 +100,7 @@
         timezone,
         target_type: targetType,
         response_type: responseType,
-        // _chat_id is read by BaseApp as the execution-context chat_id
-        _chat_id: chatId,
+        chat_id: chatId,
       };
 
       if (isNewTask) {
