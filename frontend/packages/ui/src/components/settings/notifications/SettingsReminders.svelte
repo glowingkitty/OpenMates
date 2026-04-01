@@ -12,7 +12,6 @@
   Reminder type → explainer → Task (if task) → Day → Time → Repeat → Button
 
   API: POST /v1/apps/reminder/skills/set-reminder (creation)
-  API: GET /v1/settings/reminders (list, via ActiveRemindersList)
 
   Architecture: docs/architecture/ai/reminder.md
 -->
@@ -24,13 +23,12 @@
 	import { chatListCache } from '../../../services/chatListCache';
 	import { getApiUrl } from '../../../config/api';
 	import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
+	import SettingsPageHeader from '../elements/SettingsPageHeader.svelte';
 	import SettingsTextarea from '../elements/SettingsTextarea.svelte';
 	import SettingsDropdown from '../elements/SettingsDropdown.svelte';
 	import SettingsButton from '../elements/SettingsButton.svelte';
-	import SettingsDivider from '../elements/SettingsDivider.svelte';
 	import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
 	import SettingsItem from '../../SettingsItem.svelte';
-	import ActiveRemindersList from '../appSettings/ActiveRemindersList.svelte';
 	import { chatMetadataCache } from '../../../services/chatMetadataCache';
 	import { chatDB } from '../../../services/db';
 	import {
@@ -102,7 +100,6 @@
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
 	let successMessage = $state('');
-	let refreshTrigger = $state(0);
 
 	// Default to new_task if no active chat context
 	$effect(() => {
@@ -138,10 +135,9 @@
 		{ value: 'months', label: $text('reminder.panel.repeat_months') }
 	]);
 
+	/** Always show both options — Chat reminder + Task */
 	let reminderModeOptions = $derived([
-		...(hasActiveChat
-			? [{ value: 'this_chat', label: $text('reminder.settings.type_chat_reminder') }]
-			: []),
+		{ value: 'this_chat', label: $text('reminder.settings.type_chat_reminder') },
 		{ value: 'new_task', label: $text('reminder.settings.type_task') }
 	]);
 
@@ -220,7 +216,7 @@
 				return;
 			}
 
-			// Success — reset form and refresh list
+			// Success — reset form
 			successMessage = $text('reminder.settings.success');
 			date = '';
 			time = '';
@@ -230,7 +226,6 @@
 			customInterval = '1';
 			customUnit = 'days';
 			endDate = '';
-			refreshTrigger++;
 
 			setTimeout(() => {
 				successMessage = '';
@@ -245,10 +240,17 @@
 </script>
 
 <SettingsPageContainer>
+	<SettingsPageHeader
+		title={$text('reminder.settings.create_title')}
+		description={reminderMode === 'this_chat'
+			? $text('reminder.settings.description_this_chat')
+			: $text('reminder.settings.description_new_chat')}
+	/>
+
 	<!-- 1. Reminder type -->
 	<SettingsItem
 		type="heading"
-		icon="calendar"
+		icon="reminder"
 		title={$text('reminder.settings.type_heading')}
 	/>
 	<SettingsDropdown
@@ -294,7 +296,7 @@
 	{#if reminderMode === 'new_task'}
 		<SettingsItem
 			type="heading"
-			icon="calendar"
+			icon="task"
 			title={$text('reminder.settings.task_prompt_label')}
 		/>
 		<SettingsTextarea
@@ -324,7 +326,7 @@
 	<!-- 6. Time? -->
 	<SettingsItem
 		type="heading"
-		icon="calendar"
+		icon="time"
 		title={$text('reminder.settings.time_heading')}
 	/>
 	<div class="native-input-wrapper">
@@ -339,7 +341,7 @@
 	<!-- 7. Repeat? -->
 	<SettingsItem
 		type="heading"
-		icon="calendar"
+		icon="reminder"
 		title={$text('reminder.settings.repeat_heading')}
 	/>
 	<SettingsDropdown
@@ -351,7 +353,7 @@
 	{#if showCustomRepeat}
 		<SettingsItem
 			type="heading"
-			icon="calendar"
+			icon="reminder"
 			title={$text('reminder.panel.repeat_every')}
 		/>
 		<div class="custom-repeat-row">
@@ -405,18 +407,8 @@
 		disabled={!date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
 		onClick={handleSubmit}
 	>
-		{isSubmitting ? $text('reminder.panel.setting') : $text('reminder.panel.submit')}
+		{isSubmitting ? $text('reminder.panel.setting') : $text('reminder.settings.create_title')}
 	</SettingsButton>
-
-	<SettingsDivider />
-
-	<!-- Active reminders list -->
-	<SettingsItem
-		type="heading"
-		icon="reminder"
-		title={$text('reminder.settings.active_title')}
-	/>
-	<ActiveRemindersList {refreshTrigger} />
 </SettingsPageContainer>
 
 <style>
