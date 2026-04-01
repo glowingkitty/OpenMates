@@ -1448,6 +1448,7 @@ async def lookup_user(
                 login_method="password",
                 available_login_methods=["password","recovery_key"],
                 user_email_salt=random_salt,
+                tfa_enabled=True,  # Always True for anti-enumeration
                 stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference even for non-existent users
             )
         
