@@ -936,27 +936,27 @@ home:
   verified_by_human: [en, de]
 home.description:
   context: Description for the Home (housing search) app
-  en: Search for apartments, houses & rooms in Germany.
-  de: Wohnungen, Haeuser und WG-Zimmer in Deutschland suchen.
-  zh: 在德国搜索公寓、房屋和合租房间。
-  es: Busca apartamentos, casas y habitaciones en Alemania.
-  fr: Rechercher des appartements, maisons et chambres en Allemagne.
-  pt: Pesquisar apartamentos, casas e quartos na Alemanha.
-  ru: Поиск квартир, домов и комнат в Германии.
-  ja: ドイツでアパート、住宅、部屋を検索。
-  ko: 독일에서 아파트, 주택, 방을 검색하세요.
-  it: Cerca appartamenti, case e stanze in Germania.
-  tr: Almanya'da daireler, evler ve odalar arayın.
-  vi: Tìm căn hộ, nhà và phòng tại Đức.
-  id: Cari apartemen, rumah, dan kamar di Jerman.
-  pl: Szukaj mieszkań, domów i pokoi w Niemczech.
-  nl: Zoek appartementen, huizen en kamers in Duitsland.
-  ar: ابحث عن شقق ومنازل وغرف في ألمانيا.
-  hi: जर्मनी में अपार्टमेंट, मकान और कमरे खोजें।
-  th: ค้นหาอพาร์ทเมนต์ บ้าน และห้องพักในเยอรมนี
-  cs: Hledejte byty, domy a pokoje v Německu.
-  sv: Sök lägenheter, hus och rum i Tyskland.
-  he: חפש דירות, בתים וחדרים בגרמניה.
+  en: Search for a new home & more.
+  de: Ein neues Zuhause finden & mehr.
+  zh: 搜索新家及更多。
+  es: Busca un nuevo hogar y más.
+  fr: Trouvez un nouveau logement et plus.
+  pt: Pesquise uma nova casa e mais.
+  ru: Найдите новый дом и не только.
+  ja: 新しい住まいを探す。
+  ko: 새 집을 찾아보세요.
+  it: Cerca una nuova casa e altro.
+  tr: Yeni bir ev arayın ve daha fazlası.
+  vi: Tìm nhà mới và hơn thế nữa.
+  id: Cari rumah baru dan lainnya.
+  pl: Szukaj nowego domu i więcej.
+  nl: Zoek een nieuw huis en meer.
+  ar: ابحث عن منزل جديد والمزيد.
+  hi: एक नया घर खोजें और बहुत कुछ।
+  th: ค้นหาบ้านใหม่และอื่นๆ
+  cs: Hledejte nový domov a více.
+  sv: Sök ett nytt hem och mer.
+  he: חפש בית חדש ועוד.
   verified_by_human: [en, de]
 fitness:
   context: App name for the Fitness app
