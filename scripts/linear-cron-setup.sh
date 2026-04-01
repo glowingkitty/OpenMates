@@ -49,7 +49,35 @@ EOF
 
 echo "[OK] Created linear-poller.service"
 
-# --- 2. Linear Archive Service + Timer (daily) ---
+# --- 2. Linear Enricher Service + Timer (nightly at 3 AM) ---
+
+cat > "$SYSTEMD_DIR/linear-enricher.service" << EOF
+[Unit]
+Description=OpenMates Linear Task Enrichment (nightly research)
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$PROJECT_ROOT
+EnvironmentFile=$PROJECT_ROOT/.env
+ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/linear-enricher.py --max-tasks 5
+EOF
+
+cat > "$SYSTEMD_DIR/linear-enricher.timer" << EOF
+[Unit]
+Description=Nightly Linear task enrichment (3 AM UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+echo "[OK] Created linear-enricher.service + linear-enricher.timer"
+
+# --- 3. Linear Archive Service + Timer (daily) ---
 
 cat > "$SYSTEMD_DIR/linear-archive.service" << EOF
 [Unit]
@@ -77,7 +105,7 @@ EOF
 
 echo "[OK] Created linear-archive.service + linear-archive.timer"
 
-# --- 3. Session Cleanup Service + Timer (every 5 minutes) ---
+# --- 4. Session Cleanup Service + Timer (every 5 minutes) ---
 
 cat > "$SYSTEMD_DIR/session-cleanup.service" << EOF
 [Unit]
@@ -114,6 +142,9 @@ echo "[OK] Systemd daemon reloaded"
 systemctl --user enable --now linear-poller.service
 echo "[OK] linear-poller.service enabled and started"
 
+systemctl --user enable --now linear-enricher.timer
+echo "[OK] linear-enricher.timer enabled and started"
+
 systemctl --user enable --now linear-archive.timer
 echo "[OK] linear-archive.timer enabled and started"
 
@@ -125,6 +156,9 @@ echo "=== Service Status ==="
 echo ""
 echo "--- linear-poller.service ---"
 systemctl --user status linear-poller.service --no-pager || true
+echo ""
+echo "--- linear-enricher.timer ---"
+systemctl --user status linear-enricher.timer --no-pager || true
 echo ""
 echo "--- linear-archive.timer ---"
 systemctl --user status linear-archive.timer --no-pager || true
