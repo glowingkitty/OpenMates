@@ -34,6 +34,7 @@
 {#if isVisible}
     <div 
         class="pii-warning-banner"
+        data-testid="pii-warning-banner"
         transition:slide={{ duration: 200 }}
         role="alert"
         aria-live="polite"
@@ -41,15 +42,16 @@
         <div class="banner-content">
             <span class="clickable-icon icon_shield_lock banner-icon"></span>
             <div class="banner-text">
-                <span class="banner-title">
+                <span class="banner-title" data-testid="banner-title">
                     {$text('enter_message.pii.banner_title')}
                 </span>
-                <span class="banner-description">
+                <span class="banner-description" data-testid="banner-description">
                     Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original.
                 </span>
             </div>
             <button
                 class="undo-all-btn"
+                data-testid="undo-all-btn"
                 onclick={onUndoAll}
                 title={$text('enter_message.pii.undo_all')}
             >

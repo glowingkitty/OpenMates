@@ -53,6 +53,11 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await page.waitForTimeout(1000);
@@ -85,10 +90,10 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
 	}
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 8000 });
 	await activeChatItem.click({ button: 'right' });
-	const deleteBtn = page.locator('.menu-item.delete');
+	const deleteBtn = page.getByTestId('chat-context-delete');
 	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 	await deleteBtn.click();
 	await deleteBtn.click();
@@ -106,7 +111,7 @@ async function waitForSystemMessages(
 	label: string,
 	log: any
 ): Promise<void> {
-	const systemMsg = page.locator('.message-wrapper.system');
+	const systemMsg = page.getByTestId('message-system');
 	const start = Date.now();
 	log(`[${label}] Waiting for ${targetCount} system message(s)...`);
 
@@ -152,13 +157,13 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	await screenshot(page, 'logged-in');
 
 	// Open a fresh chat
-	const newChatBtn = page.locator('.icon_create');
+	const newChatBtn = page.getByTestId('new-chat-button');
 	if (await newChatBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatBtn.click();
 		await page.waitForTimeout(2000);
 	}
 
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(
@@ -166,13 +171,13 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	);
 	await screenshot(page, 'message-typed');
 
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 	log('Repeating reminder request sent.');
 
 	// Wait for AI confirmation
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 	log('AI confirmed repeating reminder set.');
 	await screenshot(page, 'ai-confirmation');
@@ -192,7 +197,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	await waitForSystemMessages(page, 3, 180000, 'occ-3', log);
 	await screenshot(page, 's4-occurrence-3');
 
-	const firstSysText = await page.locator('.message-wrapper.system').first().textContent();
+	const firstSysText = await page.getByTestId('message-system').first().textContent();
 	log(`First system message: "${firstSysText?.substring(0, 150)}"`);
 	expect(firstSysText).toContain('Reminder');
 	log('S4 PASSED — repeating reminder fired 3 times.');
@@ -205,7 +210,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 
 	// Strategy 1: look for the reminder embed preview card and click it to open
 	// fullscreen, then click the Cancel button.
-	const embedPreview = page.locator('.reminder-embed-preview').first();
+	const embedPreview = page.getByTestId('reminder-embed-preview').first();
 	const embedVisible = await embedPreview.isVisible({ timeout: 5000 }).catch(() => false);
 
 	let cancelledViaEmbed = false;
@@ -218,7 +223,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 		// Strategy 2: look for an expand button
 		log('Embed preview not found — looking for expand button.');
 		const expandBtn = page
-			.locator('.embed-expand-button, .embed-open-button, [class*="expand"]')
+			.locator('[data-testid="embed-expand-button"], [data-testid="embed-open-button"], [class*="expand"]')
 			.first();
 		if (await expandBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await expandBtn.click();
@@ -227,7 +232,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	}
 
 	// Try the Cancel button in fullscreen embed
-	const cancelBtn = page.locator('.cancel-btn, [class*="cancel-btn"]').first();
+	const cancelBtn = page.locator('[data-testid="cancel-btn"], [class*="cancel-btn"]').first();
 	if (await cancelBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		log('Found Cancel button — clicking.');
 		await cancelBtn.click();
@@ -244,13 +249,13 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	if (!cancelledViaEmbed) {
 		// Strategy 3 (fallback): send a cancel message via chat
 		log('No embed cancel UI found — cancelling via chat message.');
-		const editorFb = page.locator('.editor-content.prose');
+		const editorFb = page.getByTestId('message-editor');
 		await expect(editorFb).toBeVisible();
 		await editorFb.click();
 		await page.keyboard.type(
 			'Cancel my repeating reminder. Just cancel it, no need to ask questions.'
 		);
-		const sendBtnFb = page.locator('.send-button');
+		const sendBtnFb = page.locator('[data-action="send-message"]');
 		await expect(sendBtnFb).toBeEnabled();
 		await sendBtnFb.click();
 
@@ -268,7 +273,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	// =========================================================================
 	// S5: Verify no 4th firing for 2 minutes
 	// =========================================================================
-	const systemMsgs = page.locator('.message-wrapper.system');
+	const systemMsgs = page.getByTestId('message-system');
 	const countBeforeWait = await systemMsgs.count();
 	log(
 		`System message count before 2-min wait: ${countBeforeWait}. Waiting to confirm no more firings...`

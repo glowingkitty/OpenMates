@@ -39,7 +39,7 @@ async def handle_cancel_pdf_processing(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-) -> None:
+    user_otel_attrs: dict = None,) -> None:
     """
     Handle the 'cancel_pdf_processing' message from a WebSocket client.
 
@@ -56,107 +56,122 @@ async def handle_cancel_pdf_processing(
       4. Remove embed from Redis cache (if cached).
       5. Broadcast 'draft_embed_deleted' to ALL other devices so they clean up IndexedDB.
     """
-    embed_id = payload.get("embed_id")
-    chat_id = payload.get("chat_id")  # Optional context
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("cancel_pdf_processing", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        embed_id = payload.get("embed_id")
+        chat_id = payload.get("chat_id")  # Optional context
 
-    if not embed_id:
-        logger.warning(
+        if not embed_id:
+            logger.warning(
+                f"User {user_id}, Device {device_fingerprint_hash}: "
+                "Received cancel_pdf_processing without embed_id."
+            )
+            await manager.send_personal_message(
+                message={
+                    "type": "error",
+                    "payload": {"message": "Missing embed_id for cancel_pdf_processing"},
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+            return
+
+        logger.info(
             f"User {user_id}, Device {device_fingerprint_hash}: "
-            "Received cancel_pdf_processing without embed_id."
+            f"Received cancel_pdf_processing for embed_id={embed_id} (chat_id={chat_id})."
         )
-        await manager.send_personal_message(
+
+        # 1. Revoke the Celery OCR task via the internal API.
+        #    This is a best-effort call — if the task already finished, the cancel is a no-op.
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN,
+            }
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{INTERNAL_API_BASE_URL}/internal/pdf/cancel",
+                    json={"embed_id": embed_id, "user_id": user_id},
+                    headers=headers,
+                )
+            if resp.status_code == 200:
+                result = resp.json()
+                logger.info(
+                    f"User {user_id}: PDF cancel response: status={result.get('status')}, "
+                    f"embed={embed_id[:8]}..."
+                )
+            else:
+                logger.warning(
+                    f"User {user_id}: PDF cancel returned {resp.status_code}: {resp.text[:200]}"
+                )
+        except Exception as cancel_err:
+            # Non-fatal — proceed with cleanup even if revocation failed.
+            logger.error(
+                f"User {user_id}: Failed to call /internal/pdf/cancel for embed {embed_id[:8]}: {cancel_err}",
+                exc_info=True,
+            )
+
+        # 2. Remove embed from Redis cache.
+        try:
+            if chat_id:
+                await cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                logger.debug(
+                    f"User {user_id}: Removed embed {embed_id} from Redis cache (chat {chat_id})."
+                )
+        except Exception as cache_err:
+            # Non-fatal.
+            logger.warning(
+                f"User {user_id}: Failed to remove PDF embed {embed_id} from cache: {cache_err}"
+            )
+
+        # 3. Queue Celery task to delete S3 files and the upload_files Directus record.
+        #    Same task used by delete_draft_embed_handler — handles the file cleanup generically.
+        try:
+            app.send_task(
+                name="app.tasks.persistence_tasks.persist_delete_draft_embed",
+                kwargs={
+                    "user_id": user_id,
+                    "embed_id": embed_id,
+                    "chat_id": chat_id,
+                },
+                queue="persistence",
+            )
+            logger.info(
+                f"User {user_id}: Queued persist_delete_draft_embed for cancelled PDF embed {embed_id}."
+            )
+        except Exception as celery_err:
+            # Log but do not block the client response.
+            logger.error(
+                f"User {user_id}: Failed to queue persist_delete_draft_embed "
+                f"for embed {embed_id}: {celery_err}",
+                exc_info=True,
+            )
+
+        # 4. Broadcast 'draft_embed_deleted' to all other devices so they clean up IndexedDB.
+        await manager.broadcast_to_user(
             message={
-                "type": "error",
-                "payload": {"message": "Missing embed_id for cancel_pdf_processing"},
+                "type": "draft_embed_deleted",
+                "payload": {
+                    "embed_id": embed_id,
+                    "chat_id": chat_id,
+                },
             },
             user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash,
-        )
-        return
-
-    logger.info(
-        f"User {user_id}, Device {device_fingerprint_hash}: "
-        f"Received cancel_pdf_processing for embed_id={embed_id} (chat_id={chat_id})."
-    )
-
-    # 1. Revoke the Celery OCR task via the internal API.
-    #    This is a best-effort call — if the task already finished, the cancel is a no-op.
-    try:
-        headers = {
-            "Content-Type": "application/json",
-            "X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN,
-        }
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/pdf/cancel",
-                json={"embed_id": embed_id, "user_id": user_id},
-                headers=headers,
-            )
-        if resp.status_code == 200:
-            result = resp.json()
-            logger.info(
-                f"User {user_id}: PDF cancel response: status={result.get('status')}, "
-                f"embed={embed_id[:8]}..."
-            )
-        else:
-            logger.warning(
-                f"User {user_id}: PDF cancel returned {resp.status_code}: {resp.text[:200]}"
-            )
-    except Exception as cancel_err:
-        # Non-fatal — proceed with cleanup even if revocation failed.
-        logger.error(
-            f"User {user_id}: Failed to call /internal/pdf/cancel for embed {embed_id[:8]}: {cancel_err}",
-            exc_info=True,
-        )
-
-    # 2. Remove embed from Redis cache.
-    try:
-        if chat_id:
-            await cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
-            logger.debug(
-                f"User {user_id}: Removed embed {embed_id} from Redis cache (chat {chat_id})."
-            )
-    except Exception as cache_err:
-        # Non-fatal.
-        logger.warning(
-            f"User {user_id}: Failed to remove PDF embed {embed_id} from cache: {cache_err}"
-        )
-
-    # 3. Queue Celery task to delete S3 files and the upload_files Directus record.
-    #    Same task used by delete_draft_embed_handler — handles the file cleanup generically.
-    try:
-        app.send_task(
-            name="app.tasks.persistence_tasks.persist_delete_draft_embed",
-            kwargs={
-                "user_id": user_id,
-                "embed_id": embed_id,
-                "chat_id": chat_id,
-            },
-            queue="persistence",
+            exclude_device_hash=device_fingerprint_hash,
         )
         logger.info(
-            f"User {user_id}: Queued persist_delete_draft_embed for cancelled PDF embed {embed_id}."
-        )
-    except Exception as celery_err:
-        # Log but do not block the client response.
-        logger.error(
-            f"User {user_id}: Failed to queue persist_delete_draft_embed "
-            f"for embed {embed_id}: {celery_err}",
-            exc_info=True,
+            f"User {user_id}: Broadcasted draft_embed_deleted for cancelled PDF embed {embed_id}."
         )
 
-    # 4. Broadcast 'draft_embed_deleted' to all other devices so they clean up IndexedDB.
-    await manager.broadcast_to_user(
-        message={
-            "type": "draft_embed_deleted",
-            "payload": {
-                "embed_id": embed_id,
-                "chat_id": chat_id,
-            },
-        },
-        user_id=user_id,
-        exclude_device_hash=device_fingerprint_hash,
-    )
-    logger.info(
-        f"User {user_id}: Broadcasted draft_embed_deleted for cancelled PDF embed {embed_id}."
-    )
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

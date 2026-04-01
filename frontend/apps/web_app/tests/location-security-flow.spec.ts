@@ -112,6 +112,11 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
@@ -126,7 +131,7 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
+		.locator('[data-testid="error-message"], [class*="error"]')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
 
 	let loginSuccess = false;
@@ -191,7 +196,7 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 	log('Checking for location-change notice and 2FA input...');
 
 	// Look for the location-change notice banner
-	const locationNotice = page.locator('.location-change-notice');
+	const locationNotice = page.getByTestId('location-change-notice');
 	const otpVerifyInput = page.locator('input[autocomplete="one-time-code"][inputmode="numeric"]');
 
 	// Either the location-change notice appears directly, OR the app might show
@@ -279,6 +284,11 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
@@ -293,7 +303,7 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
+		.locator('[data-testid="error-message"], [class*="error"]')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
 
 	let loginSuccess = false;
@@ -348,10 +358,10 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	// Verify the UI state
 	log('Checking for passkey re-auth UI with location-change notice...');
 
-	const locationNotice = page.locator('.location-change-notice');
+	const locationNotice = page.getByTestId('location-change-notice');
 	// VerifyDevicePasskey renders a `.verify-device-passkey` container with `.verify-button`
 	const verifyPasskeyButton = page.locator(
-		'.verify-device-passkey, button.verify-button, [class*="verify-passkey"]'
+		'[data-testid="verify-device-passkey"], [data-testid="verify-button"], [class*="verify-passkey"]'
 	);
 	const loginButtonVisible = await page
 		.getByRole('button', { name: /login.*sign up|sign up/i })

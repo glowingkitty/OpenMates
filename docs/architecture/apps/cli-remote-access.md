@@ -244,6 +244,137 @@ File operations belong to the "Files" app, which is context-aware. When a server
 
 ---
 
+## Claude Worker Mode — Bring Your Own Subscription (Planned)
+
+> **Status: Planned** — Not yet implemented.
+> Linear: OPE-169
+
+Lets users connect their local Claude Code CLI as an LLM worker for their OpenMates account. The user's machine becomes a compute node — their Claude Max subscription powers AI responses at $0 cost to the platform.
+
+### How It Works
+
+```
+Browser → WebSocket → Backend (FastAPI)
+                         │
+                    ┌────┴────┐
+                    │ Router  │  "Does user have a connected Claude worker?"
+                    └────┬────┘
+                   yes/  \no
+                  ↓       ↓
+          User's CLI    Server-side Anthropic API
+          (WebSocket)   (pay-per-token, existing)
+              │
+              ↓
+          claude --print --output-format stream-json
+              │
+              ↓
+          Stream chunks back → Redis pub/sub → WebSocket → Browser
+```
+
+### `openmates remote-access start --claude-worker`
+
+1. Authenticates via existing pair-auth
+2. Detects installed Claude Code CLI and available models
+3. Sends `worker_register` over existing remote-access WebSocket with capabilities (models, max concurrent runs)
+4. Listens for `worker_llm_request` messages from backend
+5. On request: spawns `claude --print - --output-format stream-json --verbose --model <model>`, pipes prompt via stdin
+6. Streams response chunks back as `worker_llm_chunk` / `worker_llm_done`
+7. Sends periodic `worker_heartbeat` (30s interval, 90s timeout)
+
+### Tool Use Strategy
+
+Server-side tool orchestration — the worker is just an LLM text endpoint, not a tool executor. The existing Celery task still handles the skill loop (web-search, web-read, etc.) and delegates only the LLM generation step to the user's CLI.
+
+### Fallback
+
+If the user's CLI is offline or fails mid-stream, the backend falls back to server-side Anthropic API transparently. The user sees no interruption.
+
+### Prior Art
+
+Paperclip's `claude_local` adapter (MIT, `paperclipai/paperclip`) proves this subprocess pattern works in production. Their implementation spawns `claude --print - --output-format stream-json --verbose` as a child process, pipes prompts via stdin, and parses stream-json stdout for text chunks, usage metadata, session IDs, model info, and cost. It supports session resumption (`--resume`), concurrent runs (configurable 1-10 per agent), billing detection (API key vs subscription), model selection (`--model`), max turns safety (`--max-turns`), and skills injection (`--add-dir`).
+
+### Key Considerations
+
+- **Latency**: Additional network hop (server → user machine → Claude → user machine → server). Acceptable for power users.
+- **Availability**: User's machine must be online. Laptop closed = fallback to API.
+- **Concurrency**: Claude Code CLI handles one invocation at a time per process. Multiple concurrent requests need multiple processes (default max 3).
+- **Security**: Worker responses validated for format and rate-limited. Auth tied to existing WebSocket session.
+
+### WebSocket Protocol
+
+New message types extending the existing remote-access WebSocket connection:
+
+| Message | Direction | Purpose |
+|---------|-----------|---------|
+| `worker_register` | CLI → Backend | Register as Claude worker with capabilities (models, max concurrent) |
+| `worker_registered` | Backend → CLI | Acknowledgement with worker_id |
+| `worker_heartbeat` | CLI → Backend | Periodic ping (every 30s, 90s timeout) |
+| `worker_llm_request` | Backend → CLI | Prompt + model + config for LLM generation |
+| `worker_llm_chunk` | CLI → Backend | Streaming response chunk |
+| `worker_llm_done` | CLI → Backend | Final chunk with usage metadata (tokens, model, cost) |
+| `worker_llm_error` | CLI → Backend | Error report (login expired, rate limited, etc.) |
+| `worker_disconnect` | CLI → Backend | Graceful shutdown |
+
+### Backend Components
+
+**Worker Connection Manager** (`backend/core/api/app/services/worker_connection_manager.py`):
+- In-memory registry: `Dict[user_id, WorkerConnection]` tracking models, max_concurrent, last_heartbeat, pending requests
+- `is_worker_available(user_id, model_id)` — used by model selector to route requests
+- `send_llm_request(user_id, request)` — delivers request, returns async iterator of chunks
+- Heartbeat timeout (90s) marks worker offline automatically
+- Request queuing when worker is at max concurrent; rejects with fallback signal when full
+
+**Worker LLM Provider** (`backend/apps/ai/llm_providers/worker_client.py`):
+- New provider implementing `invoke_worker_chat_completions()` matching existing provider signature
+- Yields `UnifiedStreamChunk` objects (same interface as `anthropic_client.py`)
+- Timeout: 120s for first token (configurable)
+- On disconnect/error: raises so `ask_skill_task` can fall back to server-side API
+
+**Model Selector Integration** (`backend/apps/ai/utils/llm_utils.py`):
+- Before calling server-side Anthropic API, checks `worker_connection_manager.is_worker_available(user_id, model_id)`
+- If available: routes to worker. If worker fails: transparent fallback to API.
+- Non-Claude models bypass worker entirely. `@ai-model:` user overrides still respected.
+
+### CLI Components
+
+**Claude Subprocess Manager** (`frontend/packages/openmates-cli/src/claudeWorker.ts`):
+- Spawns `claude --print - --output-format stream-json --verbose --model <model>`
+- Pipes prompt via stdin, parses stream-json stdout
+- Extracts: text chunks, usage metadata (input/output tokens), session_id, model, cost
+- Detects login-required state and reports to backend
+- Configurable max concurrent processes (default 3)
+- Queues additional requests when at capacity
+- Clean process cleanup on disconnect/shutdown
+
+**Stream Parser** (`frontend/packages/openmates-cli/src/claudeStreamParser.ts`):
+- Parses Claude Code's stream-json output format into typed chunk objects
+- Handles partial JSON lines, newline-delimited streaming
+
+### Usage Tracking
+
+Worker responses include token counts from Claude's stream-json output. Backend logs usage with `billing_type: "user_subscription"` and `cost_usd: 0`. Tracks: requests routed to worker vs API, success/failure rate, latency.
+
+### Security
+
+- **Response tampering**: Rate-limit response size, validate chunk format, log anomalies
+- **Impersonation**: `worker_register` requires authenticated WebSocket (existing session auth)
+- **Amplification**: Per-worker rate limits on chunk frequency and total bytes
+- **Stale workers**: Heartbeat timeout (90s) auto-marks offline
+
+### Implementation Order
+
+1. WebSocket protocol (message types + handler) — parallelizable with step 5
+2. Worker Connection Manager (in-memory registry)
+3. Worker LLM Provider (UnifiedStreamChunk adapter)
+4. Model Selector integration (routing + fallback)
+5. CLI Claude subprocess manager — parallelizable with step 1
+6. CLI worker mode (`--claude-worker` flag wiring)
+7. Usage tracking (`billing_type: "user_subscription"`)
+8. Frontend worker status UI (settings panel + chat badge)
+9. Security hardening (rate limits, validation)
+
+---
+
 ## Security Principles
 
 - **Default settings**: Conservative and limited access for production safety

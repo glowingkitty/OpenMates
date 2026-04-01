@@ -155,7 +155,7 @@ async def invoke_mistral_chat_completions(
     logger.debug(f"{log_prefix} Payload summary: {json.dumps(payload_summary, indent=2)}")
 
     # Calculate token breakdown from input messages (estimate)
-    token_breakdown = calculate_token_breakdown(messages, model_id)
+    token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
     async def _process_non_stream_response(response_json: Dict[str, Any]) -> UnifiedMistralResponse:
         logger.info(f"{log_prefix} Received non-streamed response.")

@@ -377,7 +377,7 @@
     ]);
 </script>
 
-<div class="ai-ask-settings">
+<div class="ai-ask-settings" data-testid="ai-ask-settings">
     <!-- Description section -->
     <div class="description-section">
         <p class="skill-description">{$text('settings.ai_ask.ai_ask_settings.description')}</p>
@@ -422,7 +422,7 @@
             />
             <div class="settings-content">
                 <!-- Auto-select toggle -->
-                <div class="setting-row">
+                <div class="setting-row" data-testid="setting-row">
                     <div class="setting-left">
                         <span class="icon icon_search setting-icon"></span>
                         <span class="setting-label">{$text('settings.ai_ask.ai_ask_settings.auto_select_model')}</span>
@@ -522,6 +522,7 @@
                 {@const enabled = isModelEnabled(model.id)}
                 <div 
                     class="model-item"
+                    data-testid="model-item"
                     class:disabled={!enabled}
                     role="button"
                     tabindex="0"
@@ -529,19 +530,20 @@
                     onkeydown={(e) => e.key === 'Enter' && handleModelClick(model)}
                 >
                     <div class="model-icon">
-                        <img 
-                            src={getProviderIconUrl(model.logo_svg)} 
+                        <img
+                            src={getProviderIconUrl(model.logo_svg)}
                             alt={model.provider_name}
                             class="provider-logo"
                         />
                     </div>
                     <div class="model-info">
-                        <span class="model-name">{model.name}</span>
+                        <span class="model-name" data-testid="model-name">{model.name}</span>
                         <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
                     </div>
                     {#if isAuthenticated}
-                        <div 
+                        <div
                             class="model-toggle"
+                            data-testid="model-toggle"
                             onclick={(e) => { e.stopPropagation(); handleModelToggle(model.id); }}
                             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); handleModelToggle(model.id); } }}
                             role="button"

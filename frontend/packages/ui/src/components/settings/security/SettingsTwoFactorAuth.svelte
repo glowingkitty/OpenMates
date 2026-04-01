@@ -633,7 +633,7 @@ Props:
             {:else if qrCodeSvg}
                 <div class="qr-container">
                     {#if showQrCode}
-                        <div class="qr-code">
+                        <div class="qr-code" data-testid="qr-code">
                             <!-- QR code SVG is generated client-side by qrcode-svg library (safe) -->
                             {@html qrCodeSvg}
                         </div>
@@ -642,7 +642,7 @@ Props:
                 
                 <div class="secret-container">
                     <p class="secret-label">{$text('settings.security.tfa_secret_key')}</p>
-                    <div class="secret-value">
+                    <div class="secret-value" data-testid="secret-value">
                         <code>{tfaSecret}</code>
                         <button class="copy-btn" onclick={copySecret}>
                             {showCopiedText ? $text('common.copied') : $text('common.copy')}
@@ -660,6 +660,7 @@ Props:
                         bind:value={verificationCode}
                         placeholder="000000"
                         disabled={isVerifying}
+                        dataTestid="otp-input"
                         hasError={!!errorMessage}
                         onInput={handleCodeInput}
                     />
@@ -700,6 +701,7 @@ Props:
                 {#each tfaApps as app}
                     <button
                         class="app-item"
+                        data-testid="app-item"
                         class:selected={selectedApp === app}
                         onclick={() => selectedApp = app}
                     >
@@ -737,13 +739,13 @@ Props:
         
     {:else if currentStep === 'backup-codes'}
         <!-- Backup Codes -->
-        <div class="tfa-backup-codes">
+        <div class="tfa-backup-codes" data-testid="tfa-backup-codes">
             <h3>{isResetBackupCodesFlow ? $text('settings.security.tfa_new_backup_codes') : $text('settings.security.tfa_backup_codes')}</h3>
             <p class="description">{$text('settings.security.tfa_backup_codes_description')}</p>
             
             <div class="codes-container">
                 {#each backupCodes as code, i}
-                    <div class="code-item">
+                    <div class="code-item" data-testid="code-item">
                         <span class="code-number">{i + 1}.</span>
                         <code>{code}</code>
                     </div>
@@ -754,7 +756,7 @@ Props:
                 {showCopiedText ? $text('common.copied') : $text('settings.security.tfa_copy_codes')}
             </button>
             
-            <div class="confirm-checkbox">
+            <div class="confirm-checkbox" data-testid="confirm-checkbox">
                 <label>
                     <input type="checkbox" bind:checked={codesConfirmed} />
                     {$text('settings.security.tfa_confirm_codes_stored')}
@@ -791,7 +793,7 @@ Props:
         
     {:else if currentStep === 'success'}
         <!-- Success State -->
-        <div class="tfa-success">
+        <div class="tfa-success" data-testid="tfa-success">
             <div class="success-icon">
                 <span class="icon icon_check_circle"></span>
             </div>

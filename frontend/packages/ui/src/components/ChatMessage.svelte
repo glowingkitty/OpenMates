@@ -372,7 +372,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     const query = $searchTextHighlightStore;
     const container = messageContentElement;
     // Track contentReadyCounter so the effect re-runs when ReadOnlyMessage content lands
-    const _contentReady = contentReadyCounter; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const _contentReady = contentReadyCounter;
     if (!container) return;
 
     // Cancel any previously queued (but not-yet-fired) highlight update.
@@ -931,7 +931,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               unifiedParsingEnabled: true,
               role,
             });
-            // Walk the TipTap document to collect embed nodes
+            // Walk the TipTap document to collect embed nodes for structured MIME
             const collectEmbeds = (nodes: TipTapNode[]): void => {
               for (const node of nodes ?? []) {
                 if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('embed:')) {
@@ -948,10 +948,24 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           embedAttrs = [];
         }
 
-        // Write embed references + message text to clipboard using dual-MIME ClipboardItem.
+        // Generate human-readable text with embed previews (instead of JSON blocks).
+        // Works on the raw markdown string directly — regex-replaces JSON embed blocks
+        // with resolved text previews from the EMBED_TEXT_RENDERERS registry.
+        //
+        // Always call tipTapToReadableMarkdown unconditionally — the embedAttrs guard
+        // was wrong here. embedAttrs only captures TipTap 'embed' nodes with a
+        // contentRef, but AI-returned message embeds (web search, events search, etc.)
+        // are parsed as 'embedPreviewLarge' nodes, so embedAttrs is always empty for
+        // AI messages. tipTapToReadableMarkdown operates on the raw markdown string
+        // directly via regex, independent of node type — it is safe and cheap to call
+        // when there are no embed blocks (returns the markdown unchanged).
+        const { tipTapToReadableMarkdown } = await import('../message_parsing/serializers');
+        const readableTextPromise: Promise<string> = tipTapToReadableMarkdown(contentToCopy);
+
+        // Write embed references + readable text to clipboard using dual-MIME ClipboardItem.
         // When pasted inside OpenMates MessageInput, the paste handler reads the embed
         // JSON and re-inserts the embed nodes. When pasted externally, text/plain is used.
-        await writeMessageWithEmbedsToClipboard(embedAttrs, contentToCopy);
+        await writeMessageWithEmbedsToClipboard(embedAttrs, readableTextPromise);
       }
       
       const { notificationStore } = await import('../stores/notificationStore');
@@ -2106,7 +2120,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        <span class="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+        <span class="system-message-text" data-testid="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
         {#if status === 'waiting_for_user'}
           <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
           <button
@@ -2135,17 +2149,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         aria-label={displayName}
         title={displayName}
       >
-        <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+        <div class="mate-profile {category || 'default'}" data-testid="mate-profile" class:mate-profile-small-mobile={shouldStackMobile}></div>
       </button>
     {:else}
-      <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
+      <div class="mate-profile {category || 'default'}" data-testid="mate-profile" class:mate-profile-small-mobile={shouldStackMobile}></div>
     {/if}
   {/if}
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
     <div 
       bind:this={messageContentElement}
-      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}" 
+      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
+      data-testid="{role === 'user' ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
       oncontextmenu={handleMessageContextMenu}
@@ -2159,10 +2174,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <button
             type="button"
             class="chat-mate-name chat-mate-name-link"
+            data-testid="chat-mate-name"
             onclick={openMateSettings}
           >{displayName}</button>
         {:else}
-          <div class="chat-mate-name">{displayName}</div>
+          <div class="chat-mate-name" data-testid="chat-mate-name">{displayName}</div>
         {/if}
       {/if}
 
@@ -2305,7 +2321,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     </div>
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
-        <button class="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}

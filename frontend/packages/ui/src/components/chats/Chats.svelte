@@ -75,12 +75,12 @@ let _chatUpdatedFlushPending = false;
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
-	// Phased Loading State — 3-tier progressive display:
-	// Tier 1 ('initial'): Show first 20 chats from IndexedDB (fast initial render during sync)
-	// Tier 2 ('all_local'): Show all ~100 chats from IndexedDB (after sync or user clicks "Show more")
-	// Tier 3 ('loading_server'): Fetching additional older chats from server on demand
+	// Phased Loading State — progressive display with incremental pagination:
+	// Display starts at 11 user chats, each "Show more" click reveals 20 more.
+	// When all local chats (from IndexedDB) are shown, server pagination kicks in.
+	// loadTier tracks server fetch state: 'initial'→'all_local'→'loading_server'
 	let loadTier: 'initial' | 'all_local' | 'loading_server' = $state('initial');
-	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond initial 100, in-memory only (NOT in IndexedDB)
+	let olderChatsFromServer: ChatType[] = $state([]); // Chats beyond IndexedDB, in-memory only
 	let hasMoreOnServer = $state(false); // Whether the server has more chats beyond what's been loaded
 	let serverPaginationOffset = $state(100); // Next offset for fetching older chats from server
 	let loadingMoreChats = $state(false); // True while a "load more" request is in-flight
@@ -130,7 +130,21 @@ let _chatUpdatedFlushPending = false;
 	// When true, legal chats (privacy, terms, imprint) are hidden from the sidebar.
 
 	// --- Reactive Effects ---
-	
+
+	// SAFETY NET: Force-clear "Syncing..." after 60s to prevent infinite syncing indicator.
+	// The service layer and timeout mechanism (30s) should handle this, but if both fail
+	// (e.g., WebSocket flaps, component remount timing), this ensures the UI never gets stuck.
+	const SYNC_SAFETY_TIMEOUT_MS = 60_000;
+	$effect(() => {
+		if (syncing) {
+			const safetyTimeout = setTimeout(() => {
+				console.warn('[Chats] Safety timeout: forced sync complete after 60s');
+				phasedSyncState.markSyncCompleted();
+			}, SYNC_SAFETY_TIMEOUT_MS);
+			return () => clearTimeout(safetyTimeout);
+		}
+	});
+
 	// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
 	// This ensures the chat gets highlighted when loaded via deep link after component mount
 	// IMPORTANT: $effect must be at the top level, not inside onMount (Svelte 5 requirement)
@@ -550,15 +564,19 @@ let _chatUpdatedFlushPending = false;
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
 	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'legal'];
 
-	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
-	// Tier 1 ('initial'): Show first 20 USER chats (fast render during sync), plus all static chats (intro, examples, legal)
-	// Tier 2+ ('all_local', 'loading_server'): Show all chats (IndexedDB + server-loaded)
-	// IMPORTANT: The limit of 20 applies only to user chats — intro, example, and legal chats are always shown
+	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
+	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
+	const INITIAL_USER_CHAT_LIMIT = 11;
+	// Each "Show more" click adds this many chats to the visible limit
+	const SHOW_MORE_INCREMENT = 20;
+
+	// Progressive display limit for user chats. Starts at 11, increases by 20 per click.
+	// Static chats (intro, examples, legal) are always shown regardless of this limit.
+	let visibleUserChatLimit = $state(INITIAL_USER_CHAT_LIMIT);
+
+	// Apply display limit for progressive loading.
+	// User chats are capped at visibleUserChatLimit; static chats always shown.
 	let chatsForDisplay = $derived((() => {
-		if (loadTier !== 'initial') {
-			return sortedAllChatsFiltered;
-		}
-		// Tier 1: Separate user chats from static chats, limit only user chats to 20
 		const userChats: ChatType[] = [];
 		const staticChats: ChatType[] = [];
 		for (const chat of sortedAllChatsFiltered) {
@@ -568,24 +586,21 @@ let _chatUpdatedFlushPending = false;
 				userChats.push(chat);
 			}
 		}
-		return [...userChats.slice(0, 20), ...staticChats];
+		return [...userChats.slice(0, visibleUserChatLimit), ...staticChats];
 	})());
-	
-	// Determine if "Show more" button should be visible
-	// Tier 1 ('initial'): Show if there are more than 20 USER chats (excludes intro/example/legal)
-	// Tier 2 ('all_local'): Show if server has more chats beyond what's loaded
-	// Tier 3 ('loading_server'): Keep visible (disabled) while fetching
+
+	// Determine if "Show more" button should be visible.
+	// Show when there are more user chats locally than currently displayed,
+	// OR when the server has more chats that haven't been loaded yet.
 	let showMoreButtonVisible = $derived((() => {
-		if (loadTier === 'initial') {
-			const userChatCount = sortedAllChatsFiltered.filter(
-				c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-			).length;
-			return userChatCount > 20;
-		}
-		if (loadTier === 'loading_server') {
-			return true; // Keep button visible while loading
-		}
-		// 'all_local' — show if server has more chats
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length;
+		// More local chats to show
+		if (totalUserChats > visibleUserChatLimit) return true;
+		// Loading from server in progress
+		if (loadTier === 'loading_server') return true;
+		// Server has more chats beyond what we've loaded locally
 		return hasMoreOnServer;
 	})());
 
@@ -963,22 +978,16 @@ let _chatUpdatedFlushPending = false;
 		* This means the last 20 updated chats are ready for quick access.
 		*/
 	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 2 complete - Last 20 chats ready: ${event.detail.chat_count} chats.`);
+		console.debug(`[Chats] Phase 2 complete - chats ready: ${event.detail.chat_count} chats.`);
 
 		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
 		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
 		await updateChatListFromDB(false);
-		
-		// Phase 2 ensures at least 20 chats are available — tier 'initial' already shows 20
-		// No state change needed here; loadTier 'initial' already shows first 20
 
-		// Warm up search index for the first batch of chats (background, non-blocking)
-		const chatIds = allChatsFromDB.map(c => c.chat_id);
-		if (chatIds.length > 0) {
-			warmUpSearchIndex(chatIds).catch(err =>
-				console.error('[Chats] Search index warm-up error (phase 2):', err),
-			);
-		}
+		// Phase 2 stores metadata in IDB but tier 1 only displays 11 chats (Phase 1a set).
+		// No state change needed here; user clicks "Show more" to see the rest.
+
+		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
 
 	/**
@@ -1012,13 +1021,7 @@ let _chatUpdatedFlushPending = false;
 			syncComplete = false;
 		}, 1000);
 
-		// Warm up search index for all available chats (background, non-blocking)
-		const allChatIds = allChatsFromDB.map(c => c.chat_id);
-		if (allChatIds.length > 0) {
-			warmUpSearchIndex(allChatIds).catch(err =>
-				console.error('[Chats] Search index warm-up error (phase 3):', err),
-			);
-		}
+		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
 
 	/**
@@ -1027,22 +1030,27 @@ let _chatUpdatedFlushPending = false;
 		*/
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<{ phase: string; timestamp: number }>) => {
 		console.info(`[Chats] Phased sync complete:`, event.detail);
-		
-		// CRITICAL: Update chat list FIRST, before marking sync complete
-		// This ensures the syncing indicator stays visible until chats are actually displayed
-		// PERF: Use non-forced read since Phase 2/3 handlers already upserted into cache
-		await updateChatListFromDB(false);
-		
+
+		try {
+			// Update chat list FIRST, before showing sync complete
+			// This ensures the syncing indicator stays visible until chats are actually displayed
+			// PERF: Use non-forced read since Phase 2/3 handlers already upserted into cache
+			await updateChatListFromDB(false);
+		} catch (error) {
+			console.error(`[Chats] Error updating chat list after sync complete:`, error);
+		}
+
 		// Sync complete — stay on current tier. User clicks "Show more" to expand.
 		console.info(`[Chats] Phased sync complete - loadTier=${loadTier}, allChatsFromDB has ${allChatsFromDB.length} chats`);
-		
-		// NOW mark sync as completed (this hides the syncing indicator)
-		// This prevents redundant syncs when Chats component is remounted
+
+		// Mark sync as completed (this hides the syncing indicator).
+		// The service layer already called markSyncCompleted() before dispatching
+		// this event, so this is a no-op safety net — markSyncCompleted is idempotent.
 		phasedSyncState.markSyncCompleted();
-		
+
 		// Show "Sync complete" message briefly
 		syncComplete = true;
-		
+
 		// Hide the message after 1 second
 		setTimeout(() => {
 			syncComplete = false;
@@ -1133,25 +1141,29 @@ let _chatUpdatedFlushPending = false;
 	}
 
 	/**
-	 * Handles "Show more" button click — 3-tier progressive loading:
-	 * Tier 1 → 2: Expands from 20 to all ~100 local chats from IndexedDB
-	 * Tier 2 → 3: Requests additional older chats from the server (20 at a time, in-memory only)
+	 * Handles "Show more" button click — incremental progressive loading:
+	 * 1. Increase visible limit by 20 to show more local chats from IndexedDB
+	 * 2. If all local chats are already shown and server has more, fetch 20 from server
 	 */
 	const handleShowMoreClick = async () => {
-		if (loadTier === 'initial') {
-			// Tier 1 → Tier 2: Show all local chats
-			loadTier = 'all_local';
-			console.debug('[Chats] User clicked "Show more" — expanding to show all local chats.');
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length;
+
+		// If there are more local chats to reveal, just increase the limit
+		if (visibleUserChatLimit < totalUserChats) {
+			visibleUserChatLimit += SHOW_MORE_INCREMENT;
+			console.debug(`[Chats] Show more: increased limit to ${visibleUserChatLimit} (${totalUserChats} local user chats available).`);
 			return;
 		}
 
-		// Tier 2 → Tier 3: Fetch older chats from server
+		// All local chats are shown — fetch more from server if available
 		if (hasMoreOnServer && !loadingMoreChats) {
 			loadingMoreChats = true;
 			loadTier = 'loading_server';
-			console.debug(`[Chats] User clicked "Show more" — requesting older chats from server (offset=${serverPaginationOffset}).`);
+			console.debug(`[Chats] Show more: requesting older chats from server (offset=${serverPaginationOffset}).`);
 			try {
-				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, 20);
+				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, SHOW_MORE_INCREMENT);
 			} catch (error) {
 				console.error('[Chats] Error requesting more chats:', error);
 				loadingMoreChats = false;
@@ -1189,6 +1201,40 @@ let _chatUpdatedFlushPending = false;
 		serverPaginationOffset = offset + chats.length;
 		loadingMoreChats = false;
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
+
+		// Increase visible limit to include the newly loaded server chats
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length + (chats.length);
+		if (visibleUserChatLimit < totalUserChats) {
+			visibleUserChatLimit = totalUserChats;
+		}
+	};
+
+	/**
+	 * Handles 'metadata_chats_ready' events from chatSyncService.
+	 * These are metadata-only chats (positions 101–1000) now saved to IndexedDB.
+	 * Refresh the chat list so they appear in the sidebar.
+	 */
+	const handleMetadataChatsReadyEvent = async (event: CustomEvent<{
+		chat_count: number;
+		total_count: number;
+	}>) => {
+		const { chat_count, total_count } = event.detail;
+		console.info(`[Chats] Metadata chats ready: ${chat_count} chats saved to IndexedDB (total=${total_count}).`);
+
+		if (chat_count > 0) {
+			// Update total count and pagination state
+			if (total_count > 0) {
+				totalServerChatCount = total_count;
+				hasMoreOnServer = total_count > 1000; // Beyond 1000, server pagination needed
+				serverPaginationOffset = Math.min(total_count, 1000); // Next offset after metadata chats
+			}
+
+			// Refresh chat list from IndexedDB to include newly saved metadata chats
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+		}
 	};
 
 	/**
@@ -1509,6 +1555,7 @@ let _chatUpdatedFlushPending = false;
 			
 			// Reset display state to show all demo chats
 			loadTier = 'all_local';
+			visibleUserChatLimit = INITIAL_USER_CHAT_LIMIT;
 			olderChatsFromServer = [];
 			hasMoreOnServer = false;
 			serverPaginationOffset = 100;
@@ -1600,6 +1647,7 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.addEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
+		chatSyncService.addEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -1869,7 +1917,7 @@ let _chatUpdatedFlushPending = false;
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
 		// If sync was already completed before this component mounted, ensure we have the latest data
 		// This handles the case where the sidebar was closed during sync (common on mobile)
-		// We intentionally stay on Tier 1 (20 chats) — user clicks "Show more" to see the rest
+		// We intentionally stay on Tier 1 (11 chats) — user clicks "Show more" to see the rest
 		if ($phasedSyncState.initialSyncCompleted) {
 			await updateChatListFromDB();
 			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
@@ -1907,10 +1955,12 @@ let _chatUpdatedFlushPending = false;
 			return;
 		}
 
-		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount
-		// This cache persists across component instances (when sidebar closes/opens)
-		// Only used for authenticated users - unauthenticated users are handled above
-		const cached = chatListCache.getCache(false);
+		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount.
+		// Pass isComponentRemount=true so the cache returns null when the sidebar was
+		// destroyed since the last full setCache(). While unmounted, event listeners
+		// are inactive, so new chats (e.g. drafts created while sidebar was closed)
+		// would be missing from the cache. Forcing a DB re-read ensures they appear.
+		const cached = chatListCache.getCache(false, /* isComponentRemount */ true);
 		if (cached) {
 			console.debug("[Chats] Using cached chats on initialize, skipping DB read");
 			allChatsFromDB = cached;
@@ -1947,6 +1997,13 @@ let _chatUpdatedFlushPending = false;
 	}
 
 	onDestroy(() => {
+		// Notify cache that sidebar was destroyed — event listeners are about to be
+		// removed, so any chatUpdated / LOCAL_CHAT_LIST_CHANGED_EVENT that fires while
+		// unmounted will not update the cache. The next getCache(_, isComponentRemount=true)
+		// call on remount will force a fresh DB read to pick up missed changes (e.g. new
+		// draft chats created while sidebar was closed).
+		chatListCache.notifySidebarDestroyed();
+
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
@@ -1967,6 +2024,7 @@ let _chatUpdatedFlushPending = false;
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 		chatSyncService.removeEventListener('load_more_chats_ready', handleLoadMoreChatsReadyEvent as EventListener);
+		chatSyncService.removeEventListener('metadata_chats_ready', handleMetadataChatsReadyEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -2148,8 +2206,28 @@ let _chatUpdatedFlushPending = false;
 	 * Performs the search across all chats, messages, and settings.
 	 * @param query - The debounced search query string
 	 */
+	/** Track whether search index warm-up has been triggered this session */
+	let searchWarmUpTriggered = false;
+
+	/**
+	 * Trigger search index warm-up on first search interaction.
+	 * Moved from auto-trigger after Phase 2/3 to on-demand — saves CPU for
+	 * users who never search during a session.
+	 */
+	function triggerSearchWarmUpIfNeeded(): void {
+		if (searchWarmUpTriggered) return;
+		searchWarmUpTriggered = true;
+		const chatIds = allChatsFromDB.map(c => c.chat_id);
+		if (chatIds.length > 0) {
+			warmUpSearchIndex(chatIds).catch(err =>
+				console.error('[Chats] Search index warm-up error:', err),
+			);
+		}
+	}
+
 	async function handleSearchQuery(query: string): Promise<void> {
 		setSearchQuery(query);
+		triggerSearchWarmUpIfNeeded();
 
 		if (!query || query.trim().length === 0) {
 			searchResults = null;
@@ -3299,7 +3377,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
   - Provides a "Show more" button if more chats are available (local or server).
   - Shows demo chats for both authenticated and non-authenticated users.
 -->
-<div class="activity-history-wrapper">
+<div class="activity-history-wrapper" data-testid="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			{#if searchState.isActive}
@@ -3354,6 +3432,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<!-- Search button + close button -->
 						<button
 							class="clickable-icon icon_search top-button"
+							data-testid="search-button"
 							aria-label="Search"
 							onclick={() => openSearch()}
 							use:tooltip
@@ -3453,7 +3532,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
 		{#if syncing}
 			<div class="show-hidden-chats-container">
-				<div class="syncing-inline-indicator" aria-live="polite">
+				<div class="syncing-inline-indicator" data-testid="syncing-indicator" aria-live="polite">
 					<span class="clickable-icon icon_reload syncing-icon"></span>
 					<span class="syncing-text">{$text('activity.syncing')}</span>
 				</div>
@@ -3498,6 +3577,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 										type="password"
 										autocomplete="off"
 										class="overscroll-unlock-input"
+							data-testid="vault-unlock-input"
 										class:error={!!inlineUnlockError}
 										bind:value={inlineUnlockCode}
 										oninput={(e) => {
@@ -3514,12 +3594,13 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 										disabled={inlineUnlockLoading}
 									/>
 									{#if inlineUnlockError}
-										<div class="overscroll-unlock-error">{inlineUnlockError}</div>
+										<div class="overscroll-unlock-error" data-testid="vault-unlock-error">{inlineUnlockError}</div>
 									{/if}
 								</div>
 								<button
 									type="submit"
 									class="overscroll-unlock-button"
+									data-testid="vault-unlock-button"
 									disabled={inlineUnlockLoading || inlineUnlockCode.length < 4 || inlineUnlockCode.length > 30}
 								>
 									{#if inlineUnlockLoading}
@@ -3538,6 +3619,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<button
 							type="button"
 							class="clickable-icon icon_close_up overscroll-unlock-close"
+							data-testid="vault-unlock-close"
 							onclick={() => {
 								showInlineUnlock = false;
 								inlineUnlockCode = '';
@@ -3552,7 +3634,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		{/if}
 		
 		{#if !allChats || allChats.length === 0}
-			<div class="no-chats-indicator">{$text('activity.no_chats')}</div>
+			<div class="no-chats-indicator" data-testid="no-chats-indicator">{$text('activity.no_chats')}</div>
 		{:else}
 			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
 			{#if hiddenChatState.isUnlocked}
@@ -3631,7 +3713,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
 			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
 				{#if groupItems.length > 0}
-					<div class="chat-group">
+					<div class="chat-group" data-testid="chat-group">
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
@@ -3639,6 +3721,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							role="button"
 							tabindex="0"
 							class="chat-item"
+							data-testid="chat-item"
 							class:active={selectedChatId === chat.chat_id}
 							class:incognito={chat.is_incognito}
 							onclick={(event) => {
@@ -3744,7 +3827,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/if}
 			{/snippet}
 			
-			<div class="chat-groups">
+			<div class="chat-groups" data-testid="chat-history">
 				<!-- 1. Incognito chat group — shown at the top so active session chats are immediately visible.
 				     Only rendered when incognito mode is active and there are incognito chats. -->
 				{#each orderedStaticChatGroups.filter(([k]) => k === 'incognito') as [groupKey, groupItems] (groupKey)}
@@ -3762,6 +3845,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
+							data-testid="show-more-chats"
 							disabled={loadingMoreChats}
 							onclick={handleShowMoreClick}
 						>

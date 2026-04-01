@@ -25,6 +25,10 @@ Env vars (read from .env automatically — sourced by nightly-issues-check.sh):
     INTERNAL_API_URL                  — base URL for the API (default: http://localhost:8000)
 
 Not intended to be called directly by users; use nightly-issues-check.sh instead.
+
+Public API (importable by other helpers, e.g. _daily_meeting_helper.py):
+    fetch_open_issues(admin_api_key: str, lookback_hours: int) → list[dict]
+    get_admin_api_key(project_root: str) → str | None
 """
 
 import json
@@ -72,14 +76,14 @@ def _read_env_file(project_root: str) -> dict:
     return env_vars
 
 
-def _fetch_open_issues(admin_api_key: str) -> list[dict]:
+def fetch_open_issues(admin_api_key: str, lookback_hours: int = ISSUES_LOOKBACK_HOURS) -> list[dict]:
     """
     Fetch open (unprocessed) issues from the admin debug API.
 
     Returns a list of issue dicts with at least: id, title, description, created_at.
     Filters to issues created in the last ISSUES_LOOKBACK_HOURS hours.
     """
-    since_dt = datetime.now(timezone.utc) - timedelta(hours=ISSUES_LOOKBACK_HOURS)
+    since_dt = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
 
     url = ISSUES_API_URL + "?include_processed=false&limit=100"
 
@@ -121,8 +125,19 @@ def _fetch_open_issues(admin_api_key: str) -> list[dict]:
         except ValueError:
             recent_issues.append(issue)
 
-    print(f"[issues-checker] Found {len(recent_issues)} open issue(s) from the past {ISSUES_LOOKBACK_HOURS}h")
+    print(f"[issues-checker] Found {len(recent_issues)} open issue(s) from the past {lookback_hours}h")
     return recent_issues
+
+
+def get_admin_api_key(project_root: str) -> str | None:
+    """
+    Resolve the admin API key from env vars or .env file.
+
+    Returns the key string, or None if not found.
+    """
+    dot_env = _read_env_file(project_root)
+    key = os.environ.get(ADMIN_KEY_ENV_VAR) or dot_env.get(ADMIN_KEY_ENV_VAR, "")
+    return key or None
 
 
 def _check_issue_in_git(issue_id: str, project_root: str) -> str | None:
@@ -159,9 +174,7 @@ def check_issues() -> None:
     script_dir = Path(__file__).parent.resolve()
     project_root = script_dir.parent
 
-    dot_env = _read_env_file(str(project_root))
-
-    admin_api_key = os.environ.get(ADMIN_KEY_ENV_VAR) or dot_env.get(ADMIN_KEY_ENV_VAR, "")
+    admin_api_key = get_admin_api_key(str(project_root))
     if not admin_api_key:
         print(
             f"[issues-checker] ERROR: {ADMIN_KEY_ENV_VAR} not set — cannot fetch issues.\n"
@@ -172,7 +185,7 @@ def check_issues() -> None:
         sys.exit(1)
 
     # Fetch open issues from the past 24h
-    issues = _fetch_open_issues(admin_api_key)
+    issues = fetch_open_issues(admin_api_key)
 
     if not issues:
         print("[issues-checker] No open issues in the past 24h — nothing to do.")

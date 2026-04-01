@@ -59,6 +59,7 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
+VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
@@ -79,6 +80,10 @@ class SpecResult:
     account: Optional[int] = None
     retries: int = 0
     flaky: bool = False
+    # Structured Playwright data for MD reports
+    playwright_errors: list[dict] = field(default_factory=list)
+    steps: list[dict] = field(default_factory=list)
+    screenshot_paths: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -262,12 +267,12 @@ class GitHubActionsClient:
         _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
         return None
 
-    def _recent_run_ids(self, limit: int = 5) -> list[int]:
-        """Get the most recent run IDs for the workflow."""
+    def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
+        """Get the most recent run IDs for a workflow."""
         rc = subprocess.run(
             ["gh", "run", "list",
              "--repo", GH_REPO,
-             "--workflow", WORKFLOW_NAME,
+             "--workflow", workflow,
              "--limit", str(limit),
              "--json", "databaseId"],
             capture_output=True, text=True,
@@ -394,19 +399,26 @@ class GitHubActionsClient:
         return None
 
     def download_artifact(self, run_id: int, artifact_name: str, dest_dir: Path) -> Optional[Path]:
-        """Download a run's artifact. Returns path to downloaded dir or None."""
+        """Download a run's artifact with retry. Returns path to downloaded dir or None."""
         dest = dest_dir / str(run_id)
         dest.mkdir(parents=True, exist_ok=True)
-        rc = subprocess.run(
-            ["gh", "run", "download", str(run_id),
-             "--repo", GH_REPO,
-             "--name", artifact_name,
-             "--dir", str(dest)],
-            capture_output=True, text=True,
-        )
-        if rc.returncode != 0:
-            return None
-        return dest
+        for attempt in range(3):
+            rc = subprocess.run(
+                ["gh", "run", "download", str(run_id),
+                 "--repo", GH_REPO,
+                 "--name", artifact_name,
+                 "--dir", str(dest)],
+                capture_output=True, text=True,
+            )
+            if rc.returncode == 0:
+                return dest
+            if attempt < 2:
+                _log(f"Artifact download attempt {attempt + 1} failed for run {run_id}: "
+                     f"{rc.stderr.strip()[:200]}", "WARN")
+                time.sleep(10)
+        _log(f"Artifact download failed after 3 attempts for run {run_id}: "
+             f"{rc.stderr.strip()[:200]}", "ERROR")
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -534,22 +546,44 @@ class BatchRunner:
                 status = "failed"
                 error = f"GitHub Actions conclusion: {conclusion}"
 
-            # Try to download artifact for error details + screenshots
-            if status == "failed":
-                # playwright-spec.yml artifact name: playwright-{spec}
-                art_path = self.client.download_artifact(rid, f"playwright-{spec}", artifact_dir)
-                if art_path:
-                    pw_json = art_path / "playwright.json"
-                    if pw_json.is_file():
-                        error = self._extract_error_from_playwright_json(pw_json) or error
-                    # Persist screenshots/traces for failed tests
-                    self._persist_failure_artifacts(spec, art_path)
+            # Download artifact for error details, screenshots, and step data.
+            # Download for ALL statuses (not just failed) so MD reports can
+            # include steps and screenshots for passed tests too.
+            pw_errors: list[dict] = []
+            pw_steps: list[dict] = []
+            screenshot_paths: list[str] = []
 
-                # Fallback: fetch failed job logs if artifact didn't yield a real error
-                if error == f"GitHub Actions conclusion: {conclusion}":
-                    log_error = self.client.get_failed_job_error(rid)
-                    if log_error:
-                        error = log_error
+            art_path = self.client.download_artifact(rid, f"playwright-{spec}", artifact_dir)
+            if art_path:
+                # playwright.json may be at top level or under test-results/
+                pw_json = art_path / "playwright.json"
+                if not pw_json.is_file():
+                    pw_json = art_path / "test-results" / "playwright.json"
+                if pw_json.is_file():
+                    extracted_err, pw_errors, pw_steps = (
+                        self._extract_structured_data_from_playwright_json(pw_json)
+                    )
+                    if extracted_err and status == "failed":
+                        error = extracted_err
+
+                # Persist artifacts (screenshots, traces, playwright.json)
+                self._persist_failure_artifacts(spec, art_path)
+
+                # Collect screenshot paths relative to test-results/
+                spec_name = spec.replace(".spec.ts", "")
+                ss_dir = RESULTS_DIR / "screenshots" / "current" / spec_name
+                if ss_dir.is_dir():
+                    screenshot_paths = sorted(
+                        str(p.relative_to(RESULTS_DIR))
+                        for p in ss_dir.iterdir()
+                        if p.suffix in (".png", ".webp")
+                    )
+
+            # Fallback for failed tests: fetch job logs if no Playwright error found
+            if status == "failed" and error == f"GitHub Actions conclusion: {conclusion}":
+                log_error = self.client.get_failed_job_error(rid)
+                if log_error:
+                    error = log_error
 
             icon = {"passed": "✓", "failed": "✗", "timeout": "⏱", "not_started": "⊘"}.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")
@@ -557,57 +591,124 @@ class BatchRunner:
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
                 error=error, run_id=rid, account=account,
+                playwright_errors=pw_errors,
+                steps=pw_steps,
+                screenshot_paths=screenshot_paths,
             ))
 
         # Cleanup artifact dir
         shutil.rmtree(artifact_dir, ignore_errors=True)
         return results
 
-    def _extract_error_from_playwright_json(self, pw_json: Path) -> Optional[str]:
-        """Extract the first error message from a Playwright JSON report."""
+    @staticmethod
+    def _extract_structured_data_from_playwright_json(
+        pw_json: Path,
+    ) -> tuple[Optional[str], list[dict], list[dict]]:
+        """Extract error message, structured errors, and step data from Playwright JSON.
+
+        Handles nested suites (suites can contain both specs and child suites).
+
+        Returns:
+            (first_error_string, playwright_errors_list, steps_list)
+        """
+        first_error: Optional[str] = None
+        errors: list[dict] = []
+        steps: list[dict] = []
+
+        def _process_result(result: dict) -> None:
+            nonlocal first_error
+            # Extract steps with pass/fail status
+            for step in result.get("steps", []):
+                step_entry: dict = {
+                    "title": step.get("title", ""),
+                    "duration_ms": step.get("duration", 0),
+                    "status": "failed" if step.get("error") else "passed",
+                }
+                if step.get("error"):
+                    err = step["error"]
+                    step_entry["error"] = (
+                        err.get("message", str(err))
+                        if isinstance(err, dict) else str(err)
+                    )
+                steps.append(step_entry)
+
+            # Extract attachments (screenshots)
+            attachments = []
+            for att in result.get("attachments", []):
+                if att.get("contentType", "").startswith("image/"):
+                    attachments.append({
+                        "name": att.get("name", ""),
+                        "path": att.get("path", ""),
+                    })
+
+            # Extract errors from non-passed results
+            if result.get("status") != "passed":
+                err = result.get("error", {})
+                if isinstance(err, dict):
+                    msg = err.get("message", "")
+                    stack = err.get("stack", "")
+                elif isinstance(err, str):
+                    msg = err
+                    stack = ""
+                else:
+                    msg = ""
+                    stack = ""
+
+                if msg:
+                    if first_error is None:
+                        first_error = msg[:MAX_ERROR_SNIPPET]
+                    errors.append({
+                        "message": msg,
+                        "stack": stack[:1000] if stack else "",
+                        "attachments": attachments,
+                    })
+
+        def _walk_suite(suite: dict) -> None:
+            """Recursively walk nested suites to find all specs and tests."""
+            for spec in suite.get("specs", []):
+                for test in spec.get("tests", []):
+                    for result in test.get("results", []):
+                        _process_result(result)
+            # Recurse into nested suites
+            for child_suite in suite.get("suites", []):
+                _walk_suite(child_suite)
+
         try:
             with open(pw_json) as f:
                 data = json.load(f)
+
             for suite in data.get("suites", []):
-                for spec in suite.get("specs", []):
-                    for test in spec.get("tests", []):
-                        for result in test.get("results", []):
-                            if result.get("status") != "passed":
-                                # Check for error message
-                                err = result.get("error", {})
-                                if isinstance(err, dict):
-                                    msg = err.get("message", "")
-                                elif isinstance(err, str):
-                                    msg = err
-                                else:
-                                    msg = ""
-                                if msg:
-                                    return msg[:MAX_ERROR_SNIPPET]
-            # Check top-level errors
+                _walk_suite(suite)
+
+            # Check top-level errors (e.g. compilation errors)
             for err in data.get("errors", []):
                 msg = err.get("message", "")
                 if msg:
-                    return msg[:MAX_ERROR_SNIPPET]
-        except Exception:
-            pass
-        return None
+                    if first_error is None:
+                        first_error = msg[:MAX_ERROR_SNIPPET]
+                    errors.append({"message": msg, "stack": "", "attachments": []})
+
+        except Exception as e:
+            _log(f"Failed to parse playwright.json: {e}", "WARN")
+
+        return first_error, errors, steps
 
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
-        """Copy screenshots and traces from a failed test's artifacts to
-        test-results/screenshots/{spec-name}/ for post-run debugging."""
+        """Copy screenshots, traces, and reports from a test's artifacts to
+        test-results/screenshots/current/{spec-name}/ for MD report generation."""
         spec_name = spec.replace(".spec.ts", "")
-        dest = RESULTS_DIR / "screenshots" / spec_name
+        dest = RESULTS_DIR / "screenshots" / "current" / spec_name
         dest.mkdir(parents=True, exist_ok=True)
         copied = 0
         for root, _dirs, files in os.walk(art_path):
             for fname in files:
-                if fname.endswith((".png", ".webp", ".zip", ".trace")):
+                if fname.endswith((".png", ".webp", ".json")):
                     src = Path(root) / fname
                     shutil.copy2(src, dest / fname)
                     copied += 1
         if copied:
-            _log(f"    Saved {copied} artifact(s) to test-results/screenshots/{spec_name}/")
+            _log(f"    Saved {copied} artifact(s) to test-results/screenshots/current/{spec_name}/")
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -627,6 +728,12 @@ class BatchRunner:
             d["retries"] = r.retries
         if r.flaky:
             d["flaky"] = True
+        if r.playwright_errors:
+            d["playwright_errors"] = r.playwright_errors
+        if r.steps:
+            d["steps"] = r.steps
+        if r.screenshot_paths:
+            d["screenshot_paths"] = r.screenshot_paths
         return d
 
 
@@ -885,14 +992,25 @@ class NotificationService:
         status_color = "#22c55e" if s["failed"] == 0 else "#ef4444"
         status_text = "ALL PASSED" if s["failed"] == 0 else f"{s['failed']} FAILED"
 
-        # Collect failed tests
+        # Collect failed tests — prefer structured Playwright errors over GHA logs
         failed_rows = ""
         for suite_name, suite_data in result.suites.items():
             for t in suite_data.get("tests", []):
                 if t.get("status") == "failed":
-                    error = (t.get("error") or "")[:300].replace("<", "&lt;")
+                    # Use first structured Playwright error if available
+                    pw_errors = t.get("playwright_errors", [])
+                    if pw_errors:
+                        error = (pw_errors[0].get("message") or "")[:500].replace("<", "&lt;")
+                    else:
+                        error = (t.get("error") or "")[:300].replace("<", "&lt;")
                     name = t.get("file", t.get("name", "?"))
-                    failed_rows += f"<tr><td style='padding:4px 8px'>{suite_name}</td><td style='padding:4px 8px'>{name}</td><td style='padding:4px 8px;font-size:12px;color:#888'>{error}</td></tr>"
+                    failed_rows += (
+                        f"<tr><td style='padding:4px 8px'>{suite_name}</td>"
+                        f"<td style='padding:4px 8px'>{name}</td>"
+                        f"<td style='padding:4px 8px;font-size:12px;color:#888'>"
+                        f"<pre style='margin:0;white-space:pre-wrap;max-width:500px'>{error}</pre>"
+                        f"</td></tr>"
+                    )
 
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
@@ -943,7 +1061,12 @@ class NotificationService:
                 for t in suite_data.get("tests", []):
                     if t.get("status") == "failed":
                         name = t.get("file", t.get("name", "?"))
-                        error = (t.get("error") or "")[:200]
+                        # Prefer structured Playwright error
+                        pw_errors = t.get("playwright_errors", [])
+                        if pw_errors:
+                            error = (pw_errors[0].get("message") or "")[:400]
+                        else:
+                            error = (t.get("error") or "")[:200]
                         lines.append(f"  [{suite_name}] {name}")
                         if error:
                             lines.append(f"    {error}")
@@ -1010,6 +1133,348 @@ class NotificationService:
 
 
 # ---------------------------------------------------------------------------
+# ReportGenerator — structured MD reports per test
+# ---------------------------------------------------------------------------
+
+class ReportGenerator:
+    """Generates per-test markdown reports in test-results/reports/.
+
+    Each test gets its own MD file in either success/ or failed/ with:
+    - Status, date, duration metadata
+    - Steps with pass/fail icons and duration
+    - Inline screenshots per step
+    - Full error details for failed steps
+    """
+
+    REPORTS_DIR = RESULTS_DIR / "reports"
+
+    # Suites that get per-test MD files (E2E with screenshots/steps)
+    E2E_SUITES = {"playwright"}
+
+    def generate(self, result: RunResult) -> None:
+        """Generate MD files for all tests in the latest run.
+
+        E2E tests (playwright): per-test MD files in success/ and failed/.
+        Unit tests (vitest, pytest): single summary MD per suite.
+
+        Only cleans reports for suites present in this run — so a vitest-only
+        rerun won't wipe playwright reports generated by the daily run.
+        """
+        success_dir = self.REPORTS_DIR / "success"
+        failed_dir = self.REPORTS_DIR / "failed"
+
+        # Archive existing daily reports before overwriting.
+        # If reports/failed/ has content and a daily-run JSON exists for today,
+        # copy reports to reports/daily-YYYY-MM-DD/ so they survive reruns.
+        if failed_dir.is_dir() and any(failed_dir.iterdir()):
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            daily_archive = self.REPORTS_DIR / f"daily-{today}"
+            if not daily_archive.is_dir():
+                daily_archive.mkdir(parents=True, exist_ok=True)
+                for subdir_name in ("failed", "success"):
+                    src = self.REPORTS_DIR / subdir_name
+                    dst = daily_archive / subdir_name
+                    if src.is_dir():
+                        shutil.copytree(str(src), str(dst), dirs_exist_ok=True)
+                _log(f"Archived daily reports to reports/daily-{today}/")
+
+        success_dir.mkdir(parents=True, exist_ok=True)
+        failed_dir.mkdir(parents=True, exist_ok=True)
+
+        # Remove only reports for suites in this run (not all reports)
+        suites_in_run = set(result.suites.keys())
+        if suites_in_run & self.E2E_SUITES:
+            # E2E suites write per-spec .md — remove old ones from both dirs
+            for d in (success_dir, failed_dir):
+                for f in d.iterdir():
+                    if f.suffix == ".md":
+                        f.unlink()
+        for suite_name in suites_in_run - self.E2E_SUITES:
+            # Unit suites write <suite>-summary.md — remove only that file
+            summary = self.REPORTS_DIR / f"{suite_name}-summary.md"
+            summary.unlink(missing_ok=True)
+
+        generated = 0
+        for suite_name, suite_data in result.suites.items():
+            tests = suite_data.get("tests", [])
+
+            if suite_name in self.E2E_SUITES:
+                # Per-test MD files for E2E suites
+                for test in tests:
+                    name = test.get("file") or test.get("name", "unknown")
+                    status = test.get("status", "unknown")
+                    target_dir = failed_dir if status == "failed" else success_dir
+                    safe_name = name.replace("/", "-").replace("\\", "-")
+                    md_name = safe_name.replace(".spec.ts", "").replace(".test.ts", "") + ".md"
+
+                    content = self._build_test_md(test, result.run_id, suite_name)
+                    (target_dir / md_name).write_text(content, encoding="utf-8")
+                    generated += 1
+            else:
+                # Single summary MD for unit test suites
+                content = self._build_unit_summary_md(
+                    suite_name, tests, result.run_id
+                )
+                (self.REPORTS_DIR / f"{suite_name}-summary.md").write_text(
+                    content, encoding="utf-8"
+                )
+                generated += 1
+
+        _log(f"Generated {generated} MD report(s) in test-results/reports/")
+
+    def _build_test_md(self, test: dict, run_id: str, suite_name: str) -> str:
+        """Build markdown content for a single test.
+
+        Uses step-log.json (written by logCheckpoint/takeStepScreenshot) to
+        reconstruct the execution timeline with checkpoints and inline screenshots.
+        Falls back to screenshot-filename parsing if no step log exists.
+        """
+        name = test.get("file") or test.get("name", "unknown")
+        status = test.get("status", "unknown")
+        error = test.get("error", "")
+        pw_errors = test.get("playwright_errors", [])
+        screenshot_paths = test.get("screenshot_paths", [])
+        spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
+
+        status_icon = "PASSED" if status == "passed" else "FAILED"
+        lines: list[str] = [
+            f"# {name}",
+            "",
+            f"**Status:** {status_icon} | **Date:** {run_id} | **Suite:** {suite_name}",
+            "",
+            "---",
+            "",
+        ]
+
+        # Try to load step-log.json for this spec
+        step_log = self._load_step_log(spec_name)
+
+        if step_log:
+            lines.append("## Steps")
+            lines.append("")
+            self._render_steps_from_log(
+                lines, step_log, spec_name, status, pw_errors, error, screenshot_paths
+            )
+        elif screenshot_paths:
+            # Fallback: reconstruct steps from screenshot filenames
+            lines.append("## Steps")
+            lines.append("")
+            self._render_steps_from_screenshots(
+                lines, screenshot_paths, spec_name, status, pw_errors, error
+            )
+        elif status != "not_started":
+            lines.append("*No step data available (artifact not downloaded)*")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _load_step_log(spec_name: str) -> Optional[list[dict]]:
+        """Load step-log.json from the spec's artifact directory."""
+        ss_dir = RESULTS_DIR / "screenshots" / "current" / spec_name
+        step_log_path = ss_dir / "step-log.json"
+        if step_log_path.is_file():
+            try:
+                with open(step_log_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return None
+
+    @staticmethod
+    def _render_steps_from_log(
+        lines: list[str],
+        step_log: list[dict],
+        spec_name: str,
+        status: str,
+        pw_errors: list[dict],
+        error: str,
+        screenshot_paths: list[str],
+    ) -> None:
+        """Render step log entries as interleaved checkpoints + screenshots."""
+        ss_dir_rel = f"screenshots/current/{spec_name}"
+
+        # Filter out noise entries:
+        # - "Captured step screenshot." — the screenshot entry already represents it
+        # - "Archived prior screenshots" — test infrastructure, not a test step
+        noise_prefixes = ("Captured step screenshot", "Archived prior screenshots")
+        filtered = [
+            e for e in step_log
+            if not (e.get("type") == "checkpoint"
+                    and e.get("message", "").startswith(noise_prefixes))
+        ]
+
+        display_num = 0
+        for i, entry in enumerate(filtered):
+            entry_type = entry.get("type", "checkpoint")
+            message = entry.get("message", "")
+            is_last = i == len(filtered) - 1
+
+            if entry_type == "checkpoint":
+                display_num += 1
+                icon = "❌" if is_last and status == "failed" else "✅"
+                lines.append(f"{display_num}. {message} {icon}")
+                lines.append("")
+            elif entry_type == "screenshot":
+                screenshot_file = entry.get("screenshot", "")
+                if screenshot_file:
+                    lines.append(
+                        f"   ![{message}](../../{ss_dir_rel}/{screenshot_file})"
+                    )
+                    lines.append("")
+
+        # Append error + failure screenshot at the end for failed tests
+        if status == "failed":
+            err_msg = ""
+            if pw_errors:
+                err_msg = pw_errors[0].get("message", "")
+            elif error:
+                err_msg = error
+
+            if err_msg:
+                lines.append("**Error:**")
+                lines.append("```")
+                lines.append(err_msg.strip())
+                lines.append("```")
+                lines.append("")
+
+            # Append test-failed-*.png screenshots
+            for ss_path in screenshot_paths:
+                fname = Path(ss_path).name.lower()
+                if fname.startswith("test-failed"):
+                    lines.append(f"![{Path(ss_path).stem}](../../{ss_path})")
+                    lines.append("")
+
+    @staticmethod
+    def _render_steps_from_screenshots(
+        lines: list[str],
+        screenshot_paths: list[str],
+        spec_name: str,
+        status: str,
+        pw_errors: list[dict],
+        error: str,
+    ) -> None:
+        """Fallback: reconstruct steps from screenshot filenames."""
+        import re
+
+        step_screenshots = []
+        failure_screenshots = []
+        for ss_path in screenshot_paths:
+            fname = Path(ss_path).name.lower()
+            if fname.startswith("test-failed") or fname.startswith("test-finished"):
+                failure_screenshots.append(ss_path)
+            else:
+                step_screenshots.append(ss_path)
+
+        # Parse step number and label from filename: {prefix}-{NN}-{label}.png
+        for ss_path in step_screenshots:
+            fname = Path(ss_path).stem
+            match = re.search(r"-(\d+)-(.+)$", fname)
+            if match:
+                step_num = int(match.group(1))
+                label = match.group(2).replace("-", " ").title()
+            else:
+                step_num = 0
+                label = fname.replace("-", " ").title()
+
+            icon = "✅"
+            lines.append(f"{step_num}. {label} {icon}")
+            lines.append(f"   ![{label}](../../{ss_path})")
+            lines.append("")
+
+        # Error + failure screenshots for failed tests
+        if status == "failed":
+            err_msg = ""
+            if pw_errors:
+                err_msg = pw_errors[0].get("message", "")
+            elif error:
+                err_msg = error
+
+            if err_msg:
+                lines.append("**Error:**")
+                lines.append("```")
+                lines.append(err_msg.strip())
+                lines.append("```")
+                lines.append("")
+
+            for ss_path in failure_screenshots:
+                if "test-failed" in Path(ss_path).name.lower():
+                    lines.append(f"![{Path(ss_path).stem}](../../{ss_path})")
+                    lines.append("")
+
+    @staticmethod
+    def _build_unit_summary_md(
+        suite_name: str, tests: list[dict], run_id: str
+    ) -> str:
+        """Build a single summary MD for a unit test suite (vitest/pytest).
+
+        Groups failures with full error output, lists passed tests compactly.
+        """
+        total = len(tests)
+        passed_tests = [t for t in tests if t.get("status") == "passed"]
+        failed_tests = [t for t in tests if t.get("status") == "failed"]
+        skipped_tests = [t for t in tests if t.get("status") not in ("passed", "failed")]
+        passed = len(passed_tests)
+        failed = len(failed_tests)
+
+        status_text = f"**{passed}/{total} passed**" if failed == 0 else f"**{failed} failed** | {passed} passed"
+        lines: list[str] = [
+            f"# Unit Test Report — {suite_name}",
+            "",
+            f"**Date:** {run_id} | {status_text} | {total} total",
+            "",
+            "---",
+            "",
+        ]
+
+        # Failed tests — full detail
+        if failed_tests:
+            lines.append("## Failed")
+            lines.append("")
+            for t in failed_tests:
+                name = t.get("name") or t.get("file", "?")
+                error = t.get("error", "")
+                # Use structured Playwright errors if available (unlikely for unit tests)
+                pw_errors = t.get("playwright_errors", [])
+                if pw_errors:
+                    error = pw_errors[0].get("message", error)
+
+                lines.append(f"### {name}")
+                lines.append("")
+                if error:
+                    lines.append("```")
+                    # Limit error output to 50 lines to keep reports readable
+                    error_lines = error.strip().splitlines()
+                    for err_line in error_lines[:50]:
+                        lines.append(err_line)
+                    if len(error_lines) > 50:
+                        lines.append(f"... ({len(error_lines) - 50} more lines)")
+                    lines.append("```")
+                else:
+                    lines.append("*No error details available*")
+                lines.append("")
+
+        # Passed tests — compact list
+        if passed_tests:
+            lines.append(f"## Passed ({passed})")
+            lines.append("")
+            passed_names = [t.get("name") or t.get("file", "?") for t in passed_tests]
+            # Group by file prefix for readability
+            lines.append(", ".join(passed_names))
+            lines.append("")
+
+        # Skipped tests
+        if skipped_tests:
+            lines.append(f"## Skipped ({len(skipped_tests)})")
+            lines.append("")
+            skipped_names = [t.get("name") or t.get("file", "?") for t in skipped_tests]
+            lines.append(", ".join(skipped_names))
+            lines.append("")
+
+        return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Local suite runners
 # ---------------------------------------------------------------------------
 
@@ -1060,7 +1525,18 @@ def run_vitest() -> SuiteResult:
         _log(f"  vitest in {rel}")
 
         cmd = f"npx vitest run {config_flag} --reporter=json".split()
-        rc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(vdir))
+        try:
+            rc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(vdir), timeout=VITEST_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            _log(f"  vitest timed out after {VITEST_TIMEOUT}s in {rel}", "WARN")
+            overall_status = "failed"
+            all_tests.append({
+                "name": f"{rel}/vitest-timeout",
+                "status": "failed",
+                "duration_seconds": VITEST_TIMEOUT,
+                "error": f"vitest timed out after {VITEST_TIMEOUT}s — likely a deadlock in crypto/jsdom tests",
+            })
+            continue
 
         # Parse JSON from output (may have non-JSON prefix)
         raw = rc.stdout
@@ -1271,19 +1747,25 @@ class TestOrchestrator:
         start_time = time.time()
         suites: dict[str, SuiteResult] = {}
 
-        # Clear previous failure screenshots before starting a new run
+        # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
         if screenshots_dir.is_dir():
-            shutil.rmtree(screenshots_dir, ignore_errors=True)
-            _log("Cleared previous failure screenshots")
+            # Move current screenshots to date-stamped archive (preserves history)
+            current_dir = screenshots_dir / "current"
+            if current_dir.is_dir() and any(current_dir.iterdir()):
+                prev_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                archive_dest = screenshots_dir / prev_date
+                if archive_dest.is_dir():
+                    shutil.rmtree(archive_dest, ignore_errors=True)
+                current_dir.rename(archive_dest)
+                _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
-        # Run local suites first (fast)
+        # Run all suites via GitHub Actions (prevents dev server overload)
         if self.suite in ("all", "vitest"):
-            suites["vitest"] = run_vitest() if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         if self.suite in ("all", "pytest"):
-            include_integration = self.environment != "production"
-            suites["pytest_unit"] = run_pytest(include_integration) if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+            suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
@@ -1311,6 +1793,8 @@ class TestOrchestrator:
         # Save results
         if not self.dry_run:
             ResultAggregator.save(result)
+            # Always generate MD reports (useful for single-spec debugging too)
+            ReportGenerator().generate(result)
 
         # Print summary
         self._print_summary(result)
@@ -1320,6 +1804,188 @@ class TestOrchestrator:
             self._daily_post_run(result)
 
         return 1 if result.summary["failed"] > 0 else 0
+
+    def _run_unit_suite_via_gha(self, workflow_file: str, artifact_name: str) -> SuiteResult:
+        """Dispatch a unit test workflow to GitHub Actions, wait, download results.
+
+        Args:
+            workflow_file: GHA workflow filename (e.g. "vitest.yml")
+            artifact_name: Name of the uploaded artifact (e.g. "vitest-results")
+
+        Returns:
+            SuiteResult with parsed test results from the JSON artifact.
+        """
+        suite_label = workflow_file.replace(".yml", "")
+        _log(f"  {suite_label}: dispatching to GitHub Actions...")
+
+        client = GitHubActionsClient()
+
+        # Record pre-dispatch run IDs to find the new one
+        pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
+
+        rc = subprocess.run(
+            ["gh", "workflow", "run", workflow_file,
+             "--repo", GH_REPO, "--ref", GH_BRANCH],
+            capture_output=True, text=True,
+        )
+        if rc.returncode != 0:
+            _log(f"  {suite_label}: dispatch failed: {rc.stderr.strip()[:200]}", "ERROR")
+            return SuiteResult(
+                status="failed",
+                tests=[{"name": f"{suite_label}-dispatch", "status": "failed",
+                        "duration_seconds": 0, "error": f"Dispatch failed: {rc.stderr.strip()[:200]}"}],
+            )
+
+        # Find the new run ID
+        time.sleep(5)
+        run_id = None
+        for attempt in range(10):
+            post_ids = client._recent_run_ids(limit=10, workflow=workflow_file)
+            new_ids = [rid for rid in post_ids if rid not in pre_ids]
+            if new_ids:
+                run_id = new_ids[0]
+                break
+            time.sleep(3)
+
+        if not run_id:
+            _log(f"  {suite_label}: could not find dispatched run", "ERROR")
+            return SuiteResult(
+                status="failed",
+                tests=[{"name": f"{suite_label}-dispatch", "status": "failed",
+                        "duration_seconds": 0, "error": "Could not find dispatched workflow run"}],
+            )
+
+        _log(f"  {suite_label}: waiting for run {run_id}...")
+        statuses = client.wait_for_runs([run_id], fail_fast=False)
+
+        status_data = statuses.get(run_id, {})
+        conclusion = status_data.get("conclusion", "unknown")
+        _log(f"  {suite_label}: run {run_id} → {conclusion}")
+
+        # Download artifact with JSON results
+        artifact_dir = Path(tempfile.mkdtemp(prefix=f"{suite_label}-artifacts-"))
+        art_path = client.download_artifact(run_id, artifact_name, artifact_dir)
+
+        all_tests: list[dict] = []
+        overall_status = "passed" if conclusion == "success" else "failed"
+
+        if art_path:
+            all_tests = self._parse_unit_test_artifact(art_path, suite_label)
+            if not all_tests and conclusion != "success":
+                # Fallback: no parseable results but the run failed
+                log_error = client.get_failed_job_error(run_id)
+                all_tests = [{"name": f"{suite_label}-run", "status": "failed",
+                              "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
+        elif conclusion != "success":
+            log_error = client.get_failed_job_error(run_id)
+            all_tests = [{"name": f"{suite_label}-run", "status": "failed",
+                          "duration_seconds": 0, "error": log_error or f"Run failed: {conclusion}"}]
+
+        # Recalculate overall status from actual test results
+        if all_tests:
+            has_failures = any(t.get("status") == "failed" for t in all_tests)
+            overall_status = "failed" if has_failures else "passed"
+
+        shutil.rmtree(artifact_dir, ignore_errors=True)
+
+        passed = sum(1 for t in all_tests if t.get("status") == "passed")
+        _log(f"  {suite_label}: {passed}/{len(all_tests)} passed")
+
+        return SuiteResult(status=overall_status, tests=all_tests)
+
+    @staticmethod
+    def _parse_unit_test_artifact(art_path: Path, suite_label: str) -> list[dict]:
+        """Parse unit test results from downloaded GHA artifact.
+
+        Handles both vitest JSON (testResults[].assertionResults[]) and
+        pytest-json-report (tests[]) formats.
+        """
+        all_tests: list[dict] = []
+
+        # Find all JSON result files
+        json_files = sorted(art_path.rglob("*.json"))
+
+        for jf in json_files:
+            try:
+                raw = jf.read_text(encoding="utf-8", errors="replace")
+                # Vitest/pytest JSON output may have non-JSON prefix (SvelteKit warnings).
+                # Try direct parse first, then look for known JSON markers.
+                data = None
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    # Look for vitest marker: "numTotalTestSuites"
+                    # or pytest marker: "tests"
+                    for marker in ('"numTotalTestSuites"', '"created"'):
+                        idx = raw.find(marker)
+                        if idx >= 0:
+                            brace_idx = raw.rfind("{", 0, idx)
+                            json_end = raw.rfind("}")
+                            if brace_idx >= 0 and json_end > brace_idx:
+                                try:
+                                    data = json.loads(raw[brace_idx:json_end + 1])
+                                    break
+                                except json.JSONDecodeError:
+                                    continue
+                if data is None:
+                    continue
+            except (json.JSONDecodeError, OSError):
+                continue
+
+            # Vitest format: { testResults: [{ assertionResults: [...] }] }
+            if "testResults" in data:
+                for tf in data.get("testResults", []):
+                    for ar in tf.get("assertionResults", []):
+                        name = ar.get("fullName", ar.get("title", "unknown"))
+                        status = "passed" if ar.get("status") == "passed" else "failed"
+                        test_dur = ar.get("duration", 0) / 1000.0
+                        entry: dict = {
+                            "name": name,
+                            "status": status,
+                            "duration_seconds": round(test_dur, 3),
+                        }
+                        if status == "failed":
+                            msgs = ar.get("failureMessages", [])
+                            if msgs:
+                                entry["error"] = msgs[0][:MAX_ERROR_SNIPPET]
+                        all_tests.append(entry)
+
+            # Pytest-json-report format: { tests: [{ nodeid, outcome, call: { longrepr } }] }
+            elif "tests" in data:
+                for t in data.get("tests", []):
+                    name = t.get("nodeid", "unknown")
+                    outcome = t.get("outcome", "")
+                    duration = t.get("duration", 0)
+                    entry = {
+                        "name": name,
+                        "status": "passed" if outcome == "passed" else "failed" if outcome == "failed" else "skipped",
+                        "duration_seconds": round(duration, 3),
+                    }
+                    if outcome == "failed":
+                        call = t.get("call", {})
+                        longrepr = call.get("longrepr", "")
+                        if longrepr:
+                            entry["error"] = str(longrepr)[:MAX_ERROR_SNIPPET]
+                    all_tests.append(entry)
+
+        # Fallback: parse pytest verbose text output (test::name PASSED/FAILED lines)
+        if not all_tests:
+            for txt_file in sorted(art_path.rglob("*.txt")):
+                try:
+                    content = txt_file.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                for line in content.splitlines():
+                    m = re.match(r"^(\S+::\S+)\s+(PASSED|FAILED|SKIPPED|ERROR)", line)
+                    if m:
+                        name = m.group(1)
+                        result_str = m.group(2)
+                        status = ("passed" if result_str == "PASSED"
+                                  else "failed" if result_str in ("FAILED", "ERROR")
+                                  else "skipped")
+                        all_tests.append({"name": name, "status": status, "duration_seconds": 0})
+
+        return all_tests
 
     def _run_playwright(self) -> SuiteResult:
         """Run Playwright specs via GitHub Actions."""
@@ -1345,6 +2011,13 @@ class TestOrchestrator:
         )
         return runner.run_all_batches()
 
+    # Specs excluded from daily / all-spec runs.
+    # These are utility specs (e.g. account provisioning) that should only be
+    # triggered manually via --spec.
+    EXCLUDED_SPECS = {
+        "create-test-account.spec.ts",
+    }
+
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
         if self.spec:
@@ -1358,9 +2031,9 @@ class TestOrchestrator:
                 _log(f"Found {len(specs)} previously failed spec(s)")
             return specs
 
-        # All specs
+        # All specs, minus excluded utility specs
         spec_files = sorted(SPEC_DIR.glob("*.spec.ts"))
-        return [f.name for f in spec_files]
+        return [f.name for f in spec_files if f.name not in self.EXCLUDED_SPECS]
 
     def _daily_gate(self) -> bool:
         """Check if daily run should proceed. Returns False to skip."""
@@ -1390,9 +2063,13 @@ class TestOrchestrator:
         return True
 
     def _daily_post_run(self, result: RunResult) -> None:
-        """Post-run tasks for daily mode: split results, archive, notify."""
+        """Post-run tasks for daily mode: split results, archive, reports, notify."""
         # Split results
         self.notification.split_results()
+
+        # Generate structured MD reports
+        _log("Generating MD reports...")
+        ReportGenerator().generate(result)
 
         # Push to OpenObserve
         _log("Pushing to OpenObserve...")
@@ -1410,6 +2087,18 @@ class TestOrchestrator:
         archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
         for old in archives[30:]:
             old.unlink(missing_ok=True)
+
+        # Prune old screenshot archives (keep last 30 days)
+        screenshots_dir = RESULTS_DIR / "screenshots"
+        if screenshots_dir.is_dir():
+            date_dirs = sorted(
+                [d for d in screenshots_dir.iterdir()
+                 if d.is_dir() and d.name != "current" and len(d.name) == 10],
+                reverse=True,
+            )
+            for old_dir in date_dirs[30:]:
+                shutil.rmtree(old_dir, ignore_errors=True)
+                _log(f"Pruned old screenshot archive: {old_dir.name}")
 
         # Start claude analysis on failures (reuse helper)
         if result.summary["failed"] > 0:

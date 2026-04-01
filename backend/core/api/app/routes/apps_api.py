@@ -1168,13 +1168,10 @@ async def list_apps(
         translation_service = get_translation_service(request)
         config_manager = get_config_manager(request)
         
-        # Initialize secrets manager for API key availability checks.
-        # TODO(audit-2026-03-18): SecretsManager.initialize() performs a Vault HTTP round-trip
-        # on every list_apps request.  SecretsManager is a singleton — initialize() should be
-        # a no-op once the singleton is already initialised; move to app startup instead.
-        # See audit finding #5: N×M serial Vault + internal HTTP calls in list_apps.
-        secrets_manager = SecretsManager(cache_service=cache_service)
-        await secrets_manager.initialize()
+        # Use the app-level SecretsManager initialized at startup (main.py lifespan)
+        # instead of creating a new instance per request (which caused a Vault HTTP
+        # round-trip on every list_apps call).
+        secrets_manager = request.app.state.secrets_manager
         protonmail_allowed_for_user = await _is_protonmail_allowed_for_external_user(
             user_info=user_info,
             secrets_manager=secrets_manager,

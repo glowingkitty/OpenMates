@@ -127,6 +127,7 @@ async def _async_send(
             "test-analysis": "Test Failure Analysis",
             "issues": "Issue Investigation",
             "workflow-review": "Workflow Review",
+            "daily-meeting": "Daily Standup Meeting",
         }.get(job_type, job_type.replace("-", " ").title())
 
         # Sanitize all inputs

@@ -11,6 +11,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     import Toggle from '../../../Toggle.svelte';
     import { getEmailDecryptedWithMasterKey } from '../../../../services/cryptoService';
     import SettingsDropdown from '../../elements/SettingsDropdown.svelte';
+    import SettingsPageHeader from '../../elements/SettingsPageHeader.svelte';
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
@@ -179,28 +180,34 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     {#if lowBalanceEnabled}
         <!-- Threshold Display (Fixed at 100 credits) -->
         <div class="form-group">
-            <label for="threshold">{$text('settings.billing.threshold')}</label>
+            <SettingsPageHeader
+                title={$text('settings.billing.threshold')}
+                description="Auto top-up triggers when balance falls to or below {formatCredits(lowBalanceThreshold)} credits (fixed value)"
+            />
             <div class="fixed-value-display">
                 {formatCredits(lowBalanceThreshold)} {$text('common.credits')}
             </div>
-            <p class="help-text">Auto top-up triggers when balance falls to or below {formatCredits(lowBalanceThreshold)} credits (fixed value)</p>
         </div>
 
         <!-- Amount Selection -->
         <div class="form-group">
-            <label for="amount">{$text('settings.billing.topup_amount')}</label>
+            <SettingsPageHeader
+                title={$text('settings.billing.topup_amount')}
+                description="Credits to purchase when threshold is reached"
+            />
             <SettingsDropdown
                 value={lowBalanceAmountStr}
                 options={tierAmountOptions}
                 disabled={isLoading}
                 onChange={(v) => { lowBalanceAmount = parseInt(v, 10); }}
             />
-            <p class="help-text">Credits to purchase when threshold is reached</p>
         </div>
 
         <!-- Currency Selection -->
         <div class="form-group">
-            <label for="currency">{$text('settings.billing.currency')}</label>
+            <SettingsPageHeader
+                title={$text('settings.billing.currency')}
+            />
             <SettingsDropdown
                 bind:value={lowBalanceCurrency}
                 options={currencyOptions}
@@ -273,30 +280,10 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         gap: 8px;
     }
 
-    .form-group label {
-        color: var(--color-grey-100);
-        font-size: 14px;
-        font-weight: 500;
-    }
-
-    .form-group select {
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        color: var(--color-grey-100);
-        padding: 10px 12px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: border-color 0.2s ease;
-    }
-
-    .form-group select:focus {
-        border-color: var(--color-primary);
-    }
-
-    .form-group select:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+    /* Tighten SettingsPageHeader spacing when used as a form-group label */
+    .form-group :global(.settings-page-header) {
+        margin-bottom: 0;
+        padding: 0;
     }
 
     .fixed-value-display {

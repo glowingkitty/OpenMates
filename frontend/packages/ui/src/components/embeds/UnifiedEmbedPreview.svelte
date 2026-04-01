@@ -816,6 +816,7 @@
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
+  data-testid="embed-preview"
   class:mobile={useMobileLayout}
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}

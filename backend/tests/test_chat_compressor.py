@@ -425,7 +425,7 @@ class TestCompressChatHistory:
     async def test_success_path(self, mock_secrets, monkeypatch):
         """Primary LLM succeeds: should return compressed result with correct metadata."""
         # Create a history that exceeds threshold with custom low threshold
-        history = _make_history(20, chars_per_msg=200)
+        history = _make_history(20, chars_per_msg=2000)
 
         mock_response = MagicMock()
         mock_response.success = True
@@ -457,7 +457,7 @@ class TestCompressChatHistory:
     @pytest.mark.asyncio
     async def test_primary_fails_fallback_succeeds(self, mock_secrets, monkeypatch):
         """Primary LLM fails, Cerebras fallback succeeds."""
-        history = _make_history(20, chars_per_msg=200)
+        history = _make_history(20, chars_per_msg=2000)
 
         # Primary fails
         primary_response = MagicMock()
@@ -498,7 +498,7 @@ class TestCompressChatHistory:
     @pytest.mark.asyncio
     async def test_both_llms_fail(self, mock_secrets, monkeypatch):
         """Both primary and fallback LLM fail: should return error."""
-        history = _make_history(20, chars_per_msg=200)
+        history = _make_history(20, chars_per_msg=2000)
 
         # Primary fails
         primary_response = MagicMock()
@@ -542,7 +542,7 @@ class TestCompressChatHistory:
     @pytest.mark.asyncio
     async def test_primary_raises_exception(self, mock_secrets, monkeypatch):
         """Primary LLM raises an exception: should return error without crashing."""
-        history = _make_history(20, chars_per_msg=200)
+        history = _make_history(20, chars_per_msg=2000)
 
         async def fake_google_llm(**kwargs):
             raise ConnectionError("Network failure")

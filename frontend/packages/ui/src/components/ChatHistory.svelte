@@ -1527,7 +1527,8 @@
 -->
 <div class="chat-history-wrapper" style={containerStyle}>
 <div 
-    class="chat-history-container" 
+    class="chat-history-container"
+    data-testid="chat-history-container"
     class:empty={displayMessages.length === 0}
     class:is-at-top={isAtTop}
     bind:this={container}

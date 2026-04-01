@@ -78,14 +78,25 @@ class PushNotificationService:
     async def _generate_and_store_keys(self, secrets_manager) -> None:
         """Generate a fresh VAPID EC key pair and persist to Vault."""
         try:
+            import base64
             from py_vapid import Vapid  # type: ignore[import]
+            from cryptography.hazmat.primitives.serialization import (
+                Encoding, PublicFormat,
+            )
 
             vapid = Vapid()
             vapid.generate_keys()
 
-            # Export keys as URL-safe base64 strings (no PEM wrapping needed for pywebpush)
-            public_key_b64 = vapid.public_key_urlsafe_base64
-            private_key_b64 = vapid.private_key_urlsafe_base64
+            # pywebpush >=2.0 removed the convenience urlsafe_base64 properties.
+            # Extract the raw EC public key as uncompressed point, and private
+            # key as raw 32-byte scalar, then URL-safe base64-encode them.
+            pub_bytes = vapid.public_key.public_bytes(
+                Encoding.X962, PublicFormat.UncompressedPoint
+            )
+            public_key_b64 = base64.urlsafe_b64encode(pub_bytes).decode().rstrip("=")
+
+            priv_raw = vapid.private_key.private_numbers().private_value.to_bytes(32, "big")
+            private_key_b64 = base64.urlsafe_b64encode(priv_raw).decode().rstrip("=")
 
             await secrets_manager.store_secrets_at_path(
                 VAPID_VAULT_PATH,

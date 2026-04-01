@@ -160,7 +160,7 @@
     let messageCount = $derived(forkContext?.messageCount ?? 0);
 </script>
 
-<div class="fork-container">
+<div class="fork-container" data-testid="fork-container">
     {#if forkContext}
         <!-- Name input -->
         <div class="fork-field">
@@ -170,6 +170,7 @@
             <input
                 id="fork-name"
                 class="fork-input"
+                data-testid="fork-input"
                 type="text"
                 bind:value={forkName}
                 placeholder={$text('chats.fork.name_placeholder')}
@@ -200,6 +201,7 @@
         {#if !isForkingThisChat}
             <button
                 class="fork-button"
+                data-testid="fork-button"
                 onclick={handleFork}
                 disabled={started || isRunning || !forkName.trim()}
             >

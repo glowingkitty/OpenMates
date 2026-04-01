@@ -274,6 +274,10 @@
         arrival_latitude: content[`legs_${legIndex}_segments_${j}_arrival_latitude`] as number | undefined,
         arrival_longitude: content[`legs_${legIndex}_segments_${j}_arrival_longitude`] as number | undefined,
         duration: (content[`legs_${legIndex}_segments_${j}_duration`] as string) || '',
+        departure_country_code: content[`legs_${legIndex}_segments_${j}_departure_country_code`] as string | undefined,
+        arrival_country_code: content[`legs_${legIndex}_segments_${j}_arrival_country_code`] as string | undefined,
+        departure_is_daytime: content[`legs_${legIndex}_segments_${j}_departure_is_daytime`] as boolean | undefined,
+        arrival_is_daytime: content[`legs_${legIndex}_segments_${j}_arrival_is_daytime`] as boolean | undefined,
         airplane: content[`legs_${legIndex}_segments_${j}_airplane`] as string | undefined,
         airline_logo: content[`legs_${legIndex}_segments_${j}_airline_logo`] as string | undefined,
         legroom: content[`legs_${legIndex}_segments_${j}_legroom`] as string | undefined,
@@ -309,6 +313,10 @@
               arrival_latitude: seg.arrival_latitude as number | undefined,
               arrival_longitude: seg.arrival_longitude as number | undefined,
               duration: (seg.duration as string) || '',
+              departure_country_code: seg.departure_country_code as string | undefined,
+              arrival_country_code: seg.arrival_country_code as string | undefined,
+              departure_is_daytime: seg.departure_is_daytime as boolean | undefined,
+              arrival_is_daytime: seg.arrival_is_daytime as boolean | undefined,
               airplane: seg.airplane as string | undefined,
               airline_logo: seg.airline_logo as string | undefined,
               legroom: seg.legroom as string | undefined,
@@ -365,7 +373,16 @@
       booking_url: content.booking_url as string | undefined,
       booking_provider: content.booking_provider as string | undefined,
       booking_token: content.booking_token as string | undefined,
-      booking_context: reconstructBookingContext(content),
+      booking_context: (() => {
+        const ctx = reconstructBookingContext(content);
+        console.debug('[TravelSearch] booking_context reconstruction:', {
+          hasBookingContext: !!content.booking_context,
+          bookingContextType: typeof content.booking_context,
+          hasFlatKeys: !!content.booking_context_departure_id,
+          result: ctx,
+        });
+        return ctx;
+      })(),
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
       departure: content.departure as string | undefined,
@@ -376,6 +393,8 @@
       carrier_codes,
       hash: content.hash as string | undefined,
       legs,
+      origin_country_code: content.origin_country_code as string | undefined,
+      destination_country_code: content.destination_country_code as string | undefined,
       airline_logo: content.airline_logo as string | undefined,
       co2_kg: content.co2_kg as number | undefined,
       co2_typical_kg: content.co2_typical_kg as number | undefined,

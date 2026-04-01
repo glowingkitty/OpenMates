@@ -897,3 +897,303 @@ settings.active_title:
   sv: Aktiva påminnelser
   he: תזכורות פעילות
   verified_by_human: [en, de]
+
+settings.explainer_chat_reminder:
+  context: Explainer text shown when "Chat reminder" type is selected — describes that a notification reminds the user to revisit this chat
+  en: "Chat reminder will send a push & email notification to remind you to check out this chat again:"
+  de: "Chat-Erinnerung sendet eine Push- & E-Mail-Benachrichtigung, um dich an diesen Chat zu erinnern:"
+  zh: "聊天提醒会发送推送和电子邮件通知，提醒你再次查看此聊天："
+  es: "El recordatorio de chat enviará una notificación push y por correo electrónico para recordarte revisar este chat de nuevo:"
+  fr: "Le rappel de chat enverra une notification push et un e-mail pour vous rappeler de consulter ce chat à nouveau :"
+  pt: "O lembrete de chat enviará uma notificação push e por e-mail para lembrá-lo de verificar este chat novamente:"
+  ru: "Напоминание о чате отправит push-уведомление и email, чтобы напомнить вам проверить этот чат снова:"
+  ja: "チャットリマインダーはプッシュ通知とメール通知を送信し、このチャットを再確認するよう促します："
+  ko: "채팅 알림은 이 채팅을 다시 확인하라는 푸시 및 이메일 알림을 보냅니다:"
+  it: "Il promemoria chat invierà una notifica push e un'email per ricordarti di controllare di nuovo questa chat:"
+  tr: "Sohbet hatırlatıcısı, bu sohbeti tekrar kontrol etmenizi hatırlatmak için push ve e-posta bildirimi gönderecek:"
+  vi: "Nhắc nhở chat sẽ gửi thông báo đẩy và email để nhắc bạn kiểm tra lại cuộc trò chuyện này:"
+  id: "Pengingat chat akan mengirim notifikasi push & email untuk mengingatkan Anda memeriksa chat ini lagi:"
+  pl: "Przypomnienie o czacie wyśle powiadomienie push i e-mail, aby przypomnieć ci o sprawdzeniu tego czatu ponownie:"
+  nl: "Chatheinnering stuurt een push- en e-mailnotificatie om je eraan te herinneren deze chat opnieuw te bekijken:"
+  ar: "تذكير المحادثة سيرسل إشعارًا فوريًا وبريدًا إلكترونيًا لتذكيرك بمراجعة هذه المحادثة مرة أخرى:"
+  hi: "चैट रिमाइंडर आपको इस चैट को दोबारा देखने की याद दिलाने के लिए पुश और ईमेल सूचना भेजेगा:"
+  th: "การแจ้งเตือนแชทจะส่งการแจ้งเตือนแบบพุชและอีเมลเพื่อเตือนให้คุณตรวจสอบแชทนี้อีกครั้ง:"
+  cs: "Připomínka chatu pošle push a e-mailové oznámení, aby vám připomněla zkontrolovat tento chat znovu:"
+  sv: "Chattpåminnelsen skickar en push- och e-postavisering för att påminna dig att kolla in denna chatt igen:"
+  he: "תזכורת צ'אט תשלח התראת פוש ואימייל כדי להזכיר לך לבדוק את הצ'אט הזה שוב:"
+  verified_by_human: [en, de]
+
+settings.explainer_task:
+  context: Explainer text shown when "Task" type is selected — describes that it starts a new chat with AI
+  en: "Task will trigger a new chat with a new task given to an assistant. For example for checking the latest news every day. Incl. email notification for the new chat."
+  de: "Aufgabe startet einen neuen Chat mit einer neuen Aufgabe für den Assistenten. Zum Beispiel um täglich die neuesten Nachrichten zu prüfen. Inkl. E-Mail-Benachrichtigung für den neuen Chat."
+  zh: "任务将触发一个新聊天，向助手分配新任务。例如每天查看最新新闻。包含新聊天的电子邮件通知。"
+  es: "La tarea iniciará un nuevo chat con una nueva tarea asignada a un asistente. Por ejemplo, para revisar las últimas noticias cada día. Incluye notificación por correo electrónico del nuevo chat."
+  fr: "La tâche déclenchera un nouveau chat avec une nouvelle tâche confiée à un assistant. Par exemple pour vérifier les dernières nouvelles chaque jour. Avec notification par e-mail pour le nouveau chat."
+  pt: "A tarefa iniciará um novo chat com uma nova tarefa atribuída a um assistente. Por exemplo, para verificar as últimas notícias todos os dias. Inclui notificação por e-mail do novo chat."
+  ru: "Задача запустит новый чат с новым заданием для ассистента. Например, для проверки последних новостей каждый день. Включая уведомление по email о новом чате."
+  ja: "タスクはアシスタントに新しい課題を与える新しいチャットを開始します。例えば毎日最新ニュースをチェックするなど。新しいチャットのメール通知を含みます。"
+  ko: "작업은 어시스턴트에게 새로운 과제를 부여하는 새 채팅을 시작합니다. 예를 들어 매일 최신 뉴스를 확인하는 것입니다. 새 채팅에 대한 이메일 알림이 포함됩니다."
+  it: "Il task avvierà una nuova chat con un nuovo compito assegnato all'assistente. Ad esempio per controllare le ultime notizie ogni giorno. Include notifica email per la nuova chat."
+  tr: "Görev, asistana yeni bir görev verilen yeni bir sohbet başlatacak. Örneğin her gün en son haberleri kontrol etmek için. Yeni sohbet için e-posta bildirimi dahildir."
+  vi: "Nhiệm vụ sẽ tạo cuộc trò chuyện mới với nhiệm vụ mới giao cho trợ lý. Ví dụ để kiểm tra tin tức mới nhất mỗi ngày. Bao gồm thông báo email cho cuộc trò chuyện mới."
+  id: "Tugas akan memulai chat baru dengan tugas baru yang diberikan kepada asisten. Misalnya untuk memeriksa berita terbaru setiap hari. Termasuk notifikasi email untuk chat baru."
+  pl: "Zadanie uruchomi nowy czat z nowym zadaniem przydzielonym asystentowi. Na przykład do sprawdzania najnowszych wiadomości codziennie. Zawiera powiadomienie e-mail o nowym czacie."
+  nl: "Taak start een nieuw gesprek met een nieuwe taak voor de assistent. Bijvoorbeeld om dagelijks het laatste nieuws te controleren. Inclusief e-mailmelding voor het nieuwe gesprek."
+  ar: "ستبدأ المهمة محادثة جديدة بمهمة جديدة موكلة للمساعد. على سبيل المثال للتحقق من آخر الأخبار يوميًا. يشمل إشعار بريد إلكتروني للمحادثة الجديدة."
+  hi: "कार्य सहायक को दिए गए नए कार्य के साथ एक नई चैट शुरू करेगा। उदाहरण के लिए हर दिन नवीनतम समाचार देखने के लिए। नई चैट के लिए ईमेल सूचना शामिल है।"
+  th: "งานจะเปิดแชทใหม่พร้อมงานใหม่ที่มอบให้ผู้ช่วย เช่น ตรวจสอบข่าวล่าสุดทุกวัน รวมการแจ้งเตือนอีเมลสำหรับแชทใหม่"
+  cs: "Úkol spustí nový chat s novým úkolem zadaným asistentovi. Například pro kontrolu nejnovějších zpráv každý den. Včetně e-mailového oznámení o novém chatu."
+  sv: "Uppgiften startar en ny chatt med en ny uppgift tilldelad assistenten. Till exempel för att kolla de senaste nyheterna varje dag. Inkl. e-postavisering för den nya chatten."
+  he: "המשימה תפתח צ'אט חדש עם משימה חדשה שניתנה לעוזר. לדוגמה לבדיקת החדשות האחרונות כל יום. כולל התראת אימייל על הצ'אט החדש."
+  verified_by_human: [en, de]
+
+settings.type_chat_reminder:
+  context: Label for the "Chat reminder" option in the reminder type dropdown
+  en: Chat reminder
+  de: Chat-Erinnerung
+  zh: 聊天提醒
+  es: Recordatorio de chat
+  fr: Rappel de chat
+  pt: Lembrete de chat
+  ru: Напоминание о чате
+  ja: チャットリマインダー
+  ko: 채팅 알림
+  it: Promemoria chat
+  tr: Sohbet hatırlatıcısı
+  vi: Nhắc nhở chat
+  id: Pengingat chat
+  pl: Przypomnienie czatu
+  nl: Chatherinnering
+  ar: تذكير المحادثة
+  hi: चैट रिमाइंडर
+  th: แจ้งเตือนแชท
+  cs: Připomínka chatu
+  sv: Chattpåminnelse
+  he: תזכורת צ'אט
+  verified_by_human: [en, de]
+
+settings.type_task:
+  context: Label for the "Task" option in the reminder type dropdown
+  en: Task
+  de: Aufgabe
+  zh: 任务
+  es: Tarea
+  fr: Tâche
+  pt: Tarefa
+  ru: Задача
+  ja: タスク
+  ko: 작업
+  it: Attività
+  tr: Görev
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadanie
+  nl: Taak
+  ar: مهمة
+  hi: कार्य
+  th: งาน
+  cs: Úkol
+  sv: Uppgift
+  he: משימה
+  verified_by_human: [en, de]
+
+settings.task_prompt_label:
+  context: Heading label for the task prompt text area
+  en: Task
+  de: Aufgabe
+  zh: 任务
+  es: Tarea
+  fr: Tâche
+  pt: Tarefa
+  ru: Задача
+  ja: タスク
+  ko: 작업
+  it: Attività
+  tr: Görev
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadanie
+  nl: Taak
+  ar: مهمة
+  hi: कार्य
+  th: งาน
+  cs: Úkol
+  sv: Uppgift
+  he: משימה
+  verified_by_human: [en, de]
+
+settings.task_prompt_placeholder:
+  context: Placeholder text inside the task description textarea
+  en: What is the task?
+  de: Was ist die Aufgabe?
+  zh: 任务是什么？
+  es: ¿Cuál es la tarea?
+  fr: Quelle est la tâche ?
+  pt: Qual é a tarefa?
+  ru: Какое задание?
+  ja: タスクは何ですか？
+  ko: 작업이 무엇인가요?
+  it: Qual è l'attività?
+  tr: Görev nedir?
+  vi: Nhiệm vụ là gì?
+  id: Apa tugasnya?
+  pl: Jakie jest zadanie?
+  nl: Wat is de taak?
+  ar: ما هي المهمة؟
+  hi: कार्य क्या है?
+  th: งานคืออะไร?
+  cs: Jaký je úkol?
+  sv: Vad är uppgiften?
+  he: מהי המשימה?
+  verified_by_human: [en, de]
+
+settings.select_date:
+  context: Placeholder text for the date picker input before a date is selected
+  en: Select date
+  de: Datum wählen
+  zh: 选择日期
+  es: Seleccionar fecha
+  fr: Sélectionner la date
+  pt: Selecionar data
+  ru: Выберите дату
+  ja: 日付を選択
+  ko: 날짜 선택
+  it: Seleziona data
+  tr: Tarih seçin
+  vi: Chọn ngày
+  id: Pilih tanggal
+  pl: Wybierz datę
+  nl: Datum selecteren
+  ar: اختر التاريخ
+  hi: तारीख चुनें
+  th: เลือกวันที่
+  cs: Vyberte datum
+  sv: Välj datum
+  he: בחר תאריך
+  verified_by_human: [en, de]
+
+settings.select_time:
+  context: Placeholder text for the time picker input before a time is selected
+  en: Select time
+  de: Zeit wählen
+  zh: 选择时间
+  es: Seleccionar hora
+  fr: Sélectionner l'heure
+  pt: Selecionar hora
+  ru: Выберите время
+  ja: 時間を選択
+  ko: 시간 선택
+  it: Seleziona ora
+  tr: Saat seçin
+  vi: Chọn thời gian
+  id: Pilih waktu
+  pl: Wybierz czas
+  nl: Tijd selecteren
+  ar: اختر الوقت
+  hi: समय चुनें
+  th: เลือกเวลา
+  cs: Vyberte čas
+  sv: Välj tid
+  he: בחר שעה
+  verified_by_human: [en, de]
+
+settings.type_heading:
+  context: Heading label for the reminder type selector dropdown (Chat reminder vs Task)
+  en: Reminder type
+  de: Erinnerungstyp
+  zh: 提醒类型
+  es: Tipo de recordatorio
+  fr: Type de rappel
+  pt: Tipo de lembrete
+  ru: Тип напоминания
+  ja: リマインダーの種類
+  ko: 알림 유형
+  it: Tipo di promemoria
+  tr: Hatırlatıcı türü
+  vi: Loại nhắc nhở
+  id: Jenis pengingat
+  pl: Typ przypomnienia
+  nl: Type herinnering
+  ar: نوع التذكير
+  hi: अनुस्मारक प्रकार
+  th: ประเภทการแจ้งเตือน
+  cs: Typ připomínky
+  sv: Påminnelsetyp
+  he: סוג תזכורת
+  verified_by_human: [en, de]
+
+settings.day_heading:
+  context: Heading label for the day/date picker field
+  en: Day?
+  de: Tag?
+  zh: 哪天？
+  es: ¿Día?
+  fr: Jour ?
+  pt: Dia?
+  ru: День?
+  ja: 日?
+  ko: 날?
+  it: Giorno?
+  tr: Gün?
+  vi: Ngày?
+  id: Hari?
+  pl: Dzień?
+  nl: Dag?
+  ar: اليوم؟
+  hi: दिन?
+  th: วัน?
+  cs: Den?
+  sv: Dag?
+  he: יום?
+  verified_by_human: [en, de]
+
+settings.time_heading:
+  context: Heading label for the time picker field
+  en: Time?
+  de: Uhrzeit?
+  zh: 时间？
+  es: ¿Hora?
+  fr: Heure ?
+  pt: Hora?
+  ru: Время?
+  ja: 時間?
+  ko: 시간?
+  it: Ora?
+  tr: Saat?
+  vi: Thời gian?
+  id: Waktu?
+  pl: Czas?
+  nl: Tijd?
+  ar: الوقت؟
+  hi: समय?
+  th: เวลา?
+  cs: Čas?
+  sv: Tid?
+  he: שעה?
+  verified_by_human: [en, de]
+
+settings.repeat_heading:
+  context: Heading label for the repeat frequency selector
+  en: Repeat?
+  de: Wiederholen?
+  zh: 重复？
+  es: ¿Repetir?
+  fr: Répéter ?
+  pt: Repetir?
+  ru: Повторять?
+  ja: 繰り返し?
+  ko: 반복?
+  it: Ripetere?
+  tr: Tekrarla?
+  vi: Lặp lại?
+  id: Ulangi?
+  pl: Powtarzać?
+  nl: Herhalen?
+  ar: تكرار؟
+  hi: दोहराएं?
+  th: ทำซ้ำ?
+  cs: Opakovat?
+  sv: Upprepa?
+  he: חזרה?
+  verified_by_human: [en, de]

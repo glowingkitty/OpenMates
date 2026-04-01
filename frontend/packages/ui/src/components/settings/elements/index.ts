@@ -30,6 +30,7 @@ export { default as SettingsButtonGroup } from "./SettingsButtonGroup.svelte";
 export { default as SettingsPageContainer } from "./SettingsPageContainer.svelte";
 export { default as SettingsPageHeader } from "./SettingsPageHeader.svelte";
 export { default as SettingsDivider } from "./SettingsDivider.svelte";
+export { default as SettingsSectionHeading } from "./SettingsSectionHeading.svelte";
 export { default as SettingsGradientLink } from "./SettingsGradientLink.svelte";
 
 // ── Data Display ────────────────────────────────────────────────────

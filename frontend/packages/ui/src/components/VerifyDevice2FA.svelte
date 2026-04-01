@@ -176,7 +176,7 @@ login_2fa_svelte:
 
 <div class="login-2fa" class:preview={previewMode}>
     {#if reason === 'location_change'}
-        <div class="location-change-notice">
+        <div class="location-change-notice" data-testid="location-change-notice">
             <span class="icon icon_shield"></span>
             <p>{$text('login.verify_device_location_change_notice')}</p>
         </div>

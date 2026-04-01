@@ -33,6 +33,7 @@ import json
 import os
 import subprocess
 from _claude_utils import run_claude_session
+from _nightly_report import write_nightly_report
 import sys
 from datetime import datetime, timezone
 
@@ -176,6 +177,17 @@ def run_audit() -> None:
     state["last_audit_summary"] = session_summary
     state["last_session_id"] = session_id
     _save_state(state_file, state)
+
+    write_nightly_report(
+        job="codebase-audit",
+        status="error" if returncode != 0 else "ok",
+        summary=f"Codebase health audit completed (HEAD {current_sha}). Session: {session_id or 'N/A'}.",
+        details={
+            "last_audit_date": today_date,
+            "head_sha": current_sha,
+            "session_id": session_id,
+        },
+    )
 
     if returncode != 0:
         sys.exit(returncode)

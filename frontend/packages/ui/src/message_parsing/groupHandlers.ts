@@ -896,6 +896,122 @@ export class AppSkillUseGroupHandler implements EmbedGroupHandler {
 }
 
 /**
+ * Generic configurable group handler for embed types that follow the standard
+ * grouping pattern. Instead of writing ~100 lines per embed type, configure
+ * a BaseGroupHandler with the type name and the fields to serialize.
+ *
+ * Usage:
+ *   new BaseGroupHandler('home-listing', ['url', 'title', 'price_label', ...])
+ */
+export class BaseGroupHandler implements EmbedGroupHandler {
+  constructor(
+    public embedType: string,
+    private serializableFields: string[],
+  ) {}
+
+  canGroup(nodeA: EmbedNodeAttributes, nodeB: EmbedNodeAttributes): boolean {
+    return nodeA.type === this.embedType && nodeB.type === this.embedType;
+  }
+
+  createGroup(embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes {
+    const groupId = generateDeterministicGroupId(embedNodes);
+
+    // Sort: processing first, then finished (stable order for same status)
+    const sortedEmbeds = [...embedNodes].sort((a, b) => {
+      if (a.status === "processing" && b.status !== "processing") return -1;
+      if (a.status !== "processing" && b.status === "processing") return 1;
+      return 0;
+    });
+
+    // Extract only the configured serializable fields per item
+    const serializableGroupedItems = sortedEmbeds.map((embed) => {
+      const item: Record<string, unknown> = {};
+      for (const field of this.serializableFields) {
+        if (embed[field] !== undefined) {
+          item[field] = embed[field];
+        }
+      }
+      return item;
+    });
+
+    console.log(
+      `[BaseGroupHandler:${this.embedType}] Creating group with ${serializableGroupedItems.length} items`,
+    );
+
+    return {
+      id: groupId,
+      type: `${this.embedType}-group`,
+      status: "finished",
+      contentRef: null,
+      groupedItems: serializableGroupedItems,
+      groupCount: sortedEmbeds.length,
+    } as unknown as EmbedNodeAttributes;
+  }
+
+  handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
+    const groupedItems = groupAttrs.groupedItems || [];
+
+    if (groupedItems.length > 2) {
+      const remainingItems = groupedItems.slice(0, -1);
+      const lastItem = groupedItems[groupedItems.length - 1];
+      const remainingGroupAttrs = this.createGroup(remainingItems);
+
+      return {
+        action: "split-group",
+        replacementContent: [
+          { type: "embed", attrs: remainingGroupAttrs },
+          { type: "text", text: " " },
+          { type: "text", text: lastItem.url || lastItem.title || "" },
+          { type: "hardBreak" },
+        ],
+      };
+    } else if (groupedItems.length === 2) {
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+
+      return {
+        action: "split-group",
+        replacementContent: [
+          {
+            type: "embed",
+            attrs: { ...firstItem, type: this.embedType },
+          },
+          { type: "text", text: " " },
+          { type: "text", text: lastItem.url || lastItem.title || "" },
+          { type: "hardBreak" },
+        ],
+      };
+    } else if (groupedItems.length === 1) {
+      const singleItem = groupedItems[0];
+      return {
+        action: "convert-to-text",
+        replacementText: (singleItem.url || singleItem.title || "") + "\n\n",
+      };
+    }
+
+    return { action: "delete-group" };
+  }
+
+  groupToMarkdown(groupAttrs: EmbedNodeAttributes): string {
+    const groupedItems = groupAttrs.groupedItems || [];
+    return groupedItems
+      .map((item) => {
+        const embedData: Record<string, unknown> = {
+          type: this.embedType,
+        };
+        for (const field of this.serializableFields) {
+          if (item[field] !== undefined && field !== "id" && field !== "type" && field !== "status" && field !== "contentRef") {
+            embedData[field] = item[field];
+          }
+        }
+        const jsonContent = JSON.stringify(embedData, null, 2);
+        return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
+      })
+      .join("\n\n");
+  }
+}
+
+/**
  * Registry of group handlers
  */
 export class GroupHandlerRegistry {
@@ -909,6 +1025,37 @@ export class GroupHandlerRegistry {
     this.register(new DocsDocGroupHandler());
     this.register(new SheetsSheetGroupHandler());
     this.register(new AppSkillUseGroupHandler());
+
+    // Generic handlers for embed types that follow the standard grouping pattern
+    this.register(
+      new BaseGroupHandler("home-listing", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "url",
+        "title",
+        "price_label",
+        "size_sqm",
+        "rooms",
+        "address",
+        "image_url",
+        "provider",
+        "listing_type",
+      ]),
+    );
+    this.register(
+      new BaseGroupHandler("mail-email", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "receiver",
+        "subject",
+        "content",
+        "footer",
+      ]),
+    );
   }
 
   /**

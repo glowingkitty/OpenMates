@@ -26,6 +26,11 @@ Can be run manually for testing:
     DRY_RUN=true python3 scripts/_workflow_review_helper.py dry-run
     python3 scripts/_workflow_review_helper.py dry-run   # same as above
     python3 scripts/_workflow_review_helper.py run-review
+
+Public API (importable by other helpers, e.g. _daily_meeting_helper.py):
+    build_session_digests(yesterday: str) → (digest_text, count, chars)
+    build_prompt(yesterday: str, state: dict) → str
+    load_state() → dict
 """
 
 import json
@@ -94,7 +99,7 @@ def _empty_state() -> dict:
     }
 
 
-def _load_state() -> dict:
+def load_state() -> dict:
     state = _empty_state()
     if STATE_FILE.is_file():
         try:
@@ -431,7 +436,7 @@ def build_prompt(yesterday: str, state: dict, verbose: bool = False) -> str:
 def cmd_dry_run(yesterday: str) -> None:
     """Build and print the prompt without calling claude."""
     print(f"[workflow-review] DRY RUN for {yesterday}")
-    state = _load_state()
+    state = load_state()
     prompt = build_prompt(yesterday, state, verbose=True)
 
     print("\n" + "=" * 70)
@@ -446,7 +451,7 @@ def cmd_dry_run(yesterday: str) -> None:
 
 def cmd_run_review(yesterday: str) -> None:
     """Build prompt and run claude analysis."""
-    state = _load_state()
+    state = load_state()
     prompt = build_prompt(yesterday, state, verbose=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     session_title = f"workflow-review {yesterday}"

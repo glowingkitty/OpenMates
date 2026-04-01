@@ -53,6 +53,7 @@ async def setup_vault():
         
         # If Vault is not initialized, initialize it
         root_token = None # Initialize root_token variable
+        temp_root_token = None  # Track if we generated a temporary root token for cleanup
         if not health_data.get("initialized", False):
             logger.info("Vault needs to be initialized")
             # Initialize and capture the root token
@@ -92,18 +93,50 @@ async def setup_vault():
                         client.update_token(root_token)
 
             # If still no root token (deleted after previous successful setup — expected on restart),
-            # fall back to api.token for read-only verification steps. The api-service policy
-            # grants "read" on sys/mounts, so engine checks will succeed. Policy creation,
-            # token creation, and secret migration are skipped when only api.token is available
-            # since those operations require root and were already completed on first run.
+            # fall back to api.token for read-only verification steps. If api.token is also
+            # invalid (e.g., Vault data was reset, token expired/revoked), generate a temporary
+            # root token using the unseal key and perform a full setup to create a new api.token.
             if not root_token:
                 api_token = initializer.get_api_token_from_file()
                 if api_token:
                     logger.info("Using existing api.token for verification (root token not available — normal after first setup run).")
                     client.update_token(api_token)
+
+                    # Validate the api.token is actually recognized by this Vault instance.
+                    # The token can become invalid if Vault data was reset while vault-setup-data
+                    # (containing the old token) persisted, or if the token was revoked/expired.
+                    lookup = await client.vault_request("get", "auth/token/lookup-self", ignore_errors=True)
+                    if not lookup or "data" not in (lookup or {}):
+                        logger.warning(
+                            "api.token is invalid or unrecognized by Vault — "
+                            "generating temporary root token for recovery..."
+                        )
+                        temp_root_token = await initializer.generate_temporary_root_token()
+                        if temp_root_token:
+                            root_token = temp_root_token
+                            client.update_token(temp_root_token)
+                            logger.info("Generated temporary root token — will perform full setup and create new api.token.")
+                        else:
+                            logger.error(
+                                "Cannot recover: api.token is invalid and temporary root token "
+                                "generation failed. Check that the unseal key in vault-setup-data "
+                                "matches this Vault instance."
+                            )
+                            sys.exit(1)
                 else:
-                    logger.error("No root token and no api.token found — cannot proceed. Restore the root token via 'vault operator generate-root'.")
-                    sys.exit(1)
+                    # No api.token on disk — try generating a temporary root token from the unseal key
+                    logger.warning("No api.token found — generating temporary root token for full setup...")
+                    temp_root_token = await initializer.generate_temporary_root_token()
+                    if temp_root_token:
+                        root_token = temp_root_token
+                        client.update_token(temp_root_token)
+                        logger.info("Generated temporary root token — will perform full setup.")
+                    else:
+                        logger.error(
+                            "No root token, no api.token, and cannot generate temporary root token — "
+                            "cannot proceed. Restore the root token via 'vault operator generate-root'."
+                        )
+                        sys.exit(1)
 
             logger.info("Vault already initialized, proceeding with setup.")
         
@@ -207,6 +240,13 @@ async def setup_vault():
             except Exception as e_del:
                 logger.error(f"SECURITY WARNING: Failed to delete root token file {initializer.token_file}: {e_del}")
                 logger.error("The root token remains on the shared volume. Manual removal recommended.")
+
+        # SECURITY: Revoke the temporary root token if one was generated during this run.
+        # The temp root was only needed to recreate policies and api.token; keeping it alive
+        # is an unnecessary privilege escalation risk.
+        if temp_root_token:
+            await initializer.revoke_token(temp_root_token)
+            logger.info("SECURITY: Revoked temporary root token used for recovery setup.")
 
         logger.info("Vault setup script finished.")
         

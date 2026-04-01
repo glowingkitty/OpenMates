@@ -352,7 +352,7 @@
 </script>
 
 {#if filteredSuggestions.length > 0}
-  <div class="suggestions-wrapper" transition:fade={{ duration: 200 }}>
+  <div class="suggestions-wrapper" data-testid="suggestions-wrapper" transition:fade={{ duration: 200 }}>
     <!-- Header text above the gradient card -->
     <div class="suggestions-header">
       {#key currentLocale}

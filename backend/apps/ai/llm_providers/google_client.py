@@ -604,13 +604,18 @@ async def invoke_google_ai_studio_chat_completions(
         logger.info(f"{log_prefix} Stream connection initiated.")
         
         # Calculate token breakdown from input messages (estimate)
-        token_breakdown = calculate_token_breakdown(messages, model_id)
-        
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
         stream_iterator = None
         output_buffer = ""
         thinking_buffer = ""
         usage = None
         stream_succeeded = False
+        # Capture per-chunk metadata since async stream_iterator has no .response attribute.
+        # The last chunk contains cumulative usage_metadata and the final finish_reason.
+        last_usage_metadata = None
+        last_finish_reason = None
+        last_prompt_feedback = None
         try:
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
                 model=normalized_model_id,
@@ -619,6 +624,18 @@ async def invoke_google_ai_studio_chat_completions(
             )
 
             async for chunk in stream_iterator:
+                # Capture usage_metadata from each chunk — last one has cumulative totals
+                if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
+                    last_usage_metadata = chunk.usage_metadata
+                # Capture prompt_feedback if present (usually on first chunk)
+                if hasattr(chunk, 'prompt_feedback') and chunk.prompt_feedback:
+                    last_prompt_feedback = chunk.prompt_feedback
+                # Capture finish_reason from candidates (usually on last chunk)
+                if chunk.candidates:
+                    fr = getattr(chunk.candidates[0], 'finish_reason', None)
+                    if fr:
+                        last_finish_reason = fr
+
                 # Process all content parts to extract function calls WITH thought signatures
                 # and regular content (thinking/text)
                 try:
@@ -664,7 +681,7 @@ async def invoke_google_ai_studio_chat_completions(
                                         # Regular text content
                                         output_buffer += part.text
                                         yield part.text
-                                        
+
                             # Check for thinking signature on the candidate level (fallback)
                             if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
                                 # Convert bytes to base64 string if needed
@@ -687,60 +704,46 @@ async def invoke_google_ai_studio_chat_completions(
             # Gemini can silently stop generating due to safety filters, recitation detection,
             # or max_tokens — without raising any exception. Detecting this here ensures the user
             # sees a clear notice instead of an incomplete message with no explanation.
+            # NOTE: We use per-chunk captured values since the async stream iterator
+            # does not have a .response attribute (unlike the sync version).
             try:
-                response = getattr(stream_iterator, 'response', None)
-                if response:
-                    # Check prompt-level blocking (entire prompt rejected)
-                    prompt_feedback = getattr(response, 'prompt_feedback', None)
-                    if prompt_feedback:
-                        block_reason = getattr(prompt_feedback, 'block_reason', None)
-                        if block_reason and str(block_reason) != "BLOCK_REASON_UNSPECIFIED":
-                            logger.warning(f"{log_prefix} Prompt was blocked by content filter: {block_reason}")
-                            yield "\n\n---\n*Your message was blocked by the model's content filter. Try rephrasing or using a different model.*"
+                if last_prompt_feedback:
+                    block_reason = getattr(last_prompt_feedback, 'block_reason', None)
+                    if block_reason and str(block_reason) != "BLOCK_REASON_UNSPECIFIED":
+                        logger.warning(f"{log_prefix} Prompt was blocked by content filter: {block_reason}")
+                        yield "\n\n---\n*Your message was blocked by the model's content filter. Try rephrasing or using a different model.*"
 
-                    # Check candidate-level finish_reason (response truncated/blocked mid-stream)
-                    if response.candidates:
-                        finish_reason = getattr(response.candidates[0], 'finish_reason', None)
-                        finish_reason_str = str(finish_reason) if finish_reason else None
-
-                        if finish_reason_str and "STOP" not in finish_reason_str:
-                            logger.warning(
-                                f"{log_prefix} Response ended with finish_reason={finish_reason_str}. "
-                                f"Output may be incomplete or blocked."
-                            )
-                            if "SAFETY" in finish_reason_str:
-                                yield "\n\n---\n*This response was blocked by the model's safety filter. Try rephrasing your request or using a different model.*"
-                            elif "MAX_TOKENS" in finish_reason_str:
-                                yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
-                            elif "RECITATION" in finish_reason_str:
-                                yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
-                            else:
-                                yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
+                if last_finish_reason:
+                    finish_reason_str = str(last_finish_reason)
+                    if "STOP" not in finish_reason_str:
+                        logger.warning(
+                            f"{log_prefix} Response ended with finish_reason={finish_reason_str}. "
+                            f"Output may be incomplete or blocked."
+                        )
+                        if "SAFETY" in finish_reason_str:
+                            yield "\n\n---\n*This response was blocked by the model's safety filter. Try rephrasing your request or using a different model.*"
+                        elif "MAX_TOKENS" in finish_reason_str:
+                            yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                        elif "RECITATION" in finish_reason_str:
+                            yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
+                        else:
+                            yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not check finish_reason after stream: {e}")
 
+            # Extract usage metadata captured from the last chunk during iteration.
+            # Google's API already includes system instruction tokens in prompt_token_count,
+            # so no manual system prompt token padding is needed.
             try:
-                usage_metadata_obj = getattr(getattr(stream_iterator, "response", None), "usage_metadata", None)
-                if usage_metadata_obj:
-                    if hasattr(usage_metadata_obj, "to_dict"):
-                        usage_dict = usage_metadata_obj.to_dict()
+                if last_usage_metadata:
+                    if hasattr(last_usage_metadata, "to_dict"):
+                        usage_dict = last_usage_metadata.to_dict()
                     else:
-                        # Handle None values that Google API may return
                         usage_dict = {
-                            "prompt_token_count": getattr(usage_metadata_obj, "prompt_token_count", 0) or 0,
-                            "candidates_token_count": getattr(usage_metadata_obj, "candidates_token_count", 0) or 0,
-                            "total_token_count": getattr(usage_metadata_obj, "total_token_count", 0) or 0,
+                            "prompt_token_count": getattr(last_usage_metadata, "prompt_token_count", 0) or 0,
+                            "candidates_token_count": getattr(last_usage_metadata, "candidates_token_count", 0) or 0,
+                            "total_token_count": getattr(last_usage_metadata, "total_token_count", 0) or 0,
                         }
-
-                    if system_prompt:
-                        try:
-                            encoding = tiktoken.get_encoding("cl100k_base")
-                            system_prompt_tokens = len(encoding.encode(system_prompt))
-                            usage_dict["prompt_token_count"] += system_prompt_tokens
-                            usage_dict["total_token_count"] += system_prompt_tokens
-                            logger.info(f"{log_prefix} Manually added {system_prompt_tokens} system prompt tokens to usage metadata.")
-                        except Exception as e_tok:
-                            logger.error(f"{log_prefix} Could not encode system_prompt to add tokens manually: {e_tok}")
 
                     usage = GoogleUsageMetadata.model_validate({
                         **usage_dict,
@@ -797,8 +800,8 @@ async def invoke_google_ai_studio_chat_completions(
     else:
         try:
             # Calculate token breakdown from input messages (estimate)
-            token_breakdown = calculate_token_breakdown(messages, model_id)
-            
+            token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
             response = await google_genai_client.aio.models.generate_content(
                 model=normalized_model_id,
                 contents=contents,
@@ -978,21 +981,38 @@ async def invoke_google_chat_completions(
         logger.info(f"{log_prefix} Stream connection initiated.")
         
         # Calculate token breakdown from input messages (estimate)
-        token_breakdown = calculate_token_breakdown(messages, model_id)
-        
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
         stream_iterator = None
         output_buffer = ""
         thinking_buffer = ""
         usage = None
         stream_succeeded = False  # Track if stream completed successfully (no exception)
+        # Capture per-chunk metadata since async stream_iterator has no .response attribute.
+        # The last chunk contains cumulative usage_metadata and the final finish_reason.
+        last_usage_metadata = None
+        last_finish_reason = None
+        last_prompt_feedback = None
         try:
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
                 model=normalized_model_id,
                 contents=contents,
                 config=generation_config
             )
-            
+
             async for chunk in stream_iterator:
+                # Capture usage_metadata from each chunk — last one has cumulative totals
+                if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
+                    last_usage_metadata = chunk.usage_metadata
+                # Capture prompt_feedback if present (usually on first chunk)
+                if hasattr(chunk, 'prompt_feedback') and chunk.prompt_feedback:
+                    last_prompt_feedback = chunk.prompt_feedback
+                # Capture finish_reason from candidates (usually on last chunk)
+                if chunk.candidates:
+                    fr = getattr(chunk.candidates[0], 'finish_reason', None)
+                    if fr:
+                        last_finish_reason = fr
+
                 # Process all content parts to extract function calls WITH thought signatures
                 # and regular content (thinking/text)
                 try:
@@ -1038,7 +1058,7 @@ async def invoke_google_chat_completions(
                                         # Regular text content
                                         output_buffer += part.text
                                         yield part.text
-                                        
+
                             # Check for thinking signature on the candidate level (fallback)
                             if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
                                 # Convert bytes to base64 string if needed
@@ -1056,59 +1076,48 @@ async def invoke_google_chat_completions(
                     if chunk.text:
                         output_buffer += chunk.text
                         yield chunk.text
-            
+
             # Check finish_reason and prompt_feedback for blocked/truncated responses.
-            # Gemini can silently stop generating due to safety filters, recitation detection,
-            # or max_tokens — without raising any exception. Detecting this here ensures the user
-            # sees a clear notice instead of an incomplete message with no explanation.
+            # NOTE: We use per-chunk captured values since the async stream iterator
+            # does not have a .response attribute (unlike the sync version).
             try:
-                response = getattr(stream_iterator, 'response', None) if stream_iterator else None
-                if response:
-                    prompt_feedback = getattr(response, 'prompt_feedback', None)
-                    if prompt_feedback:
-                        block_reason = getattr(prompt_feedback, 'block_reason', None)
-                        if block_reason and str(block_reason) != "BLOCK_REASON_UNSPECIFIED":
-                            logger.warning(f"{log_prefix} Prompt was blocked by content filter: {block_reason}")
-                            yield "\n\n---\n*Your message was blocked by the model's content filter. Try rephrasing or using a different model.*"
+                if last_prompt_feedback:
+                    block_reason = getattr(last_prompt_feedback, 'block_reason', None)
+                    if block_reason and str(block_reason) != "BLOCK_REASON_UNSPECIFIED":
+                        logger.warning(f"{log_prefix} Prompt was blocked by content filter: {block_reason}")
+                        yield "\n\n---\n*Your message was blocked by the model's content filter. Try rephrasing or using a different model.*"
 
-                    if response.candidates:
-                        finish_reason = getattr(response.candidates[0], 'finish_reason', None)
-                        finish_reason_str = str(finish_reason) if finish_reason else None
-
-                        if finish_reason_str and "STOP" not in finish_reason_str:
-                            logger.warning(
-                                f"{log_prefix} Response ended with finish_reason={finish_reason_str}. "
-                                f"Output may be incomplete or blocked."
-                            )
-                            if "SAFETY" in finish_reason_str:
-                                yield "\n\n---\n*This response was blocked by the model's safety filter. Try rephrasing your request or using a different model.*"
-                            elif "MAX_TOKENS" in finish_reason_str:
-                                yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
-                            elif "RECITATION" in finish_reason_str:
-                                yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
-                            else:
-                                yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
+                if last_finish_reason:
+                    finish_reason_str = str(last_finish_reason)
+                    if "STOP" not in finish_reason_str:
+                        logger.warning(
+                            f"{log_prefix} Response ended with finish_reason={finish_reason_str}. "
+                            f"Output may be incomplete or blocked."
+                        )
+                        if "SAFETY" in finish_reason_str:
+                            yield "\n\n---\n*This response was blocked by the model's safety filter. Try rephrasing your request or using a different model.*"
+                        elif "MAX_TOKENS" in finish_reason_str:
+                            yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
+                        elif "RECITATION" in finish_reason_str:
+                            yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
+                        else:
+                            yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not check finish_reason after stream: {e}")
 
-            # After the stream is done, the response object on the iterator has usage metadata
+            # Extract usage metadata captured from the last chunk during iteration.
+            # Google's API already includes system instruction tokens in prompt_token_count,
+            # so no manual system prompt token padding is needed.
             try:
-                if stream_iterator and stream_iterator.response and stream_iterator.response.usage_metadata:
-                    usage_dict = stream_iterator.response.usage_metadata.to_dict()
-
-                    # Manually add system prompt tokens if they are not included by the API.
-                    # This ensures consistent and accurate billing.
-                    if system_prompt:
-                        try:
-                            encoding = tiktoken.get_encoding("cl100k_base")
-                            system_prompt_tokens = len(encoding.encode(system_prompt))
-
-                            # Add system prompt tokens to the counts from the API
-                            usage_dict['prompt_token_count'] += system_prompt_tokens
-                            usage_dict['total_token_count'] += system_prompt_tokens
-                            logger.info(f"{log_prefix} Manually added {system_prompt_tokens} system prompt tokens to usage metadata.")
-                        except Exception as e_tok:
-                            logger.error(f"{log_prefix} Could not encode system_prompt to add tokens manually: {e_tok}")
+                if last_usage_metadata:
+                    if hasattr(last_usage_metadata, "to_dict"):
+                        usage_dict = last_usage_metadata.to_dict()
+                    else:
+                        usage_dict = {
+                            "prompt_token_count": getattr(last_usage_metadata, "prompt_token_count", 0) or 0,
+                            "candidates_token_count": getattr(last_usage_metadata, "candidates_token_count", 0) or 0,
+                            "total_token_count": getattr(last_usage_metadata, "total_token_count", 0) or 0,
+                        }
 
                     usage = GoogleUsageMetadata.model_validate({
                         **usage_dict,

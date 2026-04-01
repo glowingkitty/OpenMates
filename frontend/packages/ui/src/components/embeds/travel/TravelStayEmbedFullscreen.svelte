@@ -17,6 +17,7 @@
 
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   
   interface NearbyPlace {
@@ -155,9 +156,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if bookingUrl}
-      <button class="cta-button" onclick={handleBooking}>
-        {$text('embeds.view_on_google_hotels')}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} />
     {/if}
   {/snippet}
 
@@ -258,13 +257,7 @@
     {/if}
   {/snippet}
 
-  {#snippet ctaContent()}
-    {#if bookingUrl}
-      <button class="booking-button" onclick={handleBooking}>
-        {$text('embeds.view_on_google_hotels')}
-      </button>
-    {/if}
-  {/snippet}
+
 </EntryWithMapTemplate>
 {/if}
 
@@ -407,22 +400,5 @@
   .place-transports { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
   .transport-info { font-size: 12px; color: var(--color-font-secondary); }
 
-  .cta-button, .booking-button {
-    display: block;
-    background-color: var(--color-button-primary);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 12px 30px;
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
-    text-align: center;
-    width: 100%;
-  }
-  .cta-button:hover, .booking-button:hover { background-color: var(--color-button-primary-hover); scale: 1.02; }
-  .cta-button:active, .booking-button:active { background-color: var(--color-button-primary-pressed); scale: 0.98; filter: none; }
+
 </style>

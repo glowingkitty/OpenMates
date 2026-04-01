@@ -28,7 +28,7 @@ test.describe('Documentation page links', () => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
 		// Get all links on the page
-		const links = await page.locator('.docs-content-scroll a[href]').all();
+		const links = await page.locator('[data-testid="docs-content-scroll"] a[href]').all();
 		const brokenLinks: string[] = [];
 
 		for (const link of links) {
@@ -46,7 +46,7 @@ test.describe('Documentation page links', () => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
 		// The page has a link to backend/providers/ which is a directory
-		const providerLink = page.locator('.docs-content-scroll a[href*="backend/providers"]');
+		const providerLink = page.locator('[data-testid="docs-content-scroll"] a[href*="backend/providers"]');
 		const count = await providerLink.count();
 
 		if (count > 0) {
@@ -60,7 +60,7 @@ test.describe('Documentation page links', () => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
 		// The page has links to .py and .yml files
-		const codeLinks = page.locator('.docs-content-scroll a[href*="github.com"]');
+		const codeLinks = page.locator('[data-testid="docs-content-scroll"] a[href*="github.com"]');
 		const count = await codeLinks.count();
 		expect(count).toBeGreaterThan(0);
 
@@ -86,7 +86,7 @@ test.describe('Documentation page links', () => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
 		// The page has links to other docs (message-processing, thinking-models, etc.)
-		const docsLinks = page.locator('.docs-content-scroll a[href^="/docs/"]');
+		const docsLinks = page.locator('[data-testid="docs-content-scroll"] a[href^="/docs/"]');
 		const count = await docsLinks.count();
 		expect(count).toBeGreaterThan(0);
 
@@ -106,7 +106,7 @@ test.describe('Documentation page links', () => {
 	test('breadcrumb navigation is present and correct', async ({ page }) => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
-		const breadcrumb = page.locator('nav.docs-breadcrumb');
+		const breadcrumb = page.getByTestId('docs-breadcrumb');
 		await expect(breadcrumb).toBeVisible();
 
 		// Should have the path: Docs > Architecture > AI > AI Model Selection
@@ -128,7 +128,7 @@ test.describe('Documentation page links', () => {
 	test('breadcrumb folder links are navigable', async ({ page }) => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
-		const breadcrumb = page.locator('nav.docs-breadcrumb');
+		const breadcrumb = page.getByTestId('docs-breadcrumb');
 		const crumbLinks = breadcrumb.locator('a.crumb-link');
 
 		// Click the "Architecture" breadcrumb (second link)
@@ -148,7 +148,7 @@ test.describe('Documentation page links', () => {
 		await page.goto(TEST_PAGE, { waitUntil: 'networkidle' });
 
 		// Find the download button
-		const downloadBtn = page.locator('button.icon_download');
+		const downloadBtn = page.getByTestId('docs-download-button');
 		await expect(downloadBtn).toBeVisible();
 
 		// Listen for download event
@@ -167,7 +167,7 @@ test.describe('Documentation page links', () => {
 	test('auto-topup page has no broken links', async ({ page }) => {
 		await page.goto('/docs/architecture/payments/auto-topup', { waitUntil: 'networkidle' });
 
-		const links = await page.locator('.docs-content-scroll a[href]').all();
+		const links = await page.locator('[data-testid="docs-content-scroll"] a[href]').all();
 		const brokenLinks: string[] = [];
 
 		for (const link of links) {
@@ -185,7 +185,7 @@ test.describe('Documentation page links', () => {
 		await page.goto('/docs/architecture/core/security', { waitUntil: 'networkidle' });
 
 		// The security page has a link to backend/core/vault/ directory
-		const links = await page.locator('.docs-content-scroll a[href]').all();
+		const links = await page.locator('[data-testid="docs-content-scroll"] a[href]').all();
 		const brokenLinks: string[] = [];
 
 		for (const link of links) {

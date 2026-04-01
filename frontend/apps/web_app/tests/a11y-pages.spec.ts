@@ -20,9 +20,9 @@ const {
 } = require('./a11y-helpers');
 const {
 	getTestAccount,
-	generateTotp,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 /** Default options applied to all page scans — excludes third-party iframes. */
 const DEFAULT_SCAN_OPTIONS = {
@@ -86,46 +86,12 @@ test.describe('Accessibility — unauthenticated pages', () => {
 test.describe('Accessibility — authenticated pages', () => {
 	const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-	/**
-	 * Perform login and return after landing on the chat page.
-	 * Reuses the same login pattern as chat-flow.spec.ts.
-	 */
-	async function loginAndWait(page: any): Promise<void> {
-		await page.goto(getE2EDebugUrl('/'));
-		await page.waitForLoadState('networkidle');
-
-		const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-		await headerLoginButton.click();
-
-		const emailInput = page.locator('#login-email-input');
-		await expect(emailInput).toBeVisible({ timeout: 15000 });
-		await emailInput.fill(TEST_EMAIL);
-		await page.locator('#login-continue-button').click();
-
-		const passwordInput = page.locator('#login-password-input');
-		await expect(passwordInput).toBeVisible({ timeout: 15000 });
-		await passwordInput.fill(TEST_PASSWORD);
-
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		const otpInput = page.locator('#login-otp-input');
-		await expect(otpInput).toBeVisible({ timeout: 15000 });
-		await otpInput.fill(otpCode);
-
-		const submitButton = page.locator('#login-submit-button');
-		await expect(submitButton).toBeVisible();
-		await submitButton.click();
-
-		await page.waitForURL(/chat/, { timeout: 30000 });
-		// Wait for phased sync to complete
-		await page.waitForTimeout(5000);
-	}
-
 	test('chat interface has no unexpected a11y violations', async ({ page }: { page: any }) => {
 		test.setTimeout(120000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-		await loginAndWait(page);
+		// Use shared loginToTestAccount() with OTP clock-drift compensation
+		await loginToTestAccount(page);
 
 		await expectPageAccessible(page, DEFAULT_SCAN_OPTIONS);
 		console.log('✅ Chat interface: no unexpected a11y violations');
@@ -135,10 +101,11 @@ test.describe('Accessibility — authenticated pages', () => {
 		test.setTimeout(120000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-		await loginAndWait(page);
+		// Use shared loginToTestAccount() with OTP clock-drift compensation
+		await loginToTestAccount(page);
 
 		// Open settings — click the profile container (settings toggle)
-		const settingsButton = page.locator('.profile-container[role="button"]');
+		const settingsButton = page.locator('[data-testid="profile-container"][role="button"]');
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 		await page.waitForTimeout(1000);

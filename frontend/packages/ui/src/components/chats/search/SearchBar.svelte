@@ -129,13 +129,14 @@
   });
 </script>
 
-<div class="search-bar">
+<div class="search-bar" data-testid="search-bar">
   <span class="search-icon clickable-icon icon_search"></span>
   <input
     bind:this={inputElement}
     bind:value={query}
     type="search"
     class="search-input"
+    data-testid="search-input"
     placeholder={$text('chats.search.placeholder')}
     oninput={handleInput}
     onkeydown={handleKeyDown}
@@ -145,6 +146,7 @@
   />
   <button
     class="search-close-button clickable-icon icon_close"
+    data-testid="search-close-button"
     aria-label={$text('common.close')}
     onclick={() => handleClose('button')}
   ></button>

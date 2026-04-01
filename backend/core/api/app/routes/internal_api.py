@@ -834,6 +834,7 @@ class IssueResponse(BaseModel):
     console_logs: Optional[str] = None  # Decrypted logs (only included if include_logs=true)
     created_at: str
     updated_at: str
+    linear_issue_identifier: Optional[str] = None
 
 
 @router.get("/issues", response_model=List[IssueResponse])
@@ -929,7 +930,8 @@ async def get_issues(
                 estimated_location=decrypted_location,
                 device_info=decrypted_device_info,
                 created_at=issue.get("created_at", ""),
-                updated_at=issue.get("updated_at", "")
+                updated_at=issue.get("updated_at", ""),
+                linear_issue_identifier=issue.get("linear_issue_identifier"),
             ))
         
         logger.info(f"Internal API: Retrieved {len(result)} issues")
@@ -1064,7 +1066,8 @@ async def get_issue(
             device_info=decrypted_device_info,
             console_logs=decrypted_console_logs,
             created_at=issue.get("created_at", ""),
-            updated_at=issue.get("updated_at", "")
+            updated_at=issue.get("updated_at", ""),
+            linear_issue_identifier=issue.get("linear_issue_identifier"),
         )
         
     except HTTPException:

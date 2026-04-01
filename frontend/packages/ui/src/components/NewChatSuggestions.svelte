@@ -712,7 +712,7 @@
 </script>
 
 {#if !loading && (visibleSuggestions.length > 0 || chatSearchResults.length > 0)}
-  <div class="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
+  <div class="suggestions-wrapper" data-testid="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
         {#if noMatchFallback}

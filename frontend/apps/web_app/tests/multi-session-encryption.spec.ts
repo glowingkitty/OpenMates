@@ -32,10 +32,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -81,40 +82,10 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
 // ─── Login helper ────────────────────────────────────────────────────────────
 
 /**
- * Perform the full login flow (email → password+OTP → redirect to /chat).
+ * Perform the full login flow via shared helper (includes OTP retry with clock-drift compensation).
  */
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logFn('Email submitted.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// OTP is time-sensitive — generate immediately before entering
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logFn(`OTP entered: ${otpCode}`);
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
-	await submitBtn.click();
-	logFn('Login submitted, waiting for redirect…');
-
-	await page.waitForURL(/chat/, { timeout: 30000 });
+	await loginToTestAccount(page, logFn);
 	logFn('Redirected to /chat — login complete.');
 }
 
@@ -124,7 +95,7 @@ async function startNewChat(page: any, logFn: (msg: string) => void): Promise<vo
 	// Wait for page to be stable after login / previous chat
 	await page.waitForTimeout(3000);
 
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) {
 		logFn('Clicking New Chat button.');
 		await newChatButton.click();
@@ -139,12 +110,12 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logFn: (msg: string) => void
 ): Promise<string> {
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
 	await page.keyboard.type(message);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled({ timeout: 10000 });
 	await sendButton.click();
 	logFn(`Message sent: "${message}"`);
@@ -170,7 +141,7 @@ async function waitForAssistantResponse(
 	timeoutMs: number = 60000
 ): Promise<void> {
 	logFn(`Waiting for assistant response containing "${expectedText}"…`);
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText(expectedText, { timeout: timeoutMs });
 	logFn(`Got assistant response with "${expectedText}".`);
 }
@@ -196,8 +167,8 @@ async function waitForChatInSidebarAndClick(
 
 	// The sidebar shows chat items with class .chat-item-wrapper, containing .chat-title
 	// Wait for a chat title matching our expected fragment to appear
-	const chatItem = page.locator('.chat-item-wrapper', {
-		has: page.locator('.chat-title', {
+	const chatItem = page.getByTestId('chat-item-wrapper').filter({
+		has: page.getByTestId('chat-title').filter({
 			hasText: new RegExp(expectedTitleFragment, 'i')
 		})
 	});
@@ -230,7 +201,7 @@ async function assertChatDecryptedCorrectly(
 	logFn(`Asserting chat is decrypted correctly in ${sessionLabel}…`);
 
 	// 1. The last assistant message should contain the expected text
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	if (typeof expectedAssistantText === 'string') {
 		await expect(assistantMsgs.last()).toContainText(expectedAssistantText, { timeout: 30000 });
 	} else {
@@ -280,14 +251,14 @@ async function assertChatDecryptedCorrectly(
 async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promise<void> {
 	logFn('Deleting active chat via context menu…');
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (!(await activeChatItem.isVisible())) {
 		logFn('No active chat item visible — skipping delete.');
 		return;
 	}
 
 	await activeChatItem.click({ button: 'right' });
-	const deleteButton = page.locator('.menu-item.delete');
+	const deleteButton = page.getByTestId('chat-context-delete');
 	await expect(deleteButton).toBeVisible({ timeout: 5000 });
 	await deleteButton.click(); // Enter confirm mode
 	await deleteButton.click(); // Confirm deletion
@@ -416,7 +387,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				await waitForAssistantResponse(pageA, expectedAnswer, logA);
 			} else {
 				logA('Waiting for assistant response (regex match)…');
-				const assistantMsgA = pageA.locator('.message-wrapper.assistant');
+				const assistantMsgA = pageA.getByTestId('message-assistant');
 				await expect(assistantMsgA.last()).toBeVisible({ timeout: 60000 });
 				logA('Assistant response visible in Session A.');
 			}
@@ -461,7 +432,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		for (const chatId of chatIds) {
 			try {
 				// Click the chat in Session A's sidebar to select it, then delete
-				const chatItem = pageA.locator('.chat-item-wrapper', {
+				const chatItem = pageA.getByTestId('chat-item-wrapper').filter({
 					has: pageA.locator(`[data-chat-id="${chatId}"]`)
 				});
 				if (await chatItem.isVisible().catch(() => false)) {

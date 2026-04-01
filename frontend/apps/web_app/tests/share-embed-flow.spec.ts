@@ -83,13 +83,13 @@ test('shares a web search embed via fullscreen share button', async ({
 
 	// ── Step 4: Wait for AI response ──────────────────────────────────────
 	logCheckpoint('Waiting for assistant response with web search results...');
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant response visible.');
 
 	// ── Step 5: Wait for web search embed to finish ───────────────────────
 	const finishedPreview = page.locator(
-		'.unified-embed-preview[data-app-id="web"][data-skill-id="search"][data-status="finished"]'
+		'[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-status="finished"]'
 	);
 	logCheckpoint('Waiting for web search embed to reach finished state...');
 	await expect(finishedPreview.first()).toBeVisible({ timeout: 90000 });
@@ -100,7 +100,7 @@ test('shares a web search embed via fullscreen share button', async ({
 
 	// ── Step 6: Open embed fullscreen ─────────────────────────────────────
 	await finishedPreview.first().click();
-	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
 	await page.waitForTimeout(500); // wait for open animation
 	logCheckpoint('Embed fullscreen overlay opened.');
@@ -160,7 +160,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	// ── Step 14: Close fullscreen if still open ───────────────────────────
 	if (await fullscreenOverlay.isVisible().catch(() => false)) {
 		// Try minimize button first, then Escape
-		const minimizeButton = fullscreenOverlay.locator('.icon_minimize').first();
+		const minimizeButton = fullscreenOverlay.getByTestId('embed-minimize').first();
 		if (await minimizeButton.isVisible().catch(() => false)) {
 			await minimizeButton.click();
 		} else {

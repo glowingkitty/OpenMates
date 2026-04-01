@@ -4,7 +4,7 @@
 
 import logging
 from typing import List, Dict, Any, Optional
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
+from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, resolve_fallback_servers_from_provider_config
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -88,12 +88,14 @@ Maintain the same response structure, tone, and content - only remove broken lin
     
     try:
         # Use the same main processing model for consistency
+        url_correction_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
         result = await call_preprocessing_llm(
             task_id=f"{task_id}_url_correction",
             model_id=model_id,  # Use same model as main processing
             message_history=messages,
             tool_definition=correction_tool,
-            secrets_manager=secrets_manager
+            secrets_manager=secrets_manager,
+            fallback_models=url_correction_fallbacks,
         )
         
         # Extract the corrected response from function call result

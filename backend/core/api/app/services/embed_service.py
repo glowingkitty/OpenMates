@@ -2031,7 +2031,10 @@ class EmbedService:
         create_embeds_from_skill_results) and by main_processor.py when it needs to
         inject embed_ref slugs into tool results before sending them to the LLM.
 
-        Returns one of: "connection", "stay", "place", "event", "video", "image_result", "website"
+        Returns one of: "connection", "stay", "place", "event", "video", "image_result",
+        "appointment", "listing", "website"
+
+        Raises ValueError if no mapping exists — never silently falls back to "website".
         """
         if app_id == "maps" and skill_id == "search":
             return "place"
@@ -2051,8 +2054,20 @@ class EmbedService:
             return "video"
         elif app_id == "health" and skill_id == "search_appointments":
             return "appointment"
+        elif app_id == "home" and skill_id == "search":
+            return "listing"
+        elif app_id == "shopping" and skill_id == "search_products":
+            return "website"
+        elif app_id == "news" and skill_id == "search":
+            return "website"
+        elif app_id == "web" and skill_id == "search":
+            return "website"
         else:
-            return "website"  # Default: web search, news, etc.
+            raise ValueError(
+                f"No child embed type defined for app_id={app_id!r}, skill_id={skill_id!r}. "
+                f"Add an entry to get_child_embed_type() in embed_service.py and to "
+                f"EMBED_CHILD_TYPE_MAP in the app's app.yml."
+            )
 
     @staticmethod
     def _get_per_result_child_type(
@@ -3497,6 +3512,8 @@ class EmbedService:
                         parent_content["query"] = request_metadata["query"]
                     if "provider" in request_metadata:
                         parent_content["provider"] = request_metadata["provider"]
+                    if "providers" in request_metadata:
+                        parent_content["providers"] = request_metadata["providers"]
                     # Add other metadata fields as needed
                     for key in ["country", "search_lang", "safesearch"]:
                         if key in request_metadata:

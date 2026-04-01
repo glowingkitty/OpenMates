@@ -288,7 +288,12 @@ class TestFailOpen:
 
     @pytest.mark.asyncio
     async def test_http_500_fails_open(self, enabled_service):
-        """HTTP 500 from Sightengine → is_safe=True (allow upload)."""
+        """HTTP 500 from Sightengine → is_safe=True (allow upload).
+
+        Uses check_content_safety (not check_all) because fail-open is the
+        documented contract for the safety-only endpoint. check_all uses a
+        combined endpoint that intentionally fails closed.
+        """
         mock_resp = _make_mock_response({}, status_code=500)
 
         with patch("httpx.AsyncClient") as mock_client_cls:
@@ -298,11 +303,10 @@ class TestFailOpen:
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client_cls.return_value = mock_client
 
-            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
+            safety_result = await enabled_service.check_content_safety(DUMMY_IMAGE)
 
         assert safety_result.is_safe
         assert safety_result.error is not None
-        assert ai_result is None
 
     @pytest.mark.asyncio
     async def test_timeout_fails_open(self, enabled_service):
@@ -316,11 +320,10 @@ class TestFailOpen:
             mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
             mock_client_cls.return_value = mock_client
 
-            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
+            safety_result = await enabled_service.check_content_safety(DUMMY_IMAGE)
 
         assert safety_result.is_safe
         assert safety_result.error == "timeout"
-        assert ai_result is None
 
     @pytest.mark.asyncio
     async def test_non_success_status_in_json_fails_open(self, enabled_service):
@@ -337,10 +340,9 @@ class TestFailOpen:
             mock_client.post = AsyncMock(return_value=mock_resp)
             mock_client_cls.return_value = mock_client
 
-            safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
+            safety_result = await enabled_service.check_content_safety(DUMMY_IMAGE)
 
         assert safety_result.is_safe
-        assert ai_result is None
 
 
 # ===========================================================================

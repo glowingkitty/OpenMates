@@ -615,7 +615,7 @@ Passkey Management - View, rename, delete, and add passkeys
                                 }}
                             />
                             <div class="edit-actions">
-                                <button class="btn-save" onclick={() => saveRename(passkey.id)} disabled={isLoading}>
+                                <button class="btn-save" data-testid="btn-save" onclick={() => saveRename(passkey.id)} disabled={isLoading}>
                                     Save
                                 </button>
                                 <button class="btn-cancel" onclick={cancelEdit} disabled={isLoading}>

@@ -192,6 +192,11 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
@@ -232,11 +237,11 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	logCheckpoint(`CLI pair token: ${token}`);
 
 	await page.goto(`${baseUrl}/#pair=${token}`);
-	const allowBtn = page.locator('.btn-allow');
+	const allowBtn = page.getByTestId('pair-allow-button');
 	await expect(allowBtn).toBeVisible({ timeout: 15000 });
 	await allowBtn.click();
 
-	const pinDisplay = page.locator('.pin-display');
+	const pinDisplay = page.getByTestId('pair-pin-display');
 	await expect(pinDisplay).toBeVisible({ timeout: 15000 });
 	const pinText = await pinDisplay.textContent();
 	const pin = (pinText || '').replace(/\s/g, '').trim();

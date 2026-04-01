@@ -12,6 +12,7 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { onMount, type Component } from 'svelte';
     import { focusTrap } from '../../../actions/focusTrap';
     import Toggle from '../../Toggle.svelte';
@@ -1623,7 +1624,7 @@
 
         <!-- Optional Share Settings Section -->
         <div class="share-options-section">
-            <h3 class="section-title">{$text('settings.share.optional_settings')}</h3>
+            <SettingsSectionHeading title={$text('settings.share.optional_settings')} icon="settings" />
 
             <!-- Share with Community Toggle (only for chats, not embeds) -->
             {#if !isEmbedSharing}
@@ -1725,6 +1726,7 @@
                 {#each durationOptions as option}
                     <button
                         class="duration-option"
+                        data-testid="duration-option"
                         class:selected={selectedDuration === option.value}
                         class:disabled={isTimeLimitDisabled}
                         onclick={() => {
@@ -1840,6 +1842,7 @@
                             {#each shortLinkTtlOptions as option}
                                 <button
                                     class="short-link-ttl-option"
+                                    data-testid="short-link-ttl-option"
                                     class:selected={shortLinkTtl === option.value}
                                     onclick={() => { shortLinkTtl = option.value; }}
                                 >
@@ -2012,12 +2015,6 @@
         gap: 12px;
     }
     
-    .section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0 0 8px 0;
-    }
     
     /* Option row */
     .option-row {

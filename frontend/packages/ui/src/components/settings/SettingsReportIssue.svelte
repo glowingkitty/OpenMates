@@ -14,7 +14,7 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
-    import { SettingsInput, SettingsTextarea, SettingsInfoBox } from './elements';
+    import { SettingsInput, SettingsTextarea, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -27,23 +27,9 @@
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { userProfile } from '../../stores/userProfile';
-    import SettingsItem from '../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
 
-    /**
-     * Navigate to the Share Debug Logs sub-page.
-     * Available to authenticated users for temporary log sharing.
-     */
-    function navigateToShareDebugLogs() {
-        dispatch('openSettings', {
-            settingsPath: 'report_issue/share-debug-logs',
-            direction: 'forward',
-            icon: 'report_issue',
-            title: $text('settings.report_issue.share_debug_logs_title')
-        });
-    }
-    
     // Form state
     let issueTitle = $state('');  // "Short description" — multi-line, mandatory
     // Structured description fields — all three are optional.
@@ -71,11 +57,12 @@
     let includeEmailToggle = $state(true);
 
     /**
-     * Admin-only: whether to submit this report to the Claude Code agent for an
-     * automatic plan-mode investigation session. Only shown when isAdminUser is true.
-     * Defaults to true so the admin gets an investigation started immediately.
+     * Admin-only: what agent action to trigger on submit.
+     * - 'none': no agent investigation (default)
+     * - 'research': research-only session (codebase + web analysis, posts findings)
+     * - 'fix': full investigation + direct fix attempt
      */
-    let submitToAgent = $state(true);
+    let agentAction = $state<'none' | 'research' | 'fix'>('none');
 
     /**
      * Whether the current context has an active chat or embed that can be shared.
@@ -93,7 +80,6 @@
     });
     
     // Input references for warnings
-    let userFlowInput = $state<HTMLTextAreaElement>();
     let emailInput = $state<HTMLInputElement>();
     
     // Validation state (description fields are all optional, no per-field errors needed)
@@ -543,6 +529,17 @@
             // NO user-typed text content is included — only developer-authored labels
             const actionHistory = userActionTracker.getActionHistoryAsText();
 
+            // Collect last N trace IDs from OTel for issue-to-trace correlation.
+            // These are stored in the issue YAML on S3 so debug.py issue --timeline
+            // can merge OTel trace spans into the log timeline.
+            let recentTraceIds: string[] = [];
+            try {
+                const { getRecentTraceIds } = await import('../../services/tracing/wsSpans');
+                recentTraceIds = getRecentTraceIds();
+            } catch {
+                // Tracing not available — no trace IDs to attach
+            }
+
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
                 headers: {
@@ -572,9 +569,12 @@
                     // outerHTML of the DOM element the user picked via the element picker overlay.
                     // Null if the user did not pick an element.
                     picked_element_html: pickedElementHtml ?? null,
-                    // Admin-only: trigger Claude Code plan-mode investigation.
+                    // Recent OTel trace IDs for issue-to-trace correlation.
+                    // Empty array if tracing is not active.
+                    trace_ids: recentTraceIds,
+                    // Admin-only: trigger agent action on submit.
                     // Only honoured server-side when reporter is a verified admin.
-                    submit_to_agent: isAdminUser && submitToAgent
+                    agent_action: isAdminUser ? agentAction : 'none'
                 }),
                 credentials: 'include'
             });
@@ -995,7 +995,7 @@
             chatOrEmbedUrl,
             contactEmail,
             includeEmailToggle,
-            submitToAgent,
+            agentAction,
             pickedElementHtml,
             screenshotDataUrl
         });
@@ -1467,7 +1467,7 @@
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
             includeEmailToggle = draft.includeEmailToggle;
-            if (draft.submitToAgent !== undefined) submitToAgent = draft.submitToAgent;
+            if (draft.agentAction !== undefined) agentAction = draft.agentAction;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
             // Clear the draft now that it has been consumed
@@ -1499,7 +1499,7 @@
     });
 </script>
 
-<div class="report-issue-settings" data-section="report-issue">
+<div class="report-issue-settings" data-section="report-issue" data-testid="report-issue-form">
     <p>{$text('settings.report_issue.description')}</p>
     
     <!-- Issue Report Form -->
@@ -1510,6 +1510,7 @@
                 onclick={handleSubmit}
                 disabled={!isFormValid || isSubmitting}
                 aria-label={$text('settings.report_issue.submit_button')}
+                data-testid="report-issue-submit"
             >
                 {#if isSubmitting}
                     {$text('settings.report_issue.submitting')}
@@ -1521,10 +1522,11 @@
 
         <!-- Short Description (required, multi-line) -->
         <div class="input-group">
-            <label for="issue-title">{$text('settings.report_issue.title_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.title_label')} icon="chat" />
             <SettingsTextarea
                 bind:value={issueTitle}
                 id="issue-title"
+                dataTestid="report-issue-title"
                 placeholder={$text('settings.report_issue.title_placeholder')}
                 disabled={isSubmitting}
                 ariaLabel={$text('settings.report_issue.title_label')}
@@ -1539,7 +1541,7 @@
         
         <!-- User Flow — "What did you do?" (optional) -->
         <div class="input-group">
-            <label for="user-flow">{$text('settings.report_issue.user_flow_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.user_flow_label')} icon="document" />
             <SettingsTextarea
                 bind:value={userFlow}
                 placeholder={$text('settings.report_issue.user_flow_placeholder')}
@@ -1552,7 +1554,7 @@
 
         <!-- Expected Behaviour (optional) -->
         <div class="input-group">
-            <label for="expected-behaviour">{$text('settings.report_issue.expected_behaviour_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.expected_behaviour_label')} icon="search" />
             <SettingsTextarea
                 bind:value={expectedBehaviour}
                 placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
@@ -1565,7 +1567,7 @@
 
         <!-- Actual Behaviour (optional) -->
         <div class="input-group">
-            <label for="actual-behaviour">{$text('settings.report_issue.actual_behaviour_label')}</label>
+            <SettingsSectionHeading title={$text('settings.report_issue.actual_behaviour_label')} icon="announcement" />
             <SettingsTextarea
                 bind:value={actualBehaviour}
                 placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
@@ -1640,24 +1642,50 @@
             </div>
         {/if}
 
-        <!-- Submit to Agent toggle — admin only -->
-        <!-- Triggers a Claude Code plan-mode investigation session for this issue. -->
+        <!-- Agent action selector — admin only -->
+        <!-- Controls what Claude Code does with this issue report. -->
         {#if isAdminUser}
-            <div class="toggle-group">
-                <div class="toggle-row">
-                    <label for="submit-to-agent-toggle">{$text('settings.report_issue.submit_to_agent_label')}</label>
-                    <Toggle
-                        id="submit-to-agent-toggle"
-                        bind:checked={submitToAgent}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.submit_to_agent_label')}
-                    />
+            <div class="input-group">
+                <p class="input-label">{$text('settings.report_issue.agent_action_label')}</p>
+                <div class="agent-action-options">
+                    <label class="radio-option" class:selected={agentAction === 'none'}>
+                        <input
+                            type="radio"
+                            name="agent-action"
+                            value="none"
+                            bind:group={agentAction}
+                            disabled={isSubmitting}
+                        />
+                        <span class="radio-label">{$text('settings.report_issue.agent_action_none')}</span>
+                    </label>
+                    <label class="radio-option" class:selected={agentAction === 'research'}>
+                        <input
+                            type="radio"
+                            name="agent-action"
+                            value="research"
+                            bind:group={agentAction}
+                            disabled={isSubmitting}
+                        />
+                        <span class="radio-label">{$text('settings.report_issue.agent_action_research')}</span>
+                    </label>
+                    <label class="radio-option" class:selected={agentAction === 'fix'}>
+                        <input
+                            type="radio"
+                            name="agent-action"
+                            value="fix"
+                            bind:group={agentAction}
+                            disabled={isSubmitting}
+                        />
+                        <span class="radio-label">{$text('settings.report_issue.agent_action_fix')}</span>
+                    </label>
                 </div>
                 <p class="input-hint">
-                    {#if submitToAgent}
-                        {$text('settings.report_issue.submit_to_agent_hint_on')}
+                    {#if agentAction === 'none'}
+                        {$text('settings.report_issue.agent_action_hint_none')}
+                    {:else if agentAction === 'research'}
+                        {$text('settings.report_issue.agent_action_hint_research')}
                     {:else}
-                        {$text('settings.report_issue.submit_to_agent_hint_off')}
+                        {$text('settings.report_issue.agent_action_hint_fix')}
                     {/if}
                 </p>
             </div>
@@ -1880,20 +1908,6 @@
         </div>
     </div>
 
-    <!-- Share Debug Logs — intentionally below the form so users discover it after scrolling -->
-    {#if $authStore.isAuthenticated}
-        <div class="share-debug-logs-settings-section">
-            <SettingsItem
-                type="submenu"
-                icon="report_issue"
-                title={$text('settings.report_issue.share_debug_logs_title')}
-                onClick={navigateToShareDebugLogs}
-            />
-            {#if isAdminUser}
-                <p class="share-debug-logs-admin-note">{$text('settings.report_issue.share_debug_logs_admin_notice')}</p>
-            {/if}
-        </div>
-    {/if}
 </div>
 
 <style>
@@ -1907,24 +1921,12 @@
         gap: 16px;
     }
 
-    .share-debug-logs-settings-section {
-        margin-top: 20px;
-    }
-
-    .share-debug-logs-admin-note {
-        margin: 8px 4px 0;
-        font-size: 12px;
-        line-height: 1.4;
-        color: var(--color-font-secondary, #666);
-    }
-    
     .input-group {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
     
-    .input-group label,
     .input-label {
         font-size: 14px;
         font-weight: 500;
@@ -1961,6 +1963,40 @@
     }
     
     
+    .agent-action-options {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+
+    .radio-option:hover {
+        background-color: var(--color-grey-3);
+    }
+
+    .radio-option.selected {
+        background-color: var(--color-grey-4);
+    }
+
+    .radio-option input[type="radio"] {
+        accent-color: var(--color-primary);
+        margin: 0;
+    }
+
+    .radio-label {
+        font-size: 0.875rem;
+        color: var(--color-font-primary);
+    }
+
     .signal-reminder {
         padding: 12px;
         background-color: var(--color-info-light, #e3f2fd);

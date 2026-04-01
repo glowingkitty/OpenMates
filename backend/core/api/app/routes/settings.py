@@ -104,7 +104,7 @@ async def get_active_reminders(
         
         for reminder in reminders:
             try:
-                reminder_id = reminder.get("reminder_id", "")
+                reminder_id = reminder.get("id") or reminder.get("reminder_id", "")
                 vault_key_id = reminder.get("vault_key_id")
                 encrypted_prompt = reminder.get("encrypted_prompt", "")
                 trigger_at = reminder.get("trigger_at", 0)
@@ -2382,13 +2382,25 @@ class IssueReportRequest(BaseModel):
             "rendering, or content issues. Collected client-side via the element picker overlay."
         )
     )
-    submit_to_agent: bool = Field(
-        False,
+    trace_ids: Optional[List[str]] = Field(
+        None,
+        max_length=20,
         description=(
-            "Admin-only flag. When True, triggers a Claude Code plan-mode investigation session "
-            "for this issue via the admin sidecar. Only honoured when the reporter is an "
-            "authenticated admin user — non-admin requests are silently ignored."
+            "Recent OTel trace IDs from the frontend's WS span ring buffer. "
+            "Stored in the issue YAML on S3 so debug.py issue --timeline can "
+            "merge OTel trace spans into the log timeline."
         )
+    )
+    agent_action: str = Field(
+        "none",
+        description=(
+            "Admin-only field controlling agent behavior on issue submission. "
+            "Values: 'none' (default, no agent), 'research' (codebase + web research only, "
+            "posts findings as comments), 'fix' (research + direct fix attempt). "
+            "Only honoured when the reporter is an authenticated admin user — "
+            "non-admin requests are silently ignored."
+        ),
+        pattern="^(none|research|fix)$",
     )
 
 
@@ -2409,14 +2421,18 @@ async def _trigger_agent_issue_investigation(
     console_logs: Optional[str],
     action_history: Optional[str],
     screenshot_presigned_url: Optional[str],
+    agent_action: str = "fix",
 ) -> None:
     """
-    Fire-and-forget: ask the admin sidecar to start a Claude Code plan-mode session
+    Fire-and-forget: ask the admin sidecar to start a Claude Code session
     investigating this issue.
+
+    Args:
+        agent_action: 'research' for read-only analysis, 'fix' for full investigation + fix.
 
     Called only when:
     - The reporter is a verified admin user (``is_from_admin`` is True)
-    - ``issue_data.submit_to_agent`` is True
+    - ``issue_data.agent_action`` is 'research' or 'fix'
 
     The sidecar runs on the host where claude is installed; the API runs inside
     Docker, so we delegate via an authenticated HTTP call to
@@ -2459,6 +2475,7 @@ async def _trigger_agent_issue_investigation(
         "screenshot_presigned_url": screenshot_presigned_url or "",
         "environment": environment,
         "domain": domain,
+        "agent_action": agent_action,
     }
 
     endpoint = f"{core_sidecar_url}/admin/claude-investigate"
@@ -2546,16 +2563,51 @@ async def report_issue(
         else:
             logger.info("Issue report submitted by non-authenticated user")
         
-        # SECURITY: Sanitize user inputs to prevent XSS attacks
-        # HTML escape title and description to prevent injection of malicious HTML/JavaScript
-        sanitized_title = escape(issue_data.title.strip())
+        # SECURITY: Two-layer sanitization before any processing
+        # Layer 1: Remove invisible Unicode characters (ASCII smuggling protection)
+        # This runs BEFORE html.escape() so hidden characters don't bypass XSS filtering
+        from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+
+        raw_title = issue_data.title.strip()
+        ascii_cleaned_title, title_ascii_stats = sanitize_text_for_ascii_smuggling(
+            raw_title, log_prefix="[report_issue/title] ", include_stats=True
+        )
+        if title_ascii_stats.get("removed_count", 0) > 0:
+            logger.warning(
+                f"[report_issue] ASCII smuggling chars removed from title: "
+                f"{title_ascii_stats['removed_count']} chars "
+                f"(hidden_ascii={title_ascii_stats.get('hidden_ascii_detected', False)})"
+            )
+
+        raw_description = issue_data.description.strip() if issue_data.description else None
+        ascii_cleaned_description = None
+        description_ascii_suspicious = False
+        if raw_description:
+            ascii_cleaned_description, desc_ascii_stats = sanitize_text_for_ascii_smuggling(
+                raw_description, log_prefix="[report_issue/description] ", include_stats=True
+            )
+            if desc_ascii_stats.get("removed_count", 0) > 0:
+                logger.warning(
+                    f"[report_issue] ASCII smuggling chars removed from description: "
+                    f"{desc_ascii_stats['removed_count']} chars "
+                    f"(hidden_ascii={desc_ascii_stats.get('hidden_ascii_detected', False)})"
+                )
+            description_ascii_suspicious = desc_ascii_stats.get("hidden_ascii_detected", False)
+
+        # Track whether ASCII smuggling was detected (used to flag the Linear issue)
+        ascii_smuggling_detected = (
+            title_ascii_stats.get("hidden_ascii_detected", False) or description_ascii_suspicious
+        )
+
+        # Layer 2: HTML escape to prevent XSS attacks
+        sanitized_title = escape(ascii_cleaned_title)
         
         # Add '(Admin): ' prefix to title if reported by an admin user
         if is_from_admin and not sanitized_title.startswith("(Admin): "):
             sanitized_title = f"(Admin): {sanitized_title}"
         
         # Description is optional - only sanitize if provided
-        sanitized_description = escape(issue_data.description.strip()) if issue_data.description else None
+        sanitized_description = escape(ascii_cleaned_description) if ascii_cleaned_description else None
         
         # SECURITY: Validate and sanitize URL if provided
         sanitized_url = None
@@ -2851,6 +2903,8 @@ async def report_issue(
                 "encrypted_screenshot_s3_key": encrypted_screenshot_s3_key,
                 "is_from_admin": is_from_admin,
                 "reported_by_user_id": reported_by_user_id,
+                # OTel trace IDs from frontend for trace-to-issue correlation
+                "trace_ids": issue_data.trace_ids or [],
                 "created_at": current_timestamp.isoformat(),
                 "updated_at": current_timestamp.isoformat()
             }
@@ -2916,7 +2970,9 @@ async def report_issue(
                 "picked_element_html": picked_element_html_str,
                 # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
                 # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
-                "screenshot_presigned_url": screenshot_presigned_url
+                "screenshot_presigned_url": screenshot_presigned_url,
+                # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
+                "trace_ids": issue_data.trace_ids or []
             },
             queue='email'
         )
@@ -2927,9 +2983,36 @@ async def report_issue(
             f"recipient={admin_email}"
         )
 
-        # Admin-only: trigger claude plan-mode investigation if requested.
+        # Auto-create a Linear issue for tracking on the project board.
+        # Dispatched fire-and-forget alongside the email task — never blocks the response.
+        try:
+            linear_task_result = app.send_task(
+                name='app.tasks.linear_issue_task.create_linear_issue_for_report',
+                kwargs={
+                    "issue_id": issue_id,
+                    "issue_title": sanitized_title,
+                    "issue_description": sanitized_description,
+                    "chat_or_embed_url": sanitized_url,
+                    "is_from_admin": is_from_admin,
+                    "contact_email": sanitized_email if sanitized_email else None,
+                    "ascii_smuggling_detected": ascii_smuggling_detected,
+                },
+                queue='email'
+            )
+            logger.info(
+                f"Linear issue creation task dispatched for issue '{issue_data.title[:50]}...' "
+                f"(task_id={linear_task_result.id})"
+            )
+        except Exception as _linear_err:
+            # Never block the issue report response if Linear task dispatch fails
+            logger.error(
+                f"Failed to dispatch Linear issue creation task: {_linear_err}",
+                exc_info=True
+            )
+
+        # Admin-only: trigger agent investigation if requested.
         # Only honoured when the reporter is a verified admin user.
-        if is_from_admin and issue_data.submit_to_agent:
+        if is_from_admin and issue_data.agent_action in ("research", "fix"):
             try:
                 await _trigger_agent_issue_investigation(
                     request=request,
@@ -2940,6 +3023,7 @@ async def report_issue(
                     console_logs=console_logs_str,
                     action_history=action_history_str,
                     screenshot_presigned_url=screenshot_presigned_url,
+                    agent_action=issue_data.agent_action,
                 )
             except Exception as _agent_err:
                 # Never block the issue report response if agent trigger fails

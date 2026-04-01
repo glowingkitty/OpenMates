@@ -1925,6 +1925,7 @@
  
 <div
   class="chat-item-wrapper"
+  data-testid="chat-item-wrapper"
   class:active={isActive}
   role="button"
   tabindex="0"
@@ -1935,7 +1936,7 @@
   ontouchcancel={handleTouchCancel}
 >
   {#if chat}
-    <div class="chat-item">
+    <div class="chat-item" data-testid="chat-item">
       {#if hasWaitingForUser && !currentTypingMateInfo}
         <!-- Waiting for user action (e.g., insufficient credits): draft-like layout with label + message preview -->
         <div class="draft-only-layout">
@@ -1969,7 +1970,7 @@
           <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
         </div>
       {:else}
-        <div class="chat-with-profile">
+        <div class="chat-with-profile" data-testid="chat-with-profile">
           <div class="mate-profiles-container">
             {#if selectMode}
               <!-- In select mode: show checkbox instead of category circle -->
@@ -1993,11 +1994,12 @@
             {:else if currentTypingMateInfo?.isTyping && categoryGradientColors}
               <!-- New category circle with gradient and icon -->
               <div class="category-circle-wrapper">
-                <div 
-                  class="category-circle" 
+                <div
+                  class="category-circle"
+                  data-testid="category-circle"
                   style="background: linear-gradient(135deg, {categoryGradientColors.start}, {categoryGradientColors.end})"
                 >
-                  <div class="category-icon">
+                  <div class="category-icon" data-testid="category-icon">
                     {#if categoryIconNames.length > 0 || currentTypingMateInfo?.category}
 {@const validIconName = getValidIconName(categoryIconNames, currentTypingMateInfo?.category || 'general_knowledge')}
 {@const IconComponent = getLucideIcon(validIconName)}
@@ -2005,7 +2007,7 @@
                     {/if}
                   </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge">
+                      <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
@@ -2023,15 +2025,16 @@
                 {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
                 {@const IconComponent = getLucideIcon(chatIconName)}
                 <div class="category-circle-wrapper">
-                   <div 
-                    class="category-circle" 
+                   <div
+                    class="category-circle"
+                    data-testid="category-circle"
                     style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: #cccccc'}
                   >
-                    <div class="category-icon">
+                    <div class="category-icon" data-testid="category-icon">
                       <IconComponent size={16} color="white" />
                     </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge">
+                      <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
@@ -2062,11 +2065,11 @@
                     style="background: #cccccc"
                     title="Category not set by server"
                   >
-                    <div class="category-icon">
+                    <div class="category-icon" data-testid="category-icon">
                       <LucideIcons.HelpCircle size={16} color="white" />
                     </div>
                     {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge">
+                      <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     {:else if chat.is_shared}
@@ -2088,20 +2091,20 @@
               {#if highlightedTitle}
                 <!-- Search result mode: use pre-highlighted HTML title (has <mark> tags for matched text) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html highlightedTitle}</span>
+                <span class="chat-title" data-testid="chat-title">{@html highlightedTitle}</span>
               {:else if chat.title || cachedMetadata?.title}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+                <span class="chat-title" data-testid="chat-title">{@html chat.title || cachedMetadata?.title}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
-                <span class="chat-title processing-title">{$text('common.processing')}</span>
+                <span class="chat-title processing-title" data-testid="chat-title">{$text('common.processing')}</span>
               {:else}
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title">{@html $text('common.untitled_chat')}</span>
+                <span class="chat-title" data-testid="chat-title">{@html $text('common.untitled_chat')}</span>
               {/if}
               {#if chat.pinned}
-                <span class="pin-indicator">
+                <span class="pin-indicator" data-testid="pin-indicator">
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
               {/if}
@@ -2109,7 +2112,7 @@
                    "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
             {#if typingIndicatorInTitleView}
-              <span class="status-message typing-shimmer">
+              <span class="status-message typing-shimmer" data-testid="chat-typing-shimmer">
                 {#if activeSkillInfo}
                   <span class="skill-icon icon_rounded {activeSkillInfo.appId}"></span>
                 {/if}

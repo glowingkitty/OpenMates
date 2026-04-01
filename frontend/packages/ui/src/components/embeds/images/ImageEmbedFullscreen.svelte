@@ -380,7 +380,7 @@
   {onShowChat}
 >
   {#snippet content()}
-    <div class="image-embed-fullscreen">
+    <div class="image-embed-fullscreen" data-testid="image-embed-fullscreen">
       {#if imageError}
         <div class="error-container">
           <div class="error-icon">!</div>
@@ -410,7 +410,7 @@
         </div>
       {:else}
         <!-- Loading state (S3 fetch in progress, or waiting for effect to fire) -->
-        <div class="image-loading">
+        <div class="image-loading" data-testid="image-loading">
           <div class="loading-spinner"></div>
         </div>
       {/if}

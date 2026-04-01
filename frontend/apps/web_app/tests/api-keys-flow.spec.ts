@@ -54,7 +54,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	await profileContainer.click();
 	logCheckpoint('Opened settings menu.');
 
-	const settingsMenu = page.locator('.settings-menu.visible');
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
@@ -68,7 +68,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 		.filter({ hasText: /^api keys$/i })
 		.first();
 	const apiKeysItemFallback = settingsMenu
-		.locator('.menu-item[role="menuitem"]')
+		.getByRole('menuitem')
 		.filter({ hasText: 'Create and manage API keys' })
 		.first();
 	const apiKeysVisible = await apiKeysItem.isVisible({ timeout: 5000 }).catch(() => false);
@@ -134,7 +134,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	await screenshot(page, 'key-name-entered');
 
 	// Click "Create API Key" to confirm
-	const createConfirmButton = page.locator('button.btn-create-confirm');
+	const createConfirmButton = page.getByTestId('api-key-create-confirm');
 	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
 	await createConfirmButton.click();
 	log('Clicked Create API Key confirm.');
@@ -152,13 +152,13 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	log('Key format validated: starts with sk-api-');
 
 	// Click the Copy button
-	const copyButton = page.locator('button.btn-copy');
+	const copyButton = page.getByTestId('api-key-copy-button');
 	await expect(copyButton).toBeVisible({ timeout: 3000 });
 	await copyButton.click();
 	log('Clicked Copy button.');
 
 	// Click "I've copied the key" to close the key-reveal modal
-	const doneButton = page.locator('button.btn-done');
+	const doneButton = page.getByTestId('api-key-done-button');
 	await expect(doneButton).toBeVisible({ timeout: 3000 });
 	await doneButton.click();
 	log('Clicked done button.');
@@ -266,13 +266,13 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 	await expect(nameInput).toBeVisible({ timeout: 5000 });
 
 	// Do NOT fill in any name — confirm button should be disabled
-	const createConfirmButton = page.locator('button.btn-create-confirm');
+	const createConfirmButton = page.getByTestId('api-key-create-confirm');
 	await expect(createConfirmButton).toBeDisabled({ timeout: 3000 });
 	log('Confirmed: Create API Key button is disabled when name is empty.');
 	await screenshot(page, 'empty-name-button-disabled');
 
 	// Close the modal by clicking Cancel
-	const cancelButton = page.locator('button.btn-cancel');
+	const cancelButton = page.getByTestId('api-key-cancel-button');
 	await expect(cancelButton).toBeVisible({ timeout: 3000 });
 	await cancelButton.click();
 
@@ -358,7 +358,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await nameInput.fill(keyName);
 	log(`Entered key name: "${keyName}"`);
 
-	const createConfirmButton = page.locator('button.btn-create-confirm');
+	const createConfirmButton = page.getByTestId('api-key-create-confirm');
 	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
 	await createConfirmButton.click();
 	log('Clicked Create API Key confirm.');
@@ -373,7 +373,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log(`Captured API key: "${rawApiKey.slice(0, 12)}..."`);
 
 	// Dismiss the key-reveal modal
-	const doneButton = page.locator('button.btn-done');
+	const doneButton = page.getByTestId('api-key-done-button');
 	await expect(doneButton).toBeVisible({ timeout: 3000 });
 	await doneButton.click();
 	log('Dismissed key modal.');
@@ -396,25 +396,27 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
 	const settingsToggle = page.locator('#settings-menu-toggle');
 	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
+	const closeIcon = page.locator('#settings-menu-toggle [data-testid="close-icon-container"].visible').first();
 	if (await closeIcon.isVisible().catch(() => false)) {
 		await closeIcon.click();
 		await page.waitForTimeout(500);
 	}
-	await settingsToggle.dispatchEvent('click');
+	await settingsToggle.click();
+	await page.waitForTimeout(500);
 
-	const settingsMenu2 = page.locator('.settings-menu.visible');
+	const settingsMenu2 = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu2).toBeVisible({ timeout: 8000 });
 
 	const developersItem2 = settingsMenu2
-		.locator('.menu-item[role="menuitem"]')
+		.getByRole('menuitem')
 		.filter({ hasText: /^developers$/i })
 		.first();
 	await expect(developersItem2).toBeVisible({ timeout: 8000 });
 	await developersItem2.click();
 
 	const devicesItem = page
-		.locator('.settings-menu.visible .menu-item[role="menuitem"]')
+		.locator('[data-testid="settings-menu"].visible')
+		.getByRole('menuitem')
 		.filter({ hasText: /^devices$/i })
 		.first();
 	await expect(devicesItem).toBeVisible({ timeout: 8000 });
@@ -422,17 +424,17 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Navigated to Devices page.');
 	await screenshot(page, 'devices-page');
 
-	const devicesContainer = page.locator('.devices-container');
+	const devicesContainer = page.getByTestId('devices-container');
 	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
 
 	await page.waitForTimeout(2000);
 
-	const pendingCard = page.locator('.device-card.pending').first();
+	const pendingCard = page.locator('[data-testid="device-card"].pending').first();
 	await expect(pendingCard).toBeVisible({ timeout: 15000 });
 	log('Found pending device card.');
 	await screenshot(page, 'pending-device');
 
-	const approveButton = pendingCard.locator('.btn-approve');
+	const approveButton = pendingCard.getByTestId('device-approve-button');
 	await expect(approveButton).toBeVisible({ timeout: 5000 });
 	await approveButton.click();
 	log('Clicked Approve button.');
@@ -440,7 +442,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await expect(pendingCard).not.toBeVisible({ timeout: 10000 });
 	log('Pending device card is gone — device approved.');
 
-	const approvedBadge = devicesContainer.locator('.status-badge.approved').first();
+	const approvedBadge = devicesContainer.locator('[data-testid="status-badge"].approved').first();
 	await expect(approvedBadge).toBeVisible({ timeout: 8000 });
 	log('Confirmed: Approved status badge is visible.');
 	await screenshot(page, 'device-approved');
@@ -529,10 +531,10 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 		await nameInput.fill(keyName);
 		createdKeyNames.push(keyName);
 
-		const createConfirmButton = page.locator('button.btn-create-confirm');
+		const createConfirmButton = page.getByTestId('api-key-create-confirm');
 		await createConfirmButton.click();
 
-		const doneButton = page.locator('button.btn-done');
+		const doneButton = page.getByTestId('api-key-done-button');
 		await expect(doneButton).toBeVisible({ timeout: 15000 });
 		await doneButton.click();
 

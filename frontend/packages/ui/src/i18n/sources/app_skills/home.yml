@@ -1,0 +1,49 @@
+search:
+  context: Skill name for home search skill
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tim kiem
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sok
+  he: חיפוש
+  verified_by_human: [en, de]
+
+search.description:
+  context: Description for home search skill
+  en: Search for a new home & more.
+  de: Ein neues Zuhause finden & mehr.
+  zh: 搜索新家及更多。
+  es: Busca un nuevo hogar y más.
+  fr: Trouvez un nouveau logement et plus.
+  pt: Pesquise uma nova casa e mais.
+  ru: Найдите новый дом и не только.
+  ja: 新しい住まいを探す。
+  ko: 새 집을 찾아보세요.
+  it: Cerca una nuova casa e altro.
+  tr: Yeni bir ev arayın ve daha fazlası.
+  vi: Tìm nhà mới và hơn thế nữa.
+  id: Cari rumah baru dan lainnya.
+  pl: Szukaj nowego domu i więcej.
+  nl: Zoek een nieuw huis en meer.
+  ar: ابحث عن منزل جديد والمزيد.
+  hi: एक नया घर खोजें और बहुत कुछ।
+  th: ค้นหาบ้านใหม่และอื่นๆ
+  cs: Hledejte nový domov a více.
+  sv: Sök ett nytt hem och mer.
+  he: חפש בית חדש ועוד.
+  verified_by_human: [en, de]

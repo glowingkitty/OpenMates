@@ -19,7 +19,6 @@ from .handlers.websocket_handlers.message_received_handler import handle_message
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
-from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.delete_draft_embed_handler import handle_delete_draft_embed
@@ -47,6 +46,7 @@ from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspi
 from .handlers.websocket_handlers.inspiration_received_handler import handle_inspiration_received  # ACK handler for pending inspiration delivery
 from .handlers.websocket_handlers.sync_inspiration_chat_handler import handle_sync_inspiration_chat  # Handler for syncing inspiration-created chats across devices
 from .handlers.websocket_handlers.update_chat_pinned_handler import handle_update_chat_pinned  # Handler for pin/unpin chat (cross-device sync)
+from .handlers.websocket_handlers.key_received_handler import handle_key_received  # Handler for key delivery acknowledgment (SYNC-01)
 
 logger = logging.getLogger(__name__)
 
@@ -915,7 +915,12 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "icon_names": redis_payload.get("icon_names", []), # Include icon names in the client payload
                         # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
                         # When True, this is a continuation after app settings/memories confirmation - user message already persisted
-                        "is_continuation": redis_payload.get("is_continuation", False)
+                        "is_continuation": redis_payload.get("is_continuation", False),
+                        # CRITICAL: Forward encrypted_chat_key so secondary devices can pre-cache
+                        # the correct key (K1) and avoid generating a different key (K2).
+                        # Without this, the key race condition in encrypted_chat_metadata_handler
+                        # can corrupt the chat's encryption key permanently. (OPE-109)
+                        "encrypted_chat_key": redis_payload.get("encrypted_chat_key"),
                     }
 
                     # This event should go to all devices of the user, as it's a UI update.
@@ -1835,6 +1840,15 @@ async def websocket_endpoint(
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
+    # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
+    # These are set once per connection and passed to every handler span.
+    # auth_data["user_data"] is the session cache dict from auth_ws.py.
+    _user_data = auth_data.get("user_data", {})
+    user_otel_attrs = {
+        "is_admin": _user_data.get("is_admin", False),
+        "debug_opted_in": _user_data.get("debug_logging_opted_in", False),
+    }
+
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
@@ -1875,55 +1889,7 @@ async def websocket_endpoint(
             payload = data.get("payload", {})
 
             # Process different message types
-            if message_type == "initial_sync_request":
-                logger.debug(f"Received initial_sync_request from {user_id}/{device_fingerprint_hash}")
-                
-                # Extract required fields
-                client_chat_ids = payload.get("chat_ids")  # REQUIRED: explicit list of chat IDs
-                client_chat_count = payload.get("chat_count")  # REQUIRED: number of chats
-                
-                # Validate required fields immediately
-                if client_chat_ids is None:
-                    logger.error(f"Missing required field 'chat_ids' in sync request from {user_id}/{device_fingerprint_hash}")
-                    await manager.send_personal_message(
-                        message={"type": "initial_sync_error", "payload": {"message": "Missing required field: chat_ids. Please update your client."}},
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
-                    )
-                    continue
-                
-                if client_chat_count is None:
-                    logger.error(f"Missing required field 'chat_count' in sync request from {user_id}/{device_fingerprint_hash}")
-                    await manager.send_personal_message(
-                        message={"type": "initial_sync_error", "payload": {"message": "Missing required field: chat_count. Please update your client."}},
-                        user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
-                    )
-                    continue
-                
-                # Extract optional fields
-                client_chat_versions = payload.get("chat_versions", {})
-                last_sync_timestamp = payload.get("last_sync_timestamp", None)
-                immediate_view_chat_id = payload.get("immediate_view_chat_id", None)
-                pending_message_ids = payload.get("pending_message_ids", {})
-                
-                await handle_initial_sync(
-                    cache_service=cache_service,
-                    directus_service=directus_service,
-                    encryption_service=encryption_service,
-                    manager=manager,
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash,
-                    websocket=websocket,
-                    client_chat_versions=client_chat_versions,
-                    client_chat_ids=client_chat_ids,
-                    client_chat_count=client_chat_count,
-                    last_sync_timestamp=last_sync_timestamp,
-                    immediate_view_chat_id=immediate_view_chat_id,
-                    pending_message_ids=pending_message_ids
-                )
-
-            elif message_type == "update_draft":
+            if message_type == "update_draft":
                 await handle_update_draft(
                     websocket=websocket,
                     manager=manager,
@@ -1932,7 +1898,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "update_title":
                 await handle_update_title(
@@ -1943,7 +1910,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "sync_offline_changes":
                  await handle_sync_offline_changes(
@@ -1954,7 +1922,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                  )
             elif message_type == "get_chat_messages":
                 await handle_get_chat_messages(
@@ -1964,7 +1933,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             
             elif message_type == "ping":
@@ -1982,7 +1952,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "chat_system_message_added":
@@ -1995,7 +1966,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "delete_chat":
@@ -2007,7 +1979,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service, # Pass if needed by handler
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             
             elif message_type == "delete_message":
@@ -2019,7 +1992,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "request_cache_status":
@@ -2034,7 +2008,8 @@ async def websocket_endpoint(
                         encryption_service=encryption_service,
                         user_id=user_id,
                         device_fingerprint_hash=device_fingerprint_hash,
-                        payload=payload
+                        payload=payload,
+                        user_otel_attrs=user_otel_attrs,
                     )
                 except Exception as e_status_req:
                     logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Error handling 'request_cache_status': {e_status_req}", exc_info=True)
@@ -2054,7 +2029,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "get_draft_versions":
@@ -2071,7 +2047,8 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "delete_draft_embed":
                 # Deletes an uploaded file (image/PDF/recording) that was removed from
@@ -2084,7 +2061,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "cancel_pdf_processing":
                 # Cancels an in-progress PDF OCR Celery task (triggered when the user
@@ -2098,7 +2076,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "request_chat_content_batch":
                 await handle_chat_content_batch(
@@ -2108,7 +2087,8 @@ async def websocket_endpoint(
                     manager=manager,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "set_active_chat":
                 active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
@@ -2189,7 +2169,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
-                    cache_service=cache_service
+                    cache_service=cache_service,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "cancel_skill":
                 # Handle request to cancel an individual skill execution
@@ -2200,7 +2181,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
-                    cache_service=cache_service
+                    cache_service=cache_service,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "chat_focus_mode_deactivate":
                 # Handle request to deactivate a focus mode for a chat
@@ -2211,7 +2193,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
-                    cache_service=cache_service
+                    cache_service=cache_service,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "focus_mode_rejected":
                 # Handle user rejection of focus mode during the countdown
@@ -2226,6 +2209,7 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     directus_service=directus_service,
                     encryption_service=encryption_service,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "update_encrypted_active_focus_id":
                 # Client sends the E2E-encrypted focus ID after receiving focus_mode_activated.
@@ -2263,7 +2247,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "encrypted_chat_metadata":
@@ -2278,7 +2263,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "update_post_processing_metadata":
@@ -2293,7 +2279,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "phased_sync_request":
@@ -2306,7 +2293,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "sync_status_request":
@@ -2319,7 +2307,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "app_settings_memories_confirmed":
@@ -2333,7 +2322,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "store_app_settings_memories_entry":
@@ -2347,7 +2337,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "delete_app_settings_memories_entry":
@@ -2360,7 +2351,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "scroll_position_update":
@@ -2433,7 +2425,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "store_embed_keys":
                 # Handle storing wrapped embed keys in Directus embed_keys collection (zero-knowledge)
@@ -2445,7 +2438,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "request_embed":
                 from .handlers.websocket_handlers.request_embed_handler import handle_request_embed
@@ -2457,7 +2451,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "delete_new_chat_suggestion":
@@ -2472,7 +2467,8 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "email_notification_settings":
@@ -2489,7 +2485,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "load_more_chats":
@@ -2501,7 +2498,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "sync_metadata_chats":
@@ -2513,7 +2511,8 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
-                    payload=payload
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "inspiration_viewed":
@@ -2527,6 +2526,7 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     user_id=user_id,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "daily_inspiration_received":
@@ -2537,6 +2537,7 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     user_id=user_id,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "sync_inspiration_chat":
@@ -2552,6 +2553,7 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "update_chat":
@@ -2569,12 +2571,25 @@ async def websocket_endpoint(
                         user_id=user_id,
                         device_fingerprint_hash=device_fingerprint_hash,
                         payload=payload,
+                        user_otel_attrs=user_otel_attrs,
                     )
                 else:
                     logger.warning(
                         f"Received update_chat with no recognized fields from "
                         f"{user_id}/{device_fingerprint_hash}: {list(payload.keys())}"
                     )
+
+            elif message_type == "key_received":
+                # Client ACKs that it received and decrypted a chat encryption key.
+                # Relay to other devices as key_delivery_confirmed (SYNC-01).
+                logger.debug(f"Handling key_received ACK from device {device_fingerprint_hash[:8]}...")
+                await handle_key_received(
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
 
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")

@@ -10,6 +10,14 @@ from backend.core.api.app.utils.setup_logging import setup_logging  # noqa: E402
 setup_logging()
 # --- End Logging Setup ---
 
+# --- Setup OpenTelemetry Tracing ---
+# Must initialize BEFORE FastAPI() creation so auto-instrumentation patches routes.
+# Gated by OTEL_TRACING_ENABLED env var (default: true).
+if os.getenv("OTEL_TRACING_ENABLED", "true").lower() == "true":
+    from backend.shared.python_utils.tracing import setup_tracing  # noqa: E402
+    setup_tracing(service_name="api")
+# --- End Tracing Setup ---
+
 # Now import other modules that might log
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.responses import RedirectResponse  # noqa: E402
@@ -47,6 +55,7 @@ from backend.core.api.app.routes import status_routes  # noqa: E402 # Import sta
 from backend.core.api.app.routes import docs_routes  # noqa: E402 # Import docs API (public, serves doc tree + markdown for CLI)
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
+from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
 from backend.core.api.app.routers import webhooks as webhooks_router  # noqa: E402 # Webhook CRUD + incoming webhook handler
 from backend.core.api.app.routers import internal_tunnel  # noqa: E402 # Ephemeral tunnel management for CI
 from backend.core.api.app.services.directus import DirectusService  # noqa: E402
@@ -638,7 +647,11 @@ async def lifespan(app: FastAPI):
     # Note: We check payment_enabled later after domain validation, but create service instance here
     # The service will only be initialized/used if payment_enabled is True
     logger.info("Initializing Invoice Ninja service (will be initialized only if payment enabled)...")
-    app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
+    try:
+        app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
+    except Exception as e:
+        logger.error(f"InvoiceNinjaService initialization failed (API will start without invoicing): {e}")
+        app.state.invoice_ninja_service = None
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
@@ -737,15 +750,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error restoring inspiration cache from disk: {e}", exc_info=True)
 
-    # --- Restore web analytics counters from disk backup ---
-    # Web analytics Redis counters are dumped to disk on graceful shutdown so no
-    # data is lost if the container is restarted mid-flush-cycle.
-    if hasattr(app.state, 'web_analytics_service'):
-        try:
-            await app.state.web_analytics_service.restore_from_disk()
-            logger.info("Web analytics counters restored from disk backup (if any)")
-        except Exception as e:
-            logger.error(f"Error restoring web analytics counters from disk: {e}", exc_info=True)
+    # --- Web analytics restore moved to post-Vault section (needs encryption_service) ---
+    # See the restore block after encryption_service initialization below.
 
     # --- Preload and cache AI processing configuration files ---
     # This ensures base_instructions and mates_configs are ready in cache before first message arrives
@@ -1016,8 +1022,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
         # Depending on the severity, might want to raise exception to stop startup
-        # raise e 
-    
+        # raise e
+
+    # --- Restore web analytics counters from Vault-encrypted disk backup ---
+    # Must run AFTER encryption_service initialization (above) so Vault transit
+    # decryption is available. Legacy cleartext backups are detected and deleted.
+    if hasattr(app.state, 'web_analytics_service'):
+        try:
+            restored_days = await app.state.web_analytics_service.restore_from_disk(
+                encryption_service=app.state.encryption_service,
+            )
+            if restored_days > 0:
+                logger.info(f"Restored web analytics for {restored_days} day(s) from disk backup")
+        except Exception as e:
+            logger.error(f"Error restoring web analytics from disk: {e}", exc_info=True)
+
     # --- Other startup logic ---
     logger.info("Invoice Ninja service initialized successfully.")
     logger.info("Preloading invite codes into cache...")
@@ -1288,6 +1307,30 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Redis Pub/Sub listener for preprocessing step events as a background task...")
     app.state.preprocessing_stream_listener_task = asyncio.create_task(listen_for_preprocessing_streams(app))
 
+    # --- Ensure today's daily inspiration defaults exist ---
+    # If celery beat restarted after 06:30 UTC it will have missed the daily
+    # selection task.  Dispatch it now so the public endpoint doesn't return
+    # empty for the rest of the day.
+    try:
+        from datetime import datetime as _dt, timezone as _tz
+        _today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+        _today_defaults = await app.state.directus_service.inspiration_defaults.get_defaults_for_date(
+            date_str=_today, language="en",
+        )
+        if not _today_defaults:
+            logger.warning(
+                "[Startup] No daily inspiration defaults for today (%s) — dispatching select_defaults task",
+                _today,
+            )
+            celery_app.send_task(
+                name="daily_inspiration.select_defaults",
+                queue="persistence",
+            )
+        else:
+            logger.info("[Startup] Daily inspiration defaults already exist for today (%s)", _today)
+    except Exception as _e:
+        logger.error("[Startup] Failed to check/trigger daily inspiration defaults: %s", _e, exc_info=True)
+
     yield  # This is where FastAPI serves requests
     
     # Shutdown logic
@@ -1309,8 +1352,12 @@ async def lifespan(app: FastAPI):
     # data is lost if the container shuts down between two Celery flush cycles.
     if hasattr(app.state, 'web_analytics_service'):
         try:
-            await app.state.web_analytics_service.dump_to_disk()
-            logger.info("Web analytics counters persisted to disk for recovery after restart")
+            encryption_svc = getattr(app.state, 'encryption_service', None)
+            days_dumped = await app.state.web_analytics_service.dump_to_disk(
+                encryption_service=encryption_svc,
+            )
+            if days_dumped > 0:
+                logger.info(f"Persisted web analytics for {days_dumped} day(s) to disk (Vault-encrypted)")
         except Exception as e:
             logger.error(f"Error persisting web analytics counters to disk during shutdown: {e}", exc_info=True)
 
@@ -1656,6 +1703,7 @@ def create_app() -> FastAPI:
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
+    app.include_router(telemetry.router, include_in_schema=False)  # OTLP proxy for frontend browser traces (JWT auth, rate-limited)
     app.include_router(webhooks_router.router, include_in_schema=True)  # Webhook CRUD + incoming webhook handler (JWT + webhook key auth)
     app.include_router(internal_tunnel.router, include_in_schema=False)  # Ephemeral tunnel management for CI (HMAC auth)
     from backend.core.api.app.routes import usage_api

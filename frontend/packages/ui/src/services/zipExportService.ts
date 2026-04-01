@@ -20,7 +20,7 @@ import {
   loadEmbeds,
   decodeToonContent,
 } from "./embedResolver";
-import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
+import { tipTapToCanonicalMarkdown, tipTapToReadableMarkdown } from "../message_parsing/serializers";
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
 import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 import { fetchAndDecryptImage } from "../components/embeds/images/imageEmbedCrypto";
@@ -49,9 +49,11 @@ async function convertMessageToMarkdown(
 
     let content = "";
     if (typeof message.content === "string") {
-      content = message.content;
+      // Raw markdown string — resolve embed blocks to readable text
+      content = await tipTapToReadableMarkdown(message.content);
     } else if (message.content && typeof message.content === "object") {
-      content = tipTapToCanonicalMarkdown(message.content);
+      // TipTap doc — serialize to canonical markdown first, then resolve embeds
+      content = await tipTapToReadableMarkdown(message.content);
     }
 
     // Apply PII handling: message content from DB has PLACEHOLDERS.

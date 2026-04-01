@@ -21,6 +21,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   
@@ -391,10 +392,7 @@
   {onShowChat}
 >
   {#snippet embedHeaderCta()}
-    <!-- CTA Button - "Open on [hostname]" -->
-    <button class="cta-button" onclick={handleOpenInNewTab}>
-      Open on {hostname()}
-    </button>
+    <EmbedHeaderCtaButton label="Open on {hostname()}" onclick={handleOpenInNewTab} />
   {/snippet}
 
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
@@ -551,34 +549,6 @@
   }
   
   /* ===========================================
-     CTA Button
-     =========================================== */
-  
-  .cta-button {
-    background-color: var(--color-button-primary);
-    color: white;
-    border: none;
-    border-radius: 15px;
-    padding: 12px 24px;
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.15s;
-    min-width: 200px;
-  }
-  
-  .cta-button:hover {
-    background-color: var(--color-button-primary-hover);
-    transform: translateY(-1px);
-  }
-  
-  .cta-button:active {
-    background-color: var(--color-button-primary-pressed);
-    transform: translateY(0);
-  }
-  
-  /* ===========================================
      Description
      =========================================== */
   
@@ -696,12 +666,7 @@
       height: 24px;
       border-radius: 12px;
     }
-    
-    .cta-button {
-      padding: 10px 20px;
-      min-width: 160px;
-    }
-    
+
     .snippets-title {
       font-size: 18px;
     }

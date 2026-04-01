@@ -22,8 +22,8 @@ async def handle_ai_response_completed(
     user_id: str,
     user_id_hash: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles completed AI response sent from client for encrypted Directus storage.
     This is part of the zero-knowledge architecture where:
@@ -32,178 +32,193 @@ async def handle_ai_response_completed(
     3. Server stores encrypted content in Directus without decryption
     4. Server NEVER encrypts AI responses - that's the client's job
     """
+    _otel_span, _otel_token = None, None
     try:
-        chat_id = payload.get("chat_id")
-        message_payload_from_client = payload.get("message")
-        versions = payload.get("versions")  # Get version info for multi-device sync
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("ai_response_completed", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        try:
+            chat_id = payload.get("chat_id")
+            message_payload_from_client = payload.get("message")
+            versions = payload.get("versions")  # Get version info for multi-device sync
 
-        if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
-            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
-            message_keys = (
-                sorted(message_payload_from_client.keys())
-                if isinstance(message_payload_from_client, dict)
-                else []
-            )
-            logger.error(
-                "Invalid AI response payload structure from "
-                f"{user_id}/{device_fingerprint_hash}: "
-                f"chat_id_present={bool(chat_id)}, "
-                f"message_is_dict={isinstance(message_payload_from_client, dict)}, "
-                f"payload_keys={payload_keys}, message_keys={message_keys}"
-            )
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Invalid AI response payload structure"}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+            if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
+                payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+                message_keys = (
+                    sorted(message_payload_from_client.keys())
+                    if isinstance(message_payload_from_client, dict)
+                    else []
+                )
+                logger.error(
+                    "Invalid AI response payload structure from "
+                    f"{user_id}/{device_fingerprint_hash}: "
+                    f"chat_id_present={bool(chat_id)}, "
+                    f"message_is_dict={isinstance(message_payload_from_client, dict)}, "
+                    f"payload_keys={payload_keys}, message_keys={message_keys}"
+                )
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Invalid AI response payload structure"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
 
-        # Extract message details
-        message_id = message_payload_from_client.get("message_id")
-        role = message_payload_from_client.get("role")
-        encrypted_content = message_payload_from_client.get("encrypted_content")
-        encrypted_sender_name = message_payload_from_client.get("encrypted_sender_name")
-        encrypted_category = message_payload_from_client.get("encrypted_category")
-        encrypted_model_name = message_payload_from_client.get("encrypted_model_name")
-        encrypted_thinking_content = message_payload_from_client.get("encrypted_thinking_content")
-        encrypted_thinking_signature = message_payload_from_client.get("encrypted_thinking_signature")
-        has_thinking = message_payload_from_client.get("has_thinking")
-        thinking_token_count = message_payload_from_client.get("thinking_token_count")
-        created_at = message_payload_from_client.get("created_at")
-        user_message_id = message_payload_from_client.get("user_message_id")
+            # Extract message details
+            message_id = message_payload_from_client.get("message_id")
+            role = message_payload_from_client.get("role")
+            encrypted_content = message_payload_from_client.get("encrypted_content")
+            encrypted_sender_name = message_payload_from_client.get("encrypted_sender_name")
+            encrypted_category = message_payload_from_client.get("encrypted_category")
+            encrypted_model_name = message_payload_from_client.get("encrypted_model_name")
+            encrypted_thinking_content = message_payload_from_client.get("encrypted_thinking_content")
+            encrypted_thinking_signature = message_payload_from_client.get("encrypted_thinking_signature")
+            has_thinking = message_payload_from_client.get("has_thinking")
+            thinking_token_count = message_payload_from_client.get("thinking_token_count")
+            created_at = message_payload_from_client.get("created_at")
+            user_message_id = message_payload_from_client.get("user_message_id")
 
-        # Validate required fields
-        if not all([message_id, role, encrypted_content, created_at]):
-            message_keys = sorted(message_payload_from_client.keys()) if isinstance(message_payload_from_client, dict) else []
-            logger.error(
-                "Missing required fields in AI response from "
-                f"{user_id}/{device_fingerprint_hash}: "
-                f"has_message_id={bool(message_id)}, has_role={bool(role)}, "
-                f"has_encrypted_content={bool(encrypted_content)}, has_created_at={bool(created_at)}, "
-                f"message_keys={message_keys}"
-            )
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Missing required fields in AI response"}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+            # Validate required fields
+            if not all([message_id, role, encrypted_content, created_at]):
+                message_keys = sorted(message_payload_from_client.keys()) if isinstance(message_payload_from_client, dict) else []
+                logger.error(
+                    "Missing required fields in AI response from "
+                    f"{user_id}/{device_fingerprint_hash}: "
+                    f"has_message_id={bool(message_id)}, has_role={bool(role)}, "
+                    f"has_encrypted_content={bool(encrypted_content)}, has_created_at={bool(created_at)}, "
+                    f"message_keys={message_keys}"
+                )
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Missing required fields in AI response"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
 
-        # Validate that this is an AI response
-        if role != "assistant":
-            logger.error(f"Invalid role '{role}' for AI response from {user_id}/{device_fingerprint_hash}. Expected 'assistant'.")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Invalid role for AI response"}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+            # Validate that this is an AI response
+            if role != "assistant":
+                logger.error(f"Invalid role '{role}' for AI response from {user_id}/{device_fingerprint_hash}. Expected 'assistant'.")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Invalid role for AI response"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
 
-        # Validate that only encrypted content is provided (zero-knowledge architecture)
-        if message_payload_from_client.get("content"):
-            logger.warning(f"Client sent plaintext content in AI response for {user_id}/{device_fingerprint_hash}. This violates zero-knowledge architecture.")
-            # Remove plaintext content to enforce zero-knowledge
-            message_payload_from_client = {k: v for k, v in message_payload_from_client.items() if k != "content"}
+            # Validate that only encrypted content is provided (zero-knowledge architecture)
+            if message_payload_from_client.get("content"):
+                logger.warning(f"Client sent plaintext content in AI response for {user_id}/{device_fingerprint_hash}. This violates zero-knowledge architecture.")
+                # Remove plaintext content to enforce zero-knowledge
+                message_payload_from_client = {k: v for k, v in message_payload_from_client.items() if k != "content"}
 
-        logger.info(f"Received completed AI response for storage: chat_id={chat_id}, message_id={message_id}, user_id={user_id}")
+            logger.info(f"Received completed AI response for storage: chat_id={chat_id}, message_id={message_id}, user_id={user_id}")
 
-        # Verify chat ownership
-        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-        if not is_owner:
-            logger.warning(f"User {user_id} attempted to store AI response for chat {chat_id} they don't own. Rejecting.")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+            # Verify chat ownership
+            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            if not is_owner:
+                logger.warning(f"User {user_id} attempted to store AI response for chat {chat_id} they don't own. Rejecting.")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
 
-        # CRITICAL: Check if this specific response ID was already processed or is being processed
-        # This prevents duplicate confirmations and redundant Celery tasks
-        lock_key = f"lock:ai_response_processed:{message_id}"
-        is_already_processed = await cache_service.get(lock_key)
-        if is_already_processed:
-            logger.info(f"⏭️ AI response {message_id} already being/was processed by another device or task, skipping duplicate handling.")
+            # CRITICAL: Check if this specific response ID was already processed or is being processed
+            # This prevents duplicate confirmations and redundant Celery tasks
+            lock_key = f"lock:ai_response_processed:{message_id}"
+            is_already_processed = await cache_service.get(lock_key)
+            if is_already_processed:
+                logger.info(f"⏭️ AI response {message_id} already being/was processed by another device or task, skipping duplicate handling.")
             
-            # Still send confirmation to this device so it knows it's "synced"
+                # Still send confirmation to this device so it knows it's "synced"
+                await manager.send_personal_message(
+                    {
+                        "type": "ai_response_storage_confirmed",
+                        "payload": {
+                            "message_id": message_id,
+                            "chat_id": chat_id,
+                            "task_id": "already_processed"
+                        }
+                    },
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+
+            # Create message data for Directus storage (encrypted only)
+            message_data_for_directus = {
+                "message_id": message_id,
+                "chat_id": chat_id,
+                "role": role,
+                "encrypted_content": encrypted_content,
+                "created_at": created_at,
+                "status": "synced"
+            }
+
+            # Add optional encrypted fields if present
+            if encrypted_sender_name:
+                message_data_for_directus["encrypted_sender_name"] = encrypted_sender_name
+            if encrypted_category:
+                message_data_for_directus["encrypted_category"] = encrypted_category
+            if encrypted_model_name:
+                message_data_for_directus["encrypted_model_name"] = encrypted_model_name
+            if encrypted_thinking_content:
+                message_data_for_directus["encrypted_thinking_content"] = encrypted_thinking_content
+            if encrypted_thinking_signature:
+                message_data_for_directus["encrypted_thinking_signature"] = encrypted_thinking_signature
+            if has_thinking is not None:
+                message_data_for_directus["has_thinking"] = bool(has_thinking)
+            if thinking_token_count is not None:
+                message_data_for_directus["thinking_token_count"] = thinking_token_count
+            if user_message_id:
+                message_data_for_directus["user_message_id"] = user_message_id
+
+            # user_id_hash is already provided from the WebSocket context
+
+            # Send task to Celery to persist encrypted AI response to Directus
+            # CRITICAL: Server never encrypts AI responses - client sends pre-encrypted content
+            # Pass versions for multi-device deduplication
+            task_result = celery_app.send_task(
+                name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
+                args=[user_id, user_id_hash, message_data_for_directus, versions],
+                queue="persistence"
+            )
+
+            logger.info(f"Queued AI response persistence task {task_result.id} for message {message_id} in chat {chat_id}")
+
+            # Send confirmation to client
             await manager.send_personal_message(
                 {
                     "type": "ai_response_storage_confirmed",
                     "payload": {
                         "message_id": message_id,
                         "chat_id": chat_id,
-                        "task_id": "already_processed"
+                        "task_id": task_result.id
                     }
                 },
                 user_id,
                 device_fingerprint_hash
             )
-            return
 
-        # Create message data for Directus storage (encrypted only)
-        message_data_for_directus = {
-            "message_id": message_id,
-            "chat_id": chat_id,
-            "role": role,
-            "encrypted_content": encrypted_content,
-            "created_at": created_at,
-            "status": "synced"
-        }
+            logger.debug(f"Sent AI response storage confirmation to {user_id}/{device_fingerprint_hash} for message {message_id}")
 
-        # Add optional encrypted fields if present
-        if encrypted_sender_name:
-            message_data_for_directus["encrypted_sender_name"] = encrypted_sender_name
-        if encrypted_category:
-            message_data_for_directus["encrypted_category"] = encrypted_category
-        if encrypted_model_name:
-            message_data_for_directus["encrypted_model_name"] = encrypted_model_name
-        if encrypted_thinking_content:
-            message_data_for_directus["encrypted_thinking_content"] = encrypted_thinking_content
-        if encrypted_thinking_signature:
-            message_data_for_directus["encrypted_thinking_signature"] = encrypted_thinking_signature
-        if has_thinking is not None:
-            message_data_for_directus["has_thinking"] = bool(has_thinking)
-        if thinking_token_count is not None:
-            message_data_for_directus["thinking_token_count"] = thinking_token_count
-        if user_message_id:
-            message_data_for_directus["user_message_id"] = user_message_id
+        except Exception as e:
+            logger.error(f"Error handling AI response completion from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to process AI response completion"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+            except Exception as send_err:
+                logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
 
-        # user_id_hash is already provided from the WebSocket context
-
-        # Send task to Celery to persist encrypted AI response to Directus
-        # CRITICAL: Server never encrypts AI responses - client sends pre-encrypted content
-        # Pass versions for multi-device deduplication
-        task_result = celery_app.send_task(
-            name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
-            args=[user_id, user_id_hash, message_data_for_directus, versions],
-            queue="persistence"
-        )
-
-        logger.info(f"Queued AI response persistence task {task_result.id} for message {message_id} in chat {chat_id}")
-
-        # Send confirmation to client
-        await manager.send_personal_message(
-            {
-                "type": "ai_response_storage_confirmed",
-                "payload": {
-                    "message_id": message_id,
-                    "chat_id": chat_id,
-                    "task_id": task_result.id
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
-
-        logger.debug(f"Sent AI response storage confirmation to {user_id}/{device_fingerprint_hash} for message {message_id}")
-
-    except Exception as e:
-        logger.error(f"Error handling AI response completion from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
-        try:
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to process AI response completion"}},
-                user_id,
-                device_fingerprint_hash
-            )
-        except Exception as send_err:
-            logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

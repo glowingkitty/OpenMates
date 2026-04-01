@@ -314,12 +314,12 @@
   {onShowChat}
 >
   {#snippet content()}
-    <div class="pdf-fullscreen-content">
+    <div class="pdf-fullscreen-content" data-testid="pdf-fullscreen-content">
 
       {#if !contentLoaded}
         <!-- Loading embed content -->
         <div class="pdf-loading-state">
-          <div class="pdf-spinner"></div>
+          <div class="pdf-spinner" data-testid="pdf-spinner"></div>
           <p class="pdf-hint">Loading pages…</p>
         </div>
 
@@ -339,6 +339,7 @@
                   src={pageImages[pageNum].url}
                   alt={`Page ${pageNum} of ${filename}`}
                   class="pdf-page-image"
+                  data-testid="pdf-page-image"
                   loading="lazy"
                 />
                 <span class="pdf-page-badge">{pageNum}</span>
@@ -363,7 +364,7 @@
           No screenshots available (processing still running, or older PDF
           uploaded before screenshot support was added). Show icon + hint.
         -->
-        <div class="pdf-info-fallback">
+        <div class="pdf-info-fallback" data-testid="pdf-info-fallback">
           <div class="pdf-icon-wrapper">
             <div class="icon_rounded pdf large"></div>
           </div>

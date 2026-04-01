@@ -378,6 +378,67 @@ services:
       retries: 3
       start_period: 30s # Give app time to start before first healthcheck
 
+  app-home:
+    container_name: app-home
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: home
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "home" # For Dockerfile.base ARG and base_main.py
+      HOME_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup: # Ensures Directus schemas are applied if home app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # HOME_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
   app-videos:
     container_name: app-videos
     build:
@@ -1426,8 +1487,9 @@ services:
     networks:
       - openmates
     healthcheck:
-      # Simply check if port 8200 is open and responding
-      test: ["CMD", "nc", "-z", "127.0.0.1", "8200"]
+      # Check Vault is initialized AND unsealed (HTTP 200). Sealed Vault returns 503.
+      # TCP-only checks (nc -z) can't distinguish sealed from unsealed.
+      test: ["CMD", "sh", "-c", "wget -q --spider http://127.0.0.1:8200/v1/sys/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -1479,7 +1541,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 1536M
     environment:
       ZO_ROOT_USER_EMAIL: "${OPENOBSERVE_ROOT_EMAIL}"
       ZO_ROOT_USER_PASSWORD: "${OPENOBSERVE_ROOT_PASSWORD}"

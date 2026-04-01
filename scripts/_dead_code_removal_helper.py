@@ -41,6 +41,7 @@ import json
 import os
 
 from _claude_utils import run_claude_session
+from _nightly_report import write_nightly_report
 import sys
 from datetime import datetime, timezone
 
@@ -176,6 +177,12 @@ def run() -> None:
         state["last_run_at"] = _now_iso()
         state["last_run_sha"] = current_sha
         _save_state(state_file, state)
+        write_nightly_report(
+            job="dead-code",
+            status="ok",
+            summary="No dead code found.",
+            details={"head_sha": current_sha, "items_found": 0, "items_removed": 0},
+        )
         return
 
     # Load state to filter already-removed items
@@ -278,6 +285,24 @@ def run() -> None:
     state["last_run_at"] = now_iso
     state["last_run_sha"] = current_sha
     _save_state(state_file, state)
+
+    write_nightly_report(
+        job="dead-code",
+        status="error" if returncode != 0 else "ok",
+        summary=(
+            f"Sent {len(items_to_send)} item(s) to claude for removal ({categories_str}). "
+            f"Total removed to date: {state['total_items_removed']}."
+        ),
+        details={
+            "head_sha": current_sha,
+            "items_found": len(all_items),
+            "items_sent": len(items_to_send),
+            "items_skipped_already_done": skipped_already_done,
+            "categories": cat_counts,
+            "total_items_removed": state["total_items_removed"],
+            "total_runs": state["total_runs"],
+        },
+    )
 
     if returncode != 0:
         sys.exit(returncode)

@@ -387,7 +387,7 @@
   {/snippet}
 
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="recording-preview" class:mobile={isMobileSnippet}>
+    <div class="recording-preview" data-testid="recording-preview" class:mobile={isMobileSnippet}>
 
       {#if !isAuthenticated && status === 'finished'}
         <!--

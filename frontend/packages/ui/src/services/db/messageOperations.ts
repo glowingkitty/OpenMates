@@ -661,10 +661,9 @@ export async function saveMessage(
         if (transaction.error !== null) {
           throw new Error(`Transaction has error: ${transaction.error}`);
         }
-      } catch (error) {
-        console.warn(
-          `[ChatDatabase] External transaction is no longer active for message ${message.message_id}, creating new transaction:`,
-          error,
+      } catch (_error) {
+        console.debug(
+          `[ChatDatabase] External transaction expired for message ${message.message_id}, retrying with new transaction`,
         );
         // Re-check priority before retrying with a new transaction to prevent
         // stale status overwrites (same fix as in the catch block below)
@@ -708,9 +707,8 @@ export async function saveMessage(
     } catch (error) {
       // Transaction is no longer active (InvalidStateError or similar)
       if (isInvalidStateError(error)) {
-        console.warn(
-          `[ChatDatabase] Transaction is no longer active for message ${message.message_id}, creating new transaction:`,
-          error,
+        console.debug(
+          `[ChatDatabase] Transaction expired for message ${message.message_id}, retrying with new transaction`,
         );
         // CRITICAL FIX: Before retrying, re-check if a higher-priority status
         // has been written to IDB by a concurrent save (e.g., 'synced' was

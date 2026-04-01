@@ -129,8 +129,8 @@ async def _async_send_community_share_notification(
 
         # Generate demo chat approval URL for admin
         # This deep-links to the community suggestions settings page where admin can approve/reject
-        import os
-        base_url = os.getenv("FRONTEND_URL", "https://openmates.org")
+        from backend.shared.python_utils.frontend_url import get_frontend_base_url
+        base_url = get_frontend_base_url()
         demo_chat_url = f"{base_url}/settings/server/community-suggestions?demo_chat_id={demo_chat_id}"
         
         # Add metadata as URL parameters for preview in email

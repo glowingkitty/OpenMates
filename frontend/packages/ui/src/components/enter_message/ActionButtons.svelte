@@ -92,7 +92,7 @@
     );
 </script>
 
-<div class="action-buttons">
+<div class="action-buttons" data-testid="action-buttons">
     <div class="left-buttons">
         <button
             class="clickable-icon icon_files"
@@ -124,7 +124,7 @@
         <!-- "Press & hold to record" inline label — hidden when send button is visible or mic blocked.
              When highlightPressHold is true the label is force-shown and briefly flashes. -->
         {#if showPressHoldLabel}
-            <span class="press-hold-label {highlightPressHold ? 'highlighted' : ''}" aria-hidden="true">
+            <span class="press-hold-label {highlightPressHold ? 'highlighted' : ''}" data-testid="press-hold-label" aria-hidden="true">
                 {$text('enter_message.record_audio.press_and_hold_reminder')}
             </span>
         {/if}
@@ -132,6 +132,7 @@
         <!-- Audio recording: press-and-hold to record, release to transcribe via Mistral Voxtral -->
         <button
             class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
+            data-testid="record-audio-button"
             onmousedown={handleRecordMouseDown}
             onmouseup={handleRecordMouseUp}
             onmouseleave={handleRecordMouseLeave}

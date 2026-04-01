@@ -167,12 +167,12 @@ function saveWarnErrorLogs(testId: string, phase: string): void {
  * Open a new chat. Clicks the new chat button if visible.
  */
 async function openNewChat(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatButton.click();
 		await page.waitForTimeout(1500);
 	}
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	logCheckpoint('New chat opened and editor ready.');
 }
@@ -253,7 +253,7 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	// Verify that an embed node appeared inside the TipTap editor.
 	// Image embeds render as .embed-full-width-wrapper (NodeView wrapper) containing
 	// the Svelte ImageEmbedPreview component (.unified-embed-preview).
-	const embedInEditor = page.locator('.editor-content .embed-full-width-wrapper');
+	const embedInEditor = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
 	await expect(async () => {
 		await expect(embedInEditor.first()).toBeVisible();
 	}).toPass({ timeout: 20000 });
@@ -265,7 +265,7 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	// on the embed (which would open the image fullscreen overlay).
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await editor.press('End');
 	await page.keyboard.type('Here is my attached image:');
 
@@ -292,7 +292,7 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	// via the parse_message system. We just verify the message wrapper is visible
 	// (not the specific embed element, which depends on the upload completing).
 	await expect(async () => {
-		const userMessage = page.locator('.message-wrapper.user').last();
+		const userMessage = page.getByTestId('message-user').last();
 		await expect(userMessage).toBeVisible();
 	}).toPass({ timeout: 30000 });
 
@@ -367,7 +367,7 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 	// 1. The editor has non-empty content (has content indicator)
 	// 2. The send button is enabled (meaning there's content to send)
 	// This confirms the code file was processed and inserted into the editor.
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 
 	// The send button only appears when the editor has content.
 	// Use [data-action="send-message"] for a stable selector.
@@ -404,7 +404,7 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 
 	// Verify user message appears in the conversation
 	await expect(async () => {
-		const userMessage = page.locator('.message-wrapper.user').last();
+		const userMessage = page.getByTestId('message-user').last();
 		await expect(userMessage).toBeVisible();
 	}).toPass({ timeout: 20000 });
 
@@ -471,7 +471,7 @@ test('attaches multiple files at once and shows image embed and code reference i
 	saveWarnErrorLogs('multi', 'after_file_attach');
 
 	// Verify image embed wrapper appeared (from the PNG file)
-	const imageEmbedInEditor = page.locator('.editor-content .embed-full-width-wrapper');
+	const imageEmbedInEditor = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
 	await expect(async () => {
 		const count = await imageEmbedInEditor.count();
 		log(`Image embed wrapper count: ${count}`);
@@ -486,7 +486,7 @@ test('attaches multiple files at once and shows image embed and code reference i
 	log('Send button enabled — both files processed and editor has content.');
 
 	// Log editor content for diagnostic purposes
-	const editorContent = await page.locator('.editor-content.prose').textContent();
+	const editorContent = await page.getByTestId('message-editor').textContent();
 	log(`Editor content preview: "${editorContent?.substring(0, 150)}"`);
 
 	await screenshot(page, 'two-files-in-editor');
@@ -555,14 +555,14 @@ async function assertImageEmbedsHealthy(
 ): Promise<void> {
 	logCheckpoint(`[${phase}] Asserting image embed health (requireImages=${requireImages})...`);
 
-	const activeChatContainer = page.locator('.active-chat-container');
+	const activeChatContainer = page.getByTestId('active-chat-container');
 
 	// ── User-side image embed ────────────────────────────────────────────────
 	// Architecture: .message-wrapper.user .embed-full-width-wrapper
 	//               > (ImageEmbedPreview) .image-preview > .image-content > img.preview-image
 	const userEmbedWrapper = activeChatContainer
-		.locator('.message-wrapper.user')
-		.locator('.embed-full-width-wrapper');
+		.locator('[data-testid="message-user"]')
+		.locator('[data-testid="embed-full-width-wrapper"]');
 	await expect(userEmbedWrapper.first()).toBeVisible({ timeout: 20000 });
 	logCheckpoint(`[${phase}] User embed wrapper (.embed-full-width-wrapper) is visible.`);
 
@@ -585,7 +585,7 @@ async function assertImageEmbedsHealthy(
 	// Architecture: .unified-embed-preview[data-app-id="images"][data-skill-id="view"]
 	//               [data-status="finished"] > .image-view-preview > .image-content > img.preview-image
 	const aiViewFinished = activeChatContainer.locator(
-		'.unified-embed-preview[data-app-id="images"][data-skill-id="view"][data-status="finished"]'
+		'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"][data-status="finished"]'
 	);
 	await expect(aiViewFinished.first()).toBeVisible({ timeout: 20000 });
 	logCheckpoint(`[${phase}] AI ImageViewEmbedPreview (finished) is visible.`);
@@ -656,7 +656,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	saveWarnErrorLogs('finance', 'after_file_attach');
 
 	// Verify the image embed appeared in the editor
-	const embedInEditor = page.locator('.editor-content .embed-full-width-wrapper');
+	const embedInEditor = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
 	await expect(async () => {
 		await expect(embedInEditor.first()).toBeVisible();
 	}).toPass({ timeout: 20000 });
@@ -666,7 +666,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// (clicking it would open the image fullscreen overlay)
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await editor.press('End');
 	await page.keyboard.type('Please look at the image I attached and describe what you see in it.');
 
@@ -688,9 +688,9 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	saveWarnErrorLogs('finance', 'after_send');
 
 	// Wait for a new assistant message scoped to active-chat-container
-	const activeChatContainer = page.locator('.active-chat-container');
-	const preSendCount = await activeChatContainer.locator('.message-wrapper.assistant').count();
-	const assistantMessages = activeChatContainer.locator('.message-wrapper.assistant');
+	const activeChatContainer = page.getByTestId('active-chat-container');
+	const preSendCount = await activeChatContainer.locator('[data-testid="message-assistant"]').count();
+	const assistantMessages = activeChatContainer.locator('[data-testid="message-assistant"]');
 	await expect(async () => {
 		const count = await assistantMessages.count();
 		if (count <= preSendCount) throw new Error(`No new assistant message yet (count=${count})`);
@@ -747,7 +747,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// Use toPass with waitFor instead of a fixed sleep: this waits until the
 	// finished embed is stably attached to the DOM before we try to interact.
 	const finishedImageViewSelector =
-		'.unified-embed-preview[data-app-id="images"][data-skill-id="view"][data-status="finished"]';
+		'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"][data-status="finished"]';
 	const finishedImageView = activeChatContainer.locator(finishedImageViewSelector);
 
 	// Wait for the element to be stably attached (survives remount cycles).
@@ -758,7 +758,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	// directly calls onFullscreen from ImageViewEmbedPreview without going through
 	// UnifiedEmbedPreview.handleClick). Re-query inside the retry loop to avoid
 	// stale-locator errors if resolveAndUpdateImageViewProps remounts the component.
-	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 
 	await expect(async () => {
 		if (!(await fullscreenOverlay.isVisible().catch(() => false))) {
@@ -775,13 +775,13 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	log('Fullscreen overlay visible.');
 	await screenshot(page, '06-fullscreen-opened');
 
-	const fullscreenContent = fullscreenOverlay.locator('.image-embed-fullscreen');
+	const fullscreenContent = fullscreenOverlay.getByTestId('image-embed-fullscreen');
 	await expect(fullscreenContent).toBeVisible({ timeout: 10000 });
 
 	// Wait for full-resolution image (may be behind a loading spinner briefly)
 	const fullImage = fullscreenOverlay.locator('img.full-image');
 	await expect(async () => {
-		const spinner = fullscreenOverlay.locator('.image-loading');
+		const spinner = fullscreenOverlay.getByTestId('image-loading');
 		const hasImg = await fullImage.isVisible().catch(() => false);
 		const hasSpinner = await spinner.isVisible().catch(() => false);
 		expect(hasImg || hasSpinner).toBe(true);

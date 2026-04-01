@@ -44,6 +44,7 @@
     <div class="settings-dropdown-container">
         <select
             class="settings-dropdown"
+            data-testid="settings-dropdown"
             {name}
             {disabled}
             aria-label={ariaLabel || placeholder}

@@ -115,6 +115,11 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
@@ -131,7 +136,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
+		.getByTestId('error-message')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
 
 	let loginSuccess = false;
@@ -162,7 +167,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	logCheckpoint('Waiting for chat interface to load...');
 	await page.waitForTimeout(3000);
 
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 20000 });
 	logCheckpoint('Chat interface loaded - message editor visible.');
 
@@ -171,17 +176,13 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	// ======================================================================
 	await page.waitForTimeout(1000);
 
-	const newChatButtonSelectors = ['.new-chat-cta-button', '.icon_create'];
+	const newChatButton = page.getByTestId('new-chat-button');
 	let clicked = false;
-	for (const selector of newChatButtonSelectors) {
-		const button = page.locator(selector).first();
-		if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-			logCheckpoint(`Found New Chat button: ${selector}`);
-			await button.click();
-			clicked = true;
-			await page.waitForTimeout(2000);
-			break;
-		}
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		logCheckpoint('Found New Chat button via data-testid');
+		await newChatButton.click();
+		clicked = true;
+		await page.waitForTimeout(2000);
 	}
 
 	if (!clicked) {
@@ -190,18 +191,15 @@ test('code embeds render without raw JSON embed references leaking', async ({
 			await messageEditor.click();
 			await page.keyboard.type(' ');
 			await page.waitForTimeout(500);
-			for (const selector of newChatButtonSelectors) {
-				const button = page.locator(selector).first();
-				if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-					await button.click();
-					clicked = true;
-					await page.waitForTimeout(2000);
-					break;
-				}
+			const retryButton = page.getByTestId('new-chat-button');
+			if (await retryButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+				await retryButton.click();
+				clicked = true;
+				await page.waitForTimeout(2000);
 			}
 			// Clear the space
 			if (clicked) {
-				const newEditor = page.locator('.editor-content.prose');
+				const newEditor = page.getByTestId('message-editor');
 				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
 					await newEditor.click();
 					await page.keyboard.press('Control+A');
@@ -225,14 +223,14 @@ test('code embeds render without raw JSON embed references leaking', async ({
 		'3) Hello World in Bash. ' +
 		'Show each as a code block.';
 
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(withMockMarker(testMessage, 'embed_json_leak'));
 	logCheckpoint(`Typed message: "${testMessage}"`);
 	await takeStepScreenshot(page, 'message-typed');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint('Clicked send button.');
@@ -254,12 +252,12 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	logCheckpoint('Waiting for assistant response...');
 
 	// Wait for the assistant message to appear (use last() since demo messages may also exist)
-	const assistantMessages = page.locator('.message-wrapper.assistant');
+	const assistantMessages = page.getByTestId('message-assistant');
 	await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant response wrapper is visible.');
 
 	// Wait for at least one code embed preview to appear in the chat
-	const codeEmbeds = page.locator('.message-wrapper.assistant .unified-embed-preview');
+	const codeEmbeds = page.getByTestId('message-assistant').locator('[data-testid="embed-preview"]');
 	logCheckpoint('Waiting for code embed previews to appear...');
 	await expect(async () => {
 		const count = await codeEmbeds.count();
@@ -271,8 +269,8 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	logCheckpoint(`Found ${embedCount} code embed previews.`);
 
 	// Wait for at least one embed to reach finished state
-	const finishedEmbeds = page.locator(
-		'.message-wrapper.assistant .unified-embed-preview[data-status="finished"]'
+	const finishedEmbeds = page.getByTestId('message-assistant').locator(
+		'[data-testid="embed-preview"][data-status="finished"]'
 	);
 	logCheckpoint('Waiting for at least one embed to finish...');
 	await expect(async () => {
@@ -288,7 +286,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	// Wait for the streaming to complete (message status changes from streaming to synced)
 	// We detect this by waiting for the typing indicator to disappear
 	logCheckpoint('Waiting for AI response to finish streaming...');
-	const typingIndicator = page.locator('.typing-indicator');
+	const typingIndicator = page.getByTestId('typing-indicator');
 	await expect(typingIndicator).not.toBeVisible({ timeout: 90000 });
 	logCheckpoint('AI response streaming completed.');
 
@@ -305,7 +303,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	// Use .last() to skip any demo chat assistant messages
 	const lastAssistantMessage = assistantMessages.last();
 	const assistantProseMirror = lastAssistantMessage
-		.locator('.read-only-message .ProseMirror')
+		.getByTestId('message-content')
 		.first();
 	await expect(assistantProseMirror).toBeVisible({ timeout: 10000 });
 
@@ -316,7 +314,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	const fullText = await assistantProseMirror.evaluate((el: HTMLElement) => {
 		const clone = el.cloneNode(true) as HTMLElement;
 		// Remove all embed preview components from the clone
-		clone.querySelectorAll('.unified-embed-preview').forEach((embed) => embed.remove());
+		clone.querySelectorAll('[data-testid="embed-preview"]').forEach((embed) => embed.remove());
 		// Also remove any node-view wrappers that contain embeds
 		clone.querySelectorAll('[data-embed-id]').forEach((embed) => embed.remove());
 		return clone.textContent || '';

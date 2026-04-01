@@ -105,6 +105,15 @@ echo "[dependabot] Fetched $ALERT_COUNT open alert(s)."
 
 if [[ "$ALERT_COUNT" -eq 0 ]]; then
   echo "[dependabot] No open Dependabot alerts — done."
+  # Write nightly report (no alerts = clean)
+  PYTHONPATH="$SCRIPT_DIR" python3 -c "
+from _nightly_report import write_nightly_report
+write_nightly_report(
+    job='dependabot',
+    status='ok',
+    summary='No open Dependabot alerts.',
+)
+"
   # Update last_run in tracking file
   python3 - <<'PYEOF'
 import json, os, sys
@@ -136,9 +145,14 @@ PYEOF
 fi
 
 # --- Process alerts using Python for the complex dedup/tracking logic ---
+# Write alerts JSON to a temp file instead of env var to avoid "Argument list too long"
+# errors when the alerts payload is large (observed with 28+ alerts).
+ALERTS_TMPFILE=$(mktemp /tmp/dependabot-alerts-XXXXXX.json)
+echo "$ALERTS_JSON" > "$ALERTS_TMPFILE"
+trap 'rm -f "$ALERTS_TMPFILE"' EXIT
+
 export TRACKING_FILE_PATH="$TRACKING_FILE"
-export ALERTS_JSON_B64
-ALERTS_JSON_B64=$(echo "$ALERTS_JSON" | base64 -w 0)
+export ALERTS_JSON_FILE="$ALERTS_TMPFILE"
 export PROJECT_ROOT
 export REDISPATCH_AFTER_DAYS
 export DRY_RUN

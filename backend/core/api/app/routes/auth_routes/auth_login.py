@@ -49,7 +49,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("3/minute")
+@limiter.limit("120/minute")
 async def login(
     request: Request,
     login_data: LoginRequest,
@@ -1407,7 +1407,7 @@ async def finalize_login_session(
 
 
 @router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("3/minute")
+@limiter.limit("120/minute")
 async def lookup_user(
     request: Request,
     lookup_data: UserLookupRequest,
@@ -1448,6 +1448,7 @@ async def lookup_user(
                 login_method="password",
                 available_login_methods=["password","recovery_key"],
                 user_email_salt=random_salt,
+                tfa_enabled=True,  # Always True for anti-enumeration
                 stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference even for non-existent users
             )
         
@@ -1710,27 +1711,16 @@ async def lookup_user(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # Get tfa_enabled status from cached profile or compute it
-        # CRITICAL: For existing users, compute actual tfa_enabled based on encrypted_tfa_secret existence
-        # Only default to True for non-existent users (anti-enumeration)
-        tfa_enabled = True  # Default to True for security (anti-enumeration for non-existent users)
-        if user_id:
-            # CRITICAL: Always verify encrypted_tfa_secret exists, even if cached profile says tfa_enabled=True
-            # This prevents stale cache data from causing 2FA to be required when it's not actually set up
-            encrypted_tfa_secret_exists = bool(user_data.get("encrypted_tfa_secret"))
-            
-            # Try to get from cached profile first (should be available now after caching above)
-            current_cached_profile = await cache_service.get_user_by_id(user_id)
-            if current_cached_profile and "tfa_enabled" in current_cached_profile:
-                cached_tfa_enabled = current_cached_profile.get("tfa_enabled", False)
-                # Use cached value only if encrypted_tfa_secret actually exists
-                # This prevents stale cache from requiring 2FA when it's not set up
-                tfa_enabled = cached_tfa_enabled if encrypted_tfa_secret_exists else False
-                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled} (verified: encrypted_tfa_secret exists={encrypted_tfa_secret_exists})")
-            else:
-                # Fallback: compute based on encrypted_tfa_secret existence from user_data
-                tfa_enabled = encrypted_tfa_secret_exists
-                logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
+        # ANTI-ENUMERATION: Always return tfa_enabled=True from the lookup endpoint.
+        #
+        # Returning different values for existing-without-2FA (false) vs non-existing (true)
+        # creates an oracle that lets attackers determine if an account exists.
+        #
+        # The login handler independently verifies the actual 2FA status from the user
+        # profile and encrypted_tfa_secret existence, so this lookup value does NOT
+        # affect security — it only controls whether the frontend shows the OTP input.
+        # Showing it always is correct anti-enumeration behavior.
+        tfa_enabled = True
 
         # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
         return UserLookupResponse(

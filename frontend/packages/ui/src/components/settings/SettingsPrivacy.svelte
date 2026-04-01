@@ -1,6 +1,6 @@
 <!--
 Privacy Settings - Main page for privacy-related settings
-Sections: Anonymization, Auto Deletion
+Sections: Anonymization, Auto Deletion, Debug Logging
 
 Based on Figma design: settings/privacy (node 1895:20576)
 -->
@@ -10,6 +10,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
     import { personalDataStore } from '../../stores/personalDataStore';
+    import { userProfile, updateProfile } from '../../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
@@ -49,6 +50,35 @@ Based on Figma design: settings/privacy (node 1895:20576)
             title: $text('settings.privacy.hide_personal_data')
         });
     }
+
+    // ─── Debug Logging Opt-in ────────────────────────────────────────────
+    // Read debug logging preference from the user profile (synced to Directus).
+    let debugLoggingEnabled = $derived($userProfile.debug_logging_opted_in ?? false);
+
+    /**
+     * Toggle the debug logging opt-in and persist to user profile.
+     * The updateProfile call writes to IndexedDB and syncs to Directus
+     * via the existing WebSocket profile sync flow.
+     */
+    function toggleDebugLogging(): void {
+        updateProfile({ debug_logging_opted_in: !debugLoggingEnabled });
+    }
+
+    /**
+     * Navigate to the "Share Debug Logs" sub-page where users can temporarily
+     * share browser console logs with the support team.
+     */
+    function navigateToShareDebugLogs() {
+        dispatch('openSettings', {
+            settingsPath: 'privacy/share-debug-logs',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.privacy.share_debug_logs_title')
+        });
+    }
+
+    /** Admin check for the debug logs admin notice. */
+    let isAdminUser = $derived($userProfile.is_admin === true);
 
     /**
      * Navigate to the auto-deletion editing sub-page for a specific category.
@@ -158,8 +188,44 @@ Based on Figma design: settings/privacy (node 1895:20576)
 />
 
 <!-- Compliance note — uses global .settings-note from settings.css -->
-<div class="settings-note">
+<div class="settings-note" data-testid="settings-note">
     <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
 </div>
+
+<!-- ─── Debug Logging Section ──────────────────────────────────────────── -->
+<SettingsItem
+    type="heading"
+    icon="log"
+    title={$text('settings.privacy.debug_logging_title')}
+/>
+
+<!-- Debug logging toggle — opt-in for Tier 3 OpenTelemetry traces -->
+<SettingsItem
+    type="subsubmenu"
+    icon="log"
+    subtitleTop={$text('settings.privacy.debug_logging_description')}
+    title={$text('settings.privacy.debug_logging_toggle_label')}
+    hasToggle={true}
+    checked={debugLoggingEnabled}
+    onClick={toggleDebugLogging}
+/>
+
+<!-- Encrypted content disclaimer -->
+<div class="settings-note">
+    <p>{$text('settings.privacy.debug_logging_never_collected')}</p>
+</div>
+
+<!-- Share Debug Logs — temporary log sharing with support team -->
+<SettingsItem
+    type="submenu"
+    icon="log"
+    title={$text('settings.privacy.share_debug_logs_title')}
+    onClick={navigateToShareDebugLogs}
+/>
+{#if isAdminUser}
+    <div class="settings-note">
+        <p>{$text('settings.privacy.share_debug_logs_admin_notice')}</p>
+    </div>
+{/if}
 
 <!-- All styles moved to global settings.css: .settings-description, .settings-gradient-link, .settings-note -->

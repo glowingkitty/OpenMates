@@ -23,6 +23,7 @@
     import { userProfile, updateProfile } from '../../stores/userProfile';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
     
@@ -232,11 +233,7 @@
         
         <!-- Model info section -->
         <div class="section">
-            <SettingsItem 
-                type="heading"
-                icon="insight"
-                title={$text('common.details')}
-            />
+            <SettingsSectionHeading title={$text('common.details')} icon="insight" />
             <div class="info-content">
                 <!-- Origin -->
                 <div class="info-row">
@@ -290,11 +287,7 @@
         <!-- Pricing section -->
         {#if model.pricing}
             <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="coins"
-                    title={$text('common.pricing')}
-                />
+                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
                     {#if model.pricing.input_tokens_per_credit}
                         <div class="pricing-row">
@@ -321,11 +314,7 @@
         <!-- Provider section -->
         {#if model.servers && model.servers.length > 0}
             <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="server"
-                    title={$text('common.provider')}
-                />
+                <SettingsSectionHeading title={$text('common.provider')} icon="server" />
                 
                 <div class="provider-list">
                     {#each model.servers as server (server.id)}

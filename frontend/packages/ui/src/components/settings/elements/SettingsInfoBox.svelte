@@ -39,6 +39,7 @@
 
 <div
     class="settings-info-box {type}"
+    data-testid={type === 'success' ? 'settings-info-box-success' : undefined}
     role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
     aria-label={ariaLabel || undefined}
 >

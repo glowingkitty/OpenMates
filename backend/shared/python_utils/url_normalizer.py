@@ -4,7 +4,7 @@
 # Extracts normalized domains from URLs for privacy-preserving owner identification.
 
 import logging
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from typing import Optional
 import re
 
@@ -110,12 +110,57 @@ def sanitize_url_remove_fragment(url: str) -> Optional[str]:
         return None
 
 
+# YouTube video ID: exactly 11 characters, alphanumeric + hyphen + underscore
+_YOUTUBE_VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+# YouTube timestamp: integer seconds, or shorthand like 1h2m3s
+_YOUTUBE_TIMESTAMP_PATTERN = re.compile(r"^(\d+[hms]?)+$")
+
+# YouTube hostnames (with or without www.)
+_YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com"}
+
+
+def _is_youtube_watch_url(parsed: "urlparse") -> bool:
+    """Check if a parsed URL is a YouTube watch page."""
+    return parsed.netloc.lower() in _YOUTUBE_HOSTS and parsed.path == "/watch"
+
+
+def _extract_youtube_safe_params(query_string: str) -> str:
+    """
+    Extract only safe YouTube params (v, t) from a query string.
+
+    Validates:
+    - v (video ID): must be exactly 11 chars, alphanumeric + hyphen + underscore
+    - t (timestamp): must be digits or shorthand (e.g. 1h2m3s)
+
+    All other params (si, utm_source, list, index, etc.) are stripped.
+    """
+    params = parse_qs(query_string, keep_blank_values=False)
+    safe = {}
+
+    # Video ID (required for the URL to work)
+    video_ids = params.get("v", [])
+    if video_ids and _YOUTUBE_VIDEO_ID_PATTERN.match(video_ids[0]):
+        safe["v"] = video_ids[0]
+
+    # Timestamp (optional)
+    timestamps = params.get("t", [])
+    if timestamps and _YOUTUBE_TIMESTAMP_PATTERN.match(timestamps[0]):
+        safe["t"] = timestamps[0]
+
+    return urlencode(safe) if safe else ""
+
+
 def sanitize_url_remove_query_and_fragment(url: str) -> Optional[str]:
     """
     Sanitize URL by removing both query parameters and fragment.
 
     This is used for user/assistant message content to prevent data leakage via
     URL parameters and fragment payloads. Path and domain are preserved.
+
+    Exception: YouTube URLs need the ``v`` parameter (video ID) and optionally
+    ``t`` (timestamp) to function. These are preserved after validation while
+    all other parameters (tracking, analytics) are stripped.
     """
     try:
         parsed = urlparse(url)
@@ -124,13 +169,18 @@ def sanitize_url_remove_query_and_fragment(url: str) -> Optional[str]:
             logger.warning(f"URL has no netloc (domain): {url}")
             return None
 
+        # YouTube exception: preserve video ID (v) and timestamp (t) parameters
+        preserved_query = ""
+        if _is_youtube_watch_url(parsed):
+            preserved_query = _extract_youtube_safe_params(parsed.query)
+
         sanitized = urlunparse(
             (
                 parsed.scheme,
                 parsed.netloc,
                 parsed.path,
                 parsed.params,
-                "",
+                preserved_query,
                 "",
             )
         )
@@ -155,7 +205,7 @@ def sanitize_text_urls_remove_query_and_fragment(text: str) -> str:
 
     def _sanitize_url_token(token: str) -> str:
         trailing = ""
-        while token and token[-1] in ",.;:!?)]}":
+        while token and token[-1] in ",.;:!?)]}\"'":
             trailing = token[-1] + trailing
             token = token[:-1]
         cleaned = sanitize_url_remove_query_and_fragment(token)

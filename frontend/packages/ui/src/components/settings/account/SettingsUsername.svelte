@@ -15,6 +15,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { getApiUrl, getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { userProfile, updateUsername } from '../../../stores/userProfile';
     import SettingsInput from '../../settings/elements/SettingsInput.svelte';
@@ -218,7 +219,7 @@
 
     <!-- Current username info -->
     <div class="current-section">
-        <p class="section-label">{$text('settings.account.username.current')}</p>
+        <SettingsSectionHeading title={$text('settings.account.username.current')} icon="user" />
         <p class="current-value">{currentUsername || '—'}</p>
     </div>
 
@@ -285,14 +286,6 @@
         padding: 1rem 1rem 0.5rem;
     }
 
-    .section-label {
-        margin: 0 0 0.25rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-text-secondary);
-    }
 
     .current-value {
         margin: 0;

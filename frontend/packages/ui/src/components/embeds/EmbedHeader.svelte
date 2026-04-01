@@ -712,6 +712,10 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/mail.svg');
     mask-image: url('@openmates/ui/static/icons/mail.svg');
   }
+  :global([data-skill-icon="home"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/home.svg');
+    mask-image: url('@openmates/ui/static/icons/home.svg');
+  }
 
   /* ==========================================================
      Mobile adjustments (≤730px) — matches ChatHeader.svelte

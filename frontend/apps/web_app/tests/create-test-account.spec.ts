@@ -113,7 +113,7 @@ test.describe('Create persistent test account', () => {
 		logCheckpoint('Opened login dialog.');
 
 		// Switch to signup tab
-		const loginTabs = page.locator('.login-tabs');
+		const loginTabs = page.getByTestId('login-tabs');
 		await expect(loginTabs).toBeVisible();
 		await loginTabs.getByRole('button', { name: /sign up/i }).click();
 
@@ -232,7 +232,7 @@ test.describe('Create persistent test account', () => {
 
 		// ─── Credits + Payment ────────────────────────────────────────────
 		// Buy the first available credits package
-		await page.locator('.credits-package-container .buy-button').first().click();
+		await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
 		logCheckpoint('Reached payment consent step.');
 
 		// Accept limited refund consent
@@ -245,7 +245,7 @@ test.describe('Create persistent test account', () => {
 		logCheckpoint('Filled Stripe card details.');
 
 		// Submit payment
-		await page.locator('.payment-form .buy-button').click();
+		await page.getByTestId('payment-form').getByTestId('buy-button').click();
 		await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 		logCheckpoint('Purchase completed successfully.');
 
@@ -272,11 +272,11 @@ test.describe('Create persistent test account', () => {
 		await assertNoMissingTranslations(page);
 
 		// Verify credits are available (wait briefly for balance to update after payment)
-		const settingsMenuButton = page.locator('.profile-container[role="button"]');
+		const settingsMenuButton = page.getByTestId('profile-container');
 		await settingsMenuButton.click();
-		await expect(page.locator('.settings-menu.visible')).toBeVisible();
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 
-		const creditsAmount = page.locator('.credits-amount');
+		const creditsAmount = page.getByTestId('credits-amount');
 		await expect(creditsAmount).toBeVisible();
 		// Credits may take a moment to reflect after Stripe webhook
 		await page.waitForTimeout(3000);

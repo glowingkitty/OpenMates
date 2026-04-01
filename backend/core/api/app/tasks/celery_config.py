@@ -13,7 +13,7 @@ from celery.schedules import crontab
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
-from backend.core.api.app.utils.request_context import get_request_id, set_request_id
+from backend.core.api.app.utils.request_context import set_request_id
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -134,8 +134,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.app_analytics_tasks'},  # App analytics daily aggregation tasks
      {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
      {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
-     # Add new task configurations here, e.g.:
-     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
+     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
  ]
 
 
@@ -560,28 +559,49 @@ async def prewarm_ai_services():
 # we can detect and debug any issues with task routing or execution.
 #
 # request_id propagation:
-#   1. before_task_publish → injects current request_id into task headers
-#   2. task_prerun → restores request_id from headers into contextvars
-# This allows correlating HTTP requests with their spawned Celery tasks in Loki.
-
-@signals.before_task_publish.connect
-def inject_request_id_header(headers=None, **kwargs):
-    """Propagate the current request_id into Celery task headers."""
-    if headers is not None:
-        request_id = get_request_id()
-        if request_id != "no-request-id":
-            headers["request_id"] = request_id
+#   Previously, manual signal handlers (before_task_publish / task_prerun)
+#   injected/extracted request_id into Celery task headers for log correlation.
+#   Replaced by opentelemetry-instrumentation-celery which propagates W3C
+#   trace context via Celery headers automatically. The manual handlers are
+#   kept commented out below for rollback safety.
+#
+# @signals.before_task_publish.connect
+# def inject_request_id_header(headers=None, **kwargs):
+#     """Propagate the current request_id into Celery task headers."""
+#     if headers is not None:
+#         request_id = get_request_id()
+#         if request_id != "no-request-id":
+#             headers["request_id"] = request_id
+#
+# @signals.task_prerun.connect — request_id restoration portion replaced by OTel.
+# The task_prerun_handler below still logs TASK_STARTED for monitoring.
 
 @signals.task_prerun.connect
 def task_prerun_handler(task_id, task, args, kwargs, **kw):
     """
     Called immediately before a task is executed.
-    Restores request_id from task headers into contextvars and logs task start.
+    Logs task start for monitoring. OTel auto-instrumentation handles
+    trace context propagation (previously manual request_id injection).
     """
-    # Restore request_id from task headers into contextvars for this worker context
-    request_id = getattr(task.request, 'request_id', None)
-    if request_id:
-        set_request_id(request_id)
+    # OTel Celery instrumentation now propagates trace context automatically.
+    # Fall back to manual request_id restoration if OTel is not active.
+    try:
+        from opentelemetry import trace
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx and ctx.trace_id != 0:
+            # OTel is active — set request_id to match trace_id for log correlation
+            set_request_id(format(ctx.trace_id, '032x'))
+        else:
+            # No OTel span — fall back to header-based request_id
+            request_id = getattr(task.request, 'request_id', None)
+            if request_id:
+                set_request_id(request_id)
+    except ImportError:
+        # OTel not installed — use legacy request_id from headers
+        request_id = getattr(task.request, 'request_id', None)
+        if request_id:
+            set_request_id(request_id)
 
     queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
     worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
@@ -914,6 +934,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
     "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
+    "app.tasks.linear_issue_task.create_linear_issue_for_report": "email",
     
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",

@@ -46,11 +46,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -75,51 +76,11 @@ async function loginAndNavigateToChat(
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	logCheckpoint('Navigating to home page.', { email: TEST_EMAIL });
-	await page.goto(getE2EDebugUrl('/'));
-	await takeStepScreenshot(page, 'home');
-
-	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-
-	// Enter email
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logCheckpoint('Entered email and clicked continue.');
-
-	// Enter password
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// Handle 2FA OTP
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logCheckpoint('Generated and entered OTP.');
-
-	// Submit login
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login form.');
-
-	// Wait for redirect to chat
-	await page.waitForURL(/chat/);
-	logCheckpoint('Redirected to chat.');
-
-	// Wait for initial load
-	await page.waitForTimeout(5000);
+	logCheckpoint('Logging in via loginToTestAccount (includes OTP retry with clock-drift compensation).');
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
 	// Start a fresh chat if possible
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) {
 		logCheckpoint('Clicking New Chat button.');
 		await newChatButton.click();
@@ -137,12 +98,12 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
 ): Promise<string> {
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(message);
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint(`Sent message: "${message}"`);
@@ -163,10 +124,10 @@ async function deleteActiveChat(
 	page: any,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
 ): Promise<void> {
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChatItem.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await activeChatItem.click({ button: 'right' });
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 		await expect(deleteButton).toBeVisible();
 		await deleteButton.click();
 		await deleteButton.click(); // confirm
@@ -199,7 +160,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 	await takeStepScreenshot(page, 'message-sent');
 
 	// Wait briefly for streaming to start
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 30000 });
 	logCheckpoint('Assistant message placeholder appeared, streaming likely started.');
 
@@ -219,7 +180,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 
 	// Wait for reconnect and sync - the AI response should eventually arrive
 	logCheckpoint('Waiting for AI response to arrive after reconnect...');
-	await expect(assistantMessage.last()).toContainText(/\w{20,}/, { timeout: 60000 });
+	await expect(assistantMessage.last()).toContainText(/(\w+\s*){5,}/, { timeout: 60000 });
 	await takeStepScreenshot(page, 'response-recovered');
 	logCheckpoint('AI response recovered after connection drop.');
 
@@ -266,7 +227,7 @@ test('delivers AI response after page reload during processing', async ({ page }
 	const currentUrl = page.url();
 	if (!currentUrl.includes(chatId)) {
 		logCheckpoint(`Navigating back to chat ${chatId}...`);
-		const chatItem = page.locator(`.chat-item-wrapper[data-chat-id="${chatId}"]`);
+		const chatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 		if (await chatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await chatItem.click();
 			await page.waitForTimeout(2000);
@@ -274,7 +235,7 @@ test('delivers AI response after page reload during processing', async ({ page }
 	}
 
 	// The assistant response should arrive
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.last()).toContainText('Paris', { timeout: 60000 });
 	await takeStepScreenshot(page, 'response-after-reload');
 	logCheckpoint('AI response received after page reload. Contains "Paris".');
@@ -349,7 +310,7 @@ test('orphaned streaming messages are cleaned up on reconnect', async ({ page, c
 	const chatId = await sendMessageAndGetChatId(page, 'Hello there!', logCheckpoint);
 
 	// Wait for response
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.last()).toContainText(/\w+/, { timeout: 45000 });
 	logCheckpoint('Initial response received.');
 

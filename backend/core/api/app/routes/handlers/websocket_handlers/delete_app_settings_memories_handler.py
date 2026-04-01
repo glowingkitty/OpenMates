@@ -33,7 +33,7 @@ async def handle_delete_app_settings_memories_entry(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-) -> None:
+    user_otel_attrs: dict = None,) -> None:
     """
     Handle deletion of an app settings/memories entry.
 
@@ -50,110 +50,125 @@ async def handle_delete_app_settings_memories_entry(
         device_fingerprint_hash: Source device fingerprint hash
         payload: Must contain { entry_id: str }
     """
+    _otel_span, _otel_token = None, None
     try:
-        entry_id = payload.get("entry_id")
-        if not entry_id or not isinstance(entry_id, str):
-            logger.warning(
-                "[DeleteAppSettingsMemories] Missing entry_id from user %s", user_id[:8]
-            )
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Missing entry_id"}},
-                user_id,
-                device_fingerprint_hash,
-            )
-            return
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("delete_app_settings_memories_entry", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        try:
+            entry_id = payload.get("entry_id")
+            if not entry_id or not isinstance(entry_id, str):
+                logger.warning(
+                    "[DeleteAppSettingsMemories] Missing entry_id from user %s", user_id[:8]
+                )
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Missing entry_id"}},
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
-        # Verify the entry belongs to this user before deleting (zero-knowledge
-        # ownership check — we compare hashed_user_id, never decrypt content).
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-        existing = await directus_service.get_items(
-            "user_app_settings_and_memories",
-            params={
-                "filter": {
-                    "id": {"_eq": entry_id},
-                    "hashed_user_id": {"_eq": hashed_user_id},
+            # Verify the entry belongs to this user before deleting (zero-knowledge
+            # ownership check — we compare hashed_user_id, never decrypt content).
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            existing = await directus_service.get_items(
+                "user_app_settings_and_memories",
+                params={
+                    "filter": {
+                        "id": {"_eq": entry_id},
+                        "hashed_user_id": {"_eq": hashed_user_id},
+                    },
+                    "limit": 1,
+                    "fields": ["id", "app_id", "item_type"],
                 },
-                "limit": 1,
-                "fields": ["id", "app_id", "item_type"],
-            },
-        )
+            )
 
-        if not existing:
-            logger.warning(
-                "[DeleteAppSettingsMemories] Entry %s not found or not owned by user %s",
+            if not existing:
+                logger.warning(
+                    "[DeleteAppSettingsMemories] Entry %s not found or not owned by user %s",
+                    entry_id,
+                    user_id[:8],
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {"message": "Entry not found or access denied"},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
+            entry_meta = existing[0]
+            app_id = entry_meta.get("app_id")
+            item_type = entry_meta.get("item_type")
+
+            await directus_service.delete_item("user_app_settings_and_memories", entry_id)
+            logger.info(
+                "[DeleteAppSettingsMemories] Deleted entry %s for user %s (app=%s, type=%s)",
                 entry_id,
                 user_id[:8],
+                app_id,
+                item_type,
             )
+
+            # ACK to the source device
             await manager.send_personal_message(
                 {
-                    "type": "error",
-                    "payload": {"message": "Entry not found or access denied"},
+                    "type": "app_settings_memories_entry_deleted",
+                    "payload": {
+                        "entry_id": entry_id,
+                        "app_id": app_id,
+                        "item_type": item_type,
+                        "success": True,
+                    },
                 },
                 user_id,
                 device_fingerprint_hash,
             )
-            return
 
-        entry_meta = existing[0]
-        app_id = entry_meta.get("app_id")
-        item_type = entry_meta.get("item_type")
-
-        await directus_service.delete_item("user_app_settings_and_memories", entry_id)
-        logger.info(
-            "[DeleteAppSettingsMemories] Deleted entry %s for user %s (app=%s, type=%s)",
-            entry_id,
-            user_id[:8],
-            app_id,
-            item_type,
-        )
-
-        # ACK to the source device
-        await manager.send_personal_message(
-            {
-                "type": "app_settings_memories_entry_deleted",
-                "payload": {
-                    "entry_id": entry_id,
-                    "app_id": app_id,
-                    "item_type": item_type,
-                    "success": True,
+            # Broadcast deletion to all other devices so they remove from IndexedDB
+            await manager.broadcast_to_user(
+                message={
+                    "type": "app_settings_memories_entry_deleted",
+                    "payload": {
+                        "entry_id": entry_id,
+                        "app_id": app_id,
+                        "item_type": item_type,
+                        "success": True,
+                    },
                 },
-            },
-            user_id,
-            device_fingerprint_hash,
-        )
-
-        # Broadcast deletion to all other devices so they remove from IndexedDB
-        await manager.broadcast_to_user(
-            message={
-                "type": "app_settings_memories_entry_deleted",
-                "payload": {
-                    "entry_id": entry_id,
-                    "app_id": app_id,
-                    "item_type": item_type,
-                    "success": True,
-                },
-            },
-            user_id=user_id,
-            exclude_device_hash=device_fingerprint_hash,
-        )
-
-    except Exception as e:
-        logger.error(
-            "[DeleteAppSettingsMemories] Error for user %s: %s",
-            user_id[:8],
-            e,
-            exc_info=True,
-        )
-        try:
-            await manager.send_personal_message(
-                {
-                    "type": "error",
-                    "payload": {"message": "Failed to delete entry"},
-                },
-                user_id,
-                device_fingerprint_hash,
+                user_id=user_id,
+                exclude_device_hash=device_fingerprint_hash,
             )
-        except Exception as send_err:
+
+        except Exception as e:
             logger.error(
-                "[DeleteAppSettingsMemories] Failed to send error message: %s", send_err
+                "[DeleteAppSettingsMemories] Error for user %s: %s",
+                user_id[:8],
+                e,
+                exc_info=True,
             )
+            try:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {"message": "Failed to delete entry"},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+            except Exception as send_err:
+                logger.error(
+                    "[DeleteAppSettingsMemories] Failed to send error message: %s", send_err
+                )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

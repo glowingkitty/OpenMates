@@ -16,6 +16,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
 
 logger = logging.getLogger(__name__)
 
@@ -365,8 +366,6 @@ async def compress_chat_history(
 
     # Call the compression LLM
     try:
-        from backend.apps.ai.llm_providers.google_client import invoke_google_ai_studio_chat_completions
-
         llm_messages = [{"role": "system", "content": system_prompt}]
         llm_messages.extend(formatted_messages)
 

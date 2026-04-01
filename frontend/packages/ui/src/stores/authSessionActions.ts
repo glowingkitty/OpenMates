@@ -4,7 +4,7 @@
  */
 
 import { get } from "svelte/store";
-import { getApiEndpoint, apiEndpoints } from "../config/api";
+import { getApiEndpoint, apiEndpoints, isDevEnvironment } from "../config/api";
 import {
   currentSignupStep,
   isInSignupProcess,
@@ -19,7 +19,7 @@ import { userProfile, defaultProfile, updateProfile } from "./userProfile";
 import { locale } from "svelte-i18n";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId"; // Import deleteSessionId
-import { logout, deleteAllCookies } from "./authLoginLogoutActions"; // Import logout function and deleteAllCookies
+import { logout, deleteAllCookies, bumpLoginSessionGeneration } from "./authLoginLogoutActions"; // Import logout function, deleteAllCookies, and bumpLoginSessionGeneration
 import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Import WebSocket token utilities
 import { notificationStore } from "./notificationStore"; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from "./userProfile"; // Import to load user profile from IndexedDB
@@ -38,6 +38,7 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
+import { isValidLocale } from "../i18n/types"; // Import to validate localStorage language values (OPE-39)
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
@@ -558,9 +559,15 @@ export async function checkAuth(
         // the browser locale and never corrected). If the user explicitly
         // chose a language locally (stored in localStorage.preferredLanguage),
         // push it to the server so they stay in sync.
-        const localPreferredLanguage =
+        const rawLocalLanguage =
           typeof localStorage !== "undefined"
             ? localStorage.getItem("preferredLanguage")
+            : null;
+        // Validate localStorage value against supported locales (OPE-39: prevents
+        // invalid values like "cs-CZ" from being pushed to the server)
+        const localPreferredLanguage =
+          rawLocalLanguage && isValidLocale(rawLocalLanguage)
+            ? rawLocalLanguage
             : null;
 
         if (
@@ -656,11 +663,12 @@ export async function checkAuth(
         console.error("Failed to save user data to database:", dbError);
       }
 
-      // Start live console log streaming for admin users on session restore.
-      if (data.user.is_admin) {
+      // Start live console log streaming for admin users on session restore,
+      // or for ALL authenticated users on dev (so frontend errors reach OpenObserve).
+      if (data.user.is_admin || isDevEnvironment()) {
         clientLogForwarder.start();
       } else {
-        // Non-admin: resume debug log sharing session if one was active
+        // Non-admin on prod: resume debug log sharing session if one was active
         try {
           const debugSession = localStorage.getItem("debug_session");
           if (debugSession) {
@@ -1127,9 +1135,9 @@ export async function checkAuth(
         // The normal (online) path starts the forwarder in checkAuth()'s happy path.
         // But if the server is unreachable, we restore auth from local IndexedDB here
         // without ever reaching the online success path — so we must start it here.
-        if (localProfile.is_admin) {
+        if (localProfile.is_admin || isDevEnvironment()) {
           console.debug(
-            "[AuthSessionActions] Admin user detected (offline-first) — starting clientLogForwarder",
+            "[AuthSessionActions] Starting clientLogForwarder (offline-first)",
           );
           clientLogForwarder.start();
         } else {
@@ -1253,6 +1261,14 @@ export function setAuthenticatedState(): void {
     "Setting authentication state to authenticated after successful login",
   );
 
+  // CRITICAL: Bump login session generation to signal any in-flight background
+  // logout IIFE (from a previous forced-logout) that a new session is established.
+  // Without this, the IIFE's generation check passes and it POSTs /auth/logout
+  // with the new session's cookies, destroying the freshly-established session.
+  // This is the single chokepoint ALL successful login paths pass through
+  // (passkey, password+TFA, backup code, recovery key).
+  bumpLoginSessionGeneration();
+
   // CRITICAL: Reset phased sync state on login so syncing indicator shows.
   // This is needed because non-auth users have initialSyncCompleted=true (to prevent loading flash).
   // When they log in, we need to reset so the real sync can show progress.
@@ -1267,11 +1283,33 @@ export function setAuthenticatedState(): void {
     "Reset phased sync state for new login (preserving user navigation choices) - syncing indicator will show",
   );
 
+  // OPE-215: Clear the demo-for-everyone hash that was set during non-auth state or forced logout.
+  // Without this, the sync completion handler in +page.svelte reads the stale hash and
+  // auto-navigates to the demo chat instead of the user's last-opened chat.
+  if (
+    typeof window !== "undefined" &&
+    window.location.hash === "#chat-id=demo-for-everyone"
+  ) {
+    // Use replaceState to avoid triggering hashchange events
+    history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+    activeChatStore.clearActiveChat();
+    console.debug(
+      "[setAuthenticatedState] Cleared demo-for-everyone hash on login",
+    );
+  }
+
   authStore.update((state) => ({
     ...state,
     isAuthenticated: true,
     isInitialized: true,
   }));
+  console.debug(
+    "[setAuthenticatedState] authStore.isAuthenticated set to true — downstream $effects should fire",
+  );
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
   deviceVerificationReason.set(null);
@@ -1280,9 +1318,9 @@ export function setAuthenticatedState(): void {
   // The user profile is populated by PasswordAndTfaOtp.svelte (via updateProfile) before
   // dispatching loginSuccess, so is_admin is available here when called from ActiveChat.
   const profile = get(userProfile);
-  if (profile.is_admin) {
+  if (profile.is_admin || isDevEnvironment()) {
     console.debug(
-      "[setAuthenticatedState] Admin user detected — starting clientLogForwarder",
+      "[setAuthenticatedState] Starting clientLogForwarder",
     );
     clientLogForwarder.start();
   } else {

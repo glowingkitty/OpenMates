@@ -61,6 +61,132 @@ export function tipTapToCanonicalMarkdown(doc: TipTapDoc): string {
 }
 
 /**
+ * Convert raw markdown content to human-readable text with embed previews.
+ *
+ * Replaces JSON embed reference blocks (```json\n{"type":"...","embed_id":"..."}\n```)
+ * with resolved plain-text previews. Also replaces embed: links in source quotes
+ * with actual URLs.
+ *
+ * Strategy: regex replacement on the raw markdown string, NOT TipTap doc walking.
+ * The parser converts JSON blocks to embedPreviewLarge nodes (not embed nodes),
+ * which the old TipTap-based approach could not handle.
+ *
+ * Used by: copy-to-clipboard (text/plain), markdown chat export (.md download).
+ * NOT used by: sending to backend, YML export.
+ */
+export async function tipTapToReadableMarkdown(rawMarkdown: string | TipTapDoc): Promise<string> {
+  // Accept both raw markdown strings and TipTap docs (for backward compat with
+  // zipExportService which may pass a TipTap doc). If it's a doc, serialize first.
+  let markdown: string;
+  if (typeof rawMarkdown === "string") {
+    markdown = rawMarkdown;
+  } else {
+    // TipTap doc — serialize to canonical markdown first, then replace embed blocks
+    markdown = tipTapToCanonicalMarkdown(rawMarkdown);
+  }
+
+  if (!markdown) return "";
+
+  // Dynamic imports to avoid pulling heavy dependencies (IndexedDB, TOON decoder)
+  // into the synchronous serializer module.
+  const { renderEmbedAsText } = await import("../data/embedTextRenderers");
+  const { resolveEmbedContent, resolveChildEmbedContents } = await import("../utils/embedContentResolver");
+  const { EMBED_TYPE_NORMALIZATION_MAP } = await import("../data/embedRegistry.generated");
+
+  // Pattern matches JSON embed reference blocks:
+  //   ```json\n{"type":"...","embed_id":"..."}\n```
+  //   ```json_embed\n{...}\n```
+  // Captures the JSON content for parsing.
+  const embedBlockPattern = /```(?:json|json_embed)\n([\s\S]*?)\n```/g;
+
+  // Collect all matches first (since replacement is async)
+  const matches: Array<{ fullMatch: string; json: string; index: number }> = [];
+  let match;
+  while ((match = embedBlockPattern.exec(markdown)) !== null) {
+    matches.push({ fullMatch: match[0], json: match[1].trim(), index: match.index });
+  }
+
+  // Resolve each embed block in parallel
+  const replacements = await Promise.all(
+    matches.map(async ({ fullMatch, json }) => {
+      try {
+        const parsed = JSON.parse(json);
+        const embedId = parsed.embed_id;
+        if (!embedId) return { fullMatch, replacement: fullMatch }; // Not an embed ref
+
+        const resolved = await resolveEmbedContent(embedId);
+        if (!resolved) return { fullMatch, replacement: `[${parsed.type ?? "Embed"}]` };
+
+        // Build registry key (same pattern as embedPreviewRegistry.ts)
+        let registryKey: string;
+        if (resolved.appId && resolved.skillId) {
+          registryKey = `app:${resolved.appId}:${resolved.skillId}`;
+        } else {
+          // Normalize type: server types like "website" → "web-website"
+          const normalizedType = EMBED_TYPE_NORMALIZATION_MAP[resolved.type] ?? resolved.type;
+          registryKey = normalizedType;
+        }
+
+        // Resolve child embeds for composite types
+        let childContents: Record<string, unknown>[] | undefined;
+        if (resolved.childEmbedIds.length > 0) {
+          try {
+            childContents = await resolveChildEmbedContents(resolved.childEmbedIds);
+          } catch {
+            // Child resolution failed — render without children
+          }
+        }
+
+        const text = renderEmbedAsText(registryKey, resolved.content, childContents);
+        return { fullMatch, replacement: text };
+      } catch {
+        // JSON parse failed or resolution error — leave original
+        return { fullMatch, replacement: fullMatch };
+      }
+    }),
+  );
+
+  // Apply replacements in reverse order to preserve indices
+  let result = markdown;
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const { fullMatch, replacement } = replacements[i];
+    const idx = result.lastIndexOf(fullMatch);
+    if (idx !== -1) {
+      result = result.slice(0, idx) + replacement + result.slice(idx + fullMatch.length);
+    }
+  }
+
+  // Replace embed: links in source quotes: > [text](embed:ref) → > [text](url)
+  const sourceQuotePattern = /^(>\s*\[([^\]]*)\])\(embed:([^)]+)\)/gm;
+  const quoteMatches: Array<{ fullMatch: string; prefix: string; quoteText: string; embedRef: string }> = [];
+  let qm;
+  while ((qm = sourceQuotePattern.exec(result)) !== null) {
+    quoteMatches.push({ fullMatch: qm[0], prefix: qm[1], quoteText: qm[2], embedRef: qm[3] });
+  }
+
+  if (quoteMatches.length > 0) {
+    const quoteReplacements = await Promise.all(
+      quoteMatches.map(async ({ fullMatch, prefix, embedRef }) => {
+        try {
+          const resolved = await resolveEmbedContent(embedRef);
+          if (resolved) {
+            const url = resolved.content.url as string | undefined;
+            if (url) return { fullMatch, replacement: `${prefix}(${url})` };
+          }
+        } catch { /* keep original */ }
+        return { fullMatch, replacement: fullMatch };
+      }),
+    );
+
+    for (const { fullMatch, replacement } of quoteReplacements) {
+      result = result.replace(fullMatch, replacement);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Convert markdown to TipTap document JSON format for display
  * This parses markdown and creates appropriate TipTap nodes including embeds
  */

@@ -223,7 +223,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     }
 </script>
 
-<div class="devices-container">
+<div class="devices-container" data-testid="devices-container">
     <h2 class="page-title">{$text('common.devices')}</h2>
     <p class="page-description">{$text('settings.developers_devices_description')}</p>
 
@@ -313,6 +313,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                             {#if !device.approved_at}
                                 <button
                                     class="btn btn-approve"
+                                    data-testid="device-approve-button"
                                     onclick={() => approveDevice(device.id)}
                                     disabled={processingDeviceId === device.id}
                                 >

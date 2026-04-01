@@ -25,7 +25,9 @@ cd frontend/apps/web_app && npm run test:unit
 npm run test:unit -- --coverage
 ```
 
-### Playwright E2E (Docker Only)
+### Playwright E2E (GitHub Actions — NOT local)
+
+> **Claude: NEVER run these docker compose commands directly.** Use `python3 scripts/run_tests.py --spec <name>.spec.ts` instead — it dispatches to GitHub Actions with proper test accounts. The commands below document what the CI runner executes internally.
 
 ```bash
 # Wait for deployment

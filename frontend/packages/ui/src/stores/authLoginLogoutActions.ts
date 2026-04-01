@@ -4,7 +4,7 @@
  */
 
 import { get } from "svelte/store";
-import { getApiEndpoint, getApiUrl, apiEndpoints } from "../config/api";
+import { getApiEndpoint, getApiUrl, apiEndpoints, isDevEnvironment } from "../config/api";
 import {
   currentSignupStep,
   isInSignupProcess,
@@ -63,6 +63,24 @@ let loginSessionGeneration = 0;
  */
 function getLoginSessionGeneration(): number {
   return loginSessionGeneration;
+}
+
+/**
+ * Increments the login session generation counter.
+ *
+ * MUST be called by any login path that establishes a new authenticated session
+ * but does not go through the `login()` function above (e.g., passkey login in
+ * Login.svelte, which calls /auth/login directly via fetch()).
+ *
+ * The counter is checked by the background logout IIFE inside `logout()` — if a
+ * new login bumped it, the IIFE skips the destructive POST /auth/logout and
+ * cookie deletion that would otherwise destroy the freshly-established session.
+ */
+export function bumpLoginSessionGeneration(): void {
+  loginSessionGeneration++;
+  console.debug(
+    `[AuthStore] Bumped loginSessionGeneration to ${loginSessionGeneration} (external login path)`,
+  );
 }
 
 /**
@@ -344,13 +362,14 @@ export async function login(
           console.error("Failed to save user data to database:", dbError);
         }
 
-        // Start live console log streaming for admin users.
+        // Start live console log streaming for admin users,
+        // or for ALL authenticated users on dev (frontend errors → OpenObserve).
         // Placed AFTER the try/catch so a userDB failure cannot prevent the
         // forwarder from starting — a DB error is non-fatal for log forwarding.
-        if (data.user?.is_admin) {
+        if (data.user?.is_admin || isDevEnvironment()) {
           clientLogForwarder.start();
         } else {
-          // Non-admin: resume debug log sharing session if one was active
+          // Non-admin on prod: resume debug log sharing session if one was active
           try {
             const debugSession = localStorage.getItem("debug_session");
             if (debugSession) {

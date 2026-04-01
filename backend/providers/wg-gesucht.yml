@@ -1,0 +1,17 @@
+# backend/providers/wg_gesucht.yml
+#
+# Configuration for WG-Gesucht provider.
+# Used by the Home app for searching shared apartments and rooms.
+
+provider_id: "wg-gesucht"
+name: "WG-Gesucht"
+description: "Germany's leading platform for shared apartments (WG) and room listings."
+logo_svg: "icons/wg-gesucht.svg"
+region: "EU" # WG-Gesucht HQ is in Munich, Germany
+
+# No API key required — uses web scraping
+no_api_key: true
+
+# Pricing information
+pricing:
+  per_request_credits: 10 # 10 credits per home search request (set in app.yml)

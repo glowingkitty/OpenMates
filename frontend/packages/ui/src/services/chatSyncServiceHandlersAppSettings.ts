@@ -18,7 +18,8 @@ import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
-import { decryptWithMasterKey } from "./cryptoService";
+import { encryptWithChatKey } from "./encryption/MessageEncryptor";
+import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { get } from "svelte/store";
 import type { Message } from "../types/chat";
@@ -1064,7 +1065,6 @@ async function saveAppSettingsMemoriesResponseMessage(
   // Import required utilities
   const { generateUUID } = await import("../message_parsing/utils");
   const { webSocketService } = await import("./websocketService");
-  const { encryptWithChatKey } = await import("./cryptoService");
 
   // Generate unique message ID (format: last 10 chars of chat_id + uuid)
   const chatIdSuffix = chatId.slice(-10);
@@ -1216,7 +1216,6 @@ async function saveAppSettingsMemoriesRequestMessage(
   // Import required utilities
   const { generateUUID } = await import("../message_parsing/utils");
   const { webSocketService } = await import("./websocketService");
-  const { encryptWithChatKey } = await import("./cryptoService");
 
   // Generate unique message ID (format: last 10 chars of chat_id + uuid)
   const chatIdSuffix = chatId.slice(-10);
@@ -2216,8 +2215,7 @@ export async function handleReminderFiredImpl(
     // would give the system message a timestamp AFTER the AI response it triggered.
     const firedAt = payload.fired_at || Math.floor(Date.now() / 1000);
 
-    const { encryptWithChatKey } = await import("./cryptoService");
-    const { webSocketService } = await import("./websocketService");
+      const { webSocketService } = await import("./websocketService");
 
     // For existing_chat: chat must exist locally with a chat key
     // For new_chat: we need to create the chat locally first
@@ -2397,9 +2395,27 @@ export async function handleReminderFiredImpl(
       }),
     );
 
-    // Show in-app notification for the reminder
-    // This ensures the user sees a toast notification even if they're in a different chat
-    const notificationTitle = chat_title || "Reminder";
+    // Show in-app notification for the reminder.
+    // For existing_chat: use the decrypted chat title and category so the user
+    // can immediately identify which chat the reminder is about.
+    // For new_chat: use the chat_title from the payload (the reminder prompt excerpt).
+    let notificationTitle = chat_title || "Reminder";
+    let notificationCategory: string | undefined;
+
+    if (target_type === "existing_chat") {
+      try {
+        const { chatMetadataCache } = await import("./chatMetadataCache");
+        const existingChat = await chatDB.getChat(chat_id);
+        if (existingChat) {
+          const meta = await chatMetadataCache.getDecryptedMetadata(existingChat);
+          if (meta?.title) notificationTitle = meta.title;
+          if (meta?.category) notificationCategory = meta.category;
+        }
+      } catch {
+        // Best-effort — fall back to payload chat_title
+      }
+    }
+
     // Extract the prompt from the reminder message content (strip the markdown formatting)
     const promptMatch = content.match(/\*\*Reminder\*\*\n\n([\s\S]*?)\n\n---/);
     const notificationPreview = promptMatch
@@ -2410,6 +2426,7 @@ export async function handleReminderFiredImpl(
       notificationTitle,
       notificationPreview,
       undefined,
+      notificationCategory,
     );
 
     console.info(

@@ -45,6 +45,18 @@ python3 scripts/sessions.py lock --session <ID> --type docker
 python3 scripts/sessions.py stale-docs --tags frontend
 ```
 
+## Spawn Parallel Sessions
+
+Spawn Claude Code sessions in separate Zellij tabs for parallel work:
+```bash
+# Plan mode (default, read-only) — research and planning
+python3 scripts/sessions.py spawn-chat --prompt "Research X" --name "research-X"
+
+# Execute mode (full access) — only when user explicitly requests
+python3 scripts/sessions.py spawn-chat --prompt-file prompt.txt --name "fix-task" --mode execute
+```
+**Always ask user confirmation before spawning.** Attach: `zellij attach <name>` or localhost:8082.
+
 ## Multi-Session Tasks
 
 For tasks spanning >1 session or touching >3 files:

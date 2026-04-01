@@ -2493,20 +2493,25 @@ async def handle_preprocessing(
     
     # --- Rule-based skill forcing based on embed type in message history ---
     # The preprocessing LLM occasionally fails to select the correct skills when the
-    # message history contains file embeds (images, PDFs). Without the right skills
-    # preselected the main LLM receives the toon block but has no tool to call, causing
-    # hallucinated content. We fix this with deterministic rules that run AFTER LLM
-    # validation and override any LLM omission. Rules only fire when the skill is
-    # actually available (i.e., the app is healthy and discovered) and the user has not
-    # explicitly @mentioned specific skills.
+    # message history contains file embeds (images, PDFs, videos, websites). Without
+    # the right skills preselected the main LLM receives the toon block but has no
+    # tool to call, causing hallucinated content or wrong schema guesses. We fix this
+    # with deterministic rules that run AFTER LLM validation and override any LLM
+    # omission. Rules only fire when the skill is actually available (i.e., the app
+    # is healthy and discovered) and the user has not explicitly @mentioned skills.
     #
-    # Detection relies on substrings that are always present in toon-encoded embed blocks:
+    # Detection relies on substrings present in toon-encoded or resolved embed blocks:
     #   images/upload:  app_id: images  +  skill_id: upload
     #   pdf (finished): app_id: pdf     +  status: finished
+    #   video embeds:   "type": "video" (raw ref) or [VIDEO EMBED (URL fallback)
+    #                   or youtube.com / youtu.be URLs in content
+    #   website embeds: "type": "website" (raw ref) or [WEBSITE EMBED (URL fallback)
     if not user_requested_skills_only:
         # Single pass over message history — collect embed types in one scan
         has_image_upload_embed = False
         has_pdf_embed = False
+        has_video_embed = False
+        has_website_embed = False
         for msg in request_data.message_history:
             content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
             if not isinstance(content, str):
@@ -2516,7 +2521,18 @@ async def handle_preprocessing(
                 has_image_upload_embed = True
             if not has_pdf_embed and "app_id: pdf" in content and "status: finished" in content:
                 has_pdf_embed = True
-            if has_image_upload_embed and has_pdf_embed:
+            # Video embed references (raw JSON, URL fallback, or YouTube URLs in content)
+            if not has_video_embed:
+                if ('"type": "video"' in content or '"type":"video"' in content
+                        or "[VIDEO EMBED" in content
+                        or "youtube.com/watch" in content or "youtu.be/" in content):
+                    has_video_embed = True
+            # Website embed references (raw JSON or URL fallback)
+            if not has_website_embed:
+                if ('"type": "website"' in content or '"type":"website"' in content
+                        or "[WEBSITE EMBED" in content):
+                    has_website_embed = True
+            if has_image_upload_embed and has_pdf_embed and has_video_embed and has_website_embed:
                 break  # No need to scan further
 
         # --- images-view ---
@@ -2578,6 +2594,42 @@ async def handle_preprocessing(
             else:
                 logger.debug(
                     f"{log_prefix} [RULE_BASED] 'math-calculate' already preselected by LLM — no override needed."
+                )
+
+        # --- videos-get_transcript ---
+        # When the message contains a video embed reference (YouTube URL, raw embed ref,
+        # or URL fallback text), force the transcript skill so the LLM can fetch and
+        # summarize the video. Without this, the preprocessing LLM may classify the
+        # request as general_knowledge and the main LLM won't have the tool available.
+        if has_video_embed and "videos-get_transcript" in available_skill_ids:
+            if "videos-get_transcript" not in validated_relevant_skills:
+                validated_relevant_skills = ["videos-get_transcript"] + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'videos-get_transcript' into preselected skills: "
+                    f"detected video embed reference or YouTube URL in message history. "
+                    f"(Prevents misrouting when preprocessing LLM misses video skill.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'videos-get_transcript' already preselected by LLM — no override needed."
+                )
+
+        # --- web-read ---
+        # When the message contains a website embed reference, force web-read so the LLM
+        # can fetch and summarize the page content. Without this, the LLM may only have
+        # web-search (via always_include) and either skip reading entirely or call web-read
+        # without its schema, guessing the parameter format wrong (e.g. urls[] vs url).
+        if has_website_embed and "web-read" in available_skill_ids:
+            if "web-read" not in validated_relevant_skills:
+                validated_relevant_skills.append("web-read")
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'web-read' into preselected skills: "
+                    f"detected website embed reference in message history. "
+                    f"(Ensures LLM has the correct web-read schema instead of guessing.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'web-read' already preselected by LLM — no override needed."
                 )
 
     # --- Determine if hardcoded disclaimer injection is required ---

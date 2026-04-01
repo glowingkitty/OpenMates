@@ -145,58 +145,60 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="product-preview" class:mobile={isMobileLayout}>
-      <div class="preview-image-wrap">
-        {#if imageUrl}
-          <img class="preview-image" src={imageUrl} alt={cardTitle} loading="lazy" />
-        {:else}
-          <div class="preview-image-placeholder">🛒</div>
-        {/if}
-        {#if onSale}
-          <span class="badge badge-sale">{$text('embeds.shopping.sale')}</span>
-        {/if}
-        {#if attributes?.is_new}
-          <span class="badge badge-new">{$text('embeds.shopping.new')}</span>
-        {/if}
-      </div>
-
-      <div class="preview-body">
-        <div class="product-title">{cardTitle}</div>
-        {#if brand}
-          <div class="product-brand">{brand}</div>
-        {/if}
-
-        <div class="price-row">
-          {#if displayPrice}
-            <span class="product-price" class:sale={onSale}>{displayPrice}</span>
-          {:else}
-            <span class="no-price">{$text('embeds.shopping.price_unavailable')}</span>
+      <div class="product-content-row">
+        <!-- Text content (left side) -->
+        <div class="product-text">
+          <div class="product-title">{cardTitle}</div>
+          {#if brand}
+            <div class="product-brand">{brand}</div>
           {/if}
-          {#if onSale && displayOldPrice}
-            <span class="old-price">{displayOldPrice}</span>
+
+          <div class="price-row">
+            {#if displayPrice}
+              <span class="product-price" class:sale={onSale}>{displayPrice}</span>
+            {:else}
+              <span class="no-price">{$text('embeds.shopping.price_unavailable')}</span>
+            {/if}
+            {#if onSale && displayOldPrice}
+              <span class="old-price">{displayOldPrice}</span>
+            {/if}
+          </div>
+
+          {#if grammage}
+            <div class="grammage">{grammage}</div>
+          {/if}
+
+          {#if rating != null}
+            <div class="rating-row">
+              <span class="rating">★ {rating.toFixed(1)}</span>
+              {#if reviews != null}
+                <span class="reviews">({reviews.toLocaleString()})</span>
+              {/if}
+              {#if prime}
+                <span class="prime">Prime</span>
+              {/if}
+            </div>
+          {/if}
+
+          {#if tags.length > 0}
+            <div class="tags-row">
+              {#each tags as tag}
+                <span class="tag">{tag}</span>
+              {/each}
+            </div>
           {/if}
         </div>
 
-        {#if grammage}
-          <div class="grammage">{grammage}</div>
-        {/if}
-
-        {#if rating != null}
-          <div class="rating-row">
-            <span class="rating">★ {rating.toFixed(1)}</span>
-            {#if reviews != null}
-              <span class="reviews">({reviews.toLocaleString()})</span>
+        <!-- Image (right side) -->
+        {#if imageUrl && !isMobileLayout}
+          <div class="product-preview-image">
+            {#if onSale}
+              <span class="badge badge-sale">{$text('embeds.shopping.sale')}</span>
             {/if}
-            {#if prime}
-              <span class="prime">Prime</span>
+            {#if attributes?.is_new}
+              <span class="badge badge-new">{$text('embeds.shopping.new')}</span>
             {/if}
-          </div>
-        {/if}
-
-        {#if tags.length > 0}
-          <div class="tags-row">
-            {#each tags as tag}
-              <span class="tag">{tag}</span>
-            {/each}
+            <img src={imageUrl} alt={cardTitle} loading="lazy" />
           </div>
         {/if}
       </div>
@@ -209,48 +211,65 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
+    justify-content: center;
   }
 
-  .preview-image-wrap {
+  .product-preview.mobile {
+    justify-content: flex-start;
+  }
+
+  .product-content-row {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+  }
+
+  .product-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 0 1 55%;
+    min-width: 0;
+    align-self: center;
+    padding: 2px 0;
+  }
+
+  /* Image on right side */
+  .product-preview-image {
     position: relative;
-    width: 100%;
-    height: 88px;
-    background: var(--color-grey-10);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .product-preview.mobile .preview-image-wrap {
-    height: 72px;
-  }
-
-  .preview-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    padding: 6px;
-    box-sizing: border-box;
-  }
-
-  .preview-image-placeholder {
-    width: 100%;
-    height: 100%;
+    flex: 1;
+    min-width: 0;
+    height: 171px;
+    transform: translateX(20px);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    opacity: 0.45;
+    background: var(--color-grey-10);
+  }
+
+  .product-preview-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    padding: 8px;
+    box-sizing: border-box;
   }
 
   .badge {
     position: absolute;
     top: 6px;
-    right: 6px;
+    right: 26px;
     padding: 2px 7px;
     border-radius: 100px;
     font-size: 10px;
     font-weight: 700;
     color: #fff;
+    z-index: 1;
   }
 
   .badge-sale {
@@ -260,14 +279,6 @@
   .badge-new {
     background: var(--color-primary);
     top: 30px;
-  }
-
-  .preview-body {
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-height: 0;
   }
 
   .product-title {

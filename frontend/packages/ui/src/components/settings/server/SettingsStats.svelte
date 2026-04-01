@@ -15,7 +15,7 @@
     import { onMount } from 'svelte';
     import { getApiEndpoint, text } from '@repo/ui';
     import { fade } from 'svelte/transition';
-    import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
 
     // ============================================================================
     // TYPE DEFINITIONS
@@ -429,11 +429,9 @@
 </script>
 
 <div class="server-stats" in:fade={{ duration: 300 }}>
-    <SettingsItem
-        type="heading"
-        icon="usage"
-        subtitleTop={$text('settings.server_stats.description')}
+    <SettingsSectionHeading
         title={$text('settings.server_stats.title')}
+        icon="usage"
     />
 
     {#if isLoading}

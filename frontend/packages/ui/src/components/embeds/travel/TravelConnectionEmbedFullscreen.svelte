@@ -1,28 +1,35 @@
 <!--
   frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
-  
+
   Fullscreen detail view for a single travel connection (child embed).
-  Uses UnifiedEmbedFullscreen as base and shows leg-by-leg, segment-by-segment detail.
-  
-  Layout:
-  - Header: Price + route + trip type
-  - For each leg:
-    - Leg header (e.g., "Outbound: Munich → London")
-    - Timeline of segments with departure/arrival times, stations, carrier, flight number
-  - Footer: Booking info (seats remaining, last ticketing date)
+  Uses EntryWithMapTemplate for map-background layout with overlapping detail card.
+
+  Layout (wide):
+  - Gradient header: price, route, trip info, CTA
+  - Full-background map showing flight arc (great-circle or FR24 track)
+  - Detail card overlaid on left: card-based flight details with segment cards
+
+  Layout (narrow/mobile):
+  - Gradient header
+  - Map strip (150px)
+  - Stacked detail card with scrollable segment cards
+
+  Figma: node 4950-44635 (fullscreen), node 4956-45277 (flight details card)
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { onDestroy } from 'svelte';
   import { notificationStore } from '../../../stores/notificationStore';
   import { getApiEndpoint } from '../../../config/api';
   import { embedStore } from '../../../services/embedStore';
   import 'leaflet/dist/leaflet.css';
-  import type { Map as LeafletMap, TileLayer } from 'leaflet';
+  import type { Map as LeafletMap } from 'leaflet';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
+  import { countryCodeToFlag } from '../../../utils/countryFlag';
   
   /** Segment data within a leg */
   interface SegmentData {
@@ -38,6 +45,12 @@
     arrival_latitude?: number;
     arrival_longitude?: number;
     duration: string;
+    /** Country codes (ISO 3166-1 alpha-2) for flag emoji display */
+    departure_country_code?: string;
+    arrival_country_code?: string;
+    /** Daytime indicators for time badge color coding (sunrise/sunset-aware) */
+    departure_is_daytime?: boolean;
+    arrival_is_daytime?: boolean;
     /** Rich metadata from Google Flights */
     airplane?: string;
     airline_logo?: string;
@@ -93,6 +106,9 @@
     carrier_codes?: string[];
     hash?: string;
     legs?: LegData[];
+    /** Country codes for route header flag emojis (ISO 3166-1 alpha-2) */
+    origin_country_code?: string;
+    destination_country_code?: string;
     /** Rich metadata from Google Flights */
     airline_logo?: string;
     co2_kg?: number;
@@ -213,6 +229,80 @@
     return `${stops} stops`;
   }
   
+  // ── Derived values for the redesigned card-based layout ──
+
+  /** Route header with flags: "🇩🇪 Berlin → 🇹🇭 Bangkok" */
+  let routeHeaderWithFlags = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    if (!conn) return '';
+    const originFlag = conn.origin_country_code ? countryCodeToFlag(conn.origin_country_code) + ' ' : '';
+    const destFlag = conn.destination_country_code ? countryCodeToFlag(conn.destination_country_code) + ' ' : '';
+    const originCity = conn.origin?.replace(/\s*\([^)]+\)/, '') || conn.origin || '';
+    const destCity = conn.destination?.replace(/\s*\([^)]+\)/, '') || conn.destination || '';
+    return `${originFlag}${originCity} → ${destFlag}${destCity}`;
+  });
+
+  /** Travel class from first segment (e.g., "Economy class") */
+  let travelClassLabel = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    const firstSeg = conn?.legs?.[0]?.segments?.[0];
+    if (firstSeg?.travel_class) return `${firstSeg.travel_class} class`;
+    return '';
+  });
+
+  /** Starting airport full name */
+  let startAirportName = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    const firstSeg = conn?.legs?.[0]?.segments?.[0];
+    if (!firstSeg) return '';
+    const origin = conn?.legs?.[0]?.origin || '';
+    return origin || firstSeg.departure_station;
+  });
+
+  /** Subtitle for header: "Berlin (BER) → Bangkok (BKK)\nSat, Mar 28 · 31h 20m · 2 stops" */
+  let headerSubtitle = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    const parts: string[] = [];
+    if (routeDisplay) parts.push(routeDisplay);
+    const meta: string[] = [];
+    if (conn?.departure) {
+      const d = formatDate(conn.departure);
+      if (d) meta.push(d);
+    }
+    if (conn?.duration) meta.push(conn.duration);
+    if (conn?.stops !== undefined) meta.push(getStopsLabel(conn.stops));
+    if (meta.length) parts.push(meta.join(' · '));
+    return parts.join('\n');
+  });
+
+  /** Price header: "1.111 EUR | One way" */
+  let priceHeader = $derived.by(() => {
+    if (!formattedPrice) return '';
+    return `${formattedPrice} | ${tripTypeLabel}`;
+  });
+
+  /** Map center derived from midpoint of route waypoints */
+  let mapCenter = $derived.by(() => {
+    if (routeWaypoints.length < 2) return undefined;
+    const lats = routeWaypoints.map(w => w.lat);
+    const lngs = routeWaypoints.map(w => w.lng);
+    return {
+      lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+      lon: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+    };
+  });
+
+  /** Airline logos for the header area (from carrier codes) */
+  let headerAirlineLogos = $derived.by(() => {
+    const conn = connection as MaybeConnection;
+    const codes = conn?.carrier_codes;
+    if (!codes || !Array.isArray(codes) || codes.length === 0) return [];
+    return codes.slice(0, 3).map(code => ({
+      code,
+      url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN),
+    }));
+  });
+
   // ---------------------------------------------------------------------------
   // Three-state booking button
   // State: 'idle' -> 'loading' -> 'loaded' (or 'error')
@@ -551,9 +641,17 @@
    */
   async function handleLoadBookingLink() {
     if (!connection.booking_token || bookingState === 'loading') return;
-    
+
+    // Debug: trace booking state
+    console.debug('[TravelConnectionEmbedFullscreen] handleLoadBookingLink:', {
+      booking_context: connection.booking_context,
+      booking_token: connection.booking_token?.substring(0, 20),
+      embedId,
+      hashedChatId,
+    });
+
     bookingState = 'loading';
-    
+
     try {
       const response = await fetch(getApiEndpoint('/v1/apps/travel/booking-link'), {
         method: 'POST',
@@ -860,7 +958,7 @@
    * Uses jspdf (dynamically imported) to create a clean A4 document
    * with route, price, date, leg details, and carrier info.
    */
-  async function handleDownload() {
+  async function _handleDownload() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -1008,28 +1106,14 @@
   }
   
   // ---------------------------------------------------------------------------
-  // Route map (Leaflet / OpenStreetMap)
+  // Route map (via EntryWithMapTemplate's onMapReady callback)
   // ---------------------------------------------------------------------------
-  
-  /** Reference to the map container DOM element */
-  let mapContainer: HTMLDivElement | undefined = $state(undefined);
-  
-  /** Leaflet module reference (dynamically imported) */
+
+  /** Leaflet module reference (set by onMapReady) */
   let L: typeof import('leaflet') | null = null;
-  
-  /** Leaflet map instance */
+
+  /** Leaflet map instance (set by onMapReady) */
   let map: LeafletMap | null = null;
-  
-  /** Whether the map has been initialized */
-  let mapInitialized = $state(false);
-  
-  /** Detect dark mode from CSS custom property or media query */
-  let isDarkMode = $derived.by(() => {
-    if (typeof window === 'undefined') return false;
-    const cssVar = getComputedStyle(document.documentElement).getPropertyValue('--is-dark-mode').trim();
-    if (cssVar === '1' || cssVar === 'true') return true;
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-  });
   
   /**
    * Collect all unique airport coordinates from the connection legs/segments.
@@ -1130,958 +1214,287 @@
   }
 
   /**
-   * Initialize the Leaflet map when the container is mounted and waypoints are available.
+   * onMapReady callback for EntryWithMapTemplate.
+   * Called with the raw Leaflet map instance and L module when the map is mounted.
+   * Draws flight arcs, FR24 tracks, and airport markers.
    */
-  async function initializeMap() {
-    if (!mapContainer || routeWaypoints.length < 2 || mapInitialized) return;
-    
+  function handleMapReady(mapInstance: unknown, leafletModule: unknown) {
+    map = mapInstance as LeafletMap;
+    L = leafletModule as typeof import('leaflet');
+
+    if (!L || !map || routeWaypoints.length < 2) return;
+
     try {
-      L = await import('leaflet');
-      
-      // Create map with default view
-      const firstWp = routeWaypoints[0];
-      map = L.map(mapContainer, {
-        center: [firstWp.lat, firstWp.lng],
-        zoom: 5,
-        zoomControl: true,
-        scrollWheelZoom: false,
-        attributionControl: true,
-      });
-      
-      // Add OSM tile layer
-      const tileLayer: TileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        className: isDarkMode ? 'dark-tiles' : '',
-      }).addTo(map);
-      
-      // Custom airport marker icon
       const airportIcon = L.divIcon({
         className: 'travel-route-marker',
         html: '<div class="marker-dot"></div>',
         iconSize: [16, 16],
         iconAnchor: [8, 8],
       });
-      
-      // Add markers for each waypoint
+
       for (const wp of routeWaypoints) {
         L.marker([wp.lat, wp.lng], { icon: airportIcon })
           .addTo(map)
           .bindPopup(wp.code);
       }
-      
-      // Draw the flight route polyline.
-      // If real GPS track data is available from Flightradar24, use it for a
-      // precise actual path. Otherwise, fall back to an estimated great-circle arc.
-      let boundsLatLngs: import('leaflet').LatLng[];
 
-      if (resolvedFlightTrack && resolvedFlightTrack.tracks.length >= 2) {
-        // Use real FR24 GPS track data
-        const trackLatLngs = resolvedFlightTrack.tracks.map(p => L.latLng(p.lat, p.lon));
-        L.polyline(trackLatLngs, {
-          color: 'var(--color-primary, #6366f1)',
-          weight: 2.5,
-          opacity: 0.85,
-        }).addTo(map);
-        boundsLatLngs = trackLatLngs;
-      } else {
-        // Fall back to estimated great-circle arcs between waypoints
-        for (let i = 0; i < routeWaypoints.length - 1; i++) {
-          const wp1 = routeWaypoints[i];
-          const wp2 = routeWaypoints[i + 1];
-          const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
-          const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
-          L.polyline(arcLatLngs, {
-            color: 'var(--color-primary, #6366f1)',
-            weight: 2.5,
-            opacity: 0.7,
-          }).addTo(map);
-        }
-        boundsLatLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
-      }
-
-      // Fit bounds to show the full route with padding
-      const bounds = L.latLngBounds(boundsLatLngs);
-      map.fitBounds(bounds, { padding: [40, 40] });
-      
-      // Listen for dark mode changes
-      const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const updateDarkMode = () => {
-        if (tileLayer && map) {
-          const container = tileLayer.getContainer();
-          if (container) {
-            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-              container.classList.add('dark-tiles');
-            } else {
-              container.classList.remove('dark-tiles');
-            }
-          }
-        }
-      };
-      darkModeQuery.addEventListener('change', updateDarkMode);
-      
-      mapInitialized = true;
+      drawFlightPath();
     } catch (err) {
-      console.error('[TravelConnectionEmbedFullscreen] Failed to initialize map:', err);
+      console.error('[TravelConnectionEmbedFullscreen] Failed to render map overlays:', err);
     }
   }
-  
-  // Initialize map when container is ready and waypoints are available
+
+  function drawFlightPath() {
+    if (!L || !map) return;
+
+    let boundsLatLngs: import('leaflet').LatLng[];
+
+    if (resolvedFlightTrack && resolvedFlightTrack.tracks.length >= 2) {
+      const trackLatLngs = resolvedFlightTrack.tracks.map(p => L.latLng(p.lat, p.lon));
+      L.polyline(trackLatLngs, {
+        color: 'var(--color-primary, #6366f1)',
+        weight: 2.5,
+        opacity: 0.85,
+      }).addTo(map);
+      boundsLatLngs = trackLatLngs;
+    } else {
+      for (let i = 0; i < routeWaypoints.length - 1; i++) {
+        const wp1 = routeWaypoints[i];
+        const wp2 = routeWaypoints[i + 1];
+        const arcPoints = greatCircleArc(wp1.lat, wp1.lng, wp2.lat, wp2.lng, 60);
+        const arcLatLngs = arcPoints.map(([lat, lng]) => L.latLng(lat, lng));
+        L.polyline(arcLatLngs, {
+          color: 'var(--color-primary, #6366f1)',
+          weight: 2.5,
+          opacity: 0.7,
+        }).addTo(map);
+      }
+      boundsLatLngs = routeWaypoints.map(wp => L.latLng(wp.lat, wp.lng));
+    }
+
+    const bounds = L.latLngBounds(boundsLatLngs);
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }
+
+  // Redraw flight path when FR24 track data loads after map is already mounted
   $effect(() => {
-    if (mapContainer && routeWaypoints.length >= 2 && !mapInitialized) {
-      initializeMap();
+    if (resolvedFlightTrack && map && L) {
+      drawFlightPath();
     }
   });
-  
+
   // Cleanup on destroy
   onDestroy(() => {
-    if (map) {
-      map.remove();
-      map = null;
-    }
+    map = null;
+    L = null;
   });
 </script>
 
 {#if connection}
-<UnifiedEmbedFullscreen
+<EntryWithMapTemplate
   appId="travel"
   skillId="connection"
   {onClose}
   onCopy={handleCopy}
-  onDownload={handleDownload}
   skillIconName="travel"
-  embedHeaderTitle={formattedPrice}
-  embedHeaderSubtitle={routeDisplay}
+  embedHeaderTitle={priceHeader}
+  embedHeaderSubtitle={headerSubtitle}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {mapCenter}
+  mapZoom={4}
+  onMapReady={handleMapReady}
 >
   {#snippet embedHeaderCta()}
-    <!-- Booking CTA only — trip type and CO2 are shown in the info row below the map -->
-    {#if bookingState === 'loaded' && resolvedBookingUrl}
-      <button class="cta-button" onclick={handleOpenBookingUrl}>
-        {$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)}
-      </button>
-    {:else if bookingState === 'loading'}
-      <div class="cta-button cta-loading">
-        <span class="cta-spinner"></span>
+    <!-- Airline logos in header -->
+    {#if headerAirlineLogos.length > 0}
+      <div class="header-airline-logos" data-testid="header-airline-logos">
+        {#each headerAirlineLogos as logo}
+          <img
+            class="header-airline-logo"
+            src={logo.url}
+            alt={logo.code}
+            width="28"
+            height="28"
+            loading="lazy"
+          />
+        {/each}
       </div>
+    {/if}
+    {#if bookingState === 'loaded' && resolvedBookingUrl}
+      <EmbedHeaderCtaButton label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+    {:else if bookingState === 'loading'}
+      <EmbedHeaderCtaButton label="" variant="loading" />
     {:else if bookingState === 'error'}
-      <button class="cta-button cta-fallback" onclick={handleOpenGoogleFlights}>
-        {$text('embeds.open_google_flights')}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
     {:else if connection.booking_token && bookingState === 'idle'}
-      <button class="cta-button" onclick={handleLoadBookingLink}>
-        {$text('embeds.get_booking_link')}
-      </button>
+      <EmbedHeaderCtaButton label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
     {/if}
   {/snippet}
 
-  {#snippet content()}
-    <div class="connection-fullscreen">
-      <!-- Carriers subtitle (moved here from header since price/route are now in banner) -->
-      {#if connection.carriers && connection.carriers.length > 0}
-        <div class="carriers-row">{connection.carriers.join(', ')}</div>
+  {#snippet detailContent(_childContext)}
+    <div class="flight-card" data-testid="flight-details-card">
+      {#if routeHeaderWithFlags}
+        <div class="route-header-pill" data-testid="route-header">{routeHeaderWithFlags}</div>
       {/if}
 
-      <!-- Trip type + CO2 info row — shown here in the details area instead of next to the CTA -->
-      <div class="flight-info-row">
-        <span class="info-badge info-trip-type">{tripTypeLabel}</span>
-        {#if connection.co2_kg != null}
-          <span
-            class="info-badge info-co2"
-            class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}
-            class:co2-bad={connection.co2_difference_percent != null && connection.co2_difference_percent > 20}
-          >
-            {connection.co2_kg} kg CO2
-            {#if connection.co2_difference_percent != null}
-              {connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical
-            {/if}
-          </span>
-        {/if}
-      </div>
-      
-      <!-- Route Map (OpenStreetMap via Leaflet) -->
-      {#if routeWaypoints.length >= 2}
-        <div
-          class="route-map-container"
-          class:track-loading={flightTrackState === 'loading'}
-          bind:this={mapContainer}
-        ></div>
-        <!-- FR24 attribution badge — shown only when real track data is loaded -->
-        {#if flightTrackState === 'loaded' && resolvedFlightTrack}
-          <div class="fr24-attribution">
-            Track: <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer">Flightradar24</a>
-          </div>
-        {/if}
+      {#if travelClassLabel}
+        <div class="travel-class-label">{travelClassLabel}</div>
       {/if}
 
-      <!-- Actual flight details (from Flightradar24) — shown only when track is loaded -->
-      {#if flightTrackState === 'loaded' && resolvedFlightTrack}
-        <div class="actual-flight-details">
-          {#if resolvedFlightTrack.diverted}
-            <div class="diversion-warning">
-              <span>Flight diverted{resolvedFlightTrack.actual_destination_iata ? ` to ${resolvedFlightTrack.actual_destination_iata}` : ''}</span>
-            </div>
-          {/if}
-          <div class="actual-details-grid">
-            {#if resolvedFlightTrack.actual_takeoff}
-              <div class="actual-detail-row">
-                <span class="actual-detail-label">Actual takeoff</span>
-                <span class="actual-detail-value">{new Date(resolvedFlightTrack.actual_takeoff).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-            {/if}
-            {#if resolvedFlightTrack.actual_landing}
-              <div class="actual-detail-row">
-                <span class="actual-detail-label">Actual landing</span>
-                <span class="actual-detail-value">{new Date(resolvedFlightTrack.actual_landing).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-            {/if}
-            {#if resolvedFlightTrack.runway_takeoff}
-              <div class="actual-detail-row">
-                <span class="actual-detail-label">Runway (dep.)</span>
-                <span class="actual-detail-value mono">{resolvedFlightTrack.runway_takeoff}</span>
-              </div>
-            {/if}
-            {#if resolvedFlightTrack.runway_landing}
-              <div class="actual-detail-row">
-                <span class="actual-detail-label">Runway (arr.)</span>
-                <span class="actual-detail-value mono">{resolvedFlightTrack.runway_landing}</span>
-              </div>
-            {/if}
-            {#if resolvedFlightTrack.actual_distance_km != null}
-              <div class="actual-detail-row">
-                <span class="actual-detail-label">Distance</span>
-                <span class="actual-detail-value">{Math.round(resolvedFlightTrack.actual_distance_km).toLocaleString()} km</span>
-              </div>
-            {/if}
-            {#if resolvedFlightTrack.flight_time_minutes != null}
-              <div class="actual-detail-row">
-                <span class="actual-detail-label">Flight time</span>
-                <span class="actual-detail-value">{
-                  (() => {
-                    const h = Math.floor(resolvedFlightTrack.flight_time_minutes / 60);
-                    const m = resolvedFlightTrack.flight_time_minutes % 60;
-                    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-                  })()
-                }</span>
-              </div>
-            {/if}
-          </div>
+      {#if startAirportName}
+        <div class="start-airport">
+          <span class="start-label">Start:</span>
+          <span>{startAirportName}</span>
         </div>
       {/if}
-      
-      <!-- Legs Timeline -->
+
       {#if connection.legs && connection.legs.length > 0}
-        <div class="legs-container">
-          {#each connection.legs as leg}
-            {@const legLabel = getLegLabel(leg, connection.legs?.length ?? 0)}
-            <div class="leg">
-              <!-- Leg Header -->
-              <div class="leg-header">
-                {#if legLabel}
-                  <span class="leg-label">{legLabel}:</span>
-                {/if}
-                <span class="leg-route">{leg.origin} → {leg.destination}</span>
-                <span class="leg-meta">
-                  {formatDate(leg.departure)} · {leg.duration} · {getStopsLabel(leg.stops)}
-                </span>
+        {#each connection.legs as leg}
+          {#each leg.segments as segment, segIdx}
+            <div class="segment-card" data-testid="segment-card">
+              <div class="segment-left">
+                <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
+                  <span class="time-icon">{segment.departure_is_daytime ? '☀' : '🌙'}</span>
+                  <span class="time-text">{formatTime(segment.departure_time)}</span>
+                </div>
+                <div class="segment-duration-text">{segment.duration}</div>
+                <div class="time-badge" class:daytime={segment.arrival_is_daytime === true} class:nighttime={segment.arrival_is_daytime !== true}>
+                  <span class="time-icon">{segment.arrival_is_daytime ? '☀' : '🌙'}</span>
+                  <span class="time-text">{formatTime(segment.arrival_time)}</span>
+                </div>
               </div>
-              
-              <!-- Segments Timeline -->
-              <div class="segments">
-                {#each leg.segments as segment, segIdx}
-                  <div class="segment">
-                    <!-- Departure -->
-                    <div class="segment-endpoint">
-                      <div class="segment-time">{formatTime(segment.departure_time)}</div>
-                      <div class="timeline-dot"></div>
-                      <div class="segment-station">{segment.departure_station}</div>
-                    </div>
-                    
-                    <!-- Flight/train info bar -->
-                    <div class="segment-info">
-                      <div class="timeline-line"></div>
-                      <div class="segment-details-block">
-                        <div class="segment-details">
-                          {#if segment.airline_logo}
-                            <img class="segment-airline-logo" src={proxyImage(segment.airline_logo, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN)} alt={segment.carrier} />
-                          {/if}
-                          <span class="carrier-name">{segment.carrier}</span>
-                          {#if segment.number}
-                            <span class="flight-number">{segment.number}</span>
-                          {/if}
-                          <span class="segment-duration">{segment.duration}</span>
-                        </div>
-                        {#if segment.airplane || segment.legroom || segment.travel_class}
-                          <div class="segment-meta">
-                            {#if segment.airplane}
-                              <span>{segment.airplane}</span>
-                            {/if}
-                            {#if segment.travel_class}
-                              <span>{segment.travel_class}</span>
-                            {/if}
-                            {#if segment.legroom}
-                              <span>{segment.legroom}</span>
-                            {/if}
-                          </div>
-                        {/if}
-                        {#if segment.often_delayed}
-                          <div class="segment-warning">Often delayed by 30+ min</div>
-                        {/if}
-                      </div>
-                    </div>
-                    
-                    <!-- Arrival -->
-                    <div class="segment-endpoint">
-                      <div class="segment-time">{formatTime(segment.arrival_time)}</div>
-                      <div class="timeline-dot"></div>
-                      <div class="segment-station">{segment.arrival_station}</div>
-                    </div>
-                    
-                    <!-- Layover indicator between segments -->
-                    {#if segIdx < leg.segments.length - 1}
-                      {@const layover = leg.layovers?.[segIdx]}
-                      <div class="layover">
-                        <div class="layover-line"></div>
-                        <div class="layover-info">
-                          <span class="layover-label">
-                            {#if layover?.duration}
-                              {layover.duration} layover
-                            {:else}
-                              Connection
-                            {/if}
-                          </span>
-                          {#if layover?.airport}
-                            <span class="layover-airport">{layover.airport}{layover.airport_code ? ` (${layover.airport_code})` : ''}</span>
-                          {/if}
-                          {#if layover?.overnight}
-                            <span class="layover-overnight">Overnight</span>
-                          {/if}
-                        </div>
-                      </div>
+
+              <div class="segment-center">
+                <div class="segment-airport-code" data-testid="departure-code">
+                  {#if segment.departure_country_code}{countryCodeToFlag(segment.departure_country_code)} {/if}{segment.departure_station}
+                </div>
+                <div class="segment-carrier-row">
+                  {#if segment.airline_logo}
+                    <img class="segment-airline-logo" src={proxyImage(segment.airline_logo, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN)} alt={segment.carrier} />
+                  {/if}
+                  <div class="segment-carrier-info">
+                    <span class="carrier-flight">{segment.carrier}{segment.number ? ` | ${segment.number}` : ''}</span>
+                    {#if segment.airplane}
+                      <span class="carrier-aircraft">via {segment.airplane}</span>
                     {/if}
                   </div>
-                {/each}
+                </div>
+                <div class="segment-airport-code" data-testid="arrival-code">
+                  {#if segment.arrival_country_code}{countryCodeToFlag(segment.arrival_country_code)} {/if}{segment.arrival_station}
+                </div>
               </div>
             </div>
+
+            {#if segIdx < leg.segments.length - 1}
+              {@const layover = leg.layovers?.[segIdx]}
+              <div class="layover-section" data-testid="layover-section">
+                {#if layover?.overnight}
+                  <div class="layover-overnight-badge">
+                    <span class="time-icon">🌙</span>
+                    <span>Overnight</span>
+                  </div>
+                {/if}
+                <div class="layover-duration-text">
+                  {layover?.duration || 'Connection'}
+                </div>
+                <div class="layover-airport-text">
+                  Layover in{#if layover?.airport}<br/>{layover.airport}{/if}
+                </div>
+              </div>
+            {/if}
           {/each}
-        </div>
+        {/each}
       {:else}
-        <!-- No leg details available - show summary -->
-        <div class="summary-only">
+        <div class="summary-fallback">
           {#if connection.departure && connection.arrival}
-            <div class="summary-times">
-              <span>{formatTime(connection.departure)}</span>
-              <span class="summary-arrow">→</span>
-              <span>{formatTime(connection.arrival)}</span>
-            </div>
+            <span>{formatTime(connection.departure)} → {formatTime(connection.arrival)}</span>
           {/if}
           {#if connection.duration}
-            <div class="summary-duration">{connection.duration}</div>
-          {/if}
-          {#if connection.stops !== undefined}
-            <div class="summary-stops">{getStopsLabel(connection.stops)}</div>
+            <span>{connection.duration}</span>
           {/if}
         </div>
       {/if}
-      
-      <!-- Booking Info Footer -->
-      <div class="booking-info">
-        {#if connection.bookable_seats !== undefined && connection.bookable_seats > 0}
-          <div class="booking-item" class:warning={connection.bookable_seats <= 4}>
-            {connection.bookable_seats} {connection.bookable_seats === 1 ? 'seat' : 'seats'} remaining
-          </div>
-        {/if}
-        {#if connection.last_ticketing_date}
-          <div class="booking-item">
-            Book by {connection.last_ticketing_date}
-          </div>
-        {/if}
-      </div>
+
+      {#if flightTrackState === 'loaded' && resolvedFlightTrack}
+        <div class="fr24-attribution">
+          Track: <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer">Flightradar24</a>
+        </div>
+      {/if}
+
+      <!-- Booking info (seats, deadlines, CO2) -->
+      {#if (connection.bookable_seats !== undefined && connection.bookable_seats > 0) || connection.last_ticketing_date || connection.co2_kg != null}
+        <div class="booking-info">
+          {#if connection.bookable_seats !== undefined && connection.bookable_seats > 0}
+            <div class="booking-item" class:warning={connection.bookable_seats <= 4}>
+              {connection.bookable_seats} {connection.bookable_seats === 1 ? 'seat' : 'seats'} remaining
+            </div>
+          {/if}
+          {#if connection.last_ticketing_date}
+            <div class="booking-item">
+              Book by {connection.last_ticketing_date}
+            </div>
+          {/if}
+          {#if connection.co2_kg != null}
+            <div class="co2-badge" class:co2-good={connection.co2_difference_percent != null && connection.co2_difference_percent < 0}>
+              {connection.co2_kg} kg CO2
+              {#if connection.co2_difference_percent != null}
+                ({connection.co2_difference_percent > 0 ? '+' : ''}{connection.co2_difference_percent}% vs typical)
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</EntryWithMapTemplate>
 {/if}
 
 <style>
-  /* ===========================================
-     Connection Fullscreen Layout
-     =========================================== */
-  
-  .connection-fullscreen {
-    max-width: 600px;
-    margin: 60px auto 120px;
-    padding: 0 20px;
-  }
-  
-  @container fullscreen (max-width: 500px) {
-    .connection-fullscreen {
-      margin-top: 70px;
-      padding: 0 16px;
-    }
-  }
-  
-  /* ===========================================
-     Carriers row (below banner in content area)
-     =========================================== */
-  
-  .carriers-row {
-    text-align: center;
-    font-size: 14px;
-    color: var(--color-grey-60);
-    margin-top: 20px;
-    margin-bottom: 24px;
-  }
-  
-  /* ===========================================
-     Flight info row (trip type + CO2, shown in content area below carriers)
-     =========================================== */
+  /* Header airline logos — overlapping circle stack */
+  .header-airline-logos { display: flex; align-items: center; justify-content: center; margin-top: 8px; }
+  .header-airline-logos .header-airline-logo + .header-airline-logo { margin-left: -8px; }
+  .header-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); flex-shrink: 0; }
 
-  /* Flex row containing the trip-type badge and CO2 badge */
-  .flight-info-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 20px;
-  }
+  .flight-card { display: flex; flex-direction: column; gap: 12px; }
+  .route-header-pill { background: var(--color-grey-10); border-radius: 11px; padding: 8px 14px; font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
+  .travel-class-label { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
+  .start-airport { font-size: 0.875rem; font-weight: 700; color: var(--color-grey-50); text-align: center; }
 
-  /* Shared pill badge style — uses theme variables for light/dark mode support */
-  .info-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 14px;
-    border-radius: 100px;
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
+  .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
+  .segment-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; flex-shrink: 0; min-width: 96px; }
+  .time-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 58px; font-size: 0.875rem; font-weight: 700; color: white; white-space: nowrap; }
+  .time-badge.nighttime { background: linear-gradient(to right, #365dad, #1745a1); }
+  .time-badge.daytime { background: linear-gradient(to right, #f5bb12, #e79600); }
+  .time-icon { font-size: 0.75rem; line-height: 1; }
+  .time-text { line-height: 1; }
+  .segment-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; padding: 2px 0; }
 
-  /* Trip type pill — neutral secondary style */
-  .info-trip-type {
-    background-color: var(--color-grey-20);
-    color: var(--color-font-primary);
-  }
+  .segment-center { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; justify-content: space-between; }
+  .segment-airport-code { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); }
+  .segment-carrier-row { display: flex; align-items: center; gap: 8px; }
+  .segment-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 1.5px solid var(--color-grey-20); flex-shrink: 0; }
+  .segment-carrier-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .carrier-flight { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
+  .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
 
-  /* CO2 pill — neutral default, green when lower than typical, red when much higher */
-  .info-co2 {
-    background-color: var(--color-grey-20);
-    color: var(--color-font-primary);
-  }
+  .layover-section { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px; }
+  .layover-overnight-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }
+  .layover-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .layover-airport-text { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
 
-  .info-co2.co2-good {
-    background-color: rgba(34, 197, 94, 0.2);
-    color: var(--color-font-primary);
-  }
-
-  .info-co2.co2-bad {
-    background-color: rgba(239, 68, 68, 0.2);
-    color: var(--color-font-primary);
-  }
-
-  /* ===========================================
-     Banner CTA elements (rendered inside header-cta-area)
-     =========================================== */
-  
-  /* CTA Booking Button — uses the standard primary button design.
-     All three states (idle, loading, loaded) share this base so they
-     occupy the exact same space and swapping between them is seamless. */
-  .cta-button {
-    background-color: var(--color-button-primary);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 12px 30px;
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
-    margin-top: 16px;
-    min-width: 200px;
-    height: 46px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .cta-button:hover {
-    background-color: var(--color-button-primary-hover);
-    scale: 1.02;
-  }
-  
-  .cta-button:active {
-    background-color: var(--color-button-primary-pressed);
-    scale: 0.98;
-    filter: none;
-  }
-  
-  /* Error/fallback state — secondary style to indicate it's a fallback action */
-  .cta-fallback {
-    background-color: var(--color-grey-70, #555);
-  }
-  
-  .cta-fallback:hover {
-    background-color: var(--color-grey-80, #444);
-  }
-  
-  .cta-fallback:active {
-    background-color: var(--color-grey-90, #333);
-  }
-  
-  /* Loading state — same dimensions, just shows a spinner */
-  .cta-loading {
-    background-color: var(--color-grey-30, #e0e0e0);
-    cursor: default;
-    filter: none;
-  }
-  
-  .cta-loading:hover {
-    background-color: var(--color-grey-30, #e0e0e0);
-    scale: 1;
-  }
-  
-  /* Spinner animation */
-  .cta-spinner {
-    width: 20px;
-    height: 20px;
-    border: 2.5px solid var(--color-grey-50, #999);
-    border-top-color: var(--color-grey-80, #444);
-    border-radius: 50%;
-    animation: cta-spin 0.8s linear infinite;
-  }
-  
-  @keyframes cta-spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  /* ===========================================
-     Route Map
-     =========================================== */
-  
-  .route-map-container {
-    width: 100%;
-    height: 200px;
-    border-radius: 16px;
-    overflow: hidden;
-    margin-bottom: 24px;
-    background-color: var(--color-grey-10, #f5f5f5);
-  }
-  
-  @container fullscreen (max-width: 500px) {
-    .route-map-container {
-      height: 160px;
-      border-radius: 12px;
-    }
-  }
-  
-  /* Leaflet overrides scoped to this component */
-  .route-map-container :global(.leaflet-container) {
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    background-color: var(--color-grey-10, #f5f5f5);
-  }
-  
-  .route-map-container :global(.leaflet-control-attribution) {
-    font-size: 9px;
-    background: rgba(255, 255, 255, 0.6);
-  }
-  
-  .route-map-container :global(.leaflet-control-zoom) {
-    border: none;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  }
-  
-  .route-map-container :global(.leaflet-control-zoom a) {
-    background-color: var(--color-bg-primary, #fff);
-    color: var(--color-font-primary, #333);
-    border-color: var(--color-grey-20, #e5e5e5);
-  }
-  
-  /* Custom airport marker */
-  .route-map-container :global(.travel-route-marker) {
-    background: transparent;
-    border: none;
-  }
-  
-  .route-map-container :global(.travel-route-marker .marker-dot) {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: var(--color-primary, #6366f1);
-    border: 2px solid white;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-    margin: 2px;
-  }
-  
-  /* Dark mode tile inversion */
-  .route-map-container :global(.dark-tiles) {
-    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
-  }
-
-  .route-map-container.track-loading {
-    opacity: 0.75;
-    animation: map-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes map-pulse {
-    0%, 100% { opacity: 0.75; }
-    50% { opacity: 0.55; }
-  }
-
-  /* ===========================================
-     FR24 Attribution & Actual Flight Details
-     =========================================== */
-
-  .fr24-attribution {
-    font-size: 0.7rem;
-    color: var(--color-text-tertiary, var(--color-text-secondary));
-    text-align: right;
-    margin-top: 4px;
-    margin-bottom: 16px;
-  }
-
-  .fr24-attribution a {
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .actual-flight-details {
-    margin-bottom: 24px;
-  }
-
-  .diversion-warning {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 30%, transparent);
-    border-radius: 10px;
-    padding: 8px 14px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--color-warning, #f59e0b);
-    margin-bottom: 12px;
-  }
-
-  .actual-details-grid {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--color-grey-20, rgba(0, 0, 0, 0.08));
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .actual-detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--color-grey-10, rgba(0, 0, 0, 0.04));
-  }
-
-  .actual-detail-row:last-child {
-    border-bottom: none;
-  }
-
-  .actual-detail-label {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    font-weight: 500;
-  }
-
-  .actual-detail-value {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-  }
-
-  .actual-detail-value.mono {
-    font-family: var(--font-mono, monospace);
-    font-size: 0.82rem;
-    letter-spacing: 0.04em;
-  }
-
-  /* ===========================================
-     Legs Container
-     =========================================== */
-  
-  .legs-container {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-  }
-  
-  .leg {
-    background: var(--color-grey-10, rgba(0, 0, 0, 0.03));
-    border-radius: 16px;
-    padding: 20px;
-  }
-  
-  .leg-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--color-grey-20);
-  }
-  
-  .leg-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .leg-route {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-  }
-  
-  .leg-meta {
-    font-size: 13px;
-    color: var(--color-grey-60);
-  }
-  
-  /* ===========================================
-     Segments Timeline
-     =========================================== */
-  
-  .segments {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .segment {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .segment-endpoint {
-    display: grid;
-    grid-template-columns: 60px 20px 1fr;
-    align-items: center;
-    gap: 8px;
-    min-height: 28px;
-  }
-  
-  .segment-time {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    text-align: right;
-  }
-  
-  .timeline-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--color-primary);
-    justify-self: center;
-  }
-  
-  .segment-station {
-    font-size: 14px;
-    color: var(--color-font-primary);
-    font-weight: 500;
-  }
-  
-  .segment-info {
-    display: grid;
-    grid-template-columns: 60px 20px 1fr;
-    gap: 8px;
-    min-height: 40px;
-    align-items: center;
-  }
-  
-  /* First column in segment-info grid is the empty time slot area */
-  
-  .timeline-line {
-    width: 2px;
-    height: 100%;
-    min-height: 32px;
-    background-color: var(--color-primary);
-    opacity: 0.3;
-    justify-self: center;
-  }
-  
-  .segment-details-block {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 4px 0;
-  }
-  
-  .segment-details {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--color-grey-60);
-  }
-  
-  .segment-airline-logo {
-    width: 18px;
-    height: 18px;
-    border-radius: 3px;
-    object-fit: contain;
-    flex-shrink: 0;
-  }
-  
-  .carrier-name {
-    font-weight: 500;
-    color: var(--color-grey-80);
-  }
-  
-  .flight-number {
-    color: var(--color-grey-50);
-  }
-  
-  .segment-duration {
-    color: var(--color-grey-50);
-  }
-  
-  .segment-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--color-grey-50);
-  }
-  
-  .segment-meta span:not(:last-child)::after {
-    content: '·';
-    margin-left: 6px;
-    color: var(--color-grey-40);
-  }
-  
-  .segment-warning {
-    font-size: 11px;
-    color: var(--color-warning, #f59e0b);
-    font-weight: 500;
-  }
-  
-  /* Layover between segments */
-  .layover {
-    display: grid;
-    grid-template-columns: 60px 20px 1fr;
-    gap: 8px;
-    min-height: 36px;
-    align-items: center;
-  }
-  
-  .layover-line {
-    width: 2px;
-    height: 100%;
-    min-height: 28px;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--color-grey-40) 0px,
-      var(--color-grey-40) 4px,
-      transparent 4px,
-      transparent 8px
-    );
-    justify-self: center;
-    grid-column: 2;
-  }
-  
-  .layover-info {
-    grid-column: 3;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-  
-  .layover-label {
-    font-size: 12px;
-    color: var(--color-warning, #f59e0b);
-    font-weight: 500;
-    font-style: italic;
-  }
-  
-  .layover-airport {
-    font-size: 11px;
-    color: var(--color-grey-50);
-    font-style: normal;
-  }
-  
-  .layover-overnight {
-    font-size: 11px;
-    color: var(--color-error, #dc2626);
-    font-weight: 500;
-    font-style: normal;
-  }
-  
-  /* ===========================================
-     Summary Only (when no leg details)
-     =========================================== */
-  
-  .summary-only {
-    text-align: center;
-    padding: 24px 0;
-  }
-  
-  .summary-times {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-  }
-  
-  .summary-arrow {
-    margin: 0 8px;
-    color: var(--color-grey-50);
-  }
-  
-  .summary-duration,
-  .summary-stops {
-    font-size: 14px;
-    color: var(--color-grey-60);
-    margin-top: 4px;
-  }
-  
-  /* ===========================================
-     Booking Info Footer
-     =========================================== */
-  
-  .booking-info {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 24px;
-    padding: 16px;
-    background: var(--color-grey-10, rgba(0, 0, 0, 0.03));
-    border-radius: 12px;
-  }
-  
-  .booking-info:empty {
-    display: none;
-  }
-  
-  .booking-item {
-    font-size: 13px;
-    color: var(--color-grey-60);
-  }
-  
-  .booking-item.warning {
-    color: var(--color-warning, #f59e0b);
-    font-weight: 600;
-  }
-  
-  /* ===========================================
-     Skill Icon Styling
-     =========================================== */
-  
-  /* Skill icon uses the existing 'search' icon mapping from BasicInfosBar */
+  .summary-fallback { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 0; font-size: 1rem; color: var(--color-font-primary); font-weight: 600; }
+  .fr24-attribution { font-size: 0.7rem; color: var(--color-grey-50); text-align: right; margin-top: 4px; }
+  .fr24-attribution a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .booking-info { display: flex; flex-direction: column; gap: 6px; }
+  .booking-info:empty { display: none; }
+  .booking-item { font-size: 0.813rem; color: var(--color-grey-60); }
+  .booking-item.warning { color: var(--color-warning, #f59e0b); font-weight: 600; }
+  .co2-badge { font-size: 0.75rem; color: var(--color-grey-50); margin-top: 4px; }
+  .co2-badge.co2-good { color: var(--color-success, #22c55e); }
+  :global(.travel-route-marker) { background: transparent !important; border: none !important; }
+  :global(.travel-route-marker .marker-dot) { width: 12px; height: 12px; border-radius: 50%; background-color: var(--color-primary, #6366f1); border: 2px solid white; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); margin: 2px; }
 </style>

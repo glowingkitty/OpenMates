@@ -7,6 +7,8 @@
  * Phase 2: CLI direct skill command (openmates apps travel search_connections --json)
  * Phase 3: CLI chat send triggers skill
  * Phase 4: Web UI chat triggers skill with embed rendering + fullscreen grid
+ *          + verifies redesigned preview (green price, route, meta) and
+ *          flight details card (segment cards, time badges, flag emojis)
  *
  * Note: Travel dates must be in the future — uses dynamic date calculation.
  *
@@ -127,7 +129,160 @@ test.describe('App: Travel / Skill: search_connections', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		logCheckpoint(`Found ${await resultCards.count()} connection result(s).`);
+		const cardCount = await resultCards.count();
+		logCheckpoint(`Found ${cardCount} connection result(s).`);
+
+		// ── Verify redesigned preview card elements ──
+		const firstPreview = resultCards.first();
+		const previewDetails = firstPreview.getByTestId('connection-preview-details');
+		await expect(previewDetails).toBeVisible({ timeout: 5000 });
+
+		// Price should be visible and contain a currency amount (catches total_price vs price bug)
+		const priceEl = previewDetails.getByTestId('connection-price');
+		await expect(priceEl).toBeVisible();
+		const priceText = await priceEl.textContent();
+		expect(priceText).toBeTruthy();
+		expect(priceText).toMatch(/\d/); // Must contain at least one digit
+		logCheckpoint(`Preview price: ${priceText}`);
+
+		// Route should show origin → destination
+		const routeEl = previewDetails.getByTestId('connection-route');
+		await expect(routeEl).toBeVisible();
+		const routeText = await routeEl.textContent();
+		expect(routeText).toContain('→');
+		logCheckpoint(`Preview route: ${routeText}`);
+
+		// Meta line should show duration/stops info
+		const metaEl = previewDetails.getByTestId('connection-meta');
+		await expect(metaEl).toBeVisible();
+		const metaText = await metaEl.textContent();
+		expect(metaText).toContain('·');
+		logCheckpoint(`Preview meta: ${metaText}`);
+
+		await takeStepScreenshot(page, 'preview-card-verified');
+
+		// ── Open a child connection fullscreen to verify flight details card ──
+		await firstPreview.click();
+		await page.waitForTimeout(1000);
+
+		// The flight details card should be visible
+		const flightCard = page.getByTestId('flight-details-card');
+		await expect(flightCard).toBeVisible({ timeout: 15000 });
+
+		// Route header with flags should be visible
+		const routeHeader = flightCard.getByTestId('route-header');
+		await expect(routeHeader).toBeVisible();
+		const routeHeaderText = await routeHeader.textContent();
+		expect(routeHeaderText).toContain('→');
+		logCheckpoint(`Flight card route: ${routeHeaderText}`);
+
+		// At least one segment card should be present
+		const segmentCards = flightCard.getByTestId('segment-card');
+		await expect(segmentCards.first()).toBeVisible({ timeout: 5000 });
+		const segCount = await segmentCards.count();
+		expect(segCount).toBeGreaterThanOrEqual(1);
+		logCheckpoint(`Flight card has ${segCount} segment card(s).`);
+
+		// Segment should show departure code with airport IATA
+		const depCode = flightCard.getByTestId('departure-code').first();
+		await expect(depCode).toBeVisible();
+		const depCodeText = await depCode.textContent();
+		expect(depCodeText).toBeTruthy();
+		logCheckpoint(`First segment departure: ${depCodeText}`);
+
+		// Carrier text should be fully visible (not truncated — catches overflow:hidden bug)
+		const carrierEl = flightCard.locator('.carrier-flight').first();
+		await expect(carrierEl).toBeVisible();
+		const carrierText = await carrierEl.textContent();
+		expect(carrierText).toBeTruthy();
+		// Verify no CSS text-overflow is applied (scrollWidth should equal clientWidth)
+		const isNotTruncated = await carrierEl.evaluate((el: HTMLElement) => el.scrollWidth <= el.clientWidth + 1);
+		expect(isNotTruncated).toBe(true);
+		logCheckpoint(`Carrier text: "${carrierText}" (not truncated: ${isNotTruncated})`);
+
+		// Booking CTA button should exist and be clickable
+		const bookingCta = page.getByTestId('booking-cta');
+		await expect(bookingCta).toBeVisible({ timeout: 5000 });
+		const ctaText = await bookingCta.textContent();
+		logCheckpoint(`Booking CTA: "${ctaText}"`);
+
+		// Click the booking button and verify it transitions (loading spinner or loaded state)
+		// Listen for the booking-link network request to confirm booking_context is sent
+		const bookingRequest = page.waitForRequest(
+			(req: any) => req.url().includes('/v1/apps/travel/booking-link') && req.method() === 'POST',
+			{ timeout: 10000 }
+		);
+		await bookingCta.click();
+		const req = await bookingRequest;
+		const body = req.postDataJSON();
+		expect(body.booking_token).toBeTruthy();
+		expect(body.booking_context).toBeTruthy();
+		expect(body.booking_context.departure_id).toBeTruthy();
+		// Verify usage is linked to chat (hashed_chat_id must be present)
+		expect(body.hashed_chat_id).toBeTruthy();
+		logCheckpoint(`Booking request: departure_id=${body.booking_context.departure_id}, hashed_chat_id=${body.hashed_chat_id?.substring(0, 12)}...`);
+
+		// Wait for booking response and check the button transitions to loaded state
+		const bookingResponse = await page.waitForResponse(
+			(resp: any) => resp.url().includes('/v1/apps/travel/booking-link'),
+			{ timeout: 15000 }
+		);
+		const respBody = await bookingResponse.json();
+		logCheckpoint(`Booking response: success=${respBody.success}, has_url=${!!respBody.booking_url}`);
+
+		// If booking succeeded, verify persistence: close and reopen should show "Book on X"
+		if (respBody.success && respBody.booking_url) {
+			await page.waitForTimeout(2000); // allow persist to complete
+
+			// Close child fullscreen via back/minimize button (Escape may not work for nested overlays)
+			const childMinimize = page.getByTestId('embed-minimize');
+			const hasMinimize = await childMinimize.isVisible({ timeout: 2000 }).catch(() => false);
+			if (hasMinimize) {
+				await childMinimize.click();
+			} else {
+				// Try the back button or press Escape
+				const backBtn = page.locator('[data-testid="embed-back"], [data-testid="nav-back"]').first();
+				const hasBack = await backBtn.isVisible({ timeout: 1000 }).catch(() => false);
+				if (hasBack) {
+					await backBtn.click();
+				} else {
+					await page.keyboard.press('Escape');
+				}
+			}
+			await page.waitForTimeout(1000);
+
+			// Reopen the same connection
+			const gridVisible = await resultCards.first().isVisible({ timeout: 3000 }).catch(() => false);
+			if (gridVisible) {
+				await resultCards.first().click();
+				await page.waitForTimeout(1500);
+
+				const flightCardReopened = page.getByTestId('flight-details-card');
+				const cardVisible = await flightCardReopened.isVisible({ timeout: 10000 }).catch(() => false);
+
+				if (cardVisible) {
+					// The CTA should now say "Book on ..." (not "Get booking link")
+					const reopenedCta = page.getByTestId('booking-cta');
+					await expect(reopenedCta).toBeVisible({ timeout: 5000 });
+					const reopenedCtaText = await reopenedCta.textContent();
+					expect(reopenedCtaText?.toLowerCase()).toContain('book on');
+					logCheckpoint(`Persisted booking URL verified: CTA says "${reopenedCtaText}"`);
+				} else {
+					logCheckpoint('WARNING: Could not reopen flight card for persistence check');
+				}
+			} else {
+				logCheckpoint('WARNING: Search grid not visible after closing child — skipping persistence check');
+			}
+
+			await takeStepScreenshot(page, 'booking-persisted-verified');
+		} else {
+			logCheckpoint('Booking lookup returned no URL (SerpAPI may not have it for this route) — skipping persistence check');
+			await takeStepScreenshot(page, 'booking-no-url');
+		}
+
+		// Navigate back to search results
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(500);
 
 		await closeFullscreen(page, fullscreenOverlay);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-connections');

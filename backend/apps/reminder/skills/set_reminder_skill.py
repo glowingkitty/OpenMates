@@ -47,6 +47,7 @@ class SetReminderRequest(BaseModel):
     # Target configuration
     target_type: str = Field(default="new_chat", description="'new_chat' or 'existing_chat'")
     new_chat_title: Optional[str] = Field(None, description="Title for new chat")
+    chat_id: Optional[str] = Field(None, description="Current chat ID (required for existing_chat target via REST API)")
 
     # Response type: "simple" = notification-only (no AI), "full" = AI executes a task
     response_type: str = Field(default="simple", description="'simple' for notification-only (no AI), 'full' for AI action trigger")

@@ -242,9 +242,9 @@
                     preferredLoginMethod: 'password',
                     stayLoggedIn,
                     tfa_app_name: null,
-                    tfa_enabled: false // Default to false if lookup fails - don't show 2FA input
+                    tfa_enabled: true // Always true for anti-enumeration consistency
                 });
-                
+
                 // Clear only the input field value after lookup
                 emailInputValue = '';
             }
@@ -258,7 +258,7 @@
                 preferredLoginMethod: 'password',
                 stayLoggedIn,
                 tfa_app_name: null,
-                tfa_enabled: false // Default to false if lookup fails - don't show 2FA input
+                tfa_enabled: true // Always true for anti-enumeration consistency
             });
             
             // Clear only the input field value after lookup

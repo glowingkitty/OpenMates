@@ -16,6 +16,7 @@
     import { text } from '@repo/ui';
     import { pricingTiers } from '../../config/pricing';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
 
     const dispatch = createEventDispatcher();
 
@@ -61,11 +62,7 @@
 </div>
 
 <!-- Credit Packages Section -->
-<SettingsItem
-    type="heading"
-    icon="coins"
-    title={$text('settings.pricing.packages_heading')}
-/>
+<SettingsSectionHeading title={$text('settings.pricing.packages_heading')} icon="coins" />
 
 {#each pricingTiers as tier}
     <div class="pricing-tier" class:recommended={tier.recommended}>
@@ -95,11 +92,7 @@
 <p class="pricing-vat-note">{$text('settings.pricing.vat_note')}</p>
 
 <!-- App Store Link Section -->
-<SettingsItem
-    type="heading"
-    icon="app"
-    title={$text('settings.pricing.explore_heading')}
-/>
+<SettingsSectionHeading title={$text('settings.pricing.explore_heading')} icon="search" />
 
 <!-- AI Ask skill — highlighted as the biggest cost driver -->
 <SettingsItem

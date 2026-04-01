@@ -11,6 +11,7 @@
     import { text } from '@repo/ui';
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import { getCategoryGradientColors } from '../../utils/categoryUtils';
     import { chatDB } from '../../services/db';
     import { userDB } from '../../services/userDB';
@@ -301,10 +302,9 @@
     {:else}
         <!-- Shared Section: Chats owned by user -->
         <div class="shared-section">
-            <SettingsItem
-                type="heading"
-                icon="share"
+            <SettingsSectionHeading
                 title={$text('settings.share.shared_section')}
+                icon="share"
             />
             
             {#if ownedSharedChats.length === 0}
@@ -340,10 +340,9 @@
         
         <!-- Shared with me Section: Chats owned by others -->
         <div class="shared-with-me-section">
-            <SettingsItem
-                type="heading"
-                icon="user"
+            <SettingsSectionHeading
                 title={$text('settings.share.shared_with_me_section')}
+                icon="user"
             />
             
             {#if sharedWithMeChats.length === 0}

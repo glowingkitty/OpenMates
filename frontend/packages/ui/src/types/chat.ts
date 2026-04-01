@@ -580,14 +580,49 @@ export interface SyncEmbed {
 export interface Phase1LastChatPayload {
   chat_id: string;
   chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
-  messages: Message[];
-  server_message_count?: number | null; // Server's message count for validation (detects data inconsistency)
-  embeds?: SyncEmbed[]; // Embeds for the chat (client-encrypted)
-  embed_keys?: EmbedKeyEntry[]; // Embed keys needed to decrypt embed content
-  new_chat_suggestions?: NewChatSuggestion[]; // New chat suggestions for Phase 1
-  daily_inspirations?: Array<Record<string, unknown>>; // Raw encrypted daily inspiration records from Directus, synced at login
+  messages: Message[] | null; // null in new architecture (messages arrive in Phase 1b)
+  server_message_count?: number | null; // Server's message count for validation
+  recent_chat_metadata?: Array<Partial<Chat> & { id: string }>; // Metadata for 10 most recent chats
+  embeds?: SyncEmbed[]; // Legacy — now sent in Phase 1b
+  embed_keys?: EmbedKeyEntry[]; // Legacy — now sent in Phase 1b
+  new_chat_suggestions?: NewChatSuggestion[];
+  daily_inspirations?: Array<Record<string, unknown>>;
   phase: "phase1";
-  already_synced?: boolean; // Version-aware: true if client already has up-to-date version
+  already_synced?: boolean;
+}
+
+/**
+ * Phase 1b — Messages + embeds for Phase 1a chats (separate WS message).
+ * Sent after Phase 1a so "continue where you left off" renders without waiting.
+ */
+export interface Phase1bChatContentPayload {
+  chats: Array<{
+    chat_id: string;
+    messages: (Message | string)[] | null;
+    server_message_count: number;
+  }>;
+  embeds?: SyncEmbed[];
+  embed_keys?: EmbedKeyEntry[];
+}
+
+/**
+ * Background message + embed sync — chunked batch (Phase 3).
+ * Each batch has messages + embeds for up to 10 chats, sent as separate WS messages.
+ * Embeds + embed_keys are included so they're available offline in IndexedDB.
+ */
+export interface BackgroundMessageSyncPayload {
+  chats: Array<{
+    chat_id: string;
+    messages: (Message | string)[];
+    server_message_count: number;
+    messages_v: number;
+  }>;
+  batch_number: number;
+  is_last_batch: boolean;
+  /** Embeds for this batch's chats — stored in IndexedDB for offline access */
+  embeds?: SyncEmbed[];
+  /** Embed encryption keys for this batch's chats */
+  embed_keys?: EmbedKeyEntry[];
 }
 
 export interface CachePrimedPayload {
@@ -630,6 +665,8 @@ export interface ChatContentBatchResponsePayload {
     string,
     { messages_v: number; server_message_count: number }
   >; // Per-chat version info for updating local tracking
+  embeds?: SyncEmbed[]; // On-demand embeds for requested chats
+  embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
 }
 
 export interface OfflineSyncCompletePayload {
@@ -675,10 +712,11 @@ export interface SyncStatusResponsePayload {
 export interface Phase2RecentChatsPayload {
   chats?: Array<{
     chat_details: Partial<Chat> & { id: string };
-    messages?: Message[];
+    messages?: Message[]; // Legacy — Phase 2 is now metadata-only
     server_message_count?: number;
   }>;
   chat_count: number;
+  total_chat_count?: number; // Total chats on server (moved from Phase 3)
   phase?: "phase2";
 }
 

@@ -55,7 +55,7 @@
     }
 </script>
 
-<div class="not-found-screen">
+<div class="not-found-screen" data-testid="not-found-screen">
     <!-- Banner: matches ChatHeader visual language exactly -->
     <div class="not-found-banner">
         <!-- Living gradient orbs -->
@@ -72,7 +72,7 @@
         <!-- Centered content: small server icon + title + summary -->
         <div class="banner-content">
             <div class="banner-icon icon_server" aria-hidden="true"></div>
-            <span class="banner-title">{$text('common.not_found.title')}</span>
+            <span class="banner-title" data-testid="banner-title">{$text('common.not_found.title')}</span>
             <p class="banner-summary">{$text('common.not_found.summary')}</p>
         </div>
     </div>
@@ -112,7 +112,7 @@
         </div>
 
         <!-- Stacked buttons with "or" separator line between them -->
-        <div class="not-found-actions">
+        <div class="not-found-actions" data-testid="not-found-actions">
             <button onclick={handleSearch} type="button">
                 <span class="btn-icon btn-icon-search" aria-hidden="true"></span>
                 {$text('common.not_found.search_label', { values: { query } })}

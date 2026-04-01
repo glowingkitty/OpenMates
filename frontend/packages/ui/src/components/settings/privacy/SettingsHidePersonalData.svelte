@@ -22,6 +22,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import SecurityAuth from '../security/SecurityAuth.svelte';
     import { personalDataStore, type PersonalDataEntry } from '../../../stores/personalDataStore';
     import { isSensitiveAuthValid, recordSensitiveAuthSuccess } from '../../../stores/sensitiveAuthStore';
@@ -243,11 +244,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 </div>
 
 <!-- ─── Contacts Section (unified Names, Addresses, Birthdays) ─────────────── -->
-<SettingsItem
-    type="heading"
-    icon="contact"
-    title={$text('settings.privacy.contacts')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.contacts')} icon="contact" />
 
 {#each contactEntries as entry (entry.id)}
     <SettingsItem
@@ -291,11 +288,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 </div>
 
 <!-- ─── For Everyone Section (Auto-detected patterns) ─────────────────────── -->
-<SettingsItem
-    type="heading"
-    icon="user"
-    title={$text('settings.privacy.for_everyone')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.for_everyone')} icon="user" />
 
 <SettingsItem
     type="subsubmenu"
@@ -370,11 +363,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 />
 
 <!-- ─── For Developers Section ────────────────────────────────────────────── -->
-<SettingsItem
-    type="heading"
-    icon="coding"
-    title={$text('settings.privacy.for_developers')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.for_developers')} icon="coding" />
 
 <SettingsItem
     type="subsubmenu"
@@ -449,11 +438,7 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 />
 
 <!-- ─── Custom Section ────────────────────────────────────────────────────── -->
-<SettingsItem
-    type="heading"
-    icon="create"
-    title={$text('common.custom')}
-/>
+<SettingsSectionHeading title={$text('common.custom')} icon="create" />
 
 {#each customEntries as entry (entry.id)}
     <SettingsItem

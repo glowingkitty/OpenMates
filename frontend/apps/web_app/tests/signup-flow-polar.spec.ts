@@ -141,7 +141,8 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	test.slow();
 	// Allow extra time: Polar checkout overlay + purchase confirmation email + account deletion.
-	test.setTimeout(300000);
+	// GHA runners are slower — 300s was insufficient; 480s provides comfortable margin.
+	test.setTimeout(480000);
 
 	const logSignupCheckpoint = createSignupLogger('POLAR_SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
@@ -209,7 +210,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('No missing translations on login dialog.');
 
-	const loginTabs = page.locator('.login-tabs');
+	const loginTabs = page.getByTestId('login-tabs');
 	await expect(loginTabs).toBeVisible();
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
 	await takeStepScreenshot(page, 'signup-alpha');
@@ -290,10 +291,10 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	const qrButton = page.locator('#signup-2fa-scan-qr');
 	await qrButton.click();
-	await expect(page.locator('.qr-code')).toBeVisible();
+	await expect(page.getByTestId('qr-code')).toBeVisible();
 	await takeStepScreenshot(page, 'one-time-codes-qr');
 	await qrButton.click();
-	await expect(page.locator('.qr-code')).toBeHidden();
+	await expect(page.getByTestId('qr-code')).toBeHidden();
 
 	const copySecretButton = page.locator('#signup-2fa-copy-secret');
 	await copySecretButton.click();
@@ -365,7 +366,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await takeStepScreenshot(page, 'credits-step');
 	logSignupCheckpoint('Reached credits step.');
 
-	await page.locator('.credits-package-container .buy-button').first().click();
+	await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
 
@@ -399,7 +400,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	// First click the Polar "Buy" button to trigger the overlay (switch just sets the provider).
 	// The Polar section renders a .polar-pay-button — wait for it and click.
-	const polarBuyButton = page.locator('.polar-pay-button');
+	const polarBuyButton = page.getByTestId('polar-pay-button');
 	await expect(polarBuyButton).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'polar-payment-form');
 	logSignupCheckpoint('Polar payment form visible.');
@@ -510,13 +511,13 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	// ─── Settings: credit verification + account deletion ─────────────────────────
 
-	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	const settingsMenuButton = page.getByTestId('profile-container');
 	await settingsMenuButton.click();
-	await expect(page.locator('.settings-menu.visible')).toBeVisible();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 	await takeStepScreenshot(page, 'settings-menu-open');
 	logSignupCheckpoint('Opened settings menu for credit verification.');
 
-	const creditsAmount = page.locator('.credits-amount');
+	const creditsAmount = page.getByTestId('credits-amount');
 	await expect(creditsAmount).toBeVisible();
 	const creditsText = (await creditsAmount.textContent()) || '';
 	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
@@ -533,20 +534,20 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await page.getByRole('menuitem', { name: /account/i }).click();
 	await expect(page.getByRole('menuitem', { name: /delete/i })).toBeVisible();
 	await page.getByRole('menuitem', { name: /delete/i }).click();
-	await expect(page.locator('.delete-account-container')).toBeVisible();
+	await expect(page.getByTestId('delete-account-container')).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account');
 	logSignupCheckpoint('Opened delete account settings.');
 
 	const deleteConfirmToggle = page
-		.locator('.delete-account-container input[type="checkbox"]')
+		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
 	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
 
-	await page.locator('.delete-account-container .delete-button').click();
-	const authModal = page.locator('.auth-modal');
+	await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
+	const authModal = page.getByTestId('auth-modal');
 	await expect(authModal).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account-auth');
 
@@ -555,7 +556,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
-	await expect(page.locator('.delete-account-container .success-message')).toBeVisible({
+	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
 		timeout: 60000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');

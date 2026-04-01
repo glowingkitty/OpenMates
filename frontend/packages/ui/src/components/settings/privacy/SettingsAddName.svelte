@@ -14,7 +14,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { personalDataStore } from '../../../stores/personalDataStore';
 
@@ -81,11 +81,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 </script>
 
 <!-- Title field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.title')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.title')} icon="text" />
 
 <SettingsInput
     bind:value={title}
@@ -94,11 +90,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 />
 
 <!-- Text to hide field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.text_to_hide')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.text_to_hide')} icon="text" />
 
 <SettingsInput
     bind:value={textToHide}

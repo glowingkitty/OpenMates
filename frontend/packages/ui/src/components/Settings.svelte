@@ -761,7 +761,8 @@ changes to the documentation (to keep the documentation up to date).
      */
     let isAppSubPage = $derived(
         (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
-         activeSettingsView === 'app_store/reminder/create') &&
+         activeSettingsView === 'app_store/reminder/create' ||
+         /^app_store\/reminder\/entry\//.test(activeSettingsView)) &&
         !isModelDetailPage
     );
 
@@ -874,8 +875,25 @@ changes to the documentation (to keep the documentation up to date).
             return {
                 appId: 'reminder',
                 itemName: $text('reminder.settings.create_title'),
-                itemTypeLabel: $text('reminder.settings.title'),
-                description: $text('reminder.settings.description_new_chat'),
+                itemTypeLabel: '',
+                description: '',
+                iconName,
+                iconType: 'skill',
+            };
+        }
+
+        // Reminder entry detail/edit page
+        if (/^app_store\/reminder\/entry\//.test(activeSettingsView)) {
+            const appMeta = appSkillsStore.getState().apps['reminder'];
+            if (!appMeta) return null;
+            const rawIcon = appMeta.icon_image;
+            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const isEdit = activeSettingsView.endsWith('/edit');
+            return {
+                appId: 'reminder',
+                itemName: isEdit ? $text('common.edit') : $text('apps.reminder.active_reminders.title'),
+                itemTypeLabel: '',
+                description: '',
                 iconName,
                 iconType: 'skill',
             };
@@ -1185,6 +1203,14 @@ changes to the documentation (to keep the documentation up to date).
             // Dynamically registered model detail route: settingsPath
         }
 
+        // Check if this is a dynamic reminder entry route that needs to be registered
+        // Pattern: app_store/reminder/entry/{reminder_id}[/edit]
+        const reminderEntryPattern = /^app_store\/reminder\/entry\/[^/]+(\/edit)?$/;
+        if (reminderEntryPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         // Check if this is a dynamic personal data edit route that needs to be registered
         // Pattern: privacy/hide-personal-data/edit-{name|address|birthday|custom}/{entryId}
         const personalDataEditPattern = /^privacy\/hide-personal-data\/edit-(name|address|birthday|custom)\/[^/]+$/;
@@ -1397,7 +1423,7 @@ changes to the documentation (to keep the documentation up to date).
                 // All other navigation (forward or backward) always scrolls to top.
                 settingsContentElement.scrollTo({
                     top: 0,
-                    behavior: 'smooth'
+                    behavior: 'instant'
                 });
             }
         }
@@ -1638,7 +1664,7 @@ changes to the documentation (to keep the documentation up to date).
             // Wait for the DOM to update with the main view content before scrolling.
             await tick();
             if (settingsContentElement) {
-                settingsContentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                settingsContentElement.scrollTo({ top: 0, behavior: 'instant' });
             }
         }
     }
@@ -2169,23 +2195,33 @@ changes to the documentation (to keep the documentation up to date).
 
             // After a brief delay to ensure menu is open, navigate to the requested settings path
             setTimeout(() => {
+                // Strip deep-link parameters (e.g. "&usage") from the path before routing.
+                // The parameters remain in window.location.hash for sub-components to read.
+                const cleanPath = settingsPath.split('&')[0];
+
+                // Set window flag for deep-link parameters so sub-components can read them
+                // after the hash is cleaned. SettingsUsage reads __openmates_usage_deeplink.
+                if (settingsPath.includes('&usage')) {
+                    (window as any).__openmates_usage_deeplink = true;
+                }
+
                 // Determine the icon and title based on the path
                 // For nested paths like 'shared/share', use the last segment for icon
-                const pathParts = settingsPath.split('/');
+                const pathParts = cleanPath.split('/');
                 const icon = pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
                 
                 // Build translation key from full path
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
                 let translationKey;
-                if (settingsPath === 'shared/share') {
+                if (cleanPath === 'shared/share') {
                     translationKey = 'settings.share';
-            } else if (settingsPath === 'incognito/info') {
+            } else if (cleanPath === 'incognito/info') {
                 // Incognito info page: use the incognito icon and the top-level "Incognito" title.
                 // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
                 // which does not exist in translations.
                 activeSubMenuIcon = 'incognito';
                 activeSubMenuTitleKey = 'settings.incognito';
-            } else if (settingsPath.startsWith('account/storage/')) {
+            } else if (cleanPath.startsWith('account/storage/')) {
                     // Storage category pages use the storage_category_* keys in storage.yml
                     const deepLinkStorageCategoryKeyMap: Record<string, string> = {
                         images:   'settings.storage.storage_category_images',
@@ -2198,17 +2234,17 @@ changes to the documentation (to keep the documentation up to date).
                         archives: 'settings.storage.storage_category_archives',
                         other:    'settings.storage.storage_category_other',
                     };
-                    const deepLinkCategory = settingsPath.split('/').pop() ?? '';
+                    const deepLinkCategory = cleanPath.split('/').pop() ?? '';
                     translationKey = deepLinkStorageCategoryKeyMap[deepLinkCategory] ?? 'settings.storage.storage_category_other';
                 } else {
-                    const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+                    const translationKeyParts = cleanPath.split('/').map(segment => segment.replace(/-/g, '_'));
                     translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
                 const title = $text(translationKey);
 
                 handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {
-                        settingsPath,
+                        settingsPath: cleanPath,
                         direction: 'forward',
                         icon,
                         title
@@ -2355,6 +2391,7 @@ changes to the documentation (to keep the documentation up to date).
     	<div
 			id="settings-menu-toggle"
      		class="profile-container"
+    		data-testid="profile-container"
     		class:menu-open={isMenuVisible}
     		data-action={isMenuVisible ? 'close-settings' : 'open-settings'}
     		onclick={toggleMenu}
@@ -2374,7 +2411,7 @@ changes to the documentation (to keep the documentation up to date).
                 <!-- Use resolvedProfileImageBlobUrl (fetched with credentials) so the
                      new encrypted proxy endpoint works. Legacy https:// URLs are also
                      passed through by the profileImageService unchanged. -->
-                <div class="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
+                <div class="profile-picture" data-testid="profile-picture" class:profile-picture-img={!!resolvedProfileImageBlobUrl}>
                     {#if resolvedProfileImageBlobUrl}
                         <img class="profile-picture-avatar" src={resolvedProfileImageBlobUrl} alt="Profile" />
                     {:else}
@@ -2386,8 +2423,9 @@ changes to the documentation (to keep the documentation up to date).
     </div>
 
         <div class="close-icon-container" class:visible={isMenuVisible}>
-            <button 
+            <button
                 class="icon-button"
+                data-testid="icon-button-close"
                 aria-label={$text('settings.close_settings_menu')}
                 onclick={toggleMenu}
             >
@@ -2400,8 +2438,9 @@ changes to the documentation (to keep the documentation up to date).
 <!-- Dummy element to make linter recognize mobile-overlay class as used -->
 <div class="settings-menu mobile-overlay" style="display: none;"></div>
 
-<div 
-    class="settings-menu" 
+<div
+    class="settings-menu"
+    data-testid="settings-menu"
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
     class:mobile={$isMobileView}
@@ -2869,7 +2908,7 @@ changes to the documentation (to keep the documentation up to date).
         inset: 0;
         overflow: hidden;
         pointer-events: none;
-        z-index: 2;
+        z-index: 0;
         transition: opacity 0.28s ease;
     }
 

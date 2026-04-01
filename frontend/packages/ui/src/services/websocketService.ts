@@ -56,7 +56,6 @@ function sanitizeTokenForLogging(token: string | null | undefined): string {
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
   // === Client to Server ===
-  | "initial_sync_request" // Section 5.2: Client sends its local state (chat_id + versions map)
   | "update_title" // Section 6.2: Client sends new title
   | "update_draft" // Section 7.2: Client sends new draft (Tiptap JSON or null)
   | "delete_chat" // Client requests to delete a chat
@@ -67,7 +66,7 @@ type KnownMessageTypes =
   | "ping" // Standard keep-alive
 
   // === Server to Client ===
-  | "initial_sync_response" // Section 5.4 & initial_sync_handler.py: Server responds with sync plan, deltas, and full chat order
+  | "initial_sync_response" // Legacy: no longer sent by server (replaced by phased_sync_handler.py phases 1-3)
   | "priority_chat_ready" // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
   | "cache_primed" // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
   | "chat_title_updated" // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
@@ -126,7 +125,7 @@ class WebSocketService extends EventTarget {
   private pingIntervalId: NodeJS.Timeout | null = null;
   private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
-  private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
+  private readonly PONG_TIMEOUT = 10000; // 10 seconds to wait for pong (5s was too aggressive for dev server)
   private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
   private hasEverConnected = false; // Tracks whether a WebSocket connection was ever established (suppresses initial network change event)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
@@ -536,6 +535,9 @@ class WebSocketService extends EventTarget {
           }
           try {
             const rawMessage = JSON.parse(event.data as string);
+            // Track activity on every incoming message (including pong) so the
+            // pong-timeout "recent activity" check works during idle periods.
+            this.lastActivityTimestamp = Date.now();
             // Only log if not ping/pong
             if (rawMessage.type !== "ping" && rawMessage.type !== "pong") {
               console.debug(
@@ -1139,7 +1141,15 @@ class WebSocketService extends EventTarget {
         await this.connect(); // Wait for connection
       } catch (_error) {
         if (type !== "ping") {
-          console.error(
+          // Downgrade to warn when user is simply not authenticated — this is
+          // expected on public pages (embed showcase, demo chats) and should
+          // not pollute the console with error-level noise.
+          const isAuthExpected =
+            typeof _error === "string" &&
+            (_error === "User not authenticated" ||
+              _error === "Logout in progress");
+          const logFn = isAuthExpected ? console.warn : console.error;
+          logFn(
             "[WebSocketService] Connection failed, cannot send message:",
             message,
           );
@@ -1153,6 +1163,16 @@ class WebSocketService extends EventTarget {
       try {
         if (type !== "ping") {
           console.debug("[WebSocketService] Sending message:", message);
+        }
+        // Inject W3C traceparent into the message payload for distributed tracing.
+        // The backend's ws_trace_context.py extracts it to create correlated spans.
+        if (type !== "ping" && message.payload && typeof message.payload === "object") {
+          try {
+            const { injectTraceparent } = await import("./tracing/wsSpans");
+            injectTraceparent(message.payload as Record<string, unknown>);
+          } catch {
+            // Tracing not available -- non-fatal, silently skip
+          }
         }
         this.ws?.send(JSON.stringify(message));
       } catch (error) {

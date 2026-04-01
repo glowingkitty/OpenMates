@@ -1,14 +1,16 @@
 # backend/core/api/app/routes/admin_client_logs.py
 """
-Admin Client Console Log Forwarding Endpoint
+Client Console Log Forwarding Endpoint
 
-Receives batched browser console logs from admin users and pushes them to OpenObserve
-for centralized storage and querying via OpenObserve. This gives admins a unified
-view of client-side and server-side logs when debugging issues.
+Receives batched browser console logs and pushes them to OpenObserve
+for centralized storage and querying. This gives a unified view of
+client-side and server-side logs when debugging issues.
+
+Access policy:
+- Development: all authenticated users (frontend errors always visible in OpenObserve)
+- Production: admin users only (HTTP 403 for non-admins)
 
 Privacy guarantees:
-- Only accessible to authenticated admin users (double-checked via require_admin dependency)
-- Regular users cannot access this endpoint (HTTP 403)
 - Log messages are pre-sanitized on the client side (API keys, tokens, passwords redacted)
 - User identification in OpenObserve uses username only (no email addresses)
 
@@ -16,7 +18,9 @@ See docs/admin-console-log-forwarding.md for full architecture documentation.
 """
 
 import logging
+import os
 from typing import List, Optional
+
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
@@ -44,11 +48,19 @@ def get_directus_service(request: Request) -> DirectusService:
     return request.app.state.directus_service
 
 
-async def require_admin(
+async def require_admin_or_dev(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> User:
-    """Dependency to ensure user has admin privileges."""
+    """
+    Ensure user has admin privileges, OR is any authenticated user on dev.
+
+    On development servers, all authenticated users can submit client logs
+    so frontend errors (IDB failures, orphan detection, etc.) are always
+    visible in OpenObserve for debugging.
+    """
+    if os.getenv("SERVER_ENVIRONMENT", "").lower() == "development":
+        return current_user
     is_admin = await directus_service.admin.is_user_admin(current_user.id)
     if not is_admin:
         raise HTTPException(status_code=403, detail="Admin privileges required")
@@ -111,7 +123,7 @@ class ClientLogsRequest(BaseModel):
 async def receive_client_logs(
     request: Request,
     body: ClientLogsRequest,
-    admin_user: User = Depends(require_admin),
+    admin_user: User = Depends(require_admin_or_dev),
 ) -> dict:
     """
     Receive batched browser console logs from an admin user and push them to OpenObserve.

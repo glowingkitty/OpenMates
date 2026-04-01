@@ -68,9 +68,9 @@ async def invoke_direct_api(
         logger.debug(f"{log_prefix} Request prepared with caching optimizations.")
 
         if stream:
-            return _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix)
+            return _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
         else:
-            return await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix)
+            return await _process_direct_api_response(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools)
 
     except Exception as e:
         err_msg = f"Error during direct API request preparation: {e}"
@@ -86,7 +86,8 @@ async def _process_direct_api_response(
     request_kwargs: Dict[str, Any],
     anthropic_client: anthropic.Anthropic,
     messages: List[Dict[str, str]],
-    log_prefix: str
+    log_prefix: str,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> UnifiedAnthropicResponse:
     """Process non-streaming response from Anthropic direct API"""
     try:
@@ -96,8 +97,8 @@ async def _process_direct_api_response(
         logger.info(f"{log_prefix} Received non-streamed response from Anthropic direct API.")
         
         # Calculate token breakdown from input messages (estimate)
-        token_breakdown = calculate_token_breakdown(messages, model_id)
-        
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
         # Parse direct API response
         usage_metadata = AnthropicUsageMetadata(
             input_tokens=response.usage.input_tokens,
@@ -172,7 +173,8 @@ async def _iterate_direct_api_stream(
     request_kwargs: Dict[str, Any],
     anthropic_client: anthropic.Anthropic,
     messages: List[Dict[str, str]],
-    log_prefix: str
+    log_prefix: str,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]:
     """Handle streaming response from Anthropic direct API"""
     logger.info(f"{log_prefix} Stream connection initiated.")
@@ -186,8 +188,8 @@ async def _iterate_direct_api_stream(
         stream = anthropic_client.messages.create(**request_kwargs)
         
         # Calculate token breakdown from input messages (estimate)
-        token_breakdown = calculate_token_breakdown(messages, model_id)
-        
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
+
         for event in stream:
             if event.type == "content_block_delta":
                 if event.delta.type == "text_delta":

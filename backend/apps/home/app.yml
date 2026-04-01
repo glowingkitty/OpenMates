@@ -1,0 +1,168 @@
+# Home app — German apartment and housing search
+#
+# Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht for apartments,
+# houses, and WG rooms across Germany. All three providers use public
+# endpoints (no API keys required). Results are merged and sorted by
+# price, then returned as parent search embeds with child listing embeds.
+#
+# Provider: ImmoScout24 (mobile API), Kleinanzeigen (SSR HTML), WG-Gesucht (sitemap + detail API)
+# No API keys needed.
+
+name_translation_key: home
+description_translation_key: home.description
+icon_image: |
+  home.svg
+category: lifestyle
+last_updated: "2026-03-28"
+# Embed type definitions — single source of truth for frontend embed routing.
+# Read by generate-embed-registry.js to auto-generate TypeScript routing files.
+embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: listing
+    child_frontend_type: home-listing
+    groupable: true
+    preview_component: home/HomeSearchEmbedPreview.svelte
+    fullscreen_component: home/HomeSearchEmbedFullscreen.svelte
+    child_preview_component: home/HomeListingEmbedPreview.svelte
+    child_fullscreen_component: home/HomeListingEmbedFullscreen.svelte
+    icon: home
+    gradient_var: "--color-app-home"
+    i18n_namespace: embeds.home.search
+    # Content fields for the parent app_skill_use embed (finished state)
+    content_fields:
+      - name: query
+        type: string
+        required: true
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+        required: true
+      - name: embed_ids
+        type: string
+        description: "Pipe-delimited child embed IDs (TOON tabular format)"
+    # Content fields for child listing embeds
+    child_content_fields:
+      - name: url
+        type: string
+        required: true
+      - name: title
+        type: string
+        required: true
+      - name: price_label
+        type: string
+      - name: size_sqm
+        type: number
+      - name: rooms
+        type: number
+      - name: address
+        type: string
+      - name: image_url
+        type: string
+      - name: provider
+        type: string
+      - name: listing_type
+        type: string
+      - name: available_from
+        type: string
+        description: "Move-in date (WG-Gesucht only, format: DD.MM.YYYY)"
+      - name: deposit
+        type: number
+        description: "Deposit amount in EUR (WG-Gesucht only)"
+      - name: furnished
+        type: boolean
+        description: "Whether the listing is furnished (WG-Gesucht only)"
+instructions:
+  - instruction: |
+      **Home Search Skill**
+
+      - **home-search**: Search for apartments, houses, and WG rooms in German cities.
+        Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
+        Returns listings with prices, sizes, addresses, and direct links.
+        Costs 10 credits per search.
+      - Use when the user asks to find housing, apartments, rooms, or real estate in Germany.
+      - Always specify the city name as the query. Optionally specify listing_type ("rent" or "buy").
+      - WG-Gesucht only has rental listings — it is automatically skipped for "buy" searches.
+skills:
+  # -----------------------------------------------------------------------
+  # Search — search German housing platforms for apartments and rooms
+  # -----------------------------------------------------------------------
+  - id: search
+    name_translation_key: app_skills.home.search
+    description_translation_key: app_skills.home.search.description
+    icon_image: home.svg
+    preprocessor_hint: >
+      Search for apartments, houses, and WG rooms in German cities.
+      Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
+      Returns listings with prices, sizes, rooms, addresses, and direct links.
+      Costs 10 credits per search. Use when user asks about finding housing in Germany.
+    stage: production
+    class_path: backend.apps.home.skills.search_skill.SearchSkill
+    pricing:
+      per_unit:
+        credits: 10
+    providers:
+      - name: ImmoScout24
+        no_api_key: true
+      - name: Kleinanzeigen
+        no_api_key: true
+      - name: WG-Gesucht
+        no_api_key: true
+    exclude_fields_for_llm:
+      - type
+      - image_url
+      - id
+    suggestions_follow_up_requests:
+      - Show only apartments under 1000 EUR
+      - Search in a different city
+      - Show larger apartments (3+ rooms)
+      - Compare prices across providers
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of housing search requests. Each request searches for
+            apartments and rooms in a German city across multiple platforms.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  City or location name to search in, e.g. "Berlin", "Munich", "Hamburg".
+              listing_type:
+                type: string
+                description: >
+                  Type of listing. "rent" for rentals (default), "buy" for purchases.
+                  Note: WG-Gesucht only has rentals and is skipped for "buy".
+                enum:
+                  - rent
+                  - buy
+                default: rent
+              providers:
+                type: array
+                description: >
+                  Optional list of providers to search. Defaults to all three.
+                items:
+                  type: string
+                  enum:
+                    - ImmoScout24
+                    - Kleinanzeigen
+                    - WG-Gesucht
+              max_results:
+                type: integer
+                description: Maximum number of listings to return (1-20, default 10).
+                default: 10
+                minimum: 1
+                maximum: 20
+            required:
+              - query
+      required:
+        - requests

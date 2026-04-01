@@ -97,6 +97,19 @@ jobs:
               print(f'ERROR: {e.get(\"message\",\"\")[:200]}')
           "
           fi
+      - name: Update OTP key if changed by test
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+        run: |
+          OTP_FILE="frontend/apps/web_app/artifacts/new_otp_key.txt"
+          if [ -f "$OTP_FILE" ]; then
+            NEW_KEY=$(cat "$OTP_FILE")
+            ACCOUNT="${{ github.event.inputs.account }}"
+            SECRET_NAME="OPENMATES_TEST_ACCOUNT_${ACCOUNT}_OTP_KEY"
+            echo "Updating $SECRET_NAME after credential-mutating test..."
+            gh secret set "$SECRET_NAME" --body "$NEW_KEY" && echo "✅ Updated $SECRET_NAME" || echo "⚠️ Failed to update $SECRET_NAME"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

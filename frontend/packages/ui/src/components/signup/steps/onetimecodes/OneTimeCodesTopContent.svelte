@@ -381,7 +381,7 @@ step_4_top_content_svelte:
     {#if !$userProfile.tfa_enabled && setupComplete}
         <!-- Standard Actions (only if NOT resetting AND setup is complete) -->
         {#if showQrCode}
-        <div class="qr-code" transition:fade>
+        <div class="qr-code" data-testid="qr-code" transition:fade>
             <!-- Use the SVG string directly -->
             {@html qrCodeSvg}
         </div>

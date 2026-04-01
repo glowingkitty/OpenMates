@@ -299,11 +299,12 @@
 </script>
 
 <div
-    class="app-store-card"
+    class="app-store-card app-card"
+    data-testid="app-store-card"
     class:app-unavailable={isUnavailable}
-    role="button"
+    role="menuitem"
     tabindex="0"
-    aria-label={app.name}
+    aria-label={appName}
     onclick={handleInteraction}
     onkeydown={handleInteraction}
     style={`background: ${getAppGradient(app.id)}`}
@@ -361,10 +362,10 @@
         </div>
         
         <!-- App name aligned right next to the icon -->
-        <h3 class="app-card-name">{appName}</h3>
+        <h3 class="app-card-name" data-testid="app-card-name">{appName}</h3>
     </div>
     
-    <!-- App description below — aria-hidden since card has aria-label={app.name} -->
+    <!-- App description below — aria-hidden since card has aria-label={appName} -->
     <p class="app-card-description" aria-hidden="true">{appDescription}</p>
     
     <!-- Skill-specific providers below description (only for skill cards) -->

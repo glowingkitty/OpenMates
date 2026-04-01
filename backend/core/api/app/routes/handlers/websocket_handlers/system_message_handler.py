@@ -37,8 +37,8 @@ async def handle_chat_system_message_added(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles system messages sent from the client.
     
@@ -63,181 +63,196 @@ async def handle_chat_system_message_added(
         }
     }
     """
+    _otel_span, _otel_token = None, None
     try:
-        chat_id = payload.get("chat_id")
-        message_payload = payload.get("message")
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("chat_system_message_added", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        try:
+            chat_id = payload.get("chat_id")
+            message_payload = payload.get("message")
         
-        if not chat_id or not message_payload or not isinstance(message_payload, dict):
-            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
-            message_keys = sorted(message_payload.keys()) if isinstance(message_payload, dict) else []
-            logger.error(
-                "Invalid system message payload from "
-                f"{user_id}/{device_fingerprint_hash}: "
-                f"chat_id_present={bool(chat_id)}, message_is_dict={isinstance(message_payload, dict)}, "
-                f"payload_keys={payload_keys}, message_keys={message_keys}"
-            )
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Invalid system message payload structure"}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
-        
-        message_id = message_payload.get("message_id")
-        role = message_payload.get("role")
-        # CRITICAL: Accept encrypted_content (chat-key encrypted, zero-knowledge)
-        # Fallback to 'content' for backwards compatibility
-        encrypted_content = message_payload.get("encrypted_content") or message_payload.get("content")
-        created_at = message_payload.get("created_at")
-        # user_message_id links this system message to the triggering user message
-        # (e.g., the credits-rejection message links to the user's send attempt).
-        # Stored in Directus and forwarded in broadcasts so other devices can:
-        # 1. Show the user message content under "Credits needed..." in the sidebar
-        # 2. Handle the resend flow after credits are restored
-        user_message_id = message_payload.get("user_message_id")
-        # status preserves the originating device's message status (e.g., "waiting_for_user")
-        # so other devices store and display the correct state after cross-device sync
-        message_status = message_payload.get("status")
-        
-        # Validate required fields
-        if not message_id or not encrypted_content:
-            logger.error(f"Missing required fields in system message from {user_id}: message_id={message_id}, has_encrypted_content={bool(encrypted_content)}")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Missing message_id or encrypted_content"}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
-        
-        # Validate role is 'system'
-        if role != "system":
-            logger.error(f"Invalid role for system message from {user_id}: {role}")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "System messages must have role='system'"}},
-                user_id,
-                device_fingerprint_hash
-            )
-            return
-        
-        logger.info(f"[SystemMessage] Processing system message {message_id} for chat {chat_id} from {user_id}")
-        
-        # Verify chat ownership
-        # Note: ChatMethods.get_chat_metadata is accessed via directus_service.chat
-        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-        if not chat_metadata:
-            # Chat may not exist in Directus yet if this is a brand-new chat.
-            # The persist_new_chat_message task creates the chat asynchronously,
-            # so system messages (e.g., app-settings confirmations) can arrive
-            # before the chat record is persisted. This is a known race condition.
-            # Instead of returning a user-visible error, log a warning and proceed
-            # with persisting the system message — the chat record will be created
-            # shortly by the persistence task.
-            logger.warning(
-                f"[SystemMessage] Chat {chat_id} not found in Directus yet — "
-                f"likely a new chat whose persistence task hasn't completed. "
-                f"Proceeding with system message storage (message_id: {message_id})."
-            )
-        
-        # Verify chat owner using hashed_user_id (only if chat already exists in Directus)
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-        if chat_metadata:
-            if chat_metadata.get("hashed_user_id") != hashed_user_id:
-                logger.warning(f"[SystemMessage] User {user_id} attempted to add message to chat {chat_id} owned by another user")
+            if not chat_id or not message_payload or not isinstance(message_payload, dict):
+                payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+                message_keys = sorted(message_payload.keys()) if isinstance(message_payload, dict) else []
+                logger.error(
+                    "Invalid system message payload from "
+                    f"{user_id}/{device_fingerprint_hash}: "
+                    f"chat_id_present={bool(chat_id)}, message_is_dict={isinstance(message_payload, dict)}, "
+                    f"payload_keys={payload_keys}, message_keys={message_keys}"
+                )
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Not authorized to modify this chat", "chat_id": chat_id}},
+                    {"type": "error", "payload": {"message": "Invalid system message payload structure"}},
                     user_id,
                     device_fingerprint_hash
                 )
                 return
         
-        # ZERO-KNOWLEDGE ARCHITECTURE: System messages are encrypted client-side with the chat key
-        # The server stores the encrypted content directly in Directus without re-encryption.
-        # This ensures the server can never read system message content.
-        # 
-        # Note: We use the encrypted_content received from the client directly.
-        # No vault-key encryption is needed here since the content is already encrypted
-        # with the chat key for permanent storage.
+            message_id = message_payload.get("message_id")
+            role = message_payload.get("role")
+            # CRITICAL: Accept encrypted_content (chat-key encrypted, zero-knowledge)
+            # Fallback to 'content' for backwards compatibility
+            encrypted_content = message_payload.get("encrypted_content") or message_payload.get("content")
+            created_at = message_payload.get("created_at")
+            # user_message_id links this system message to the triggering user message
+            # (e.g., the credits-rejection message links to the user's send attempt).
+            # Stored in Directus and forwarded in broadcasts so other devices can:
+            # 1. Show the user message content under "Credits needed..." in the sidebar
+            # 2. Handle the resend flow after credits are restored
+            user_message_id = message_payload.get("user_message_id")
+            # status preserves the originating device's message status (e.g., "waiting_for_user")
+            # so other devices store and display the correct state after cross-device sync
+            message_status = message_payload.get("status")
         
-        # Increment messages_v in cache
-        new_messages_v = await cache_service.increment_chat_component_version(user_id, chat_id, "messages_v")
-        if new_messages_v is None:
-            logger.warning(f"[SystemMessage] Failed to increment messages_v for chat {chat_id}")
-            new_messages_v = 0
+            # Validate required fields
+            if not message_id or not encrypted_content:
+                logger.error(f"Missing required fields in system message from {user_id}: message_id={message_id}, has_encrypted_content={bool(encrypted_content)}")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Missing message_id or encrypted_content"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
         
-        # Persist to Directus via Celery task
-        # Use persist_new_chat_message_task which handles all message types including system messages
-        now_ts = int(datetime.now(timezone.utc).timestamp())
+            # Validate role is 'system'
+            if role != "system":
+                logger.error(f"Invalid role for system message from {user_id}: {role}")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "System messages must have role='system'"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
         
-        celery_app_instance.send_task(
-            'app.tasks.persistence_tasks.persist_new_chat_message',
-            kwargs={
-                "message_id": message_id,
-                "chat_id": chat_id,
-                "hashed_user_id": hashed_user_id,
-                "role": "system",
-                "encrypted_sender_name": None,  # System messages don't have sender names
-                "encrypted_category": None,  # System messages don't have categories
-                "encrypted_model_name": None,  # System messages don't have model names
-                "encrypted_content": encrypted_content,
-                "created_at": created_at,
-                "new_chat_messages_version": new_messages_v,
-                "new_last_edited_overall_timestamp": now_ts,
-                "encrypted_chat_key": None,  # Not needed for system messages in existing chats
-                "user_id": user_id,  # For sync cache updates
-                "user_message_id": user_message_id,  # Links rejection to triggering user message
-                "message_status": message_status,  # Preserve status for phased sync delivery
-            },
-            queue='persistence'
-        )
-        logger.info(f"[SystemMessage] Dispatched Celery task to persist system message {message_id}")
+            logger.info(f"[SystemMessage] Processing system message {message_id} for chat {chat_id} from {user_id}")
         
-        # Send confirmation to sender
-        await manager.send_personal_message(
-            {
-                "type": "system_message_confirmed",
-                "payload": {
-                    "chat_id": chat_id,
+            # Verify chat ownership
+            # Note: ChatMethods.get_chat_metadata is accessed via directus_service.chat
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if not chat_metadata:
+                # Chat may not exist in Directus yet if this is a brand-new chat.
+                # The persist_new_chat_message task creates the chat asynchronously,
+                # so system messages (e.g., app-settings confirmations) can arrive
+                # before the chat record is persisted. This is a known race condition.
+                # Instead of returning a user-visible error, log a warning and proceed
+                # with persisting the system message — the chat record will be created
+                # shortly by the persistence task.
+                logger.warning(
+                    f"[SystemMessage] Chat {chat_id} not found in Directus yet — "
+                    f"likely a new chat whose persistence task hasn't completed. "
+                    f"Proceeding with system message storage (message_id: {message_id})."
+                )
+        
+            # Verify chat owner using hashed_user_id (only if chat already exists in Directus)
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            if chat_metadata:
+                if chat_metadata.get("hashed_user_id") != hashed_user_id:
+                    logger.warning(f"[SystemMessage] User {user_id} attempted to add message to chat {chat_id} owned by another user")
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "Not authorized to modify this chat", "chat_id": chat_id}},
+                        user_id,
+                        device_fingerprint_hash
+                    )
+                    return
+        
+            # ZERO-KNOWLEDGE ARCHITECTURE: System messages are encrypted client-side with the chat key
+            # The server stores the encrypted content directly in Directus without re-encryption.
+            # This ensures the server can never read system message content.
+            # 
+            # Note: We use the encrypted_content received from the client directly.
+            # No vault-key encryption is needed here since the content is already encrypted
+            # with the chat key for permanent storage.
+        
+            # Increment messages_v in cache
+            new_messages_v = await cache_service.increment_chat_component_version(user_id, chat_id, "messages_v")
+            if new_messages_v is None:
+                logger.warning(f"[SystemMessage] Failed to increment messages_v for chat {chat_id}")
+                new_messages_v = 0
+        
+            # Persist to Directus via Celery task
+            # Use persist_new_chat_message_task which handles all message types including system messages
+            now_ts = int(datetime.now(timezone.utc).timestamp())
+        
+            celery_app_instance.send_task(
+                'app.tasks.persistence_tasks.persist_new_chat_message',
+                kwargs={
                     "message_id": message_id,
-                    "messages_v": new_messages_v
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashed_user_id,
+                    "role": "system",
+                    "encrypted_sender_name": None,  # System messages don't have sender names
+                    "encrypted_category": None,  # System messages don't have categories
+                    "encrypted_model_name": None,  # System messages don't have model names
+                    "encrypted_content": encrypted_content,
+                    "created_at": created_at,
+                    "new_chat_messages_version": new_messages_v,
+                    "new_last_edited_overall_timestamp": now_ts,
+                    "encrypted_chat_key": None,  # Not needed for system messages in existing chats
+                    "user_id": user_id,  # For sync cache updates
+                    "user_message_id": user_message_id,  # Links rejection to triggering user message
+                    "message_status": message_status,  # Preserve status for phased sync delivery
+                },
+                queue='persistence'
+            )
+            logger.info(f"[SystemMessage] Dispatched Celery task to persist system message {message_id}")
         
-        # Broadcast to other devices for sync (zero-knowledge architecture)
-        # CRITICAL: Send encrypted_content, not plaintext - other devices decrypt with their chat key
-        broadcast_data: Dict[str, Any] = {
-            "message_id": message_id,
-            "role": "system",
-            "encrypted_content": encrypted_content,  # Client-encrypted with chat key
-            "created_at": created_at,
-        }
-        # Include user_message_id if present — Device B uses it for the "Credits needed..." sidebar
-        if user_message_id:
-            broadcast_data["user_message_id"] = user_message_id
-        # Include status so Device B stores the same status as Device A (e.g., "waiting_for_user")
-        if message_status:
-            broadcast_data["status"] = message_status
+            # Send confirmation to sender
+            await manager.send_personal_message(
+                {
+                    "type": "system_message_confirmed",
+                    "payload": {
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        "messages_v": new_messages_v
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+        
+            # Broadcast to other devices for sync (zero-knowledge architecture)
+            # CRITICAL: Send encrypted_content, not plaintext - other devices decrypt with their chat key
+            broadcast_data: Dict[str, Any] = {
+                "message_id": message_id,
+                "role": "system",
+                "encrypted_content": encrypted_content,  # Client-encrypted with chat key
+                "created_at": created_at,
+            }
+            # Include user_message_id if present — Device B uses it for the "Credits needed..." sidebar
+            if user_message_id:
+                broadcast_data["user_message_id"] = user_message_id
+            # Include status so Device B stores the same status as Device A (e.g., "waiting_for_user")
+            if message_status:
+                broadcast_data["status"] = message_status
 
-        broadcast_payload = {
-            "type": "new_system_message",  # Message type for frontend handler
-            "event": "new_system_message",
-            "chat_id": chat_id,
-            "data": broadcast_data,
-            "versions": {"messages_v": new_messages_v}
-        }
-        await manager.broadcast_to_user(
-            message=broadcast_payload,
-            user_id=user_id,
-            exclude_device_hash=device_fingerprint_hash  # Don't send back to sender
-        )
-        logger.info(f"[SystemMessage] Broadcasted system message {message_id} to other devices (encrypted)")
+            broadcast_payload = {
+                "type": "new_system_message",  # Message type for frontend handler
+                "event": "new_system_message",
+                "chat_id": chat_id,
+                "data": broadcast_data,
+                "versions": {"messages_v": new_messages_v}
+            }
+            await manager.broadcast_to_user(
+                message=broadcast_payload,
+                user_id=user_id,
+                exclude_device_hash=device_fingerprint_hash  # Don't send back to sender
+            )
+            logger.info(f"[SystemMessage] Broadcasted system message {message_id} to other devices (encrypted)")
         
-    except Exception as e:
-        logger.error(f"[SystemMessage] Error handling system message: {e}", exc_info=True)
-        await manager.send_personal_message(
-            {"type": "error", "payload": {"message": "Failed to process system message"}},
-            user_id,
-            device_fingerprint_hash
-        )
+        except Exception as e:
+            logger.error(f"[SystemMessage] Error handling system message: {e}", exc_info=True)
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Failed to process system message"}},
+                user_id,
+                device_fingerprint_hash
+            )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

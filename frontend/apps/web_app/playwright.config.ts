@@ -25,11 +25,11 @@ const config: PlaywrightTestConfig = {
 	use: {
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
-		// Capture failure artifacts for debugging failed tests.
-		// Screenshots and traces are uploaded to GHA artifacts and synced to
-		// test-results/screenshots/ on the dev server.
-		screenshot: 'only-on-failure',
-		trace: 'retain-on-failure'
+		// Capture artifacts for all tests — used by MD report generator
+		// (test-results/reports/) to show inline screenshots per step.
+		// Uploaded to GHA artifacts and synced to test-results/screenshots/.
+		screenshot: 'on',
+		trace: 'off'
 	},
 	testDir: 'tests',
 	testMatch: /(.+\.)?(test|spec)\.[jt]s/,

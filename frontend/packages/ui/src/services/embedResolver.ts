@@ -242,7 +242,14 @@ export async function resolveEmbed(
             embed_id: bareId,
           })
           .catch((error) => {
-            console.error(
+            // Downgrade to warn when WebSocket is unavailable due to auth —
+            // expected on public pages like embed showcase and demo chats.
+            const msg = error?.message || String(error);
+            const isAuthRelated =
+              msg.includes("not connected") ||
+              msg.includes("not authenticated");
+            const logFn = isAuthRelated ? console.warn : console.error;
+            logFn(
               "[embedResolver] Error requesting embed from server:",
               error,
             );
@@ -475,18 +482,9 @@ export function extractEmbedReferences(
           embed_id: parsed.embed_id,
           version: parsed.version, // Optional version number
         });
-        console.debug("[embedResolver] Extracted embed reference:", {
-          type: parsed.type,
-          embed_id: parsed.embed_id,
-          version: parsed.version,
-        });
       }
-    } catch (error) {
-      // Not a valid JSON embed reference, skip
-      console.debug(
-        "[embedResolver] JSON block is not an embed reference:",
-        error,
-      );
+    } catch {
+      // Not a valid embed reference — expected for non-embed JSON blocks
     }
   }
 

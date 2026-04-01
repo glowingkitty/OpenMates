@@ -71,6 +71,7 @@
   
   let {
     id,
+    reminderId: reminderIdProp,
     triggerAtFormatted: triggerAtFormattedProp,
     targetType: targetTypeProp,
     isRepeating: isRepeatingProp = false,
@@ -84,6 +85,7 @@
   }: Props = $props();
   
   // Local reactive state - can be updated via onEmbedDataUpdated callback
+  let localReminderId = $state<string | undefined>(undefined);
   let localTriggerAtFormatted = $state<string | undefined>(undefined);
   let localTargetType = $state<'new_chat' | 'existing_chat' | undefined>(undefined);
   let localIsRepeating = $state<boolean>(false);
@@ -97,6 +99,7 @@
   // Initialize local state from props
   $effect(() => {
     if (!storeResolved) {
+      localReminderId = reminderIdProp;
       localTriggerAtFormatted = triggerAtFormattedProp;
       localTargetType = targetTypeProp;
       localIsRepeating = isRepeatingProp || false;
@@ -118,6 +121,23 @@
   let error = $derived(localError);
   let taskId = $derived(localTaskId);
   
+  let reminderId = $derived(localReminderId);
+
+  /**
+   * Override click handler: deep link to the reminder entry detail page
+   * in settings instead of opening the fullscreen embed overlay.
+   */
+  function handleClick() {
+    if (reminderId && status === 'finished') {
+      import('../../../stores/settingsDeepLinkStore').then(({ settingsDeepLink }) => {
+        settingsDeepLink.set(`app_store/reminder/entry/${reminderId}`);
+      });
+    } else {
+      // Fallback to default fullscreen for processing/error states
+      onFullscreen();
+    }
+  }
+
   // Icon for reminders
   const skillIconName = 'reminder';
   
@@ -179,6 +199,7 @@
     if (data.decodedContent) {
       const content = data.decodedContent as ReminderData;
       
+      if (content.reminder_id) localReminderId = content.reminder_id;
       if (content.trigger_at_formatted) localTriggerAtFormatted = content.trigger_at_formatted;
       if (content.target_type) localTargetType = content.target_type;
       if (typeof content.is_repeating === 'boolean') localIsRepeating = content.is_repeating;
@@ -217,14 +238,14 @@
   {skillName}
   {taskId}
   {isMobile}
-  {onFullscreen}
+  onFullscreen={handleClick}
   showStatus={true}
   customStatusText={statusText}
   showSkillIcon={true}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="reminder-preview" class:mobile={isMobileSnippet}>
+    <div class="reminder-preview" data-testid="reminder-embed-preview" class:mobile={isMobileSnippet}>
       {#if status === 'processing'}
         <!-- Processing state: show skeleton -->
         <div class="skeleton-content">

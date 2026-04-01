@@ -13,6 +13,7 @@
     import { updateUsername } from '../../../../stores/userProfile';
     import { signupStore, clearSignupData } from '../../../../stores/signupStore';
     import * as cryptoService from '../../../../services/cryptoService';
+    import { isValidLocale } from '../../../../i18n/types';
 
     const dispatch = createEventDispatcher();
 
@@ -383,9 +384,11 @@
             isLoading = true;
             
             // Get current language from localStorage or use browser default
-            const currentLang = localStorage.getItem('preferredLanguage') || 
-                              navigator.language.split('-')[0] || 
+            // Validate against supported locales to prevent persisting invalid values (OPE-39)
+            const rawLang = localStorage.getItem('preferredLanguage') ||
+                              navigator.language.split('-')[0] ||
                               'en';
+            const currentLang = isValidLocale(rawLang) ? rawLang : 'en';
             
             // Get dark mode setting from system preference or user setting
             const prefersDarkMode = window.matchMedia && 
@@ -836,10 +839,11 @@
         
         try {
             // Get current language for newsletter subscription
-            // Use the same logic as signup form: localStorage or browser default
-            const currentLang = localStorage.getItem('preferredLanguage') || 
-                              navigator.language.split('-')[0] || 
+            // Validate against supported locales to prevent persisting invalid values (OPE-39)
+            const rawLang = localStorage.getItem('preferredLanguage') ||
+                              navigator.language.split('-')[0] ||
                               'en';
+            const currentLang = isValidLocale(rawLang) ? rawLang : 'en';
             
             // Get dark mode setting for newsletter subscription
             // Use the same logic as signup form: localStorage or system preference
@@ -1113,7 +1117,7 @@
             
             <!-- Success message -->
             {#if newsletterSuccessMessage}
-                <div class="newsletter-message success-message" role="alert">
+                <div class="newsletter-message success-message" data-testid="success-message" role="alert">
                     {newsletterSuccessMessage}
                 </div>
             {/if}

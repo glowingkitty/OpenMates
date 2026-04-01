@@ -167,7 +167,7 @@ class UserLookupResponse(BaseModel):
     available_login_methods: list[str] = Field(..., description="List of available login methods")
     tfa_app_name: Optional[str] = Field(None, description="Name of the 2FA app if user has 2FA enabled")
     user_email_salt: str = Field(..., description="Salt for generating lookup hash (real for existing users, random for non-existing users)")
-    tfa_enabled: bool = Field(False, description="Whether 2FA is enabled for this user")
+    tfa_enabled: bool = Field(True, description="Always True in lookup response for anti-enumeration. Login handler checks actual 2FA status independently.")
     stay_logged_in: bool = Field(False, description="Echo back the stay_logged_in preference from request")
     
     class Config:

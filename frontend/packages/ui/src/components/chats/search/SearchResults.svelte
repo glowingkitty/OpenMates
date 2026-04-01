@@ -501,6 +501,7 @@
 <div
   bind:this={containerEl}
   class="search-results"
+  data-testid="search-results"
   role="listbox"
   tabindex="-1"
   aria-label={$text('chats.search.results_label')}
@@ -735,6 +736,7 @@
           tabindex="0"
           aria-selected={activeChatId === chatResult.chat.chat_id}
           class="search-chat-item"
+          data-testid="search-chat-item"
           class:active={activeChatId === chatResult.chat.chat_id}
           class:focused={isChatFocused}
           data-result-id={chatItemId}
@@ -837,14 +839,14 @@
 
   <!-- No Results Message -->
   {#if results.totalCount === 0 && query.trim().length > 0}
-    <div class="no-results">
+    <div class="no-results" data-testid="search-no-results">
       <p class="no-results-text">{$text('chats.search.no_results')}</p>
     </div>
   {/if}
 
   <!-- Warming Up Indicator -->
   {#if results.isWarmingUp}
-    <div class="warming-up">
+    <div class="warming-up" data-testid="warming-up">
       <span class="clickable-icon icon_reload syncing-icon"></span>
       <span class="warming-up-text">{$text('chats.search.indexing')}</span>
     </div>

@@ -79,6 +79,7 @@ def save_test_result(skill_name: str, test_name: str, request_data: Dict[str, An
 
 
 # Web Search Skill Tests
+@pytest.mark.integration
 class TestWebSearchSkill:
     """Tests for web search skill."""
     
@@ -129,6 +130,7 @@ class TestWebSearchSkill:
 
 
 # News Search Skill Tests
+@pytest.mark.integration
 class TestNewsSearchSkill:
     """Tests for news search skill."""
     
@@ -167,6 +169,7 @@ class TestNewsSearchSkill:
 
 
 # Maps Search Skill Tests
+@pytest.mark.integration
 class TestMapsSearchSkill:
     """Tests for maps search skill."""
     
@@ -205,6 +208,7 @@ class TestMapsSearchSkill:
 
 
 # Videos Search Skill Tests
+@pytest.mark.integration
 class TestVideosSearchSkill:
     """Tests for videos search skill."""
     
@@ -243,6 +247,7 @@ class TestVideosSearchSkill:
 
 
 # Web Read Skill Tests
+@pytest.mark.integration
 class TestWebReadSkill:
     """Tests for web read skill."""
     
@@ -281,6 +286,7 @@ class TestWebReadSkill:
 
 
 # Video Transcript Skill Tests
+@pytest.mark.integration
 class TestVideoTranscriptSkill:
     """Tests for video transcript skill."""
     
@@ -354,6 +360,7 @@ class TestVideoTranscriptSkill:
 
 
 # Validation Tests
+@pytest.mark.integration
 class TestSkillValidation:
     """Tests for request validation (id field, etc.)."""
     

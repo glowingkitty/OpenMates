@@ -162,12 +162,12 @@ function saveWarnErrorLogs(testId: string, phase: string): void {
  * Open a new chat by clicking the .icon_create button if available.
  */
 async function openNewChat(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatButton.click();
 		await page.waitForTimeout(1500);
 	}
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	logCheckpoint('New chat opened and editor ready.');
 }
@@ -205,14 +205,14 @@ async function waitForPdfUploadEmbedFinished(
 ): Promise<void> {
 	// Wait for embed to appear first (processing state)
 	const embedWrapper = page.locator(
-		'.editor-content .embed-full-width-wrapper[data-embed-type="pdf"]'
+		'[data-testid="message-editor"] [data-testid="embed-full-width-wrapper"][data-embed-type="pdf"]'
 	);
 	await expect(embedWrapper.first()).toBeVisible({ timeout: 20000 });
 	logCheckpoint('PDF upload embed appeared in editor (processing).');
 
 	// Wait for processing → finished
 	const embedFinished = page.locator(
-		'.editor-content .embed-full-width-wrapper[data-embed-type="pdf"][data-embed-status="finished"]'
+		'[data-testid="message-editor"] [data-testid="embed-full-width-wrapper"][data-embed-type="pdf"][data-embed-status="finished"]'
 	);
 	await expect(embedFinished.first()).toBeVisible({ timeout: 60000 });
 	logCheckpoint('PDF upload embed reached status=finished.');
@@ -242,14 +242,14 @@ async function assertPdfUploadEmbedInChat(
 ): Promise<void> {
 	logCheckpoint(`[${phase}] Checking PDF upload embed in chat...`);
 
-	const activeChatContainer = page.locator('.active-chat-container');
+	const activeChatContainer = page.getByTestId('active-chat-container');
 
 	// Accept any status — the embed may be "finished" or "error" depending on whether
 	// the backend PDF processing succeeded (screenshot generation). The important structural
 	// check is that the embed card with the correct app-id and skill-id is present.
 	const userEmbedCard = activeChatContainer
-		.locator('.message-wrapper.user')
-		.locator('.unified-embed-preview[data-app-id="pdf"][data-skill-id="read"]');
+		.locator('[data-testid="message-user"]')
+		.locator('[data-testid="embed-preview"][data-app-id="pdf"][data-skill-id="read"]');
 
 	await expect(userEmbedCard.first()).toBeVisible({ timeout: 20000 });
 
@@ -318,13 +318,13 @@ async function assertAiPdfSkillCard(
 ): Promise<any> {
 	logCheckpoint(`[${phase}] Checking AI PDF skill card...`);
 
-	const activeChatContainer = page.locator('.active-chat-container');
+	const activeChatContainer = page.getByTestId('active-chat-container');
 
 	// The AI can use pdf/read, pdf/view, or pdf/search. Accept any pdf skill card.
 	// All are scoped to .message-wrapper.assistant to distinguish from the upload embed.
 	const aiPdfCard = activeChatContainer
-		.locator('.message-wrapper.assistant')
-		.locator('.unified-embed-preview[data-app-id="pdf"][data-status="finished"]');
+		.locator('[data-testid="message-assistant"]')
+		.locator('[data-testid="embed-preview"][data-app-id="pdf"][data-status="finished"]');
 
 	await expect(aiPdfCard.first()).toBeVisible({ timeout: 30000 });
 
@@ -393,7 +393,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// Scope to the wrapper (data-embed-status="finished") which is the reliable finished signal.
 	// The inner .unified-embed-preview[data-status] may briefly lag during Svelte remounts.
 	const editorEmbedWrapper = page.locator(
-		'.editor-content .embed-full-width-wrapper[data-embed-type="pdf"][data-embed-status="finished"]'
+		'[data-testid="message-editor"] [data-testid="embed-full-width-wrapper"][data-embed-type="pdf"][data-embed-status="finished"]'
 	);
 	await expect(editorEmbedWrapper.first()).toBeVisible({ timeout: 10000 });
 
@@ -426,7 +426,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// Position cursor at end without clicking the embed (which would open fullscreen)
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await editor.press('End');
 	await page.keyboard.type(
 		'What are the secret words written on each page of this PDF? List the word for page 1 and page 2.'
@@ -450,9 +450,9 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	saveWarnErrorLogs('pdf', 'after_send');
 
 	// Wait for AI to start responding
-	const activeChatContainer = page.locator('.active-chat-container');
-	const preSendCount = await activeChatContainer.locator('.message-wrapper.assistant').count();
-	const assistantMessages = activeChatContainer.locator('.message-wrapper.assistant');
+	const activeChatContainer = page.getByTestId('active-chat-container');
+	const preSendCount = await activeChatContainer.locator('[data-testid="message-assistant"]').count();
+	const assistantMessages = activeChatContainer.locator('[data-testid="message-assistant"]');
 	await expect(async () => {
 		const count = await assistantMessages.count();
 		if (count <= preSendCount) throw new Error(`No new assistant message yet (count=${count})`);
@@ -504,8 +504,8 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// Allow time for async embed resolvers to complete before clicking
 	await page.waitForTimeout(3000);
 
-	const fullscreenOverlay = page.locator('.unified-embed-fullscreen-overlay');
-	const pdfFullscreenContent = fullscreenOverlay.locator('.pdf-fullscreen-content');
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	const pdfFullscreenContent = fullscreenOverlay.getByTestId('pdf-fullscreen-content');
 	const minimizeButton = fullscreenOverlay.locator('button.icon_minimize');
 
 	/**
@@ -566,9 +566,9 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 
 		// Wait for page images or fallback to appear
 		await expect(async () => {
-			const spinner = fullscreenOverlay.locator('.pdf-spinner');
-			const pageImages = fullscreenOverlay.locator('.pdf-page-image');
-			const fallback = fullscreenOverlay.locator('.pdf-info-fallback');
+			const spinner = fullscreenOverlay.getByTestId('pdf-spinner');
+			const pageImages = fullscreenOverlay.getByTestId('pdf-page-image');
+			const fallback = fullscreenOverlay.getByTestId('pdf-info-fallback');
 			const imgCount = await pageImages.count();
 			const spinnerVisible = await spinner.isVisible().catch(() => false);
 			const fallbackVisible = await fallback.isVisible().catch(() => false);
@@ -576,7 +576,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 		}).toPass({ timeout: 30000 });
 
 		const pageImageCount = await fullscreenOverlay
-			.locator('.pdf-page-image')
+			.getByTestId('pdf-page-image')
 			.count()
 			.catch(() => 0);
 		log(`PDF fullscreen page images: ${pageImageCount}`);
@@ -594,8 +594,8 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 
 	// --- 3a: Click the UPLOAD embed card → PDF fullscreen (if status=finished) ---
 	const userPdfEmbed = activeChatContainer
-		.locator('.message-wrapper.user')
-		.locator('.unified-embed-preview[data-app-id="pdf"][data-skill-id="read"]');
+		.locator('[data-testid="message-user"]')
+		.locator('[data-testid="embed-preview"][data-app-id="pdf"][data-skill-id="read"]');
 
 	const uploadFullscreenOpened = await openAndVerifyFullscreen(
 		userPdfEmbed,

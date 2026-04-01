@@ -31,10 +31,13 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       Search for local or online events, meetups, hackathons, conferences, workshops,
-      networking events, or any community gathering. Use ONLY this skill for event searches
-      — do NOT additionally call web.search or any other search skill for the same query.
-      Use when user asks about events in a specific city, mentions wanting to attend a meetup,
-      or asks what is happening nearby on specific dates.
+      networking events, parties, concerts, or any community gathering. Use ONLY this
+      skill for event searches — do NOT additionally call web.search or any other
+      search skill for the same query.
+      Sources: Meetup, Luma, Google Events, Resident Advisor (electronic music/clubs),
+      and Siegessäule (Berlin LGBTQ+ events). Use 'auto' provider for best coverage.
+      Use 'Resident Advisor' when user asks about clubs, DJs, electronic music, raves,
+      or techno events. Use 'Siegessäule' when user asks about LGBTQ+ events in Berlin.
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
       When the user explicitly asks for online or virtual events, use ONLINE filter.
       Always limit results to 10 (default) unless the user explicitly requests more.
@@ -51,6 +54,12 @@ skills:
       - name: Meetup
         no_api_key: true
       - name: Luma
+        no_api_key: true
+      - name: Google Events
+        api_key_vault_path: kv/data/providers/serpapi
+      - name: Resident Advisor
+        no_api_key: true
+      - name: Siegessäule
         no_api_key: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
@@ -69,11 +78,18 @@ skills:
       properties:
         provider:
           type: string
-          description: "The event provider to use. 'auto' (default) queries both Meetup and Luma in parallel for the best coverage."
+          description: >
+            The event provider to use. 'auto' (default) queries all providers in
+            parallel for best coverage. Use specific providers when the user asks
+            about a particular type: 'Resident Advisor' for electronic music/clubs,
+            'Siegessäule' for Berlin LGBTQ+ events.
           enum:
             - "auto"
             - "Meetup"
             - "Luma"
+            - "Google Events"
+            - "Resident Advisor"
+            - "Siegessäule"
         requests:
           type: array
           description: |

@@ -22,6 +22,7 @@
     import { appsMetadata } from '../../data/appsMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import Icon from '../Icon.svelte';
 
     const dispatch = createEventDispatcher();
@@ -162,11 +163,7 @@
     {:else}
         <!-- About section: description + location -->
         <div class="section">
-            <SettingsItem
-                type="heading"
-                icon="icon_info"
-                title={$text('settings.app_store.provider_detail.about')}
-            />
+            <SettingsSectionHeading title={$text('settings.app_store.provider_detail.about')} icon="icon_info" />
             <div class="about-content">
                 <!-- Description -->
                 {#if provider.description}
@@ -189,11 +186,7 @@
         <!-- Connected Skills section -->
         {#if connectedSkills.length > 0}
             <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="skill"
-                    title={$text('settings.app_store.provider_detail.connected_skills')}
-                />
+                <SettingsSectionHeading title={$text('settings.app_store.provider_detail.connected_skills')} icon="skill" />
                 <div class="skills-list">
                     {#each connectedSkills as connected (connected.appId + '.' + connected.skillId)}
                         <div

@@ -51,8 +51,8 @@ test.describe('Example chats loading for new users', () => {
 		await page.waitForTimeout(8000);
 
 		// ─── Verify the ExampleChatsGroup rendered with cards ────────────────
-		const exampleChatsWrapper = page.locator('.example-chats-group-wrapper');
-		const chatCards = page.locator('.example-chats-group .chat-embed-card');
+		const exampleChatsWrapper = page.getByTestId('example-chats-group-wrapper');
+		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');
 
 		const wrapperCount = await exampleChatsWrapper.count();
 		const cardCount = await chatCards.count();
@@ -105,7 +105,7 @@ test.describe('Example chats loading for new users', () => {
 
 		// Verify cards have titles
 		if (cardCount > 0) {
-			const firstCardTitle = await chatCards.first().locator('.card-title').textContent();
+			const firstCardTitle = await chatCards.first().getByTestId('card-title').textContent();
 			expect(firstCardTitle?.trim().length, 'Chat card should have a non-empty title').toBeGreaterThan(0);
 		}
 	});

@@ -72,47 +72,47 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ---------------------------------------------------------------------------
 const SELECTORS = {
 	/** Focus mode bar (inner Svelte component) with app-specific filter */
-	focusModeBar: '.focus-mode-bar[data-app-id="jobs"]',
+	focusModeBar: '[data-testid="focus-mode-bar"][data-app-id="jobs"]',
 	/** Focus mode bar in activated state */
-	focusModeBarActivated: '.focus-mode-bar.activated[data-app-id="jobs"]',
+	focusModeBarActivated: '[data-testid="focus-mode-bar"].activated[data-app-id="jobs"]',
 	/** Focus mode bar during countdown (not yet activated) */
-	focusModeBarCounting: '.focus-mode-bar.counting[data-app-id="jobs"]',
+	focusModeBarCounting: '[data-testid="focus-mode-bar"].counting[data-app-id="jobs"]',
 	/** Status label (focus mode display name) */
-	statusLabel: '.status-label',
+	statusLabel: '[data-testid="focus-status-label"]',
 	/** Status value (countdown text or "Focus activated") */
-	statusValue: '.status-value',
+	statusValue: '[data-testid="focus-status-value"]',
 	/** Status value in activated state */
-	statusValueActive: '.status-value.active-status',
+	statusValueActive: '[data-testid="focus-status-value"].active-status',
 	/** Progress bar container (visible during countdown only) */
-	progressBar: '.progress-bar-container',
+	progressBar: '[data-testid="focus-progress-bar"]',
 	/** Reject hint text below the bar (visible during countdown only) */
-	rejectHint: '.reject-hint',
+	rejectHint: '[data-testid="focus-reject-hint"]',
 	/** Chat context menu focus mode indicator */
-	contextMenuFocusIndicator: '.focus-mode-indicator',
-	contextMenuFocusLabel: '.focus-mode-label',
+	contextMenuFocusIndicator: '[data-testid="focus-mode-indicator"]',
+	contextMenuFocusLabel: '[data-testid="focus-mode-label"]',
 	// -----------------------------------------------------------------------
 	// New selectors for additional requirements
 	// -----------------------------------------------------------------------
 	/** Focus pill shown above message input when focus mode is active */
-	focusActiveBanner: '.focus-pill',
+	focusActiveBanner: '[data-testid="focus-pill"]',
 	/** Label text inside the focus pill */
-	focusActiveBannerText: '.focus-pill .focus-pill-label',
+	focusActiveBannerText: '[data-testid="focus-pill"] [data-testid="focus-pill-label"]',
 	/** Focus mode badge on Chat.svelte entry (bottom-right of category circle) */
-	focusModeBadge: '.focus-mode-badge',
+	focusModeBadge: '[data-testid="focus-mode-badge"]',
 	/** Mention dropdown shown when user types @ in the message editor */
-	mentionDropdown: '.mention-dropdown',
+	mentionDropdown: '[data-testid="mention-dropdown"]',
 	/** Focus mode items inside the mention dropdown */
-	mentionDropdownFocusItem: '.mention-result[role="option"]',
+	mentionDropdownFocusItem: '[data-testid="mention-result"][role="option"]',
 	/** Context menu Stop button (shown after focus mode is activated) */
-	contextMenuStop: '.menu-item.cancel-stop',
+	contextMenuStop: '[data-testid="focus-context-stop"]',
 	/** Context menu Details link (deep-links to focus mode settings page) */
-	contextMenuDetails: '.menu-item.details',
+	contextMenuDetails: '[data-testid="focus-context-details"]',
 	/** FocusModeContextMenu container */
-	focusModeContextMenu: '.focus-mode-context-menu',
+	focusModeContextMenu: '[data-testid="focus-mode-context-menu"]',
 	/** Focus mode details settings page process/summary bullets */
-	focusModeDetailsBullets: '.process-bullet',
+	focusModeDetailsBullets: '[data-testid="focus-process-bullet"]',
 	/** Focus mode details page show-full-instruction toggle button */
-	focusModeDetailsShowFull: '.instructions-toggle'
+	focusModeDetailsShowFull: '[data-testid="focus-instructions-toggle"]'
 };
 
 // ---------------------------------------------------------------------------
@@ -129,7 +129,7 @@ async function ensureSidebarOpen(
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
 	// Check if sidebar is already open by looking for the activity history wrapper
-	const sidebar = page.locator('.activity-history-wrapper');
+	const sidebar = page.getByTestId('activity-history-wrapper');
 	if (await sidebar.isVisible({ timeout: 1000 }).catch(() => false)) {
 		logCheckpoint('Sidebar already open.');
 		return;
@@ -236,7 +236,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 	// STEP 3: Wait for assistant response
 	// ======================================================================
 	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant response wrapper is visible.');
 
@@ -300,7 +300,7 @@ test('career frustration message triggers Career insights focus mode', async ({
 	logCheckpoint('Waiting for AI response with career advice content...');
 
 	await expect(async () => {
-		const allAssistantMessages = page.locator('.message-wrapper.assistant');
+		const allAssistantMessages = page.getByTestId('message-assistant');
 		const lastMessage = allAssistantMessages.last();
 		const text = await lastMessage.textContent();
 		const lowerText = text?.toLowerCase() ?? '';
@@ -466,7 +466,7 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 	logCheckpoint('Verifying assistant continues responding after rejection...');
 
 	await expect(async () => {
-		const allAssistantMessages = page.locator('.message-wrapper.assistant');
+		const allAssistantMessages = page.getByTestId('message-assistant');
 		const lastMessage = allAssistantMessages.last();
 		const text = await lastMessage.textContent();
 		logCheckpoint(`Assistant response text length after rejection: ${text?.length ?? 0}`);
@@ -484,7 +484,7 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 	// ======================================================================
 	logCheckpoint('Checking for focus mode rejection system message (best-effort)...');
 
-	const systemMessages = page.locator('.system-message-text');
+	const systemMessages = page.getByTestId('system-message-text');
 	const systemCount = await systemMessages.count();
 	let foundRejectionMessage = false;
 	for (let i = 0; i < systemCount; i++) {
@@ -498,7 +498,7 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 	}
 	if (!foundRejectionMessage) {
 		// Also check all message wrappers in case system message uses a different structure
-		const allMsgs = page.locator('.message-wrapper');
+		const allMsgs = page.locator('[data-testid="message-user"], [data-testid="message-assistant"]');
 		const allCount = await allMsgs.count();
 		for (let i = 0; i < allCount; i++) {
 			const text = await allMsgs.nth(i).textContent();
@@ -570,7 +570,7 @@ test('chat context menu shows focus mode indicator when career insights is activ
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_3'), logCheckpoint, takeStepScreenshot, 'ctx-menu-career');
 
 	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
 
 	// Wait for focus mode embed and let it activate
@@ -586,7 +586,7 @@ test('chat context menu shows focus mode indicator when career insights is activ
 	// reads this field to show the focus mode indicator.
 	logCheckpoint('Waiting for AI response to complete and focus metadata to sync...');
 	await expect(async () => {
-		const allAssistantMessages = page.locator('.message-wrapper.assistant');
+		const allAssistantMessages = page.getByTestId('message-assistant');
 		const lastMessage = allAssistantMessages.last();
 		const text = await lastMessage.textContent();
 		logCheckpoint(`Waiting for AI completion: response length = ${text?.length ?? 0}`);
@@ -610,7 +610,7 @@ test('chat context menu shows focus mode indicator when career insights is activ
 	// Ensure sidebar is visible
 	await ensureSidebarOpen(page, logCheckpoint);
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Active chat item visible in sidebar.');
 
@@ -700,7 +700,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_4'), logCheckpoint, takeStepScreenshot, 'followup-initial');
 
 	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
 
 	// Wait for focus mode embed and activation
@@ -718,7 +718,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 	// ======================================================================
 	// STEP 3: Count assistant messages before follow-up
 	// ======================================================================
-	const allAssistantMessagesBefore = page.locator('.message-wrapper.assistant');
+	const allAssistantMessagesBefore = page.getByTestId('message-assistant');
 	const countBefore = await allAssistantMessagesBefore.count();
 	logCheckpoint(`Assistant messages before follow-up: ${countBefore}`);
 
@@ -737,7 +737,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 	logCheckpoint('Waiting for follow-up assistant response...');
 
 	await expect(async () => {
-		const allAssistantMessagesAfter = page.locator('.message-wrapper.assistant');
+		const allAssistantMessagesAfter = page.getByTestId('message-assistant');
 		const countAfter = await allAssistantMessagesAfter.count();
 		logCheckpoint(`Assistant messages after follow-up: ${countAfter} (was ${countBefore})`);
 		// At least one more assistant message should appear
@@ -753,7 +753,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 	logCheckpoint('Verifying follow-up response has career-focused content...');
 
 	await expect(async () => {
-		const allAssistantMessages = page.locator('.message-wrapper.assistant');
+		const allAssistantMessages = page.getByTestId('message-assistant');
 		const lastMessage = allAssistantMessages.last();
 		const text = await lastMessage.textContent();
 		const lowerText = text?.toLowerCase() ?? '';
@@ -805,7 +805,7 @@ test('focus mode remains active on follow-up messages', async ({ page }: { page:
 	// Ensure sidebar is visible
 	await ensureSidebarOpen(page, logCheckpoint);
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
 	logCheckpoint('Active chat item visible in sidebar.');
 
@@ -890,7 +890,7 @@ test('focus active banner is shown when career insights focus mode is active', a
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_6'), logCheckpoint, takeStepScreenshot, 'banner-career');
 
 	logCheckpoint('Waiting for assistant response...');
-	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 60000 });
 
 	// STEP 3: Wait for focus mode embed to appear and activate
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'banner-focus');
@@ -925,7 +925,7 @@ test('focus active banner is shown when career insights focus mode is active', a
 	await page.waitForTimeout(1000);
 
 	// The settings panel should open. Check for either the settings panel or focus mode details.
-	const settingsPanel = page.locator('.settings-panel, .settings-wrapper, [class*="settings"]');
+	const settingsPanel = page.locator('[data-testid="settings-menu"], [data-testid="settings-panel"]');
 	const isSettingsOpen = await settingsPanel
 		.first()
 		.isVisible({ timeout: 5000 })
@@ -980,7 +980,7 @@ test('focus mode can be manually triggered via mention dropdown', async ({
 
 	// STEP 2: Type "@career" to trigger the mention dropdown
 	logCheckpoint('Typing "@career" in message editor to trigger mention dropdown...');
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type('@career');
@@ -994,7 +994,7 @@ test('focus mode can be manually triggered via mention dropdown', async ({
 	logCheckpoint('Mention dropdown is visible!');
 
 	// Check that at least one result is a focus_mode type matching "career"
-	const allResults = page.locator('.mention-result[role="option"]');
+	const allResults = page.locator('[data-testid="mention-result"][role="option"]');
 	const resultCount = await allResults.count();
 	logCheckpoint(`Mention dropdown has ${resultCount} results.`);
 	expect(resultCount).toBeGreaterThan(0);
@@ -1074,7 +1074,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 		"I'm very stuck in my career. I need help figuring out my professional direction.";
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_7'), logCheckpoint, takeStepScreenshot, 'stop-career');
 
-	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'stop-focus');
 
 	logCheckpoint('Waiting for focus mode to activate...');
@@ -1087,7 +1087,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 	// DOM node gets re-rendered mid-click which silently swallows the click event.
 	// The send button becomes enabled again once streaming is fully done.
 	logCheckpoint('Waiting for AI streaming to complete (send button enabled)...');
-	await expect(page.locator('.send-button')).toBeEnabled({ timeout: 60000 });
+	await expect(page.locator('[data-action="send-message"]')).toBeEnabled({ timeout: 60000 });
 	logCheckpoint('Streaming complete — send button is enabled again.');
 
 	// Wait for sync to propagate (banner needs encrypted_active_focus_id in IndexedDB)
@@ -1129,7 +1129,7 @@ test('stop button in focus mode embed context menu deactivates focus mode', asyn
 
 	// STEP 7: Check for a system message indicating the stop
 	logCheckpoint('Checking for stopped system message (best-effort)...');
-	const systemMessages = page.locator('.system-message-text');
+	const systemMessages = page.getByTestId('system-message-text');
 	const systemCount = await systemMessages.count();
 	let foundStopMessage = false;
 	for (let i = 0; i < systemCount && !foundStopMessage; i++) {
@@ -1190,7 +1190,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 		"I'm feeling stuck in my career and not sure where to go professionally. Please help.";
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_8'), logCheckpoint, takeStepScreenshot, 'details-career');
 
-	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'details-focus');
 
 	logCheckpoint('Waiting for focus mode to activate...');
@@ -1202,7 +1202,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 	// If streaming is still in progress, the embed DOM node gets re-rendered mid-click
 	// which silently swallows the click event and the context menu never opens.
 	logCheckpoint('Waiting for AI streaming to complete (send button enabled)...');
-	await expect(page.locator('.send-button')).toBeEnabled({ timeout: 60000 });
+	await expect(page.locator('[data-action="send-message"]')).toBeEnabled({ timeout: 60000 });
 	logCheckpoint('Streaming complete — send button is enabled again.');
 
 	// STEP 3: Click the activated embed to open context menu (any click/tap opens it when activated)
@@ -1225,7 +1225,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 	logCheckpoint('Checking focus mode details page content...');
 
 	// Look for the focus mode name (should contain "Career")
-	const focusModeHeading = page.locator('.focus-mode-details h1, .focus-mode-header h1');
+	const focusModeHeading = page.locator('[data-testid="focus-mode-details"] h1, [data-testid="focus-mode-header"] h1');
 	const headingVisible = await focusModeHeading.isVisible({ timeout: 8000 }).catch(() => false);
 
 	if (headingVisible) {
@@ -1250,7 +1250,7 @@ test('details link in focus mode context menu opens focus mode settings page', a
 		await takeStepScreenshot(page, 'details-page-verified');
 	} else {
 		// Settings panel may be structured differently — check for any settings content
-		const settingsContent = page.locator('.settings-panel, .settings-wrapper, [class*="settings"]');
+		const settingsContent = page.locator('[data-testid="settings-menu"], [data-testid="settings-panel"]');
 		const isAnySettingsOpen = await settingsContent
 			.first()
 			.isVisible({ timeout: 5000 })
@@ -1302,7 +1302,7 @@ test('chat entry shows focus mode badge when career insights is active', async (
 		"I need serious career guidance. I've been in the same job for 5 years with no growth.";
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_9'), logCheckpoint, takeStepScreenshot, 'badge-career');
 
-	await expect(page.locator('.message-wrapper.assistant').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 60000 });
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'badge-focus');
 
 	logCheckpoint('Waiting for focus mode to activate...');
@@ -1320,7 +1320,7 @@ test('chat entry shows focus mode badge when career insights is active', async (
 
 	// STEP 4: Check for the focus mode badge on the active chat entry
 	logCheckpoint('Looking for focus mode badge on active chat entry...');
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
 
 	const focusBadge = activeChatItem.locator(SELECTORS.focusModeBadge);

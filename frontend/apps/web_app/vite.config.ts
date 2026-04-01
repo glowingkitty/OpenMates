@@ -11,6 +11,11 @@ export default defineConfig({
 		SvelteKitPWA({
 			srcDir: './src',
 			mode: 'production',
+			// generateSW creates the service worker automatically.
+			// skipWaiting + clientsClaim ensure new SW activates immediately on deploy,
+			// preventing stale JS chunks from being served after Vercel deploys.
+			// The custom service-worker.ts is compiled by SvelteKit separately and
+			// handles push notifications — it coexists with the Workbox-generated SW.
 			strategies: 'generateSW',
 			// Output manifest.json (not default manifest.webmanifest) to match
 			// the <link rel="manifest"> in app.html and maintain compatibility
@@ -53,8 +58,9 @@ export default defineConfig({
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
 				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
 				cleanupOutdatedCaches: true,
-				skipWaiting: false,
-				clientsClaim: false
+				// Activate new SW immediately on deploy — prevents stale chunks
+				skipWaiting: true,
+				clientsClaim: true
 			},
 			devOptions: {
 				enabled: true,

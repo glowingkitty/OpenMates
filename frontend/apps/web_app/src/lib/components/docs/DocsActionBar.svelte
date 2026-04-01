@@ -67,6 +67,7 @@
 		<div class="new-chat-button-wrapper">
 			<button
 				class="clickable-icon icon_download top-button"
+				data-testid="docs-download-button"
 				title={$text('documentation.actions.download_md')}
 				onclick={handleDownloadMarkdown}
 			></button>

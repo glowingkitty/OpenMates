@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/core";
 import { get } from "svelte/store"; // Import get
+import { getTracer } from '../../../services/tracing/setup';
 import { isDesktop } from "../../../utils/platform";
 import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
@@ -377,6 +378,12 @@ export async function handleSend(
   }
   sendInProgress = true;
 
+  // OTel instrumentation: root span covering the entire send pipeline
+  const tracer = getTracer();
+  const rootSpan = tracer.startSpan('message.send.pipeline', {
+    attributes: { 'message.chat_id': currentChatId || 'new' }
+  });
+
   // CRITICAL: Cancel any pending debounced draft save immediately.
   // Without this, fast typing + send within the 1200ms debounce window causes the
   // debounced save to fire AFTER the message is sent, re-saving the already-sent
@@ -384,6 +391,8 @@ export async function handleSend(
   // the client's debounced save fires afterwards and re-creates the draft.
   saveDraftDebounced.cancel();
 
+  // OTel: deferred send check span
+  const deferredCheckSpan = tracer.startSpan('message.send.deferred_check');
   // DEFERRED SEND: Detect embeds that are still in-flight.
   // Instead of blocking with a warning toast, we:
   //  1. Snapshot the editor state into a PendingSendContext (this function).
@@ -416,6 +425,8 @@ export async function handleSend(
     }
     return true;
   });
+
+  deferredCheckSpan.end();
 
   if (blockingEmbeds.length > 0) {
     // -----------------------------------------------------------------------
@@ -587,9 +598,13 @@ export async function handleSend(
     console.info(
       `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s), editor cleared`,
     );
+    rootSpan.setAttribute('message.send.deferred', true);
+    rootSpan.end();
     return; // Exit — the actual send will happen when embedUploadFinished fires
   }
 
+  // OTel: embed registration span (image + audio embeds, includes dynamic imports)
+  const embedRegSpan = tracer.startSpan('message.send.embed_registration');
   // =========================================================================
   // UPLOADED IMAGE EMBED REGISTRATION
   // For each 'image' embed that has been successfully uploaded (status: 'finished',
@@ -824,6 +839,7 @@ export async function handleSend(
     );
     throw recEmbedRegError;
   }
+  embedRegSpan.end();
 
   // Get the TipTap editor content as JSON
   const editorContent = editor.getJSON();
@@ -852,13 +868,18 @@ export async function handleSend(
   // 1. Stored in EmbedStore for client-side access
   // 2. Sent with the message to the server
   // 3. Cached server-side for LLM inference (so LLM gets the URL metadata)
+  const urlSpan = tracer.startSpan('message.send.url_processing');
   try {
     markdown = await processUrlsBeforeSend(markdown);
   } catch (error) {
     console.error("[handleSend] Error processing URLs before send:", error);
     // Continue with original markdown if URL processing fails
+  } finally {
+    urlSpan.end();
   }
 
+  // OTel: PII detection span
+  const piiSpan = tracer.startSpan('message.send.pii_detection');
   // PII ANONYMIZATION: Detect and replace sensitive data with placeholders
   // This protects user privacy by ensuring emails, API keys, credit cards, etc.
   // are not sent to the server in plain text.
@@ -959,6 +980,8 @@ export async function handleSend(
     console.error("[handleSend] Error in PII anonymization:", error);
     // Continue with original markdown if PII detection fails - user privacy is important
     // but we shouldn't block sending messages entirely
+  } finally {
+    piiSpan.end();
   }
 
   // Check if a new chat suggestion was clicked - if so, track it for deletion
@@ -1106,6 +1129,7 @@ export async function handleSend(
     // Create new message payload using the processed markdown and determined chatIdToUse
     // The markdown has already been processed to convert URLs to embed references
     // Include PII mappings so they can be encrypted and stored with the message
+    const payloadSpan = tracer.startSpan('message.send.payload_creation');
     messagePayload = createMessagePayload(
       markdown,
       chatIdToUse,
@@ -1115,6 +1139,7 @@ export async function handleSend(
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
     // (prevents a brief empty chat row while active chat selection/metadata settles)
     chatListCache.setLastMessage(chatIdToUse, messagePayload);
+    payloadSpan.end();
 
     // Debug logging to understand the flow
     console.debug(`[handleSend] Chat creation logic:`, {
@@ -1126,6 +1151,8 @@ export async function handleSend(
       isTemporaryChat,
     });
 
+    // OTel: IndexedDB write span (chat creation/update + message save)
+    const idbSpan = tracer.startSpan('message.send.idb_write');
     // Check if incognito mode is enabled
     const { incognitoMode } =
       await import("../../../stores/incognitoModeStore");
@@ -1316,6 +1343,8 @@ export async function handleSend(
       }
     }
 
+    idbSpan.end();
+
     // If chatToUpdate is null at this point, the local DB operation failed.
     if (!chatToUpdate) {
       console.error(
@@ -1376,6 +1405,8 @@ export async function handleSend(
       cancelEdit();
     }
 
+    // OTel: UI dispatch span — the moment message becomes visible
+    const uiSpan = tracer.startSpan('message.send.ui_dispatch');
     // Dispatch for UI update (ActiveChat will pick this up)
     // The messagePayload is already defined and includes the correct chat_id
     // If it's a new chat (isNewChatCreation is true) OR we're using an existing draft chat,
@@ -1422,6 +1453,10 @@ export async function handleSend(
       }
     }
 
+    uiSpan.end();
+
+    // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
+    const wsSpan = tracer.startSpan('message.send.ws_send');
     // CRITICAL: Notify backend about the active chat BEFORE sending the message
     // This prevents race conditions where the backend starts processing the message
     // and tries to stream chunks before knowing which chat is active, causing chunks to be dropped
@@ -1444,6 +1479,10 @@ export async function handleSend(
       encryptedSuggestionToDelete ? "(with suggestion to delete)" : "",
     );
 
+    wsSpan.end();
+
+    // OTel: cleanup span (draft clearing)
+    const cleanupSpan = tracer.startSpan('message.send.cleanup');
     // After successfully sending the message, clear the draft for this chat
     // Ensure we only clear if the message was for the chat currently in the draft editor's context
     const currentDraftState = get(draftEditorUIState);
@@ -1467,6 +1506,7 @@ export async function handleSend(
         `[handleSend] Message sent for chat ${chatIdToUse}, but draft context is ${currentDraftState.currentChatId}. Draft clear skipped or handled by clearCurrentDraft's internal logic.`,
       );
     }
+    cleanupSpan.end();
   } catch (error) {
     console.error("Failed to handle message send:", error);
     vibrateMessageField();
@@ -1474,6 +1514,7 @@ export async function handleSend(
     // CRITICAL: Always release the send guard, even on error,
     // so the user can retry sending after a failure.
     sendInProgress = false;
+    rootSpan.end();
   }
 }
 

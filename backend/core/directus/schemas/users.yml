@@ -384,3 +384,9 @@ directus_users:
       length: 256
       nullable: true
       note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-opus-4-6'). Settable via POST /v1/settings/ai-model-defaults."
+
+    # Debug logging opt-in (OpenTelemetry Tier 3 tracing)
+    debug_logging_opted_in:
+      type: boolean
+      default: false
+      note: "User opted in to detailed debug logging (Tier 3 traces). Controlled via Settings > Privacy & Security."

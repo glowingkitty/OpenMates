@@ -114,8 +114,8 @@
 </script>
 
 {#if exampleChats.length > 0}
-  <div class="example-chats-group-wrapper">
-    <div class="example-chats-group">
+  <div class="example-chats-group-wrapper" data-testid="example-chats-group-wrapper">
+    <div class="example-chats-group" data-testid="example-chats-group">
       {#each exampleChats as chat (chat.chat_id)}
         <ChatEmbedPreview
           chatId={chat.chat_id}

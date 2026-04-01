@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -126,9 +127,7 @@
   onTogglePII={togglePII}
 >
   {#snippet embedHeaderCta()}
-    <button class="open-mail-btn" onclick={handleOpenMailClient}>
-      {$text('embeds.mail.open_mail_client')}
-    </button>
+    <EmbedHeaderCtaButton label={$text('embeds.mail.open_mail_client')} onclick={handleOpenMailClient} />
   {/snippet}
 
   {#snippet content()}
@@ -159,21 +158,6 @@
 </UnifiedEmbedFullscreen>
 
 <style>
-  .open-mail-btn {
-    border: none;
-    border-radius: 999px;
-    padding: 10px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.28);
-    cursor: pointer;
-  }
-
-  .open-mail-btn:hover {
-    background: rgba(0, 0, 0, 0.42);
-  }
-
   .mail-fullscreen-content {
     margin: 72px 12px 100px;
     padding: 16px;

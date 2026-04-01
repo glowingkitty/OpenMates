@@ -141,7 +141,8 @@ test('completes passkey signup flow with email + purchase', async ({
 
 	test.slow();
 	// Allow extra time for passkey registration + purchase confirmation email.
-	test.setTimeout(240000);
+	// GHA runners are slower — 240s was insufficient; 420s provides comfortable margin.
+	test.setTimeout(420000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_PASSKEY');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
@@ -193,7 +194,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Opened login dialog.');
 
 		// Switch to the signup tab inside the login dialog.
-		const loginTabs = page.locator('.login-tabs');
+		const loginTabs = page.getByTestId('login-tabs');
 		await expect(loginTabs).toBeVisible();
 		await loginTabs.getByRole('button', { name: /sign up/i }).click();
 		await takeStepScreenshot(page, 'signup-alpha');
@@ -318,7 +319,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		}
 
 		// Purchase credits to proceed to payment step.
-		await page.locator('.credits-package-container .buy-button').first().click();
+		await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
 		await takeStepScreenshot(page, 'payment-consent');
 		logSignupCheckpoint('Reached payment consent step.');
 
@@ -329,7 +330,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Payment consent accepted.');
 
 		// Payment security info button should open a Stripe privacy page (close immediately).
-		const securityInfoButton = page.locator('.payment-form .text-button').first();
+		const securityInfoButton = page.getByTestId('payment-form').getByTestId('text-button').first();
 		await securityInfoButton.scrollIntoViewIfNeeded();
 		const [securityInfoPage] = await Promise.all([
 			context.waitForEvent('page'),
@@ -344,7 +345,7 @@ test('completes passkey signup flow with email + purchase', async ({
 
 		// Submit payment and wait for success.
 		const paymentSubmittedAt = new Date().toISOString();
-		await page.locator('.payment-form .buy-button').click();
+		await page.getByTestId('payment-form').getByTestId('buy-button').click();
 		await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 		await takeStepScreenshot(page, 'payment-success');
 		logSignupCheckpoint('Purchase completed successfully.');
@@ -392,14 +393,14 @@ test('completes passkey signup flow with email + purchase', async ({
 		});
 
 		// Open settings to verify credit balance and delete the test account.
-		const settingsMenuButton = page.locator('.profile-container[role="button"]');
+		const settingsMenuButton = page.getByTestId('profile-container');
 		await settingsMenuButton.click();
-		await expect(page.locator('.settings-menu.visible')).toBeVisible();
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 		await takeStepScreenshot(page, 'settings-menu-open');
 		logSignupCheckpoint('Opened settings menu for credit verification.');
 
 		// Confirm credits reflect the purchase (should be non-zero after payment).
-		const creditsAmount = page.locator('.credits-amount');
+		const creditsAmount = page.getByTestId('credits-amount');
 		await expect(creditsAmount).toBeVisible();
 		const creditsText = (await creditsAmount.textContent()) || '';
 		const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
@@ -412,13 +413,13 @@ test('completes passkey signup flow with email + purchase', async ({
 		await page.getByRole('menuitem', { name: /account/i }).click();
 		await expect(page.getByRole('menuitem', { name: /delete/i })).toBeVisible();
 		await page.getByRole('menuitem', { name: /delete/i }).click();
-		await expect(page.locator('.delete-account-container')).toBeVisible();
+		await expect(page.getByTestId('delete-account-container')).toBeVisible();
 		await takeStepScreenshot(page, 'delete-account');
 		logSignupCheckpoint('Opened delete account settings.');
 
 		// Confirm data deletion checkbox to enable deletion.
 		const deleteConfirmToggle = page
-			.locator('.delete-account-container input[type="checkbox"]')
+			.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 			.first();
 		await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
 		await setToggleChecked(deleteConfirmToggle, true);
@@ -426,14 +427,14 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Confirmed delete account data warning.');
 
 		// Start deletion and complete passkey authentication (auto-starts).
-		await page.locator('.delete-account-container .delete-button').click();
-		const authModal = page.locator('.auth-modal');
+		await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
+		const authModal = page.getByTestId('auth-modal');
 		await expect(authModal).toBeVisible();
 		await takeStepScreenshot(page, 'delete-account-auth');
 		logSignupCheckpoint('Passkey auth modal opened for deletion.');
 
 		// Wait for deletion success after passkey authentication completes.
-		await expect(page.locator('.delete-account-container .success-message')).toBeVisible({
+		await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
 			timeout: 60000
 		});
 		await takeStepScreenshot(page, 'delete-account-success');

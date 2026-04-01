@@ -51,11 +51,11 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 async function openImportSettings(page: any): Promise<void> {
-	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	const settingsMenuButton = page.getByTestId('profile-container');
 	await expect(settingsMenuButton).toBeVisible({ timeout: 15000 });
 	await settingsMenuButton.click();
 
-	await expect(page.locator('.settings-menu.visible')).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
 	await page.getByRole('menuitem', { name: /account/i }).click();
 	await page.getByRole('menuitem', { name: /import/i }).click();
 
@@ -64,18 +64,18 @@ async function openImportSettings(page: any): Promise<void> {
 
 async function deleteChatByTitle(page: any, title: string): Promise<void> {
 	for (let attempt = 0; attempt < 6; attempt++) {
-		const chatTitle = page.locator('.chat-item-wrapper .chat-title', { hasText: title }).first();
+		const chatTitle = page.getByTestId('chat-item-wrapper').getByTestId('chat-title').filter({ hasText: title }).first();
 		const exists = await chatTitle.isVisible({ timeout: 1500 }).catch(() => false);
 		if (!exists) {
 			return;
 		}
 
 		const chatItem = chatTitle
-			.locator('xpath=ancestor::*[contains(@class,"chat-item-wrapper")]')
+			.locator('xpath=ancestor::*[@data-testid="chat-item-wrapper"]')
 			.first();
 		await chatItem.click({ button: 'right' });
 
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 		await expect(deleteButton).toBeVisible({ timeout: 5000 });
 		await deleteButton.click();
 		await deleteButton.click();
@@ -125,20 +125,20 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	await page.setInputFiles('#import-file-input', zipFilePath);
 	log('Uploaded import ZIP file.', { zipFilePath });
 
-	const importSelectionSection = page.locator('.select-section');
+	const importSelectionSection = page.getByTestId('import-select-section');
 	await expect(importSelectionSection).toBeVisible({ timeout: 15000 });
-	await expect(importSelectionSection.locator('.chat-item')).toHaveCount(2, { timeout: 15000 });
+	await expect(importSelectionSection.getByTestId('chat-item')).toHaveCount(2, { timeout: 15000 });
 	await expect(
-		importSelectionSection.locator('.chat-item .chat-title', { hasText: IMPORT_CHAT_TITLE_1 })
+		importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-title"]', { hasText: IMPORT_CHAT_TITLE_1 })
 	).toBeVisible();
 	await expect(
-		importSelectionSection.locator('.chat-item .chat-title', { hasText: IMPORT_CHAT_TITLE_2 })
+		importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-title"]', { hasText: IMPORT_CHAT_TITLE_2 })
 	).toBeVisible();
 	await expect(
-		importSelectionSection.locator('.chat-item .chat-meta', { hasText: /3\s+messages/i })
+		importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-meta"]', { hasText: /3\s+messages/i })
 	).toBeVisible();
 	await expect(
-		importSelectionSection.locator('.chat-item .chat-meta', { hasText: /2\s+messages/i })
+		importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-meta"]', { hasText: /2\s+messages/i })
 	).toBeVisible();
 	await screenshot(page, 'parsed-chat-list');
 
@@ -147,11 +147,11 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	await importButton.click();
 	log('Started chat import.');
 
-	const resultsContainer = page.locator('.results-container');
+	const resultsContainer = page.getByTestId('import-results-container');
 	await expect(resultsContainer).toBeVisible({ timeout: 45000 });
 	await expect(resultsContainer).toContainText(/import complete!/i, { timeout: 45000 });
-	const resultForChat1 = resultsContainer.locator('.result-item', { hasText: IMPORT_CHAT_TITLE_1 });
-	const resultForChat2 = resultsContainer.locator('.result-item', { hasText: IMPORT_CHAT_TITLE_2 });
+	const resultForChat1 = resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_1 });
+	const resultForChat2 = resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_2 });
 	await expect(resultForChat1).toBeVisible();
 	await expect(resultForChat2).toBeVisible();
 	await expect(resultForChat1).toContainText(/(2|3)\s+messages imported/i);

@@ -5,7 +5,7 @@
   session. While active, browser console logs are forwarded to OpenObserve
   tagged with a short debugging_id. The user shares this ID with support.
 
-  Placed under Settings > Report Issue as a sub-section.
+  Placed under Settings > Privacy as a sub-section of the Debug Logging section.
 
   Architecture context: See docs/architecture/admin-console-log-forwarding.md
 -->

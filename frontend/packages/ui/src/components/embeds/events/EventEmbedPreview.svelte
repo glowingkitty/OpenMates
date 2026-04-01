@@ -5,18 +5,22 @@
   Used inside EventsSearchEmbedFullscreen as clickable cards that open
   EventEmbedFullscreen via ChildEmbedOverlay drill-down.
 
+  Shows event image on the right side (matching WebsiteEmbedPreview pattern)
+  with text content (title, date, location, badges) on the left.
+
   Unlike EventsSearchEmbedPreview (the parent search result), this component:
   - Receives structured EventResult data directly from the parent (no embed store lookup)
   - Is NOT mounted by AppSkillUseRenderer — it's instantiated inline by the parent fullscreen
   - Has no cancellation logic (child event embeds are finished by the time they render)
   - Uses showStatus=false and showSkillIcon=false so cards are compact with no bottom bar
 
-  Design mirrors TravelConnectionEmbedPreview.svelte.
+  Design mirrors WebsiteEmbedPreview.svelte image-right pattern.
 -->
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
 
   /**
    * A single event result from the events/search skill backend.
@@ -138,7 +142,6 @@
 
   /**
    * Map backend provider slugs to human-readable display names.
-   * Providers: meetup, luma, classictic, berlin_philharmonic, bachtrack
    */
   function getProviderLabel(provider: string | undefined): string {
     switch (provider?.toLowerCase()) {
@@ -164,7 +167,6 @@
     const amount = event.fee.amount;
     const currency = event.fee.currency || '';
     if (amount == null) return '';
-    // Use Intl.NumberFormat when available for proper currency display
     try {
       return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
     } catch {
@@ -176,6 +178,8 @@
     const rawImageUrl = event.image_url || event.cover_url;
     return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : '';
   });
+
+  let imageError = $state(false);
 
   // No-op stop handler — child event embeds are already finished
   async function handleStop() {
@@ -195,41 +199,58 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
-  hasFullWidthImage={!!eventImageUrl}
+  hasFullWidthImage={!!eventImageUrl && !event.title}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="event-preview-details" class:mobile={isMobileLayout}>
-      {#if eventImageUrl}
-        <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
-      {/if}
+      <div class="event-content-row">
+        <!-- Text content (left side) -->
+        <div class="event-text">
+          <!-- Event title -->
+          <div class="event-title">{event.title || ''}</div>
 
-      <!-- Event title -->
-      <div class="event-title">{event.title || ''}</div>
+          <!-- Date + location -->
+          <div class="event-meta">
+            {#if eventDate}
+              <span class="event-date">{eventDate}</span>
+            {/if}
+            {#if eventLocation}
+              <span class="event-location">{eventLocation}</span>
+            {/if}
+          </div>
 
-      <!-- Date + location row -->
-      <div class="event-meta">
-        {#if eventDate}
-          <span class="event-date">{eventDate}</span>
-        {/if}
-        {#if eventLocation}
-          <span class="event-location">{eventLocation}</span>
-        {/if}
-      </div>
+          <!-- Bottom row: type badge + RSVP count / fee + source -->
+          <div class="event-footer">
+            {#if event.event_type}
+              <span class="event-type-badge" class:online={isOnline}>
+                {isOnline ? 'Online' : 'In Person'}
+              </span>
+            {/if}
+            {#if isPaid && feeDisplay}
+              <span class="event-fee">{feeDisplay}</span>
+            {:else if event.rsvp_count != null && event.rsvp_count > 0}
+              <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
+            {/if}
+            {#if providerLabel}
+              <span class="event-source">{providerLabel}</span>
+            {/if}
+          </div>
+        </div>
 
-      <!-- Bottom row: type badge + RSVP count / fee + source -->
-      <div class="event-footer">
-        {#if event.event_type}
-          <span class="event-type-badge" class:online={isOnline}>
-            {isOnline ? 'Online' : 'In Person'}
-          </span>
-        {/if}
-        {#if isPaid && feeDisplay}
-          <span class="event-fee">{feeDisplay}</span>
-        {:else if event.rsvp_count != null && event.rsvp_count > 0}
-          <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
-        {/if}
-        {#if providerLabel}
-          <span class="event-source">{providerLabel}</span>
+        <!-- Image (right side) -->
+        {#if eventImageUrl && !imageError && !isMobileLayout}
+          <div class="event-preview-image">
+            <img
+              src={eventImageUrl}
+              alt={event.title || 'Event'}
+              loading="lazy"
+              crossorigin="anonymous"
+              onerror={(e) => {
+                imageError = true;
+                handleImageError(e.currentTarget as HTMLImageElement);
+              }}
+            />
+          </div>
         {/if}
       </div>
     </div>
@@ -242,22 +263,32 @@
   .event-preview-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     height: 100%;
-    justify-content: center;
-    padding: 2px 0;
-  }
-
-  .event-image {
     width: 100%;
-    height: 74px;
-    object-fit: cover;
-    border-radius: 10px;
-    margin-bottom: 2px;
+    justify-content: center;
   }
 
   .event-preview-details.mobile {
     justify-content: flex-start;
+  }
+
+  .event-content-row {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+  }
+
+  .event-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 0 1 55%;
+    min-width: 0;
+    align-self: center;
+    padding: 2px 0;
   }
 
   /* ── Event title ─────────────────────────────────────────────────────────── */
@@ -300,40 +331,46 @@
   }
 
   .event-location {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     color: var(--color-grey-60);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* ── Footer: type badge + RSVP / fee + source ────────────────────────────── */
+  /* ── Footer: badges row ──────────────────────────────────────────────────── */
 
   .event-footer {
     display: flex;
     align-items: center;
-    gap: 6px;
     flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
   }
 
-  /* Type badge: "Online" (teal) or "In Person" (events brand red) */
   .event-type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 100px;
     font-size: 0.625rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    padding: 2px 6px;
-    border-radius: 20px;
     background: var(--color-app-events-start, #a20000);
     color: #fff; /* intentional: always white on brand colour */
-    flex-shrink: 0;
   }
 
   .event-type-badge.online {
     background: #1a6b5a; /* intentional: brand teal for online events */
   }
 
-  .event-fee,
+  .event-fee {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-grey-70);
+  }
+
   .event-rsvp {
     font-size: 0.6875rem;
     color: var(--color-grey-60);
@@ -341,9 +378,23 @@
 
   .event-source {
     font-size: 0.6875rem;
-    color: var(--color-font-secondary);
-    font-weight: 500;
-    margin-left: auto;
-    flex-shrink: 0;
+    color: var(--color-grey-50);
+  }
+
+  /* ── Image (right side) ──────────────────────────────────────────────────── */
+
+  .event-preview-image {
+    flex: 1;
+    min-width: 0;
+    height: 171px;
+    transform: translateX(20px);
+    overflow: hidden;
+  }
+
+  .event-preview-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
   }
 </style>

@@ -96,6 +96,11 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
@@ -118,7 +123,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await page.waitForTimeout(5000);
 
 	// Start a fresh chat
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible()) {
 		await newChatButton.click();
 		await page.waitForTimeout(2000);
@@ -130,19 +135,19 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	// 2. Get the chat container reference for scroll measurements
 	// ───────────────────────────────────────────────────
-	const chatContainer = page.locator('.chat-history-container');
+	const chatContainer = page.getByTestId('chat-history-container');
 	await expect(chatContainer).toBeVisible();
 
 	// ───────────────────────────────────────────────────
 	// 3. Type and send a message
 	// ───────────────────────────────────────────────────
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(withMockMarker('What is the capital of France? Please explain in detail.', 'chat_scroll_streaming', 'medium'));
 	await takeStepScreenshot(page, 'message-typed');
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 
 	// Record scroll position BEFORE sending
@@ -164,7 +169,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	logCheckpoint('Waiting for user message to appear and scroll...');
 
-	const userMessage = page.locator('.message-wrapper.user').last();
+	const userMessage = page.getByTestId('message-user').last();
 	await expect(userMessage).toBeVisible({ timeout: 10000 });
 
 	// Wait for the scroll animation to complete (the effect uses tick() + 350ms + smooth scroll)
@@ -174,9 +179,9 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 
 	// Check that user message is positioned near the top of the chat container
 	const userMessagePosition = await page.evaluate(() => {
-		const container = document.querySelector('.chat-history-container') as HTMLElement;
+		const container = document.querySelector('[data-testid="chat-history-container"]') as HTMLElement;
 		const userMsg = Array.from(
-			container.querySelectorAll('.message-wrapper.user')
+			container.querySelectorAll('[data-testid="message-user"]')
 		).pop() as HTMLElement;
 		if (!container || !userMsg) return null;
 
@@ -213,11 +218,11 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 
 	// The loading indicator may appear briefly before streaming starts.
 	// We check for either the loading dots OR the assistant message wrapper appearing.
-	const aiLoadingOrAssistant = page.locator('.ai-loading-indicator, .message-wrapper.assistant');
+	const aiLoadingOrAssistant = page.locator('[data-testid="ai-loading-indicator"], [data-testid="message-assistant"]');
 	await expect(aiLoadingOrAssistant.first()).toBeVisible({ timeout: 30000 });
 
 	const hasLoadingIndicator = await page
-		.locator('.ai-loading-indicator')
+		.getByTestId('ai-loading-indicator')
 		.isVisible()
 		.catch(() => false);
 	if (hasLoadingIndicator) {
@@ -234,7 +239,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	logCheckpoint('Waiting for assistant response to start streaming...');
 
-	const assistantMessage = page.locator('.message-wrapper.assistant').last();
+	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 45000 });
 
 	// Record scroll position when streaming starts
@@ -266,8 +271,8 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	//    The .mate-profile and .chat-mate-name elements should maintain
 	//    consistent position throughout streaming.
 	// ───────────────────────────────────────────────────
-	const mateProfile = assistantMessage.locator('.mate-profile');
-	const mateName = assistantMessage.locator('.chat-mate-name');
+	const mateProfile = assistantMessage.getByTestId('mate-profile');
+	const mateName = assistantMessage.getByTestId('chat-mate-name');
 
 	const profilePosBefore = await mateProfile.boundingBox();
 	const namePosBefore = await mateName.boundingBox();
@@ -336,7 +341,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await takeStepScreenshot(page, 'response-complete');
 
 	// Verify the mate-message-content bubble has proper dimensions
-	const messageContent = assistantMessage.locator('.mate-message-content');
+	const messageContent = assistantMessage.getByTestId('mate-message-content');
 	const contentBox = await messageContent.boundingBox();
 	if (contentBox) {
 		logCheckpoint('Assistant message content dimensions', {
@@ -360,12 +365,12 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 		await page.waitForTimeout(500);
 	}
 
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible();
 
 	// Right-click to open context menu
 	await activeChatItem.click({ button: 'right' });
-	const deleteButton = page.locator('.menu-item.delete');
+	const deleteButton = page.getByTestId('chat-context-delete');
 	await expect(deleteButton).toBeVisible();
 	await deleteButton.click(); // First click: enter confirm mode
 	await deleteButton.click(); // Second click: confirm deletion

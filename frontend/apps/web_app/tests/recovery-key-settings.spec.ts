@@ -123,6 +123,11 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
+
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
 	logCheckpoint('Opened login dialog.');
 
 	// Enter email
@@ -141,7 +146,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 
 	// .chat-container.authenticated is the ONLY reliable DOM indicator of a truly
 	// logged-in state. The .profile-container exists on the demo page too.
-	const authIndicator = page.locator('.chat-container.authenticated');
+	const authIndicator = page.locator('[data-authenticated="true"]');
 
 	// Retry login up to 3 times to handle OTP timing boundary failures
 	let loginSuccess = false;
@@ -182,9 +187,9 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// ========================================================================
 
 	// Open settings
-	const settingsMenuButton = page.locator('.profile-container[role="button"]');
+	const settingsMenuButton = page.getByTestId('profile-container');
 	await settingsMenuButton.click();
-	await expect(page.locator('.settings-menu.visible')).toBeVisible();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible();
 	await takeStepScreenshot(page, 'settings-open');
 	logCheckpoint('Opened settings menu.');
 
@@ -204,7 +209,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// ========================================================================
 
 	// Click "Regenerate Recovery Key" (or "Create Recovery Key" if first time)
-	const regenerateButton = page.locator('button.primary-button');
+	const regenerateButton = page.getByTestId('primary-button');
 	await expect(regenerateButton).toBeVisible({ timeout: 10000 });
 	await regenerateButton.click();
 	await takeStepScreenshot(page, 'regenerate-clicked');
@@ -213,15 +218,15 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// SecurityAuth modal: enter password
 	const authModal = page.locator('[role="dialog"]');
 	await expect(authModal).toBeVisible({ timeout: 10000 });
-	const authPasswordInput = authModal.locator('.password-input, input[type="password"]');
+	const authPasswordInput = authModal.locator('[data-testid="password-input"], input[type="password"]');
 	await expect(authPasswordInput).toBeVisible();
 	await authPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	await authModal.locator('.auth-btn').click();
+	await authModal.getByTestId('auth-btn').click();
 	await takeStepScreenshot(page, 'auth-password');
 	logCheckpoint('Submitted password in SecurityAuth.');
 
 	// If 2FA required in SecurityAuth, enter OTP
-	const authTfaInput = authModal.locator('.tfa-input');
+	const authTfaInput = authModal.getByTestId('tfa-input');
 	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
 	if (authTfaVisible) {
 		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
@@ -235,13 +240,13 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// ========================================================================
 
 	// Wait for the save container to appear (generating step may flash briefly)
-	const saveContainer = page.locator('.save-container');
+	const saveContainer = page.getByTestId('save-container');
 	await expect(saveContainer).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'recovery-key-save');
 	logCheckpoint('Recovery key generated, save step visible.');
 
 	// Click "Copy" button to copy the recovery key to clipboard (scoped to save container)
-	const copyButton = saveContainer.locator('button.save-button').filter({ hasText: /copy/i });
+	const copyButton = saveContainer.getByTestId('save-button').filter({ hasText: /copy/i });
 	await expect(copyButton).toBeVisible();
 	await copyButton.click();
 	logCheckpoint('Clicked Copy button for recovery key.');
@@ -277,13 +282,13 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Confirmed recovery key storage.');
 
 	// Click "Continue" button
-	const continueButton = page.locator('.save-container button.primary-button');
+	const continueButton = page.getByTestId('save-container').getByTestId('primary-button');
 	await expect(continueButton).toBeEnabled({ timeout: 5000 });
 	await continueButton.click();
 	logCheckpoint('Clicked Continue to save recovery key.');
 
 	// Wait for success - back to overview with success message
-	const successMessage = page.locator('.success-message');
+	const successMessage = page.getByTestId('success-message');
 	await expect(successMessage).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'recovery-key-success');
 	logCheckpoint('Success message visible. Recovery key regeneration complete.');
@@ -299,7 +304,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// Navigate back to main settings where the logout item lives.
 	// Click the settings header back button repeatedly until logout is visible.
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	const settingsBackButton = page.locator('.settings-header .nav-button .icon_back.visible');
+	const settingsBackButton = page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
 		const logoutNowVisible = await logoutItem.isVisible().catch(() => false);
 		if (logoutNowVisible) break;
@@ -330,6 +335,11 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	});
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
+
+	// Click Login tab to switch from signup to login view
+	const loginTabRelogin = page.getByTestId('tab-login');
+	await expect(loginTabRelogin).toBeVisible({ timeout: 10000 });
+	await loginTabRelogin.click();
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email
@@ -371,13 +381,13 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	logCheckpoint('Entered recovery key.');
 
 	// Submit recovery key login (the submit button in EnterRecoveryKey has type="submit" class="login-button")
-	const recoverySubmitButton = page.locator('button[type="submit"].login-button');
+	const recoverySubmitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	await expect(recoverySubmitButton).toBeVisible();
 	await recoverySubmitButton.click();
 	logCheckpoint('Submitted recovery key login.');
 
 	// Wait for successful login - verify authenticated state
-	const authIndicatorRelogin = page.locator('.chat-container.authenticated');
+	const authIndicatorRelogin = page.locator('[data-authenticated="true"]');
 	await expect(authIndicatorRelogin).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'login-success-recovery-key');
 	logCheckpoint('Login successful with new recovery key! Test complete.');

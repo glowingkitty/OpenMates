@@ -228,7 +228,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
 
 <div class="verify-device-passkey">
     {#if reason === 'location_change'}
-        <div class="location-change-notice">
+        <div class="location-change-notice" data-testid="location-change-notice">
             <span class="icon icon_shield"></span>
             <p>{$text('login.verify_device_location_change_notice')}</p>
         </div>
@@ -260,7 +260,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     </div>
 
     <div class="switch-account">
-        <button type="button" onclick={handleSwitchToLogin} class="text-button">
+        <button type="button" onclick={handleSwitchToLogin} class="text-button" data-testid="text-button">
             {$text('login.login_with_another_account')}
         </button>
     </div>

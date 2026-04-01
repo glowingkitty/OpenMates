@@ -73,12 +73,13 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
+
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -124,48 +125,11 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await archiveExistingScreenshots(log);
 	log('Starting daily inspiration chat flow test.', { email: TEST_EMAIL });
 
-	// ── 1. Navigate to home ──────────────────────────────────────────────────
-	await page.goto(getE2EDebugUrl('/'));
-	await screenshot(page, 'home');
-
-	// ── 2. Open login dialog ─────────────────────────────────────────────────
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
-	await screenshot(page, 'login-dialog');
-
-	// ── 3. Enter email ───────────────────────────────────────────────────────
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.locator('#login-continue-button').click();
-	log('Entered email and clicked continue.');
-
-	// ── 4. Enter password ────────────────────────────────────────────────────
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// ── 5. Enter OTP ─────────────────────────────────────────────────────────
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	log('Generated and entered OTP.');
-
-	// ── 6. Submit login ──────────────────────────────────────────────────────
-	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	log('Submitted login form.');
-
-	// ── 7. Wait for authenticated state ─────────────────────────────────────
-	await page.waitForURL(/chat/);
-	log('Authenticated — waiting for initial load and WS sync...');
-	// Allow time for WebSocket to deliver pending daily inspirations
-	await page.waitForTimeout(6000);
+	// ── 1-6. Login via shared helper (includes OTP retry with clock-drift compensation) ──
+	await loginToTestAccount(page, log, screenshot);
+	log('Authenticated — waiting for WS sync to deliver pending daily inspirations...');
+	// Allow extra time for WebSocket to deliver pending daily inspirations
+	await page.waitForTimeout(4000);
 	await screenshot(page, 'after-login');
 
 	// ── 8. Verify daily inspiration banner is visible ────────────────────────
@@ -190,7 +154,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await screenshot(page, 'inspiration-chat-created');
 
 	// Verify the assistant message from the inspiration is visible
-	const assistantMessage = page.locator('.message-wrapper.assistant').first();
+	const assistantMessage = page.getByTestId('message-assistant').first();
 	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
 	log('Initial inspiration assistant message is visible.');
 
@@ -205,7 +169,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	let titleBeforeSend = '';
 	try {
 		// Try the chat header title element first
-		const chatTitleEl = page.locator('.chat-title').first();
+		const chatTitleEl = page.getByTestId('chat-title').first();
 		if (await chatTitleEl.isVisible({ timeout: 3000 })) {
 			titleBeforeSend = (await chatTitleEl.textContent()) ?? '';
 		}
@@ -219,7 +183,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// this with "You cannot send messages to this shared chat." because the chat
 	// was not in the user's chat_ids_versions sorted set.
 	log('Typing follow-up message "tell me more"...');
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(withMockMarker('tell me more', 'daily_inspiration'));
@@ -236,7 +200,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// message to appear (the first being the inspiration intro, the second being
 	// the AI response to "tell me more").
 	log('Waiting for AI response to follow-up...');
-	const assistantMessages = page.locator('.message-wrapper.assistant');
+	const assistantMessages = page.getByTestId('message-assistant');
 	// After sending "tell me more", there should be at least 2 assistant messages
 	await expect(assistantMessages).toHaveCount(2, { timeout: 60000 });
 	log('AI responded to follow-up message — Bug #1 regression check passed.');
@@ -263,7 +227,7 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// Also verify the chat-title element hasn't been replaced with follow-up text
 	if (titleBeforeSend) {
 		try {
-			const chatTitleElAfter = page.locator('.chat-title').first();
+			const chatTitleElAfter = page.getByTestId('chat-title').first();
 			if (await chatTitleElAfter.isVisible({ timeout: 3000 })) {
 				const titleAfterSend = (await chatTitleElAfter.textContent()) ?? '';
 				const titleAfterLower = titleAfterSend.toLowerCase();
@@ -292,12 +256,12 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	}
 
 	// Find and right-click the active chat in the sidebar to open context menu
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
 	await activeChatItem.click({ button: 'right' });
 	await screenshot(page, 'context-menu-open');
 
-	const deleteButton = page.locator('.menu-item.delete');
+	const deleteButton = page.getByTestId('chat-context-delete');
 	await expect(deleteButton).toBeVisible();
 	await deleteButton.click(); // Enter confirm mode
 	await deleteButton.click(); // Confirm deletion

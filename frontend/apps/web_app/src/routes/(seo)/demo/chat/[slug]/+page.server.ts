@@ -64,6 +64,7 @@ export const load: PageServerLoad = async ({ params, fetch, setHeaders, url }) =
 	const isDevHost =
 		hostname.includes('.dev.') ||
 		hostname.startsWith('dev.') ||
+		hostname.endsWith('.vercel.app') ||
 		hostname === 'localhost' ||
 		hostname === '127.0.0.1';
 

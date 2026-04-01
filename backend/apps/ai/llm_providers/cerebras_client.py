@@ -227,8 +227,8 @@ async def _send_cerebras_request(
             
             # Calculate token breakdown from input messages (estimate)
             messages = payload.get("messages", [])
-            breakdown = calculate_token_breakdown(messages, model_id)
-            
+            breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
+
             usage = OpenAIUsageMetadata(
                 input_tokens=usage_data.get("prompt_tokens", 0),
                 output_tokens=usage_data.get("completion_tokens", 0),
@@ -498,7 +498,7 @@ async def _stream_cerebras_response(
                             
                             # Calculate token breakdown from input messages (estimate)
                             messages = payload.get("messages", [])
-                            breakdown = calculate_token_breakdown(messages, model_id)
+                            breakdown = calculate_token_breakdown(messages, model_id, tools=payload.get("tools"))
                             cumulative_usage["user_input_tokens"] = breakdown.get("user_input_tokens")
                             cumulative_usage["system_prompt_tokens"] = breakdown.get("system_prompt_tokens")
                     

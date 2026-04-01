@@ -83,7 +83,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// ── Step 4: Wait for AI response ──────────────────────────────────────
 	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
 	await expect(assistantMessage.last()).toContainText('Paris', { timeout: 45000 });
 	logCheckpoint('Assistant response received and contains "Paris".');
@@ -143,7 +143,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 	logCheckpoint('Short link section is visible.');
 
 	// Select 1 min TTL (first TTL option)
-	const ttlOptions = shortLinkSection.locator('.short-link-ttl-option');
+	const ttlOptions = shortLinkSection.getByTestId('short-link-ttl-option');
 	await expect(ttlOptions.first()).toBeVisible({ timeout: 5000 });
 	await ttlOptions.first().click();
 	logCheckpoint('Selected 1 min TTL for short link.');
@@ -182,7 +182,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 	logCheckpoint('Back in configuration step.');
 
 	// ── Step 15: Set 1-minute expiration and reshare ──────────────────────
-	const durationOptions = page.locator('.duration-option');
+	const durationOptions = page.getByTestId('duration-option');
 	await expect(durationOptions.nth(1)).toBeVisible({ timeout: 5000 });
 	await durationOptions.nth(1).click(); // 1 minute
 	logCheckpoint('Selected 1-minute expiration.');

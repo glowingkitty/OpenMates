@@ -55,6 +55,8 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
 
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const consoleLogs: string[] = [];
@@ -196,6 +198,11 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
@@ -203,26 +210,29 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(continueBtn).toBeEnabled({ timeout: 5000 });
 	await continueBtn.click();
 
-	const pwInput = page.locator('input[name="password"][type="password"]');
-	await expect(pwInput).toBeVisible();
+	const pwInput = page.locator('#login-password-input');
+	await expect(pwInput).toBeVisible({ timeout: 15000 });
 	await pwInput.fill(TEST_PASSWORD);
-	await page.getByRole('button', { name: /continue|login|sign in/i }).click();
 
-	// OTP
+	// OTP with clock-drift compensation: try adjacent time windows on failure
+	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
 	let attempts = 0;
-	while (attempts < 3) {
+	while (attempts < 5) {
 		try {
-			const otpInput = page.locator('input[name="code"]');
+			const otpInput = page.locator('#login-otp-input');
 			await expect(otpInput).toBeVisible({ timeout: 8000 });
-			const totp = generateTotp(TEST_OTP_KEY);
+			const totp = generateTotp(TEST_OTP_KEY, WINDOW_OFFSETS[attempts]);
 			await otpInput.fill(totp);
-			await page.getByRole('button', { name: /verify|continue/i }).click();
-			await expect(page).toHaveURL(/chat|home|dashboard/, { timeout: 15000 });
+			const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+			await expect(submitBtn).toBeVisible({ timeout: 5000 });
+			await submitBtn.click();
+			const authSignal = page.locator('[data-authenticated="true"]');
+			await expect(authSignal).toBeVisible({ timeout: 15000 });
 			break;
 		} catch {
 			attempts++;
-			if (attempts < 3) await page.waitForTimeout(31000);
-			else throw new Error('OTP login failed after 3 attempts');
+			if (attempts < 5) await page.waitForTimeout(5000);
+			else throw new Error('OTP login failed after 5 attempts');
 		}
 	}
 
@@ -268,6 +278,8 @@ function writeTinyPng(destPath: string): void {
 // ── Main test ───────────────────────────────────────────────────────────────
 
 test('CLI file upload — text file with secret + image file', async ({ page }: any) => {
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://openmates.org';
 	const apiUrl = deriveApiUrl(baseUrl);
 

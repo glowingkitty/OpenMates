@@ -89,16 +89,21 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 	await loginToTestAccount(page, log, screenshot);
 	await screenshot(page, 'logged-in');
 
-	// Wait for the sidebar chat list to load
+	// Wait for sync to populate chats, then ensure sidebar is open
 	await page.waitForTimeout(4000);
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(1000);
+	}
 
 	// Use an EXISTING chat from the sidebar — this avoids the fresh-chat indexing race condition
 	// (addMessageToIndex vs indexChatMessages overwrite). Existing chats are indexed during warm-up.
-	const firstChatItem = page.locator('.chat-item-wrapper').first();
+	const firstChatItem = page.getByTestId('chat-item-wrapper').first();
 	await expect(firstChatItem).toBeVisible({ timeout: 10000 });
 
 	// Get the title text from the first existing chat item
-	const chatTitleEl = firstChatItem.locator('.chat-title');
+	const chatTitleEl = firstChatItem.getByTestId('chat-title');
 	const chatTitleText = await chatTitleEl.textContent().catch(() => '');
 	log(`First chat title: "${chatTitleText}"`);
 
@@ -112,13 +117,13 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 
 	// Open search bar by clicking the search icon in the sidebar header
 	log('Opening search bar via icon click.');
-	const searchIcon = page.locator('.clickable-icon.icon_search.top-button');
+	const searchIcon = page.getByTestId('search-button');
 	await expect(searchIcon).toBeVisible({ timeout: 10000 });
 	await searchIcon.click();
 	await screenshot(page, 'search-bar-open');
 
 	// Verify the search input is focused and visible
-	const searchInput = page.locator('.search-input');
+	const searchInput = page.getByTestId('search-input');
 	await expect(searchInput).toBeVisible({ timeout: 5000 });
 
 	// Type the keyword — should find the existing chat we identified
@@ -126,20 +131,20 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 	await searchInput.fill(searchKeyword);
 
 	// Wait for results container to appear (250ms debounce)
-	const searchResults = page.locator('.search-results');
+	const searchResults = page.getByTestId('search-results');
 	await expect(searchResults).toBeVisible({ timeout: 10000 });
 
 	log('Waiting for chat results (existing chats indexed during warm-up)...');
 
 	// Retry loop: if warming-up or no results, re-trigger search once the index is ready.
-	const chatResultItem = page.locator('.search-chat-item').first();
+	const chatResultItem = page.getByTestId('search-chat-item').first();
 	await expect(async () => {
 		const isWarmingUp = await page
-			.locator('.warming-up')
+			.getByTestId('warming-up')
 			.isVisible()
 			.catch(() => false);
 		const resultCount = await page
-			.locator('.search-chat-item')
+			.getByTestId('search-chat-item')
 			.count()
 			.catch(() => 0);
 		if (isWarmingUp || resultCount === 0) {
@@ -167,7 +172,7 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 	await assertNoMissingTranslations(page);
 
 	// Close search bar if still open
-	const closeButton = page.locator('.search-close-button');
+	const closeButton = page.getByTestId('search-close-button');
 	if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await closeButton.click();
 	}
@@ -196,12 +201,19 @@ test('shows no-results state when search query has no matches', async ({ page }:
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(3000);
 
+	// Ensure sidebar is open (Phase 1a no longer auto-opens a chat, so sidebar may be closed)
+	const sidebarToggle2 = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle2.isVisible().catch(() => false)) {
+		await sidebarToggle2.click();
+		await page.waitForTimeout(1000);
+	}
+
 	// Open search bar
-	const searchIcon = page.locator('.clickable-icon.icon_search.top-button');
+	const searchIcon = page.getByTestId('search-button');
 	await expect(searchIcon).toBeVisible({ timeout: 10000 });
 	await searchIcon.click();
 
-	const searchInput = page.locator('.search-input');
+	const searchInput = page.getByTestId('search-input');
 	await expect(searchInput).toBeVisible({ timeout: 5000 });
 
 	// Search for something that will definitely not exist
@@ -210,11 +222,11 @@ test('shows no-results state when search query has no matches', async ({ page }:
 	await searchInput.fill(impossibleQuery);
 
 	// Wait for the no-results state to appear (after debounce)
-	const searchResults = page.locator('.search-results');
+	const searchResults = page.getByTestId('search-results');
 	await expect(searchResults).toBeVisible({ timeout: 10000 });
 
 	await expect(async () => {
-		const noResults = page.locator('.no-results');
+		const noResults = page.getByTestId('search-no-results');
 		await expect(noResults).toBeVisible();
 	}).toPass({ timeout: 15000 });
 
@@ -223,7 +235,7 @@ test('shows no-results state when search query has no matches', async ({ page }:
 	await assertNoMissingTranslations(page);
 
 	// Close search bar
-	const closeButton = page.locator('.search-close-button');
+	const closeButton = page.getByTestId('search-close-button');
 	if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await closeButton.click();
 	}
@@ -256,12 +268,19 @@ test('closes search bar and clears query when Escape is pressed', async ({
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(3000);
 
+	// Ensure sidebar is open (Phase 1a no longer auto-opens a chat, so sidebar may be closed)
+	const sidebarToggle2 = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle2.isVisible().catch(() => false)) {
+		await sidebarToggle2.click();
+		await page.waitForTimeout(1000);
+	}
+
 	// Open search bar
-	const searchIcon = page.locator('.clickable-icon.icon_search.top-button');
+	const searchIcon = page.getByTestId('search-button');
 	await expect(searchIcon).toBeVisible({ timeout: 10000 });
 	await searchIcon.click();
 
-	const searchInput = page.locator('.search-input');
+	const searchInput = page.getByTestId('search-input');
 	await expect(searchInput).toBeVisible({ timeout: 5000 });
 
 	// Type something into the search bar
@@ -275,7 +294,7 @@ test('closes search bar and clears query when Escape is pressed', async ({
 	await page.keyboard.press('Escape');
 
 	// Wait for the search bar to unmount after Escape (no timeout games — just wait)
-	await expect(page.locator('.search-bar')).not.toBeAttached({ timeout: 10000 });
+	await expect(page.getByTestId('search-bar')).not.toBeAttached({ timeout: 10000 });
 	await screenshot(page, 'after-escape');
 	log('Search bar correctly removed from DOM after Escape.');
 	log('Test complete.');

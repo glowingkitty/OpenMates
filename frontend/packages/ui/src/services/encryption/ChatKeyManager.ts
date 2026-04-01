@@ -188,6 +188,9 @@ export class ChatKeyManager {
   /** If clearAll() was requested while locked, it runs when the lock drops to 0 */
   private deferredClearAll = false;
 
+  /** Flag to prevent broadcast loops: set true while processing a cross-tab keyLoaded message */
+  private _receivingFromBroadcast = false;
+
   /** Callback to fetch encrypted_chat_key from IndexedDB for a given chatId */
   private fetchEncryptedChatKey:
     | ((chatId: string) => Promise<string | null>)
@@ -238,9 +241,76 @@ export class ChatKeyManager {
       // op running, the clear will be deferred until the op finishes.
       this.clearAll({ broadcast: false });
     }
-    // keyLoaded: another tab loaded a key — we could warm our cache here,
-    // but decrypting the encrypted key requires the master key (async).
-    // Instead we rely on the existing lazy-load path (getKey/loadKeyFromDB).
+    if (msg.type === "keyLoaded") {
+      // Cross-tab key notification: warm our cache only if this chat has
+      // pending operations waiting for a key. If no pending work exists,
+      // skip the async decrypt — the lazy-load path (getKey/loadKeyFromDB)
+      // will handle it when needed. This prevents Pitfall 4: unnecessary
+      // async work for every keyLoaded broadcast.
+      if (this.keys.has(msg.chatId)) {
+        // Already have this key in memory — no action needed
+        return;
+      }
+      const pending = this.pendingOps.get(msg.chatId);
+      if (!pending || pending.length === 0) {
+        // No pending operations — lazy-load when needed
+        return;
+      }
+      // Pending ops exist — warm the cache by processing the encrypted key
+      this._receivingFromBroadcast = true;
+      this.receiveKeyFromServer(msg.chatId, msg.encryptedChatKey)
+        .catch((err) => {
+          console.warn(
+            `[ChatKeyManager] Failed to process cross-tab keyLoaded for ${msg.chatId}:`,
+            err,
+          );
+        })
+        .finally(() => {
+          this._receivingFromBroadcast = false;
+        });
+    }
+  }
+
+  /**
+   * Broadcast a keyLoaded message to other tabs so they can warm their cache
+   * if they have pending operations for this chat.
+   * No-op when BroadcastChannel is unavailable (SSR) or when the key was
+   * received via cross-tab broadcast (prevents infinite loops).
+   */
+  private broadcastKeyLoaded(chatId: string, encryptedChatKey: string): void {
+    if (!this.broadcastChannel) return;
+    if (this._receivingFromBroadcast) return;
+    this.broadcastChannel.postMessage({
+      type: "keyLoaded",
+      chatId,
+      encryptedChatKey,
+    } satisfies CrossTabMessage);
+  }
+
+  /**
+   * SYNC-01: Send key_received acknowledgment to the server via WebSocket.
+   * This is fire-and-forget — ack failure is non-critical and must never
+   * prevent key injection from succeeding. The server relays this as
+   * key_delivery_confirmed to the originating sender device.
+   */
+  private sendKeyReceivedAck(chatId: string): void {
+    import("../websocketService")
+      .then(({ webSocketService }) => {
+        webSocketService
+          .sendMessage("key_received", { chat_id: chatId })
+          .catch((ackError: unknown) => {
+            console.warn(
+              "[ChatKeyManager] Failed to send key_received ack:",
+              ackError,
+            );
+          });
+      })
+      .catch((importError: unknown) => {
+        console.warn(
+          "[ChatKeyManager] Failed to import websocketService for ack:",
+          importError,
+        );
+      });
   }
 
   // ---- Initialization ----
@@ -396,7 +466,99 @@ export class ChatKeyManager {
       );
     }
 
+    // Broadcast to other tabs so they can warm cache if needed
+    this.broadcastKeyLoaded(chatId, encryptedChatKey);
+
     return { chatKey, encryptedChatKey };
+  }
+
+  /**
+   * Create and persist a chat key with Web Locks mutex for cross-tab safety.
+   *
+   * Wraps createAndPersistKey() with an exclusive Web Lock per chatId so that
+   * only one tab can generate a key for a given chat at a time. This prevents
+   * the #1 bug pattern: two tabs generating different keys for the same chat
+   * (KEYS-01/KEYS-02).
+   *
+   * Inside the lock callback:
+   * 1. Re-checks in-memory cache (another tab may have created while we waited)
+   * 2. Re-checks IDB (another tab may have persisted)
+   * 3. Checks deferredClearAll (user logging out — abort key generation)
+   * 4. Only then generates a new key
+   *
+   * Fallback: If navigator.locks is unavailable (SSR/old browser) or times out
+   * (10s), falls back to the unlocked createAndPersistKey() which still has
+   * the immutability guard as a safety net.
+   *
+   * Lock naming: `om-chatkey-{chatId}` (exclusive mode, one holder at a time)
+   *
+   * @param chatId - Chat identifier to create/get key for
+   * @returns The raw key and its encrypted form for server storage
+   * @throws Error if deferredClearAll is true (logout in progress)
+   */
+  async createAndPersistKeyLocked(chatId: string): Promise<{
+    chatKey: Uint8Array;
+    encryptedChatKey: string;
+  }> {
+    // Guard: browser without Web Locks (SSR, older browsers)
+    if (typeof navigator === "undefined" || !navigator.locks) {
+      return this.createAndPersistKey(chatId);
+    }
+
+    const WEB_LOCK_TIMEOUT_MS = 10_000;
+    const LOCK_NAME = `om-chatkey-${chatId}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEB_LOCK_TIMEOUT_MS);
+
+    try {
+      return await navigator.locks.request(
+        LOCK_NAME,
+        { signal: controller.signal },
+        async () => {
+          // Re-check: another tab may have created the key while we waited
+          const existing = this.keys.get(chatId);
+          if (existing) {
+            const encryptedChatKey = await encryptChatKeyWithMasterKey(existing);
+            return {
+              chatKey: existing,
+              encryptedChatKey: encryptedChatKey!,
+            };
+          }
+
+          // Also check IDB in case another tab persisted but we haven't loaded
+          const loaded = await this.getKey(chatId);
+          if (loaded) {
+            const encryptedChatKey = await encryptChatKeyWithMasterKey(loaded);
+            return {
+              chatKey: loaded,
+              encryptedChatKey: encryptedChatKey!,
+            };
+          }
+
+          // Check deferredClearAll — if user is logging out, abort key generation
+          // (Pitfall 5: don't create keys into a cache about to be cleared)
+          if (this.deferredClearAll) {
+            throw new Error(
+              `[ChatKeyManager] Key generation aborted: clearAll pending for ${chatId}`,
+            );
+          }
+
+          // No key exists anywhere — safe to generate
+          return this.createAndPersistKey(chatId);
+        },
+      );
+    } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        console.error(
+          `[ChatKeyManager] Web Lock timeout for key creation: ${chatId} — falling back to unlocked path`,
+        );
+        // Fallback: attempt without lock (immutability guard is the safety net)
+        return this.createAndPersistKey(chatId);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   // ---- Key Loading ----
@@ -470,7 +632,17 @@ export class ChatKeyManager {
 
   /**
    * Force-reload a key from IndexedDB (e.g., after hidden chat unlock).
-   * Resets the state to 'unloaded' first so loadKeyFromDB runs again.
+   *
+   * Formal state machine transition: failed -> loading -> ready|failed
+   * Also supports: ready -> loading -> ready|failed (for key refresh)
+   *
+   * Re-entrancy safe: if called while a load is already in flight for this
+   * chat, the existing loading promise is discarded and a fresh load starts.
+   * This prevents deadlock when reloadKey is called from a retry path while
+   * a previous load is still pending.
+   *
+   * @param chatId - Chat identifier to reload the key for
+   * @returns The raw key if successfully loaded, null otherwise
    */
   async reloadKey(chatId: string): Promise<Uint8Array | null> {
     this.states.set(chatId, "unloaded");
@@ -530,6 +702,10 @@ export class ChatKeyManager {
           `[ChatKeyManager] Received and cached key from server for chat ${chatId}`,
         );
         this.flushPendingOps(chatId, chatKey);
+        // Broadcast to other tabs (loop-guarded by _receivingFromBroadcast)
+        this.broadcastKeyLoaded(chatId, encryptedChatKey);
+        // SYNC-01: Send key_received acknowledgment to server (non-blocking)
+        this.sendKeyReceivedAck(chatId);
         return chatKey;
       }
 
@@ -821,6 +997,43 @@ export class ChatKeyManager {
       );
       return null;
     }
+  }
+
+  // ---- Key Re-wrapping ----
+
+  /**
+   * Re-wrap a chat key using caller-provided encrypt/decrypt functions.
+   *
+   * This allows hide/unhide flows to re-wrap keys through ChatKeyManager
+   * instead of directly importing crypto primitives. ChatKeyManager stays
+   * unaware of hidden chat specifics — it just provides the raw key for
+   * re-wrapping via the provided functions.
+   *
+   * @param chatId - Chat whose key to re-wrap
+   * @param encryptWithNewKey - Encrypt raw key bytes with the new wrapping key
+   * @returns The re-wrapped encrypted key, or null if key is not in memory
+   */
+  async rewrapKey(
+    chatId: string,
+    encryptWithNewKey: (key: Uint8Array) => Promise<string>,
+  ): Promise<string | null> {
+    const currentKey = this.keys.get(chatId);
+    if (!currentKey) {
+      console.warn(
+        `[ChatKeyManager] rewrapKey: no key in memory for ${chatId} — caller must ensure key is loaded`,
+      );
+      return null;
+    }
+
+    const newEncrypted = await encryptWithNewKey(currentKey);
+
+    // Update provenance timestamp (source stays the same, key didn't change)
+    const prov = this.provenances.get(chatId);
+    if (prov) {
+      prov.timestamp = Date.now();
+    }
+
+    return newEncrypted;
   }
 
   // ---- Cleanup ----

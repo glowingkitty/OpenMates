@@ -98,7 +98,7 @@
     <div class="message-align-{role === 'user' ? 'right' : 'left'}">
       <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
         {#if role !== 'user'}
-          <div class="chat-mate-name">{displayName}</div>
+          <div class="chat-mate-name" data-testid="chat-mate-name">{displayName}</div>
         {/if}
   
         <div class="chat-message-text">

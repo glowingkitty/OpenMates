@@ -293,6 +293,7 @@
         <!-- Fork conversation — always visible, disabled when not authenticated or fork unavailable -->
         <button
             class="menu-item fork"
+            data-testid="chat-context-fork"
             class:disabled={disableFork || !$authStore.isAuthenticated}
             disabled={disableFork || !$authStore.isAuthenticated}
             onclick={(event) => handleAction('fork', event)}

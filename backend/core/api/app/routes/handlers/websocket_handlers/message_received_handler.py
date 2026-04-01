@@ -39,7 +39,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any] # Expected: {"chat_id": "...", "message": {"message_id": ..., "sender": ..., "content": ..., "timestamp": ...}}
+    payload: Dict[str, Any], # Expected: {"chat_id": "...", "message": {"message_id": ..., "sender": ..., "content": ..., "timestamp": ...}}
+    user_otel_attrs: dict = None,
 ):
     """
     Handles a new message sent from the client (now via "chat_message_added" type).
@@ -56,7 +57,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     message_payload_temp = payload.get("message")
     message_id_for_log = message_payload_temp.get("message_id") if isinstance(message_payload_temp, dict) else "unknown"
     logger.info(f"[PERF] Message handler started for user_id={user_id}, chat_id={payload.get('chat_id')}, message_id={message_id_for_log}")
-    
+
+    # --- OpenTelemetry span creation via ws_span_helper (migrated from inline) ---
+    # ws_span_helper extracts W3C traceparent from payload automatically.
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("message_received", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+
     try:
         chat_id = payload.get("chat_id")
         # The client sends the message details within a "message" sub-dictionary in the payload
@@ -416,17 +426,21 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         extracted_code_embeds: List[Dict[str, Any]] = []
         hashed_user_id_for_embeds = hashlib.sha256(user_id.encode()).hexdigest()
         
-        # Check if client already extracted code blocks (modern client)
+        # Check if client already extracted code blocks or sent embed references (modern client).
+        # Embed references are JSON blocks like: ```json\n{"type": "video", "embed_id": "...", "url": "..."}\n```
+        # These must NOT be treated as code snippets for extraction — they are structured references
+        # that get resolved later by resolve_embed_references_in_content().
+        # Bug history: Only checking for "type": "code" caused video/map/etc embed references to be
+        # extracted as code blocks, destroying the embed reference and breaking skill routing.
         client_already_extracted = False
         if isinstance(content_plain, str):
-            # Look for embed reference JSON blocks with type "code"
-            if '"type": "code"' in content_plain or '"type":"code"' in content_plain:
-                # Verify it's an embed reference, not just coincidental text
-                import re
-                embed_ref_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"code"\s*,\s*"embed_id"\s*:\s*"[^"]+"\s*\}'
-                if re.search(embed_ref_pattern, content_plain):
-                    client_already_extracted = True
-                    logger.debug(f"Message {message_id} contains client-extracted code embed references - skipping server extraction")
+            import re
+            # Match ANY embed reference JSON block: {"type": "...", "embed_id": "..."}
+            # This covers all embed types: code, video, map, image, health, travel, etc.
+            embed_ref_pattern = r'```json\s*\n\s*\{\s*"type"\s*:\s*"[^"]+"\s*,\s*"embed_id"\s*:\s*"[^"]+"\s*'
+            if re.search(embed_ref_pattern, content_plain):
+                client_already_extracted = True
+                logger.debug(f"Message {message_id} contains client embed references - skipping server-side code extraction")
         
         if not client_already_extracted and isinstance(content_plain, str) and '```' in content_plain:
             # FALLBACK: Server-side extraction for older clients
@@ -1554,10 +1568,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         handler_total_time = time.time() - handler_start_time
         logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for user_id={user_id}, chat_id={chat_id}, message_id={message_id}")
 
+        # Mark OTel span as successful
+        if _otel_span is not None:
+            try:
+                _otel_span.set_attribute("ws.result_status", "ok")
+            except Exception:
+                pass
+
     except Exception as e: # This is the outer try-except for the whole handler
         handler_total_time = time.time() - handler_start_time
         logger.error(f"[PERF] Message handler failed after {handler_total_time:.3f}s for user_id={user_id}, chat_id={payload.get('chat_id') if payload else 'unknown'}: {e}", exc_info=True)
         logger.error(f"Error in handle_message_received (new message) from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
+
+        # Mark OTel span as error via ws_span_helper
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token, error=e)
+                _otel_span, _otel_token = None, None  # Prevent double-end in finally
+            except Exception:
+                pass
+
         try:
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Error processing your message on the server."}},
@@ -1566,3 +1597,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
         except Exception as e_send:
             logger.error(f"Failed to send error to {user_id}/{device_fingerprint_hash} after main error: {e_send}")
+    finally:
+        # End the OTel span and detach context via ws_span_helper
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

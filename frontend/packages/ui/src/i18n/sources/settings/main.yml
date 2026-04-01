@@ -9111,56 +9111,104 @@ report_issue.screenshot_upload_failed:
   sv: Det gick inte att läsa den uppladdade bilden.
   he: קריאת התמונה שהועלתה נכשלה.
   verified_by_human: []
-report_issue.submit_to_agent_label:
-  context: Admin-only toggle label to submit a reported issue to the Claude Code agent for investigation
-  en: Submit to agent
-  de: An Agent senden
-  zh: 提交给代理
-  es: Enviar al agente
-  fr: Soumettre à l'agent
-  pt: Enviar para o agente
-  ru: Отправить агенту
-  ja: エージェントに送信
-  ko: 에이전트에 제출
-  it: Invia all'agente
-  tr: Ajana gönder
-  vi: Gửi cho agent
-  id: Kirim ke agen
-  pl: Prześlij do agenta
-  nl: Naar agent sturen
-  ar: إرسال إلى الوكيل
-  hi: एजेंट को सबमिट करें
-  th: ส่งให้เอเจนต์
-  cs: Odeslat agentovi
-  sv: Skicka till agent
-  he: שלח לסוכן
+report_issue.agent_action_label:
+  context: Admin-only label for the agent action radio group in the issue report form
+  en: Agent action
+  de: Agenten-Aktion
+  zh: 代理操作
+  es: Acción del agente
+  fr: Action de l'agent
+  pt: Ação do agente
+  ru: Действие агента
+  ja: エージェントアクション
+  ko: 에이전트 작업
+  it: Azione dell'agente
+  tr: Ajan eylemi
+  vi: Hành động của agent
+  id: Tindakan agen
+  pl: Akcja agenta
+  nl: Agentactie
+  ar: إجراء الوكيل
+  hi: एजेंट कार्रवाई
+  th: การดำเนินการของเอเจนต์
+  cs: Akce agenta
+  sv: Agentåtgärd
+  he: פעולת סוכן
   verified_by_human: []
-report_issue.submit_to_agent_hint_on:
-  context: Admin-only toggle hint shown when the submit-to-agent toggle is ON
-  en: A Claude Code agent will automatically investigate this issue and suggest fixes.
-  de: Ein Claude Code-Agent wird dieses Problem automatisch untersuchen und Lösungen vorschlagen.
-  zh: Claude Code 代理将自动调查此问题并建议修复方案。
-  es: Un agente Claude Code investigará automáticamente este problema y sugerirá soluciones.
-  fr: Un agent Claude Code enquêtera automatiquement sur ce problème et suggérera des correctifs.
-  pt: Um agente Claude Code investigará automaticamente este problema e sugerirá correções.
-  ru: Агент Claude Code автоматически исследует эту проблему и предложит исправления.
-  ja: Claude Codeエージェントがこの問題を自動的に調査し、修正を提案します。
-  ko: Claude Code 에이전트가 이 문제를 자동으로 조사하고 수정 방법을 제안합니다.
-  it: Un agente Claude Code indagherà automaticamente su questo problema e suggerirà soluzioni.
-  tr: Bir Claude Code ajanı bu sorunu otomatik olarak araştıracak ve düzeltmeler önerecektir.
-  vi: Một agent Claude Code sẽ tự động điều tra vấn đề này và đề xuất giải pháp.
-  id: Agen Claude Code akan secara otomatis menyelidiki masalah ini dan menyarankan perbaikan.
-  pl: Agent Claude Code automatycznie zbada ten problem i zaproponuje poprawki.
-  nl: Een Claude Code-agent onderzoekt dit probleem automatisch en stelt oplossingen voor.
-  ar: سيقوم وكيل Claude Code تلقائيًا بالتحقيق في هذه المشكلة واقتراح الإصلاحات.
-  hi: एक Claude Code एजेंट इस समस्या की स्वचालित रूप से जांच करेगा और सुधार का सुझाव देगा।
-  th: เอเจนต์ Claude Code จะตรวจสอบปัญหานี้โดยอัตโนมัติและเสนอการแก้ไข
-  cs: Agent Claude Code automaticky prošetří tento problém a navrhne opravy.
-  sv: En Claude Code-agent kommer automatiskt att undersöka detta problem och föreslå lösningar.
-  he: סוכן Claude Code יחקור אוטומטית את הבעיה הזו ויציע תיקונים.
+report_issue.agent_action_none:
+  context: Radio option label - no agent action on issue report
+  en: Do nothing
+  de: Nichts tun
+  zh: 不执行操作
+  es: No hacer nada
+  fr: Ne rien faire
+  pt: Não fazer nada
+  ru: Ничего не делать
+  ja: 何もしない
+  ko: 아무것도 안 함
+  it: Non fare nulla
+  tr: Hiçbir şey yapma
+  vi: Không làm gì
+  id: Tidak melakukan apa-apa
+  pl: Nic nie rób
+  nl: Niets doen
+  ar: لا تفعل شيئًا
+  hi: कुछ न करें
+  th: ไม่ทำอะไร
+  cs: Nedělat nic
+  sv: Gör ingenting
+  he: אל תעשה כלום
   verified_by_human: []
-report_issue.submit_to_agent_hint_off:
-  context: Admin-only toggle hint shown when the submit-to-agent toggle is OFF
+report_issue.agent_action_research:
+  context: Radio option label - research-only agent session
+  en: Research only
+  de: Nur Recherche
+  zh: 仅研究
+  es: Solo investigación
+  fr: Recherche uniquement
+  pt: Apenas pesquisa
+  ru: Только исследование
+  ja: 調査のみ
+  ko: 조사만
+  it: Solo ricerca
+  tr: Yalnızca araştırma
+  vi: Chỉ nghiên cứu
+  id: Riset saja
+  pl: Tylko badanie
+  nl: Alleen onderzoek
+  ar: بحث فقط
+  hi: केवल शोध
+  th: วิจัยเท่านั้น
+  cs: Pouze výzkum
+  sv: Endast forskning
+  he: מחקר בלבד
+  verified_by_human: []
+report_issue.agent_action_fix:
+  context: Radio option label - full fix attempt including research
+  en: Research + fix attempt
+  de: Recherche + Reparaturversuch
+  zh: 研究 + 修复尝试
+  es: Investigación + intento de corrección
+  fr: Recherche + tentative de correction
+  pt: Pesquisa + tentativa de correção
+  ru: Исследование + попытка исправления
+  ja: 調査 + 修正の試み
+  ko: 조사 + 수정 시도
+  it: Ricerca + tentativo di correzione
+  tr: Araştırma + düzeltme denemesi
+  vi: Nghiên cứu + thử sửa
+  id: Riset + upaya perbaikan
+  pl: Badanie + próba naprawy
+  nl: Onderzoek + reparatiepoging
+  ar: بحث + محاولة إصلاح
+  hi: शोध + सुधार प्रयास
+  th: วิจัย + ลองแก้ไข
+  cs: Výzkum + pokus o opravu
+  sv: Forskning + reparationsförsök
+  he: מחקר + ניסיון תיקון
+  verified_by_human: []
+report_issue.agent_action_hint_none:
+  context: Hint text when 'do nothing' agent action is selected
   en: No agent investigation will be triggered for this report.
   de: Für diesen Bericht wird keine Agentenuntersuchung ausgelöst.
   zh: 此报告不会触发代理调查。
@@ -9182,6 +9230,54 @@ report_issue.submit_to_agent_hint_off:
   cs: Pro tento report nebude spuštěno žádné agentní šetření.
   sv: Ingen agentundersökning kommer att triggas för denna rapport.
   he: לא תתבצע חקירה על ידי סוכן עבור דיווח זה.
+  verified_by_human: []
+report_issue.agent_action_hint_research:
+  context: Hint text when 'research only' agent action is selected
+  en: A Claude Code agent will research the codebase and post findings — no code changes.
+  de: Ein Claude Code-Agent wird die Codebasis untersuchen und Ergebnisse veröffentlichen — keine Codeänderungen.
+  zh: Claude Code 代理将研究代码库并发布发现 — 不更改代码。
+  es: Un agente Claude Code investigará el código y publicará hallazgos — sin cambios de código.
+  fr: Un agent Claude Code recherchera dans le code et publiera ses conclusions — aucune modification du code.
+  pt: Um agente Claude Code pesquisará o código e publicará descobertas — sem alterações de código.
+  ru: Агент Claude Code исследует кодовую базу и опубликует результаты — без изменений кода.
+  ja: Claude Codeエージェントがコードベースを調査し結果を投稿します — コードは変更しません。
+  ko: Claude Code 에이전트가 코드베이스를 조사하고 결과를 게시합니다 — 코드 변경 없음.
+  it: Un agente Claude Code analizzerà il codice e pubblicherà i risultati — nessuna modifica al codice.
+  tr: Bir Claude Code ajanı kod tabanını araştıracak ve bulguları yayınlayacaktır — kod değişikliği yok.
+  vi: Một agent Claude Code sẽ nghiên cứu mã nguồn và đăng kết quả — không thay đổi mã.
+  id: Agen Claude Code akan meneliti basis kode dan memposting temuan — tanpa perubahan kode.
+  pl: Agent Claude Code zbada kod i opublikuje wyniki — bez zmian w kodzie.
+  nl: Een Claude Code-agent onderzoekt de codebase en plaatst bevindingen — geen codewijzigingen.
+  ar: سيبحث وكيل Claude Code في قاعدة الكود وينشر النتائج — بدون تغييرات في الكود.
+  hi: एक Claude Code एजेंट कोडबेस का शोध करेगा और निष्कर्ष पोस्ट करेगा — कोड में कोई बदलाव नहीं।
+  th: เอเจนต์ Claude Code จะวิจัยโค้ดเบสและโพสต์ผลการค้นพบ — ไม่มีการเปลี่ยนแปลงโค้ด
+  cs: Agent Claude Code prozkoumá kódovou základnu a zveřejní zjištění — žádné změny kódu.
+  sv: En Claude Code-agent kommer att undersöka kodbasen och publicera resultat — inga kodändringar.
+  he: סוכן Claude Code יחקור את בסיס הקוד ויפרסם ממצאים — ללא שינויי קוד.
+  verified_by_human: []
+report_issue.agent_action_hint_fix:
+  context: Hint text when 'research + fix' agent action is selected
+  en: A Claude Code agent will investigate, then attempt to implement and deploy a fix.
+  de: Ein Claude Code-Agent wird untersuchen und dann versuchen, eine Lösung zu implementieren und bereitzustellen.
+  zh: Claude Code 代理将进行调查，然后尝试实施和部署修复。
+  es: Un agente Claude Code investigará y luego intentará implementar y desplegar una corrección.
+  fr: Un agent Claude Code enquêtera, puis tentera d'implémenter et déployer un correctif.
+  pt: Um agente Claude Code investigará e tentará implementar e implantar uma correção.
+  ru: Агент Claude Code проведёт исследование, затем попытается реализовать и развернуть исправление.
+  ja: Claude Codeエージェントが調査し、修正の実装とデプロイを試みます。
+  ko: Claude Code 에이전트가 조사한 후 수정 사항을 구현하고 배포를 시도합니다.
+  it: Un agente Claude Code indagherà, quindi tenterà di implementare e distribuire una correzione.
+  tr: Bir Claude Code ajanı araştıracak, ardından bir düzeltmeyi uygulamayı ve dağıtmayı deneyecektir.
+  vi: Một agent Claude Code sẽ điều tra, sau đó cố gắng triển khai và deploy bản sửa lỗi.
+  id: Agen Claude Code akan menyelidiki, lalu mencoba mengimplementasikan dan men-deploy perbaikan.
+  pl: Agent Claude Code zbada sprawę, a następnie spróbuje wdrożyć i wdrożyć poprawkę.
+  nl: Een Claude Code-agent onderzoekt het probleem en probeert vervolgens een oplossing te implementeren en te deployen.
+  ar: سيقوم وكيل Claude Code بالتحقيق، ثم محاولة تنفيذ ونشر إصلاح.
+  hi: एक Claude Code एजेंट जांच करेगा, फिर सुधार को लागू और डिप्लॉय करने का प्रयास करेगा।
+  th: เอเจนต์ Claude Code จะตรวจสอบ แล้วพยายามใช้งานและ deploy การแก้ไข
+  cs: Agent Claude Code problém prošetří a poté se pokusí implementovat a nasadit opravu.
+  sv: En Claude Code-agent kommer att undersöka och sedan försöka implementera och distribuera en fix.
+  he: סוכן Claude Code יחקור, ואז ינסה ליישם ולפרוס תיקון.
   verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions

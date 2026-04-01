@@ -43,14 +43,15 @@ test.describe('404 not-found flow', () => {
 
 		// 3. The 404 Not-Found screen should be visible
 		await expect(
-			page.locator('.not-found-screen'),
+			page.getByTestId('not-found-screen'),
 			'Not404Screen container should be visible'
 		).toBeVisible({ timeout: 10000 });
 
-		// 4. Recovery options (search + ask AI) should be visible
+		// 4. Recovery actions (search + ask AI) should be visible
+		// Not404Screen uses .not-found-actions (not .not-found-options)
 		await expect(
-			page.locator('.not-found-options'),
-			'Recovery options container should be visible'
+			page.getByTestId('not-found-actions'),
+			'Recovery actions container should be visible'
 		).toBeVisible({ timeout: 5000 });
 
 		console.log('✅ 404 screen shown correctly for /iphone-review');
@@ -63,24 +64,24 @@ test.describe('404 not-found flow', () => {
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000);
 
-		// Wait for Not404Screen
-		await expect(page.locator('.not-found-options')).toBeVisible({ timeout: 10000 });
+		// Wait for Not404Screen actions container
+		await expect(page.getByTestId('not-found-actions')).toBeVisible({ timeout: 10000 });
 
-		// Click the search option (first button in not-found-options)
-		const searchButton = page.locator('.not-found-option').first();
+		// Click the search option (first button in .not-found-actions)
+		const searchButton = page.getByTestId('not-found-actions').locator('button').first();
 		await searchButton.click();
 
 		// The sidebar should open and search should be active
 		await page.waitForTimeout(1000);
 
 		// Search input should be visible and contain the path query
-		const searchInput = page.locator('input[type="search"], input[placeholder*="Search"], .search-input input').first();
+		const searchInput = page.locator('input[type="search"], input[placeholder*="Search"], [data-testid="search-input"] input').first();
 		await expect(searchInput, 'Search input should be visible after clicking search option').toBeVisible({ timeout: 5000 });
 
 		// The 404 screen should be gone
 		await expect(
-			page.locator('.not-found-options'),
-			'404 options should disappear after search click'
+			page.getByTestId('not-found-actions'),
+			'404 actions should disappear after search click'
 		).not.toBeVisible({ timeout: 5000 });
 
 		console.log('✅ Search option correctly opens pre-filled search');
@@ -93,17 +94,17 @@ test.describe('404 not-found flow', () => {
 		await page.waitForLoadState('networkidle');
 		await page.waitForTimeout(3000);
 
-		// Wait for Not404Screen
-		await expect(page.locator('.not-found-options')).toBeVisible({ timeout: 10000 });
+		// Wait for Not404Screen actions container
+		await expect(page.getByTestId('not-found-actions')).toBeVisible({ timeout: 10000 });
 
-		// Click the Ask AI option (second / primary button)
-		const askAIButton = page.locator('.not-found-option-primary');
+		// Click the Ask AI option (last button in .not-found-actions)
+		const askAIButton = page.getByTestId('not-found-actions').locator('button').last();
 		await askAIButton.click();
 
 		// The 404 screen should be gone
 		await expect(
-			page.locator('.not-found-options'),
-			'404 options should disappear after Ask AI click'
+			page.getByTestId('not-found-actions'),
+			'404 actions should disappear after Ask AI click'
 		).not.toBeVisible({ timeout: 5000 });
 
 		// Message input should be pre-filled with the humanized path
@@ -129,10 +130,10 @@ test.describe('404 not-found flow', () => {
 		const url = new URL(page.url());
 		expect(url.pathname, 'URL should be cleaned to /').toBe('/');
 
-		await expect(page.locator('.not-found-options')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('not-found-actions')).toBeVisible({ timeout: 10000 });
 
 		// The search button label should show only the first segment "ai"
-		const searchButton = page.locator('.not-found-option').first();
+		const searchButton = page.getByTestId('not-found-actions').locator('button').first();
 		const buttonText = await searchButton.textContent();
 		expect(buttonText?.toLowerCase(), 'Search option should reference first segment "ai"').toContain('ai');
 

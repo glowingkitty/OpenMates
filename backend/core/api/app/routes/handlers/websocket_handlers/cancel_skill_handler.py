@@ -29,8 +29,8 @@ async def handle_cancel_skill(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-    cache_service: CacheService
-):
+    cache_service: CacheService,
+    user_otel_attrs: dict = None,):
     """
     Handles a request to cancel an individual skill execution.
     
@@ -53,77 +53,92 @@ async def handle_cancel_skill(
         }
     }
     """
-    skill_task_id = payload.get("skill_task_id")
-    embed_id = payload.get("embed_id", "unknown")  # Optional, for logging
-    
-    log_prefix = f"[CancelSkill][User: {user_id[:6]}][Device: {device_fingerprint_hash[:6]}]"
-
-    # Validate required field
-    if not skill_task_id:
-        payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
-        logger.warning(
-            f"{log_prefix} 'skill_task_id' not provided in cancel_skill payload. "
-            f"payload_keys={payload_keys}"
-        )
-        await manager.send_personal_message(
-            message={
-                "type": "error", 
-                "payload": {
-                    "message": "Skill task ID is required for cancellation.", 
-                    "details": "missing_skill_task_id"
-                }
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
-        return
-
-    logger.info(f"{log_prefix} Received request to cancel skill_task_id: {skill_task_id} (embed_id: {embed_id})")
-
+    _otel_span, _otel_token = None, None
     try:
-        # Mark the skill as cancelled in Redis
-        # The skill executor checks this flag before/during execution
-        success = await cancel_skill_task(cache_service, skill_task_id)
-        
-        if success:
-            logger.info(f"{log_prefix} Skill cancellation requested for skill_task_id: {skill_task_id}")
-            
-            await manager.send_personal_message(
-                message={
-                    "type": "skill_cancel_requested", 
-                    "payload": {
-                        "skill_task_id": skill_task_id, 
-                        "embed_id": embed_id,
-                        "status": "cancellation_requested"
-                    }
-                },
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("cancel_skill", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        skill_task_id = payload.get("skill_task_id")
+        embed_id = payload.get("embed_id", "unknown")  # Optional, for logging
+    
+        log_prefix = f"[CancelSkill][User: {user_id[:6]}][Device: {device_fingerprint_hash[:6]}]"
+
+        # Validate required field
+        if not skill_task_id:
+            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
+            logger.warning(
+                f"{log_prefix} 'skill_task_id' not provided in cancel_skill payload. "
+                f"payload_keys={payload_keys}"
             )
-        else:
-            logger.warning(f"{log_prefix} Failed to mark skill as cancelled: skill_task_id={skill_task_id}")
             await manager.send_personal_message(
                 message={
                     "type": "error", 
                     "payload": {
-                        "message": f"Failed to cancel skill {skill_task_id}.", 
-                        "details": "cancellation_failed"
+                        "message": "Skill task ID is required for cancellation.", 
+                        "details": "missing_skill_task_id"
                     }
                 },
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash
             )
+            return
+
+        logger.info(f"{log_prefix} Received request to cancel skill_task_id: {skill_task_id} (embed_id: {embed_id})")
+
+        try:
+            # Mark the skill as cancelled in Redis
+            # The skill executor checks this flag before/during execution
+            success = await cancel_skill_task(cache_service, skill_task_id)
+        
+            if success:
+                logger.info(f"{log_prefix} Skill cancellation requested for skill_task_id: {skill_task_id}")
             
-    except Exception as e:
-        logger.error(f"{log_prefix} Error cancelling skill_task_id {skill_task_id}: {e}", exc_info=True)
-        await manager.send_personal_message(
-            message={
-                "type": "error", 
-                "payload": {
-                    "message": f"Failed to send cancellation for skill {skill_task_id}.", 
-                    "details": str(e)
-                }
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
+                await manager.send_personal_message(
+                    message={
+                        "type": "skill_cancel_requested", 
+                        "payload": {
+                            "skill_task_id": skill_task_id, 
+                            "embed_id": embed_id,
+                            "status": "cancellation_requested"
+                        }
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+            else:
+                logger.warning(f"{log_prefix} Failed to mark skill as cancelled: skill_task_id={skill_task_id}")
+                await manager.send_personal_message(
+                    message={
+                        "type": "error", 
+                        "payload": {
+                            "message": f"Failed to cancel skill {skill_task_id}.", 
+                            "details": "cancellation_failed"
+                        }
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error cancelling skill_task_id {skill_task_id}: {e}", exc_info=True)
+            await manager.send_personal_message(
+                message={
+                    "type": "error", 
+                    "payload": {
+                        "message": f"Failed to send cancellation for skill {skill_task_id}.", 
+                        "details": str(e)
+                    }
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

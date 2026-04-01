@@ -52,7 +52,7 @@
 		{/if}
 		<span class="label-30d">30d</span>
 		{#if spec.status === 'failed'}
-			<span class="badge-failed">FAILED</span>
+			<span class="badge-failed" data-testid="badge-failed">FAILED</span>
 		{/if}
 	</div>
 

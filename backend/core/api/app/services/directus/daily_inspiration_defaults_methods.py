@@ -10,7 +10,7 @@ Architecture:
 - The public /v1/default-inspirations endpoint reads from this table.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -162,22 +162,36 @@ class DailyInspirationDefaultsMethods:
     # Cleanup: delete old dates
     # ──────────────────────────────────────────────────────────────────────────
 
-    async def delete_old_defaults(self, before_date_str: str) -> int:
+    async def delete_old_defaults(self, keep_date_str: str) -> int:
         """
-        Delete all default entries with date < before_date_str.
+        Delete all default entries with date != keep_date_str (and != yesterday).
+
+        Keeps today's and yesterday's defaults (yesterday is used as fallback
+        when celery beat misses the daily run). Deletes everything older.
+
+        The Directus ``date`` field is typed as ``string``, so comparison
+        operators like ``_lt`` are not supported. Instead we use ``_nin``
+        (not-in) to exclude the dates we want to keep.
 
         Args:
-            before_date_str: YYYY-MM-DD string.  All entries with date strictly
-                             before this will be deleted.
+            keep_date_str: YYYY-MM-DD string for today (UTC).
 
         Returns:
             Number of deleted entries.
         """
         try:
+            # Keep today and yesterday (yesterday serves as fallback)
+            yesterday_str = (
+                datetime.strptime(keep_date_str, "%Y-%m-%d")
+                - timedelta(days=1)
+            ).strftime("%Y-%m-%d")
+
             items = await self.directus_service.get_items(
                 COLLECTION,
                 {
-                    "filter": {"date": {"_lt": before_date_str}},
+                    "filter": {
+                        "date": {"_nin": [keep_date_str, yesterday_str]},
+                    },
                     "fields": ["id"],
                     "limit": 500,
                 },
@@ -207,9 +221,10 @@ class DailyInspirationDefaultsMethods:
 
             if deleted > 0:
                 logger.info(
-                    "[InspirationDefaults] Cleaned up %d old defaults (before %s)",
+                    "[InspirationDefaults] Cleaned up %d old defaults (kept %s and %s)",
                     deleted,
-                    before_date_str,
+                    keep_date_str,
+                    yesterday_str,
                 )
             return deleted
 

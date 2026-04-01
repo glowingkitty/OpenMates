@@ -29,26 +29,36 @@ except ImportError as _exc:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+async def _make_awaitable(value):
+    """Helper: return an awaitable that resolves to value."""
+    return value
+
+
 @pytest.fixture
 def mock_cache_service():
     """Mock CacheService with async client property."""
-    cache = AsyncMock()
     mock_client = AsyncMock()
     mock_client.incr = AsyncMock(return_value=1)
     mock_client.expire = AsyncMock()
-    # cache.client is an async property that returns mock_client
-    cache.client = mock_client
+
+    cache = MagicMock()
+    # Production code does: client = await cache_service.client
+    # Make .client a coroutine that resolves to mock_client when awaited
+    type(cache).client = property(lambda self: _make_awaitable(mock_client))
+    cache._mock_client = mock_client
     return cache
 
 
 @pytest.fixture
 def mock_cache_exceeded():
     """Mock CacheService where rate limit is exceeded (count > limit)."""
-    cache = AsyncMock()
     mock_client = AsyncMock()
     mock_client.incr = AsyncMock(return_value=999)  # way over any limit
     mock_client.expire = AsyncMock()
-    cache.client = mock_client
+
+    cache = MagicMock()
+    type(cache).client = property(lambda self: _make_awaitable(mock_client))
+    cache._mock_client = mock_client
     return cache
 
 
@@ -206,8 +216,8 @@ class TestCheckRateLimit:
             "test", "search", model_id="gpt-4", cache_service=mock_cache_service
         )
         # Verify incr was called (the key includes model_id)
-        mock_cache_service.client.incr.assert_called_once()
-        call_args = mock_cache_service.client.incr.call_args[0][0]
+        mock_cache_service._mock_client.incr.assert_called_once()
+        call_args = mock_cache_service._mock_client.incr.call_args[0][0]
         assert "gpt-4" in call_args
 
     @pytest.mark.asyncio

@@ -274,7 +274,7 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
                     <p>{$text('settings.billing.passkey_authenticating')}</p>
                 </div>
             {:else if show2FAInput}
-                <div class="auth-2fa">
+                <div class="auth-2fa" data-testid="auth-2fa">
                     <p>{$text('settings.billing.enter_2fa_code')}</p>
                     <input
                         type="text"
@@ -286,6 +286,7 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
                         placeholder="000000"
                         disabled={isAuthenticating}
                         class="tfa-input"
+                        data-testid="tfa-input"
                     />
                     {#if errorMessage}
                         <p class="error-message">{errorMessage}</p>

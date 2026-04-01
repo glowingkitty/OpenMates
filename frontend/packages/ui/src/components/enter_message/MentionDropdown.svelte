@@ -365,6 +365,7 @@
     <div
         bind:this={dropdownElement}
         class="mention-dropdown"
+        data-testid="mention-dropdown"
         class:position-below={positionDirection === 'below'}
         style="{positionDirection === 'below' ? 'top' : 'bottom'}: {positionY}px;"
         transition:fade={{ duration: 150 }}
@@ -392,6 +393,7 @@
             {#each results as result, index (result.id)}
                 <div
                     class="mention-result"
+                    data-testid="mention-result"
                     class:selected={getFlatIndex(index) === selectedIndex}
                     role="option"
                     tabindex="-1"
@@ -437,7 +439,7 @@
 
                     <!-- Text content -->
                     <div class="result-content">
-                        <span class="result-name">{getDisplayName(result)}</span>
+                        <span class="result-name" data-testid="mention-result-name">{getDisplayName(result)}</span>
                         <span class="result-subtitle">{getSubtitle(result)}</span>
                     </div>
 
@@ -446,6 +448,7 @@
                         {@const memResult = result as SettingsMemoryMentionResult}
                         <button
                             class="expand-button"
+                            data-testid="mention-expand-button"
                             class:expanded={expandedCategories.has(result.id)}
                             tabindex="-1"
                             aria-label={expandedCategories.has(result.id) ? 'Collapse entries' : 'Expand entries'}
@@ -454,7 +457,7 @@
                             <span class="expand-icon">
                                 {#if expandedCategories.has(result.id)}▾{:else}▸{/if}
                             </span>
-                            <span class="entry-count">{memResult.entryCount}</span>
+                            <span class="entry-count" data-testid="mention-entry-count">{memResult.entryCount}</span>
                         </button>
                     {/if}
 
@@ -478,6 +481,7 @@
                             {#each entriesToShow as entry, entryIdx (entry.id)}
                                 <div
                                     class="mention-result entry-item"
+                                    data-testid="mention-result"
                                     class:selected={getFlatIndex(index, entryIdx) === selectedIndex}
                                     role="option"
                                     tabindex="-1"

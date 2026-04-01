@@ -93,7 +93,7 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	await page.waitForTimeout(3000);
 
 	// Start a new chat
-	const newChatButton = page.locator('.icon_create');
+	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatButton.click();
 		await page.waitForTimeout(1500);
@@ -103,18 +103,18 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	// Send a short factual question that reliably triggers follow-up suggestions
 	const message = 'What is the capital of Japan?';
 	log(`Sending: "${message}"`);
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
 	await page.keyboard.type(withMockMarker(message, 'follow_up_suggestions'));
 
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	log('Message sent.');
 
 	// Wait for AI response
-	const assistantResponse = page.locator('.message-wrapper.assistant');
+	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	await screenshot(page, 'ai-response-received');
 	log('AI response received.');
@@ -126,7 +126,7 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 
 	// Wait for follow-up suggestions to appear
 	// The suggestions wrapper fades in after the response completes and input is focused
-	const suggestionsWrapper = page.locator('.suggestions-wrapper');
+	const suggestionsWrapper = page.getByTestId('suggestions-wrapper');
 
 	await expect(async () => {
 		// Re-click editor on each retry in case focus was lost
@@ -169,10 +169,10 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	await assertNoMissingTranslations(page);
 
 	// Clean up: delete the chat
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await activeChatItem.click({ button: 'right' });
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 		await expect(deleteButton).toBeVisible({ timeout: 5000 });
 		await deleteButton.click();
 		await deleteButton.click();

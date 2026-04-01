@@ -1,3 +1,6 @@
+# GSD planning artifacts
+.planning/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -173,6 +176,7 @@ logs/
 
 # Agent trigger files (written by Docker sidecar, consumed by host watcher)
 scripts/.agent-triggers/
+scripts/.agent-triggers-processed/
 scripts/.tmp/
 processed_websites/
 temp_data
@@ -197,11 +201,9 @@ _backup
 
 # Deployment configuration
 # Allow template/example files, but ignore environment-specific overrides
-deployment/dev_server
-deployment/prod_server
+*.tf
+deployment/prod_server/prod-cloud-config.yaml
 
-# Preview server Caddyfile (keep Caddyfile.example, ignore actual config)
-backend/preview/Caddyfile
 # Legacy .deployment directory (kept for backward compatibility, but gitignored)
 .deployment
 
@@ -272,12 +274,15 @@ rankings.json
 debug_output*.yml
 shared/cache/web_analytics_backup.json
 shared/cache/pending_reminders_backup.json
+shared/cache/inspiration_cache_backup.json
+shared/cache/pending_orders_backup.json
 
-# Script auto-generated state files
-scripts/.dead-code-removal-state.json
-scripts/.deploy-checker-state.json
-scripts/.workflow-review-state.json
+# Script auto-generated state files (all dot-files in scripts/ are ephemeral)
+scripts/.*
+scripts/dependabot-processed.json
 scripts/dependabot-processed.json.bak
+scripts/eu-vuln-processed.json
+scripts/eu-vuln-processed.json.tmp
 
 # Test output artifacts
 backend/tests/output/
@@ -293,3 +298,4 @@ backend/tests/output/
 .claude/memory/
 .claude/tasks/
 .claude/backlog.json
+

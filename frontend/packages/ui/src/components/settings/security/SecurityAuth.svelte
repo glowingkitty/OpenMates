@@ -537,6 +537,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
 
 <div
     class="auth-modal-overlay"
+    data-testid="auth-modal"
     role="presentation"
     onmousedown={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
 >
@@ -580,6 +581,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     {/if}
                     <button
                         class="auth-btn"
+                        data-testid="auth-btn"
                         onclick={handlePasswordAuth}
                         disabled={isPasswordLoading || !password.trim()}
                     >
@@ -597,7 +599,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 </div>
             {:else if show2FAInput}
                 <!-- 2FA Input -->
-                <div class="auth-2fa">
+                <div class="auth-2fa" data-testid="auth-2fa">
                     <p>{$text('settings.security.enter_2fa_code')}</p>
                     <SettingsInput
                         type="text"
@@ -607,6 +609,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         bind:value={tfaCode}
                         placeholder="000000"
                         disabled={isAuthenticating}
+                        dataTestid="tfa-input"
                         onInput={handle2FAInput}
                     />
                     {#if errorMessage}
@@ -622,6 +625,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     {/if}
                     <button
                         class="auth-btn"
+                        data-testid="auth-btn"
                         onclick={handlePasskeyAuth}
                         disabled={isAuthenticating}
                     >
@@ -636,11 +640,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 </div>
             {:else if showEmailOtpInput}
                 <!-- Email OTP Input -->
-                <div class="auth-email-otp">
+                <div class="auth-email-otp" data-testid="auth-email-otp">
                     {#if !emailOtpSent}
                         <p>{$text('settings.security.email_otp_description')}</p>
                         <button
                             class="auth-btn"
+                            data-testid="auth-btn"
                             onclick={handleSendEmailOtp}
                             disabled={isEmailOtpSending}
                         >

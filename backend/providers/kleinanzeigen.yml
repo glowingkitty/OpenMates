@@ -1,0 +1,17 @@
+# backend/providers/kleinanzeigen.yml
+#
+# Configuration for Kleinanzeigen provider.
+# Used by the Home app for searching apartments, houses, and rooms.
+
+provider_id: "kleinanzeigen"
+name: "Kleinanzeigen"
+description: "Germany's largest classifieds platform for housing, goods, and services."
+logo_svg: "icons/kleinanzeigen.svg"
+region: "EU" # Kleinanzeigen HQ is in Berlin, Germany
+
+# No API key required — uses web scraping
+no_api_key: true
+
+# Pricing information
+pricing:
+  per_request_credits: 10 # 10 credits per home search request (set in app.yml)

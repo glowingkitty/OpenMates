@@ -85,6 +85,8 @@ class ChatMetadataCache {
     chat: Chat,
   ): Promise<DecryptedChatMetadata | null> {
     try {
+      // KEYS-04: getKeySync acceptable here -- sidebar render path, shows "[Encrypted]" placeholder if key unavailable.
+      // Uses async getKey() fallback below for re-render when key loads from IDB.
       // Ensure chat key is loaded from encrypted_chat_key if available
       if (chat.encrypted_chat_key && !chatKeyManager.getKeySync(chat.chat_id)) {
         const { decryptChatKeyWithMasterKey } = await import("./cryptoService");
@@ -97,9 +99,14 @@ class ChatMetadataCache {
       }
 
       // Decrypt title from encrypted_title field using chat-specific key
+      // KEYS-04: getKeySync acceptable here -- sidebar render path, shows placeholder if key unavailable
       let title: string | null = null;
       if (chat.encrypted_title) {
-        const chatKey = chatKeyManager.getKeySync(chat.chat_id);
+        let chatKey = chatKeyManager.getKeySync(chat.chat_id);
+        // Async fallback: try loading key from IDB if not in memory cache
+        if (!chatKey) {
+          chatKey = await chatKeyManager.getKey(chat.chat_id);
+        }
         if (chatKey) {
           const { decryptWithChatKey } = await import("./cryptoService");
           title = await decryptWithChatKey(chat.encrypted_title, chatKey);
@@ -123,10 +130,15 @@ class ChatMetadataCache {
 
       // Decrypt chat-key fields in parallel — all use the same key and are independent
       let icon: string | null = null;
+      // KEYS-04: getKeySync acceptable here -- sidebar render path, shows placeholder if key unavailable
       let category: string | null = null;
       let summary: string | null = null;
       let activeFocusId: string | null = null;
-      const chatKey = chatKeyManager.getKeySync(chat.chat_id);
+      let chatKey = chatKeyManager.getKeySync(chat.chat_id);
+      // Async fallback: try loading key from IDB if not in memory cache
+      if (!chatKey) {
+        chatKey = await chatKeyManager.getKey(chat.chat_id);
+      }
       if (chatKey) {
         const { decryptWithChatKey } = await import("./cryptoService");
 

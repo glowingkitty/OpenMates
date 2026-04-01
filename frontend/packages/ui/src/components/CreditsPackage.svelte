@@ -113,7 +113,7 @@
     }
 </script>
 
-<div class="credits-package-container">
+<div class="credits-package-container" data-testid="credits-package">
     {#if isGift}
         <!-- Gift Badge -->
         <div class="recommended-badge gift-badge">
@@ -139,7 +139,7 @@
             />
         </div>
         
-        <div class="credits-amount">
+        <div class="credits-amount" data-testid="credits-amount">
             {@html $text('signup.amount_currency')
                 .replace('{currency}', '<span class="coin-icon-inline"></span>')
                 .replace('{amount}', formatNumber(displayAmount))}
@@ -150,7 +150,7 @@
         <div class="error-message">{acceptError}</div>
     {/if}
 
-    <button class="buy-button" onclick={handleButtonClick} disabled={isAcceptingGift}>
+    <button class="buy-button" data-testid="buy-button" onclick={handleButtonClick} disabled={isAcceptingGift}>
         {#if isGift}
             {@html $text(isAcceptingGift ? 'login.loading' : 'signup.accept')}
         {:else}

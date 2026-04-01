@@ -6,6 +6,7 @@ import type { ChatSynchronizationService } from "./chatSyncService";
 import type {
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
+  BackgroundMessageSyncPayload,
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
   LoadMoreChatsResponsePayload,
@@ -23,6 +24,8 @@ import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { decryptWithChatKey } from "./encryption/MessageEncryptor";
+import { phasedSyncState } from "../stores/phasedSyncStateStore";
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -47,11 +50,24 @@ async function validateAndHealEncryptedMetadata(
   localChat: Chat | null,
   chatId: string,
 ): Promise<boolean> {
-  const chatKey = chatKeyManager.getKeySync(chatId);
+  // KEYS-04: converted from getKeySync to withKey for key-before-content guarantee.
+  // Validation decrypt buffers until key is available for proper field validation.
+  let chatKey: Uint8Array | null = null;
+  try {
+    await chatKeyManager.withKey(
+      chatId,
+      "validate-phased-sync-metadata",
+      async (key) => {
+        chatKey = key;
+      },
+    );
+  } catch {
+    // Key unavailable — cannot validate, skip healing
+    return false;
+  }
   if (!chatKey) return false;
   if (!localChat) return false;
 
-  const { decryptWithChatKey } = await import("./cryptoService");
   let healed = false;
 
   const fields = [
@@ -118,70 +134,42 @@ export async function handlePhase2RecentChatsImpl(
   serviceInstance: ChatSynchronizationService,
   payload: Phase2RecentChatsPayload,
 ): Promise<void> {
-  console.log(
-    "[ChatSyncService] Phase 2 complete - recent chats ready:",
-    payload,
+  console.info(
+    "[ChatSyncService] Phase 2 (metadata-only):",
+    payload.chat_count,
+    "chats, total:",
+    payload.total_chat_count,
   );
 
   try {
-    // Phase2RecentChatsPayload may have additional fields (embeds, embed_keys) not in the type definition
-    const { chats, chat_count, embeds, embed_keys } =
-      payload as Phase2RecentChatsPayload & {
-        embeds?: SyncEmbed[];
-        embed_keys?: EmbedKeyEntry[];
-      };
+    const { chats, chat_count, total_chat_count } = payload;
 
-    // CRITICAL: Validate that chats array exists before processing
-    // The cache warming task sends {chat_count: N} without chats array
-    // The direct sync handler sends {chats: [...], embeds: [...], embed_keys: [...], chat_count: N, phase: 'phase2'}
+    // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
-      console.debug(
-        "[ChatSyncService] Phase 2 notification received (cache warming), waiting for actual chat data...",
-      );
+      console.debug("[ChatSyncService] Phase 2 cache warming notification, ignoring");
       return;
     }
 
-    // Only process when we have actual chat data
+    // Update total chat count (moved from Phase 3)
+    if (total_chat_count !== undefined) {
+      updateTotalChatCount(total_chat_count);
+    }
+
     if (chats.length === 0) {
-      console.debug(
-        "[ChatSyncService] Phase 2 received empty chats array, nothing to store",
-      );
-      // Still store embeds and embed_keys if any (they can exist without chats being sent)
-      // CRITICAL: Store embed_keys FIRST so putEncrypted can decrypt content to extract app_id/skill_id
-      if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
-        await storeEmbedKeysBatch(embed_keys, "Phase 2");
-      }
-      if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-        await storeEmbedsBatch(embeds, "Phase 2");
-      }
+      console.debug("[ChatSyncService] Phase 2 empty chats array");
       return;
     }
 
-    // Store recent chats data and track processed IDs for Phase 3 dedup
+    // Store metadata-only chats — NO messages, NO embeds, NO validateAndHeal
     phase2ProcessedChatIds = await storeRecentChats(serviceInstance, chats);
 
-    // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
-    if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
-      await storeEmbedKeysBatch(embed_keys, "Phase 2");
-    }
-
-    // Store embeds from flat array (new format - deduplicated by backend)
-    // Now that keys are stored, putEncrypted can extract app_id/skill_id from decrypted content
-    if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-      await storeEmbedsBatch(embeds, "Phase 2");
-    }
-
-    // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
     serviceInstance.dispatchEvent(
       new CustomEvent("phase_2_last_20_chats_ready", {
-        detail: { chat_count },
+        detail: { chat_count, total_chat_count },
       }),
     );
   } catch (error) {
-    console.error(
-      "[ChatSyncService] Error handling Phase 2 completion:",
-      error,
-    );
+    console.error("[ChatSyncService] Error handling Phase 2:", error);
   }
 }
 
@@ -198,7 +186,11 @@ export async function handlePhase3FullSyncImpl(
   serviceInstance: ChatSynchronizationService,
   payload: Phase3FullSyncPayload,
 ): Promise<void> {
-  console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const embedCount = (payload as any).embeds?.length || 0;
+  console.info(
+    `[ChatSyncService] Phase 3 complete: ${payload.chats?.length || 0} chats, ${embedCount} embeds`,
+  );
 
   try {
     // Phase3FullSyncPayload may have additional fields (embeds, embed_keys) not in the type definition
@@ -314,11 +306,103 @@ export async function handlePhase3FullSyncImpl(
         },
       }),
     );
+
+    // Trigger metadata sync for chats 101–1000 if the user has more than 100 chats.
+    // This runs after Phase 3 so the sidebar can display up to 1000 chat titles
+    // and search can index them. Metadata-only chats are stored in IndexedDB (no messages).
+    if (total_chat_count && total_chat_count > 100) {
+      try {
+        const existingIds = await chatDB.getMetadataOnlyChatIds();
+        console.info(
+          `[ChatSyncService] Phase 3: Triggering metadata sync for chats 101–1000 ` +
+          `(total=${total_chat_count}, existing_metadata=${existingIds.length})`
+        );
+        await serviceInstance.sendSyncMetadataChats(existingIds);
+      } catch (err) {
+        console.error("[ChatSyncService] Failed to trigger metadata sync after Phase 3:", err);
+      }
+    }
   } catch (error) {
     console.error(
       "[ChatSyncService] Error handling Phase 3 completion:",
       error,
     );
+  }
+}
+
+/**
+ * Handle background message sync batches (new Phase 3).
+ * Each batch contains messages for up to 10 chats. Messages are stored
+ * encrypted in IDB — NO decryption during sync.
+ */
+export async function handleBackgroundMessageSyncImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: BackgroundMessageSyncPayload,
+): Promise<void> {
+  const embedCount = payload.embeds?.length || 0;
+  const keyCount = payload.embed_keys?.length || 0;
+  console.info(
+    `[ChatSyncService] Background sync batch ${payload.batch_number}:`,
+    `${payload.chats?.length || 0} chats, ${embedCount} embeds, ${keyCount} embed_keys, is_last=${payload.is_last_batch}`,
+  );
+
+  try {
+    for (const chatData of payload.chats || []) {
+      if (!chatData.messages || chatData.messages.length === 0) continue;
+
+      // Parse JSON strings and normalize message_id
+      const preparedMessages: Message[] = [];
+      for (const msgData of chatData.messages) {
+        let msg = msgData;
+        if (typeof msgData === "string") {
+          try {
+            msg = JSON.parse(msgData);
+          } catch {
+            continue;
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const msgObj = msg as any;
+        if (!msgObj.message_id && msgObj.id) {
+          msgObj.message_id = msgObj.id;
+        }
+        if (!msgObj.message_id) continue;
+        if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
+        if (!msgObj.status) msgObj.status = "delivered";
+        preparedMessages.push(msgObj as Message);
+      }
+
+      if (preparedMessages.length > 0) {
+        await chatDB.batchSaveMessages(preparedMessages);
+      }
+
+      // Update messages_v on the chat
+      const existingChat = await chatDB.getChat(chatData.chat_id);
+      if (existingChat) {
+        const newV = Math.max(
+          existingChat.messages_v || 0,
+          chatData.messages_v || chatData.server_message_count || 0,
+        );
+        if (newV > (existingChat.messages_v || 0)) {
+          await chatDB.addChat({ ...existingChat, messages_v: newV });
+        }
+      }
+    }
+
+    // Store embed_keys FIRST (needed for embed decryption)
+    if (payload.embed_keys && payload.embed_keys.length > 0) {
+      await storeEmbedKeysBatch(payload.embed_keys, `Phase 3 batch ${payload.batch_number}`);
+    }
+
+    // Store embeds (encrypted — decryption happens on-demand when user opens the chat)
+    if (payload.embeds && payload.embeds.length > 0) {
+      await storeEmbedsBatch(payload.embeds, `Phase 3 batch ${payload.batch_number}`);
+    }
+
+    // Yield to main thread between batches
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  } catch (error) {
+    console.error("[ChatSyncService] Background message sync error:", error);
   }
 }
 
@@ -332,11 +416,21 @@ export async function handlePhasedSyncCompleteImpl(
   serviceInstance: ChatSynchronizationService,
   payload: PhasedSyncCompletePayload,
 ): Promise<void> {
-  console.log("[ChatSyncService] Phased sync complete:", payload);
+  console.info("[ChatSyncService] Phased sync complete");
 
   // CRITICAL: Clear the timeout since sync completed successfully
   // This prevents the synthetic timeout event from firing after real completion
   serviceInstance.clearPhasedSyncTimeout();
+
+  // CRITICAL: Mark sync completed in the service layer, not just in Chats.svelte.
+  // If Chats.svelte is unmounted when this event fires (e.g., component remount
+  // during sync), the event listener wouldn't be attached and markSyncCompleted
+  // would never be called — causing an infinite "Syncing..." indicator.
+  phasedSyncState.markSyncCompleted();
+
+  // OPE-216: Mark that a full sync has completed this session so that transient
+  // WS disconnects (pong timeout, brief network blip) skip redundant re-syncs.
+  serviceInstance.markInitialSyncCompleted();
 
   serviceInstance.dispatchEvent(
     new CustomEvent("phasedSyncComplete", {
@@ -352,7 +446,7 @@ export async function handleSyncStatusResponseImpl(
   serviceInstance: ChatSynchronizationService,
   payload: SyncStatusResponsePayload,
 ): Promise<void> {
-  console.log("[ChatSyncService] Sync status response:", payload);
+  console.info(`[ChatSyncService] Sync status: primed=${payload.is_primed}`);
 
   // Backend sends 'is_primed', not 'cache_primed'
   const { is_primed, chat_count, timestamp } = payload;
@@ -440,7 +534,7 @@ async function storeRecentChats(
 
     for (let i = 0; i < sortedChats.length; i++) {
       const chatItem = sortedChats[i];
-      const { chat_details, messages, server_message_count } = chatItem;
+      const { chat_details, messages, server_message_count: _server_message_count } = chatItem;
       const chatId = chat_details.id;
 
       // Yield to the main thread between non-active chat saves to prevent UI jank
@@ -460,27 +554,14 @@ async function storeRecentChats(
       const existingChat = await chatDB.getChat(chatId);
 
       // Merge server data with local data, preserving higher versions
-      let mergedChat = await mergeServerChatWithLocal(
+      const mergedChat = await mergeServerChatWithLocal(
         chat_details,
         existingChat,
         currentUserId,
       );
 
-      // Self-heal: validate encrypted metadata fields after merge.
-      // If server's title/icon/category is corrupted (encrypted with wrong key)
-      // but local version is valid, preserve local and queue re-send to server.
-      if (existingChat) {
-        const wasHealed = await validateAndHealEncryptedMetadata(
-          mergedChat,
-          existingChat,
-          chatId,
-        );
-        if (wasHealed) {
-          console.info(
-            `[ChatSyncService] Phase 2 - Self-healed corrupted metadata for chat ${chatId}`,
-          );
-        }
-      }
+      // NOTE: validateAndHealEncryptedMetadata removed — Phase 2 is metadata-only,
+      // no decryption during sync. Healing happens lazily when chats are rendered.
 
       // Populate in-memory unread badge store from server-authoritative count
       // so badges render correctly without waiting for a per-chat read status event.
@@ -489,107 +570,33 @@ async function storeRecentChats(
         unreadMessagesStore.setUnread(chatId, syncedUnread);
       }
 
-      // CRITICAL: Check if we should sync messages for Phase 2 chats
-      // This prevents data inconsistency where messages_v is set but messages are missing
+      // Phase 2 is now metadata-only — messages arrive in Phase 3 (background sync).
+      // Check if messages were provided (legacy/backwards compat) or metadata-only.
       const shouldSyncMessages =
         messages && Array.isArray(messages) && messages.length > 0;
-      const serverMessagesV = chat_details.messages_v || 0;
-      const localMessagesV = existingChat?.messages_v || 0;
 
-      // CRITICAL FIX: Validate message count when server skips sending messages
-      // If server sends server_message_count but no messages, validate local data
-      // This detects data inconsistency where version matches but messages are missing
-      if (
-        !shouldSyncMessages &&
-        server_message_count !== undefined &&
-        server_message_count !== null &&
-        server_message_count > 0
-      ) {
-        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
-
-        console.debug(
-          `[ChatSyncService] Phase 2 - Message count validation for chat ${chatId}: ` +
-            `server_count=${server_message_count}, local_count=${localMessageCount}`,
-        );
-
-        // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
-        if (localMessageCount < server_message_count) {
-          console.warn(
-            `[ChatSyncService] Phase 2 - ⚠️ DATA INCONSISTENCY DETECTED for chat ${chatId}: ` +
-              `Local has ${localMessageCount} messages but server has ${server_message_count}. ` +
-              `Resetting messages_v to 0 to force re-sync.`,
-          );
-
-          // Reset the chat's messages_v to 0 to force a full re-sync
-          mergedChat = {
-            ...mergedChat,
-            messages_v: 0, // Reset to force re-sync on next load
-          };
-          await chatDB.addChat(mergedChat);
-          chatListCache.upsertChat(mergedChat);
-
-          // Dispatch event to notify about the inconsistency
-          serviceInstance.dispatchEvent(
-            new CustomEvent("chatDataInconsistency", {
-              detail: {
-                chatId,
-                localCount: localMessageCount,
-                serverCount: server_message_count,
-                phase: "phase2",
-              },
-            }),
-          );
-          continue;
-        }
-      }
-
-      let shouldSkipMessageSync = false;
-      if (
-        existingChat &&
-        serverMessagesV === localMessagesV &&
-        shouldSyncMessages
-      ) {
-        // Check if we have messages in the database (count-only, no decryption needed)
-        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
-        const serverMessageCount = messages?.length || 0;
-
-        console.debug(
-          `[ChatSyncService] Phase 2 - Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}, serverCount=${serverMessageCount}`,
-        );
-
-        // Only skip sync if versions match and message counts match
-        if (localMessageCount === serverMessageCount && localMessageCount > 0) {
-          shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message counts match (${localMessageCount})`,
-          );
-        } else if (localMessageCount === 0 && serverMessageCount === 0) {
-          shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - no messages on server or client`,
-          );
-        } else {
-          console.debug(
-            `[ChatSyncService] Phase 2 - Message count mismatch for chat ${chatId}: local=${localMessageCount}, server=${serverMessageCount}. Syncing to fix...`,
-          );
-        }
-      }
-
-      if (shouldSkipMessageSync) {
+      // Metadata-only path: save chat and move on (no message processing)
+      if (!shouldSyncMessages) {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
         continue;
       }
 
-      // For new chats without messages, save immediately
-      if (
-        !existingChat &&
-        (!shouldSyncMessages || !messages || messages.length === 0)
-      ) {
-        console.debug(
-          `[ChatSyncService] Phase 2 - Saving new chat ${chatId} without messages`,
-        );
+      // --- Legacy path: messages were provided (backwards compat) ---
+      const serverMessagesV = chat_details.messages_v || 0;
+      const localMessagesV = existingChat?.messages_v || 0;
+
+      let shouldSkipMessageSync = false;
+      if (existingChat && serverMessagesV === localMessagesV) {
+        const localMessageCount = await chatDB.getMessageCountForChat(chatId);
+        const serverMessageCount = messages?.length || 0;
+        if (localMessageCount === serverMessageCount && localMessageCount > 0) {
+          shouldSkipMessageSync = true;
+        }
+      }
+
+      if (shouldSkipMessageSync) {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
@@ -607,19 +614,9 @@ async function storeRecentChats(
       try {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
-        console.debug(
-          `[ChatSyncService] Phase 2 - Saved chat ${chatId} to IndexedDB`,
-        );
 
         if (shouldSyncMessages && preparedMessages.length > 0) {
-          console.log(
-            `[CLIENT_SYNC] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
-              `(server v${serverMessagesV}, local v${localMessagesV})`,
-          );
           await chatDB.batchSaveMessages(preparedMessages);
-          console.log(
-            `[CLIENT_SYNC] ✅ Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`,
-          );
         }
         processedChatIds.add(chatId);
       } catch (saveError) {
@@ -696,23 +693,13 @@ async function storeAllChats(
 
       // Skip chats that are pending server deletion - do not re-add them
       if (pendingDeletions.has(chatId)) {
-        console.info(
-          `[ChatSyncService] Phase 3 - Skipping chat ${chatId}: pending server deletion`,
-        );
         continue;
       }
 
       // Skip chats already fully processed in Phase 2 (same server data, same merge result)
       if (phase2ChatIds?.has(chatId)) {
-        console.debug(
-          `[ChatSyncService] Phase 3 - Skipping chat ${chatId} (already processed in Phase 2)`,
-        );
         continue;
       }
-
-      console.debug(
-        `[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`,
-      );
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
@@ -761,11 +748,6 @@ async function storeAllChats(
       ) {
         const localMessageCount = await chatDB.getMessageCountForChat(chatId);
 
-        console.debug(
-          `[ChatSyncService] Phase 3 - Message count validation for chat ${chatId}: ` +
-            `server_count=${server_message_count}, local_count=${localMessageCount}`,
-        );
-
         // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
         if (localMessageCount < server_message_count) {
           console.warn(
@@ -806,24 +788,11 @@ async function storeAllChats(
         const localMessageCount = await chatDB.getMessageCountForChat(chatId);
         const serverMessageCount = messages?.length || 0;
 
-        console.debug(
-          `[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}, serverCount=${serverMessageCount}`,
-        );
-
         if (localMessageCount === serverMessageCount && localMessageCount > 0) {
           shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message counts match (${localMessageCount})`,
-          );
         } else if (localMessageCount === 0 && serverMessageCount === 0) {
           shouldSkipMessageSync = true;
-          console.info(
-            `[ChatSyncService] Skipping message sync for chat ${chatId} - no messages on server or client`,
-          );
         } else {
-          console.debug(
-            `[ChatSyncService] Message count mismatch for chat ${chatId}: local=${localMessageCount}, server=${serverMessageCount}. Syncing to fix...`,
-          );
           if (existingChat) {
             mergedChat.messages_v = serverMessagesV;
           }
@@ -840,9 +809,6 @@ async function storeAllChats(
       try {
         await chatDB.addChat(mergedChat);
         chatListCache.upsertChat(mergedChat);
-        console.debug(
-          `[ChatSyncService] Phase 3 - Saved chat ${chatId} to IndexedDB`,
-        );
 
         if (shouldSyncMessages && messages && messages.length > 0) {
           const preparedMessages = prepareMessagesForStorage(
@@ -852,14 +818,7 @@ async function storeAllChats(
           );
 
           if (preparedMessages.length > 0) {
-            console.log(
-              `[CLIENT_SYNC] Phase 3 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
-                `(server v${serverMessagesV}, local v${localMessagesV})`,
-            );
             await chatDB.batchSaveMessages(preparedMessages);
-            console.log(
-              `[CLIENT_SYNC] ✅ Phase 3 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`,
-            );
           }
         }
       } catch (saveError) {
@@ -1018,37 +977,10 @@ async function storeEmbedsBatch(
       `[ChatSyncService] ${phaseName} - Batch stored ${validEmbeds.length} embeds (single transaction)`,
     );
 
-    // Eagerly decrypt + register embed refs so EmbedReferencePreview components
-    // can resolve refs (e.g. "livescience.com-kd0") to embed UUIDs.
-    // Without this, the in-memory ref→ID index stays empty after cross-device sync
-    // and embeds show "Loading preview..." forever (requires manual tab reload).
-    // putEncryptedBatch() stored encrypted entries in embedCache; calling get()
-    // decrypts from memory, registers refs via registerEmbedRef(), and bumps
-    // embedRefIndexVersion — triggering Svelte reactive re-renders.
-    const embedIdsToWarm = validEmbeds.map((e) => `embed:${e.embed_id}`);
-    setTimeout(async () => {
-      const BATCH_SIZE = 20;
-      try {
-        for (let i = 0; i < embedIdsToWarm.length; i += BATCH_SIZE) {
-          const batch = embedIdsToWarm.slice(i, i + BATCH_SIZE);
-          await Promise.allSettled(batch.map((id) => embedStore.get(id)));
-          // Yield to main thread between batches to avoid blocking UI
-          if (i + BATCH_SIZE < embedIdsToWarm.length) {
-            await new Promise((r) => setTimeout(r, 0));
-          }
-        }
-        console.debug(
-          `[ChatSyncService] ${phaseName} - Eagerly registered refs for ${embedIdsToWarm.length} embeds`,
-        );
-      } catch (err) {
-        // Non-critical: embeds will still resolve on individual component render
-        // via resolveEmbed's request_embed fallback or retry mechanism.
-        console.warn(
-          `[ChatSyncService] ${phaseName} - Non-critical: eager embed ref registration failed:`,
-          err,
-        );
-      }
-    }, 0);
+    // Embed refs (e.g. "livescience.com-kd0" → UUID) are registered on-demand
+    // when the user opens a chat and embed components call resolveEmbed() →
+    // embedStore.get() → decrypt → registerEmbedRef(). No eager decryption here.
+    // Per sync architecture: data stays encrypted in IDB until the UI renders it.
   } catch (error) {
     console.error(
       `[ChatSyncService] ${phaseName} - Error storing embeds batch:`,

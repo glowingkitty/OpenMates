@@ -26,6 +26,7 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -387,11 +388,9 @@
     {:else}
         {#if isAuthenticated}
             <!-- "My / Settings & memories" section heading — 2-line style matching skill/provider headings -->
-            <SettingsItem
-                type="heading"
-                icon="user"
-                subtitleTop={$text('settings.app_settings_memories.my')}
+            <SettingsSectionHeading
                 title={$text('settings.app_settings_memories.settings_and_memories')}
+                icon="user"
             />
 
             <!-- List of owned entries -->
@@ -438,10 +437,9 @@
         {#if exampleTranslationKeys.length > 0 && (!isAuthenticated || allEntries.length === 0)}
             <div class="examples-section">
                 <!-- "Examples" section heading — uses task/checklist icon, matching skill heading style -->
-                <SettingsItem
-                    type="heading"
-                    icon="task"
+                <SettingsSectionHeading
                     title={$text('settings.app_settings_memories.examples')}
+                    icon="task"
                 />
                 <div class="examples-list">
                     {#each exampleTranslationKeys as exampleKey, index}

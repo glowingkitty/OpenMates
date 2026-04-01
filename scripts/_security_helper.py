@@ -45,6 +45,7 @@ from pathlib import Path
 # Append scripts/ to path so we can import _claude_utils
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _claude_utils import run_claude_session
+from _nightly_report import write_nightly_report
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +281,11 @@ def run_audit() -> None:
         state["last_audit_sha"] = current_sha
         state["last_audit_date"] = today_date
         _save_state(project_root, state)
+        write_nightly_report(
+            job="security-audit",
+            status="skipped",
+            summary=f"No security-relevant files changed since last audit ({last_date}).",
+        )
         return
 
     if force_full:
@@ -345,6 +351,29 @@ def run_audit() -> None:
         state["last_full_sweep_date"] = today_date
     _record_run(state, "audit", current_sha, session_id)
     _save_state(project_root, state)
+
+    # Count findings for report
+    findings = state.get("findings", {})
+    total_findings = sum(len(v) if isinstance(v, list) else 1 for v in findings.values())
+
+    write_nightly_report(
+        job="security-audit",
+        status="error" if returncode != 0 else ("warning" if total_findings > 0 else "ok"),
+        summary=f"Security audit completed (HEAD {current_sha}). {total_findings} finding(s) tracked.",
+        details={
+            "last_audit_date": today_date,
+            "head_sha": current_sha,
+            "session_id": session_id,
+            "total_findings": total_findings,
+            "full_sweep": force_full,
+        },
+        security_disclosure={
+            "risk_summary": (
+                f"{total_findings} security finding(s) tracked. "
+                f"{'Full sweep performed.' if force_full else 'Incremental audit.'}"
+            ),
+        } if total_findings > 0 else None,
+    )
 
     if returncode != 0:
         print(f"[security] WARNING: audit session exited with code {returncode}", file=sys.stderr)
@@ -429,9 +458,25 @@ def run_redteam() -> None:
     _record_run(state, "redteam", current_sha, session_id)
     _save_state(project_root, state)
 
+    timed_out = returncode == 124
+    write_nightly_report(
+        job="red-teaming",
+        status="ok" if (returncode == 0 or timed_out) else "error",
+        summary=(
+            f"Red team probe completed (HEAD {current_sha}). "
+            f"{'Reached 20-min time limit (expected).' if timed_out else 'Session finished normally.'}"
+        ),
+        details={
+            "last_redteam_date": today_date,
+            "head_sha": current_sha,
+            "session_id": session_id,
+            "timed_out": timed_out,
+        },
+    )
+
     if returncode != 0:
         # Timeout (exit 124) is expected for red team — not an error
-        if returncode == 124:
+        if timed_out:
             print("[redteam] Session reached 20-minute time limit (expected).")
         else:
             print(f"[redteam] WARNING: red team session exited with code {returncode}", file=sys.stderr)

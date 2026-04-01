@@ -17,6 +17,7 @@
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
     import { initializeAppHealth, appHealthStore } from '../../stores/appHealthStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import AppStoreCard from './AppStoreCard.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher, onMount } from 'svelte';
@@ -460,12 +461,8 @@
         <!-- Horizontal scrollable sections for each category -->
         {#each categoryEntries as [categoryName, categoryApps]}
             <div class="category-section">
-                <!-- Category header with icon (matching SettingsItem heading style) -->
-                <SettingsItem 
-                    type="heading"
-                    icon={getCategoryIcon(categoryName)}
-                    title={getCategoryDisplayName(categoryName)}
-                />
+                <!-- Category header with icon -->
+                <SettingsSectionHeading title={getCategoryDisplayName(categoryName)} icon={getCategoryIcon(categoryName)} />
                 
                 <div class="apps-scroll-container">
                     <div class="apps-scroll">

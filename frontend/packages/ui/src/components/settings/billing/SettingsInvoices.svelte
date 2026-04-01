@@ -628,10 +628,10 @@ Invoices Settings - View and download past invoices
             <h4 class="month-header">{monthYear}</h4>
 
             {#each monthInvoices as invoice}
-                <div class="invoice-item">
+                <div class="invoice-item" data-testid="invoice-item">
                     <div class="invoice-info">
                         <div class="invoice-header">
-                            <div class="invoice-date">
+                            <div class="invoice-date" data-testid="invoice-date">
                                 {formatDate(invoice.date)}
                             </div>
                             {#if invoice.is_gift_card}

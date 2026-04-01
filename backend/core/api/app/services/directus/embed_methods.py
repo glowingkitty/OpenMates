@@ -416,79 +416,100 @@ class EmbedMethods:
             logger.error(f"Error fetching embed_keys by hashed_chat_id: {e}", exc_info=True)
             return []
 
+    # Maximum number of hashed IDs per _in filter query parameter.
+    # Each SHA256 hash is 64 chars + 1 comma separator = 65 chars per ID.
+    # Directus/nginx default header limit is ~8KB. Keeping batches at 20 IDs
+    # produces ~1,300 chars for the filter value, well within safe limits.
+    # This prevents HTTP 431 (Request Header Fields Too Large) errors that
+    # occurred when joining 100+ hashed IDs into a single GET parameter.
+    _EMBED_KEYS_BATCH_SIZE: int = 20
+
     async def get_embed_keys_by_hashed_chat_ids_batch(
-        self, 
-        hashed_chat_ids: List[str], 
+        self,
+        hashed_chat_ids: List[str],
         include_master_keys: bool = True
     ) -> List[Dict[str, Any]]:
         """
         Batch fetch all embed_keys entries for multiple chats by their hashed_chat_ids.
-        
+
         This is an optimized version of get_embed_keys_by_hashed_chat_id that fetches
-        embed_keys for multiple chats in just 2 database queries instead of 2 per chat.
-        
-        Performance: For 20 chats, this reduces queries from 40 to 2 (95% reduction).
-        
+        embed_keys for multiple chats in chunked queries instead of 2 per chat.
+
+        Chunks the input into batches of _EMBED_KEYS_BATCH_SIZE to avoid HTTP 431
+        errors from overly long URL query parameters (each SHA256 hash = 64 chars).
+
+        Performance: For 100 chats with batch size 20, this uses ~10 queries instead of 200.
+
         Args:
             hashed_chat_ids: List of SHA256 hashes of chat_ids
             include_master_keys: If True (default), also fetch master key entries for the same embeds
-            
+
         Returns:
             List of all embed_keys entries for all chats (both chat and master key entries)
         """
         if not hashed_chat_ids:
             return []
-            
+
         logger.debug(f"Batch fetching embed_keys for {len(hashed_chat_ids)} chats (include_master_keys={include_master_keys})")
-        
+
         all_embed_keys = []
-        
-        # First, fetch ALL chat key entries for all chats in one query using _in filter
-        # Directus supports comma-separated values for _in filter
-        chat_key_params = {
-            'filter[hashed_chat_id][_in]': ','.join(hashed_chat_ids),
-            'filter[key_type][_eq]': 'chat',
-            'fields': EMBED_KEY_ALL_FIELDS,
-            'limit': -1,
-            # Add timestamp to prevent caching issues during sync
-            '_ts': str(int(__import__('time').time() * 1000000000))
-        }
-        
+        all_hashed_embed_ids = set()
+        batch_size = self._EMBED_KEYS_BATCH_SIZE
+        total_queries = 0
+
         try:
-            chat_key_response = await self.directus_service.get_items('embed_keys', params=chat_key_params, no_cache=True)
-            if chat_key_response and isinstance(chat_key_response, list):
-                logger.debug(f"Batch found {len(chat_key_response)} chat key entries for {len(hashed_chat_ids)} chats")
-                all_embed_keys.extend(chat_key_response)
-                
-                # If we should include master keys, fetch them using the hashed_embed_ids from chat keys
-                if include_master_keys and chat_key_response:
-                    # Get unique hashed_embed_ids from all chat keys
-                    hashed_embed_ids = list(set(
-                        k.get('hashed_embed_id') 
-                        for k in chat_key_response 
-                        if k.get('hashed_embed_id')
-                    ))
-                    
-                    if hashed_embed_ids:
-                        # Fetch ALL master key entries for these embeds in one query
-                        master_key_params = {
-                            'filter[hashed_embed_id][_in]': ','.join(hashed_embed_ids),
-                            'filter[key_type][_eq]': 'master',
-                            'fields': EMBED_KEY_ALL_FIELDS,
-                            'limit': -1,
-                            '_ts': str(int(__import__('time').time() * 1000000000))
-                        }
-                        try:
-                            master_key_response = await self.directus_service.get_items('embed_keys', params=master_key_params, no_cache=True)
-                            if master_key_response and isinstance(master_key_response, list):
-                                logger.debug(f"Batch found {len(master_key_response)} master key entries for {len(hashed_embed_ids)} embeds")
-                                all_embed_keys.extend(master_key_response)
-                        except Exception as e:
-                            logger.warning(f"Error batch fetching master key entries: {e}")
-            
-            logger.info(f"[BATCH] Total embed_keys for {len(hashed_chat_ids)} chats: {len(all_embed_keys)} (chat + master) - 2 queries instead of {len(hashed_chat_ids) * 2}")
+            # Chunk hashed_chat_ids into safe-sized batches to avoid HTTP 431
+            for i in range(0, len(hashed_chat_ids), batch_size):
+                chunk = hashed_chat_ids[i:i + batch_size]
+
+                chat_key_params = {
+                    'filter[hashed_chat_id][_in]': ','.join(chunk),
+                    'filter[key_type][_eq]': 'chat',
+                    'fields': EMBED_KEY_ALL_FIELDS,
+                    'limit': -1,
+                    '_ts': str(int(__import__('time').time() * 1000000000))
+                }
+
+                chat_key_response = await self.directus_service.get_items('embed_keys', params=chat_key_params, no_cache=True)
+                total_queries += 1
+
+                if chat_key_response and isinstance(chat_key_response, list):
+                    all_embed_keys.extend(chat_key_response)
+
+                    if include_master_keys:
+                        for k in chat_key_response:
+                            hashed_eid = k.get('hashed_embed_id')
+                            if hashed_eid:
+                                all_hashed_embed_ids.add(hashed_eid)
+
+            logger.debug(f"Batch found {len(all_embed_keys)} chat key entries for {len(hashed_chat_ids)} chats in {total_queries} queries")
+
+            # Fetch master keys in chunked batches too
+            if include_master_keys and all_hashed_embed_ids:
+                hashed_embed_ids_list = list(all_hashed_embed_ids)
+
+                for i in range(0, len(hashed_embed_ids_list), batch_size):
+                    chunk = hashed_embed_ids_list[i:i + batch_size]
+
+                    master_key_params = {
+                        'filter[hashed_embed_id][_in]': ','.join(chunk),
+                        'filter[key_type][_eq]': 'master',
+                        'fields': EMBED_KEY_ALL_FIELDS,
+                        'limit': -1,
+                        '_ts': str(int(__import__('time').time() * 1000000000))
+                    }
+
+                    try:
+                        master_key_response = await self.directus_service.get_items('embed_keys', params=master_key_params, no_cache=True)
+                        total_queries += 1
+                        if master_key_response and isinstance(master_key_response, list):
+                            all_embed_keys.extend(master_key_response)
+                    except Exception as e:
+                        logger.warning(f"Error batch fetching master key entries (chunk {i // batch_size + 1}): {e}")
+
+            logger.info(f"[BATCH] Total embed_keys for {len(hashed_chat_ids)} chats: {len(all_embed_keys)} (chat + master) in {total_queries} queries")
             return all_embed_keys
-            
+
         except Exception as e:
             logger.error(f"Error batch fetching embed_keys by hashed_chat_ids: {e}", exc_info=True)
             return []

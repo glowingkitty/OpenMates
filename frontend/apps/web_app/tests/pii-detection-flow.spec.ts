@@ -116,7 +116,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
 
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 
 	// ======================================================================
@@ -156,7 +156,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// ======================================================================
 	logCheckpoint('Verifying PII highlights in the editor...');
 
-	const piiHighlights = page.locator('.ProseMirror .pii-highlight');
+	const piiHighlights = page.locator('.ProseMirror [data-testid="pii-highlight"]');
 	const highlightCount = await piiHighlights.count();
 	logCheckpoint(`Found ${highlightCount} PII highlights in the editor.`);
 
@@ -164,11 +164,11 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	expect(highlightCount).toBeGreaterThanOrEqual(5);
 
 	// Check that specific PII types are highlighted
-	const emailHighlight = page.locator('.pii-highlight[data-pii-type="EMAIL"]');
-	const phoneHighlight = page.locator('.pii-highlight[data-pii-type="PHONE"]');
-	const ibanHighlight = page.locator('.pii-highlight[data-pii-type="IBAN"]');
-	const creditCardHighlight = page.locator('.pii-highlight[data-pii-type="CREDIT_CARD"]');
-	const ssnHighlight = page.locator('.pii-highlight[data-pii-type="SSN"]');
+	const emailHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
+	const phoneHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="PHONE"]');
+	const ibanHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="IBAN"]');
+	const creditCardHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="CREDIT_CARD"]');
+	const ssnHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="SSN"]');
 
 	const emailCount = await emailHighlight.count();
 	const phoneCount = await phoneHighlight.count();
@@ -218,24 +218,24 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// ======================================================================
 	logCheckpoint('Verifying PII warning banner...');
 
-	const piiBanner = page.locator('.pii-warning-banner');
+	const piiBanner = page.getByTestId('pii-warning-banner');
 	await expect(piiBanner).toBeVisible({ timeout: 5000 });
 	logCheckpoint('PII warning banner is visible.');
 
-	const bannerTitle = piiBanner.locator('.banner-title');
+	const bannerTitle = piiBanner.getByTestId('banner-title');
 	const bannerTitleText = await bannerTitle.textContent();
 	logCheckpoint(`Banner title: "${bannerTitleText}"`);
 	// Title should be "Sensitive data detected" (or translated equivalent)
 	expect(bannerTitleText).toBeTruthy();
 
-	const bannerDescription = piiBanner.locator('.banner-description');
+	const bannerDescription = piiBanner.getByTestId('banner-description');
 	const bannerDescText = await bannerDescription.textContent();
 	logCheckpoint(`Banner description: "${bannerDescText}"`);
 	// Description should mention found PII counts
 	expect(bannerDescText).toBeTruthy();
 	expect(bannerDescText.toLowerCase()).toContain('found');
 
-	const undoAllButton = piiBanner.locator('.undo-all-btn');
+	const undoAllButton = piiBanner.getByTestId('undo-all-btn');
 	await expect(undoAllButton).toBeVisible();
 	logCheckpoint('Undo All button is visible.');
 
@@ -259,7 +259,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// The email should no longer be highlighted
 	const emailHighlightAfterUndo = await page
-		.locator('.pii-highlight[data-pii-type="EMAIL"]')
+		.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')
 		.count();
 	logCheckpoint(`Email highlights after undo: ${emailHighlightAfterUndo}`);
 	expect(emailHighlightAfterUndo).toBe(0);
@@ -327,7 +327,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	await page.waitForTimeout(1500);
 
 	// Verify the email is detected before sending
-	const sendEmailHighlight = page.locator('.pii-highlight[data-pii-type="EMAIL"]');
+	const sendEmailHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
 	const sendEmailCount = await sendEmailHighlight.count();
 	logCheckpoint(`Email highlights before send: ${sendEmailCount}`);
 	expect(sendEmailCount).toBeGreaterThanOrEqual(1);
@@ -339,7 +339,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	await takeStepScreenshot(page, 'pii-send-message-typed');
 
 	// Click the send button
-	const sendButton = page.locator('.send-button');
+	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
 	logCheckpoint('Clicked send button.');
@@ -353,7 +353,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// Wait for the assistant response first — this ensures the message round-trip completed
 	// and both user and assistant messages should be fully rendered
-	const assistantMessage = page.locator('.message-wrapper.assistant').last();
+	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant response is visible — message round-trip complete.');
 
@@ -368,7 +368,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// pushing the user message out of view. We must scroll it back into view.
 	logCheckpoint('Scrolling to user message and waiting for content to render...');
 
-	const userMsgElement = page.locator('.chat-message.user').last();
+	const userMsgElement = page.getByTestId('message-user').last();
 	await expect(userMsgElement).toBeAttached({ timeout: 10000 });
 	logCheckpoint('User message element is attached to DOM.');
 
@@ -378,7 +378,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// Also try scrolling the chat container directly to ensure the element is truly visible
 	await page.evaluate(() => {
-		const userMsgs = document.querySelectorAll('.chat-message.user');
+		const userMsgs = document.querySelectorAll('[data-testid="message-user"]');
 		const lastUserMsg = userMsgs[userMsgs.length - 1];
 		if (lastUserMsg) {
 			lastUserMsg.scrollIntoView({ block: 'center', behavior: 'instant' });
@@ -415,7 +415,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	if (!userMessage) {
 		// Final fallback: check the entire chat history area
-		const chatHistory = page.locator('.chat-history-container, .chat-messages-wrapper');
+		const chatHistory = page.locator('[data-testid="chat-history-container"], [data-testid="chat-messages-wrapper"]');
 		const historyText = (await chatHistory.first().textContent()) || '';
 		logCheckpoint(`Chat history text (excerpt): "${historyText.substring(0, 300)}"`);
 
@@ -440,7 +440,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// Check if PII decoration spans are rendered (pii-restored class)
 	// These may take a moment to render since ReadOnlyMessage uses TipTap decorations
-	const userPiiSpan = userMessage.locator('.pii-restored');
+	const userPiiSpan = userMessage.locator('[data-testid="pii-restored"]');
 	let piiSpanCount = await userPiiSpan.count();
 	logCheckpoint(`PII decoration spans found: ${piiSpanCount}`);
 
@@ -498,8 +498,8 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 	// The toggle button should appear in the chat header since the chat has PII
 	// It uses icon_hidden (eye-closed) when PII is hidden, icon_visible (eye-open) when revealed
-	const showButton = page.locator('button.top-button.icon_hidden');
-	const hideButton = page.locator('button.top-button.icon_visible');
+	const showButton = page.locator('[data-testid="pii-toggle-show"]');
+	const hideButton = page.locator('[data-testid="pii-toggle-hide"]');
 
 	// Initially the button should be in "hidden" state (icon_hidden = eye-closed icon)
 	const showButtonVisible = await showButton.isVisible({ timeout: 5000 }).catch(() => false);
@@ -521,7 +521,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		logCheckpoint(`User message text after reveal: "${revealedMsgText?.substring(0, 150)}"`);
 
 		// After revealing, check for pii-revealed spans (orange text with original values)
-		const revealedPii = userMessage.locator('.pii-restored.pii-revealed');
+		const revealedPii = userMessage.locator('[data-testid="pii-restored"].pii-revealed');
 		const revealedCount = await revealedPii.count();
 		logCheckpoint(`Revealed PII spans in user message: ${revealedCount}`);
 
@@ -533,7 +533,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 			logCheckpoint('Original email correctly revealed in user message.');
 
 			// The hidden PII spans should be gone
-			const hiddenPiiAfterReveal = await userMessage.locator('.pii-restored.pii-hidden').count();
+			const hiddenPiiAfterReveal = await userMessage.locator('[data-testid="pii-restored"].pii-hidden').count();
 			logCheckpoint(`Hidden PII spans after reveal: ${hiddenPiiAfterReveal}`);
 			expect(hiddenPiiAfterReveal).toBe(0);
 		} else {
@@ -544,7 +544,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 
 		// Now click "Hide sensitive data" to re-hide
 		logCheckpoint('Clicking "Hide sensitive data" toggle...');
-		const hideButtonAfterReveal = page.locator('button.top-button.icon_visible');
+		const hideButtonAfterReveal = page.locator('[data-testid="pii-toggle-hide"]');
 		await expect(hideButtonAfterReveal).toBeVisible({ timeout: 5000 });
 		await hideButtonAfterReveal.click();
 		await page.waitForTimeout(2000);
@@ -558,7 +558,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		logCheckpoint('User message correctly re-hidden with placeholder.');
 
 		// Check decoration spans reverted
-		const hiddenPiiAfterReHide = userMessage.locator('.pii-restored.pii-hidden');
+		const hiddenPiiAfterReHide = userMessage.locator('[data-testid="pii-restored"].pii-hidden');
 		const hiddenCountAfterReHide = await hiddenPiiAfterReHide.count();
 		logCheckpoint(`Hidden PII spans after re-hide: ${hiddenCountAfterReHide}`);
 
@@ -570,7 +570,7 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		}
 
 		// The revealed spans should be gone
-		const revealedAfterReHide = await userMessage.locator('.pii-restored.pii-revealed').count();
+		const revealedAfterReHide = await userMessage.locator('[data-testid="pii-restored"].pii-revealed').count();
 		logCheckpoint(`Revealed PII spans after re-hide: ${revealedAfterReHide}`);
 		expect(revealedAfterReHide).toBe(0);
 	} else if (hideButtonVisible) {

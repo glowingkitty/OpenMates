@@ -126,6 +126,10 @@ class ChatDatabase {
   // Used by init() to wait for deletion instead of throwing permanently.
   private deletionPromise: Promise<void> | null = null;
 
+  // Tracks which resume timestamp was already logged for the grace period skip.
+  // Prevents log spam from repeated init() calls within the same grace window.
+  private _lastGraceLogTimestamp = 0;
+
   // Flag to skip orphan detection for shared chat sessions.
   // This is backed by sessionStorage to persist across page navigations within
   // the same browser session. This is needed because shared chats are stored
@@ -204,6 +208,19 @@ class ChatDatabase {
    */
   async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
     const { skipOrphanDetection = false } = options;
+
+    // FAST PATH: If the database is already open and no deletion is pending,
+    // skip all orphan detection, cleanup checks, and re-open logic.
+    // This eliminates the "Skipping orphan detection" log spam that fires on
+    // every IDB operation (getChat, getAllChats, etc.) after tab resume.
+    if (this.db && !this.isDeleting && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+      return;
+    }
+
+    // If an open is already in progress, piggyback on the existing promise.
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
 
     // Make skipOrphanDetection persistent via sessionStorage - once set to true, it
     // stays true for all subsequent init() calls AND survives page navigations.
@@ -346,7 +363,7 @@ class ChatDatabase {
           const { authStore } = await import("../stores/authStore");
           const isAuthenticated = get(authStore).isAuthenticated;
           if (isAuthenticated) {
-            console.warn(
+            console.debug(
               "[ChatDatabase] Skipping orphan detection: memory-only key session with valid auth (stayLoggedIn=false)",
             );
             // Skip the async key check entirely — fall through to normal DB init
@@ -368,9 +385,14 @@ class ChatDatabase {
               : Infinity;
 
           if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
-            console.warn(
-              `[ChatDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
-            );
+            // Log once per resume window to avoid spam from repeated init() calls.
+            // Each resume event resets _lastGraceLogTimestamp via the timestamp check.
+            if (this._lastGraceLogTimestamp !== lastResumeTimestamp) {
+              this._lastGraceLogTimestamp = lastResumeTimestamp;
+              console.debug(
+                `[ChatDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period`,
+              );
+            }
             // Skip — will re-run on next init() call outside the grace window
           } else {
             await this._runOrphanKeyCheck();

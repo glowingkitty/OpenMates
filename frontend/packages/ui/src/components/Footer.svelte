@@ -5,9 +5,6 @@
     import { isPageVisible } from '../config/pages';
     import { text } from '@repo/ui';
     import { locale } from 'svelte-i18n';
-    import { browser } from '$app/environment';
-    import { waitLocale } from 'svelte-i18n';
-    import { loadMetaTags, getMetaTags } from '../config/meta';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
 
     // Type definition for footer links
@@ -18,22 +15,8 @@
         external?: boolean;
     };
 
-    // Type definition for supported languages
-    type Language = {
-        code: string;
-        name: string;
-    };
-
-    // Define supported languages
-    const supportedLanguages: Language[] = [
-        { code: 'en', name: 'English' },
-        { code: 'de', name: 'Deutsch' },
-        { code: 'es', name: 'Español' },
-        { code: 'fr', name: 'Français' },
-        { code: 'zh', name: '中文' },
-        { code: 'ja', name: '日本語' }
-        // Add more languages as needed
-    ];
+    // Import supported languages from single source of truth (languages.json)
+    import { SUPPORTED_LANGUAGES } from '@repo/ui';
 
     // Define footer sections and their links using the centralized config
     const footerSections = [
@@ -102,11 +85,9 @@
     })).filter(section => section.links.length > 0); // Remove sections with no visible links
 
     // Props using Svelte 5 runes
-    let { 
-        metaKey = 'for_all_of_us',
+    let {
         context = 'website'
     }: {
-        metaKey?: string;
         context?: 'website' | 'webapp';
     } = $props();
 
@@ -161,85 +142,8 @@
         return currentPath === linkPath;
     };
 
-    // Initialize locale from browser language
-    const initializeLocale = () => {
-        if (browser) {
-            const savedLocale = localStorage.getItem('preferredLanguage');
-            if (savedLocale && supportedLanguages.some(lang => lang.code === savedLocale)) {
-                // Only use saved locale if explicitly set
-                locale.set(savedLocale);
-            } else {
-                // Use browser language
-                const browserLang = navigator.language.split('-')[0];
-                if (supportedLanguages.some(lang => lang.code === browserLang)) {
-                    locale.set(browserLang);
-                } else {
-                    locale.set('en');
-                }
-            }
-        }
-    };
-
-    // Call initialization when the component mounts
-    initializeLocale();
-
-    // Handle language change
-    const _handleLanguageChange = async (event: Event) => {
-        if (!browser) return;
-        
-        const select = event.target as HTMLSelectElement;
-        const newLocale = select.value;
-        
-        // Store preference in localStorage
-        localStorage.setItem('preferredLanguage', newLocale);
-        
-        try {
-            // Set new locale and wait for translations to load
-            await locale.set(newLocale);
-            await waitLocale();
-
-            // Update HTML lang attribute
-            document.documentElement.setAttribute('lang', newLocale);
-
-            // Reload meta tags with new language
-            await loadMetaTags();
-
-            // Get updated meta tags for the current page
-            const metaTags = getMetaTags(metaKey);
-
-            // Update meta tags
-            document.title = metaTags.title;
-            
-            const metaDescription = document.querySelector('meta[name="description"]');
-            if (metaDescription) {
-                metaDescription.setAttribute('content', metaTags.description);
-            }
-
-            const metaKeywords = document.querySelector('meta[name="keywords"]');
-            if (metaKeywords) {
-                metaKeywords.setAttribute('content', metaTags.keywords.join(', '));
-            }
-
-            // Update OpenGraph meta tags if they exist
-            const ogTitle = document.querySelector('meta[property="og:title"]');
-            if (ogTitle) {
-                ogTitle.setAttribute('content', metaTags.title);
-            }
-
-            const ogDescription = document.querySelector('meta[property="og:description"]');
-            if (ogDescription) {
-                ogDescription.setAttribute('content', metaTags.description);
-            }
-
-            const ogLocale = document.querySelector('meta[property="og:locale"]');
-            if (ogLocale) {
-                ogLocale.setAttribute('content', `${newLocale}_${newLocale.toUpperCase()}`);
-            }
-
-        } catch (error) {
-            console.error('Error changing language:', error);
-        }
-    };
+    // Locale is already initialized by i18n/setup.ts — Footer reads from the $locale store.
+    // Do NOT re-detect or override the locale here (was causing wrong language bugs).
 
     // Handle language button click to open settings language menu
     const handleLanguageClick = () => {
@@ -271,7 +175,7 @@
     };
 
     // Get current language name using Svelte 5 runes
-    let currentLanguageName = $derived(supportedLanguages.find(lang => lang.code === $locale)?.name || 'English');
+    let currentLanguageName = $derived(SUPPORTED_LANGUAGES.find(lang => lang.code === $locale)?.name || 'English');
 
 </script>
 

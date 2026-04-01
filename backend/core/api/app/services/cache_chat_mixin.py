@@ -737,7 +737,7 @@ class ChatCacheMixin:
             return {cid: None for cid in chat_ids}
         return result
 
-    async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count", "last_mate_category"], value: Any) -> bool:
+    async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count", "last_mate_category", "encrypted_chat_key"], value: Any) -> bool:
         """
         Updates a specific field in the chat's list_item_data. Refreshes TTL.
         'draft_json' is no longer managed here.

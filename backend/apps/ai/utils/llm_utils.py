@@ -1119,21 +1119,41 @@ async def call_preprocessing_llm(
         """
         if not error_message:
             return False
-        # Non-retryable errors: 401 (auth), 400 (bad request)
-        non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
-        if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
+        error_lower = error_message.lower()
+        # Billing/payment errors ALWAYS trigger fallback — a different provider won't have the
+        # same billing issue. Check these BEFORE non-retryable indicators because some billing
+        # responses include "unauthorized" or "bad request" in the body which would otherwise
+        # short-circuit the check.
+        billing_indicators = [
+            "402", "payment required", "insufficient", "quota exceeded",
+            "billing", "credits", "subscription",
+        ]
+        if any(indicator in error_lower for indicator in billing_indicators):
+            return True
+        # Auth errors (401/unauthorized): the API key for THIS provider is invalid, expired,
+        # or suspended. A different fallback provider has its own key and may work fine.
+        # Always retry with fallback — same logic as billing errors.
+        auth_indicators = ["401", "unauthorized"]
+        if any(indicator in error_lower for indicator in auth_indicators):
+            return True
+        # Non-retryable errors: 400 (bad request) — the request itself is malformed,
+        # sending the same request to another provider won't help.
+        non_retryable_indicators = ["bad request", "400"]
+        if any(indicator in error_lower for indicator in non_retryable_indicators):
             return False
-        # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500, timeout, service unavailable, unhealthy
+        # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500,
+        # 404, timeout, service unavailable, unhealthy, missing API key
         retryable_indicators = [
             "429", "rate limit", "resource exhausted", "too many requests",  # Rate limiting - definitely retry with fallback
-            "503", "502", "504", "500", "timeout", "service unavailable", "unreachable_backend",
-            "connection", "unhealthy", "http error",
+            "503", "502", "504", "500", "404", "timeout", "service unavailable", "unreachable_backend",
+            "connection", "unhealthy", "http error", "api key", "failed to retrieve",
+            "not found", "timeouterror",
             # Wrong-tool: model called a different tool than expected (e.g., hallucinated a skill
             # tool call instead of analyze_request_properties). This is a provider-specific model
             # failure — a different provider may succeed. Always retry with fallback.
             "not found in tool calls. actual tool calls made:",
         ]
-        return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
+        return any(indicator in error_lower for indicator in retryable_indicators)
 
     def is_wrong_tool_error(error_message: Optional[str]) -> bool:
         """True when the LLM called a different tool than the expected one (model hallucination).
@@ -1310,20 +1330,38 @@ async def call_main_llm_stream(
         """Check if error is retryable (e.g., 429, 503, timeout, service unavailable, missing API key, 404)."""
         if not error_message:
             return False
-        # Non-retryable errors: 401 (auth), 400 (bad request) - these won't be fixed by trying another server
+        error_lower = error_message.lower()
+        # Billing/payment errors ALWAYS trigger fallback — a different provider won't have the
+        # same billing issue. Check these BEFORE non-retryable indicators because some billing
+        # responses include "unauthorized" or "bad request" in the body which would otherwise
+        # short-circuit the check.
+        billing_indicators = [
+            "402", "payment required", "insufficient", "quota exceeded",
+            "billing", "credits", "subscription",
+        ]
+        if any(indicator in error_lower for indicator in billing_indicators):
+            return True
+        # Auth errors (401/unauthorized): the API key for THIS provider is invalid, expired,
+        # or suspended. A different fallback provider has its own key and may work fine.
+        # Always retry with fallback — same logic as billing errors.
+        auth_indicators = ["401", "unauthorized"]
+        if any(indicator in error_lower for indicator in auth_indicators):
+            return True
+        # Non-retryable errors: 400 (bad request) - the request itself is malformed,
+        # sending the same request to another provider won't help.
         # EXCEPTION: "thought signature is not valid" is a special 400 that CAN be fixed by stripping
         # stale thought signatures and retrying (handled separately via _is_thought_signature_error).
-        non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
-        if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
+        non_retryable_indicators = ["bad request", "400"]
+        if any(indicator in error_lower for indicator in non_retryable_indicators):
             return False
         # Retryable errors: 429 (rate limit - try another provider!), 503, 502, 504, 500, 404 (not found),
         # timeout, service unavailable, unreachable backend, missing API key, resource exhausted
         retryable_indicators = [
             "429", "rate limit", "resource exhausted", "too many requests",  # Rate limiting - definitely retry with fallback
-            "503", "502", "504", "500", "404", "timeout", "service unavailable", "unreachable_backend", 
+            "503", "502", "504", "500", "404", "timeout", "service unavailable", "unreachable_backend",
             "connection", "api key", "failed to retrieve", "not found", "http error", "timeouterror"
         ]
-        return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
+        return any(indicator in error_lower for indicator in retryable_indicators)
 
     def _is_thought_signature_error(error_message: Optional[str]) -> bool:
         """Check if the error is the Gemini 'Thought signature is not valid' error.

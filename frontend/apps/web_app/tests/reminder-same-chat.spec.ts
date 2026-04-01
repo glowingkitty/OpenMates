@@ -46,6 +46,11 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await page.waitForTimeout(1000);
@@ -78,10 +83,10 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
 	}
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 8000 });
 	await activeChatItem.click({ button: 'right' });
-	const deleteBtn = page.locator('.menu-item.delete');
+	const deleteBtn = page.getByTestId('chat-context-delete');
 	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 	await deleteBtn.click();
 	await deleteBtn.click(); // second click confirms
@@ -111,13 +116,13 @@ test('reminder — same-chat: system message fires in the same chat', async ({
 	await screenshot(page, 'logged-in');
 
 	// Open a fresh chat
-	const newChatBtn = page.locator('.icon_create');
+	const newChatBtn = page.getByTestId('new-chat-button');
 	if (await newChatBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await newChatBtn.click();
 		await page.waitForTimeout(2000);
 	}
 
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(
@@ -125,13 +130,13 @@ test('reminder — same-chat: system message fires in the same chat', async ({
 	);
 	await screenshot(page, 'message-typed');
 
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 	log('Message sent.');
 
 	// Wait for AI confirmation
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 
 	// Capture stable chat ID after AI response
@@ -142,7 +147,7 @@ test('reminder — same-chat: system message fires in the same chat', async ({
 
 	// Wait for the reminder system message (3-min window)
 	log('Waiting for system message (up to 3 min)...');
-	const systemMsg = page.locator('.message-wrapper.system');
+	const systemMsg = page.getByTestId('message-system');
 	const pollStart = Date.now();
 	while (Date.now() - pollStart < 180000) {
 		if ((await systemMsg.count()) >= 1) break;
@@ -166,7 +171,7 @@ test('reminder — same-chat: system message fires in the same chat', async ({
 	// Verify ordering: last system message index < last assistant message index
 	log('Verifying message ordering (system before assistant follow-up)...');
 	await expect(async () => {
-		const all = page.locator('.message-wrapper');
+		const all = page.locator('[data-testid^="message-"]');
 		const count = await all.count();
 		let lastSys = -1;
 		let lastAsst = -1;

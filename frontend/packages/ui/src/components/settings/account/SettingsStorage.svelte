@@ -20,6 +20,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import { getApiEndpoint } from '../../../config/api';
 
     const dispatch = createEventDispatcher();
@@ -280,9 +281,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
         <!-- Per-category breakdown — only categories with files are shown -->
         {#if visibleBreakdown.length > 0}
             <div class="breakdown-section">
-                <h3 class="breakdown-title">
-                    {$text('settings.storage.storage_breakdown_title')}
-                </h3>
+                <SettingsSectionHeading title={$text('settings.storage.storage_breakdown_title')} icon="cloud" />
 
                 <!--
                     Each row is a tappable SettingsItem that navigates to the
@@ -512,14 +511,6 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
         overflow: hidden;
     }
 
-    .breakdown-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--color-grey-60);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin: 16px 20px 8px;
-    }
 
     /* ── Invoice notice ────────────────────────────────────────────────────── */
     .invoice-notice {

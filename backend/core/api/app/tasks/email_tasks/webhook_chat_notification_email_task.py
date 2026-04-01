@@ -139,7 +139,8 @@ async def _async_send_webhook_chat_notification(
         # --- Build email ---
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
-        base_url = os.getenv("FRONTEND_URL", "https://openmates.org")
+        from backend.shared.python_utils.frontend_url import get_frontend_base_url
+        base_url = get_frontend_base_url()
         chat_url = f"{base_url}/chat/{chat_id}"
 
         email_context = {

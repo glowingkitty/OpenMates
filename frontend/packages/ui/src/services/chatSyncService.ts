@@ -35,9 +35,12 @@ import type {
   PhasedSyncRequestPayload,
   PhasedSyncCompletePayload,
   SyncStatusResponsePayload,
+  Phase1bChatContentPayload,
   Phase2RecentChatsPayload,
   Phase3FullSyncPayload,
+  BackgroundMessageSyncPayload,
   LoadMoreChatsResponsePayload,
+  MetadataChatsResponsePayload,
   // Client to Server specific payloads (if not already covered or if preferred to list them all here)
   // UpdateTitlePayload, // Now in types/chat.ts
   // UpdateDraftPayload, // Now in types/chat.ts
@@ -68,6 +71,10 @@ export class ChatSynchronizationService extends EventTarget {
   private webSocketConnected = false;
   private cachePrimed = false;
   private initialSyncAttempted = false;
+  // Tracks whether a full phased sync has ever completed this session.
+  // When true, reconnects skip the full re-sync and only re-verify cache status.
+  // Reset on logout/forced-logout — NOT on transient WS disconnects.
+  private hasCompletedInitialSync = false;
   private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
@@ -215,11 +222,12 @@ export class ChatSynchronizationService extends EventTarget {
         }
       } else {
         console.warn(
-          "[ChatSyncService] WebSocket disconnected or error. Resetting sync state.",
+          "[ChatSyncService] WebSocket disconnected or error.",
+          { hasCompletedInitialSync: this.hasCompletedInitialSync },
         );
-        this.cachePrimed = false;
+
+        // Always clear in-progress sync state
         this.isSyncing = false;
-        this.initialSyncAttempted = false;
         if (this.cacheStatusRequestTimeout) {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
@@ -228,16 +236,38 @@ export class ChatSynchronizationService extends EventTarget {
         // Clear cache status retry polling to prevent stale retries after reconnect
         this.clearCacheStatusRetry();
 
-        // CRITICAL: Reset phased sync state on disconnect so that when the device
-        // reconnects (especially after a long sleep/offline period), a fresh sync
-        // cycle runs properly. Without this reset, stale flags like initialSyncCompleted,
-        // initialChatLoaded, and userMadeExplicitChoice could persist across reconnections
-        // and prevent Phase 1 auto-selection or skip the sync entirely.
-        phasedSyncState.reset();
-
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
         this.clearPhasedSyncTimeout();
+
+        // During logout, always do a full reset so the next login starts fresh.
+        const isLoggingOutNow =
+          get(forcedLogoutInProgress) || get(isLoggingOut);
+
+        if (this.hasCompletedInitialSync && !isLoggingOutNow) {
+          // SHORT DISCONNECT (pong timeout, brief network blip): Sync already completed
+          // this session. Keep cachePrimed and initialSyncAttempted so reconnect skips
+          // a redundant full phased sync. The reconnect path (connected=true) will
+          // re-verify cache status and only re-sync if the server cache went cold.
+          console.info(
+            "[ChatSyncService] Preserving sync state — initial sync already completed this session.",
+          );
+        } else {
+          // Reset hasCompletedInitialSync on logout so re-login does a full sync.
+          if (isLoggingOutNow) {
+            this.hasCompletedInitialSync = false;
+          }
+          // FIRST CONNECT or PRE-SYNC DISCONNECT: Full reset so the next connect
+          // starts a fresh sync cycle.
+          this.cachePrimed = false;
+          this.initialSyncAttempted = false;
+          // Reset phased sync state on disconnect so that when the device reconnects
+          // (especially after a long sleep/offline period), a fresh sync cycle runs
+          // properly. Without this reset, stale flags like initialSyncCompleted,
+          // initialChatLoaded, and userMadeExplicitChoice could persist and prevent
+          // Phase 1 auto-selection or skip the sync entirely.
+          phasedSyncState.reset();
+        }
 
         // Start periodic retry for pending messages when connection is lost
         // This ensures messages are automatically retried every few seconds.
@@ -283,6 +313,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as Phase1LastChatPayload,
       ),
     );
+    webSocketService.on("phase_1b_chat_content_ready", (payload) =>
+      coreSyncHandlers.handlePhase1bChatContentImpl(
+        this,
+        payload as Phase1bChatContentPayload,
+      ),
+    );
     webSocketService.on("cache_primed", (payload) =>
       coreSyncHandlers.handleCachePrimedImpl(
         this,
@@ -296,13 +332,20 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
-    // New phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
+    // Phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
     webSocketService.on("phase_2_last_20_chats_ready", (payload) =>
       phasedSyncHandlers.handlePhase2RecentChatsImpl(
         this,
         payload as Phase2RecentChatsPayload,
       ),
     );
+    webSocketService.on("background_message_sync", (payload) =>
+      phasedSyncHandlers.handleBackgroundMessageSyncImpl(
+        this,
+        payload as BackgroundMessageSyncPayload,
+      ),
+    );
+    // Legacy Phase 3 handler kept for backwards compatibility
     webSocketService.on("phase_3_last_100_chats_ready", (payload) =>
       phasedSyncHandlers.handlePhase3FullSyncImpl(
         this,
@@ -313,6 +356,12 @@ export class ChatSynchronizationService extends EventTarget {
       phasedSyncHandlers.handleLoadMoreChatsResponseImpl(
         this,
         payload as LoadMoreChatsResponsePayload,
+      ),
+    );
+    webSocketService.on("sync_metadata_chats_response", (payload) =>
+      phasedSyncHandlers.handleSyncMetadataChatsResponseImpl(
+        this,
+        payload as MetadataChatsResponsePayload,
       ),
     );
     webSocketService.on("phased_sync_complete", (payload) =>
@@ -552,6 +601,19 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
+    // SYNC-01: Key delivery confirmation from server.
+    // When another device ACKs key receipt, the server relays key_delivery_confirmed
+    // to all other devices. This is purely observational — no action needed.
+    webSocketService.on("key_delivery_confirmed", (payload) => {
+      const { chat_id, device_hash } = payload as {
+        chat_id: string;
+        device_hash: string;
+      };
+      console.info(
+        `[KeyDelivery] Device ${device_hash?.slice(0, 8)} confirmed key for chat ${chat_id}`,
+      );
+    });
+
     // Handle real-time last_opened_updated broadcast from another device.
     // When the user opens a chat on Device A, the server broadcasts this event to all
     // other connected devices (Device B, C...) so they can update their resume card
@@ -609,8 +671,8 @@ export class ChatSynchronizationService extends EventTarget {
               let displayIcon = chat.icon || null;
 
               try {
-                const { decryptWithChatKey, decryptChatKeyWithMasterKey } =
-                  await import("./cryptoService");
+                const { decryptWithChatKey } = await import("./encryption/MessageEncryptor");
+                const { decryptChatKeyWithMasterKey } = await import("./encryption/MetadataEncryptor");
                 let chatKey = await chatKeyManager.getKey(chat_id);
                 if (!chatKey && chat.encrypted_chat_key) {
                   chatKey = await decryptChatKeyWithMasterKey(
@@ -779,7 +841,7 @@ export class ChatSynchronizationService extends EventTarget {
         if (chat) {
           const chatKey = await chatKeyManager.getKey(chatId);
           if (chatKey) {
-            const { encryptWithChatKey } = await import("./cryptoService");
+            const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
             const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
             chat.encrypted_active_focus_id = encryptedFocusId;
             await chatDB.updateChat(chat);
@@ -1110,6 +1172,10 @@ export class ChatSynchronizationService extends EventTarget {
   }
   public set initialSyncAttempted_FOR_HANDLERS_ONLY(value: boolean) {
     this.initialSyncAttempted = value;
+  }
+  /** Mark that a full phased sync completed this session. Reconnects will skip re-sync. */
+  public markInitialSyncCompleted(): void {
+    this.hasCompletedInitialSync = true;
   }
   public get serverChatOrder_FOR_HANDLERS_ONLY(): string[] {
     return this.serverChatOrder;
@@ -1527,6 +1593,17 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   /**
+   * Request metadata-only chat records for positions 101–1000 from the server.
+   * Called automatically after Phase 3 when total_chat_count > 100.
+   * These are stored in IndexedDB for sidebar display and search.
+   */
+  public async sendSyncMetadataChats(
+    existingChatIds: string[] = [],
+  ): Promise<void> {
+    await senders.sendSyncMetadataChatsImpl(this, existingChatIds);
+  }
+
+  /**
    * Sync a locally-created inspiration chat to the server and other devices.
    * Called after handleStartChatFromInspiration creates the chat in IndexedDB.
    */
@@ -1737,7 +1814,19 @@ export class ChatSynchronizationService extends EventTarget {
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );
 
-    // Dispatch the event so +page.svelte and Chats.svelte can mark sync as complete
+    // CRITICAL: Mark sync completed in the service layer to guarantee the
+    // "Syncing..." indicator clears even if Chats.svelte is unmounted or its
+    // event listener missed the event. The component handler is idempotent
+    // (calling markSyncCompleted twice is harmless).
+    phasedSyncState.markSyncCompleted();
+
+    // OPE-216: Also mark initial sync as completed so reconnects skip re-sync.
+    // Skip for logout-in-progress — we want a fresh sync after re-login.
+    if (reason !== "logout-in-progress") {
+      this.hasCompletedInitialSync = true;
+    }
+
+    // Dispatch the event so +page.svelte and Chats.svelte can update local UI state
     this.dispatchEvent(
       new CustomEvent("phasedSyncComplete", {
         detail: {

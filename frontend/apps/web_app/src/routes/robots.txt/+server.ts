@@ -5,7 +5,7 @@ export const GET: RequestHandler = ({ url }) => {
     
     // Check if we are on a .dev. subdomain (e.g., app.dev.openmates.org)
     // or if the environment variable suggests a development version
-    const isDevSubdomain = hostname.includes('.dev.') || hostname.startsWith('dev.');
+    const isDevSubdomain = hostname.includes('.dev.') || hostname.startsWith('dev.') || hostname.endsWith('.vercel.app');
     
     let content = '';
     

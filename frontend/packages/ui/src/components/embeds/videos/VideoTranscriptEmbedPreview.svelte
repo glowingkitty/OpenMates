@@ -423,9 +423,9 @@
       <!-- Title row with channel thumbnail (circular, like VideoEmbedPreview) -->
       <div class="title-row">
         {#if channelThumbnailUrl}
-          <img 
-            src={channelThumbnailUrl} 
-            alt={effectiveChannelName || ''} 
+          <img
+            src={channelThumbnailUrl}
+            alt={effectiveChannelName || ''}
             class="channel-thumbnail"
             crossorigin="anonymous"
             onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
@@ -434,11 +434,11 @@
           <!-- Placeholder while loading -->
           <div class="channel-thumbnail-placeholder"></div>
         {/if}
-        <div class="transcript-title">{effectiveTitle}</div>
+        <div class="transcript-title" data-testid="transcript-title">{effectiveTitle}</div>
       </div>
-      
+
       <!-- Subtitle: "via YouTube:\nX words" -->
-      <div class="transcript-subtitle">{subtitleText}</div>
+      <div class="transcript-subtitle" data-testid="transcript-subtitle">{subtitleText}</div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>

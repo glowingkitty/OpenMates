@@ -34,12 +34,13 @@ router = APIRouter(
 
 SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ("Core Platform", [
-        ("Web App", ["web_app"]),
-        ("API Server", ["core_api"]),
-        ("Upload Server", ["upload_server"]),
-        ("Preview Server", ["preview_server"]),
+        # These map to health_check:external:{id} keys written by check_external_services task.
+        # vercel and api_server are only checked when their env vars are configured.
+        ("Web App (Vercel)", ["vercel"]),
+        ("API Server", ["api_server"]),
     ]),
     ("AI Providers", [
+        # These map to health_check:provider:{id} keys written by check_all_providers task.
         ("Anthropic", ["anthropic"]),
         ("OpenAI", ["openai"]),
         ("Groq", ["groq"]),
@@ -51,10 +52,10 @@ SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("AWS Bedrock", ["aws_bedrock"]),
     ]),
     ("Search & Data", [
-        ("Brave Search", ["brave", "brave_search"]),
+        # brave is a provider key; the rest are external service keys
+        ("Brave Search", ["brave"]),
         ("SerpAPI", ["serpapi"]),
         ("Firecrawl", ["firecrawl"]),
-        ("Context7", ["context7"]),
         ("YouTube", ["youtube"]),
         ("Google Maps", ["google_maps"]),
     ]),
@@ -233,17 +234,23 @@ async def get_status(request: Request):
 
         groups.append({"name": group_name, "services": group_services})
 
-    # Overall status
-    if all(s == "operational" for s in all_statuses):
+    # Overall status — ignore "unknown" (unconfigured/unmonitored) services.
+    # Only consider services that have actual health data.
+    known_statuses = [s for s in all_statuses if s != "unknown"]
+    if not known_statuses:
+        overall_status = "unknown"
+    elif all(s == "operational" for s in known_statuses):
         overall_status = "operational"
-    elif any(s == "down" for s in all_statuses):
+    elif any(s == "down" for s in known_statuses):
         overall_status = "down"
-    elif any(s == "degraded" for s in all_statuses):
+    elif any(s == "degraded" for s in known_statuses):
         overall_status = "degraded"
     else:
         overall_status = "unknown"
 
-    uptime_values = [s["uptime_pct"] for g in groups for s in g["services"]]
+    # Exclude unknown services from uptime calculation so unmonitored services
+    # don't drag the aggregate number down.
+    uptime_values = [s["uptime_pct"] for g in groups for s in g["services"] if s["status"] != "unknown"]
     overall_uptime = round(sum(uptime_values) / len(uptime_values), 1) if uptime_values else 100.0
 
     # Test results
@@ -563,3 +570,131 @@ async def _load_incidents() -> list[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"[STATUS] Error loading incidents: {e}", exc_info=True)
         return []
+
+
+# ── /status/tests — quick mobile-friendly test status overview ────────
+
+
+@router.get("/tests", dependencies=[])
+@limiter.limit("30/minute")
+async def get_tests_overview(
+    request: Request,
+    format: Optional[str] = Query(None, description="'html' for mobile-friendly page"),
+):
+    """Quick test status overview — all test names with last run status.
+
+    Designed for mobile quick-checking. Returns JSON by default, or a
+    self-contained HTML page with ?format=html.
+
+    No failure details — just names, statuses, and timestamps.
+    """
+    from starlette.responses import HTMLResponse
+
+    results_dir = _find_test_results_dir()
+    if not results_dir:
+        if format == "html":
+            return HTMLResponse(_build_tests_html([], None))
+        return {"last_run": None, "tests": []}
+
+    # Load latest run data
+    run_data = None
+    last_run_file = results_dir / "last-run.json"
+    if last_run_file.exists():
+        try:
+            with open(last_run_file) as f:
+                run_data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if not run_data:
+        if format == "html":
+            return HTMLResponse(_build_tests_html([], None))
+        return {"last_run": None, "tests": []}
+
+    last_run = run_data.get("run_id", "")
+
+    # Flatten all suites into a single test list
+    tests: list[Dict[str, Any]] = []
+    for suite_name, suite_data in run_data.get("suites", {}).items():
+        for test in suite_data.get("tests", []):
+            name = test.get("file") or test.get("name", "")
+            tests.append({
+                "name": name,
+                "suite": suite_name,
+                "status": test.get("status", "unknown"),
+                "last_run": last_run,
+            })
+
+    # Sort: failed first, then by name
+    tests.sort(key=lambda t: (0 if t["status"] == "failed" else 1, t["name"]))
+
+    if format == "html":
+        return HTMLResponse(_build_tests_html(tests, last_run))
+
+    return {"last_run": last_run, "tests": tests}
+
+
+def _build_tests_html(tests: list[Dict[str, Any]], last_run: Optional[str]) -> str:
+    """Build a minimal mobile-friendly HTML page showing test status."""
+    total = len(tests)
+    passed = sum(1 for t in tests if t.get("status") == "passed")
+    failed = sum(1 for t in tests if t.get("status") == "failed")
+    other = total - passed - failed
+
+    # Build test rows
+    rows = ""
+    for t in tests:
+        status = t.get("status", "unknown")
+        name = t.get("name", "?")
+        suite = t.get("suite", "")
+
+        if status == "passed":
+            icon = "&#x2705;"  # ✅
+            color = "#22c55e"
+        elif status == "failed":
+            icon = "&#x274C;"  # ❌
+            color = "#ef4444"
+        else:
+            icon = "&#x26A0;"  # ⚠
+            color = "#f59e0b"
+
+        rows += (
+            f'<tr style="border-bottom:1px solid #333">'
+            f'<td style="padding:8px 6px;font-size:14px">{icon}</td>'
+            f'<td style="padding:8px 6px;font-size:14px;color:{color}">{name}</td>'
+            f'<td style="padding:8px 6px;font-size:12px;color:#888">{suite}</td>'
+            f'</tr>\n'
+        )
+
+    run_display = last_run or "No runs yet"
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test Status</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+         background: #0f0f23; color: #e0e0e0; margin: 0; padding: 12px; }}
+  h1 {{ font-size: 20px; margin: 0 0 8px; }}
+  .summary {{ font-size: 14px; color: #888; margin-bottom: 16px; }}
+  .summary .passed {{ color: #22c55e; }}
+  .summary .failed {{ color: #ef4444; }}
+  table {{ width: 100%; border-collapse: collapse; }}
+</style>
+</head>
+<body>
+<h1>Test Status</h1>
+<div class="summary">
+  Last run: {run_display}<br>
+  <span class="passed">{passed} passed</span> &middot;
+  <span class="failed">{failed} failed</span>
+  {f' &middot; {other} other' if other else ''}
+  &middot; {total} total
+</div>
+<table>
+{rows}
+</table>
+</body>
+</html>"""

@@ -12,7 +12,7 @@ All values are client-side encrypted before storage.
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import SettingsItem from '../../SettingsItem.svelte';
+    import { SettingsSectionHeading } from '../../settings/elements';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { personalDataStore } from '../../../stores/personalDataStore';
 
@@ -79,11 +79,7 @@ All values are client-side encrypted before storage.
 </script>
 
 <!-- Title field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.title')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.title')} icon="text" />
 
 <SettingsInput
     bind:value={title}
@@ -92,11 +88,7 @@ All values are client-side encrypted before storage.
 />
 
 <!-- Text to hide field -->
-<SettingsItem
-    type="heading"
-    icon="text"
-    title={$text('settings.privacy.form.text_to_hide')}
-/>
+<SettingsSectionHeading title={$text('settings.privacy.form.text_to_hide')} icon="text" />
 
 <SettingsInput
     bind:value={textToHide}

@@ -18,69 +18,84 @@ async def handle_get_chat_messages(
     encryption_service: EncryptionService,
     user_id: str, # Authenticated user ID
     device_fingerprint_hash: str, # For sending response to the correct device
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles a client's request to fetch all messages for a specific chat.
     Messages are decrypted before being sent.
     """
-    chat_id = payload.get("chat_id")
-
-    if not chat_id:
-        logger.warning(f"User {user_id}/{device_fingerprint_hash} sent get_chat_messages with missing chat_id.")
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "Missing chat_id for get_chat_messages request."}},
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
-        return
-
-    logger.info(f"User {user_id}/{device_fingerprint_hash} requesting messages for chat_id: {chat_id}")
-
+    _otel_span, _otel_token = None, None
     try:
-        # Verify chat ownership
-        is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-        if not is_owner:
-            logger.warning(f"User {user_id} attempted to fetch messages for chat {chat_id} they don't own. Rejecting.")
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("get_chat_messages", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        chat_id = payload.get("chat_id")
+
+        if not chat_id:
+            logger.warning(f"User {user_id}/{device_fingerprint_hash} sent get_chat_messages with missing chat_id.")
             await manager.send_personal_message(
-                message={"type": "error", "payload": {"message": "You do not have permission to access this chat.", "chat_id": chat_id}},
+                message={"type": "error", "payload": {"message": "Missing chat_id for get_chat_messages request."}},
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash
             )
             return
 
-        # Fetch and decrypt messages
-        # get_all_messages_for_chat returns List[Dict[str, Any]] when decrypt_content=True
-        messages: List[Dict[str, Any]] = await directus_service.chat.get_all_messages_for_chat(
-            chat_id=chat_id,
-            decrypt_content=True
-        )
+        logger.info(f"User {user_id}/{device_fingerprint_hash} requesting messages for chat_id: {chat_id}")
 
-        if messages is None: # Indicates an error during fetching/decryption in chat_methods
-            logger.error(f"Failed to retrieve or decrypt messages for chat {chat_id} for user {user_id}.")
+        try:
+            # Verify chat ownership
+            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            if not is_owner:
+                logger.warning(f"User {user_id} attempted to fetch messages for chat {chat_id} they don't own. Rejecting.")
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "You do not have permission to access this chat.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+
+            # Fetch and decrypt messages
+            # get_all_messages_for_chat returns List[Dict[str, Any]] when decrypt_content=True
+            messages: List[Dict[str, Any]] = await directus_service.chat.get_all_messages_for_chat(
+                chat_id=chat_id,
+                decrypt_content=True
+            )
+
+            if messages is None: # Indicates an error during fetching/decryption in chat_methods
+                logger.error(f"Failed to retrieve or decrypt messages for chat {chat_id} for user {user_id}.")
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": f"Failed to retrieve messages for chat {chat_id}."}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+        
+            logger.info(f"Successfully fetched and decrypted {len(messages)} messages for chat {chat_id} for user {user_id}.")
+        
+            response_payload = {
+                "chat_id": chat_id,
+                "messages": messages
+            }
             await manager.send_personal_message(
-                message={"type": "error", "payload": {"message": f"Failed to retrieve messages for chat {chat_id}."}},
+                message={"type": "chat_messages_response", "payload": response_payload},
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash
             )
-            return
-        
-        logger.info(f"Successfully fetched and decrypted {len(messages)} messages for chat {chat_id} for user {user_id}.")
-        
-        response_payload = {
-            "chat_id": chat_id,
-            "messages": messages
-        }
-        await manager.send_personal_message(
-            message={"type": "chat_messages_response", "payload": response_payload},
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
 
-    except Exception as e:
-        logger.error(f"Error in handle_get_chat_messages for chat {chat_id}, user {user_id}: {e}", exc_info=True)
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": f"Server error while fetching messages for chat {chat_id}."}},
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash
-        )
+        except Exception as e:
+            logger.error(f"Error in handle_get_chat_messages for chat {chat_id}, user {user_id}: {e}", exc_info=True)
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": f"Server error while fetching messages for chat {chat_id}."}},
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash
+            )
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass

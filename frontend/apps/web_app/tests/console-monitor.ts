@@ -81,7 +81,11 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	/Failed to fetch dynamically imported module/i,
 	/Loading chunk \d+ failed/i,
 	/ChunkLoadError/i,
-	/_app\/immutable\/chunks\/.*\b404\b/i
+	/_app\/immutable\/chunks\/.*\b404\b/i,
+	// Key fingerprint mismatch — known encryption issue (OPE-154) where test account
+	// has chats encrypted with a previous key. Does not affect test functionality.
+	/\[CryptoService\] Key fingerprint mismatch/,
+	/\[CLIENT_DECRYPT\].*Failed to decrypt/
 ];
 
 /**

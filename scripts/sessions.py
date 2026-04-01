@@ -49,7 +49,7 @@ import re
 import secrets
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -560,11 +560,21 @@ def _get_dirty_files() -> set[str]:
     Without -uall, git collapses untracked dirs to "?? dir/" and
     individual file paths never appear in the dirty set.
     """
-    rc, stdout, _ = _run_cmd(["git", "status", "--porcelain", "-uall"])
+    # Call subprocess directly instead of _run_cmd to preserve leading whitespace.
+    # _run_cmd calls .strip() on stdout which removes the leading space from the
+    # first line's porcelain status code (e.g., " M file" becomes "M file"),
+    # breaking the fixed-offset parsing at line[3:].
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "-uall"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
     dirty = set()
-    if rc != 0 or not stdout:
+    if result.returncode != 0 or not result.stdout:
         return dirty
-    for line in stdout.splitlines():
+    for line in result.stdout.splitlines():
         if len(line) < 4:
             continue
         # Porcelain v1 format: XY<space>path
@@ -1098,11 +1108,11 @@ def _prefetch_health_check_compact() -> str:
 
 
 def _prefetch_recent_issues(limit: int = 2) -> str:
-    """Fetch the most recent user-reported issues in compact format."""
+    """Fetch the most recent unprocessed issues in compact format."""
     cmd = [
         "docker", "exec", "api",
         "python", "/app/backend/scripts/debug.py",
-        "issue", "--list", "--compact", "--list-limit", str(limit),
+        "issue", "--recent", str(limit),
     ]
     rc, stdout, stderr = _run_cmd(cmd, timeout=30)
     if rc != 0 or not stdout.strip():
@@ -1785,6 +1795,170 @@ asyncio.run(main())
     return stdout.strip()
 
 
+# ── Linear integration helpers ────────────────────────────────────────────
+
+
+def _linear_start_integration(
+    sid: str,
+    data: dict,
+    mode: str,
+    task: str | None,
+    linear_issue_arg: str | None,
+) -> None:
+    """
+    Handle Linear issue linking at session start.
+
+    If --linear-issue is given, fetches the issue and marks it In Progress.
+    If omitted but --task is set and LINEAR_API_KEY exists, auto-creates an issue.
+    All failures are non-fatal (prints warnings, never blocks session start).
+    """
+    try:
+        # Ensure scripts/ is on sys.path for the sibling module import
+        _scripts_dir = str(Path(__file__).parent)
+        if _scripts_dir not in sys.path:
+            sys.path.insert(0, _scripts_dir)
+        from _linear_client import (
+            get_api_key, get_issue, create_issue,
+            update_issue_status, add_label, post_comment,
+        )
+    except ImportError:
+        if linear_issue_arg:
+            print("Warning: _linear_client.py not found; skipping Linear integration.", file=sys.stderr)
+        return
+
+    if not get_api_key():
+        if linear_issue_arg:
+            print("Warning: LINEAR_API_KEY not set; skipping Linear integration.", file=sys.stderr)
+        return
+
+    issue_data = None
+    linear_issue_id = None  # UUID for mutations
+
+    if linear_issue_arg:
+        # User provided an existing issue identifier (e.g., OPE-42)
+        issue_data = get_issue(linear_issue_arg)
+        if not issue_data:
+            print(f"Warning: Could not fetch Linear issue {linear_issue_arg}; continuing without it.", file=sys.stderr)
+            return
+        linear_issue_id = issue_data["id"]
+    elif task and task != "(pending)":
+        # No auto-creation — Claude will search for existing tasks or ask the user
+        print("  Linear: No issue ID provided. Claude will search for an existing task or ask.", file=sys.stderr)
+        return
+
+    if not linear_issue_id:
+        return
+
+    # Store in session record
+    identifier = issue_data.get("identifier", linear_issue_arg or "")
+    data["sessions"][sid]["linear_issue_id"] = identifier
+    data["sessions"][sid]["linear_uuid"] = linear_issue_id
+    _save_sessions(data)
+
+    # Mark In Progress + add label
+    update_issue_status(linear_issue_id, "In Progress")
+    label_ids = issue_data.get("label_ids", [])
+    add_label(linear_issue_id, current_label_ids=label_ids)
+
+    # Post pickup comment (include Zellij attach info)
+    post_comment(
+        linear_issue_id,
+        f"Picked up by Claude session `{sid}`\n\n"
+        f"Resume: `claude --resume {sid}`\n"
+        f"Zellij: `zellij attach session-{sid}`\n"
+        f"Web UI: http://localhost:8082",
+    )
+
+    # Display issue context in session output
+    display_lines = [f"  Issue:    {identifier}"]
+    if issue_data.get("title"):
+        display_lines.append(f"  Title:    {issue_data['title']}")
+    if issue_data.get("url"):
+        display_lines.append(f"  URL:      {issue_data['url']}")
+    if issue_data.get("assignee"):
+        display_lines.append(f"  Assignee: {issue_data['assignee']}")
+    if issue_data.get("description"):
+        # Show first 3 lines of description
+        desc_lines = issue_data["description"].strip().splitlines()[:3]
+        display_lines.append(f"  Desc:     {desc_lines[0]}")
+        for dl in desc_lines[1:]:
+            display_lines.append(f"            {dl}")
+    display_lines.append("  Status:   → In Progress (auto-updated)")
+
+    print(_box_section("LINEAR ISSUE", display_lines))
+
+
+def _linear_complete_session(
+    sid: str,
+    session: dict,
+    commit_sha: str | None = None,
+) -> None:
+    """
+    Handle Linear issue completion at session end or deploy --end.
+
+    Posts a summary comment, removes claude-is-working label, and updates
+    status to In Review (code changes) or Done (docs/question).
+    All failures are non-fatal.
+    """
+    linear_id = session.get("linear_issue_id")
+    if not linear_id:
+        return
+
+    try:
+        _scripts_dir = str(Path(__file__).parent)
+        if _scripts_dir not in sys.path:
+            sys.path.insert(0, _scripts_dir)
+        from _linear_client import (
+            get_api_key, get_issue, update_issue_status,
+            remove_label, post_comment,
+        )
+    except ImportError:
+        return
+
+    if not get_api_key():
+        return
+
+    # Fetch current issue state to get UUID and current labels
+    issue_data = get_issue(linear_id)
+    if not issue_data:
+        # Fallback: try using stored UUID directly
+        linear_uuid = session.get("linear_uuid")
+        if not linear_uuid:
+            print(f"Warning: Could not fetch Linear issue {linear_id} for completion.", file=sys.stderr)
+            return
+        # Proceed with UUID but no label context
+        issue_data = {"id": linear_uuid, "label_ids": []}
+
+    issue_uuid = issue_data["id"]
+    modified = session.get("modified_files", [])
+    mode = session.get("mode", "feature")
+
+    # Build summary comment
+    summary_lines = [f"Session `{sid}` completed."]
+    if commit_sha:
+        summary_lines.append(f"Commit: `{commit_sha}` on `dev`")
+    if modified:
+        summary_lines.append(f"Files changed: {len(modified)}")
+        for f in modified[:10]:
+            summary_lines.append(f"- `{f}`")
+        if len(modified) > 10:
+            summary_lines.append(f"- ... and {len(modified) - 10} more")
+
+    post_comment(issue_uuid, "\n".join(summary_lines))
+
+    # Remove claude-is-working label
+    label_ids = issue_data.get("label_ids", [])
+    remove_label(issue_uuid, current_label_ids=label_ids)
+
+    # Update status based on mode
+    if mode in ("docs", "question"):
+        update_issue_status(issue_uuid, "Done")
+    else:
+        update_issue_status(issue_uuid, "In Review")
+
+    print(f"  Linear: {linear_id} → {'Done' if mode in ('docs', 'question') else 'In Review'}")
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start a new session with tag-based doc preloading and git context."""
     data = _load_sessions()
@@ -1851,6 +2025,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         "modified_files": [],
         "writing": None,
         "task_id": task_id_arg,
+        "linear_issue_id": None,
     }
     data["sessions"][sid] = session_record
 
@@ -1866,6 +2041,21 @@ def cmd_start(args: argparse.Namespace) -> None:
             data["sessions"][sid]["task_id"] = None
 
     _save_sessions(data)
+
+    # ── Linear integration ────────────────────────────────────────────────
+    linear_issue_id = getattr(args, "linear_issue", None)
+    _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
+
+    # ── Zellij integration ────────────────────────────────────────────────
+    try:
+        from _zellij_utils import create_session, _sanitize_session_name
+
+        zellij_name = f"session-{sid}"
+        if create_session(zellij_name):
+            data["sessions"][sid]["zellij_session"] = _sanitize_session_name(zellij_name)
+            _save_sessions(data)
+    except Exception:
+        pass  # Zellij is optional — don't break session start
 
     # ===================================================================
     # Output context for Claude (mode-aware, structured with box sections)
@@ -1898,11 +2088,17 @@ def cmd_start(args: argparse.Namespace) -> None:
         branch_info += f" ({git_status['tracking']})"
     uncommitted = git_status.get("uncommitted", [])
 
+    linear_linked = data["sessions"][sid].get("linear_issue_id")
     header_lines = [
         f"  Mode:  {mode}",
         f"  Tags:  {', '.join(tags) if tags else 'none'}",
         f"  Task:  {args.task or '(pending)'}",
     ]
+    if linear_linked:
+        header_lines.append(f"  Linear: {linear_linked}")
+    zellij_name = data["sessions"][sid].get("zellij_session")
+    if zellij_name:
+        header_lines.append(f"  Zellij: `zellij attach {zellij_name}` | http://localhost:8082")
 
     # Git status line
     if mode in ("feature", "bug", "testing"):
@@ -1990,7 +2186,12 @@ def cmd_start(args: argparse.Namespace) -> None:
     # ── ISSUES (bug mode) ─────────────────────────────────────────────────
     if mode == "bug":
         issues_content = _prefetch_recent_issues(limit=2)
-        sections.append(_box_section("ISSUES (last 24h)", issues_content.split("\n")))
+        issue_lines = issues_content.split("\n")
+        # Add hint when no specific --issue was provided
+        if not getattr(args, "issue", None):
+            issue_lines.append("")
+            issue_lines.append("Hint: debug.py issue --recent 5  |  debug.py issue <ID> --timeline")
+        sections.append(_box_section("ISSUES (last 24h)", issue_lines))
 
     # ── ERROR TRENDS (bug mode) ───────────────────────────────────────────
     if mode == "bug":
@@ -2324,6 +2525,19 @@ def cmd_end(args: argparse.Namespace) -> None:
                 print(f"  - docs/architecture/{doc}")
             print()
 
+    # ── Linear completion ─────────────────────────────────────────────────
+    _linear_complete_session(sid, session)
+
+    # ── Zellij cleanup ───────────────────────────────────────────────────
+    zellij_name = session.get("zellij_session")
+    if zellij_name:
+        try:
+            from _zellij_utils import kill_session
+            kill_session(zellij_name)
+            print(f"  Zellij: session '{zellij_name}' killed")
+        except Exception:
+            pass
+
     # Remove session
     del data["sessions"][sid]
     _prune_stale(data)
@@ -2385,9 +2599,11 @@ def cmd_status(args: argparse.Namespace) -> None:
             writing_str = f" WRITING: {writing}" if writing else ""
             linked_task = info.get("task_id")
             task_str = f" [task: {linked_task}]" if linked_task else ""
+            linear_id = info.get("linear_issue_id")
+            linear_str = f" [{linear_id}]" if linear_id else ""
             print(
                 f"  [{sid}] {info.get('task', '?')} "
-                f"(modified: {mod_count} files){task_str}{writing_str}"
+                f"(modified: {mod_count} files){task_str}{linear_str}{writing_str}"
             )
             if info.get("modified_files"):
                 for f in info["modified_files"]:
@@ -2849,25 +3065,8 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
                 print("Lint: PASSED")
         print()
 
-    # Run translation validation if any frontend files are staged
-    if to_commit and _has_frontend_files(to_commit):
-        print("Running translation validation (validate:locales)...")
-        rc, stdout, stderr = _run_translation_validation()
-        # Only show output if there are $text() key errors (Step 4) — suppress
-        # the cross-locale completeness warnings (Step 6) which are pre-existing.
-        step4_error = "❌ Found" in stdout and "not found in en.json" in stdout
-        if rc != 0 and step4_error:
-            print("TRANSLATION ERRORS — fix before deploying:")
-            # Filter to only show the relevant lines, not the cross-locale noise
-            for line in stdout.splitlines():
-                if "not found in en.json" in line or "$text(" in line or "❌" in line:
-                    print(f"  {line}")
-        elif rc != 0 and not step4_error:
-            # Other error (e.g. npm not found) — show full output
-            print(f"  Warning: validate:locales exited {rc} (non-key error — check manually)")
-        else:
-            print("Translations: PASSED")
-        print()
+    # Translation validation skipped here — deploy and pre-commit hook both
+    # run validate:locales as blocking checks, so this was redundant and slow.
 
     # Related architecture docs
     related = _find_related_docs(modified)
@@ -2877,7 +3076,7 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
             print(f"  - docs/architecture/{doc}")
         print()
 
-    # Test coverage check — warn about source files with no tests
+    # Test coverage check with verdicts
     source_files = [
         f for f in modified
         if any(f.endswith(ext) for ext in (".py", ".ts", ".svelte"))
@@ -2888,17 +3087,30 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         and not f.endswith(".spec.ts")
     ]
     if source_files:
-        untested = []
+        verdicts = {"covered": 0, "partial": 0, "none": 0}
+        all_specs: list[str] = []
+        untested: list[str] = []
         for filepath in source_files:
             result = _find_tests_for_file(filepath)
-            if not result["unit_tests"] and not result["e2e_tests"]:
+            verdict = result["verdict"]
+            verdicts[verdict] += 1
+            for spec in result.get("e2e_specs", []):
+                if spec not in all_specs:
+                    all_specs.append(spec)
+            if verdict == "none":
                 untested.append(filepath)
+
+        print(f"Test coverage: ✅ {verdicts['covered']}  ⚠️ {verdicts['partial']}  ❌ {verdicts['none']}")
         if untested:
-            print(f"WARNING — no tests found for {len(untested)} file(s):")
             for f in untested:
-                print(f"  ? {f}")
+                print(f"  ❌ {f}")
+        if all_specs:
+            print("  Related specs:")
+            for spec in sorted(all_specs):
+                print(f"    python3 scripts/run_tests.py --spec {spec}")
+        if untested:
             print("  Run: sessions.py check-tests --session <id>")
-            print()
+        print()
 
     # Suggest commands
     if to_commit:
@@ -3001,6 +3213,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         else:
             print("Translations: PASSED")
 
+    # 1c. Test enforcement gate — warn if related specs exist but weren't run
+    skip_tests_reason = getattr(args, "skip_tests_reason", None)
+    _run_test_enforcement_gate(to_commit, skip_tests_reason)
+
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
     staged_files = _get_staged_files()
@@ -3085,6 +3301,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # Auto-end session if --end flag is set
     if getattr(args, "end_session", False):
+        _linear_complete_session(sid, session, commit_sha=commit_hash)
         del data["sessions"][sid]
         _save_sessions(data)
         print(f"\nSession {sid} ended.")
@@ -3389,13 +3606,21 @@ _DOCS_DIRS = {
 def _find_tests_for_file(filepath: str) -> dict:
     """
     Search for existing unit and E2E tests related to a source file.
-    Returns dict with 'unit_tests', 'e2e_tests', and 'suggestions'.
+
+    Returns dict with 'unit_tests', 'e2e_tests', 'e2e_specs' (spec filenames
+    for run_tests.py), 'verdict' (covered/partial/none), and 'suggestions'.
     """
     path = Path(filepath)
     stem = path.stem  # e.g., "chatStore" from "chatStore.ts"
     suffix = path.suffix  # e.g., ".ts"
     parent = str(path.parent)  # e.g., "frontend/packages/ui/src/stores"
-    result = {"unit_tests": [], "e2e_tests": [], "suggestions": []}
+    result = {
+        "unit_tests": [],
+        "e2e_tests": [],
+        "e2e_specs": [],
+        "verdict": "none",
+        "suggestions": [],
+    }
 
     # --- Search for unit tests ---
     patterns = _TEST_LOCATIONS.get(suffix, [])
@@ -3431,9 +3656,10 @@ def _find_tests_for_file(filepath: str) -> dict:
 
     # --- Search for E2E tests referencing this file/component ---
     if _E2E_SPEC_DIR.exists():
-        # Search by component name in spec files
+        # Build search terms: stem, kebab-case, parent directory context
         search_terms = [stem]
-        # Also search for kebab-case version of camelCase names
+
+        # kebab-case version of camelCase names
         kebab = ""
         for i, c in enumerate(stem):
             if c.isupper() and i > 0:
@@ -3442,17 +3668,48 @@ def _find_tests_for_file(filepath: str) -> dict:
         if kebab != stem.lower():
             search_terms.append(kebab)
 
+        # Add contextual terms from the file path for filename matching
+        # (e.g., "events" from backend/apps/events/ matches skill-events-*.spec.ts)
+        filename_terms = _extract_context_terms(filepath)
+
         for spec_file in sorted(_E2E_SPEC_DIR.glob("*.spec.ts")):
             try:
-                content = spec_file.read_text(errors="replace")
-                for term in search_terms:
-                    if term.lower() in content.lower():
-                        rel = str(spec_file.relative_to(PROJECT_ROOT))
-                        if rel not in result["e2e_tests"]:
-                            result["e2e_tests"].append(rel)
-                        break
+                spec_name_lower = spec_file.stem.replace(".spec", "").lower()
+
+                # 1. Check spec filename for app/domain terms (high precision)
+                filename_match = any(
+                    term in spec_name_lower for term in filename_terms
+                )
+
+                # 2. Check spec content for stem/kebab terms (exact component ref)
+                content_match = False
+                if not filename_match:
+                    content = spec_file.read_text(errors="replace")
+                    content_lower = content.lower()
+                    for term in search_terms:
+                        if term.lower() in content_lower:
+                            content_match = True
+                            break
+
+                if filename_match or content_match:
+                    rel = str(spec_file.relative_to(PROJECT_ROOT))
+                    spec_name = spec_file.name
+                    if rel not in result["e2e_tests"]:
+                        result["e2e_tests"].append(rel)
+                    if spec_name not in result["e2e_specs"]:
+                        result["e2e_specs"].append(spec_name)
             except OSError:
                 pass
+
+    # --- Compute verdict ---
+    has_unit = bool(result["unit_tests"])
+    has_e2e = bool(result["e2e_tests"])
+    if has_unit and has_e2e:
+        result["verdict"] = "covered"
+    elif has_unit or has_e2e:
+        result["verdict"] = "partial"
+    else:
+        result["verdict"] = "none"
 
     # --- Build suggestions ---
     if not result["unit_tests"]:
@@ -3483,6 +3740,55 @@ def _find_tests_for_file(filepath: str) -> dict:
         )
 
     return result
+
+
+def _extract_context_terms(filepath: str) -> list:
+    """Extract meaningful context terms from a file path for E2E spec matching.
+
+    Splits camelCase/snake_case stems and parent directory names into domain
+    keywords (e.g., 'chatSyncService' -> ['chat', 'sync']).  Short or generic
+    terms are filtered out.
+    """
+    import re
+
+    path = Path(filepath)
+    stem = path.stem
+    terms = []
+
+    _GENERIC_TERMS = {
+        "service", "services", "store", "stores", "utils", "util",
+        "helper", "helpers", "handler", "handlers", "component",
+        "components", "index", "main", "base", "app", "core", "api",
+        "src", "routes", "models", "schemas", "types", "mixin",
+        "skill", "skills", "search", "embed", "embeds", "flow",
+        "settings", "config", "data", "test", "tests", "chat",
+        "message", "messages", "user", "users", "event", "events",
+        "task", "tasks", "list", "item", "items", "view",
+    }
+
+    # Split camelCase and snake_case from stem
+    parts = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\b)", stem)
+    parts += stem.split("_")
+
+    for part in parts:
+        part_lower = part.lower()
+        # Require >= 5 chars to avoid overly broad matches
+        if len(part_lower) >= 5 and part_lower not in _GENERIC_TERMS:
+            if part_lower not in terms:
+                terms.append(part_lower)
+
+    # Always add the app name from the path (e.g., "events" from
+    # backend/apps/events/) — this bypasses the generic filter because
+    # app names are strong signals for spec filename matching.
+    path_parts = path.parts
+    if "apps" in path_parts:
+        idx = list(path_parts).index("apps")
+        if idx + 1 < len(path_parts):
+            app_name = path_parts[idx + 1].lower()
+            if app_name not in terms and len(app_name) >= 3:
+                terms.append(app_name)
+
+    return terms
 
 
 def _find_docs_for_file(filepath: str) -> dict:
@@ -3577,6 +3883,101 @@ def _find_docs_for_file(filepath: str) -> dict:
     return result
 
 
+def _run_test_enforcement_gate(
+    files_to_commit: list[str],
+    skip_reason: str | None = None,
+) -> None:
+    """Check test coverage for files being deployed and warn if specs exist but
+    weren't verified.  Called from cmd_deploy.
+
+    This is a WARNING gate, not a hard block — it prints actionable info and
+    continues.  Use --skip-tests "reason" to suppress the warning entirely.
+    """
+    if skip_reason:
+        print(f"Test gate: SKIPPED ({skip_reason})")
+        return
+
+    # Filter to source files only (skip tests, configs, docs, etc.)
+    source_files = [
+        f for f in files_to_commit
+        if any(f.endswith(ext) for ext in (".py", ".ts", ".svelte"))
+        and "/tests/" not in f
+        and "/__tests__/" not in f
+        and not Path(f).name.startswith("test_")
+        and not f.endswith(".test.ts")
+        and not f.endswith(".spec.ts")
+    ]
+
+    if not source_files:
+        return
+
+    # Exempt file patterns (docs-only, i18n, config — no spec needed)
+    _EXEMPT_PATTERNS = (
+        "i18n/sources/", "docs/", ".md", "Caddyfile",
+        "docker-compose", ".yml", ".yaml", ".json",
+    )
+    non_exempt = [
+        f for f in source_files
+        if not any(pat in f for pat in _EXEMPT_PATTERNS)
+    ]
+    if not non_exempt:
+        return
+
+    all_specs: list[str] = []
+    uncovered: list[str] = []
+
+    for filepath in non_exempt:
+        result = _find_tests_for_file(filepath)
+        for spec in result.get("e2e_specs", []):
+            if spec not in all_specs:
+                all_specs.append(spec)
+        if result["verdict"] == "none":
+            uncovered.append(filepath)
+
+    # Check if any related specs were run in the current session
+    # by looking at test-results/last-run.json
+    specs_run_recently: set[str] = set()
+    last_run_path = PROJECT_ROOT / "test-results" / "last-run.json"
+    if last_run_path.exists():
+        try:
+            import json as _json
+            last_run = _json.loads(last_run_path.read_text())
+            pw_tests = last_run.get("suites", {}).get("playwright", {}).get("tests", [])
+            if isinstance(pw_tests, list):
+                for t in pw_tests:
+                    name = t.get("name") or t.get("file") or ""
+                    if name:
+                        specs_run_recently.add(name)
+        except (OSError, ValueError):
+            pass
+
+    unrun_specs = [s for s in all_specs if s not in specs_run_recently]
+
+    # Print gate results
+    if not unrun_specs and not uncovered:
+        print("Test gate: PASSED")
+        return
+
+    print("── TEST ENFORCEMENT GATE ──")
+    if uncovered:
+        print(f"  ⚠️  {len(uncovered)} file(s) with NO test coverage:")
+        for f in uncovered[:5]:
+            print(f"      {f}")
+        if len(uncovered) > 5:
+            print(f"      ... and {len(uncovered) - 5} more")
+
+    if unrun_specs:
+        print(f"  ⚠️  {len(unrun_specs)} related spec(s) not run this session:")
+        for spec in sorted(unrun_specs)[:5]:
+            print(f"      python3 scripts/run_tests.py --spec {spec}")
+        if len(unrun_specs) > 5:
+            print(f"      ... and {len(unrun_specs) - 5} more")
+
+    print("  To suppress: deploy --skip-tests \"reason\"")
+    print("── END TEST GATE ──")
+    print()
+
+
 def cmd_check_tests(args: argparse.Namespace) -> None:
     """Search for existing unit and E2E tests related to session files or a specific file."""
     files_to_check = []
@@ -3601,6 +4002,11 @@ def cmd_check_tests(args: argparse.Namespace) -> None:
     print("== TEST COVERAGE CHECK ==")
     print()
 
+    # Track verdicts and all related specs for summary
+    verdicts = {"covered": 0, "partial": 0, "none": 0}
+    all_e2e_specs: list[str] = []
+    checked_count = 0
+
     for filepath in sorted(files_to_check):
         # Skip test files themselves and non-source files
         if "/tests/" in filepath or "/__tests__/" in filepath or filepath.startswith("test_"):
@@ -3608,31 +4014,54 @@ def cmd_check_tests(args: argparse.Namespace) -> None:
         if not any(filepath.endswith(ext) for ext in (".py", ".ts", ".svelte")):
             continue
 
+        checked_count += 1
         result = _find_tests_for_file(filepath)
-        print(f"📁 {filepath}")
+        verdict = result["verdict"]
+        verdicts[verdict] += 1
+
+        # Collect unique spec names for the run command suggestion
+        for spec in result.get("e2e_specs", []):
+            if spec not in all_e2e_specs:
+                all_e2e_specs.append(spec)
+
+        verdict_icon = {"covered": "✅", "partial": "⚠️", "none": "❌"}[verdict]
+        print(f"{verdict_icon} [{verdict.upper()}] {filepath}")
 
         if result["unit_tests"]:
             for t in result["unit_tests"]:
-                print(f"  ✅ Unit test: {t}")
-        else:
-            print("  ❌ No unit tests found")
+                print(f"    Unit: {t}")
 
         if result["e2e_tests"]:
             for t in result["e2e_tests"]:
-                print(f"  ✅ E2E test: {t}")
-        else:
-            if any(filepath.endswith(ext) for ext in (".svelte", ".ts")):
-                print("  ❌ No E2E test references found")
+                print(f"    E2E:  {t}")
 
-        if result["suggestions"]:
-            for s in result["suggestions"]:
-                lines = s.split("\n")
-                print(f"  → INSTRUCTION: {lines[0]}")
-                for line in lines[1:]:
-                    print(f"  {line}")
+        if verdict == "none":
+            if result["suggestions"]:
+                for s in result["suggestions"]:
+                    lines = s.split("\n")
+                    print(f"    → {lines[0]}")
+                    for line in lines[1:]:
+                        print(f"    {line}")
 
         print()
 
+    # --- Summary ---
+    print("── SUMMARY ──")
+    print(f"  Files checked: {checked_count}")
+    print(f"  Covered: {verdicts['covered']}  Partial: {verdicts['partial']}  None: {verdicts['none']}")
+
+    if all_e2e_specs:
+        print()
+        print("  Related E2E specs to run:")
+        for spec in sorted(all_e2e_specs):
+            print(f"    python3 scripts/run_tests.py --spec {spec}")
+
+    if verdicts["none"] > 0:
+        print()
+        print("  ⚠️  Test-first enforcement: propose E2E tests for uncovered files")
+        print("     before deploying. See testing.md 'Test-First Enforcement'.")
+
+    print()
     print("== END TEST COVERAGE CHECK ==")
 
 
@@ -4260,6 +4689,441 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
+# spawn-chat
+# ---------------------------------------------------------------------------
+
+
+def cmd_spawn_chat(args: argparse.Namespace) -> None:
+    """Spawn a new Claude Code session in a separate Zellij tab.
+
+    Creates an interactive Claude session visible in the Zellij web UI
+    (localhost:8082) and attachable via `zellij attach <name>`.
+
+    Default is plan mode (read-only). Use --mode execute for full edit access.
+    """
+    # Resolve prompt text
+    if args.prompt_file:
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.is_file():
+            print(f"Error: prompt file not found: {args.prompt_file}", file=sys.stderr)
+            sys.exit(1)
+        prompt = (
+            f"Read {args.prompt_file} in full and follow all the instructions precisely."
+        )
+    elif args.prompt:
+        # Write inline prompt to temp file so claude reads it (avoids arg length issues)
+        tmp_dir = PROJECT_ROOT / "scripts" / ".tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
+        prompt_file = tmp_dir / f"spawn-prompt-{session_name}.txt"
+        prompt_file.write_text(args.prompt, encoding="utf-8")
+        rel_path = prompt_file.relative_to(PROJECT_ROOT)
+        prompt = f"Read {rel_path} in full and follow all the instructions precisely."
+    else:
+        print("Error: --prompt or --prompt-file is required.", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine session name
+    session_name = args.name or f"spawn-{int(datetime.now(timezone.utc).timestamp())}"
+
+    # Determine mode and prepend behavioral instructions to the prompt
+    permission_mode = args.mode or "plan"
+    if permission_mode == "plan":
+        mode_prefix = (
+            "IMPORTANT: This is a PLAN-ONLY session. "
+            "You MUST NOT edit, write, or create any files. "
+            "Only read, search, and analyze code. "
+            "Present your findings and proposed fix as a summary — do not implement it.\n\n"
+        )
+    else:
+        mode_prefix = (
+            "IMPORTANT: This is an EXECUTE session. "
+            "You have full access to read, edit, and create files. "
+            "Investigate the issue and implement the fix directly. "
+            "Use sessions.py deploy to commit and push when done.\n\n"
+        )
+
+    # Handle Linear issue linking
+    linear_issue_id = getattr(args, "linear_issue", None)
+    linear_suffix = ""
+    if linear_issue_id:
+        try:
+            scripts_dir = str(PROJECT_ROOT / "scripts")
+            if scripts_dir not in sys.path:
+                sys.path.insert(0, scripts_dir)
+            from _linear_client import get_issue, update_issue_status, add_label, post_comment
+            issue_data = get_issue(linear_issue_id)
+            if issue_data:
+                # Mark In Progress + add claude-is-working label
+                update_issue_status(issue_data["id"], "In Progress")
+                add_label(issue_data["id"], issue_data.get("label_ids", []))
+                # Post pickup comment
+                post_comment(
+                    issue_data["id"],
+                    f"**Claude session started:** `{session_name}`\n\n"
+                    f"**Mode:** {permission_mode}\n"
+                    f"**Attach:** `zellij attach {session_name}`\n"
+                    f"**Web UI:** http://localhost:8082"
+                )
+                print(f"Linear: {linear_issue_id} → In Progress + claude-is-working")
+
+                # Build Linear MCP instructions for the prompt
+                linear_suffix = (
+                    f"\n\nLINEAR TASK TRACKING (REQUIRED):\n"
+                    f"This session is linked to Linear issue {issue_data['identifier']}.\n"
+                    f"Use the Linear MCP tools to keep the task updated:\n"
+                    f"- Post SHORT progress comments (1-2 lines) on significant milestones:\n"
+                    f'  mcp__linear__save_comment with issueId: "{issue_data["identifier"]}" and body: "your update"\n'
+                    f"- Good examples: 'Found root cause in file.ts:245 — race condition on X'\n"
+                    f"  or 'Fix deployed: commit abc123, updated key derivation'\n"
+                    f"- At END: update status via mcp__linear__save_issue with\n"
+                    f'  id: "{issue_data["identifier"]}", state: "In Review",\n'
+                    f"  and post a final comment with resume commands:\n"
+                    f"  zellij attach {session_name}\n"
+                    f"  claude --resume <your-session-id>\n"
+                )
+            else:
+                print(f"Warning: Could not fetch Linear issue {linear_issue_id}", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Linear integration failed: {e}", file=sys.stderr)
+
+    prompt = mode_prefix + prompt + linear_suffix
+
+    try:
+        from _zellij_utils import spawn_claude_session
+    except ImportError:
+        # Add scripts dir to path for import
+        scripts_dir = str(PROJECT_ROOT / "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from _zellij_utils import spawn_claude_session
+
+    success = spawn_claude_session(
+        session_name=session_name,
+        prompt=prompt,
+        cwd=str(PROJECT_ROOT),
+        permission_mode=permission_mode,
+    )
+
+    if success:
+        mode_label = "execute (full access, skip-permissions)" if permission_mode == "execute" else "plan (research only, skip-permissions)"
+        print(f"Session spawned: {session_name}")
+        print(f"Mode: {mode_label}")
+        print(f"Attach: zellij attach {session_name}")
+        print("Web UI: http://localhost:8082")
+    else:
+        print("Error: failed to spawn session. Is Zellij running?", file=sys.stderr)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# restore — Resume interrupted Claude Code sessions in Zellij
+# ---------------------------------------------------------------------------
+
+# Path to Claude Code's session storage for the OpenMates project
+_CLAUDE_SESSIONS_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-projects-OpenMates"
+
+
+def _discover_interrupted_sessions(
+    max_age_hours: int = 24,
+    limit: int = 15,
+) -> list[dict]:
+    """
+    Scan Claude Code JSONL session files and return sessions that appear
+    interrupted (have recent activity but no completion signal).
+
+    Returns a list of dicts with keys:
+        session_id, last_modified, first_user_msg, last_assistant_msg
+    sorted by last_modified descending.
+    """
+    import json as _json
+    import re as _re
+
+    sessions_dir = _CLAUDE_SESSIONS_DIR
+    if not sessions_dir.is_dir():
+        return []
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    results = []
+
+    # Collect JSONL files sorted by mtime descending
+    jsonl_files = sorted(
+        sessions_dir.glob("*.jsonl"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )[:limit]
+
+    for path in jsonl_files:
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        if mtime < cutoff:
+            continue
+
+        session_id = path.stem
+        first_user = None
+        last_assistant = None
+
+        try:
+            with open(path, encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+
+                    msg_type = obj.get("type", "")
+                    msg = obj.get("message", {})
+                    content = msg.get("content", "")
+
+                    # Normalise content list → string
+                    if isinstance(content, list):
+                        texts = [
+                            c.get("text", "")
+                            for c in content
+                            if isinstance(c, dict) and c.get("type") == "text"
+                        ]
+                        content = " ".join(texts)
+                    if not isinstance(content, str):
+                        continue
+
+                    # Strip system-reminder / command tags
+                    content = _re.sub(
+                        r"<system-reminder>.*?</system-reminder>", "", content, flags=_re.DOTALL
+                    )
+                    content = _re.sub(
+                        r"<local-command.*?</local-command-stdout>", "", content, flags=_re.DOTALL
+                    )
+                    content = _re.sub(
+                        r"<command-.*?>.*?</command-.*?>", "", content, flags=_re.DOTALL
+                    )
+                    content = content.strip()
+
+                    if msg_type == "user" and not first_user and len(content) > 10:
+                        first_user = content[:250]
+                    if msg_type == "assistant" and content:
+                        last_assistant = content[:250]
+        except Exception:
+            continue
+
+        # Only include spawned sessions (started via spawn-chat with a prompt file)
+        if not first_user or "Read scripts/.tmp/" not in first_user:
+            continue
+
+        # Detect completion signals in last assistant message
+        completed = False
+        if last_assistant:
+            completion_phrases = [
+                "all implementation is complete",
+                "deployed as",
+                "task summary",
+                "successfully deployed",
+                "session ended",
+            ]
+            lower = last_assistant.lower()
+            completed = any(phrase in lower for phrase in completion_phrases)
+            # "Committed X and pushed to dev" is a deploy confirmation
+            if not completed and "committed" in lower and "pushed" in lower:
+                completed = True
+
+        results.append({
+            "session_id": session_id,
+            "last_modified": mtime.strftime("%Y-%m-%d %H:%M"),
+            "first_user_msg": first_user or "(no user message found)",
+            "last_assistant_msg": last_assistant or "(no output)",
+            "likely_complete": completed,
+        })
+
+    return results
+
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    """Restore an interrupted Claude Code session in a new Zellij tab.
+
+    Resumes the session with --resume and sends a continuation prompt.
+    If --list is passed, discovers and prints recent interrupted sessions.
+    """
+    scripts_dir = str(PROJECT_ROOT / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from _zellij_utils import resume_claude_session
+
+    # --list mode: discover and print interrupted sessions
+    if getattr(args, "list", False):
+        sessions = _discover_interrupted_sessions(
+            max_age_hours=getattr(args, "hours", 24),
+        )
+        if not sessions:
+            print("No recent interrupted sessions found.")
+            return
+
+        # Extract OPE identifiers and fetch Linear titles in batch
+        import re
+        ope_ids_per_session = []
+        all_ope_ids = set()
+        for s in sessions:
+            ope_match = re.search(r"OPE-\d+", s["first_user_msg"] or "")
+            ope_id = ope_match.group(0) if ope_match else None
+            ope_ids_per_session.append(ope_id)
+            if ope_id:
+                all_ope_ids.add(ope_id)
+
+        # Batch-fetch Linear titles and states (graceful — returns {} on failure)
+        linear_info_map: dict[str, dict[str, str]] = {}
+        if all_ope_ids:
+            try:
+                from _linear_client import get_issues_batch
+                linear_info_map = get_issues_batch(list(all_ope_ids))
+            except Exception:
+                pass  # Linear unavailable — fall back to ID-only display
+
+        # Check git log for commits mentioning each OPE ID (recent 200 commits)
+        ope_has_commits: dict[str, bool] = {}
+        if all_ope_ids:
+            try:
+                import subprocess as _sp
+                git_log = _sp.run(
+                    ["git", "log", "--oneline", "-200", "--all"],
+                    capture_output=True, text=True, cwd=str(PROJECT_ROOT),
+                    timeout=5,
+                ).stdout
+                for ope_id in all_ope_ids:
+                    ope_has_commits[ope_id] = ope_id in git_log
+            except Exception:
+                pass  # git unavailable — skip commit check
+
+        # Closed Linear states that mean the task is done
+        _CLOSED_STATES = {"Done", "Cancelled", "Duplicate"}
+        _REVIEW_STATES = {"In Review"}
+
+        # Classify sessions and split into open vs closed
+        open_sessions = []
+        closed_sessions = []
+
+        for i, s in enumerate(sessions):
+            ope_id = ope_ids_per_session[i]
+
+            # Extract action prefix (fix, verify, investigate, plan, test)
+            if ope_id:
+                action_match = re.search(r"spawn-prompt-(\w+)-OPE", s["first_user_msg"] or "")
+                if not action_match:
+                    action_match = re.search(r"planning-prompt-OPE", s["first_user_msg"] or "")
+                    action = "plan" if action_match else ""
+                else:
+                    action = action_match.group(1)
+            else:
+                action = ""
+
+            # Determine status from Linear state + git commits + heuristic
+            linear_info = linear_info_map.get(ope_id) if ope_id else None
+            linear_state = linear_info["state"] if linear_info else None
+            has_commits = ope_has_commits.get(ope_id, False) if ope_id else False
+
+            if linear_state in _CLOSED_STATES:
+                status = "DONE"
+            elif linear_state in _REVIEW_STATES:
+                status = "REVIEW"
+            elif has_commits and s["likely_complete"]:
+                status = "DONE?"
+            elif s["likely_complete"]:
+                status = "DONE?"
+            else:
+                status = "INTR"
+
+            # Build task hint
+            if ope_id:
+                title_suffix = f" — {linear_info['title']}" if linear_info else ""
+                task_hint = f"{ope_id} ({action}){title_suffix}" if action else f"{ope_id}{title_suffix}"
+            else:
+                task_hint = s["last_assistant_msg"][:60] if s["last_assistant_msg"] else "(unknown)"
+
+            entry = {
+                **s,
+                "ope_id": ope_id,
+                "status": status,
+                "task_hint": task_hint,
+                "linear_state": linear_state,
+                "has_commits": has_commits,
+            }
+
+            if status in ("DONE", "REVIEW", "DONE?"):
+                closed_sessions.append(entry)
+            else:
+                open_sessions.append(entry)
+
+        show_all = getattr(args, "show_all", False)
+
+        # Print open sessions (always shown)
+        if open_sessions:
+            print(f"{'#':<3} {'Last Active':<17} {'Status':<8} {'Session ID':<38} Task")
+            print("-" * 110)
+            for i, entry in enumerate(open_sessions, 1):
+                print(f"{i:<3} {entry['last_modified']:<17} {entry['status']:<8} {entry['session_id']:<38} {entry['task_hint']}")
+        else:
+            print("No open sessions found — all tasks appear completed.")
+
+        # Print closed/review sessions (summary only, unless --all)
+        if closed_sessions:
+            if show_all:
+                print(f"\n--- Completed/In Review ({len(closed_sessions)}) ---")
+                for entry in closed_sessions:
+                    state_tag = f"[{entry['linear_state']}]" if entry["linear_state"] else f"[{entry['status']}]"
+                    commits_tag = " +commits" if entry["has_commits"] else ""
+                    print(f"  {state_tag}{commits_tag}  {entry['session_id'][:8]}  {entry['task_hint']}")
+            else:
+                print(f"\n  Filtered out {len(closed_sessions)} completed session(s). Use --all to show them.")
+
+        if open_sessions:
+            print("\nRestore with: python3 scripts/sessions.py restore <session-id>")
+            print("  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
+        return
+
+    # Single session restore
+    session_id = args.session_id
+    if not session_id:
+        print("Error: session ID is required. Use --list to discover sessions.", file=sys.stderr)
+        sys.exit(1)
+
+    # Resolve short IDs (prefix match)
+    if len(session_id) < 36:
+        matches = list(_CLAUDE_SESSIONS_DIR.glob(f"{session_id}*.jsonl"))
+        if len(matches) == 1:
+            session_id = matches[0].stem
+        elif len(matches) > 1:
+            print(f"Error: ambiguous prefix '{session_id}' matches {len(matches)} sessions:", file=sys.stderr)
+            for m in matches:
+                print(f"  {m.stem}", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(f"Error: no session found matching '{session_id}'.", file=sys.stderr)
+            sys.exit(1)
+
+    # Determine Zellij session name
+    zellij_name = getattr(args, "name", None) or f"restore-{session_id[:8]}"
+    prompt = getattr(args, "prompt", None) or (
+        "The server crashed and this session was interrupted. "
+        "Continue where you left off."
+    )
+
+    success = resume_claude_session(
+        session_name=zellij_name,
+        claude_session_id=session_id,
+        cwd=str(PROJECT_ROOT),
+        prompt=prompt,
+    )
+
+    if success:
+        print(f"Session restored: {zellij_name}")
+        print(f"Claude session: {session_id}")
+        print(f"Attach: zellij attach {zellij_name}")
+        print("Web UI: http://localhost:8082")
+    else:
+        print("Error: failed to restore session. Is Zellij running?", file=sys.stderr)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -4359,6 +5223,14 @@ def main() -> None:
         metavar="TASK_ID",
         help="Link an existing task file to this session (e.g. t003). "
         "Displays pending steps inline at startup.",
+    )
+    p_start.add_argument(
+        "--linear-issue",
+        "--linear",
+        metavar="ISSUE_ID",
+        help="Link to an existing Linear issue (e.g., OPE-42). "
+        "Auto-fetches context, marks In Progress, adds claude-is-working label. "
+        "If omitted and --task is set, a new Linear issue is auto-created.",
     )
 
     # end
@@ -4492,6 +5364,13 @@ def main() -> None:
         dest="no_verify",
         help="Bypass pre-commit hooks (git commit --no-verify). Use only when a "
         "pre-existing hook bug prevents deploy. WARNING printed to stderr.",
+    )
+    p_deploy.add_argument(
+        "--skip-tests",
+        dest="skip_tests_reason",
+        metavar="REASON",
+        help="Skip test enforcement gate with an explicit reason "
+        "(e.g., 'hotfix, will add test in follow-up'). Reason is logged.",
     )
 
     # lint (run linter on tracked files without deploying)
@@ -4664,6 +5543,73 @@ def main() -> None:
     p_task_ac.add_argument("--add", "-a", metavar="TEXT", help="Add a new acceptance criterion")
     p_task_ac.add_argument("--done", "-d", type=int, metavar="N", help="Mark AC N as done")
 
+    # spawn-chat
+    p_spawn = sub.add_parser(
+        "spawn-chat",
+        help="Spawn a Claude Code session in a separate Zellij tab",
+    )
+    p_spawn.add_argument(
+        "--prompt",
+        help="Prompt text to send to Claude (written to temp file internally)",
+    )
+    p_spawn.add_argument(
+        "--prompt-file",
+        help="Path to a prompt file (Claude reads it directly)",
+    )
+    p_spawn.add_argument(
+        "--name", "-n",
+        help="Session name (default: auto-generated from timestamp)",
+    )
+    p_spawn.add_argument(
+        "--mode",
+        choices=["plan", "execute"],
+        default="plan",
+        help="Permission mode: 'plan' (read-only, default) or "
+        "'execute' (full edit access via --dangerously-skip-permissions)",
+    )
+    p_spawn.add_argument(
+        "--linear-issue", "--linear",
+        metavar="ISSUE_ID",
+        help="Linear issue to link (e.g., OPE-42). Auto-marks In Progress, "
+        "adds claude-is-working label, and injects Linear update instructions.",
+    )
+
+    # restore
+    p_restore = sub.add_parser(
+        "restore",
+        help="Restore an interrupted Claude Code session in a Zellij tab",
+    )
+    p_restore.add_argument(
+        "session_id",
+        nargs="?",
+        help="Claude Code session UUID (or prefix) to resume",
+    )
+    p_restore.add_argument(
+        "--list", "-l",
+        action="store_true",
+        help="Discover and list recent interrupted sessions",
+    )
+    p_restore.add_argument(
+        "--name", "-n",
+        help="Zellij session name (default: restore-<id-prefix>)",
+    )
+    p_restore.add_argument(
+        "--prompt",
+        help="Custom continuation prompt (default: 'continue where you left off')",
+    )
+    p_restore.add_argument(
+        "--hours",
+        type=int,
+        default=24,
+        help="How far back to scan for sessions (default: 24h, used with --list)",
+    )
+    p_restore.add_argument(
+        "--all", "-a",
+        action="store_true",
+        dest="show_all",
+        help="Show completed/in-review sessions too (default: hidden)",
+    )
+
     # task-show
     p_task_show = sub.add_parser(
         "task-show",
@@ -4737,6 +5683,8 @@ def main() -> None:
         "task-list": cmd_task_list,
         "task-update": cmd_task_update,
         "task-track": cmd_task_track,
+        "spawn-chat": cmd_spawn_chat,
+        "restore": cmd_restore,
     }
 
     cmd_func = commands.get(args.command)

@@ -1054,7 +1054,7 @@
                 ← {$text('common.back')}
             </button>
             
-            <div class="tfa-setup-header">
+            <div class="tfa-setup-header" data-testid="tfa-setup-header">
                 <div class="icon header_size tfa"></div>
                 <h3>{$text('signup.one_time_codes')}</h3>
             </div>
@@ -1075,7 +1075,7 @@
             {#if tfaSecret}
                 <div class="secret-key-container">
                     <span class="secret-label">{$text('signup.or_enter_manually')}</span>
-                    <code class="secret-key">{tfaSecret}</code>
+                    <code class="secret-key" data-testid="secret-key">{tfaSecret}</code>
                 </div>
             {/if}
             
@@ -1115,6 +1115,7 @@
                         <button
                             type="button"
                             class="app-item"
+                            data-testid="app-item"
                             class:selected={tfaAppName === app}
                             onclick={() => tfaAppName = app}
                             disabled={isVerifying2FA}

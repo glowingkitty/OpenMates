@@ -548,6 +548,31 @@ processing:
   he: מעבד...
   verified_by_human: []
 
+confirm:
+  context: "Generic UI text: Confirm (used as button label to confirm a destructive action)"
+  en: Confirm
+  de: Bestätigen
+  zh: 确认
+  es: Confirmar
+  fr: Confirmer
+  pt: Confirmar
+  ru: Подтвердить
+  ja: 確認
+  ko: 확인
+  it: Conferma
+  tr: Onayla
+  vi: Xác nhận
+  id: Konfirmasi
+  pl: Potwierdź
+  nl: Bevestigen
+  ar: تأكيد
+  hi: पुष्टि करें
+  th: ยืนยัน
+  cs: Potvrdit
+  sv: Bekräfta
+  he: אישור
+  verified_by_human: []
+
 delete:
   context: "Generic UI text: Delete"
   en: Delete

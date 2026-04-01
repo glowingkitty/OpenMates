@@ -224,6 +224,7 @@ class IssueListItem(BaseModel):
     processed: bool
     is_from_admin: bool = False
     reported_by_user_id: Optional[str] = None
+    linear_issue_identifier: Optional[str] = None
 
 
 class IssuesListResponse(BaseModel):
@@ -249,6 +250,7 @@ class IssueDetailResponse(BaseModel):
     processed: bool
     is_from_admin: bool = False
     reported_by_user_id: Optional[str] = None
+    linear_issue_identifier: Optional[str] = None
     full_report: Optional[Dict[str, Any]] = None
 
 
@@ -503,6 +505,7 @@ async def list_issues(
                 processed=issue.get("processed", False) or False,
                 is_from_admin=issue.get("is_from_admin", False) or False,
                 reported_by_user_id=issue.get("reported_by_user_id"),
+                linear_issue_identifier=issue.get("linear_issue_identifier"),
             ))
         
         return IssuesListResponse(
@@ -644,6 +647,7 @@ async def get_issue_detail(
             processed=issue.get("processed", False) or False,
             is_from_admin=issue.get("is_from_admin", False) or False,
             reported_by_user_id=issue.get("reported_by_user_id"),
+            linear_issue_identifier=issue.get("linear_issue_identifier"),
             full_report=full_report,
         )
         

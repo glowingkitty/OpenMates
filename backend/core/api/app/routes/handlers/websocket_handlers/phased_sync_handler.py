@@ -119,8 +119,8 @@ async def handle_phased_sync_request(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles phased sync requests from the client.
     This implements the 3-phase sync architecture with version-aware delta sync:
@@ -131,69 +131,157 @@ async def handle_phased_sync_request(
     The client sends version data so we can skip sending chats that are already up-to-date.
     Phase 1 ALWAYS sends suggestions - Phase 3 NEVER sends suggestions.
     """
+    _otel_span, _otel_token = None, None
     try:
-        sync_phase = payload.get("phase", "all")
-        # Extract client version data for delta checking
-        client_chat_versions = payload.get("client_chat_versions", {})
-        client_chat_ids = payload.get("client_chat_ids", [])
-        client_suggestions_count = payload.get("client_suggestions_count", 0)
-        # Client sends the embed IDs it already has stored in IndexedDB so the server
-        # can skip re-sending those embeds (cross-session deduplication).
-        client_embed_ids: List[str] = payload.get("client_embed_ids", [])
-        
-        logger.info(
-            f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
-            f"client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions, "
-            f"{len(client_embed_ids)} embed(s) already on device"
-        )
-        
-        # Track sent embed IDs across all phases to prevent duplicates
-        # Embeds can be shared across chats in different phases
-        sent_embed_ids: set = set()
-        
-        if sync_phase == "phase1" or sync_phase == "all":
-            await _handle_phase1_sync(
-                manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids
-            )
-        
-        if sync_phase == "phase2" or sync_phase == "all":
-            await _handle_phase2_sync(
-                manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
-            )
-        
-        if sync_phase == "phase3" or sync_phase == "all":
-            await _handle_phase3_sync(
-                manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
-            )
-        
-        # Send sync completion event
-        await manager.send_personal_message(
-            {
-                "type": "phased_sync_complete",
-                "payload": {
-                    "phase": sync_phase,
-                    "timestamp": int(datetime.now(timezone.utc).timestamp())
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
-        
-        logger.info(f"Phased sync complete for user {user_id}, phase: {sync_phase}")
-        
-    except Exception as e:
-        logger.error(f"Error handling phased sync for user {user_id}: {e}", exc_info=True)
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("phased_sync_request", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
         try:
+            sync_phase = payload.get("phase", "all")
+            # Extract client version data for delta checking
+            client_chat_versions = payload.get("client_chat_versions", {})
+            client_chat_ids = payload.get("client_chat_ids", [])
+            client_suggestions_count = payload.get("client_suggestions_count", 0)
+            # Client sends the embed IDs it already has stored in IndexedDB so the server
+            # can skip re-sending those embeds (cross-session deduplication).
+            client_embed_ids: set = set(payload.get("client_embed_ids", []))
+        
+            logger.info(
+                f"Handling phased sync request for user {user_id}, phase: {sync_phase}, "
+                f"client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions, "
+                f"{len(client_embed_ids)} embed(s) already on device"
+            )
+        
+            # Track sent embed IDs across all phases to prevent duplicates
+            # Embeds can be shared across chats in different phases
+            sent_embed_ids: set = set()
+        
+            # Phase 1a: Metadata for last-opened + 10 most recent chats (instant)
+            # Returns list of chat IDs so Phase 1b can fetch their content
+            phase1_chat_ids: List[str] = []
+            if sync_phase == "phase1" or sync_phase == "all":
+                phase1_chat_ids = await _handle_phase1_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    client_chat_versions, client_chat_ids, sent_embed_ids
+                )
+
+            # Phase 1b: Messages + embeds for the Phase 1a chats (separate WS message)
+            # Sent after Phase 1a so "continue where you left off" renders without waiting
+            if (sync_phase == "phase1" or sync_phase == "all") and phase1_chat_ids:
+                await _handle_phase1b_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids
+                )
+
+            # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
+            if sync_phase == "phase2" or sync_phase == "all":
+                await _handle_phase2_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids
+                )
+
+            # Phase 3: Background message sync (chunked batches of 10, no embeds)
+            if sync_phase == "phase3" or sync_phase == "all":
+                await _handle_phase3_sync(
+                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids,
+                    phase1_chat_ids
+                )
+        
+            # Send sync completion event
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to process phased sync request"}},
+                {
+                    "type": "phased_sync_complete",
+                    "payload": {
+                        "phase": sync_phase,
+                        "timestamp": int(datetime.now(timezone.utc).timestamp())
+                    }
+                },
                 user_id,
                 device_fingerprint_hash
             )
-        except Exception as send_err:
-            logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+        
+            logger.info(f"Phased sync complete for user {user_id}, phase: {sync_phase}")
+        
+        except Exception as e:
+            logger.error(f"Error handling phased sync for user {user_id}: {e}", exc_info=True)
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to process phased sync request"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+            except Exception as send_err:
+                logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+
+
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass
+async def _build_chat_details_from_cache(
+    cached_list_item, cached_versions, chat_id: str
+) -> Dict[str, Any]:
+    """
+    Convert cached list item + versions into the chat_details dict format
+    used throughout phased sync. Avoids repeating this 20-field mapping everywhere.
+    """
+    return {
+        "id": chat_id,
+        "encrypted_title": cached_list_item.title,
+        "unread_count": cached_list_item.unread_count,
+        "created_at": cached_list_item.created_at,
+        "updated_at": cached_list_item.updated_at,
+        "encrypted_chat_key": cached_list_item.encrypted_chat_key,
+        "encrypted_icon": cached_list_item.encrypted_icon,
+        "encrypted_category": cached_list_item.encrypted_category,
+        "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+        "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+        "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+        "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+        "last_message_timestamp": cached_list_item.last_message_timestamp,
+        "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
+        "messages_v": cached_versions.messages_v if cached_versions else 0,
+        "title_v": cached_versions.title_v if cached_versions else 0,
+        "pinned": cached_list_item.pinned,
+        "is_shared": cached_list_item.is_shared,
+        "is_private": cached_list_item.is_private
+    }
+
+
+def _build_chat_details_from_directus_metadata(
+    chat_metadata: Dict[str, Any], chat_id: str
+) -> Dict[str, Any]:
+    """
+    Convert Directus chat metadata into the chat_details dict format.
+    """
+    return {
+        "id": chat_id,
+        "encrypted_title": chat_metadata.get("encrypted_title"),
+        "unread_count": chat_metadata.get("unread_count", 0),
+        "created_at": chat_metadata.get("created_at"),
+        "updated_at": chat_metadata.get("updated_at"),
+        "encrypted_chat_key": chat_metadata.get("encrypted_chat_key"),
+        "encrypted_icon": chat_metadata.get("encrypted_icon"),
+        "encrypted_category": chat_metadata.get("encrypted_category"),
+        "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
+        "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
+        "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
+        "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
+        "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
+        "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
+        "messages_v": chat_metadata.get("messages_v", 0),
+        "title_v": chat_metadata.get("title_v", 0),
+        "pinned": chat_metadata.get("pinned"),
+        "is_shared": chat_metadata.get("is_shared"),
+        "is_private": chat_metadata.get("is_private")
+    }
 
 
 async def _handle_phase1_sync(
@@ -205,78 +293,90 @@ async def _handle_phase1_sync(
     client_chat_versions: Dict[str, Dict[str, int]],
     client_chat_ids: List[str],
     sent_embed_ids: set
-):
+) -> List[str]:
     """
-    Handle Phase 1: Last opened chat, new chat suggestions, AND daily inspirations (immediate priority)
-    ALWAYS fetches and sends ALL THREE:
-    - Last opened chat (if there is one and not "new")
-    - New chat suggestions (always, for immediate display)
-    - Daily inspirations (always, so the banner populates immediately on login)
-    
-    This ensures users have immediate content regardless of which view they're looking at.
-    Maintains zero-knowledge architecture - all data remains encrypted.
+    Phase 1a: Metadata-only for last-opened + 10 most recent chats.
+
+    PERFORMANCE OVERHAUL: This phase sends ONLY chat metadata (no messages, no embeds).
+    The client decrypts title/icon/category for just these 11 chats (~44 decrypts) and
+    renders "continue where you left off" instantly. Messages and embeds arrive in Phase 1b.
+
+    Returns list of chat IDs sent in this phase (used by Phase 1b to fetch content).
     """
-    logger.info(f"Processing Phase 1 sync for user {user_id}")
-    
+    logger.info(f"Processing Phase 1a sync for user {user_id}")
+
     try:
-        # ALWAYS fetch new chat suggestions AND daily inspirations in Phase 1 (both cache-first).
-        # Run both fetches concurrently to keep Phase 1 latency minimal.
         import asyncio as _asyncio
-        new_chat_suggestions, daily_inspirations = await _asyncio.gather(
-            _fetch_new_chat_suggestions(cache_service, directus_service, user_id),
-            _fetch_daily_inspirations(cache_service, directus_service, user_id),
+
+        # Run all independent fetches concurrently for minimal latency
+        suggestions_task = _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
+        inspirations_task = _fetch_daily_inspirations(cache_service, directus_service, user_id)
+        recent_ids_task = cache_service.get_chat_ids_versions(user_id, start=0, end=10, with_scores=False)
+
+        new_chat_suggestions, daily_inspirations, recent_chat_ids = await _asyncio.gather(
+            suggestions_task, inspirations_task, recent_ids_task
         )
         logger.info(
-            f"Phase 1: Retrieved {len(new_chat_suggestions)} new chat suggestions "
-            f"and {len(daily_inspirations)} daily inspirations"
+            f"Phase 1a: Retrieved {len(new_chat_suggestions)} suggestions, "
+            f"{len(daily_inspirations)} inspirations, {len(recent_chat_ids) if recent_chat_ids else 0} recent chat IDs"
         )
-        
-        # Get last opened chat from user profile.
-        # CACHE-FIRST: Try Redis cache first (kept up-to-date by set_active_chat handler),
-        # then fall back to Directus if cache miss. This avoids a Directus round-trip
-        # and ensures we always read the latest last_opened value.
+
+        # --- Determine last-opened chat ID ---
         last_opened_path = None
         cached_user = await cache_service.get_user_by_id(user_id)
         if cached_user:
             last_opened_path = cached_user.get("last_opened")
-            logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from cache for user {user_id}")
-        
+
         if not last_opened_path:
-            # Cache miss or no last_opened in cache — fall back to Directus
             user_profile = await directus_service.get_user_profile(user_id)
-            if not user_profile[1]:  # user_profile returns (success, data, error)
-                logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
-                # Still send suggestions and inspirations even if profile fetch fails
-                await manager.send_personal_message(
-                    {
-                        "type": "phase_1_last_chat_ready",
-                        "payload": {
-                            "chat_id": None,
-                            "chat_details": None,
-                            "messages": None,
-                            "new_chat_suggestions": new_chat_suggestions,
-                            "daily_inspirations": daily_inspirations,
-                            "phase": "phase1",
-                            "already_synced": False
-                        }
-                    },
-                    user_id,
-                    device_fingerprint_hash
+            if user_profile[1]:
+                last_opened_path = user_profile[1].get("last_opened")
+
+        last_opened_id = None
+        if last_opened_path:
+            raw_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
+            # Skip demo/legal chats and "new" sentinel
+            if raw_id and raw_id != "new" and not raw_id.startswith("demo-") and not raw_id.startswith("legal-"):
+                last_opened_id = raw_id
+
+        # --- Build list of up to 11 chat IDs (last-opened + 10 most recent) ---
+        phase1_chat_ids: List[str] = []
+        if last_opened_id:
+            phase1_chat_ids.append(last_opened_id)
+
+        if recent_chat_ids:
+            for cid in recent_chat_ids:
+                if cid not in phase1_chat_ids:
+                    phase1_chat_ids.append(cid)
+                if len(phase1_chat_ids) >= 11:
+                    break
+
+        # If cache returned nothing, try Directus fallback for recent chats
+        if not recent_chat_ids and not phase1_chat_ids:
+            try:
+                fallback_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+                    user_id, limit=11
                 )
-                return
-            
-            last_opened_path = user_profile[1].get("last_opened")
-            logger.debug(f"Phase 1 sync: Got last_opened='{last_opened_path}' from Directus for user {user_id}")
-        if not last_opened_path:
-            logger.info(f"No last opened path for user {user_id}, sending suggestions and inspirations only")
-            # Send suggestions and inspirations without chat
+                for cw in (fallback_chats or []):
+                    cid = cw.get("chat_details", {}).get("id") if isinstance(cw, dict) else None
+                    if cid and cid not in phase1_chat_ids:
+                        phase1_chat_ids.append(cid)
+                    if len(phase1_chat_ids) >= 11:
+                        break
+            except Exception as e:
+                logger.warning(f"Phase 1a: Directus fallback for recent chats failed: {e}")
+
+        # --- No chats at all — send suggestions only ---
+        if not phase1_chat_ids:
+            logger.info(f"Phase 1a: No chats for user {user_id}, sending suggestions only")
             await manager.send_personal_message(
                 {
                     "type": "phase_1_last_chat_ready",
                     "payload": {
-                        "chat_id": None,
+                        "chat_id": last_opened_id or ("new" if last_opened_path and "new" in last_opened_path else None),
                         "chat_details": None,
                         "messages": None,
+                        "recent_chat_metadata": [],
                         "new_chat_suggestions": new_chat_suggestions,
                         "daily_inspirations": daily_inspirations,
                         "phase": "phase1",
@@ -286,386 +386,74 @@ async def _handle_phase1_sync(
                 user_id,
                 device_fingerprint_hash
             )
-            return
-        
-        # Extract chat ID from path (assuming format like "/chat/chat-id")
-        chat_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
-        
-        # Handle demo/legal/public chats — these are client-side-only static content, not real
-        # server-side chats. Treat them as "no last opened chat" and send suggestions only.
-        if chat_id.startswith("demo-") or chat_id.startswith("legal-"):
-            logger.info(f"Phase 1: Last opened was public/demo chat '{chat_id}', sending suggestions and inspirations only")
-            await manager.send_personal_message(
-                {
-                    "type": "phase_1_last_chat_ready",
-                    "payload": {
-                        "chat_id": None,
-                        "chat_details": None,
-                        "messages": None,
-                        "new_chat_suggestions": new_chat_suggestions,
-                        "daily_inspirations": daily_inspirations,
-                        "phase": "phase1",
-                        "already_synced": False
-                    }
-                },
-                user_id,
-                device_fingerprint_hash
-            )
-            return
-        
-        # Handle "new" chat section - send suggestions and inspirations only
-        if chat_id == "new":
-            logger.info("Phase 1: Last opened was 'new' chat section, sending suggestions and inspirations only")
-            await manager.send_personal_message(
-                {
-                    "type": "phase_1_last_chat_ready",
-                    "payload": {
-                        "chat_id": "new",
-                        "chat_details": None,
-                        "messages": None,
-                        "new_chat_suggestions": new_chat_suggestions,
-                        "daily_inspirations": daily_inspirations,
-                        "phase": "phase1",
-                        "already_synced": False
-                    }
-                },
-                user_id,
-                device_fingerprint_hash
-            )
-            return
-        
-        # Check if client already has this chat and if it's up-to-date
-        client_versions = client_chat_versions.get(chat_id, {})
-        chat_is_missing = chat_id not in client_chat_ids
-        
-        if not chat_is_missing:
-            # Client has the chat - check if it's up-to-date
-            cached_server_versions = await cache_service.get_chat_versions(user_id, chat_id)
-            
-            if cached_server_versions:
-                client_messages_v = client_versions.get("messages_v", 0)
-                
-                # CRITICAL: For the last_opened chat in Phase 1, we always proceed to the full check 
-                # below to ensure absolute consistency on reload (safety net).
-                # We skip the "already_synced" optimization for this one critical chat.
-                # The client will deduplicate any messages we send.
-                pass 
-                
-                if False: # Optimization disabled for Phase 1 last_opened chat
-                    client_messages_v = client_versions.get("messages_v", 0)
-        
-        logger.info(f"Phase 1: Fetching and sending chat {chat_id} (missing: {chat_is_missing})")
-        
-        # CACHE-FIRST STRATEGY: Try cache first, fallback to Directus
-        chat_details = None
-        messages_data = []
-        
-        # Try to get chat metadata from cache first
-        try:
-            cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
-            if cached_list_item:
-                # Also fetch version data so messages_v and title_v are included in chat_details.
-                # Without these, the client receives 0 for both fields and cannot display the
-                # chat title, category, or icon (see Chat.svelte isNewChat / hasAnyMessages checks).
-                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
-                # Convert cached list item to chat details format
-                has_encrypted_chat_key = bool(cached_list_item.encrypted_chat_key)
-                chat_details = {
-                    "id": chat_id,
-                    "encrypted_title": cached_list_item.title,
-                    "unread_count": cached_list_item.unread_count,
-                    "created_at": cached_list_item.created_at,
-                    "updated_at": cached_list_item.updated_at,
-                    "encrypted_chat_key": cached_list_item.encrypted_chat_key,
-                    "encrypted_icon": cached_list_item.encrypted_icon,
-                    "encrypted_category": cached_list_item.encrypted_category,
-                    "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
-                    "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
-                    "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
-                    "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
-                    "last_message_timestamp": cached_list_item.last_message_timestamp,
-                    "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
-                    "messages_v": cached_versions.messages_v if cached_versions else 0,
-                    "title_v": cached_versions.title_v if cached_versions else 0,
-                    "pinned": cached_list_item.pinned,
-                    # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-                    "is_shared": cached_list_item.is_shared,
-                    "is_private": cached_list_item.is_private
-                }
-                logger.info(
-                    f"[PHASE1_CHAT_METADATA] ✅ Cache HIT for chat metadata {chat_id} for user {user_id[:8]}... "
-                    f"has_encrypted_chat_key={has_encrypted_chat_key}, "
-                    f"encrypted_chat_key_length={len(cached_list_item.encrypted_chat_key) if cached_list_item.encrypted_chat_key else 0}, "
-                    f"messages_v={chat_details['messages_v']}, title_v={chat_details['title_v']}"
-                )
+            return []
+
+        # --- Batch fetch metadata for all phase1 chats ---
+        batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, phase1_chat_ids)
+        batch_versions = await cache_service.get_batch_chat_versions(user_id, phase1_chat_ids)
+
+        # Collect IDs that need Directus fallback
+        directus_needed = [
+            cid for cid in phase1_chat_ids
+            if not batch_list_items.get(cid) or not batch_versions.get(cid)
+        ]
+
+        directus_metadata_map: Dict[str, Dict[str, Any]] = {}
+        if directus_needed:
+            try:
+                directus_metadata_map = await directus_service.chat.get_chats_metadata_batch(directus_needed)
+            except Exception as e:
+                logger.warning(f"Phase 1a: Directus batch metadata fetch failed: {e}")
+
+        # Build chat_details for each chat
+        last_chat_details = None
+        recent_chat_metadata: List[Dict[str, Any]] = []
+        valid_phase1_ids: List[str] = []
+
+        for cid in phase1_chat_ids:
+            cached_item = batch_list_items.get(cid)
+            cached_ver = batch_versions.get(cid)
+            chat_details = None
+
+            if cached_item:
+                chat_details = await _build_chat_details_from_cache(cached_item, cached_ver, cid)
+            elif cid in directus_metadata_map:
+                chat_details = _build_chat_details_from_directus_metadata(directus_metadata_map[cid], cid)
             else:
-                logger.info(
-                    f"[PHASE1_CHAT_METADATA] ⚠️ Cache MISS for chat metadata {chat_id} "
-                    f"for user {user_id[:8]}... - will fetch from Directus"
-                )
-        except Exception as cache_error:
-            logger.warning(
-                f"[PHASE1_CHAT_METADATA] ❌ Error reading chat metadata from cache for {chat_id}: {cache_error}"
-            )
-        
-        # Track server message count for client-side validation
-        # Initialize here since it may be set in different code paths below
-        # This helps detect data inconsistencies where version matches but messages are missing
-        server_message_count = None
-        
-        # Try to get client-encrypted messages from sync cache first
-        try:
-            cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
-            if cached_sync_messages:
-                cached_count = len(cached_sync_messages)
-                logger.info(
-                    f"[PHASE1_SYNC_CACHE] ✅ Sync cache HIT for {cached_count} client-encrypted messages "
-                    f"in chat {chat_id} for user {user_id[:8]}..."
-                )
-                
-                # CRITICAL FIX: Validate sync cache count against Directus
-                # If sync cache has fewer messages than Directus, the cache is stale/incomplete
-                # This prevents sending incomplete message lists to clients
+                # Individual Directus fallback (rare — batch already tried)
                 try:
-                    directus_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                    server_message_count = directus_message_count  # Store for later use
-                    
-                    if directus_message_count is not None and cached_count < directus_message_count:
-                        logger.warning(
-                            f"[PHASE1_SYNC_CACHE] ⚠️ CACHE INCONSISTENCY for chat {chat_id}: "
-                            f"Sync cache has {cached_count} messages but Directus has {directus_message_count}. "
-                            f"Falling back to Directus to ensure data consistency."
-                        )
-                        # Clear messages_data to force Directus fetch below
-                        cached_sync_messages = None
-                    else:
-                        logger.info(
-                            f"[PHASE1_SYNC_CACHE] ✓ Cache count validated: {cached_count} == Directus count {directus_message_count}"
-                        )
-                except Exception as count_err:
-                    logger.warning(
-                        f"[PHASE1_SYNC_CACHE] Could not validate sync cache count for {chat_id}: {count_err}. "
-                        f"Using cached messages anyway (may be incomplete)."
-                    )
-                
-                # Only use cached messages if validation passed (or was skipped)
-                if cached_sync_messages:
-                    messages_data = cached_sync_messages
-                    
-                    # Validation: Ensure these are client-encrypted (not vault-encrypted)
-                    if messages_data and len(messages_data) > 0:
-                        import json
-                        try:
-                            # Check first and last messages to validate encryption
-                            first_msg = json.loads(messages_data[0])
-                            last_msg = json.loads(messages_data[-1]) if len(messages_data) > 1 else first_msg
-                            logger.info(
-                                f"[PHASE1_SYNC_CACHE] Message validation for chat {chat_id}: "
-                                f"first_msg_id={first_msg.get('id')}, first_role={first_msg.get('role')}, "
-                                f"last_msg_id={last_msg.get('id')}, last_role={last_msg.get('role')}, "
-                                f"total_messages={len(messages_data)}"
-                            )
-                        except Exception as parse_err:
-                            logger.error(f"[PHASE1_SYNC_CACHE] ❌ Failed to parse messages in sync cache: {parse_err}")
-            else:
-                logger.info(
-                    f"[PHASE1_SYNC_CACHE] ⚠️ Sync cache MISS for messages in chat {chat_id} "
-                    f"for user {user_id[:8]}... - will fetch from Directus"
-                )
-        except Exception as cache_error:
-            logger.warning(
-                f"[PHASE1_SYNC_CACHE] ❌ Error reading messages from sync cache for chat {chat_id}: {cache_error}"
-            )
-        
-        # Fallback to Directus if cache miss
-        if not chat_details:
-            logger.info(f"Phase 1: Fetching chat metadata from Directus for {chat_id}")
-            chat_details = await directus_service.chat.get_chat_metadata(chat_id)
+                    single_meta = await directus_service.chat.get_chat_metadata(cid)
+                    if single_meta:
+                        chat_details = single_meta if isinstance(single_meta, dict) else None
+                except Exception:
+                    pass
+
             if not chat_details:
-                logger.warning(f"Could not fetch chat details for Phase 1: {chat_id} (chat may have been deleted)")
-                logger.info(f"Phase 1: Falling back to 'new' chat view since last_opened chat {chat_id} is missing")
-                # Chat was deleted - fallback to "new" chat view with suggestions and inspirations
-                await manager.send_personal_message(
-                    {
-                        "type": "phase_1_last_chat_ready",
-                        "payload": {
-                            "chat_id": "new",  # Fallback to new chat view
-                            "chat_details": None,
-                            "messages": None,
-                            "new_chat_suggestions": new_chat_suggestions,
-                            "daily_inspirations": daily_inspirations,
-                            "phase": "phase1",
-                            "already_synced": False
-                        }
-                    },
-                    user_id,
-                    device_fingerprint_hash
-                )
-                return
-        
-        # Fallback to Directus if sync cache didn't have messages
-        # BUT only if messages are actually needed (client might already have up-to-date messages)
-        if not messages_data:
-            logger.info(
-                f"[PHASE1_MESSAGES] Fetching messages from Directus for chat {chat_id} "
-                f"(sync cache miss or empty) for user {user_id[:8]}..."
-            )
-            # CRITICAL FIX: Check if client already has up-to-date messages before fetching from Directus
-            client_versions = client_chat_versions.get(chat_id, {})
-            
-            # Get server versions from cache first, fallback to chat metadata if cache is empty
-            server_versions = await cache_service.get_chat_versions(user_id, chat_id)
-            if not server_versions and chat_details:
-                # Cache miss - use versions from chat metadata that was just fetched
-                server_messages_v = chat_details.get("messages_v", 0)
-            elif server_versions:
-                server_messages_v = server_versions.messages_v
+                logger.warning(f"Phase 1a: Could not fetch metadata for chat {cid}, skipping")
+                continue
+
+            valid_phase1_ids.append(cid)
+            if cid == last_opened_id:
+                last_chat_details = chat_details
             else:
-                # No version data available at all - fetch from Directus to be safe
-                server_messages_v = None
-            
-            if server_messages_v is not None and client_versions:
-                client_messages_v = client_versions.get("messages_v", 0)
-                
-                # If client already has up-to-date messages, skip fetching from Directus
-                # Client will use messages from IndexedDB
-                # IMPORTANT: We still need to send the message count so client can validate
-                if client_messages_v >= server_messages_v:
-                    # Get message count from Directus for validation
-                    # This is a lightweight query that helps detect data corruption
-                    try:
-                        server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                        
-                        # CRITICAL FIX: If actual message count exceeds messages_v, force a full fetch
-                        # This handles cases where version tracking lagged behind actual message persistence
-                        if server_message_count is not None and server_message_count > server_messages_v:
-                            logger.warning(
-                                f"[PHASE1_MESSAGES] 🚨 VERSION MISMATCH DETECTED for chat {chat_id}! "
-                                f"messages_v={server_messages_v}, actual_count={server_message_count}. "
-                                f"Forcing full message fetch to ensure consistency."
-                            )
-                            # Fall through to the fetch logic below by making the version check fail
-                            client_messages_v = -1 
-                        else:
-                            logger.info(
-                                f"[PHASE1_MESSAGES] ⏭️ Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                f"(client: m={client_messages_v}, server: m={server_messages_v}, server_count={server_message_count}). "
-                                f"Client will use IndexedDB and validate count."
-                            )
-                    except Exception as count_err:
-                        logger.warning(f"[PHASE1_MESSAGES] Failed to get message count for {chat_id}: {count_err}")
-                        # Continue without count - client will have to trust version
-                    
-                    # SAFETY NET (only if we didn't force a fetch above)
-                    if not messages_data and client_messages_v != -1:
-                        logger.info(f"[PHASE1_MESSAGES] 🛡️ Safety net: Fetching last 5 messages for last_opened chat {chat_id} regardless of version.")
-                        try:
-                            # Use get_messages_for_chats with a limit if possible, or just get all for this one chat
-                            # since it's just one chat and we want to ensure immediate consistency
-                            messages_data = await directus_service.chat.get_all_messages_for_chat(
-                                    chat_id=chat_id, decrypt_content=False
-                            )
-                            if messages_data and len(messages_data) > 5:
-                                messages_data = messages_data[-5:]
-                            logger.info(f"[PHASE1_MESSAGES] ✅ Safety net fetched {len(messages_data) if messages_data else 0} messages.")
-                        except Exception as safety_err:
-                            logger.warning(f"[PHASE1_MESSAGES] Safety net fetch failed: {safety_err}")
-                            messages_data = []
-                else:
-                    logger.info(
-                        f"[PHASE1_MESSAGES] 📥 Fetching messages from Directus for {chat_id} "
-                        f"(sync cache miss, messages outdated: client={client_messages_v}, server={server_messages_v})"
-                    )
-                    messages_data = await directus_service.chat.get_all_messages_for_chat(
-                            chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-                    )
-                    logger.info(
-                        f"[PHASE1_MESSAGES] ✅ Fetched {len(messages_data) if messages_data else 0} messages from Directus "
-                        f"for chat {chat_id}"
-                    )
-            else:
-                # No version data available - fetch from Directus to be safe
-                logger.info(
-                    f"[PHASE1_MESSAGES] 📥 Fetching messages from Directus for {chat_id} "
-                    f"(sync cache miss, no version data available)"
-                )
-                messages_data = await directus_service.chat.get_all_messages_for_chat(
-                        chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-                )
-                logger.info(
-                    f"[PHASE1_MESSAGES] ✅ Fetched {len(messages_data) if messages_data else 0} messages from Directus "
-                    f"for chat {chat_id}"
-                )
-            
-            # CRITICAL VALIDATION: Ensure Directus messages are client-encrypted (not vault-encrypted)
-            if messages_data and len(messages_data) > 0:
-                import json
-                try:
-                    first_msg = json.loads(messages_data[0])
-                    logger.debug(
-                        f"[DIRECTUS_VALIDATION] Phase 1: First message from Directus for {chat_id}: "
-                        f"id={first_msg.get('id')}, role={first_msg.get('role')}, "
-                        f"encrypted_content_length={len(first_msg.get('encrypted_content', ''))}"
-                    )
-                except Exception as parse_err:
-                    logger.error(f"[DIRECTUS_VALIDATION] Failed to parse first message from Directus: {parse_err}")
-        
-        # Get embeds from sync cache for this chat
-        # Filter out embeds already sent in previous phases (cross-phase deduplication)
-        raw_embeds_data = await cache_service.get_sync_embeds_for_chat(chat_id)
-        import hashlib
-        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        if not raw_embeds_data:
-            # Fallback: try to get embeds from Directus if not in sync cache
-            raw_embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-        
-        # Filter and track sent embeds to prevent duplicates across phases.
-        # Also skip error/cancelled embeds — they are not stored or displayed by the client.
-        embeds_data = []
-        if raw_embeds_data:
-            for embed in raw_embeds_data:
-                embed_id = embed.get("embed_id")
-                embed_status = embed.get("status")
-                if embed_id and embed_id not in sent_embed_ids and embed_status not in ("error", "cancelled"):
-                    embeds_data.append(embed)
-                    sent_embed_ids.add(embed_id)
-            logger.info(f"Phase 1: Sending {len(embeds_data)} embeds for chat {chat_id} (filtered from {len(raw_embeds_data)}, {len(sent_embed_ids)} total sent)")
-        
-        # CRITICAL: Also fetch embed_keys for this chat
-        # Embed keys are needed to decrypt the encrypted embed content on the client
-        # Without embed_keys, embeds cannot be decrypted and will show errors
-        embed_keys_data = []
-        try:
-            embed_keys_data = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
-            if embed_keys_data:
-                logger.info(f"Phase 1: Fetched {len(embed_keys_data)} embed_keys for chat {chat_id}")
-        except Exception as e:
-            logger.warning(f"Phase 1: Error fetching embed_keys for chat {chat_id}: {e}")
-        
-        # Log what we're sending to client
-        has_encrypted_chat_key = bool(chat_details and chat_details.get("encrypted_chat_key"))
-        logger.info(
-            f"[PHASE1_SEND] 📤 Sending Phase 1 data to client for chat {chat_id}, user {user_id[:8]}...: "
-            f"messages={len(messages_data or [])}, embeds={len(embeds_data or [])}, "
-            f"embed_keys={len(embed_keys_data or [])}, suggestions={len(new_chat_suggestions)}, "
-            f"daily_inspirations={len(daily_inspirations)}, "
-            f"has_encrypted_chat_key={has_encrypted_chat_key}"
-        )
-        
-        # Send Phase 1 data to client WITH suggestions, inspirations, embeds, AND embed_keys.
-        # Include server_message_count for client-side validation of data consistency.
+                recent_chat_metadata.append(chat_details)
+
+        # If last_opened wasn't found (deleted?), promote first recent to last_chat
+        if last_opened_id and not last_chat_details and recent_chat_metadata:
+            last_chat_details = recent_chat_metadata.pop(0)
+            last_opened_id = last_chat_details["id"]
+
+        # --- Send Phase 1a: metadata only, no messages, no embeds ---
         await manager.send_personal_message(
             {
                 "type": "phase_1_last_chat_ready",
                 "payload": {
-                    "chat_id": chat_id,
-                    "chat_details": chat_details,
-                    "messages": messages_data or [],
-                    "server_message_count": server_message_count,  # For client-side validation
-                    "embeds": embeds_data or [],  # Include embeds for client-side storage
-                    "embed_keys": embed_keys_data or [],  # Include embed_keys for decryption
-                    "new_chat_suggestions": new_chat_suggestions,  # Always include suggestions
-                    "daily_inspirations": daily_inspirations,  # Always include for banner display
+                    "chat_id": last_opened_id or ("new" if last_opened_path and "new" in last_opened_path else None),
+                    "chat_details": last_chat_details,
+                    "messages": None,
+                    "recent_chat_metadata": recent_chat_metadata,
+                    "new_chat_suggestions": new_chat_suggestions,
+                    "daily_inspirations": daily_inspirations,
                     "phase": "phase1",
                     "already_synced": False
                 }
@@ -673,16 +461,171 @@ async def _handle_phase1_sync(
             user_id,
             device_fingerprint_hash
         )
-        
+
         logger.info(
-            f"[PHASE1_COMPLETE] ✅ Phase 1 sync complete for user {user_id[:8]}..., chat: {chat_id}, "
-            f"sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, "
-            f"{len(embed_keys_data)} embed_keys, {len(new_chat_suggestions)} suggestions, "
-            f"and {len(daily_inspirations)} daily inspirations"
+            f"[PHASE1a_COMPLETE] ✅ Phase 1a sync for user {user_id[:8]}...: "
+            f"last_chat={'yes' if last_chat_details else 'no'}, "
+            f"recent_metadata={len(recent_chat_metadata)}, "
+            f"{len(new_chat_suggestions)} suggestions, {len(daily_inspirations)} inspirations"
         )
-        
+
+        return valid_phase1_ids
+
     except Exception as e:
-        logger.error(f"Error in Phase 1 sync for user {user_id}: {e}", exc_info=True)
+        logger.error(f"Error in Phase 1a sync for user {user_id}: {e}", exc_info=True)
+        return []
+
+
+async def _handle_phase1b_sync(
+    manager: ConnectionManager,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    device_fingerprint_hash: str,
+    phase1_chat_ids: List[str],
+    client_chat_versions: Dict[str, Dict[str, int]],
+    sent_embed_ids: set,
+    client_embed_ids: Optional[set] = None
+):
+    """
+    Phase 1b: Messages + embeds for the 11 Phase 1a chats (separate WS message).
+
+    Sent immediately after Phase 1a so the client can render "continue where you left off"
+    without waiting for message content. Messages are stored encrypted in IDB — no decryption
+    during sync.
+    """
+    if not phase1_chat_ids:
+        return
+
+    logger.info(f"Processing Phase 1b sync for user {user_id}: {len(phase1_chat_ids)} chats")
+    phase1b_start = time.perf_counter()
+
+    try:
+        import hashlib
+
+        chats_data: List[Dict[str, Any]] = []
+
+        for chat_id in phase1_chat_ids:
+            messages_data: List[str] = []
+
+            # Delta sync: skip message fetch if client already has up-to-date messages
+            client_versions = client_chat_versions.get(chat_id, {})
+            client_messages_v = client_versions.get("messages_v", 0)
+            server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+            server_messages_v = server_versions.messages_v if server_versions else 0
+
+            should_fetch_messages = True
+            server_message_count = None
+
+            if client_messages_v >= server_messages_v and server_messages_v > 0:
+                # Validate with actual count to catch version lag
+                try:
+                    server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                    if server_message_count is not None and server_message_count > server_messages_v:
+                        logger.warning(
+                            f"[PHASE1b] Version mismatch for {chat_id}: "
+                            f"messages_v={server_messages_v}, actual={server_message_count}. Forcing fetch."
+                        )
+                    else:
+                        should_fetch_messages = False
+                        logger.debug(f"[PHASE1b] Skipping messages for {chat_id} (up-to-date: v={client_messages_v})")
+                except Exception:
+                    should_fetch_messages = False
+
+            if should_fetch_messages:
+                # Try sync cache first
+                try:
+                    cached = await cache_service.get_sync_messages_history(user_id, chat_id)
+                    if cached:
+                        messages_data = cached
+                except Exception:
+                    pass
+
+                # Fallback to Directus
+                if not messages_data:
+                    try:
+                        messages_data = await directus_service.chat.get_all_messages_for_chat(
+                            chat_id=chat_id, decrypt_content=False
+                        ) or []
+                    except Exception as e:
+                        logger.warning(f"[PHASE1b] Failed to fetch messages for {chat_id}: {e}")
+
+                if server_message_count is None:
+                    server_message_count = len(messages_data)
+
+            chats_data.append({
+                "chat_id": chat_id,
+                "messages": messages_data if should_fetch_messages else None,
+                "server_message_count": server_message_count or 0
+            })
+
+        # Fetch embeds + embed_keys for all Phase 1 chats
+        all_embeds: List[Dict[str, Any]] = []
+        all_embed_keys: List[Dict[str, Any]] = []
+        seen_embed_ids: set = set()
+        seen_key_ids: set = set()
+        hashed_chat_ids: List[str] = []
+
+        for chat_id in phase1_chat_ids:
+            hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_chat_ids.append(hashed_id)
+
+            try:
+                raw_embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
+                if not raw_embeds:
+                    raw_embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_id)
+
+                if raw_embeds:
+                    for embed in raw_embeds:
+                        embed_id = embed.get("embed_id")
+                        embed_status = embed.get("status")
+                        if (embed_id and embed_id not in seen_embed_ids
+                                and embed_id not in sent_embed_ids
+                                and embed_id not in (client_embed_ids or set())
+                                and embed_status not in ("error", "cancelled")):
+                            all_embeds.append(embed)
+                            seen_embed_ids.add(embed_id)
+                            sent_embed_ids.add(embed_id)
+            except Exception as e:
+                logger.warning(f"[PHASE1b] Error fetching embeds for {chat_id}: {e}")
+
+        # Batch fetch embed_keys
+        if hashed_chat_ids:
+            try:
+                batch_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_chat_ids)
+                if batch_keys:
+                    for key_entry in batch_keys:
+                        key_id = key_entry.get("id")
+                        if key_id and key_id not in seen_key_ids:
+                            all_embed_keys.append(key_entry)
+                            seen_key_ids.add(key_id)
+            except Exception as e:
+                logger.warning(f"[PHASE1b] Error batch fetching embed_keys: {e}")
+
+        # Send Phase 1b as separate WS message
+        await manager.send_personal_message(
+            {
+                "type": "phase_1b_chat_content_ready",
+                "payload": {
+                    "chats": chats_data,
+                    "embeds": all_embeds,
+                    "embed_keys": all_embed_keys
+                }
+            },
+            user_id,
+            device_fingerprint_hash
+        )
+
+        phase1b_elapsed = time.perf_counter() - phase1b_start
+        messages_total = sum(len(c.get("messages") or []) for c in chats_data)
+        logger.info(
+            f"[PHASE1b_COMPLETE] ✅ Phase 1b sync for user {user_id[:8]}... in {phase1b_elapsed:.3f}s: "
+            f"{len(chats_data)} chats, {messages_total} messages, "
+            f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys"
+        )
+
+    except Exception as e:
+        logger.error(f"Error in Phase 1b sync for user {user_id}: {e}", exc_info=True)
 
 
 async def _handle_phase2_sync(
@@ -697,31 +640,35 @@ async def _handle_phase2_sync(
     client_embed_ids: Optional[List[str]] = None
 ):
     """
-    Handle Phase 2: Last 20 updated chats (quick access)
-    Only sends chats that are missing or outdated on the client.
-    Maintains zero-knowledge architecture - all data remains encrypted.
-    CACHE-FIRST: Uses cached chat list from predictive cache warming for instant sync.
+    Phase 2: Metadata-only for 100 chats (no messages, no embeds).
+
+    PERFORMANCE OVERHAUL: This phase sends ONLY chat metadata — no messages, no embeds,
+    no embed_keys. The client stores encrypted metadata in IDB and decrypts lazily when
+    rendering in the sidebar. Messages arrive in Phase 3 (background chunked sync).
+    Embeds are fetched on-demand when user opens a chat.
+
+    Includes total_chat_count so the client knows how many chats exist on the server.
     """
     logger.info(f"Processing Phase 2 sync for user {user_id}")
     phase2_start = time.perf_counter()
 
     try:
-        # CACHE-FIRST STRATEGY: Get last 20 chat IDs from Redis cache (already populated by cache warming)
-        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=19, with_scores=False)
-        
-        logger.info(f"[PHASE2_DEBUG] Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs for user {user_id}")
-        if cached_chat_ids:
-            logger.debug(f"[PHASE2_DEBUG] Cached chat IDs: {cached_chat_ids[:3]}...")
-        
+        # Expand to 100 chats (was 20)
+        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
+
+        # Get total chat count — uses Directus as authoritative source since
+        # the Redis sorted set only has ~100 entries from cache warming
+        from .load_more_chats_handler import _get_total_chat_count
+        total_chat_count = await _get_total_chat_count(cache_service, user_id, directus_service)
+
+        logger.info(f"Phase 2: Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs (total: {total_chat_count})")
+
         if not cached_chat_ids:
-            logger.info(f"Phase 2: No cached chat IDs found, falling back to Directus for user {user_id}")
-            # Fallback to Directus if cache is empty
+            logger.info("Phase 2: No cached chat IDs, falling back to Directus")
             all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-                user_id, limit=20
+                user_id, limit=100
             )
         else:
-            logger.info(f"Phase 2: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
-            # Build chat wrappers from cache — batch Redis lookups for all chats at once
             all_recent_chats = []
             chat_ids_needing_directus_fetch = []
 
@@ -733,372 +680,87 @@ async def _handle_phase2_sync(
                 cached_versions = batch_versions.get(chat_id)
 
                 if not cached_list_item or not cached_versions:
-                    logger.warning(f"Phase 2: Incomplete cache data for chat {chat_id} (list_item: {bool(cached_list_item)}, versions: {bool(cached_versions)}), will fetch from Directus")
                     chat_ids_needing_directus_fetch.append(chat_id)
                     continue
 
-                # Convert cached data to the format expected by the rest of the function
                 chat_wrapper = {
-                    "chat_details": {
-                        "id": chat_id,
-                        "encrypted_title": cached_list_item.title,
-                        "unread_count": cached_list_item.unread_count,
-                        "created_at": cached_list_item.created_at,
-                        "updated_at": cached_list_item.updated_at,
-                        "encrypted_chat_key": cached_list_item.encrypted_chat_key,
-                        "encrypted_icon": cached_list_item.encrypted_icon,
-                        "encrypted_category": cached_list_item.encrypted_category,
-                        "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
-                        "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
-                        "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
-                        "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
-                        "last_message_timestamp": cached_list_item.last_message_timestamp,
-                        "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
-                        "messages_v": cached_versions.messages_v,
-                        "title_v": cached_versions.title_v,
-                        "pinned": cached_list_item.pinned,
-                        # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-                        "is_shared": cached_list_item.is_shared,
-                        "is_private": cached_list_item.is_private
-                    },
-                    "user_encrypted_draft_content": None,  # Will be fetched if needed
-                    "user_draft_version_db": 0,
-                    "draft_updated_at": 0
+                    "chat_details": await _build_chat_details_from_cache(cached_list_item, cached_versions, chat_id)
                 }
                 all_recent_chats.append(chat_wrapper)
 
-            # Fetch missing chats from Directus in a single batch query
             if chat_ids_needing_directus_fetch:
-                logger.info(f"Phase 2: Fetching {len(chat_ids_needing_directus_fetch)} chats with incomplete cache from Directus")
+                logger.info(f"Phase 2: Fetching {len(chat_ids_needing_directus_fetch)} chats from Directus")
                 try:
                     batch_metadata = await directus_service.chat.get_chats_metadata_batch(chat_ids_needing_directus_fetch)
                     for chat_id in chat_ids_needing_directus_fetch:
                         chat_metadata = batch_metadata.get(chat_id)
                         if chat_metadata:
                             chat_wrapper = {
-                                "chat_details": {
-                                    "id": chat_id,
-                                    "encrypted_title": chat_metadata.get("encrypted_title"),
-                                    "unread_count": chat_metadata.get("unread_count", 0),
-                                    "created_at": chat_metadata.get("created_at"),
-                                    "updated_at": chat_metadata.get("updated_at"),
-                                    "encrypted_chat_key": chat_metadata.get("encrypted_chat_key"),
-                                    "encrypted_icon": chat_metadata.get("encrypted_icon"),
-                                    "encrypted_category": chat_metadata.get("encrypted_category"),
-                                    "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
-                                    "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
-                                    "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
-                                    "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
-                                    "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
-                                    "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
-                                    "messages_v": chat_metadata.get("messages_v", 0),
-                                    "title_v": chat_metadata.get("title_v", 0),
-                                    "pinned": chat_metadata.get("pinned"),
-                                    # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-                                    "is_shared": chat_metadata.get("is_shared"),
-                                    "is_private": chat_metadata.get("is_private")
-                                },
-                                "user_encrypted_draft_content": None,
-                                "user_draft_version_db": 0,
-                                "draft_updated_at": 0
+                                "chat_details": _build_chat_details_from_directus_metadata(chat_metadata, chat_id)
                             }
                             all_recent_chats.append(chat_wrapper)
-                            logger.debug(f"Phase 2: Added chat {chat_id} from Directus fallback")
-                        else:
-                            logger.warning(f"Phase 2: Could not fetch chat {chat_id} from Directus")
-                    logger.info(f"Phase 2: Added {len(batch_metadata)} chats from Directus batch fallback")
                 except Exception as e:
                     logger.error(f"Phase 2: Failed to fetch chats from Directus: {e}", exc_info=True)
-        
+
         if not all_recent_chats:
-            logger.info(f"No recent chats found for Phase 2 sync: {user_id}")
-            # Send empty phase 2 completion
+            logger.info(f"Phase 2: No chats found for user {user_id}")
             await manager.send_personal_message(
                 {
                     "type": "phase_2_last_20_chats_ready",
-                    "payload": {
-                        "chats": [],
-                        "chat_count": 0,
-                        "phase": "phase2"
-                    }
+                    "payload": {"chats": [], "chat_count": 0, "total_chat_count": total_chat_count, "phase": "phase2"}
                 },
                 user_id,
                 device_fingerprint_hash
             )
             return
-        
-        client_chat_ids_set = set(client_chat_ids)
 
-        # Filter chats to only include missing or outdated ones.
-        # Version-matched chats are fully skipped — title_v already tracks title changes,
-        # so there is no need to send a metadata-only wrapper for encrypted_title/category/icon.
-        # Sending those wrappers for every already-up-to-date chat was the root cause of the
-        # "703 embeds / 0 skipped" flood that blocked the WebSocket for active users.
+        # Delta sync: skip chats where client already has up-to-date metadata
+        client_chat_ids_set = set(client_chat_ids)
         chats_to_send = []
         chats_skipped = 0
 
-        # Batch fetch versions for all chats that exist on the client (for delta comparison)
         existing_chat_ids = [cw["chat_details"]["id"] for cw in all_recent_chats if cw["chat_details"]["id"] in client_chat_ids_set]
         batch_server_versions = await cache_service.get_batch_chat_versions(user_id, existing_chat_ids) if existing_chat_ids else {}
 
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
-            chat_is_missing = chat_id not in client_chat_ids_set
 
-            if not chat_is_missing:
-                # Client has the chat - check if it's up-to-date
+            if chat_id in client_chat_ids_set:
                 cached_server_versions = batch_server_versions.get(chat_id)
                 client_versions = client_chat_versions.get(chat_id, {})
 
                 if cached_server_versions:
                     client_messages_v = client_versions.get("messages_v", 0)
                     client_title_v = client_versions.get("title_v", 0)
-
-                    # CRITICAL FIX: Use the higher of cache vs chat_details messages_v
-                    # Cache may be stale if Celery task updated Directus but cache wasn't refreshed
                     chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
                     server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
                     server_title_v = cached_server_versions.title_v
 
-                    # If both message and title versions are up-to-date, skip entirely.
-                    # title_v covers all metadata fields (title, category, icon) so a version
-                    # match means the client already has the correct encrypted metadata.
-                    if (client_messages_v >= server_messages_v and
-                        client_title_v >= server_title_v):
-                        logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date "
-                                   f"(client: m={client_messages_v}, t={client_title_v}; "
-                                   f"server: m={server_messages_v}, t={server_title_v})")
+                    if client_messages_v >= server_messages_v and client_title_v >= server_title_v:
                         chats_skipped += 1
                         continue
 
-            # Chat is missing or outdated - add to send list with messages
             chats_to_send.append(chat_wrapper)
-            logger.debug(f"Phase 2: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
 
-        logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} chats (skipped {chats_skipped} up-to-date)")
-        
-        if chats_to_send:
-            # Try sync cache first, fallback to Directus
-            messages_added_count = 0
-            chat_ids_to_fetch_from_directus = []
+        logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} metadata-only chats (skipped {chats_skipped})")
 
-            # Batch fetch versions for chats_to_send (reuse batch_server_versions if available, fetch missing)
-            send_chat_ids = [cw["chat_details"]["id"] for cw in chats_to_send]
-            batch_send_versions = await cache_service.get_batch_chat_versions(user_id, send_chat_ids) if send_chat_ids else {}
-
-            # Try sync cache for each chat, but ONLY if messages are actually needed
-            for chat_wrapper in chats_to_send:
-                chat_id = chat_wrapper["chat_details"]["id"]
-
-                # CRITICAL FIX: Check if messages are actually needed before fetching
-                # A chat can be in chats_to_send because title_v is outdated, but messages_v might be up-to-date
-                # Skip fetching messages if client already has up-to-date messages (even if sync cache is empty)
-                client_versions = client_chat_versions.get(chat_id, {})
-
-                # Get server versions from batch fetch, fallback to chat metadata if cache is empty
-                # CRITICAL FIX: Use max(cache, chat_details) to avoid stale cache versions
-                server_versions = batch_send_versions.get(chat_id)
-                chat_details_messages_v = chat_wrapper.get("chat_details", {}).get("messages_v", 0)
-                if not server_versions:
-                    server_messages_v = chat_details_messages_v
-                else:
-                    server_messages_v = max(server_versions.messages_v, chat_details_messages_v)
-
-                if client_versions:
-                    client_messages_v = client_versions.get("messages_v", 0)
-
-                    # If client already has up-to-date messages, skip fetching entirely
-                    # Client will use messages from IndexedDB
-                    if client_messages_v >= server_messages_v:
-                        # CRITICAL: Get server message count for client-side validation
-                        # This allows client to detect data inconsistency (version matches but messages missing)
-                        try:
-                            server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                            chat_wrapper["server_message_count"] = server_message_count
-
-                            # CRITICAL FIX: Version mismatch detection (same as Phase 1)
-                            # If Directus has more messages than messages_v indicates,
-                            # the version is stale — force full message fetch
-                            if server_message_count is not None and server_message_count > server_messages_v:
-                                logger.warning(
-                                    f"[PHASE2_MESSAGES] 🚨 VERSION MISMATCH DETECTED for chat {chat_id}! "
-                                    f"messages_v={server_messages_v}, actual_count={server_message_count}. "
-                                    f"Forcing full message fetch to ensure consistency."
-                                )
-                                # Don't skip - fall through to message fetch below
-                            else:
-                                logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                           f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
-                                # Ensure messages is None to indicate client should use local data
-                                if "messages" not in chat_wrapper:
-                                    chat_wrapper["messages"] = None
-                                continue
-                        except Exception as count_err:
-                            logger.warning(f"Phase 2: Failed to get message count for {chat_id}: {count_err}")
-                            # Continue without count - client will have to trust version
-                            logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                       f"(client: m={client_messages_v}, server: m={server_messages_v})")
-                            # Ensure messages is None to indicate client should use local data
-                            if "messages" not in chat_wrapper:
-                                chat_wrapper["messages"] = None
-                            continue
-                
-                # Messages are needed - try sync cache first
-                try:
-                    cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
-                    if cached_sync_messages:
-                        cached_count = len(cached_sync_messages)
-                        logger.debug(f"Phase 2: Sync cache HIT for {cached_count} messages in chat {chat_id}")
-                        
-                        # CRITICAL FIX: Validate sync cache count against Directus
-                        # If sync cache has fewer messages than Directus, the cache is stale/incomplete
-                        try:
-                            directus_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                            chat_wrapper["server_message_count"] = directus_message_count
-                            
-                            if directus_message_count is not None and cached_count < directus_message_count:
-                                logger.warning(
-                                    f"Phase 2: ⚠️ CACHE INCONSISTENCY for chat {chat_id}: "
-                                    f"Sync cache has {cached_count} messages but Directus has {directus_message_count}. "
-                                    f"Falling back to Directus."
-                                )
-                                chat_ids_to_fetch_from_directus.append(chat_id)
-                            else:
-                                # Cache is valid, use it
-                                chat_wrapper["messages"] = cached_sync_messages
-                                messages_added_count += 1
-                        except Exception as count_err:
-                            logger.warning(f"Phase 2: Could not validate sync cache count for {chat_id}: {count_err}")
-                            # Use cached messages anyway (may be incomplete)
-                            chat_wrapper["messages"] = cached_sync_messages
-                            messages_added_count += 1
-                    else:
-                        logger.debug(f"Phase 2: Sync cache MISS for messages in chat {chat_id}")
-                        chat_ids_to_fetch_from_directus.append(chat_id)
-                except Exception as cache_error:
-                    logger.warning(f"Phase 2: Error reading messages from sync cache for {chat_id}: {cache_error}")
-                    chat_ids_to_fetch_from_directus.append(chat_id)
-            
-            # Fetch from Directus only for sync cache misses AND when messages are actually needed
-            if chat_ids_to_fetch_from_directus:
-                logger.info(f"Phase 2: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (sync cache misses)")
-                
-                try:
-                    all_messages_dict = await directus_service.chat.get_messages_for_chats(
-                        chat_ids=chat_ids_to_fetch_from_directus, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-                    )
-                    
-                    # Add messages to their respective chats
-                    for chat_wrapper in chats_to_send:
-                        chat_id = chat_wrapper["chat_details"]["id"]
-                        if chat_id in chat_ids_to_fetch_from_directus:
-                            messages = all_messages_dict.get(chat_id, [])
-                            if messages:
-                                chat_wrapper["messages"] = messages
-                                messages_added_count += 1
-                                logger.debug(f"Phase 2: Added {len(messages)} messages for chat {chat_id} from Directus")
-                            else:
-                                logger.debug(f"Phase 2: No messages found for chat {chat_id} in Directus")
-                
-                except Exception as messages_error:
-                    logger.error(f"Phase 2: Error fetching messages from Directus: {messages_error}", exc_info=True)
-                    # Continue anyway with just metadata - messages can be fetched on-demand
-        
-            logger.info(f"Phase 2: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
-        
-        # Collect all unique embeds across all chats (deduplicated by embed_id)
-        # CROSS-PHASE DEDUPLICATION: Filter out embeds already sent in Phase 1
-        # CLIENT DEDUPLICATION: Filter out embeds the client already has in IndexedDB
-        import hashlib
-        client_embed_ids_set = set(client_embed_ids) if client_embed_ids else set()
-        new_embeds = {}  # embed_id -> embed data (phase-level deduplication)
-        for chat_wrapper in chats_to_send:
-            chat_id = chat_wrapper.get("chat_details", {}).get("id")
-            if chat_id:
-                try:
-                    # Try sync cache first, then Directus fallback
-                    embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
-                    if not embeds:
-                        # Fallback to Directus
-                        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-                        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-                    
-                    if embeds:
-                        for embed in embeds:
-                            embed_id = embed.get("embed_id")
-                            embed_status = embed.get("status")
-                            # Skip if: already sent this session, already collected this phase,
-                            # error/cancelled status, OR client already has it in IndexedDB
-                            if (embed_id
-                                    and embed_id not in sent_embed_ids
-                                    and embed_id not in new_embeds
-                                    and embed_status not in ("error", "cancelled")
-                                    and embed_id not in client_embed_ids_set):
-                                new_embeds[embed_id] = embed
-                        logger.debug(f"Phase 2: Found {len(embeds)} embeds for chat {chat_id}")
-                except Exception as e:
-                    logger.warning(f"Phase 2: Error fetching embeds for chat {chat_id}: {e}")
-        
-        embeds_list = list(new_embeds.values())
-        # Track all newly sent embeds for Phase 3
-        for embed_id in new_embeds.keys():
-            sent_embed_ids.add(embed_id)
-        
-        if embeds_list:
-            logger.info(f"Phase 2: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across phases)")
-        
-        # CRITICAL: Batch fetch embed_keys for all chats in this phase (optimized)
-        # Embed keys are needed to decrypt the encrypted embed content on the client
-        # OPTIMIZATION: Use batch method to reduce from N*2 queries to just 2 queries
-        all_embed_keys = []
-        seen_embed_key_ids = set()  # Deduplicate by id
-        
-        # Collect hashed_chat_ids for batch embed_keys fetch.
-        # CRITICAL: Use ALL chats (not just chats_to_send) because embed_keys may be
-        # missing from the client's IDB even when chat versions match (e.g., after cache
-        # clear, IDB corruption, or new device). Without this, version-matched chats
-        # never get their embed_keys re-delivered, permanently breaking embed decryption.
-        hashed_chat_ids_for_keys = []
-        for chat_wrapper in all_recent_chats:
-            chat_id = chat_wrapper.get("chat_details", {}).get("id")
-            if chat_id:
-                hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
-
-        if hashed_chat_ids_for_keys:
-            try:
-                # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
-                batch_embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_chat_ids_for_keys)
-                if batch_embed_keys:
-                    for key_entry in batch_embed_keys:
-                        key_id = key_entry.get("id")
-                        if key_id and key_id not in seen_embed_key_ids:
-                            all_embed_keys.append(key_entry)
-                            seen_embed_key_ids.add(key_id)
-            except Exception as e:
-                logger.warning(f"Phase 2: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
-
-        if all_embed_keys:
-            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(all_recent_chats)} chats (batch optimized, includes version-matched)")
-        
-        # Send Phase 2 data to client (only chats that need updating)
-        # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
+        # Send metadata-only payload (no messages, no embeds, no embed_keys)
         await manager.send_personal_message(
             {
                 "type": "phase_2_last_20_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
-                    "embeds": embeds_list,  # Flat deduplicated array
-                    "embed_keys": all_embed_keys,  # Flat deduplicated array of embed keys
                     "chat_count": len(chats_to_send),
+                    "total_chat_count": total_chat_count,
                     "phase": "phase2"
                 }
             },
             user_id,
             device_fingerprint_hash
         )
-        
+
         phase2_elapsed = time.perf_counter() - phase2_start
-        logger.info(f"Phase 2 sync complete for user {user_id} in {phase2_elapsed:.3f}s, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys, skipped: {chats_skipped}")
+        logger.info(f"Phase 2 sync complete for user {user_id} in {phase2_elapsed:.3f}s, sent: {len(chats_to_send)} metadata-only chats, skipped: {chats_skipped}")
 
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
@@ -1113,423 +775,197 @@ async def _handle_phase3_sync(
     client_chat_versions: Dict[str, Dict[str, int]],
     client_chat_ids: List[str],
     sent_embed_ids: set,
-    client_embed_ids: Optional[List[str]] = None
+    client_embed_ids: Optional[List[str]] = None,
+    phase1_chat_ids: Optional[List[str]] = None
 ):
     """
-    Handle Phase 3: Last 100 updated chats (full sync)
-    Only sends chats that are missing or outdated on the client.
-    NEVER sends new chat suggestions - they are always sent in Phase 1.
-    Maintains zero-knowledge architecture - all data remains encrypted.
-    CACHE-FIRST: Uses cached chat list from predictive cache warming for instant sync.
+    Phase 3: Background message + embed sync — chunked batches of 10 chats.
+
+    Sends messages AND embeds for up to 100 chats in batches of 10,
+    each as a separate WS message to avoid congestion. Skips Phase 1b chats
+    (already sent) and chats where client version matches (delta sync).
+    Embeds + embed_keys are included per batch so they're available offline in IndexedDB.
     """
-    logger.info(f"Processing Phase 3 sync for user {user_id}")
+    logger.info(f"Processing Phase 3 (background message sync) for user {user_id}")
     phase3_start = time.perf_counter()
 
     try:
-        # CACHE-FIRST STRATEGY: Get last 100 chat IDs from Redis cache (already populated by cache warming)
+        # Get same 100 chat IDs that Phase 2 used
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
-        
-        # Get total chat count for the user (used by frontend to show "Show more" button)
-        total_chat_count = 0
-        try:
-            client = await cache_service.client
-            if client:
-                key = cache_service._get_user_chat_ids_versions_key(user_id)
-                total_chat_count = await client.zcard(key) or 0
-        except Exception as count_error:
-            logger.warning(f"Phase 3: Could not get total chat count: {count_error}")
-        
-        logger.info(f"[PHASE3_DEBUG] Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs for user {user_id} (total: {total_chat_count})")
-        if cached_chat_ids:
-            logger.debug(f"[PHASE3_DEBUG] Cached chat IDs: {cached_chat_ids[:3]}...")
-        
+
         if not cached_chat_ids:
-            logger.info(f"Phase 3: No cached chat IDs found, falling back to Directus for user {user_id}")
-            # Fallback to Directus if cache is empty
-            all_chats_from_server = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-                user_id, limit=100
-            )
-        else:
-            logger.info(f"Phase 3: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
-            # Build chat wrappers from cache — batch Redis lookups for all chats at once
-            all_chats_from_server = []
-            chat_ids_needing_directus_fetch = []
+            # Fallback to Directus
+            try:
+                fallback = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=100)
+                cached_chat_ids = [
+                    cw.get("chat_details", {}).get("id") for cw in (fallback or [])
+                    if isinstance(cw, dict) and cw.get("chat_details", {}).get("id")
+                ]
+            except Exception:
+                cached_chat_ids = []
 
-            batch_list_items = await cache_service.get_batch_chat_list_item_data(user_id, cached_chat_ids)
-            batch_versions = await cache_service.get_batch_chat_versions(user_id, cached_chat_ids)
+        if not cached_chat_ids:
+            logger.info("Phase 3: No chat IDs for background message sync")
+            # Still trigger app settings sync
+            try:
+                await _handle_app_settings_memories_sync(manager, directus_service, user_id, device_fingerprint_hash)
+            except Exception:
+                pass
+            return
 
-            for chat_id in cached_chat_ids:
-                cached_list_item = batch_list_items.get(chat_id)
-                cached_versions = batch_versions.get(chat_id)
+        # Skip Phase 1b chats (already have messages)
+        phase1_ids_set = set(phase1_chat_ids or [])
+        chat_ids_for_messages = [cid for cid in cached_chat_ids if cid not in phase1_ids_set]
+        logger.info(f"Phase 3: {len(chat_ids_for_messages)} chats for background message sync (skipped {len(phase1_ids_set)} Phase 1b chats)")
 
-                if not cached_list_item or not cached_versions:
-                    logger.warning(f"Phase 3: Incomplete cache data for chat {chat_id} (list_item: {bool(cached_list_item)}, versions: {bool(cached_versions)}), will fetch from Directus")
-                    chat_ids_needing_directus_fetch.append(chat_id)
-                    continue
+        # Delta sync: filter to only chats needing message updates
+        chats_needing_messages: List[str] = []
+        batch_versions = await cache_service.get_batch_chat_versions(user_id, chat_ids_for_messages) if chat_ids_for_messages else {}
 
-                # Convert cached data to the format expected by the rest of the function
-                chat_wrapper = {
-                    "chat_details": {
-                        "id": chat_id,
-                        "encrypted_title": cached_list_item.title,
-                        "unread_count": cached_list_item.unread_count,
-                        "created_at": cached_list_item.created_at,
-                        "updated_at": cached_list_item.updated_at,
-                        "encrypted_chat_key": cached_list_item.encrypted_chat_key,
-                        "encrypted_icon": cached_list_item.encrypted_icon,
-                        "encrypted_category": cached_list_item.encrypted_category,
-                        "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
-                        "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
-                        "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
-                        "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
-                        "last_message_timestamp": cached_list_item.last_message_timestamp,
-                        "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
-                        "messages_v": cached_versions.messages_v,
-                        "title_v": cached_versions.title_v,
-                        "pinned": cached_list_item.pinned,
-                        # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-                        "is_shared": cached_list_item.is_shared,
-                        "is_private": cached_list_item.is_private
-                    },
-                    "user_encrypted_draft_content": None,  # Will be fetched if needed
-                    "user_draft_version_db": 0,
-                    "draft_updated_at": 0
-                }
-                all_chats_from_server.append(chat_wrapper)
+        for chat_id in chat_ids_for_messages:
+            client_versions = client_chat_versions.get(chat_id, {})
+            client_messages_v = client_versions.get("messages_v", 0)
+            server_ver = batch_versions.get(chat_id)
+            server_messages_v = server_ver.messages_v if server_ver else 0
 
-            # Fetch missing chats from Directus in a single batch query
-            if chat_ids_needing_directus_fetch:
-                logger.info(f"Phase 3: Fetching {len(chat_ids_needing_directus_fetch)} chats with incomplete cache from Directus")
-                try:
-                    batch_metadata = await directus_service.chat.get_chats_metadata_batch(chat_ids_needing_directus_fetch)
-                    for chat_id in chat_ids_needing_directus_fetch:
-                        chat_metadata = batch_metadata.get(chat_id)
-                        if chat_metadata:
-                            chat_wrapper = {
-                                "chat_details": {
-                                    "id": chat_id,
-                                    "encrypted_title": chat_metadata.get("encrypted_title"),
-                                    "unread_count": chat_metadata.get("unread_count", 0),
-                                    "created_at": chat_metadata.get("created_at"),
-                                    "updated_at": chat_metadata.get("updated_at"),
-                                    "encrypted_chat_key": chat_metadata.get("encrypted_chat_key"),
-                                    "encrypted_icon": chat_metadata.get("encrypted_icon"),
-                                    "encrypted_category": chat_metadata.get("encrypted_category"),
-                                    "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
-                                    "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
-                                    "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
-                                    "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
-                                    "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
-                                    "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
-                                    "messages_v": chat_metadata.get("messages_v", 0),
-                                    "title_v": chat_metadata.get("title_v", 0),
-                                    "pinned": chat_metadata.get("pinned"),
-                                    # CRITICAL: Include sharing fields so SettingsShared.svelte can filter shared chats after reload
-                                    "is_shared": chat_metadata.get("is_shared"),
-                                    "is_private": chat_metadata.get("is_private")
-                                },
-                                "user_encrypted_draft_content": None,
-                                "user_draft_version_db": 0,
-                                "draft_updated_at": 0
-                            }
-                            all_chats_from_server.append(chat_wrapper)
-                            logger.debug(f"Phase 3: Added chat {chat_id} from Directus fallback")
-                        else:
-                            logger.warning(f"Phase 3: Could not fetch chat {chat_id} from Directus")
-                    logger.info(f"Phase 3: Added {len(batch_metadata)} chats from Directus batch fallback")
-                except Exception as e:
-                    logger.error(f"Phase 3: Failed to fetch chats from Directus: {e}", exc_info=True)
-        
-        if not all_chats_from_server:
-            logger.info(f"No chats found for Phase 3 sync: {user_id}")
-            # Send empty phase 3 completion
-        
-        client_chat_ids_set = set(client_chat_ids)
+            if client_messages_v < server_messages_v or not client_versions:
+                chats_needing_messages.append(chat_id)
 
-        # Filter chats to only include missing or outdated ones.
-        # Version-matched chats are fully skipped — title_v already tracks title changes,
-        # so there is no need to send a metadata-only wrapper for encrypted_title/category/icon.
-        # See Phase 2 for detailed rationale.
-        chats_to_send = []
-        chats_skipped = 0
+        logger.info(f"Phase 3: {len(chats_needing_messages)} chats need message sync (delta-checked)")
 
-        if all_chats_from_server:
-            # Batch fetch versions for all chats that exist on the client (for delta comparison)
-            existing_chat_ids_p3 = [cw["chat_details"]["id"] for cw in all_chats_from_server if cw["chat_details"]["id"] in client_chat_ids_set]
-            batch_server_versions_p3 = await cache_service.get_batch_chat_versions(user_id, existing_chat_ids_p3) if existing_chat_ids_p3 else {}
-
-            for chat_wrapper in all_chats_from_server:
-                chat_id = chat_wrapper["chat_details"]["id"]
-                chat_is_missing = chat_id not in client_chat_ids_set
-
-                if not chat_is_missing:
-                    # Client has the chat - check if it's up-to-date
-                    cached_server_versions = batch_server_versions_p3.get(chat_id)
-                    client_versions = client_chat_versions.get(chat_id, {})
-
-                    if cached_server_versions:
-                        client_messages_v = client_versions.get("messages_v", 0)
-                        client_title_v = client_versions.get("title_v", 0)
-
-                        # CRITICAL FIX: Use the higher of cache vs chat_details messages_v
-                        # Cache may be stale if Celery task updated Directus but cache wasn't refreshed
-                        chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
-                        server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
-                        server_title_v = cached_server_versions.title_v
-
-                        # If both message and title versions are up-to-date, skip entirely.
-                        if (client_messages_v >= server_messages_v and
-                            client_title_v >= server_title_v):
-                            logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date "
-                                       f"(client: m={client_messages_v}, t={client_title_v}; "
-                                       f"server: m={server_messages_v}, t={server_title_v})")
-                            chats_skipped += 1
-                            continue
-
-                # Chat is missing or outdated - add to send list with messages
-                chats_to_send.append(chat_wrapper)
-                logger.debug(f"Phase 3: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
-            
-            logger.info(f"Phase 3: Sending {len(chats_to_send)}/{len(all_chats_from_server)} chats (skipped {chats_skipped} up-to-date)")
-            
-            if chats_to_send:
-                # Try sync cache first, fallback to Directus
-                messages_added_count = 0
-                chat_ids_to_fetch_from_directus = []
-
-                # Batch fetch versions for chats_to_send
-                send_chat_ids_p3 = [cw["chat_details"]["id"] for cw in chats_to_send]
-                batch_send_versions_p3 = await cache_service.get_batch_chat_versions(user_id, send_chat_ids_p3) if send_chat_ids_p3 else {}
-
-                # Try sync cache for each chat, but ONLY if messages are actually needed
-                for chat_wrapper in chats_to_send:
-                    chat_id = chat_wrapper["chat_details"]["id"]
-
-                    # CRITICAL FIX: Check if messages are actually needed before fetching
-                    # A chat can be in chats_to_send because title_v is outdated, but messages_v might be up-to-date
-                    # Skip fetching messages if client already has up-to-date messages (even if sync cache is empty)
-                    client_versions = client_chat_versions.get(chat_id, {})
-
-                    # Get server versions from batch fetch, fallback to chat metadata if cache is empty
-                    # CRITICAL FIX: Use max(cache, chat_details) to avoid stale cache versions
-                    server_versions = batch_send_versions_p3.get(chat_id)
-                    chat_details_messages_v = chat_wrapper.get("chat_details", {}).get("messages_v", 0)
-                    if not server_versions:
-                        server_messages_v = chat_details_messages_v
-                    else:
-                        server_messages_v = max(server_versions.messages_v, chat_details_messages_v)
-
-                    if client_versions:
-                        client_messages_v = client_versions.get("messages_v", 0)
-
-                        # If client already has up-to-date messages, skip fetching entirely
-                        # Client will use messages from IndexedDB
-                        if client_messages_v >= server_messages_v:
-                            # CRITICAL: Get server message count for client-side validation
-                            # This allows client to detect data inconsistency (version matches but messages missing)
-                            try:
-                                server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                                chat_wrapper["server_message_count"] = server_message_count
-
-                                # CRITICAL FIX: Version mismatch detection (same as Phase 1)
-                                # If Directus has more messages than messages_v indicates,
-                                # the version is stale — force full message fetch
-                                if server_message_count is not None and server_message_count > server_messages_v:
-                                    logger.warning(
-                                        f"[PHASE3_MESSAGES] 🚨 VERSION MISMATCH DETECTED for chat {chat_id}! "
-                                        f"messages_v={server_messages_v}, actual_count={server_message_count}. "
-                                        f"Forcing full message fetch to ensure consistency."
-                                    )
-                                    # Don't skip - fall through to message fetch below
-                                else:
-                                    logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                               f"(client: m={client_messages_v}, server: m={server_messages_v}, count={server_message_count})")
-                                    # Ensure messages is None to indicate client should use local data
-                                    if "messages" not in chat_wrapper:
-                                        chat_wrapper["messages"] = None
-                                    continue
-                            except Exception as count_err:
-                                logger.warning(f"Phase 3: Failed to get message count for {chat_id}: {count_err}")
-                                # Continue without count - client will have to trust version
-                                logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                                           f"(client: m={client_messages_v}, server: m={server_messages_v})")
-                                # Ensure messages is None to indicate client should use local data
-                                if "messages" not in chat_wrapper:
-                                    chat_wrapper["messages"] = None
-                                continue
-                    
-                    # Messages are needed - try sync cache first
-                    try:
-                        cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
-                        if cached_sync_messages:
-                            cached_count = len(cached_sync_messages)
-                            logger.debug(f"Phase 3: Sync cache HIT for {cached_count} messages in chat {chat_id}")
-                            
-                            # CRITICAL FIX: Validate sync cache count against Directus
-                            # If sync cache has fewer messages than Directus, the cache is stale/incomplete
-                            try:
-                                directus_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
-                                chat_wrapper["server_message_count"] = directus_message_count
-                                
-                                if directus_message_count is not None and cached_count < directus_message_count:
-                                    logger.warning(
-                                        f"Phase 3: ⚠️ CACHE INCONSISTENCY for chat {chat_id}: "
-                                        f"Sync cache has {cached_count} messages but Directus has {directus_message_count}. "
-                                        f"Falling back to Directus."
-                                    )
-                                    chat_ids_to_fetch_from_directus.append(chat_id)
-                                else:
-                                    # Cache is valid, use it
-                                    chat_wrapper["messages"] = cached_sync_messages
-                                    messages_added_count += 1
-                            except Exception as count_err:
-                                logger.warning(f"Phase 3: Could not validate sync cache count for {chat_id}: {count_err}")
-                                # Use cached messages anyway (may be incomplete)
-                                chat_wrapper["messages"] = cached_sync_messages
-                                messages_added_count += 1
-                        else:
-                            logger.debug(f"Phase 3: Sync cache MISS for messages in chat {chat_id}")
-                            chat_ids_to_fetch_from_directus.append(chat_id)
-                    except Exception as cache_error:
-                        logger.warning(f"Phase 3: Error reading messages from sync cache for {chat_id}: {cache_error}")
-                        chat_ids_to_fetch_from_directus.append(chat_id)
-                
-                # Fetch from Directus only for sync cache misses AND when messages are actually needed
-                if chat_ids_to_fetch_from_directus:
-                    logger.info(f"Phase 3: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (sync cache misses)")
-                    
-                    try:
-                        all_messages_dict = await directus_service.chat.get_messages_for_chats(
-                            chat_ids=chat_ids_to_fetch_from_directus, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-                        )
-                        
-                        # Add messages to their respective chats
-                        for chat_wrapper in chats_to_send:
-                            chat_id = chat_wrapper["chat_details"]["id"]
-                            if chat_id in chat_ids_to_fetch_from_directus:
-                                messages = all_messages_dict.get(chat_id, [])
-                                if messages:
-                                    chat_wrapper["messages"] = messages
-                                    messages_added_count += 1
-                                    logger.debug(f"Phase 3: Added {len(messages)} messages for chat {chat_id} from Directus")
-                                else:
-                                    logger.debug(f"Phase 3: No messages found for chat {chat_id} in Directus")
-                    
-                    except Exception as messages_error:
-                        logger.error(f"Phase 3: Error fetching messages from Directus: {messages_error}", exc_info=True)
-                        # Continue anyway with just metadata - messages can be fetched on-demand
-
-                logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
-
-        # Collect all unique embeds across all chats (deduplicated by embed_id)
-        # CROSS-PHASE DEDUPLICATION: Filter out embeds already sent in Phase 1 and Phase 2
-        # CLIENT DEDUPLICATION: Filter out embeds the client already has in IndexedDB
+        # Send messages + embeds in chunked batches of 10
         import hashlib
-        client_embed_ids_set = set(client_embed_ids) if client_embed_ids else set()
-        new_embeds = {}  # embed_id -> embed data (phase-level deduplication)
-        for chat_wrapper in chats_to_send:
-            chat_id = chat_wrapper.get("chat_details", {}).get("id")
-            if chat_id:
+        BATCH_SIZE = 10
+        total_messages_sent = 0
+        total_embeds_sent = 0
+        batch_num = 0
+
+        for i in range(0, len(chats_needing_messages), BATCH_SIZE):
+            batch_chat_ids = chats_needing_messages[i:i + BATCH_SIZE]
+            batch_num += 1
+            batch_data: List[Dict[str, Any]] = []
+
+            for chat_id in batch_chat_ids:
+                messages_data: List[str] = []
+
+                # Try sync cache first
                 try:
-                    # Try sync cache first, then Directus fallback
-                    embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
-                    if not embeds:
-                        # Fallback to Directus
-                        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-                        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-                    
-                    if embeds:
-                        for embed in embeds:
+                    cached = await cache_service.get_sync_messages_history(user_id, chat_id)
+                    if cached:
+                        messages_data = cached
+                except Exception:
+                    pass
+
+                # Fallback to Directus
+                if not messages_data:
+                    try:
+                        messages_data = await directus_service.chat.get_all_messages_for_chat(
+                            chat_id=chat_id, decrypt_content=False
+                        ) or []
+                    except Exception as e:
+                        logger.warning(f"Phase 3: Failed to fetch messages for {chat_id}: {e}")
+
+                server_ver = batch_versions.get(chat_id)
+                server_messages_v = server_ver.messages_v if server_ver else len(messages_data)
+
+                batch_data.append({
+                    "chat_id": chat_id,
+                    "messages": messages_data,
+                    "server_message_count": len(messages_data),
+                    "messages_v": max(server_messages_v, len(messages_data))
+                })
+                total_messages_sent += len(messages_data)
+
+            # Fetch embeds + embed_keys for this batch so they're available offline
+            batch_embeds: List[Dict[str, Any]] = []
+            batch_embed_keys: List[Dict[str, Any]] = []
+            batch_seen_embed_ids: set = set()
+            batch_seen_key_ids: set = set()
+            batch_hashed_ids: List[str] = []
+
+            for chat_id in batch_chat_ids:
+                hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                batch_hashed_ids.append(hashed_id)
+
+                try:
+                    raw_embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
+                    if not raw_embeds:
+                        raw_embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_id)
+                    if raw_embeds:
+                        for embed in raw_embeds:
                             embed_id = embed.get("embed_id")
                             embed_status = embed.get("status")
-                            # Skip if: already sent this session, already collected this phase,
-                            # error/cancelled status, OR client already has it in IndexedDB
-                            if (embed_id
+                            if (embed_id and embed_id not in batch_seen_embed_ids
                                     and embed_id not in sent_embed_ids
-                                    and embed_id not in new_embeds
-                                    and embed_status not in ("error", "cancelled")
-                                    and embed_id not in client_embed_ids_set):
-                                new_embeds[embed_id] = embed
-                        logger.debug(f"Phase 3: Found {len(embeds)} embeds for chat {chat_id}")
+                                    and embed_id not in (client_embed_ids or set())
+                                    and embed_status not in ("error", "cancelled")):
+                                batch_embeds.append(embed)
+                                batch_seen_embed_ids.add(embed_id)
+                                sent_embed_ids.add(embed_id)
                 except Exception as e:
-                    logger.warning(f"Phase 3: Error fetching embeds for chat {chat_id}: {e}")
-        
-        embeds_list = list(new_embeds.values())
-        # Track all newly sent embeds (for completeness, though Phase 3 is last)
-        for embed_id in new_embeds.keys():
-            sent_embed_ids.add(embed_id)
-        
-        if embeds_list:
-            logger.info(f"Phase 3: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across all phases)")
+                    logger.warning(f"Phase 3: Error fetching embeds for {chat_id}: {e}")
 
-        # CRITICAL: Batch fetch embed_keys for all chats in this phase (optimized)
-        # Embed keys are needed to decrypt the encrypted embed content on the client
-        # OPTIMIZATION: Use batch method to reduce from N*2 queries to just 2 queries
-        all_embed_keys = []
-        seen_embed_key_ids = set()  # Deduplicate by id
-        
-        # Collect hashed_chat_ids for batch embed_keys fetch.
-        # CRITICAL: Use ALL chats (not just chats_to_send) — same rationale as Phase 2:
-        # embed_keys may be missing from client IDB even when chat versions match.
-        hashed_chat_ids_for_keys = []
-        for chat_wrapper in all_chats_from_server:
-            chat_id = chat_wrapper.get("chat_details", {}).get("id")
-            if chat_id:
-                hashed_chat_ids_for_keys.append(hashlib.sha256(chat_id.encode()).hexdigest())
+            # Batch fetch embed_keys for this batch's chats
+            if batch_hashed_ids:
+                try:
+                    keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(batch_hashed_ids)
+                    if keys:
+                        for key_entry in keys:
+                            key_id = key_entry.get("id")
+                            if key_id and key_id not in batch_seen_key_ids:
+                                batch_embed_keys.append(key_entry)
+                                batch_seen_key_ids.add(key_id)
+                except Exception as e:
+                    logger.warning(f"Phase 3: Error batch fetching embed_keys: {e}")
 
-        if hashed_chat_ids_for_keys:
-            try:
-                # Batch fetch all embed_keys for all chats in 2 queries instead of N*2
-                batch_embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_chat_ids_for_keys)
-                if batch_embed_keys:
-                    for key_entry in batch_embed_keys:
-                        key_id = key_entry.get("id")
-                        if key_id and key_id not in seen_embed_key_ids:
-                            all_embed_keys.append(key_entry)
-                            seen_embed_key_ids.add(key_id)
-            except Exception as e:
-                logger.warning(f"Phase 3: Error batch fetching embed_keys for {len(hashed_chat_ids_for_keys)} chats: {e}")
+            total_embeds_sent += len(batch_embeds)
 
-        if all_embed_keys:
-            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(all_chats_from_server)} chats (batch optimized, includes version-matched)")
+            # Send each batch as a separate WS message to avoid congestion
+            payload_data: Dict[str, Any] = {
+                "chats": batch_data,
+                "batch_number": batch_num,
+                "is_last_batch": (i + BATCH_SIZE >= len(chats_needing_messages))
+            }
+            # Only include embeds/keys if present (saves bandwidth for chats without embeds)
+            if batch_embeds:
+                payload_data["embeds"] = batch_embeds
+            if batch_embed_keys:
+                payload_data["embed_keys"] = batch_embed_keys
 
-        # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
-        # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
-        # total_chat_count tells the client whether there are more chats beyond the 100 synced
-        await manager.send_personal_message(
-            {
-                "type": "phase_3_last_100_chats_ready",
-                "payload": {
-                    "chats": chats_to_send,
-                    "embeds": embeds_list,  # Flat deduplicated array
-                    "embed_keys": all_embed_keys,  # Flat deduplicated array of embed keys
-                    "chat_count": len(chats_to_send),
-                    "total_chat_count": total_chat_count,  # Total chats on server (for "Show more" button)
-                    "phase": "phase3"
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
+            await manager.send_personal_message(
+                {
+                    "type": "background_message_sync",
+                    "payload": payload_data
+                },
+                user_id,
+                device_fingerprint_hash
+            )
 
-        phase3_elapsed = time.perf_counter() - phase3_start
-        logger.info(f"Phase 3 sync complete for user {user_id} in {phase3_elapsed:.3f}s, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys (skipped: {chats_skipped})")
+            logger.debug(
+                f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats, "
+                f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys)"
+            )
 
-        # Clear sync cache after successful Phase 3 completion (1h TTL, no longer needed)
+        # Clear sync cache after successful completion
         try:
             deleted_count = await cache_service.clear_all_sync_messages_for_user(user_id)
-            logger.info(f"Cleared {deleted_count} sync message caches for user {user_id[:8]}... after Phase 3 completion")
+            logger.info(f"Cleared {deleted_count} sync message caches for user {user_id[:8]}...")
         except Exception as clear_error:
-            logger.warning(f"Failed to clear sync cache for user {user_id[:8]}... after Phase 3: {clear_error}")
-        
-        # After Phase 3 completes, trigger app settings and memories sync
+            logger.warning(f"Failed to clear sync cache: {clear_error}")
+
+        # Trigger app settings and memories sync
         try:
-            await _handle_app_settings_memories_sync(
-                manager, directus_service, user_id, device_fingerprint_hash
-            )
+            await _handle_app_settings_memories_sync(manager, directus_service, user_id, device_fingerprint_hash)
         except Exception as app_data_error:
-            logger.warning(f"Failed to sync app settings/memories for user {user_id[:8]}... after Phase 3: {app_data_error}", exc_info=True)
-        
+            logger.warning(f"Failed to sync app settings/memories: {app_data_error}", exc_info=True)
+
+        phase3_elapsed = time.perf_counter() - phase3_start
+        logger.info(
+            f"Phase 3 complete for user {user_id} in {phase3_elapsed:.3f}s: "
+            f"{len(chats_needing_messages)} chats, {total_messages_sent} messages, "
+            f"{total_embeds_sent} embeds in {batch_num} batches"
+        )
+
     except Exception as e:
         logger.error(f"Error in Phase 3 sync for user {user_id}: {e}", exc_info=True)
 
@@ -1636,8 +1072,8 @@ async def handle_sync_status_request(
     encryption_service: EncryptionService,
     user_id: str,
     device_fingerprint_hash: str,
-    payload: Dict[str, Any]
-):
+    payload: Dict[str, Any],
+    user_otel_attrs: dict = None,):
     """
     Handles sync status requests from the client.
     Returns the current sync status and progress.
@@ -1646,56 +1082,71 @@ async def handle_sync_status_request(
     this handler auto-dispatches a cache warming task so the client doesn't get stuck waiting
     forever. The client will receive a cache_primed push event when warming completes.
     """
+    _otel_span, _otel_token = None, None
     try:
-        logger.info(f"Handling sync status request for user {user_id}")
-        
-        # Check cache primed status
-        cache_primed = await cache_service.is_user_cache_primed(user_id)
-        
-        # Get current chat count from cache
-        chat_ids = await cache_service.get_chat_ids_versions(user_id, with_scores=False)
-        chat_count = len(chat_ids) if chat_ids else 0
-        
-        logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
-        
-        # AUTO-REWARM: If cache is not primed (e.g. primed_flag TTL expired after device was
-        # offline for >6 hours), dispatch a new cache warming task. Without this, the client
-        # would be stuck forever at "Loading chats..." because:
-        # 1. The client only calls /lookup during initial login (not on WebSocket reconnect)
-        # 2. /lookup is what normally triggers cache warming
-        # 3. The cache_primed push event from the original warming task is long gone
-        # This ensures that reconnecting devices always get their cache re-warmed.
-        if not cache_primed:
-            await _trigger_cache_rewarming_if_needed(cache_service, user_id)
-        
-        # Send sync status to client
-        await manager.send_personal_message(
-            {
-                "type": "sync_status_response",
-                "payload": {
-                    "is_primed": cache_primed,  # Frontend expects 'is_primed' not 'cache_primed'
-                    "chat_count": chat_count,
-                    "timestamp": int(datetime.now(timezone.utc).timestamp())
-                }
-            },
-            user_id,
-            device_fingerprint_hash
-        )
-        
-        logger.info(f"Sync status sent for user {user_id}: primed={cache_primed}, chats={chat_count}")
-        
-    except Exception as e:
-        logger.error(f"Error handling sync status for user {user_id}: {e}", exc_info=True)
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("sync_status_request", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
         try:
+            logger.info(f"Handling sync status request for user {user_id}")
+        
+            # Check cache primed status
+            cache_primed = await cache_service.is_user_cache_primed(user_id)
+        
+            # Get current chat count from cache
+            chat_ids = await cache_service.get_chat_ids_versions(user_id, with_scores=False)
+            chat_count = len(chat_ids) if chat_ids else 0
+        
+            logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
+        
+            # AUTO-REWARM: If cache is not primed (e.g. primed_flag TTL expired after device was
+            # offline for >6 hours), dispatch a new cache warming task. Without this, the client
+            # would be stuck forever at "Loading chats..." because:
+            # 1. The client only calls /lookup during initial login (not on WebSocket reconnect)
+            # 2. /lookup is what normally triggers cache warming
+            # 3. The cache_primed push event from the original warming task is long gone
+            # This ensures that reconnecting devices always get their cache re-warmed.
+            if not cache_primed:
+                await _trigger_cache_rewarming_if_needed(cache_service, user_id)
+        
+            # Send sync status to client
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to get sync status"}},
+                {
+                    "type": "sync_status_response",
+                    "payload": {
+                        "is_primed": cache_primed,  # Frontend expects 'is_primed' not 'cache_primed'
+                        "chat_count": chat_count,
+                        "timestamp": int(datetime.now(timezone.utc).timestamp())
+                    }
+                },
                 user_id,
                 device_fingerprint_hash
             )
-        except Exception as send_err:
-            logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
+        
+            logger.info(f"Sync status sent for user {user_id}: primed={cache_primed}, chats={chat_count}")
+        
+        except Exception as e:
+            logger.error(f"Error handling sync status for user {user_id}: {e}", exc_info=True)
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to get sync status"}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+            except Exception as send_err:
+                logger.error(f"Failed to send error message to {user_id}/{device_fingerprint_hash}: {send_err}")
 
 
+
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
+                _end_span(_otel_span, _otel_token)
+            except Exception:
+                pass
 async def _trigger_cache_rewarming_if_needed(
     cache_service: CacheService,
     user_id: str

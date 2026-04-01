@@ -24,6 +24,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import Icon from '../Icon.svelte';
     
     const dispatch = createEventDispatcher();
@@ -188,11 +189,7 @@
         
         <!-- Model info section -->
         <div class="section">
-            <SettingsItem
-                type="heading"
-                icon="insight"
-                title={$text('common.details')}
-            />
+            <SettingsSectionHeading title={$text('common.details')} icon="insight" />
             <div class="info-content">
                 <!-- Origin -->
                 <div class="info-row">
@@ -246,11 +243,7 @@
         {#if model.pricing?.input_tokens_per_credit || model.pricing?.output_tokens_per_credit}
             <!-- Token-based pricing (AI text models) -->
             <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="coins"
-                    title={$text('common.pricing')}
-                />
+                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
                     {#if model.pricing?.input_tokens_per_credit}
                         <div class="pricing-row">
@@ -275,11 +268,7 @@
         {:else if model.pricing?.per_unit || model.pricing?.per_minute !== undefined}
             <!-- Per-unit / per-minute pricing from model metadata (image/audio models) -->
             <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="coins"
-                    title={$text('common.pricing')}
-                />
+                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
                     {#if model.pricing?.per_unit}
                         <div class="pricing-row">
@@ -307,11 +296,7 @@
         {:else if skill?.pricing}
             <!-- Fallback: skill-level pricing when the model itself has no pricing data -->
             <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="coins"
-                    title={$text('common.pricing')}
-                />
+                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
                 <div class="pricing-content">
                     {#if skill.pricing.per_unit}
                         <div class="pricing-row">
@@ -348,11 +333,7 @@
         <!-- Provider / Servers section -->
         {#if model.servers && model.servers.length > 0}
             <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="server"
-                    title={$text('common.provider')}
-                />
+                <SettingsSectionHeading title={$text('common.provider')} icon="server" />
                 <div class="provider-list">
                     {#each model.servers as server (server.id)}
                         <div class="provider-item">

@@ -1223,7 +1223,7 @@
     });
 </script>
 
-<div class="read-only-message" class:is-streaming={isStreaming} class:is-selectable={selectable}>
+<div class="read-only-message" data-testid="message-content" class:is-streaming={isStreaming} class:is-selectable={selectable}>
     <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
          before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
          Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->

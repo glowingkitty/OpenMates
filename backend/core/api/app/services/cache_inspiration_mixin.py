@@ -21,7 +21,9 @@
 #   generation and their personalisation data is not lost.
 #
 # Privacy notes:
-# - Topic suggestions are stored encrypted (per-user, not cross-user)
+# - Topic suggestions are stored in Redis (per-user, not cross-user). When dumped to
+#   disk, the entire backup payload is encrypted with Vault transit before writing,
+#   so no cleartext user interest data touches the host filesystem.
 # - Pending inspirations are encrypted with the user's vault key (server can decrypt
 #   for delivery, but nothing is stored in Directus - only in transient cache)
 # - View tracking stores only inspiration UUIDs, not content
@@ -31,7 +33,10 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.core.api.app.utils.encryption import EncryptionService
 
 # Disk backup path for inspiration cache — written on shutdown, read on startup.
 # Stored under /shared/cache/ (same volume as all other cache backups).
@@ -724,7 +729,10 @@ class InspirationCacheMixin:
     # Disk persistence (restart resilience)
     # ──────────────────────────────────────────────────────────────────────────
 
-    async def dump_inspiration_cache_to_disk(self) -> int:
+    async def dump_inspiration_cache_to_disk(
+        self,
+        encryption_service: Optional["EncryptionService"] = None,
+    ) -> int:
         """
         Dump topic suggestions and paid-request tracking entries to disk.
 
@@ -736,14 +744,29 @@ class InspirationCacheMixin:
         - daily_inspiration_topics:{user_id}   — topic suggestion batches (72 h TTL)
         - daily_inspiration_last_paid_request:{user_id} — paid-request tracker (48 h TTL)
 
-        Both keys are per-user and contain no plaintext PII — topic suggestions
-        are phrase-level strings (not chat content), and the paid-request entry
-        is a timestamp + language code only.
+        Topic suggestions are short interest phrases derived from user conversations
+        (e.g. "tenant heating rights") and are considered privacy-sensitive. The entire
+        backup payload is encrypted with Vault transit before writing to disk so that
+        no cleartext user interest data touches the host filesystem.
+
+        The paid-request entry is a timestamp + language code only (not sensitive),
+        but is encrypted together with topics for simplicity.
+
+        Args:
+            encryption_service: EncryptionService instance for Vault transit encryption.
+                If not provided, the backup is skipped to avoid writing cleartext.
 
         Returns:
             Total number of Redis keys written to the backup file (0 on error).
         """
         try:
+            if not encryption_service:
+                logger.warning(
+                    "[CACHE] Cannot dump inspiration cache to disk: no encryption_service "
+                    "provided (refusing to write cleartext user data to disk)"
+                )
+                return 0
+
             client = await self.client
             if not client:
                 logger.warning("[CACHE] Cannot dump inspiration cache to disk: Redis not connected")
@@ -798,12 +821,35 @@ class InspirationCacheMixin:
                 "timestamp": now_ts,
                 "entries": entries,
             }
+
+            # Encrypt the entire backup payload with Vault transit before writing to disk.
+            # Topic suggestions are short interest phrases derived from user conversations
+            # and must not be stored in cleartext on the host filesystem.
+            plaintext_json = json.dumps(backup_data)
+            try:
+                ciphertext, _key_version = await encryption_service.encrypt(
+                    plaintext_json, key_name="user_data"
+                )
+            except Exception as enc_err:
+                logger.error(
+                    f"[CACHE] Failed to encrypt inspiration cache backup — "
+                    f"refusing to write cleartext to disk: {enc_err}",
+                    exc_info=True,
+                )
+                return 0
+
+            # Write the Vault-encrypted ciphertext (not raw JSON) to disk.
+            # Format: {"encrypted": "vault:v1:...", "version": 1}
+            encrypted_wrapper = {
+                "encrypted": ciphertext,
+                "version": 1,
+            }
             with open(INSPIRATION_CACHE_BACKUP_PATH, "w") as fh:
-                json.dump(backup_data, fh)
+                json.dump(encrypted_wrapper, fh)
 
             logger.info(
-                f"[CACHE] Dumped {len(entries)} inspiration cache entries to disk at "
-                f"{INSPIRATION_CACHE_BACKUP_PATH}"
+                f"[CACHE] Dumped {len(entries)} inspiration cache entries to disk "
+                f"(Vault-encrypted) at {INSPIRATION_CACHE_BACKUP_PATH}"
             )
             return len(entries)
 
@@ -811,17 +857,27 @@ class InspirationCacheMixin:
             logger.error(f"[CACHE] Error dumping inspiration cache to disk: {e}", exc_info=True)
             return 0
 
-    async def restore_inspiration_cache_from_disk(self) -> int:
+    async def restore_inspiration_cache_from_disk(
+        self,
+        encryption_service: Optional["EncryptionService"] = None,
+    ) -> int:
         """
         Restore topic suggestions and paid-request tracking entries from disk backup.
 
         Called during startup to recover inspiration personalisation and eligibility
-        state after a server restart.  Mirrors restore_orders_from_disk() / 
-        restore_orders_from_disk().
+        state after a server restart.  Mirrors restore_orders_from_disk().
+
+        The backup file is Vault-encrypted (since the privacy fix). Legacy unencrypted
+        backups are detected and deleted without restoring (they contain cleartext user
+        interest data that should not have been written).
 
         Entries whose effective remaining TTL has already elapsed are skipped
         (they would have expired in Redis anyway — no point restoring stale data).
         The backup file is deleted after a successful restore attempt.
+
+        Args:
+            encryption_service: EncryptionService instance for Vault transit decryption.
+                If not provided, encrypted backups cannot be restored.
 
         Returns:
             Number of Redis keys successfully restored (0 if nothing to restore).
@@ -832,7 +888,46 @@ class InspirationCacheMixin:
                 return 0
 
             with open(INSPIRATION_CACHE_BACKUP_PATH, "r") as fh:
-                backup_data = json.load(fh)
+                raw_backup = json.load(fh)
+
+            # Detect format: encrypted (version 1+) vs legacy cleartext
+            if "encrypted" in raw_backup and "version" in raw_backup:
+                # Vault-encrypted backup — decrypt before processing
+                if not encryption_service:
+                    logger.warning(
+                        "[CACHE] Inspiration cache backup is encrypted but no encryption_service "
+                        "provided — cannot restore. File will be kept for next attempt."
+                    )
+                    return 0
+                ciphertext = raw_backup["encrypted"]
+                try:
+                    decrypted_json = await encryption_service.decrypt(
+                        ciphertext, key_name="user_data"
+                    )
+                    if not decrypted_json:
+                        logger.error("[CACHE] Vault decryption returned empty result for inspiration backup")
+                        os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+                        return 0
+                    backup_data = json.loads(decrypted_json)
+                except Exception as dec_err:
+                    logger.error(
+                        f"[CACHE] Failed to decrypt inspiration cache backup: {dec_err}",
+                        exc_info=True,
+                    )
+                    os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+                    return 0
+            elif "entries" in raw_backup:
+                # Legacy cleartext backup — delete it without restoring (privacy violation)
+                logger.warning(
+                    "[CACHE] Found legacy cleartext inspiration cache backup — deleting "
+                    "without restoring (cleartext user interest data should not be on disk)"
+                )
+                os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+                return 0
+            else:
+                logger.error("[CACHE] Unrecognized inspiration cache backup format — deleting")
+                os.remove(INSPIRATION_CACHE_BACKUP_PATH)
+                return 0
 
             entries: List[Dict[str, Any]] = backup_data.get("entries", [])
             backup_written_at: int = backup_data.get("timestamp", 0)

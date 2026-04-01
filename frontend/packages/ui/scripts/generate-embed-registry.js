@@ -790,6 +790,213 @@ function main() {
   console.log(
     `[generate-embed-registry] ✓ All ${expectedGroupTypes.length} GroupRenderer types have registered mounters`,
   );
+
+  // -------------------------------------------------------------------------
+  // Validate GroupHandlerRegistry — fail if a groupable type has no handler.
+  // This catches the common mistake of adding groupable: true in app.yml
+  // without implementing and registering a group handler.
+  // -------------------------------------------------------------------------
+  const groupHandlersPath = resolve(
+    __dirname,
+    "../src/message_parsing/groupHandlers.ts",
+  );
+  const groupHandlersSource = readFileSync(groupHandlersPath, "utf-8");
+
+  // Extract registered handler embedType values.
+  // Matches both: explicit classes with `embedType = "type-name"`
+  // and BaseGroupHandler instances: `new BaseGroupHandler("type-name", ...)`
+  const registeredHandlers = new Set();
+
+  // Pattern 1: class-based handlers — embedType = "type-name"
+  const classHandlerPattern = /embedType\s*=\s*"([^"]+)"/g;
+  let handlerMatch;
+  while ((handlerMatch = classHandlerPattern.exec(groupHandlersSource)) !== null) {
+    registeredHandlers.add(handlerMatch[1]);
+  }
+
+  // Pattern 2: BaseGroupHandler instances — new BaseGroupHandler("type-name", ...)
+  const baseHandlerPattern = /new BaseGroupHandler\(\s*"([^"]+)"/g;
+  while ((handlerMatch = baseHandlerPattern.exec(groupHandlersSource)) !== null) {
+    registeredHandlers.add(handlerMatch[1]);
+  }
+
+  // Only validate types that have explicit groupable: true in app.yml.
+  // Child types auto-inherited from has_children are grouped via the
+  // EmbedPreviewLarge carousel system, not GroupHandlerRegistry.
+  const explicitlyGroupableTypes = allEmbedTypes
+    .filter((def) => def.groupable && def.frontend_type)
+    .map((def) => def.frontend_type);
+
+  const missingHandlers = explicitlyGroupableTypes.filter(
+    (t) => !registeredHandlers.has(t) && t !== "app-skill-use",
+  );
+  if (missingHandlers.length > 0) {
+    console.error(
+      `\n[generate-embed-registry] ERROR: GroupHandlerRegistry is missing ${missingHandlers.length} handler(s) for groupable types:`,
+    );
+    for (const t of missingHandlers) {
+      console.error(
+        `  - "${t}" (add a BaseGroupHandler or custom handler in groupHandlers.ts)`,
+      );
+    }
+    console.error(
+      `\nSee docs/contributing/guides/add-embed-type.md for the registration checklist.\n`,
+    );
+    process.exit(1);
+  }
+  console.log(
+    `[generate-embed-registry] ✓ All ${explicitlyGroupableTypes.length} explicitly groupable types have registered handlers`,
+  );
+
+  // -------------------------------------------------------------------------
+  // Validate AppSkillUseRenderer routing — fail if an app-skill-use embed
+  // type has no routing block in AppSkillUseRenderer.ts.
+  // -------------------------------------------------------------------------
+  const appSkillRendererPath = resolve(
+    __dirname,
+    "../src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts",
+  );
+  const appSkillRendererSource = readFileSync(appSkillRendererPath, "utf-8");
+
+  // Extract routing blocks. Two patterns:
+  // 1. appId === "x" && skillId === "y"
+  // 2. appId === "x" && (skillId === "y" || skillId === "z")
+  const registeredRoutes = new Set();
+
+  // Pattern 1: direct appId && skillId
+  const routingPattern1 = /appId\s*===\s*"([^"]+)"\s*&&\s*skillId\s*===\s*"([^"]+)"/g;
+  let routeMatch;
+  while ((routeMatch = routingPattern1.exec(appSkillRendererSource)) !== null) {
+    registeredRoutes.add(`${routeMatch[1]}:${routeMatch[2]}`);
+  }
+
+  // Pattern 2: appId === "x" && (skillId === "y" || skillId === "z")
+  // Also catches: appId === "x" && \n (...skillId === "y" || skillId === "z")
+  const routingPattern2 =
+    /appId\s*===\s*"([^"]+)"\s*&&\s*\n?\s*\(?(?:skillId\s*===\s*"([^"]+)"(?:\s*\|\|\s*skillId\s*===\s*"([^"]+)")*)/g;
+  while ((routeMatch = routingPattern2.exec(appSkillRendererSource)) !== null) {
+    const appId = routeMatch[1];
+    // Capture all skillId alternatives from the match
+    for (let i = 2; i < routeMatch.length; i++) {
+      if (routeMatch[i]) registeredRoutes.add(`${appId}:${routeMatch[i]}`);
+    }
+  }
+
+  // Also extract CHILD_TYPE_OVERRIDES from AppSkillUseRenderer — skills routed
+  // via child type override (e.g. travel:get_flight → flight) don't need a
+  // direct appId/skillId routing block.
+  const childOverrideBlock = appSkillRendererSource.match(
+    /CHILD_TYPE_OVERRIDES[^{]*\{([\s\S]*?)\}/,
+  );
+  const childTypeRoutes = new Set();
+  if (childOverrideBlock) {
+    const childPattern = /(\w+)\s*:\s*true/g;
+    let childMatch;
+    while ((childMatch = childPattern.exec(childOverrideBlock[1])) !== null) {
+      childTypeRoutes.add(childMatch[1]);
+    }
+  }
+
+  // Get all app-skill-use types that need routing.
+  // Exclude types whose skill_id maps to a child_type that's handled via
+  // CHILD_TYPE_OVERRIDES (e.g. travel:get_flight → child_type "flight").
+  const expectedRoutes = allEmbedTypes
+    .filter((def) => def.category === "app-skill-use" && def.app_id && def.skill_id)
+    .map((def) => `${def.app_id}:${def.skill_id}`);
+
+  const missingRoutes = expectedRoutes.filter((r) => {
+    if (registeredRoutes.has(r)) return false;
+    // Check if this type's child_type is handled via CHILD_TYPE_OVERRIDES
+    const def = allEmbedTypes.find(
+      (d) => d.category === "app-skill-use" && `${d.app_id}:${d.skill_id}` === r,
+    );
+    if (def && def.child_type && childTypeRoutes.has(def.child_type)) return false;
+    return true;
+  });
+  if (missingRoutes.length > 0) {
+    // Warn instead of failing — some types use the generic fallback renderer
+    // and don't need explicit routing. Failing here would block builds for
+    // pre-existing gaps that work fine via the fallback.
+    console.warn(
+      `\n[generate-embed-registry] WARNING: AppSkillUseRenderer has no explicit routing for ${missingRoutes.length} type(s) (using generic fallback):`,
+    );
+    for (const r of missingRoutes) {
+      console.warn(
+        `  - "${r}" (consider adding routing in AppSkillUseRenderer.ts)`,
+      );
+    }
+  } else {
+    console.log(
+      `[generate-embed-registry] ✓ All ${expectedRoutes.length} app-skill-use types have AppSkillUseRenderer routing`,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Validate text renderers — fail if an embed type has no text renderer
+  // registered in embedTextRenderers.ts.
+  // -------------------------------------------------------------------------
+  const textRenderersPath = resolve(
+    __dirname,
+    "../src/data/embedTextRenderers.ts",
+  );
+  const textRenderersSource = readFileSync(textRenderersPath, "utf-8");
+
+  // Extract registered keys from EMBED_TEXT_RENDERERS object literal
+  const textRendererPattern = /['"]([^'"]+)['"]\s*:/g;
+  const registeredTextRenderers = new Set();
+  // Only parse within the EMBED_TEXT_RENDERERS block
+  const textRendererBlock = textRenderersSource.match(
+    /EMBED_TEXT_RENDERERS[^{]*\{([\s\S]*?)\};/,
+  );
+  if (textRendererBlock) {
+    let trMatch;
+    while ((trMatch = textRendererPattern.exec(textRendererBlock[1])) !== null) {
+      registeredTextRenderers.add(trMatch[1]);
+    }
+  }
+
+  // Build expected text renderer keys from all embed types
+  // (app-skill-use → "app:appId:skillId", direct/child → frontend_type)
+  const expectedTextRenderers = [];
+  for (const def of allEmbedTypes) {
+    if (def.category === "app-skill-use" && def.app_id && def.skill_id) {
+      expectedTextRenderers.push(`app:${def.app_id}:${def.skill_id}`);
+    }
+    if (def.child_frontend_type) {
+      expectedTextRenderers.push(def.child_frontend_type);
+    }
+    if (def.category === "direct" && def.frontend_type) {
+      expectedTextRenderers.push(def.frontend_type);
+    }
+  }
+
+  const missingTextRenderers = [...new Set(expectedTextRenderers)].filter(
+    (t) => !registeredTextRenderers.has(t),
+  );
+  if (missingTextRenderers.length > 0) {
+    console.error(
+      `\n[generate-embed-registry] ERROR: EMBED_TEXT_RENDERERS is missing ${missingTextRenderers.length} renderer(s):`,
+    );
+    for (const t of missingTextRenderers) {
+      console.error(
+        `  - "${t}" (add a text renderer in embedTextRenderers.ts)`,
+      );
+    }
+    console.error(
+      `\nSee docs/contributing/guides/add-embed-type.md for the registration checklist.\n`,
+    );
+    process.exit(1);
+  }
+  console.log(
+    `[generate-embed-registry] ✓ All ${expectedTextRenderers.length} embed types have text renderers`,
+  );
+
+  // NOTE: CHILD_TYPE_OVERRIDES validation (EmbedReferencePreview.svelte) is
+  // not feasible yet because the TOON content `type` field uses different
+  // names than the backend child_type (e.g. "health_result" vs "appointment").
+  // The mapping between these is not declared in app.yml. Adding a
+  // `toon_content_type` field to app.yml would enable this validation.
+  // See follow-up task for this improvement.
 }
 
 // Run

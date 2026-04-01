@@ -29,7 +29,7 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 /**
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
- * Includes retry logic for OTP timing edge cases.
+ * Includes retry logic for OTP timing edge cases and 429 rate limits.
  */
 async function loginToTestAccount(
 	page: any,
@@ -39,14 +39,40 @@ async function loginToTestAccount(
 ): Promise<void> {
 	const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+	// Monitor for 429 rate limit responses during login flow
+	let hit429 = false;
+	const on429 = (response: any) => {
+		if (response.status() === 429) {
+			hit429 = true;
+		}
+	};
+	page.on('response', on429);
+
 	await page.goto(getE2EDebugUrl('/'));
+
+	// Clear any rate-limit flags from previous test runs that would hide the login form
+	await page.evaluate(() => {
+		localStorage.removeItem('emailLookupRateLimit');
+		localStorage.removeItem('loginRateLimit');
+		localStorage.removeItem('passwordTfaRateLimit');
+	});
+
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginButton = page.getByRole('button', {
+	// Header button now opens the signup interface (not login directly).
+	// Click it, then switch to the Login tab before entering credentials.
+	const headerSignupButton = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
 	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
+	await expect(headerSignupButton).toBeVisible({ timeout: 15000 });
+	await headerSignupButton.click();
+	await takeStepScreenshot(page, 'signup-interface-opened');
+
+	// Click the "Login" tab in the login/signup tab bar to switch to the login form
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+	logCheckpoint('Clicked Login tab to switch from signup to login view.');
 	await takeStepScreenshot(page, 'login-dialog');
 
 	const emailInput = page.locator('#login-email-input');
@@ -74,6 +100,38 @@ async function loginToTestAccount(
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
+	// Retry if 429 hit on lookup — the EmailLookup component hides the form
+	// and shows a rate-limit message for 120s. To retry, we must clear the
+	// rate-limit flag from localStorage and reload the login interface so the
+	// form reappears. Max 3 retries with increasing back-off.
+	for (let retryCount = 0; retryCount < 3 && hit429; retryCount++) {
+		const waitSec = 5 + retryCount * 5;
+		logCheckpoint(`Hit 429 rate limit on lookup, waiting ${waitSec}s before retry ${retryCount + 1}...`);
+		hit429 = false;
+		await page.waitForTimeout(waitSec * 1000);
+
+		// Clear the client-side rate-limit flag so the form reappears
+		await page.evaluate(() => {
+			localStorage.removeItem('emailLookupRateLimit');
+			localStorage.removeItem('loginRateLimit');
+		});
+
+		// Reload the page to reset the EmailLookup component state
+		await page.goto(getE2EDebugUrl('/'));
+		const retrySignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
+		await retrySignupBtn.click();
+		const retryLoginTab = page.getByTestId('tab-login');
+		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
+		await retryLoginTab.click();
+
+		const retryEmailInput = page.locator('#login-email-input');
+		await expect(retryEmailInput).toBeVisible({ timeout: 15000 });
+		await retryEmailInput.fill(TEST_EMAIL);
+		await page.getByRole('button', { name: /continue/i }).click();
+		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
+	}
+
 	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
@@ -84,24 +142,38 @@ async function loginToTestAccount(
 
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	const errorMessage = page
-		.locator('.error-message, [class*="error"]')
+		.getByTestId('error-message')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
 
+	// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
+	// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
+	// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
+	// we cover the current window and both adjacent windows.
+	const MAX_OTP_ATTEMPTS = 5;
+	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+	// Positive auth signal: ActiveChat.svelte sets data-authenticated="true" on the
+	// container div when authStore.isAuthenticated becomes true. This is the most
+	// reliable login success detector because it's driven directly by the canonical
+	// auth state, not by UI visibility heuristics (which can race with animations).
+	const authSignal = page.locator('[data-authenticated="true"]');
+
 	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		// Avoid TOTP window boundary race: if we're in the last 3s of a 30s window,
+	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
+		// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
 		// wait for the next window so the generated code is valid long enough.
 		const nowSec = Math.floor(Date.now() / 1000);
 		const secondsIntoWindow = nowSec % 30;
-		if (secondsIntoWindow >= 27) {
+		if (secondsIntoWindow >= 25) {
 			const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
 			logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
 			await page.waitForTimeout(waitMs);
 		}
 
-		const otpCode = generateTotp(TEST_OTP_KEY);
+		const windowOffset = WINDOW_OFFSETS[attempt - 1];
+		const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
 		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
+		logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
 		if (attempt === 1) {
 			await takeStepScreenshot(page, 'otp-entered');
 		}
@@ -111,36 +183,46 @@ async function loginToTestAccount(
 		logCheckpoint('Submitted login form.');
 
 		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
+			// Primary success signal: data-authenticated="true" appears on the DOM.
+			// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
+			// which happens after setAuthenticatedState() runs in the login success chain.
+			await expect(authSignal).toBeVisible({ timeout: 15000 });
 			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
+			logCheckpoint('Login successful — data-authenticated="true" detected.');
 		} catch {
 			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with fresh code...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
+			if (hasError && attempt < MAX_OTP_ATTEMPTS) {
+				logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
+				// Wait longer between retries to allow time window to advance.
+				await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+			} else if (attempt === MAX_OTP_ATTEMPTS) {
+				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
 			}
 		}
 	}
 
+	// Clean up 429 listener
+	page.off('response', on429);
+
 	const { waitForEditor = true } = options;
 	if (waitForEditor) {
 		logCheckpoint('Waiting for chat interface to load...');
-		await page.waitForTimeout(3000);
-		const messageEditor = page.locator('.editor-content.prose');
+		// Brief settle time for post-auth UI transitions (WebSocket connect, phased sync start).
+		// Reduced from 3000ms — the auth state transition is now reliable (see fix in
+		// PasswordAndTfaOtp.svelte handleSuccessfulLogin Phase 1/Phase 2 split).
+		await page.waitForTimeout(1000);
+		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 20000 });
 		logCheckpoint('Chat interface loaded - message editor visible.');
 	} else {
 		logCheckpoint('Login complete (skipping editor wait).');
-		await page.waitForTimeout(2000);
+		await page.waitForTimeout(1000);
 	}
 }
 
 /**
  * Start a new chat session by clicking the new chat button.
- * Handles sidebar-closed scenario with multiple fallback selectors.
+ * Uses data-testid and data-action for stable selectors.
  */
 async function startNewChat(
 	page: any,
@@ -151,46 +233,57 @@ async function startNewChat(
 	const currentUrl = page.url();
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
-	const newChatButtonSelectors = [
-		'.new-chat-cta-button',
-		'.icon_create',
-		'button[aria-label*="New"]',
-		'button[aria-label*="new"]'
-	];
-
+	// Try stable selectors in priority order
+	const newChatButton = page.getByTestId('new-chat-button');
 	let clicked = false;
-	for (const selector of newChatButtonSelectors) {
-		const button = page.locator(selector).first();
-		if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-			logCheckpoint(`Found New Chat button with selector: ${selector}`);
-			await button.click();
+
+	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		logCheckpoint('Found New Chat button via data-testid');
+		await newChatButton.click();
+		clicked = true;
+		await page.waitForTimeout(2000);
+	}
+
+	if (!clicked) {
+		// Fallback: try data-action attribute
+		const actionButton = page.locator('[data-action="new-chat"]').first();
+		if (await actionButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+			logCheckpoint('Found New Chat button via data-action');
+			await actionButton.click();
 			clicked = true;
 			await page.waitForTimeout(2000);
-			break;
+		}
+	}
+
+	if (!clicked) {
+		// Fallback: try aria-label
+		const ariaButton = page.locator('button[aria-label*="New"], button[aria-label*="new"]').first();
+		if (await ariaButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+			logCheckpoint('Found New Chat button via aria-label');
+			await ariaButton.click();
+			clicked = true;
+			await page.waitForTimeout(2000);
 		}
 	}
 
 	if (!clicked) {
 		logCheckpoint('New Chat button not initially visible, trying to trigger it...');
-		const messageEditor = page.locator('.editor-content.prose');
+		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await messageEditor.click();
 			await page.keyboard.type(' ');
 			await page.waitForTimeout(500);
 
-			for (const selector of newChatButtonSelectors) {
-				const button = page.locator(selector).first();
-				if (await button.isVisible({ timeout: 3000 }).catch(() => false)) {
-					logCheckpoint(`Found New Chat button after typing: ${selector}`);
-					await button.click();
-					clicked = true;
-					await page.waitForTimeout(2000);
-					break;
-				}
+			const retryButton = page.getByTestId('new-chat-button');
+			if (await retryButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+				logCheckpoint('Found New Chat button after typing');
+				await retryButton.click();
+				clicked = true;
+				await page.waitForTimeout(2000);
 			}
 
 			if (clicked) {
-				const newEditor = page.locator('.editor-content.prose');
+				const newEditor = page.getByTestId('message-editor');
 				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
 					await newEditor.click();
 					await page.keyboard.press('Control+A');
@@ -210,7 +303,7 @@ async function startNewChat(
 
 /**
  * Send a message in the chat editor and wait for the send to complete.
- * Uses [data-action="send-message"] for a stable selector.
+ * Uses data-testid and data-action for stable selectors.
  */
 async function sendMessage(
 	page: any,
@@ -219,7 +312,7 @@ async function sendMessage(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	stepLabel: string = 'msg'
 ): Promise<void> {
-	const messageEditor = page.locator('.editor-content.prose');
+	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	await page.keyboard.type(message);
@@ -247,13 +340,13 @@ async function deleteActiveChat(
 	logCheckpoint('Attempting to delete the chat (best-effort cleanup)...');
 
 	try {
-		const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
 		if (await sidebarToggle.isVisible()) {
 			await sidebarToggle.click();
 			await page.waitForTimeout(500);
 		}
 
-		const activeChatItem = page.locator('.chat-item-wrapper.active');
+		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 
 		if (!(await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false))) {
 			logCheckpoint('No active chat item visible - skipping cleanup.');
@@ -261,7 +354,7 @@ async function deleteActiveChat(
 		}
 
 		try {
-			const chatTitle = await activeChatItem.locator('.chat-title').textContent();
+			const chatTitle = await activeChatItem.getByTestId('chat-title').textContent();
 			logCheckpoint(`Active chat title: "${chatTitle}"`);
 
 			if (
@@ -282,7 +375,7 @@ async function deleteActiveChat(
 		logCheckpoint('Opened chat context menu.');
 
 		await page.waitForTimeout(300);
-		const deleteButton = page.locator('.menu-item.delete');
+		const deleteButton = page.getByTestId('chat-context-delete');
 
 		if (!(await deleteButton.isVisible({ timeout: 3000 }).catch(() => false))) {
 			logCheckpoint('Delete button not visible in context menu - skipping cleanup.');
@@ -309,7 +402,7 @@ async function deleteActiveChat(
  * Wait for an assistant message to appear in the chat.
  */
 async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any> {
-	const assistantMessage = page.locator('.message-wrapper.assistant');
+	const assistantMessage = page.getByTestId('message-assistant');
 	await expect(assistantMessage.first()).toBeVisible({ timeout });
 	return assistantMessage;
 }

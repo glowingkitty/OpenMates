@@ -22,6 +22,9 @@ class UserDatabaseService {
   // Promise that resolves when an in-progress deleteDatabase() finishes.
   // Used by init() to wait for deletion instead of throwing permanently.
   private deletionPromise: Promise<void> | null = null;
+  // Tracks which resume timestamp was already logged for the grace period skip.
+  // Prevents log spam from repeated init() calls within the same grace window.
+  private _lastGraceLogTimestamp = 0;
 
   /**
    * Initialize the database.
@@ -35,6 +38,13 @@ class UserDatabaseService {
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
   async init(): Promise<void> {
+    // FAST PATH: If the database is already open and no deletion/logout is pending,
+    // skip orphan detection entirely. Eliminates log spam from repeated init() calls
+    // triggered by getChat, getAllChats, etc. after tab resume.
+    if (this.db && !this.isDeleting && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+      return;
+    }
+
     // If a deletion was in progress, complete it before re-opening the database.
     // A pending indexedDB.deleteDatabase() request blocks all subsequent open() calls
     // per the IDB spec — the open handlers never fire while a delete is pending.
@@ -122,9 +132,13 @@ class UserDatabaseService {
             : Infinity;
 
         if (timeSinceResume < RESUME_ORPHAN_GRACE_MS) {
-          console.warn(
-            `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period (${Math.round(timeSinceResume)}ms since resume)`,
-          );
+          // Log once per resume window to avoid spam from repeated init() calls
+          if (this._lastGraceLogTimestamp !== lastResumeTimestamp) {
+            this._lastGraceLogTimestamp = lastResumeTimestamp;
+            console.debug(
+              `[UserDatabase] Skipping orphan detection: within ${RESUME_ORPHAN_GRACE_MS}ms resume grace period`,
+            );
+          }
         } else {
           // Check if master key is missing but database was previously initialized
           const { getKeyFromStorage } = await import("./cryptoService");
@@ -722,6 +736,8 @@ class UserDatabaseService {
       const pushNotificationBannerShownRequest = store.get(
         "push_notification_banner_shown",
       );
+      const disabledAiModelsRequest = store.get("disabled_ai_models");
+      const disabledAiServersRequest = store.get("disabled_ai_servers");
       const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
@@ -912,6 +928,40 @@ class UserDatabaseService {
           pushNotificationBannerShownRequest.result !== undefined
             ? !!pushNotificationBannerShownRequest.result
             : undefined;
+      };
+
+      // Handle AI model enable/disable preferences retrieval
+      disabledAiModelsRequest.onsuccess = () => {
+        if (disabledAiModelsRequest.result) {
+          try {
+            profile.disabled_ai_models =
+              typeof disabledAiModelsRequest.result === "string"
+                ? JSON.parse(disabledAiModelsRequest.result)
+                : disabledAiModelsRequest.result;
+          } catch (e) {
+            console.warn(
+              "[UserDatabase] Failed to parse disabled_ai_models:",
+              e,
+            );
+            profile.disabled_ai_models = undefined;
+          }
+        }
+      };
+      disabledAiServersRequest.onsuccess = () => {
+        if (disabledAiServersRequest.result) {
+          try {
+            profile.disabled_ai_servers =
+              typeof disabledAiServersRequest.result === "string"
+                ? JSON.parse(disabledAiServersRequest.result)
+                : disabledAiServersRequest.result;
+          } catch (e) {
+            console.warn(
+              "[UserDatabase] Failed to parse disabled_ai_servers:",
+              e,
+            );
+            profile.disabled_ai_servers = undefined;
+          }
+        }
       };
 
       totalChatCountRequest.onsuccess = () => {
@@ -1286,6 +1336,22 @@ class UserDatabaseService {
         store.put(
           partialData.default_ai_model_complex,
           "default_ai_model_complex",
+        );
+      }
+
+      // Handle AI model enable/disable preferences (device-local, persisted to IndexedDB)
+      if (partialData.disabled_ai_models !== undefined) {
+        // Serialize to JSON — Svelte $state() proxy arrays cannot be cloned by IndexedDB
+        store.put(
+          JSON.stringify(partialData.disabled_ai_models),
+          "disabled_ai_models",
+        );
+      }
+      if (partialData.disabled_ai_servers !== undefined) {
+        // Serialize to JSON — Svelte $state() proxy objects cannot be cloned by IndexedDB
+        store.put(
+          JSON.stringify(partialData.disabled_ai_servers),
+          "disabled_ai_servers",
         );
       }
 

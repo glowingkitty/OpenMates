@@ -3,8 +3,11 @@
 Provides a contextvars-based request_id that threads through FastAPI middleware,
 log records, and Celery task headers — enabling end-to-end request tracing.
 
+When OpenTelemetry is active, request_id is derived from the OTel trace_id so
+that log correlation and OTel distributed traces share a single identifier.
+When OTel is not installed or no active span exists, falls back to UUID4.
+
 Architecture context: See docs/architecture/logging-and-monitoring.md
-Tests: None yet — verified via docker logs grep for request_id field.
 """
 
 import logging
@@ -38,7 +41,29 @@ def set_request_id(request_id: str) -> None:
 
 
 def generate_request_id() -> str:
-    """Generate a new UUID4 request_id and store it in contextvars."""
+    """Generate request_id: prefer OTel trace_id if tracing is active, else UUID4.
+
+    When OpenTelemetry is installed and an active span exists, the request_id
+    is set to the hex-encoded trace_id so that log records and OTel traces
+    share the same correlation key. If OTel is unavailable or no span is
+    active, falls back to a random UUID4.
+
+    Returns:
+        The generated (or OTel-derived) request_id string.
+    """
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx and ctx.trace_id != 0:
+            # Use OTel trace_id as the request_id for unified correlation
+            rid = format(ctx.trace_id, '032x')
+            _request_id_var.set(rid)
+            return rid
+    except ImportError:
+        pass
+    # Fallback to UUID4 if OTel not available or no active span
     rid = str(uuid.uuid4())
     _request_id_var.set(rid)
     return rid
@@ -59,7 +84,13 @@ def set_debugging_id(debugging_id: str) -> None:
 # log record so JSON logs always contain these fields for queries.
 # ---------------------------------------------------------------------------
 class RequestIdLogFilter(logging.Filter):
-    """Injects the current request_id and debugging_id from contextvars into every log record."""
+    """Injects the current request_id and debugging_id from contextvars into every log record.
+
+    This filter is supplementary to OTel's LoggingInstrumentor which injects
+    otelTraceId and otelSpanId. RequestIdLogFilter continues injecting
+    request_id for backwards compatibility with existing log queries and
+    dashboards. When OTel is active, request_id == otelTraceId.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = _request_id_var.get()  # type: ignore[attr-defined]

@@ -28,6 +28,7 @@
     import AppSkillModelDetails from './AppSkillModelDetails.svelte';
     import ProviderDetails from './ProviderDetails.svelte';
     import SettingsReminders from './notifications/SettingsReminders.svelte';
+    import ReminderEntryDetail from './appSettings/ReminderEntryDetail.svelte';
     import { createEventDispatcher } from 'svelte';
     
     interface Props {
@@ -47,7 +48,8 @@
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
         | { type: 'settings_memories_create'; appId: string; categoryId: string }
         | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string; startInEditMode: boolean }
-        | { type: 'reminder_create'; appId: string };
+        | { type: 'reminder_create'; appId: string }
+        | { type: 'reminder_entry'; appId: string; reminderId: string; startInEditMode: boolean };
     
     let { activeSettingsView = '' }: Props = $props();
     
@@ -66,6 +68,11 @@
         } else if (parts.length === 2 && parts[0] === 'reminder' && parts[1] === 'create') {
             // app_store/reminder/create
             return { type: 'reminder_create', appId: 'reminder' };
+        } else if (parts[0] === 'reminder' && parts[1] === 'entry' && parts.length >= 3) {
+            // app_store/reminder/entry/{reminder_id} (view) or .../edit (edit mode)
+            const reminderId = parts[2];
+            const startInEditMode = parts.length === 4 && parts[3] === 'edit';
+            return { type: 'reminder_entry', appId: 'reminder', reminderId, startInEditMode };
         } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'provider') {
             // app_store/{app_id}/skill/{skill_id}/provider/{provider_id}
             return { type: 'provider_details', appId: parts[0], skillId: parts[2], providerId: parts[4] };
@@ -187,6 +194,8 @@
     <ProviderDetails appId={route.appId} skillId={route.skillId} providerId={route.providerId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'reminder_create'}
     <SettingsReminders on:openSettings={handleOpenSettings} />
+{:else if routeInfo.type === 'reminder_entry'}
+    <ReminderEntryDetail reminderId={routeInfo.reminderId} startInEditMode={routeInfo.startInEditMode} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
     <SkillDetails appId={routeInfo.appId} skillId={routeInfo.skillId} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'focus_details'}

@@ -314,7 +314,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 </script>
 
-<div class="delete-account-container">
+<div class="delete-account-container" data-testid="delete-account-container">
     {#if isCheckingStatus || isLoadingPreview}
         <div class="loading-message">
             <p>{$text('settings.account.delete_account_loading_preview')}</p>
@@ -337,6 +337,7 @@ Uses SecurityAuth component for passkey/2FA verification.
             <div class="action-buttons">
                 <button
                     class="delete-button"
+                    data-testid="delete-button"
                     onclick={handleDeleteUncompletedAccount}
                     disabled={isLoadingDeletion}
                 >
@@ -407,6 +408,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         <div class="action-buttons">
             <button
                 class="delete-button"
+                data-testid="delete-button"
                 onclick={startDeletion}
                 disabled={!canProceed || isLoadingDeletion}
             >

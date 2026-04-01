@@ -424,12 +424,31 @@ async def _query_openobserve_sql_hits(
     since_minutes: int,
     max_rows: int,
     start_us: Optional[int] = None,
+    production: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Execute OpenObserve SQL and return raw hits list."""
+    """Execute OpenObserve SQL and return raw hits list.
+
+    Args:
+        production: If True, query production OpenObserve using
+            OPENOBSERVE_PROD_URL / OPENOBSERVE_PROD_EMAIL / OPENOBSERVE_PROD_PASSWORD
+            env vars. Falls back to local if not configured.
+    """
     import os
 
-    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
-    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+    if production:
+        base_url = os.getenv("OPENOBSERVE_PROD_URL", "")
+        email = os.getenv("OPENOBSERVE_PROD_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_PROD_PASSWORD", "")
+        if not base_url or not email or not password:
+            script_logger.warning(
+                "Production OpenObserve not configured — set OPENOBSERVE_PROD_URL, "
+                "OPENOBSERVE_PROD_EMAIL, OPENOBSERVE_PROD_PASSWORD env vars"
+            )
+            return []
+    else:
+        base_url = OPENOBSERVE_URL
+        email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+        password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
 
     if start_us is None:
         start_us = int((time.time() - since_minutes * 60) * 1_000_000)
@@ -441,8 +460,8 @@ async def _query_openobserve_sql_hits(
 
     body = {"query": {"sql": sql_text, "start_time": start_us, "end_time": end_us}}
     urls = (
-        f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search",
-        f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/default/_search",
+        f"{base_url}/api/{OPENOBSERVE_ORG}/_search",
+        f"{base_url}/api/{OPENOBSERVE_ORG}/default/_search",
     )
 
     timeout = aiohttp.ClientTimeout(total=30)
@@ -1962,10 +1981,27 @@ async def _o2_preset_top_warnings_errors(args) -> None:
 
 
 async def _o2_custom_sql(args) -> None:
+    is_prod = getattr(args, "prod", False)
+
+    # Fail fast if production OpenObserve is not configured
+    if is_prod:
+        prod_url = os.environ.get("OPENOBSERVE_PROD_URL", "")
+        prod_email = os.environ.get("OPENOBSERVE_PROD_EMAIL", "")
+        prod_password = os.environ.get("OPENOBSERVE_PROD_PASSWORD", "")
+        if not prod_url or not prod_email or not prod_password:
+            msg = (
+                "Production OpenObserve not configured. "
+                "Set OPENOBSERVE_PROD_URL, OPENOBSERVE_PROD_EMAIL, "
+                "OPENOBSERVE_PROD_PASSWORD env vars."
+            )
+            print(msg, file=sys.stderr)
+            sys.exit(1)
+
     hits = await _query_openobserve_sql_hits(
         sql=args.sql,
         since_minutes=args.since,
         max_rows=args.max_rows,
+        production=is_prod,
     )
     hits = _apply_quiet_health_filter(hits, args.quiet_health)
     if args.as_json:

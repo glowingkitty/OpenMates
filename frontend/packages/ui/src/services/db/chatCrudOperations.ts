@@ -538,9 +538,8 @@ export async function addChat(
           err?.name === "InvalidStateError" ||
           err?.message?.includes("transaction")
         ) {
-          console.warn(
-            `[ChatDatabase] Transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction:`,
-            error,
+          console.debug(
+            `[ChatDatabase] Transaction expired for chat ${chatToSave.chat_id}, retrying with new transaction`,
           );
           // Create a new transaction and retry
           try {

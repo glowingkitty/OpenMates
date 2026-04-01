@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { proxyImage } from '../../../utils/imageProxy';
 
@@ -145,6 +146,12 @@
   {onNavigatePrevious}
   {onNavigateNext}
 >
+  {#snippet embedHeaderCta()}
+    {#if product.purchase_url}
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', product.provider || 'Product')} href={product.purchase_url} />
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     <div class="product-fullscreen">
       <div class="media-column">
@@ -210,16 +217,6 @@
           <div class="category-path">{product.category_path}</div>
         {/if}
 
-        {#if product.purchase_url}
-          <a
-            class="cta"
-            href={product.purchase_url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {product.provider ? `${$text('embeds.via')} ${product.provider}` : 'Open Product'}
-          </a>
-        {/if}
       </div>
     </div>
   {/snippet}
@@ -375,26 +372,6 @@
     border-radius: 100px;
     background: rgba(var(--color-primary-rgb), 0.1);
     color: var(--color-primary);
-  }
-
-  .cta {
-    margin-top: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-height: 42px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 700;
-    color: #fff;
-    background: var(--color-primary);
-    transition: opacity 0.15s ease;
-  }
-
-  .cta:hover {
-    opacity: 0.9;
   }
 
   @container fullscreen (max-width: 760px) {

@@ -46,6 +46,11 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
+	// Click Login tab to switch from signup to login view
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
 	const emailInput = page.locator('#login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await page.waitForTimeout(1000);
@@ -77,10 +82,10 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 		await sidebarToggle.click();
 		await page.waitForTimeout(500);
 	}
-	const activeChatItem = page.locator('.chat-item-wrapper.active');
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 8000 });
 	await activeChatItem.click({ button: 'right' });
-	const deleteBtn = page.locator('.menu-item.delete');
+	const deleteBtn = page.getByTestId('chat-context-delete');
 	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 	await deleteBtn.click();
 	await deleteBtn.click(); // second click confirms
@@ -123,17 +128,17 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 
 	// ── Step 1: Create a chat so the reminder button appears ──
 	log('Creating a new chat...');
-	const editor = page.locator('.editor-content.prose');
+	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15000 });
 	await editor.click();
 	await page.keyboard.type('Hello, this is a test chat for the reminder button.');
-	const sendBtn = page.locator('.send-button');
+	const sendBtn = page.locator('[data-action="send-message"]');
 	await expect(sendBtn).toBeEnabled();
 	await sendBtn.click();
 	log('Message sent.');
 
 	// Wait for AI response so the chat is established
-	const assistantMsgs = page.locator('.message-wrapper.assistant');
+	const assistantMsgs = page.getByTestId('message-assistant');
 	await expect(assistantMsgs.first()).toBeVisible({ timeout: 60000 });
 	log('AI response received.');
 	await screenshot(page, 'chat-established');
@@ -156,12 +161,12 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	log('Reminder creation form is visible.');
 
 	// Verify chat context is shown (the current chat title should appear)
-	const chatContext = page.locator('.chat-context');
+	const chatContext = page.getByTestId('chat-context');
 	await expect(chatContext).toBeVisible({ timeout: 5000 });
 	log('Chat context visible in reminder form.');
 
 	// Verify target type dropdown defaults to "This chat"
-	const targetDropdown = page.locator('.settings-dropdown').first();
+	const targetDropdown = page.getByTestId('settings-dropdown').first();
 	if (await targetDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
 		const selectedValue = await targetDropdown.inputValue();
 		log(`Target type: ${selectedValue}`);
@@ -181,7 +186,7 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	await timeInput.fill(time);
 
 	// Fill in a note
-	const noteInput = page.locator('.settings-input').first();
+	const noteInput = page.getByTestId('settings-input').first();
 	if (await noteInput.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await noteInput.fill('E2E test reminder - check test results');
 		log('Note filled.');
@@ -190,7 +195,7 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	await screenshot(page, 'form-filled');
 
 	// ── Step 5: Submit the form ──
-	const submitBtn2 = page.locator('.settings-button.primary');
+	const submitBtn2 = page.getByTestId('settings-button-primary');
 	await expect(submitBtn2).toBeVisible({ timeout: 5000 });
 	await expect(submitBtn2).toBeEnabled();
 	await submitBtn2.click();
@@ -198,20 +203,21 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	await page.waitForTimeout(2000);
 	await screenshot(page, 'form-submitted');
 
-	// ── Step 6: Verify success message ──
-	const successBox = page.locator('.settings-info-box.success');
-	await expect(successBox).toBeVisible({ timeout: 10000 });
-	log('Success message displayed.');
-	await screenshot(page, 'success-message');
+	// ── Step 6: Verify navigation to reminder app store page ──
+	// After creation the settings panel navigates to app_store/reminder which
+	// shows ActiveRemindersList with the newly created reminder.
+	const reminderItem = page.getByTestId('reminder-item');
+	await expect(reminderItem.first()).toBeVisible({ timeout: 15000 });
+	log('Navigated to reminder app store page — active reminder visible.');
+	await screenshot(page, 'app-store-active-reminders');
 
 	// ── Step 7: Close settings and go back to chat ──
-	// Click outside the settings panel or press Escape to close it
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(1000);
 
 	// ── Step 8: Wait for the reminder to fire (3-min window) ──
 	log('Waiting for reminder system message (up to 3 min)...');
-	const systemMsg = page.locator('.message-wrapper.system');
+	const systemMsg = page.getByTestId('message-system');
 	const pollStart = Date.now();
 	while (Date.now() - pollStart < 180000) {
 		if ((await systemMsg.count()) >= 1) break;

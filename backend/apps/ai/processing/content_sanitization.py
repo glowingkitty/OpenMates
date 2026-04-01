@@ -19,7 +19,7 @@ import os
 import re
 from typing import Dict, Any, List, Optional
 
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
+from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 # Import ASCII smuggling sanitization
@@ -65,7 +65,7 @@ def _split_text_into_chunks(text: str, max_chars_per_chunk: int) -> List[str]:
         # Try to find a word boundary (whitespace) near the chunk end
         # Use rfind() for efficient backwards search (much faster than loop)
         # Search up to 10% of chunk size backwards to find a good break point
-        search_back_limit = max(1, int(max_chars_per_chunk * 0.1))
+        search_back_limit = max(1, int(max_chars_per_chunk * 0.3))
         search_start = max(current_pos, chunk_end - search_back_limit)
         
         # Use rfind to efficiently find the last whitespace in the search range
@@ -344,12 +344,14 @@ async def _sanitize_text_chunk(
         
         # Call LLM for prompt injection detection
         logger.info(f"[{task_id}] Calling LLM for prompt injection detection on chunk {chunk_index+1}/{total_chunks}")
+        sanitization_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
         result: LLMPreprocessingCallResult = await call_preprocessing_llm(
             task_id=f"{task_id}_chunk_{chunk_index}",
             model_id=model_id,
             message_history=message_history,
             tool_definition=tool_definition,
-            secrets_manager=secrets_manager
+            secrets_manager=secrets_manager,
+            fallback_models=sanitization_fallbacks,
         )
         
         # Log sanitization response
@@ -740,12 +742,14 @@ async def sanitize_message_for_import(
                 f"model: {model_id}, chars: {len(chunk)}"
             )
 
+            import_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
             result: LLMPreprocessingCallResult = await call_preprocessing_llm(
                 task_id=f"{task_id}_chunk_{i}",
                 model_id=model_id,
                 message_history=message_history,
                 tool_definition=tool_definition,
                 secrets_manager=secrets_manager,
+                fallback_models=import_fallbacks,
             )
 
             if result.error_message or not result.arguments:

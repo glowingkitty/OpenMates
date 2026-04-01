@@ -153,7 +153,7 @@
 <div class="preview-index">
 	<header class="preview-header">
 		<h1>Component Preview</h1>
-		<p class="component-count">{componentPaths.length} components</p>
+		<p class="component-count" data-testid="component-count">{componentPaths.length} components</p>
 	</header>
 
 	<!-- Embed App Showcases — quick links to /dev/preview/embeds/<app> -->
@@ -161,7 +161,7 @@
 		<h2 class="app-showcase-title">Embed App Showcases</h2>
 		<p class="app-showcase-desc">All embed display types (inline, quote, mobile, small, large, fullscreen) for each app on one page.</p>
 		<div class="app-showcase-grid">
-			{#each ['code', 'docs', 'web', 'videos', 'images', 'news', 'travel', 'maps', 'math', 'events', 'reminder', 'sheets', 'audio', 'health', 'mail', 'pdf', 'shopping'] as appSlug}
+			{#each ['code', 'docs', 'web', 'videos', 'images', 'news', 'travel', 'maps', 'math', 'events', 'reminder', 'sheets', 'audio', 'health', 'mail', 'pdf', 'shopping', 'home'] as appSlug}
 				<a class="app-showcase-pill" href="/dev/preview/embeds/{appSlug}">{appSlug}</a>
 			{/each}
 		</div>
@@ -185,6 +185,7 @@
 				{#if node.isFile}
 					<a
 						class="tree-file"
+						data-testid="tree-file"
 						href={getPreviewUrl(node.path)}
 						style="padding-left: {depth * 16 + 12}px"
 					>

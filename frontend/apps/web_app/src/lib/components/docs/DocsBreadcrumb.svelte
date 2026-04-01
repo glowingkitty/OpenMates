@@ -71,7 +71,7 @@
 </script>
 
 {#if breadcrumbs.length > 1}
-	<nav class="docs-breadcrumb" aria-label="Breadcrumb">
+	<nav class="docs-breadcrumb" data-testid="docs-breadcrumb" aria-label="Breadcrumb">
 		{#each breadcrumbs as crumb, i (crumb.href)}
 			{#if i > 0}
 				<span class="separator">/</span>

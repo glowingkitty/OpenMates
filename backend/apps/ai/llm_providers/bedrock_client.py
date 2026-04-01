@@ -141,9 +141,9 @@ async def invoke_aws_bedrock_chat_completions(
         logger.debug(f"{log_prefix} Converse API request prepared.")
 
         if stream:
-            return _iterate_converse_stream(task_id, model_id, request_kwargs, messages, log_prefix)
+            return _iterate_converse_stream(task_id, model_id, request_kwargs, messages, log_prefix, tools=tools)
         else:
-            return await _process_converse_response(task_id, model_id, request_kwargs, messages, log_prefix)
+            return await _process_converse_response(task_id, model_id, request_kwargs, messages, log_prefix, tools=tools)
 
     except Exception as e:
         err_msg = f"Error during Bedrock Converse request preparation: {e}"
@@ -159,6 +159,7 @@ async def _process_converse_response(
     request_kwargs: Dict[str, Any],
     messages: List[Dict[str, str]],
     log_prefix: str,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> UnifiedBedrockResponse:
     """Process non-streaming response from Bedrock Converse API."""
     try:
@@ -166,7 +167,7 @@ async def _process_converse_response(
         logger.info(f"{log_prefix} Received non-streamed response from Bedrock Converse API.")
 
         # Calculate token breakdown estimate from input messages
-        token_breakdown = calculate_token_breakdown(messages, model_id)
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
         # Parse usage from Converse response
         usage_data = response.get("usage", {})
@@ -248,6 +249,7 @@ async def _iterate_converse_stream(
     request_kwargs: Dict[str, Any],
     messages: List[Dict[str, str]],
     log_prefix: str,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> AsyncIterator[Union[str, ParsedBedrockToolCall, BedrockUsageMetadata]]:
     """Handle streaming response from Bedrock Converse Stream API."""
     logger.info(f"{log_prefix} Stream connection initiated.")
@@ -261,7 +263,7 @@ async def _iterate_converse_stream(
         response = _bedrock_runtime_client.converse_stream(**request_kwargs)
 
         # Calculate token breakdown estimate from input messages
-        token_breakdown = calculate_token_breakdown(messages, model_id)
+        token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
         stream = response.get("stream")
         if stream:

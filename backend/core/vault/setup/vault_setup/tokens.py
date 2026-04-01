@@ -175,7 +175,11 @@ class TokenManager:
                 "policies": policies,
                 "display_name": f"api-token-{'-'.join(policies)}",
                 "ttl": "8760h",  # 1 year - long TTL to minimize expiration issues
-                "renewable": True
+                "renewable": True,
+                "no_parent": True  # Orphan token: survives parent token revocation.
+                # Critical when created via a temporary root token (generate-root flow),
+                # since that temp root is revoked after setup completes. Without this,
+                # revoking the temp root cascades and revokes the api.token too.
             }
             logger.debug(f"Creating token with payload: {token_payload}")
             result = await self.client.vault_request("post", "auth/token/create", token_payload)

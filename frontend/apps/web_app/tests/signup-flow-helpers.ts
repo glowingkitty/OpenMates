@@ -18,20 +18,76 @@ const ARTIFACTS_DIRNAME = 'artifacts';
 const PREVIOUS_RUN_DIRNAME = 'previous_run';
 const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
 
+// ─── Step log — shared state for checkpoint + screenshot interleaving ────────
+// Both createSignupLogger and createStepScreenshotter write to this log so the
+// MD report generator can reconstruct the full test execution timeline.
+
+interface StepLogEntry {
+	index: number;
+	timestamp: string;
+	type: 'checkpoint' | 'screenshot';
+	message: string;
+	screenshot?: string;
+}
+
+let _stepLogEntries: StepLogEntry[] = [];
+let _stepLogPath: string = '';
+let _globalStepIndex: number = 0;
+let _stepLogInitialized: boolean = false;
+
+function _nextStepIndex(): number {
+	_globalStepIndex += 1;
+	return _globalStepIndex;
+}
+
+function _flushStepLog(): void {
+	if (_stepLogPath) {
+		try {
+			fs.writeFileSync(_stepLogPath, JSON.stringify(_stepLogEntries, null, 2));
+		} catch {
+			// Best-effort — don't fail the test if log write fails
+		}
+	}
+}
+
+/**
+ * Initialize (or reset) the step log for a new test run.
+ * Called automatically by createSignupLogger/createStepScreenshotter.
+ */
+function initStepLog(artifactsDirname: string = ARTIFACTS_DIRNAME): void {
+	_stepLogEntries = [];
+	_globalStepIndex = 0;
+	_stepLogInitialized = true;
+	fs.mkdirSync(artifactsDirname, { recursive: true });
+	_stepLogPath = path.join(artifactsDirname, 'step-log.json');
+}
+
+function _ensureStepLogInit(artifactsDirname: string = ARTIFACTS_DIRNAME): void {
+	if (!_stepLogInitialized) {
+		initStepLog(artifactsDirname);
+	}
+}
+
+// ─── Logger and screenshotter ────────────────────────────────────────────────
+
 /**
  * Build a structured step logger for signup tests.
  * The counter is intentionally scoped per test to keep logs readable.
+ * Also writes entries to artifacts/step-log.json for MD report generation.
  */
 function createSignupLogger(
 	prefix: string = 'SIGNUP_FLOW'
 ): (message: string, metadata?: Record<string, unknown>) => void {
-	let stepIndex = 1;
+	_ensureStepLogInit();
 	return (message: string, metadata: Record<string, unknown> = {}): void => {
 		const timestamp = new Date().toISOString();
-		const step = String(stepIndex).padStart(2, '0');
-		stepIndex += 1;
+		const idx = _nextStepIndex();
+		const step = String(idx).padStart(2, '0');
 		const metaSuffix = Object.keys(metadata).length ? ` | meta=${JSON.stringify(metadata)}` : '';
 		console.log(`[${prefix}][${step}][${timestamp}] ${message}${metaSuffix}`);
+
+		_stepLogEntries.push({ index: idx, timestamp, type: 'checkpoint', message });
+		_flushStepLog();
 	};
 }
 
@@ -114,6 +170,7 @@ function createStepScreenshotter(
 		artifactsDirname?: string;
 	} = {}
 ): (page: any, label: string) => Promise<void> {
+	_ensureStepLogInit(artifactsDirname);
 	let screenshotIndex = 1;
 	return async (page: any, label: string): Promise<void> => {
 		const safeLabel = label
@@ -130,6 +187,17 @@ function createStepScreenshotter(
 			fullPage: true
 		});
 		logStep('Captured step screenshot.', { label, filename });
+
+		// Write screenshot entry to step log for MD report generation
+		const idx = _nextStepIndex();
+		_stepLogEntries.push({
+			index: idx,
+			timestamp: new Date().toISOString(),
+			type: 'screenshot',
+			message: label,
+			screenshot: filename
+		});
+		_flushStepLog();
 	};
 }
 
@@ -897,6 +965,7 @@ module.exports = {
 	ARTIFACTS_DIRNAME,
 	PREVIOUS_RUN_DIRNAME,
 	createSignupLogger,
+	initStepLog,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
