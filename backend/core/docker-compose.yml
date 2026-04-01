@@ -1487,8 +1487,9 @@ services:
     networks:
       - openmates
     healthcheck:
-      # Simply check if port 8200 is open and responding
-      test: ["CMD", "nc", "-z", "127.0.0.1", "8200"]
+      # Check Vault is initialized AND unsealed (HTTP 200). Sealed Vault returns 503.
+      # TCP-only checks (nc -z) can't distinguish sealed from unsealed.
+      test: ["CMD", "sh", "-c", "wget -q --spider http://127.0.0.1:8200/v1/sys/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

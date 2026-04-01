@@ -647,7 +647,11 @@ async def lifespan(app: FastAPI):
     # Note: We check payment_enabled later after domain validation, but create service instance here
     # The service will only be initialized/used if payment_enabled is True
     logger.info("Initializing Invoice Ninja service (will be initialized only if payment enabled)...")
-    app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
+    try:
+        app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
+    except Exception as e:
+        logger.error(f"InvoiceNinjaService initialization failed (API will start without invoicing): {e}")
+        app.state.invoice_ninja_service = None
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
