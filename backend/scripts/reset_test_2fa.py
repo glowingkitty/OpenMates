@@ -52,15 +52,16 @@ async def main():
 
     # Initialize services
     cache_service = CacheService()
-    await cache_service.initialize()
     directus_service = DirectusService(cache_service=cache_service)
     encryption_service = EncryptionService()
 
-    # Find the test user by hashed email
-    hashed_email = hashlib.sha256(test_email.lower().strip().encode()).hexdigest()
-    user = await directus_service.get_user_by_hashed_email(hashed_email)
-    if not user:
-        print(f"ERROR: User not found for email hash {hashed_email[:16]}...")
+    # Find the test user by hashed email (base64-encoded SHA-256, matching frontend hashEmail())
+    import base64
+    email_hash_bytes = hashlib.sha256(test_email.encode()).digest()
+    hashed_email = base64.b64encode(email_hash_bytes).decode()
+    success, user, message = await directus_service.get_user_by_hashed_email(hashed_email)
+    if not success or not user:
+        print(f"ERROR: User not found for email hash {hashed_email[:16]}... — {message}")
         sys.exit(1)
 
     user_id = user.get("id")

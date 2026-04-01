@@ -360,10 +360,6 @@
 		<SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
 	{/if}
 
-	{#if successMessage}
-		<SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
-	{/if}
-
 	<button
 		data-testid="settings-button-primary"
 		disabled={isSubmitting || !date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}

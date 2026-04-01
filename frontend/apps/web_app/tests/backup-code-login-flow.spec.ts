@@ -166,6 +166,18 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	expect(newTfaSecret, 'Expected a new 2FA secret.').toBeTruthy();
 	logCheckpoint('Got new 2FA secret from setup page.');
 
+	// Write new secret to artifact so CI can update the GitHub Actions secret.
+	// Without this, subsequent runs fail at Phase 1 because the OTP key no longer matches.
+	try {
+		const nodefs = require('fs');
+		nodefs.mkdirSync('/workspace/artifacts', { recursive: true });
+		nodefs.writeFileSync('/workspace/artifacts/new_otp_key.txt', newTfaSecret, 'utf8');
+		console.log(`NEW OPENMATES_TEST_ACCOUNT_OTP_KEY: ${newTfaSecret}`);
+		logCheckpoint('New 2FA secret saved to artifacts/new_otp_key.txt');
+	} catch (artifactErr) {
+		logCheckpoint(`Warning: Could not save artifact: ${artifactErr}`);
+	}
+
 	// Enter new OTP based on new secret — wait for fresh window to avoid boundary expiry
 	const setupSecondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
 	if (setupSecondsIntoWindow > 27) {
