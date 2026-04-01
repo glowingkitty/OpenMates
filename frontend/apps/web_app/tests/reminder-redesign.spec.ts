@@ -91,10 +91,10 @@ test('reminder redesign — UI matches Figma: header, type dropdown, explainer, 
 	await reminderBtn.click();
 	await page.waitForTimeout(1500);
 
-	// ── Verify SettingsPageHeader is present ──
-	const pageTitle = page.locator('.page-title');
-	await expect(pageTitle).toBeVisible({ timeout: 10000 });
-	log('SettingsPageHeader visible.');
+	// ── Verify section headings use SettingsSectionHeading ──
+	const sectionHeading = page.locator('.settings-section-heading');
+	await expect(sectionHeading.first()).toBeVisible({ timeout: 10000 });
+	log('SettingsSectionHeading visible.');
 
 	// ── Verify Reminder type dropdown with BOTH options ──
 	const modeDropdown = page.getByTestId('settings-dropdown').first();
