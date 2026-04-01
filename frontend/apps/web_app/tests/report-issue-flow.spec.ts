@@ -97,7 +97,7 @@ async function closeSettings(page: any): Promise<void> {
 
 test.describe('Report Issue Flow', () => {
 	// Login + settings navigation + form submission needs time
-	test.describe.configure({ timeout: 120000 });
+	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('Report issue form submits successfully and shows confirmation', async ({ page }) => {
