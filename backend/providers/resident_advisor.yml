@@ -1,0 +1,17 @@
+# backend/providers/resident_advisor.yml
+#
+# Configuration for Resident Advisor provider.
+# Used by the Events app for searching electronic music events and club nights.
+
+provider_id: "resident_advisor"
+name: "Resident Advisor"
+description: "Global platform for electronic music events, clubs, DJs, and festival listings."
+logo_svg: "icons/resident_advisor.svg"
+region: "GB" # Resident Advisor HQ is in London, UK
+
+# No API key required — uses web scraping
+no_api_key: true
+
+# Pricing information
+pricing:
+  per_request_credits: 5 # 5 credits per events search request (set in app.yml)
