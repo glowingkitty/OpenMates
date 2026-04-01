@@ -639,6 +639,9 @@ async def login(
 
                 # Verify the code using the directly fetched secret
                 totp = pyotp.TOTP(decrypted_secret)
+                # DEBUG OPE-247: Log secret prefix and expected OTP to diagnose CI mismatch
+                expected_otp = totp.now()
+                logger.info(f"[OPE-247 DEBUG] user={user_id} secret_prefix={decrypted_secret[:6]}... submitted={login_data.tfa_code} expected={expected_otp} from_cache={bool(cached_tfa_data)}")
                 if not totp.verify(login_data.tfa_code):
                     logger.warning(f"Invalid OTP code provided for user {user_id}")
                     compliance_service.log_auth_event(

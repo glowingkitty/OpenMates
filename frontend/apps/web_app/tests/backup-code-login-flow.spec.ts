@@ -286,7 +286,9 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 		const backDisabled =
 			(await settingsBackButton.getAttribute('aria-disabled').catch(() => 'true')) === 'true';
 		if (backDisabled) break;
-		await settingsBackButton.click();
+		// Use force:true — after 2FA "Change App" flow the settings header may have
+		// overlapping decorative elements that block Playwright's actionability check.
+		await settingsBackButton.click({ force: true });
 		await page.waitForTimeout(500);
 	}
 

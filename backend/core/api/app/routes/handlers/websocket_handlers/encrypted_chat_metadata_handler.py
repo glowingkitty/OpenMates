@@ -102,17 +102,25 @@ async def handle_encrypted_chat_metadata(
             is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
         
             if not is_owner:
-                # For new chats (which don't have metadata yet), check if it exists in DB
+                # Cache miss — verify ownership via DB before rejecting.
+                # This handles chats pre-created by background tasks (e.g. reminder
+                # Celery task) that exist in Directus but aren't in the user's cache yet.
+                import hashlib as _hashlib
                 existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
                 if existing_chat:
-                    # Chat exists but belongs to someone else
-                    logger.warning(f"User {user_id} attempted to update metadata for chat {chat_id} they don't own. Rejecting.")
-                    await manager.send_personal_message(
-                        {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
-                        user_id,
-                        device_fingerprint_hash
-                    )
-                    return
+                    chat_owner_hash = existing_chat.get("hashed_user_id", "")
+                    caller_hash = _hashlib.sha256(user_id.encode()).hexdigest()
+                    if chat_owner_hash != caller_hash:
+                        logger.warning(f"User {user_id} attempted to update metadata for chat {chat_id} they don't own. Rejecting.")
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                        return
+                    else:
+                        # User owns the chat but it wasn't in their cache — proceed normally
+                        logger.info(f"Chat {chat_id} ownership confirmed via DB fallback (cache miss, likely pre-created by background task)")
                 else:
                     # Chat doesn't exist - this is a new chat creation
                     logger.info(f"New chat {chat_id} detected in encrypted_chat_metadata_handler")
