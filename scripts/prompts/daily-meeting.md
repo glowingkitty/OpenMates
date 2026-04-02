@@ -94,7 +94,7 @@ Query Linear for ALL tasks not in Done/Canceled state. Flag:
 - ⚠️ **Ghost tasks**: In Progress with `claude-is-working` label but no active session
 - ⚠️ **Missing metadata**: No milestone, no priority, or no labels assigned
 
-Present as a table. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
+Present as a table with columns: Linear ID, Title, Short Description, Status, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
 
 Wait for user input. Update Linear statuses based on their answers before proceeding.
 
@@ -159,7 +159,7 @@ Query Linear for all active tasks (Todo, In Progress, Backlog) and propose prior
 - Present a **ranked list of up to 10 tasks** for the day
 - The **top 3 are the "must complete" targets** — the clear goal is to finish at least these 3
 - Tasks 4-10 define what to pick up next (via `/next-task`) once the top 3 are done
-- Present each with: rank, Linear ID, title, rationale, estimated effort
+- Present each with: rank, Linear ID, title, short description, rationale, estimated effort
 - Adjust if health data revealed urgent issues
 - Adjust based on user's stated energy, blockers, time constraints, and strategic focus
 - For each: 🔥 urgent / ⚡ high / 📋 medium
@@ -210,9 +210,9 @@ Use this JSON structure for the state file:
   "last_meeting": "<ISO timestamp>",
   "date": "{{DATE}}",
   "priorities": [
-    {"linear_id": "OPE-XX", "title": "...", "status_at_selection": "..."},
-    {"linear_id": "OPE-XX", "title": "...", "status_at_selection": "..."},
-    {"linear_id": "OPE-XX", "title": "...", "status_at_selection": "..."}
+    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
+    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
+    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."}
   ],
   "confirmed_by": "user",
   "confirmed_at": "<ISO timestamp>",
@@ -227,7 +227,8 @@ Use this JSON structure for the state file:
   "milestone_changes": [],
   "data_failures": [],
   "auto_created_tasks": [],
-  "status_updates": []
+  "status_updates": [],
+  "workflow_suggestions": []
 }
 ```
 
@@ -239,9 +240,9 @@ Use this structure for the meeting summary MD:
 - <tasks updated, with old → new status>
 
 ## Yesterday's Priorities
-| # | Task | Result |
-|---|------|--------|
-| 1 | OPE-XX: Title | ✅/🔄/❌ + brief |
+| # | Task | Description | Result |
+|---|------|-------------|--------|
+| 1 | OPE-XX: Title | Short summary | ✅/🔄/❌ + brief |
 
 ## Key Accomplishments
 - <bullet points>
@@ -258,9 +259,9 @@ Use this structure for the meeting summary MD:
 - Errors: <count or "none (⚠️ OTel unreliable)">
 
 ## Today's Priorities
-| # | Task | Effort |
-|---|------|--------|
-| 1 | OPE-XX: Title | est |
+| # | Task | Description | Effort |
+|---|------|-------------|--------|
+| 1 | OPE-XX: Title | Short summary | est |
 
 ## Milestone Changes
 - <changes made, or "None">
@@ -268,9 +269,34 @@ Use this structure for the meeting summary MD:
 ## Decisions & Notes
 - <anything discussed or decided during the meeting>
 
+## Workflow Improvements
+- <1-3 suggestions for improving the daily meeting>
+
 ## Open Questions
 - <unresolved items carried to next meeting>
 ```
+
+### Step 9: WORKFLOW IMPROVEMENTS 💡
+
+Reflect on how this meeting went and suggest improvements for next time:
+
+- **What worked?** — Which steps produced useful insights or decisions?
+- **What felt slow or redundant?** — Any steps that were busywork, or data that wasn't actionable?
+- **What was missing?** — Information you wished you had, questions that should have been asked, data sources that were unreliable?
+- **What could be reordered or combined?** — Would a different flow be more efficient?
+
+Present **1-3 concrete, actionable suggestions** for improving the daily meeting workflow (prompt structure, data sources, question quality, flow order, etc.).
+
+Check the previous meeting's state file for `workflow_suggestions` — if any were listed, note which ones were adopted and which are still pending.
+
+Save suggestions to the state file under `"workflow_suggestions"` as an array of strings.
+
+Example suggestions:
+- "Add a dependency check — flag tasks that block other tasks"
+- "Skip trajectory step when milestone hasn't changed in 3+ days"
+- "Ask about energy level earlier so health section can be shortened on low-energy days"
+
+Wait for user input — they may want to discuss or adjust suggestions before saving.
 
 ---
 
@@ -288,6 +314,7 @@ Do NOT end the meeting until all items are checked:
 - [ ] Milestone changes evaluated and applied (if any)
 - [ ] Linear labels updated (old removed, new added)
 - [ ] Linear comments posted on selected tasks
+- [ ] Workflow improvement suggestions discussed and saved
 - [ ] State file saved
 - [ ] Meeting summary MD written
 
@@ -300,3 +327,4 @@ Do NOT end the meeting until all items are checked:
 - Flag "no errors" as suspicious when the user has reported otherwise — OTel gaps are known.
 - ALL Linear tasks not Done/Canceled must be considered, not just recent ones.
 - If the user doesn't respond within the session, present all sections and auto-close. The auto-confirm timer handles the rest externally.
+- **Every Linear task reference must include: Linear ID, title, AND a short description.** Title alone never provides enough context. The short description (~100 chars max) should summarize what the task is about — derived from the issue description. Summarize if long, use the first sentence if short, "(no description)" if the issue has no description.

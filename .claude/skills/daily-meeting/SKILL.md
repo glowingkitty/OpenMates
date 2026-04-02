@@ -15,7 +15,9 @@ Gather all data sources directly using Bash and Read tools. Do NOT call `_daily_
 
 **Error handling:** If any source fails, record `[DATA UNAVAILABLE: <source> — <error>]` and continue. Never abort the meeting due to a single data source failure.
 
-#### Parallel Batch 1 — issue ALL of these as simultaneous tool calls:
+#### Parallel Batch 1a — issue ALL of these as simultaneous tool calls:
+
+These are safe, reliable commands that should never fail. Issue them all in parallel.
 
 1. **Git log (24h)** — Bash:
    ```bash
@@ -50,27 +52,22 @@ Gather all data sources directly using Bash and Read tools. Do NOT call `_daily_
    docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health
    ```
 
-5. **OpenObserve prod errors** — Bash (same as #4 with `--prod`):
-   ```bash
-   docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health --prod
-   ```
-
-6. **Server stats** — Bash:
+5. **Server stats** — Bash:
    ```bash
    docker exec api python3 /app/backend/scripts/server_stats_query.py
    ```
 
-7. **User-reported issues** — Bash:
+6. **User-reported issues** — Bash:
    ```bash
    docker exec api python /app/backend/scripts/debug_issue.py --list --json --list-limit 15
    ```
 
-8. **Large files** — Bash:
+7. **Large files** — Bash:
    ```bash
    bash scripts/check-file-sizes.sh --ci
    ```
 
-9. **Session quality** — Bash:
+8. **Session quality** — Bash:
    ```bash
    cd /home/superdev/projects/OpenMates/scripts && python3 -c "
    from _workflow_review_helper import build_session_digests
@@ -84,7 +81,16 @@ Gather all data sources directly using Bash and Read tools. Do NOT call `_daily_
    "
    ```
 
-10. **Previous meeting state** — Read: `scripts/.daily-meeting-state.json`
+9. **Previous meeting state** — Read: `scripts/.daily-meeting-state.json`
+
+#### Parallel Batch 1b — potentially-failing commands (issue separately from batch 1a)
+
+These commands may fail due to missing config. Issue them in a SEPARATE parallel batch from 1a so failures here don't cascade and cancel the reliable commands above.
+
+10. **OpenObserve prod errors** — Bash:
+   ```bash
+   docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health --prod
+   ```
 
 #### Parallel Batch 2 — file reads (issue simultaneously after batch 1):
 
@@ -107,7 +113,7 @@ Otherwise, proceed through the meeting flow using the gathered data as context.
 
 ### Step 3: Run the Meeting (Step by Step)
 
-Follow the 8-step meeting agenda from the prompt template. **Present ONE section at a time**, wait for user response, then proceed:
+Follow the 9-step meeting agenda from the prompt template. **Present ONE section at a time**, wait for user response, then proceed:
 
 1. **STATUS CLEANUP 🧹** — stale/ghost tasks, ask user to confirm status changes
 2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
@@ -117,6 +123,7 @@ Follow the 8-step meeting agenda from the prompt template. **Present ONE section
 6. **TODAY'S PRIORITIES 🎯** — present top 10 informed by all data + user answers, ask for confirmation
 7. **MILESTONE CHECK 📐** — based on gathered context, suggest milestone changes (create new, update existing) if warranted
 8. **CONFIRM & CLOSE ✅** — apply labels, save state, write summary
+9. **WORKFLOW IMPROVEMENTS 💡** — reflect on how this meeting went, suggest 1-3 concrete improvements for next time
 
 ### Step 4: Apply Priorities & Milestone Changes
 
@@ -163,6 +170,7 @@ Do NOT end the meeting until all items are done:
 - [ ] Milestone changes evaluated and applied (if any)
 - [ ] Daily priority tasks set to Urgent
 - [ ] Linear labels updated
+- [ ] Workflow improvement suggestions discussed and saved
 - [ ] State file saved
 - [ ] Meeting summary MD written
 - [ ] Planning sessions offered (spawn if user confirms)
