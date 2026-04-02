@@ -256,7 +256,7 @@
 
   {#snippet childFullscreen(nav)}
     <HealthAppointmentEmbedFullscreen
-      appointment={nav.result}
+      data={{ decodedContent: nav.result }}
       onClose={nav.onClose}
       embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}

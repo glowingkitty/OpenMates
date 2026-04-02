@@ -292,16 +292,7 @@
       {#if selectedPlace}
         <ChildEmbedOverlay>
           <MapLocationEmbedFullscreen
-            displayName={selectedPlace.displayName}
-            formattedAddress={selectedPlace.formattedAddress}
-            lat={selectedPlace.location?.latitude}
-            lon={selectedPlace.location?.longitude}
-            rating={selectedPlace.rating}
-            userRatingCount={selectedPlace.userRatingCount}
-            placeType={selectedPlace.placeType}
-            websiteUri={selectedPlace.websiteUri}
-            placeId={selectedPlace.placeId}
-            imageUrl={selectedPlace.imageUrl}
+            data={{ decodedContent: selectedPlace }}
             onClose={handleClosePlace}
             hasPreviousEmbed={selectedIndex > 0}
             hasNextEmbed={selectedIndex < places.length - 1}

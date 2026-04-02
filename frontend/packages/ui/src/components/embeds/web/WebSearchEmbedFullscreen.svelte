@@ -346,45 +346,17 @@
   {#snippet childFullscreen(nav)}
     {#if nav.result.isVideo}
       <VideoEmbedFullscreen
-        url={nav.result.url}
-        title={nav.result.title}
+        data={{ decodedContent: nav.result }}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
-        videoId={nav.result.video_id}
         hasPreviousEmbed={nav.hasPrevious}
         hasNextEmbed={nav.hasNext}
         onNavigatePrevious={nav.onPrevious}
         onNavigateNext={nav.onNext}
-        metadata={nav.result.video_id
-          ? {
-              videoId: nav.result.video_id,
-              title: nav.result.title,
-              description: nav.result.description || nav.result.snippet,
-              channelName: nav.result.channel_name,
-              channelId: nav.result.channel_id,
-              channelThumbnail: nav.result.channel_thumbnail,
-              thumbnailUrl: nav.result.preview_image_url,
-              duration: nav.result.duration_seconds
-                ? {
-                    totalSeconds: nav.result.duration_seconds,
-                    formatted: nav.result.duration_formatted || "",
-                  }
-                : undefined,
-              viewCount: nav.result.view_count,
-              likeCount: nav.result.like_count,
-              publishedAt: nav.result.published_at,
-            }
-          : undefined}
       />
     {:else}
       <WebsiteEmbedFullscreen
-        url={nav.result.url}
-        title={nav.result.title}
-        description={nav.result.description || nav.result.snippet}
-        favicon={nav.result.favicon_url}
-        image={nav.result.preview_image_url}
-        extra_snippets={nav.result.extra_snippets}
-        dataDate={nav.result.page_age}
+        data={{ decodedContent: nav.result }}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
         hasPreviousEmbed={nav.hasPrevious}

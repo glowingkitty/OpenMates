@@ -329,8 +329,9 @@
 
   {#snippet childFullscreen(nav)}
     <TravelStayEmbedFullscreen
-      stay={nav.result}
+      data={{ decodedContent: nav.result }}
       onClose={nav.onClose}
+      embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}
       onNavigatePrevious={nav.onPrevious}

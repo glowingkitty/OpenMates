@@ -9,10 +9,8 @@
   - Video cards in responsive grid (VideoEmbedPreview)
   - Drill-down: clicking a card opens VideoEmbedFullscreen overlay with sibling nav
 
-  Special: VideoEmbedPreview.onFullscreen returns VideoMetadata (not just a click).
-  We track a videoMetadataMap to preserve metadata across sibling navigation.
-
   Child embeds are automatically loaded by SearchResultsTemplate/UnifiedEmbedFullscreen.
+  VideoEmbedFullscreen extracts all metadata from data.decodedContent.
 
   See docs/architecture/embeds.md
 -->
@@ -21,7 +19,7 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import VideoEmbedFullscreen from './VideoEmbedFullscreen.svelte';
-  import type { VideoMetadata } from './VideoEmbedPreview.svelte';
+
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
 
@@ -178,32 +176,6 @@
     });
   }
 
-  /**
-   * Create VideoMetadata object from VideoSearchResult.
-   */
-  function createVideoMetadata(result: VideoSearchResult): VideoMetadata {
-    return {
-      videoId: result.videoId || '',
-      title: result.title,
-      description: result.description,
-      channelName: result.channelName,
-      channelId: result.channelId,
-      channelThumbnail: result.channelThumbnail,
-      thumbnailUrl: result.thumbnail,
-      duration: result.durationSeconds !== undefined || result.durationFormatted
-        ? { totalSeconds: result.durationSeconds || 0, formatted: result.durationFormatted || '' }
-        : undefined,
-      viewCount: result.viewCount,
-      likeCount: result.likeCount,
-      publishedAt: result.publishedAt,
-    };
-  }
-
-  /**
-   * Metadata map: embed_id -> VideoMetadata (populated on click).
-   * Preserved across sibling navigation so metadata isn't lost.
-   */
-  let videoMetadataMap = $state<Map<string, VideoMetadata>>(new Map());
 </script>
 
 <SearchResultsTemplate
@@ -246,10 +218,7 @@
       likeCount={result.likeCount}
       publishedAt={result.publishedAt}
       videoId={result.videoId}
-      onFullscreen={(metadata) => {
-        const newMap = new Map(videoMetadataMap);
-        newMap.set(result.embed_id, metadata);
-        videoMetadataMap = newMap;
+      onFullscreen={() => {
         onSelect();
       }}
     />
@@ -257,12 +226,9 @@
 
   {#snippet childFullscreen(nav)}
     <VideoEmbedFullscreen
-      url={nav.result.url}
-      title={nav.result.title}
+      data={{ decodedContent: nav.result }}
       onClose={nav.onClose}
       embedId={nav.result.embed_id}
-      videoId={nav.result.videoId}
-      metadata={videoMetadataMap.get(nav.result.embed_id) || createVideoMetadata(nav.result)}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}
       onNavigatePrevious={nav.onPrevious}
@@ -270,11 +236,3 @@
     />
   {/snippet}
 </SearchResultsTemplate>
-
-<style>
-  .video-embeds-grid :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: 320px;
-    margin: 0 auto;
-  }
-</style>

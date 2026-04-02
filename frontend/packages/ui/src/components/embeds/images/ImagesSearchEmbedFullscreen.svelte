@@ -198,12 +198,7 @@
 
   {#snippet childFullscreen(nav)}
     <ImageResultEmbedFullscreen
-      title={nav.result.title}
-      sourceDomain={nav.result.source}
-      sourcePageUrl={nav.result.source_page_url}
-      imageUrl={proxyUrl(nav.result.image_url || nav.result.thumbnail_url)}
-      thumbnailUrl={proxyUrl(nav.result.thumbnail_url || nav.result.image_url)}
-      faviconUrl={nav.result.favicon_url}
+      data={{ decodedContent: nav.result }}
       embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}

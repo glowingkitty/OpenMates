@@ -226,18 +226,7 @@
 
   {#snippet childFullscreen(nav)}
     <HomeListingEmbedFullscreen
-      url={nav.result.url || ''}
-      title={nav.result.title}
-      price_label={nav.result.price_label}
-      size_sqm={nav.result.size_sqm}
-      rooms={nav.result.rooms}
-      address={nav.result.address}
-      image_url={nav.result.image_url}
-      provider={nav.result.provider}
-      listing_type={nav.result.listing_type}
-      available_from={nav.result.available_from}
-      deposit={nav.result.deposit}
-      furnished={nav.result.furnished}
+      data={{ decodedContent: nav.result }}
       onClose={nav.onClose}
       embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
