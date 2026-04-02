@@ -40,9 +40,11 @@ from _linear_client import (
     LABEL_CLAUDE_RESEARCH_ID,
     LABEL_CLAUDE_WORKING_ID,
     add_label,
+    get_issue,
     get_issue_with_comments,
     list_issues_with_label,
     post_comment,
+    remove_label,
     remove_specific_label,
     update_issue_status,
 )
@@ -50,6 +52,8 @@ from _zellij_utils import (
     MAX_CONCURRENT_SESSIONS,
     count_active_sessions,
     enforce_session_limit,
+    kill_session,
+    list_sessions_with_state,
     spawn_claude_session,
 )
 
@@ -324,8 +328,71 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
     return True
 
 
+COMPLETED_STATES = {"In Review", "Done", "Cancelled"}
+
+
+def _cleanup_completed_sessions() -> int:
+    """
+    Kill Zellij sessions whose Linear task has moved to In Review, Done, or
+    Cancelled. Runs every poller cycle (30s) so sessions are reclaimed fast.
+
+    Returns the number of sessions cleaned up.
+    """
+    tracked = _read_poller_sessions()
+    if not tracked:
+        return 0
+
+    zellij_state = list_sessions_with_state()
+    cleaned = 0
+    to_remove: List[str] = []
+
+    for session_name, info in tracked.items():
+        identifier = info.get("identifier")
+        if not identifier:
+            continue
+
+        # Check if the Linear task has been completed
+        issue_data = get_issue(identifier)
+        if not issue_data:
+            continue
+
+        if issue_data.get("state") not in COMPLETED_STATES:
+            continue
+
+        # Task is done — kill the Zellij session and clean up
+        state = zellij_state.get(session_name)
+        if state:
+            kill_session(session_name)
+
+        # Remove claude-is-working label if still present
+        if "claude-is-working" in issue_data.get("labels", []):
+            remove_label(
+                issue_data["id"],
+                current_label_ids=issue_data.get("label_ids", []),
+            )
+
+        to_remove.append(session_name)
+        cleaned += 1
+        print(f"{LOG_PREFIX} {identifier}: task {issue_data['state']} — killed session '{session_name}'")
+
+    # Update tracking file
+    if to_remove:
+        fresh = _read_poller_sessions()
+        for name in to_remove:
+            fresh.pop(name, None)
+        _write_poller_sessions(fresh)
+
+    return cleaned
+
+
 def poll_and_spawn(dry_run: bool = False) -> None:
     """Poll Linear for claude-plan/claude-fix issues and spawn sessions."""
+
+    # First: kill sessions whose tasks are already completed (In Review/Done)
+    # This frees slots within 30s of a task completing, instead of waiting
+    # for the 5-minute cleanup timer.
+    if not dry_run:
+        _cleanup_completed_sessions()
 
     # Collect candidates from all trigger labels
     candidates: List[Tuple[Dict, str]] = []  # (issue, mode)
