@@ -1626,6 +1626,100 @@ async def list_error_fingerprints(
 
 
 # ============================================================================
+# ERROR LOG QUERY ENDPOINT (OpenObserve)
+# ============================================================================
+
+
+class ErrorLogEntry(BaseModel):
+    """A single error log entry grouped by message, service, and level."""
+    message: str
+    service: str
+    level: str
+    count: int
+
+
+class ErrorLogsResponse(BaseModel):
+    """Response for the /errors/logs endpoint."""
+    success: bool
+    hits: List[ErrorLogEntry]
+    total: int
+    since_minutes: int
+    generated_at: str
+
+
+@router.get("/errors/logs", response_model=ErrorLogsResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def list_error_logs(
+    request: Request,
+    since_minutes: int = 1440,
+    top: int = 15,
+    admin_user: User = Depends(require_admin_api_key),
+) -> ErrorLogsResponse:
+    """
+    Query OpenObserve for ERROR/CRITICAL log entries grouped by message, service, and level.
+
+    This endpoint allows remote servers (e.g. dev querying prod) to fetch error
+    summaries without direct OpenObserve access. Returns the same data as:
+      debug.py logs --o2 --sql 'SELECT message, service, level, COUNT(*) ...' --json
+
+    Query params:
+        since_minutes: Time window in minutes (default 1440 = 24h, max 10080 = 7d)
+        top: Max error groups to return (default 15, max 100)
+
+    Security:
+        - Requires admin API key
+        - Only returns aggregated error counts, not raw log content
+    """
+    since_minutes = min(max(1, since_minutes), 10080)
+    top = min(max(1, top), 100)
+
+    logger.info(
+        f"Admin {admin_user.id} querying error logs "
+        f"(since={since_minutes}m, top={top})"
+    )
+
+    sql = (
+        f"SELECT message, service, level, COUNT(*) as count "
+        f"FROM \"default\" "
+        f"WHERE compose_project = 'openmates-core' "
+        f"AND (level = 'ERROR' OR level = 'CRITICAL' "
+        f"OR LOWER(message) LIKE '%traceback%') "
+        f"GROUP BY message, service, level "
+        f"ORDER BY count DESC "
+        f"LIMIT {top}"
+    )
+
+    try:
+        start_time = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+        hits = await openobserve_log_collector._search("default", sql, start_time=start_time)
+
+        entries = []
+        if hits:
+            for hit in hits:
+                entries.append(ErrorLogEntry(
+                    message=str(hit.get("message", ""))[:500],
+                    service=str(hit.get("service", "unknown")),
+                    level=str(hit.get("level", "ERROR")),
+                    count=int(hit.get("count", 1)),
+                ))
+
+        return ErrorLogsResponse(
+            success=True,
+            hits=entries,
+            total=len(entries),
+            since_minutes=since_minutes,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    except Exception as e:
+        logger.error(f"Error querying OpenObserve error logs: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to query error logs: {str(e)}",
+        )
+
+
+# ============================================================================
 # UTILITY ENDPOINTS
 # ============================================================================
 

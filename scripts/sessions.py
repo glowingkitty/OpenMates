@@ -1842,8 +1842,9 @@ def _linear_start_integration(
             return
         linear_issue_id = issue_data["id"]
     elif task and task != "(pending)":
-        # No auto-creation — Claude will search for existing tasks or ask the user
-        print("  Linear: No issue ID provided. Claude will search for an existing task or ask.", file=sys.stderr)
+        # Reminder for the running Claude session to follow the Linear task workflow
+        # in .claude/rules/linear-tasks.md (search for existing task before creating)
+        print("  Linear: No issue linked to this session. Pass --issue OPE-XX next time to link one.", file=sys.stderr)
         return
 
     if not linear_issue_id:
@@ -3224,11 +3225,27 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"git reset failed: {stderr}", file=sys.stderr)
             sys.exit(1)
 
-    print(f"Adding {len(to_commit)} files...")
-    rc, _, stderr = _run_cmd(["git", "add"] + to_commit)
-    if rc != 0:
-        print(f"git add failed: {stderr}", file=sys.stderr)
-        sys.exit(1)
+    # Separate existing files from deleted files — git add fails on deleted files,
+    # but they may already be staged via git rm. Only add files that exist on disk.
+    files_to_add = [f for f in to_commit if os.path.exists(f)]
+    deleted_files = [f for f in to_commit if not os.path.exists(f)]
+
+    if deleted_files:
+        # Ensure deleted files are staged (git rm --cached is safe even if already staged)
+        print(f"Staging {len(deleted_files)} deleted file(s)...")
+        rc, _, stderr = _run_cmd(["git", "rm", "--cached", "--ignore-unmatch"] + deleted_files)
+        if rc != 0:
+            print(f"git rm failed: {stderr}", file=sys.stderr)
+            sys.exit(1)
+
+    if files_to_add:
+        print(f"Adding {len(files_to_add)} file(s)...")
+        rc, _, stderr = _run_cmd(["git", "add"] + files_to_add)
+        if rc != 0:
+            print(f"git add failed: {stderr}", file=sys.stderr)
+            sys.exit(1)
+
+    print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
 
     # 3. Git commit
     commit_msg = args.title

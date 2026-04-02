@@ -266,6 +266,7 @@ def run() -> None:
         timeout=2400,  # 40 minutes — dead code removal involves many file edits
         job_type="dead-code",
         context_summary=f"{len(items_to_send)} item(s) across {categories_str}",
+        linear_task=False,
     )
 
     # Record items as removed in state regardless of claude exit code —

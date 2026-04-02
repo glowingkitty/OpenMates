@@ -166,6 +166,7 @@ def run_audit() -> None:
         agent="plan",
         timeout=1800,
         job_type="audit",
+        linear_task=False,
     )
 
     # Store session ID as proxy for summary

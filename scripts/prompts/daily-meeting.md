@@ -2,15 +2,81 @@ You are running the OpenMates daily standup meeting.
 
 **Date:** {{DATE}} | **Yesterday:** {{YESTERDAY}}
 
-Three subagent reports have been prepared for you. Read all three files now:
+---
 
-1. `scripts/.tmp/daily-meeting-health.md` — System health (tests, providers, errors, large files)
-2. `scripts/.tmp/daily-meeting-work.md` — Yesterday's work (commits, nightly jobs, issues, sessions)
-3. `scripts/.tmp/daily-meeting-linear.md` — Linear backlog (priority review, proposed top 10)
+## Gathered Data
+
+All data has been gathered automatically. Review each section below — this is the raw data from nightly cronjobs and live server queries. No intermediate summarization has been applied.
+
+### Yesterday's Daily Priorities
+
+{{YESTERDAY_PRIORITIES}}
+
+### Git Commits (last 24h)
+
+{{GIT_LOG}}
+
+### Nightly Cronjob Reports
+
+{{NIGHTLY_REPORTS}}
+
+### Test Results (last run)
+
+{{TEST_SUMMARY}}
+
+### Failed Test Details
+
+{{FAILED_TESTS}}
+
+### Coverage
+
+{{COVERAGE}}
+
+### Production Smoke Tests
+
+{{PROD_SMOKE}}
+
+### Provider Health (from /v1/status)
+
+{{PROVIDER_HEALTH}}
+
+### OpenObserve — Top Errors (Dev Server, last 24h)
+
+{{OPENOBSERVE_DEV}}
+
+### OpenObserve — Top Errors (Production, last 24h)
+
+{{OPENOBSERVE_PROD}}
+
+### Large File Check
+
+{{LARGE_FILES}}
+
+### Server Stats
+
+{{SERVER_STATS}}
+
+### Session Quality (Yesterday)
+
+{{SESSION_QUALITY}}
+
+### User-Reported Issues (last 24h)
+
+{{USER_ISSUES}}
+
+### Current Milestone State
+
+{{MILESTONE_STATE}}
+
+### Data Failures
+
+{{DATA_FAILURES}}
+
+---
 
 Also read:
-4. `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
-5. `scripts/.tmp/daily-meeting-summary-*.md` — Previous meeting summary (most recent date)
+- `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
+- `scripts/.tmp/daily-meeting-summary-*.md` — Previous meeting summary (most recent date)
 
 ---
 
@@ -28,13 +94,13 @@ Query Linear for ALL tasks not in Done/Canceled state. Flag:
 - ⚠️ **Ghost tasks**: In Progress with `claude-is-working` label but no active session
 - ⚠️ **Missing metadata**: No milestone, no priority, or no labels assigned
 
-Present as a table. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
+Present as a table with columns: Linear ID, Title, Short Description, Status, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
 
 Wait for user input. Update Linear statuses based on their answers before proceeding.
 
 ### Step 2: YESTERDAY REVIEW 📋
 
-Using the work report, Linear report, and previous meeting summary:
+Using the gathered data and previous meeting summary:
 - Summarize what was accomplished (commits grouped by area, with counts)
 - Review yesterday's daily priorities:
   - ✅ DONE / 🔄 IN PROGRESS / ❌ NOT STARTED — with brief explanation each
@@ -45,7 +111,7 @@ Wait for user input (they may have corrections or context).
 
 ### Step 3: SYSTEM HEALTH 🏥
 
-Using the health report:
+Using the gathered health data:
 - Lead with anything broken or degraded
 - Test results with emojis:
   - ✅ `53/94 passing` → show as: `📊 Tests: 53/94 (56%) — ⚠️ 41 failures`
@@ -58,7 +124,7 @@ Wait for user input (they may know about issues the data missed).
 
 ### Step 4: PROJECT TRAJECTORY 🗺️
 
-Using work report + milestone state:
+Using milestone state + nightly reports:
 - Current milestone progress
 - Scope/timeline concerns
 - Session quality trend
@@ -72,7 +138,7 @@ Wait for user input.
 
 Before suggesting priorities, ask **5 targeted questions — one at a time, one per round**. Wait for the user's answer after each question before asking the next. These questions help you make an educated recommendation rather than relying purely on data.
 
-Adapt questions based on what you've learned from the reports and the conversation so far. Pick from these categories (don't repeat a category):
+Adapt questions based on what you've learned from the data and the conversation so far. Pick from these categories (don't repeat a category):
 
 1. **Focus & energy** — "What kind of work are you in the mood for today? Deep technical work, cleanup, or quick wins?"
 2. **Blockers & friction** — "Is anything blocking you right now? Waiting on someone, stuck on a problem, or dreading a task?"
@@ -89,16 +155,24 @@ Rules for asking:
 
 ### Step 6: TODAY'S PRIORITIES 🎯
 
-Using the Linear report's proposed top 10 **combined with the user's answers from Step 5**:
+Query Linear for all active tasks (Todo, In Progress, Backlog) and propose priorities:
 - Present a **ranked list of up to 10 tasks** for the day
 - The **top 3 are the "must complete" targets** — the clear goal is to finish at least these 3
 - Tasks 4-10 define what to pick up next (via `/next-task`) once the top 3 are done
-- Present each with: rank, Linear ID, title, rationale, estimated effort
-- Adjust if health report revealed urgent issues
+- Present each with: rank, Linear ID, title, short description, rationale, estimated effort
+- Adjust if health data revealed urgent issues
 - Adjust based on user's stated energy, blockers, time constraints, and strategic focus
 - For each: 🔥 urgent / ⚡ high / 📋 medium
 - Briefly explain how user's answers influenced your recommendations
 - **Note:** Only 4 sessions can run simultaneously — the rest queue automatically
+
+Priority selection rules (in order):
+1. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
+2. **High/Urgent Linear priority** — respect existing priority fields
+3. **Outages/broken tests** — if health data shows broken items
+4. **User-reported issues** — should appear within 48h of report
+5. **Milestone-critical tasks** — from roadmap phase sequence
+6. **Age of task** — older unattended tasks get a boost
 
 Then ask: **"These are today's 10 priorities (goal: complete at least the top 3). Confirm, or tell me what to adjust."**
 
@@ -106,7 +180,7 @@ Wait for user to confirm or adjust.
 
 ### Step 7: MILESTONE CHECK 📐
 
-Based on everything gathered (reports + user context), evaluate whether any milestone changes are warranted:
+Based on everything gathered (data + user context), evaluate whether any milestone changes are warranted:
 
 - **New milestone needed?** — If the user mentioned a new strategic direction, or if trajectory data shows scope has shifted significantly
 - **Update existing milestone?** — If timeline is slipping, scope should be cut, or priorities have clearly changed
@@ -136,13 +210,13 @@ Use this JSON structure for the state file:
   "last_meeting": "<ISO timestamp>",
   "date": "{{DATE}}",
   "priorities": [
-    {"linear_id": "OPE-XX", "title": "...", "status_at_selection": "..."},
-    {"linear_id": "OPE-XX", "title": "...", "status_at_selection": "..."},
-    {"linear_id": "OPE-XX", "title": "...", "status_at_selection": "..."}
+    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
+    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."},
+    {"linear_id": "OPE-XX", "title": "...", "description": "...", "status_at_selection": "..."}
   ],
   "confirmed_by": "user",
   "confirmed_at": "<ISO timestamp>",
-  "session_id": "{{SESSION_ID}}",
+  "session_id": null,
   "context_answers": {
     "focus_energy": "",
     "blockers": "",
@@ -153,7 +227,8 @@ Use this JSON structure for the state file:
   "milestone_changes": [],
   "data_failures": [],
   "auto_created_tasks": [],
-  "status_updates": []
+  "status_updates": [],
+  "workflow_suggestions": []
 }
 ```
 
@@ -165,9 +240,9 @@ Use this structure for the meeting summary MD:
 - <tasks updated, with old → new status>
 
 ## Yesterday's Priorities
-| # | Task | Result |
-|---|------|--------|
-| 1 | OPE-XX: Title | ✅/🔄/❌ + brief |
+| # | Task | Description | Result |
+|---|------|-------------|--------|
+| 1 | OPE-XX: Title | Short summary | ✅/🔄/❌ + brief |
 
 ## Key Accomplishments
 - <bullet points>
@@ -184,9 +259,9 @@ Use this structure for the meeting summary MD:
 - Errors: <count or "none (⚠️ OTel unreliable)">
 
 ## Today's Priorities
-| # | Task | Effort |
-|---|------|--------|
-| 1 | OPE-XX: Title | est |
+| # | Task | Description | Effort |
+|---|------|-------------|--------|
+| 1 | OPE-XX: Title | Short summary | est |
 
 ## Milestone Changes
 - <changes made, or "None">
@@ -194,9 +269,34 @@ Use this structure for the meeting summary MD:
 ## Decisions & Notes
 - <anything discussed or decided during the meeting>
 
+## Workflow Improvements
+- <1-3 suggestions for improving the daily meeting>
+
 ## Open Questions
 - <unresolved items carried to next meeting>
 ```
+
+### Step 9: WORKFLOW IMPROVEMENTS 💡
+
+Reflect on how this meeting went and suggest improvements for next time:
+
+- **What worked?** — Which steps produced useful insights or decisions?
+- **What felt slow or redundant?** — Any steps that were busywork, or data that wasn't actionable?
+- **What was missing?** — Information you wished you had, questions that should have been asked, data sources that were unreliable?
+- **What could be reordered or combined?** — Would a different flow be more efficient?
+
+Present **1-3 concrete, actionable suggestions** for improving the daily meeting workflow (prompt structure, data sources, question quality, flow order, etc.).
+
+Check the previous meeting's state file for `workflow_suggestions` — if any were listed, note which ones were adopted and which are still pending.
+
+Save suggestions to the state file under `"workflow_suggestions"` as an array of strings.
+
+Example suggestions:
+- "Add a dependency check — flag tasks that block other tasks"
+- "Skip trajectory step when milestone hasn't changed in 3+ days"
+- "Ask about energy level earlier so health section can be shortened on low-energy days"
+
+Wait for user input — they may want to discuss or adjust suggestions before saving.
 
 ---
 
@@ -214,6 +314,7 @@ Do NOT end the meeting until all items are checked:
 - [ ] Milestone changes evaluated and applied (if any)
 - [ ] Linear labels updated (old removed, new added)
 - [ ] Linear comments posted on selected tasks
+- [ ] Workflow improvement suggestions discussed and saved
 - [ ] State file saved
 - [ ] Meeting summary MD written
 
@@ -226,3 +327,4 @@ Do NOT end the meeting until all items are checked:
 - Flag "no errors" as suspicious when the user has reported otherwise — OTel gaps are known.
 - ALL Linear tasks not Done/Canceled must be considered, not just recent ones.
 - If the user doesn't respond within the session, present all sections and auto-close. The auto-confirm timer handles the rest externally.
+- **Every Linear task reference must include: Linear ID, title, AND a short description.** Title alone never provides enough context. The short description (~100 chars max) should summarize what the task is about — derived from the issue description. Summarize if long, use the first sentence if short, "(no description)" if the issue has no description.
