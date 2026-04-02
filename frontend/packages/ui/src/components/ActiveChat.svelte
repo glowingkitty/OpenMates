@@ -30,6 +30,7 @@
     import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
     import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
     import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
+    import MailSearchEmbedFullscreen from './embeds/mail/MailSearchEmbedFullscreen.svelte';
     import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
@@ -44,9 +45,11 @@
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
     import HomeSearchEmbedFullscreen from './embeds/home/HomeSearchEmbedFullscreen.svelte';
+    import HomeListingEmbedFullscreen from './embeds/home/HomeListingEmbedFullscreen.svelte';
     import EventEmbedFullscreen from './embeds/events/EventEmbedFullscreen.svelte';
     import TravelConnectionEmbedFullscreen from './embeds/travel/TravelConnectionEmbedFullscreen.svelte';
     import TravelStayEmbedFullscreen from './embeds/travel/TravelStayEmbedFullscreen.svelte';
+    import TravelFlightDetailsEmbedFullscreen from './embeds/travel/TravelFlightDetailsEmbedFullscreen.svelte';
     import ImagesSearchEmbedFullscreen from './embeds/images/ImagesSearchEmbedFullscreen.svelte';
     import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
@@ -10614,6 +10617,46 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             showChatButton={showChatButtonInFullscreen}
                             onShowChat={handleShowChat}
                         />
+                    {:else if appId === 'mail' && skillId === 'search'}
+                        <!-- Mail Search Fullscreen -->
+                        <MailSearchEmbedFullscreen
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || ''}
+                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as never[] : []}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            navigateDirection={embedNavigateDirection}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
+                        />
+                    {:else if appId === 'travel' && skillId === 'get_flight'}
+                        <!-- Travel Flight Details Fullscreen -->
+                        <TravelFlightDetailsEmbedFullscreen
+                            flightNumber={typeof embedFullscreenData.decodedContent?.flight_number === 'string' ? embedFullscreenData.decodedContent.flight_number : undefined}
+                            departureDate={typeof embedFullscreenData.decodedContent?.departure_date === 'string' ? embedFullscreenData.decodedContent.departure_date : undefined}
+                            originIata={typeof embedFullscreenData.decodedContent?.origin_iata === 'string' ? embedFullscreenData.decodedContent.origin_iata : undefined}
+                            destinationIata={typeof embedFullscreenData.decodedContent?.destination_iata === 'string' ? embedFullscreenData.decodedContent.destination_iata : undefined}
+                            actualTakeoff={typeof embedFullscreenData.decodedContent?.actual_takeoff === 'string' ? embedFullscreenData.decodedContent.actual_takeoff : undefined}
+                            actualLanding={typeof embedFullscreenData.decodedContent?.actual_landing === 'string' ? embedFullscreenData.decodedContent.actual_landing : undefined}
+                            runwayTakeoff={typeof embedFullscreenData.decodedContent?.runway_takeoff === 'string' ? embedFullscreenData.decodedContent.runway_takeoff : undefined}
+                            runwayLanding={typeof embedFullscreenData.decodedContent?.runway_landing === 'string' ? embedFullscreenData.decodedContent.runway_landing : undefined}
+                            actualDistanceKm={typeof embedFullscreenData.decodedContent?.actual_distance_km === 'number' ? embedFullscreenData.decodedContent.actual_distance_km : undefined}
+                            flightTimeMinutes={typeof embedFullscreenData.decodedContent?.flight_time_minutes === 'number' ? embedFullscreenData.decodedContent.flight_time_minutes : undefined}
+                            diverted={typeof embedFullscreenData.decodedContent?.diverted === 'boolean' ? embedFullscreenData.decodedContent.diverted : undefined}
+                            actualDestinationIata={typeof embedFullscreenData.decodedContent?.actual_destination_iata === 'string' ? embedFullscreenData.decodedContent.actual_destination_iata : undefined}
+                            tracks={Array.isArray(embedFullscreenData.decodedContent?.tracks) ? embedFullscreenData.decodedContent.tracks as never[] : undefined}
+                            fr24Id={typeof embedFullscreenData.decodedContent?.fr24_id === 'string' ? embedFullscreenData.decodedContent.fr24_id : undefined}
+                            embedId={embedFullscreenData.embedId}
+                            onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                        />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
                         <div class="embed-fullscreen-fallback">
@@ -10852,6 +10895,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         onNavigatePrevious={handleNavigatePreviousEmbed}
                         onNavigateNext={handleNavigateNextEmbed}
                     />
+                {:else if embedFullscreenData.embedType === 'home-listing'}
+                    <!-- Home Listing Fullscreen (child embed of a Home Search result) -->
+                    <HomeListingEmbedFullscreen
+                        url={typeof embedFullscreenData.decodedContent?.url === 'string' ? embedFullscreenData.decodedContent.url : ''}
+                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined}
+                        price_label={typeof embedFullscreenData.decodedContent?.price_label === 'string' ? embedFullscreenData.decodedContent.price_label : undefined}
+                        size_sqm={typeof embedFullscreenData.decodedContent?.size_sqm === 'number' ? embedFullscreenData.decodedContent.size_sqm : undefined}
+                        rooms={typeof embedFullscreenData.decodedContent?.rooms === 'number' ? embedFullscreenData.decodedContent.rooms : undefined}
+                        address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : undefined}
+                        image_url={typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : undefined}
+                        provider={typeof embedFullscreenData.decodedContent?.provider === 'string' ? embedFullscreenData.decodedContent.provider : undefined}
+                        listing_type={typeof embedFullscreenData.decodedContent?.listing_type === 'string' ? embedFullscreenData.decodedContent.listing_type : undefined}
+                        available_from={typeof embedFullscreenData.decodedContent?.available_from === 'string' ? embedFullscreenData.decodedContent.available_from : undefined}
+                        deposit={typeof embedFullscreenData.decodedContent?.deposit === 'number' ? embedFullscreenData.decodedContent.deposit : undefined}
+                        furnished={typeof embedFullscreenData.decodedContent?.furnished === 'boolean' ? embedFullscreenData.decodedContent.furnished : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
+                    />
                 {:else if embedFullscreenData.embedType === 'maps'}
                     <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
                     <!-- Coordinates / address come from decodedContent (EmbedStore TOON) or attrs fallback.
@@ -11010,6 +11078,40 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {hasNextEmbed}
                         onNavigatePrevious={handleNavigatePreviousEmbed}
                         onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'recording'}
+                    <!-- Recording Fullscreen (audio recording with transcript) -->
+                    <RecordingEmbedFullscreen
+                        transcript={typeof embedFullscreenData.decodedContent?.transcript === 'string' ? embedFullscreenData.decodedContent.transcript : undefined}
+                        blobUrl={typeof embedFullscreenData.decodedContent?.blob_url === 'string' ? embedFullscreenData.decodedContent.blob_url : undefined}
+                        filename={typeof embedFullscreenData.decodedContent?.filename === 'string' ? embedFullscreenData.decodedContent.filename : undefined}
+                        duration={typeof embedFullscreenData.decodedContent?.duration === 'string' ? embedFullscreenData.decodedContent.duration : undefined}
+                        s3Files={embedFullscreenData.decodedContent?.s3_files as Record<string, { s3_key: string; size_bytes: number }> | undefined}
+                        s3BaseUrl={typeof embedFullscreenData.decodedContent?.s3_base_url === 'string' ? embedFullscreenData.decodedContent.s3_base_url : undefined}
+                        aesKey={typeof embedFullscreenData.decodedContent?.aes_key === 'string' ? embedFullscreenData.decodedContent.aes_key : undefined}
+                        aesNonce={typeof embedFullscreenData.decodedContent?.aes_nonce === 'string' ? embedFullscreenData.decodedContent.aes_nonce : undefined}
+                        model={typeof embedFullscreenData.decodedContent?.model === 'string' ? embedFullscreenData.decodedContent.model : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if embedFullscreenData.embedType === 'pdf'}
+                    <!-- PDF Fullscreen -->
+                    <PDFEmbedFullscreen
+                        filename={typeof embedFullscreenData.decodedContent?.filename === 'string' ? embedFullscreenData.decodedContent.filename : undefined}
+                        pageCount={typeof embedFullscreenData.decodedContent?.page_count === 'number' ? embedFullscreenData.decodedContent.page_count : undefined}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                        navigateDirection={embedNavigateDirection}
+                        showChatButton={showChatButtonInFullscreen}
+                        onShowChat={handleShowChat}
                     />
                 {:else}
                     <!-- Fallback for unknown embed types -->
