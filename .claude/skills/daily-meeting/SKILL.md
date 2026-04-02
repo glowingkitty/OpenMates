@@ -9,25 +9,105 @@ argument-hint: "[dry-run]"
 
 You are running the OpenMates daily standup meeting. This is a **step-by-step conversation**, not a report dump. Present one section at a time and wait for user input before proceeding.
 
-### Step 1: Gather Data & Start Meeting
+### Step 1: Gather Data (Inline)
 
-If the user passed `dry-run` as an argument:
-```bash
-python3 scripts/_daily_meeting_helper.py dry-run
-```
+Gather all data sources directly using Bash and Read tools. Do NOT call `_daily_meeting_helper.py run-meeting` — that launches a separate Claude session.
 
-Otherwise, gather live data and start the meeting session directly:
-```bash
-python3 scripts/_daily_meeting_helper.py run-meeting
-```
+**Error handling:** If any source fails, record `[DATA UNAVAILABLE: <source> — <error>]` and continue. Never abort the meeting due to a single data source failure.
 
-This gathers data from 11 sources (nightly reports, test results, git log, provider health, OpenObserve errors, server stats, user issues, session quality, milestone state) and starts the meeting with all data injected into the prompt.
+#### Parallel Batch 1 — issue ALL of these as simultaneous tool calls:
 
-No subagents are used — the meeting session receives all raw data directly, avoiding unnecessary summarization layers.
+1. **Git log (24h)** — Bash:
+   ```bash
+   git -C /home/superdev/projects/OpenMates log --since="24 hours ago" --oneline --no-color
+   ```
 
-### Step 2: Run the Meeting (Step by Step)
+2. **Test summary** (compact extraction from large JSON) — Bash:
+   ```bash
+   cd /home/superdev/projects/OpenMates && python3 -c "
+   import json
+   d = json.loads(open('test-results/last-run.json').read())
+   compact = {
+       'run_id': d.get('run_id'), 'git_sha': d.get('git_sha'),
+       'duration_seconds': d.get('duration_seconds'),
+       'summary': d.get('summary', {}), 'suites': {}
+   }
+   for n, s in d.get('suites', {}).items():
+       failed = [{'name': t['name'], 'error': (t.get('error') or '')[:300]}
+                 for t in s.get('tests', []) if t.get('status') != 'passed']
+       compact['suites'][n] = {'status': s.get('status'), 'total': len(s.get('tests', [])), 'failed': failed}
+   print(json.dumps(compact, indent=2))
+   "
+   ```
 
-Follow the meeting agenda from `scripts/prompts/daily-meeting.md`. **Present ONE section at a time**, wait for user response, then proceed:
+3. **Provider health** — Bash:
+   ```bash
+   curl -s --max-time 15 http://localhost:8000/v1/status
+   ```
+
+4. **OpenObserve dev errors** — Bash:
+   ```bash
+   docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health
+   ```
+
+5. **OpenObserve prod errors** — Bash (same as #4 with `--prod`):
+   ```bash
+   docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health --prod
+   ```
+
+6. **Server stats** — Bash:
+   ```bash
+   docker exec api python3 /app/backend/scripts/server_stats_query.py
+   ```
+
+7. **User-reported issues** — Bash:
+   ```bash
+   docker exec api python /app/backend/scripts/debug_issue.py --list --json --list-limit 15
+   ```
+
+8. **Large files** — Bash:
+   ```bash
+   bash scripts/check-file-sizes.sh --ci
+   ```
+
+9. **Session quality** — Bash:
+   ```bash
+   cd /home/superdev/projects/OpenMates/scripts && python3 -c "
+   from _workflow_review_helper import build_session_digests
+   from datetime import datetime, timezone, timedelta
+   y = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
+   t, c, ch = build_session_digests(y, verbose=False)
+   if c == 0:
+       print('(No sessions found for yesterday.)')
+   else:
+       print(f'({c} sessions, {ch:,} chars)\n\n' + t[:8000])
+   "
+   ```
+
+10. **Previous meeting state** — Read: `scripts/.daily-meeting-state.json`
+
+#### Parallel Batch 2 — file reads (issue simultaneously after batch 1):
+
+11. **Failed tests** — Read: `test-results/last-failed-tests.json`
+12. **Failed test reports** — Glob `test-results/reports/failed/*.md`, then Read each (limit 4000 chars per file)
+13. **Vitest coverage** — Read: `test-results/coverage/vitest-coverage.json`
+14. **Pytest coverage** — Read: `test-results/coverage/pytest-coverage.json`
+15. **Prod smoke tests** — Read: `test-results/last-run-prod-smoke.json`
+16. **Nightly reports** — Glob `logs/nightly-reports/*.json`, then Read each
+17. **Milestone state** — Read: `.planning/PROJECT.md` (fallback: `.planning/ROADMAP.md`, `.planning/STATE.md`, `.planning/config.json`)
+18. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
+
+### Step 2: Read Prompt Template & Start Meeting
+
+Read `scripts/prompts/daily-meeting.md` for the full meeting flow structure, state file format, and summary template.
+
+If `dry-run` was passed: display all gathered data organized by section with headers, list any failures, then **STOP** — do not run the meeting.
+
+Otherwise, proceed through the meeting flow using the gathered data as context.
+
+### Step 3: Run the Meeting (Step by Step)
+
+Follow the 8-step meeting agenda from the prompt template. **Present ONE section at a time**, wait for user response, then proceed:
 
 1. **STATUS CLEANUP 🧹** — stale/ghost tasks, ask user to confirm status changes
 2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
@@ -38,7 +118,7 @@ Follow the meeting agenda from `scripts/prompts/daily-meeting.md`. **Present ONE
 7. **MILESTONE CHECK 📐** — based on gathered context, suggest milestone changes (create new, update existing) if warranted
 8. **CONFIRM & CLOSE ✅** — apply labels, save state, write summary
 
-### Step 3: Apply Priorities & Milestone Changes
+### Step 4: Apply Priorities & Milestone Changes
 
 After the user confirms (or adjusts) priorities and any milestone changes:
 
@@ -55,7 +135,7 @@ After the user confirms (or adjusts) priorities and any milestone changes:
 - **Daily priority tasks MUST be set to Urgent priority.** If a task was lower priority before selection, escalate it when adding the `daily-priority` label.
 - When a task is removed from daily priorities (next meeting), restore its original priority only if the user explicitly says to de-escalate.
 
-### Step 4: Spawn Planning Sessions
+### Step 5: Spawn Planning Sessions
 
 After all labels are applied and state is saved, ask the user:
 
