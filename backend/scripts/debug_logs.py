@@ -1983,19 +1983,15 @@ async def _o2_preset_top_warnings_errors(args) -> None:
 async def _o2_custom_sql(args) -> None:
     is_prod = getattr(args, "prod", False)
 
-    # Fail fast if production OpenObserve is not configured
+    # For production: fall back to Admin Debug API instead of direct OpenObserve
     if is_prod:
         prod_url = os.environ.get("OPENOBSERVE_PROD_URL", "")
         prod_email = os.environ.get("OPENOBSERVE_PROD_EMAIL", "")
         prod_password = os.environ.get("OPENOBSERVE_PROD_PASSWORD", "")
         if not prod_url or not prod_email or not prod_password:
-            msg = (
-                "Production OpenObserve not configured. "
-                "Set OPENOBSERVE_PROD_URL, OPENOBSERVE_PROD_EMAIL, "
-                "OPENOBSERVE_PROD_PASSWORD env vars."
-            )
-            print(msg, file=sys.stderr)
-            sys.exit(1)
+            # Direct OpenObserve not configured — use Admin Debug API fallback
+            await _o2_custom_sql_prod_fallback(args)
+            return
 
     hits = await _query_openobserve_sql_hits(
         sql=args.sql,
@@ -2009,6 +2005,62 @@ async def _o2_custom_sql(args) -> None:
         return
 
     print(f"{C_BOLD}OpenObserve custom SQL{C_RESET}")
+    print(f"{C_DIM}Rows returned: {len(hits)}{C_RESET}")
+    for hit in hits[: min(len(hits), args.max_rows)]:
+        print(f"- {json.dumps(hit, default=str)[:240]}")
+
+
+async def _o2_custom_sql_prod_fallback(args) -> None:
+    """Query production error logs via Admin Debug API when direct OpenObserve is unavailable.
+
+    Falls back to the /v1/admin/debug/errors/logs endpoint on the production
+    API server, which queries OpenObserve locally and returns aggregated results.
+    Same pattern as _browser_logs_prod_fallback().
+    """
+    api_key = await get_api_key_from_vault()
+    if not api_key:
+        msg = "Cannot query production: no admin API key in Vault"
+        if getattr(args, "as_json", False):
+            print(json.dumps({"error": msg, "hits": []}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        return
+
+    if not getattr(args, "as_json", False):
+        print(f"{C_DIM}Querying production via Admin Debug API...{C_RESET}")
+
+    params = {
+        "since_minutes": min(args.since, 10080),
+        "top": args.max_rows,
+    }
+
+    try:
+        resp = await _prod_api_request("errors/logs", api_key, params=params)
+    except Exception as e:
+        error_msg = f"Failed to reach production Admin Debug API: {e}"
+        script_logger.error(error_msg)
+        if getattr(args, "as_json", False):
+            print(json.dumps({"error": error_msg, "hits": []}))
+        else:
+            print(f"{C_RED}{error_msg}{C_RESET}")
+        return
+
+    if not resp or not resp.get("success"):
+        error_msg = "Admin Debug API returned no data"
+        if getattr(args, "as_json", False):
+            print(json.dumps({"error": error_msg, "hits": []}))
+        else:
+            print(f"{C_RED}{error_msg}{C_RESET}")
+        return
+
+    hits = resp.get("hits", [])
+    hits = _apply_quiet_health_filter(hits, getattr(args, "quiet_health", False))
+
+    if getattr(args, "as_json", False):
+        print(json.dumps({"hits": hits}, indent=2, default=str))
+        return
+
+    print(f"{C_BOLD}OpenObserve custom SQL (via Admin Debug API){C_RESET}")
     print(f"{C_DIM}Rows returned: {len(hits)}{C_RESET}")
     for hit in hits[: min(len(hits), args.max_rows)]:
         print(f"- {json.dumps(hit, default=str)[:240]}")
