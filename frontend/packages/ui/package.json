@@ -96,7 +96,7 @@
     "jszip": "^3.10.1",
     "katex": "^0.16.22",
     "leaflet": "^1.9.4",
-    "lodash-es": "^4.17.23",
+    "lodash-es": "^4.18.1",
     "lowlight": "^3.3.0",
     "markdown-it": "^14.1.1",
     "pica": "^9.0.1",
