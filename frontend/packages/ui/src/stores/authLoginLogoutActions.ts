@@ -446,6 +446,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // Stop admin log streaming before clearing auth state
     void clientLogForwarder.stop();
 
+    // Stop OTel tracing (on prod it was started at login; on dev this is a no-op)
+    import("../services/tracing/setup").then(({ stopTracing }) => {
+      void stopTracing();
+    }).catch(() => {});
+
     // Clear sensitive crypto data BEFORE server request but AFTER any lookups
     cryptoService.clearKeyFromStorage(); // Clear master key
     cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt

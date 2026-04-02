@@ -30,23 +30,16 @@ export async function initializeApp(
     // These allow inspecting IndexedDB data via window.debugChat(), etc.
     initDebugUtils();
 
-    // Initialize OpenTelemetry distributed tracing as early as possible so that
-    // database init, auth, and all subsequent fetch() calls are instrumented.
-    // getApiUrl() is a pure function based on compile-time VITE_* env vars —
-    // it does NOT depend on auth state or any runtime initialization.
-    //
-    // On production, tracing is skipped at startup because the backend rejects
-    // unauthenticated users (403). Tracing is lazily enabled after login for
-    // admins and users who opted into extended debugging — see initTracingAfterAuth().
+    // Initialize OpenTelemetry distributed tracing.
+    // Dev: all visitors submit traces (backend accepts without auth).
+    // Prod: tracing starts after login for admins/debug users only —
+    // see setAuthenticatedState() in authSessionActions.ts.
     try {
-      const { isDevEnvironment } = await import("./config/api");
+      const { isDevEnvironment, getApiUrl } = await import("./config/api");
       if (isDevEnvironment()) {
-        const { getApiUrl } = await import("./config/api");
         const { initTracing } = await import("./services/tracing/setup");
         initTracing(getApiUrl());
         console.info("[App] OTel tracing initialized");
-      } else {
-        console.debug("[App] OTel tracing deferred — production requires auth");
       }
     } catch (err) {
       console.warn("[App] OTel tracing not available:", err);

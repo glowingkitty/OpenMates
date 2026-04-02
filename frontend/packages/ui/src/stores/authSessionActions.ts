@@ -1324,14 +1324,12 @@ export function setAuthenticatedState(): void {
     );
     clientLogForwarder.start();
 
-    // On production, OTel tracing is deferred until login (the backend rejects
-    // unauthenticated trace submissions with 403). Initialize now for admins
-    // and dev environments where the backend accepts all traces.
+    // On production, OTel tracing is deferred until login (dev inits at startup).
+    // Start tracing now for admins so browser traces reach OpenObserve.
     if (!isDevEnvironment()) {
       import("../config/api").then(({ getApiUrl }) =>
         import("../services/tracing/setup").then(({ initTracing }) => {
           initTracing(getApiUrl());
-          console.info("[setAuthenticatedState] OTel tracing initialized for admin");
         })
       ).catch(() => {
         // Non-critical — tracing failure must not break the app
@@ -1347,6 +1345,15 @@ export function setAuthenticatedState(): void {
           : Infinity;
         if (expiresAt > Date.now() && parsed.debugging_id) {
           clientLogForwarder.startDebugSession(parsed.debugging_id);
+
+          // Start tracing for debug session users on production
+          if (!isDevEnvironment()) {
+            import("../config/api").then(({ getApiUrl }) =>
+              import("../services/tracing/setup").then(({ initTracing }) => {
+                initTracing(getApiUrl());
+              })
+            ).catch(() => {});
+          }
         } else {
           localStorage.removeItem("debug_session");
         }

@@ -102,6 +102,15 @@
 
       // Start the log forwarder in debug session mode
       clientLogForwarder.startDebugSession(debuggingId);
+
+      // Start OTel tracing so browser traces also reach OpenObserve
+      import("../../config/api").then(({ getApiUrl, isDevEnvironment }) => {
+        if (!isDevEnvironment()) {
+          import("../../services/tracing/setup").then(({ initTracing }) => {
+            initTracing(getApiUrl());
+          });
+        }
+      }).catch(() => {});
     } catch (_e) {
       error = "Network error — please try again";
     } finally {
@@ -122,8 +131,11 @@
       // Best-effort — clean up locally even if server call fails
     }
 
-    // Stop the log forwarder
+    // Stop the log forwarder and OTel tracing
     await clientLogForwarder.stop();
+    import("../../services/tracing/setup").then(({ stopTracing }) => {
+      void stopTracing();
+    }).catch(() => {});
     localStorage.removeItem("debug_session");
 
     isActive = false;
