@@ -10884,7 +10884,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             name: typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined,
                             speciality: typeof embedFullscreenData.decodedContent?.speciality === 'string' ? embedFullscreenData.decodedContent.speciality : undefined,
                             address: typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : undefined,
-                            gps_coordinates: embedFullscreenData.decodedContent?.gps_coordinates as { latitude: number; longitude: number } | undefined,
+                            gps_coordinates: (() => {
+                                const gps = embedFullscreenData.decodedContent?.gps_coordinates;
+                                if (!gps || typeof gps !== 'object') return undefined;
+                                const g = gps as Record<string, unknown>;
+                                const lat = typeof g.latitude === 'number' ? g.latitude : typeof g.lat === 'number' ? g.lat : undefined;
+                                const lon = typeof g.longitude === 'number' ? g.longitude : typeof g.lon === 'number' ? g.lon : undefined;
+                                return lat != null && lon != null ? { latitude: lat, longitude: lon } : undefined;
+                            })(),
                             insurance: typeof embedFullscreenData.decodedContent?.insurance === 'string' ? embedFullscreenData.decodedContent.insurance : undefined,
                             telehealth: typeof embedFullscreenData.decodedContent?.telehealth === 'boolean' ? embedFullscreenData.decodedContent.telehealth : undefined,
                             practice_url: typeof embedFullscreenData.decodedContent?.practice_url === 'string' ? embedFullscreenData.decodedContent.practice_url : undefined,
