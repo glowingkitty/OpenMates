@@ -48,7 +48,8 @@ from _linear_client import (
 )
 from _zellij_utils import (
     MAX_CONCURRENT_SESSIONS,
-    count_poller_sessions,
+    count_active_sessions,
+    enforce_session_limit,
     spawn_claude_session,
 )
 
@@ -351,8 +352,11 @@ def poll_and_spawn(dry_run: bool = False) -> None:
 
     print(f"{LOG_PREFIX} Found {len(candidates)} issue(s) to process")
 
+    # Clean up dead sessions first to free slots
+    enforce_session_limit()
+
     for issue, mode in candidates:
-        active = count_poller_sessions()
+        active = count_active_sessions()
         if active >= MAX_CONCURRENT_SESSIONS:
             # Only post a "Queued" comment once — check existing comments first
             full_issue = get_issue_with_comments(issue["identifier"])

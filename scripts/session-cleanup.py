@@ -44,6 +44,7 @@ from _linear_client import (
 )
 from _zellij_utils import (
     cleanup_exited_sessions,
+    enforce_session_limit,
     kill_session,
     list_sessions,
     list_sessions_with_state,
@@ -343,8 +344,9 @@ def main() -> None:
     args = parser.parse_args()
     cleanup_stale_sessions(dry_run=args.dry_run, threshold_hours=args.threshold)
     cleanup_dead_poller_sessions(dry_run=args.dry_run)
-    # Also clean EXITED Zellij sessions to prevent buildup
-    cleanup_exited_sessions()
+    # Enforce global session limit — kills EXITED first, then oldest idle
+    if not args.dry_run:
+        enforce_session_limit()
 
 
 if __name__ == "__main__":
