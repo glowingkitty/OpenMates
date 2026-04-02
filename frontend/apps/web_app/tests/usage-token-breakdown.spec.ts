@@ -2,11 +2,12 @@
 export {};
 
 /**
- * Usage token breakdown E2E test (OPE-213).
+ * Usage token breakdown E2E test (OPE-213, OPE-257).
  *
  * Validates that after sending a chat message, the billing usage detail view
- * displays a correct token breakdown where system_prompt_tokens + user_input_tokens
- * closely matches input_tokens (the total from the provider API).
+ * displays a correct receipt-style token breakdown where:
+ *   - Without app skills: system_prompt + user_input ≈ total input
+ *   - With app skills: system_prompt + user_input + app_skills = total input
  *
  * Uses the &usage deep-link parameter (#settings/billing&usage) to auto-navigate
  * to the most recent usage entry's detail view.
@@ -15,6 +16,10 @@ export {};
  * - OPE-213: calculate_token_breakdown() was not receiving `tools` parameter in
  *   8 of 10 provider clients, causing tool definition tokens (~13K) to be missing
  *   from system_prompt_tokens. Fixed by adding tools=tools to all calls.
+ * - OPE-257: Token breakdown displayed cumulative input_tokens (across all LLM
+ *   iterations) alongside last-iteration-only system_prompt/user_input, making
+ *   the numbers not add up. Fixed with receipt-style layout: sub-items + computed
+ *   "App skills (×N)" row always sum to the total.
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -60,7 +65,7 @@ test.describe('Usage Token Breakdown', () => {
 		attachNetworkListeners(page, testInfo);
 	});
 
-	test('token breakdown adds up: system_prompt + user_input ≈ input_tokens', async ({ page }, testInfo) => {
+	test('receipt-style breakdown: sub-items sum to total input', async ({ page }, testInfo) => {
 		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
 		const logStep = createSignupLogger('USAGE_TOKENS');
 		const takeScreenshot = createStepScreenshotter(logStep, { filenamePrefix: 'usage-token-breakdown' });
@@ -115,9 +120,6 @@ test.describe('Usage Token Breakdown', () => {
 
 		// Click the first usage item in the overview (most recent chat)
 		// These are SettingsItem components rendered as clickable menu items
-		const usageSection = settingsMenu.locator('.usage-overview-section, .overview-section').first();
-		// The daily overview items are rendered as SettingsItem with onClick
-		// Find the first clickable entry after the "Usage" heading
 		const firstUsageEntry = settingsMenu
 			.locator('[data-testid="menu-item"][role="menuitem"]')
 			.filter({ hasText: /request/ })
@@ -140,65 +142,91 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Usage detail view is visible');
 		await takeScreenshot(page, 'usage-detail-view');
 
-		// Step 4: Extract token values from the detail view
+		// Step 4: Extract token values from the receipt-style breakdown
+		// All rows use data-testid on the row and data-testid="entry-value" on the value span
+
+		// Total input tokens (bold row with separator)
 		const inputTokensRow = page.getByTestId('usage-input-tokens');
 		await expect(inputTokensRow).toBeVisible({ timeout: 10000 });
-
-		// Extract numeric values from the displayed text
-		const inputTokensText = await inputTokensRow.locator('.entry-detail-value').textContent();
+		const inputTokensText = await inputTokensRow.getByTestId('entry-value').textContent();
 		const inputTokens = parseInt((inputTokensText || '0').replace(/[.,\s]/g, ''), 10);
-		logStep(`Input tokens: ${inputTokens}`);
+		logStep(`Total input tokens: ${inputTokens}`);
 
-		// Output tokens should also be visible
+		// Output tokens (AI response)
 		const outputTokensRow = page.getByTestId('usage-output-tokens');
 		await expect(outputTokensRow).toBeVisible({ timeout: 5000 });
-		const outputTokensText = await outputTokensRow.locator('.entry-detail-value').textContent();
+		const outputTokensText = await outputTokensRow.getByTestId('entry-value').textContent();
 		const outputTokens = parseInt((outputTokensText || '0').replace(/[.,\s]/g, ''), 10);
-		logStep(`Output tokens: ${outputTokens}`);
+		logStep(`Output tokens (AI response): ${outputTokens}`);
 
-		// System prompt tokens and user input tokens should be visible for AI Ask
+		// System prompt tokens
 		const systemPromptRow = page.getByTestId('usage-system-prompt-tokens');
 		await expect(systemPromptRow).toBeVisible({ timeout: 5000 });
-		const systemPromptText = await systemPromptRow.locator('.entry-detail-value').textContent();
+		const systemPromptText = await systemPromptRow.getByTestId('entry-value').textContent();
 		const systemPromptTokens = parseInt((systemPromptText || '0').replace(/[.,\s]/g, ''), 10);
 		logStep(`System prompt tokens: ${systemPromptTokens}`);
 
+		// User input tokens (your input)
 		const userInputRow = page.getByTestId('usage-user-input-tokens');
 		await expect(userInputRow).toBeVisible({ timeout: 5000 });
-		const userInputText = await userInputRow.locator('.entry-detail-value').textContent();
+		const userInputText = await userInputRow.getByTestId('entry-value').textContent();
 		const userInputTokens = parseInt((userInputText || '0').replace(/[.,\s]/g, ''), 10);
 		logStep(`User input tokens: ${userInputTokens}`);
 
+		// App skill tokens (optional — only shown when tool iterations > 0)
+		const appSkillRow = page.getByTestId('usage-app-skill-tokens');
+		let appSkillTokens = 0;
+		const appSkillVisible = await appSkillRow.isVisible().catch(() => false);
+		if (appSkillVisible) {
+			const appSkillText = await appSkillRow.getByTestId('entry-value').textContent();
+			appSkillTokens = parseInt((appSkillText || '0').replace(/[.,\s]/g, ''), 10);
+			logStep(`App skill tokens: ${appSkillTokens}`);
+
+			// When app skills row is visible, the hint should also be visible
+			const appSkillsHint = page.getByTestId('usage-app-skills-hint');
+			await expect(appSkillsHint).toBeVisible({ timeout: 3000 });
+			logStep('App skills hint is visible');
+		} else {
+			logStep('No app skill tokens row (no tool iterations — expected for simple queries)');
+		}
+
 		await takeScreenshot(page, 'token-values-extracted');
 
-		// Step 5: Validate token breakdown
-		// All values must be positive
+		// Step 5: Validate receipt-style breakdown
+		// All base values must be positive
 		expect(inputTokens).toBeGreaterThan(0);
 		expect(outputTokens).toBeGreaterThan(0);
 		expect(systemPromptTokens).toBeGreaterThan(0);
 		expect(userInputTokens).toBeGreaterThan(0);
 
-		// The sum of system_prompt_tokens + user_input_tokens should be close to input_tokens.
-		// We allow up to 30% deviation because tiktoken estimates won't perfectly match
-		// the provider's native tokenizer (different tokenization algorithms).
-		const breakdownSum = systemPromptTokens + userInputTokens;
+		// Receipt validation: sub-items must sum to the total input.
+		// system_prompt + user_input + app_skills = total_input
+		// We allow up to 30% deviation because tiktoken estimates won't perfectly
+		// match the provider's native tokenizer (different tokenization algorithms).
+		// The app_skills row is computed as: total - system - user, so when it's
+		// present the sum is exact. When absent (no tool iterations), we compare
+		// system + user against total directly.
+		const breakdownSum = systemPromptTokens + userInputTokens + appSkillTokens;
 		const ratio = breakdownSum / inputTokens;
 		logStep(
-			`Token breakdown: system(${systemPromptTokens}) + user(${userInputTokens}) = ${breakdownSum} vs input(${inputTokens}), ratio=${ratio.toFixed(3)}`
+			`Receipt breakdown: system(${systemPromptTokens}) + user(${userInputTokens}) + app_skills(${appSkillTokens}) = ${breakdownSum} vs total_input(${inputTokens}), ratio=${ratio.toFixed(3)}`
 		);
 
-		// The ratio should be between 0.7 and 1.3 (within 30% — generous for cross-tokenizer estimates)
-		// Before the fix (OPE-213), this ratio was ~0.74 because tool tokens were missing.
-		// After the fix, it should be close to 1.0.
-		expect(ratio).toBeGreaterThan(0.7);
-		expect(ratio).toBeLessThan(1.3);
+		if (appSkillTokens > 0) {
+			// When app skills row is present, the sum must be exact (it's computed as the difference)
+			expect(breakdownSum).toBe(inputTokens);
+			logStep('App skills present — breakdown sums exactly to total (computed row)');
+		} else {
+			// Without app skills: system + user ≈ input (within 30% for tiktoken estimation drift)
+			expect(ratio).toBeGreaterThan(0.7);
+			expect(ratio).toBeLessThan(1.3);
 
-		// Log a warning if the ratio is outside the ideal range (0.9–1.1) but still passing
-		if (ratio < 0.9 || ratio > 1.1) {
-			logStep(
-				`WARNING: Token ratio ${ratio.toFixed(3)} is outside ideal 0.9-1.1 range. ` +
-				`This may indicate remaining estimation drift.`
-			);
+			if (ratio < 0.9 || ratio > 1.1) {
+				logStep(
+					`WARNING: Token ratio ${ratio.toFixed(3)} is outside ideal 0.9-1.1 range. ` +
+					`This may indicate remaining estimation drift.`
+				);
+			}
 		}
 
 		await takeScreenshot(page, 'token-validation-complete');

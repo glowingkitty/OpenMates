@@ -1673,13 +1673,13 @@ Usage Settings - View usage statistics and export usage data
                     {#if selEntry.system_prompt_tokens}
                         <div class="entry-detail-row" data-testid="usage-system-prompt-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.user_input_tokens}
                         <div class="entry-detail-row" data-testid="usage-user-input-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.user_input_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.user_input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     <!-- App skills row: shown when tool iterations occurred and there are         -->
@@ -1693,7 +1693,7 @@ Usage Settings - View usage statistics and export usage data
                                 <span class="entry-detail-label">
                                     {$text('settings.usage.app_skills_tokens_label')} (×{selEntry.tool_inference_iterations})
                                 </span>
-                                <span class="entry-detail-value">{appSkillTokens.toLocaleString()}</span>
+                                <span class="entry-detail-value" data-testid="entry-value">{appSkillTokens.toLocaleString()}</span>
                             </div>
                         {/if}
                     {/if}
@@ -1701,13 +1701,13 @@ Usage Settings - View usage statistics and export usage data
                     {#if selEntry.input_tokens}
                         <div class="entry-detail-row entry-detail-row--total" data-testid="usage-input-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.total_input_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.input_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.output_tokens}
                         <div class="entry-detail-row" data-testid="usage-output-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.output_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.output_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     <!-- App skills hint — explains why token count is higher than expected -->
