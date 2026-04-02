@@ -54,7 +54,8 @@ def send_issue_report_email(
     runtime_debug_state: Optional[str] = None,
     action_history: Optional[str] = None,
     picked_element_html: Optional[str] = None,
-    screenshot_presigned_url: Optional[str] = None
+    screenshot_presigned_url: Optional[str] = None,
+    trace_ids: Optional[list] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
