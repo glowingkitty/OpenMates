@@ -1006,53 +1006,53 @@ model_label:
   sv: Modell
   he: מודל
   verified_by_human: []
-input_tokens_label:
-  context: Label for input tokens count in a usage entry detail view
-  en: Input tokens
-  de: Eingabe-Token
-  zh: 输入令牌
-  es: Tokens de entrada
-  fr: Tokens d'entrée
-  pt: Tokens de entrada
-  ru: Входные токены
-  ja: 入力トークン
-  ko: 입력 토큰
-  it: Token di input
-  tr: Giriş token
-  vi: Token đầu vào
-  id: Token masukan
-  pl: Tokeny wejściowe
-  nl: Invoertokens
-  ar: رموز الإدخال
-  hi: इनपुट टोकन
-  th: โทเค็นอินพุต
-  cs: Vstupní tokeny
-  sv: Inmatningstoken
-  he: טוקנים של קלט
+total_input_tokens_label:
+  context: Label for the total input tokens in the receipt-style token breakdown (sum of system prompt + your input + app skills)
+  en: Total input
+  de: Gesamteingabe
+  zh: 总输入
+  es: Entrada total
+  fr: Entrée totale
+  pt: Entrada total
+  ru: Всего на входе
+  ja: 入力合計
+  ko: 총 입력
+  it: Input totale
+  tr: Toplam giriş
+  vi: Tổng đầu vào
+  id: Total masukan
+  pl: Łączne wejście
+  nl: Totale invoer
+  ar: إجمالي الإدخال
+  hi: कुल इनपुट
+  th: อินพุตรวม
+  cs: Celkový vstup
+  sv: Total inmatning
+  he: סך קלט
   verified_by_human: []
 output_tokens_label:
-  context: Label for output tokens count in a usage entry detail view
-  en: Output tokens
-  de: Ausgabe-Token
-  zh: 输出令牌
-  es: Tokens de salida
-  fr: Tokens de sortie
-  pt: Tokens de saída
-  ru: Выходные токены
-  ja: 出力トークン
-  ko: 출력 토큰
-  it: Token di output
-  tr: Çıkış token
-  vi: Token đầu ra
-  id: Token keluaran
-  pl: Tokeny wyjściowe
-  nl: Uitvoertokens
-  ar: رموز الإخراج
-  hi: आउटपुट टोकन
-  th: โทเค็นเอาต์พุต
-  cs: Výstupní tokeny
-  sv: Utmatningstoken
-  he: טוקנים של פלט
+  context: Label for AI response output tokens in the receipt-style token breakdown
+  en: AI response
+  de: KI-Antwort
+  zh: AI 回复
+  es: Respuesta de IA
+  fr: Réponse IA
+  pt: Resposta da IA
+  ru: Ответ ИИ
+  ja: AI応答
+  ko: AI 응답
+  it: Risposta IA
+  tr: Yapay zeka yanıtı
+  vi: Phản hồi AI
+  id: Respons AI
+  pl: Odpowiedź AI
+  nl: AI-antwoord
+  ar: استجابة الذكاء الاصطناعي
+  hi: AI प्रतिक्रिया
+  th: การตอบสนอง AI
+  cs: Odpověď AI
+  sv: AI-svar
+  he: תגובת AI
   verified_by_human: []
 total_credits_label:
   context: Label for total credits in a usage entry detail view
@@ -1175,52 +1175,52 @@ server_region_label:
   he: אזור
   verified_by_human: []
 user_input_tokens_label:
-  context: Label for user input tokens count in usage entry detail view
-  en: User input tokens
-  de: Benutzereingabe-Token
-  zh: 用户输入令牌
-  es: Tokens de entrada del usuario
-  fr: Tokens d'entrée utilisateur
-  pt: Tokens de entrada do usuário
-  ru: Токены пользовательского ввода
-  ja: ユーザー入力トークン
-  ko: 사용자 입력 토큰
-  it: Token di input utente
-  tr: Kullanıcı giriş token
-  vi: Token đầu vào người dùng
-  id: Token masukan pengguna
-  pl: Tokeny wejściowe użytkownika
-  nl: Gebruikersinvoertokens
-  ar: رموز إدخال المستخدم
-  hi: उपयोगकर्ता इनपुट टोकन
-  th: โทเค็นอินพุตผู้ใช้
-  cs: Vstupní tokeny uživatele
-  sv: Användarens inmatningstoken
-  he: טוקנים של קלט משתמש
+  context: Label for user input tokens (your message + chat history) in the receipt-style token breakdown
+  en: Your input
+  de: Deine Eingabe
+  zh: 你的输入
+  es: Tu entrada
+  fr: Votre saisie
+  pt: Sua entrada
+  ru: Ваш ввод
+  ja: あなたの入力
+  ko: 내 입력
+  it: Il tuo input
+  tr: Senin girişin
+  vi: Đầu vào của bạn
+  id: Masukan Anda
+  pl: Twoje wejście
+  nl: Jouw invoer
+  ar: إدخالك
+  hi: आपका इनपुट
+  th: อินพุตของคุณ
+  cs: Váš vstup
+  sv: Din inmatning
+  he: הקלט שלך
   verified_by_human: []
 system_prompt_tokens_label:
-  context: Label for system prompt tokens count in usage entry detail view
-  en: System prompt tokens
-  de: Systemprompt-Token
-  zh: 系统提示令牌
-  es: Tokens del prompt del sistema
-  fr: Tokens du prompt système
-  pt: Tokens do prompt do sistema
-  ru: Токены системного промпта
-  ja: システムプロンプトトークン
-  ko: 시스템 프롬프트 토큰
-  it: Token del prompt di sistema
-  tr: Sistem istem token
-  vi: Token lời nhắc hệ thống
-  id: Token prompt sistem
-  pl: Tokeny promptu systemowego
-  nl: Systeemprompt-tokens
-  ar: رموز موجه النظام
-  hi: सिस्टम प्रॉम्प्ट टोकन
-  th: โทเค็นพรอมต์ระบบ
-  cs: Tokeny systémového promptu
-  sv: Systempromptstoken
-  he: טוקנים של הנחיית מערכת
+  context: Label for system prompt tokens (AI instructions + tool definitions) in the receipt-style token breakdown
+  en: System prompt
+  de: Systemprompt
+  zh: 系统提示
+  es: Prompt del sistema
+  fr: Prompt système
+  pt: Prompt do sistema
+  ru: Системный промпт
+  ja: システムプロンプト
+  ko: 시스템 프롬프트
+  it: Prompt di sistema
+  tr: Sistem istemi
+  vi: Lời nhắc hệ thống
+  id: Prompt sistem
+  pl: Prompt systemowy
+  nl: Systeemprompt
+  ar: موجه النظام
+  hi: सिस्टम प्रॉम्प्ट
+  th: พรอมต์ระบบ
+  cs: Systémový prompt
+  sv: Systemprompt
+  he: הנחיית מערכת
   verified_by_human: []
 credits_breakdown_label:
   context: Label for the credit cost breakdown section in usage entry detail view
@@ -1438,53 +1438,53 @@ view_api_key_details:
   sv: Visa API-nyckeldetaljer
   he: הצגת פרטי מפתח API
   verified_by_human: []
-tool_iterations_label:
-  context: Label for the number of extra LLM iterations triggered by app skill tool use in usage entry detail view
-  en: App skill iterations
-  de: App-Skill-Iterationen
-  zh: 应用技能迭代次数
-  es: Iteraciones de habilidades de la app
-  fr: Itérations de compétences d'app
-  pt: Iterações de habilidades do app
-  ru: Итерации навыков приложения
-  ja: アプリスキルの反復回数
-  ko: 앱 스킬 반복 횟수
-  it: Iterazioni skill app
-  tr: Uygulama becerisi tekrarları
-  vi: Số lần lặp kỹ năng ứng dụng
-  id: Iterasi keterampilan aplikasi
-  pl: Iteracje umiejętności aplikacji
-  nl: App-vaardigheidsherhaling
-  ar: تكرارات مهارة التطبيق
-  hi: ऐप स्किल पुनरावृत्ति
-  th: รอบซ้ำทักษะแอป
-  cs: Iterace dovedností aplikace
-  sv: Iterationer för appfärdigheter
-  he: איטרציות של כישורי אפליקציה
+app_skills_tokens_label:
+  context: Label for the computed app skills overhead tokens in the receipt-style token breakdown. Shown as "App skills (×2)" where the number is the tool iteration count.
+  en: App skills
+  de: App-Skills
+  zh: 应用技能
+  es: Habilidades de la app
+  fr: Compétences d'app
+  pt: Habilidades do app
+  ru: Навыки приложения
+  ja: アプリスキル
+  ko: 앱 스킬
+  it: Skill app
+  tr: Uygulama becerileri
+  vi: Kỹ năng ứng dụng
+  id: Keterampilan aplikasi
+  pl: Umiejętności aplikacji
+  nl: App-vaardigheden
+  ar: مهارات التطبيق
+  hi: ऐप स्किल
+  th: ทักษะแอป
+  cs: Dovednosti aplikace
+  sv: Appfärdigheter
+  he: כישורי אפליקציה
   verified_by_human: []
-tool_iterations_hint:
-  context: Short hint shown next to the tool iteration count explaining why token counts are higher when app skills were used
-  en: Including app skill responses
-  de: Einschließlich App-Skill-Antworten
-  zh: 包含应用技能响应
-  es: Incluye respuestas de habilidades de la app
-  fr: Réponses de compétences d'app incluses
-  pt: Incluindo respostas de habilidades do app
-  ru: Включая ответы навыков приложения
-  ja: アプリスキルのレスポンスを含む
-  ko: 앱 스킬 응답 포함
-  it: Include risposte skill app
-  tr: Uygulama becerisi yanıtları dahil
-  vi: Bao gồm phản hồi kỹ năng ứng dụng
-  id: Termasuk respons keterampilan aplikasi
-  pl: W tym odpowiedzi umiejętności aplikacji
-  nl: Inclusief app-vaardigheidsantwoorden
-  ar: يشمل ردود مهارة التطبيق
-  hi: ऐप स्किल प्रतिक्रियाएं सहित
-  th: รวมการตอบสนองทักษะแอป
-  cs: Včetně odpovědí dovedností aplikace
-  sv: Inklusive svar på appfärdigheter
-  he: כולל תגובות של מיומנויות אפליקציה
+app_skills_hint:
+  context: Explanation shown below the token breakdown when app skills were used, explaining why the total is higher than the sum of system prompt + user input
+  en: Each app skill re-processes the full conversation, which increases the total input tokens.
+  de: Jeder App-Skill verarbeitet die gesamte Konversation erneut, was die Gesamtzahl der Eingabe-Token erhöht.
+  zh: 每个应用技能会重新处理整个对话，这会增加总输入令牌数。
+  es: Cada habilidad de la app reprocesa toda la conversación, lo que aumenta el total de tokens de entrada.
+  fr: Chaque compétence d'app retraite toute la conversation, ce qui augmente le total des tokens d'entrée.
+  pt: Cada habilidade do app reprocessa toda a conversa, o que aumenta o total de tokens de entrada.
+  ru: Каждый навык приложения повторно обрабатывает весь разговор, что увеличивает общее количество входных токенов.
+  ja: 各アプリスキルは会話全体を再処理するため、入力トークンの合計が増加します。
+  ko: 각 앱 스킬은 전체 대화를 다시 처리하므로 총 입력 토큰이 증가합니다.
+  it: Ogni skill dell'app rielabora l'intera conversazione, aumentando il totale dei token di input.
+  tr: Her uygulama becerisi tüm konuşmayı yeniden işler, bu da toplam giriş token sayısını artırır.
+  vi: Mỗi kỹ năng ứng dụng xử lý lại toàn bộ cuộc trò chuyện, làm tăng tổng số token đầu vào.
+  id: Setiap keterampilan aplikasi memproses ulang seluruh percakapan, yang meningkatkan total token masukan.
+  pl: Każda umiejętność aplikacji ponownie przetwarza całą rozmowę, co zwiększa łączną liczbę tokenów wejściowych.
+  nl: Elke app-vaardigheid verwerkt het hele gesprek opnieuw, wat het totale aantal invoertokens verhoogt.
+  ar: كل مهارة تطبيق تعيد معالجة المحادثة بالكامل، مما يزيد إجمالي رموز الإدخال.
+  hi: प्रत्येक ऐप स्किल पूरी बातचीत को दोबारा प्रोसेस करता है, जिससे कुल इनपुट टोकन बढ़ जाते हैं।
+  th: ทักษะแอปแต่ละรายการจะประมวลผลการสนทนาทั้งหมดใหม่ ซึ่งเพิ่มจำนวนโทเค็นอินพุตทั้งหมด
+  cs: Každá dovednost aplikace znovu zpracuje celou konverzaci, což zvyšuje celkový počet vstupních tokenů.
+  sv: Varje appfärdighet bearbetar hela konversationen på nytt, vilket ökar det totala antalet inmatningstoken.
+  he: כל כישור אפליקציה מעבד מחדש את כל השיחה, מה שמגדיל את סך טוקני הקלט.
   verified_by_human: []
 open_message:
   context: Button label on a usage entry detail page that navigates to the original chat message that triggered this usage
