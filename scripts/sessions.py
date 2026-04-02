@@ -1842,8 +1842,9 @@ def _linear_start_integration(
             return
         linear_issue_id = issue_data["id"]
     elif task and task != "(pending)":
-        # No auto-creation — Claude will search for existing tasks or ask the user
-        print("  Linear: No issue ID provided. Claude will search for an existing task or ask.", file=sys.stderr)
+        # Reminder for the running Claude session to follow the Linear task workflow
+        # in .claude/rules/linear-tasks.md (search for existing task before creating)
+        print("  Linear: No issue linked to this session. Pass --issue OPE-XX next time to link one.", file=sys.stderr)
         return
 
     if not linear_issue_id:
