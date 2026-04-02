@@ -352,9 +352,9 @@
     let isConvertingEmbeds = false;
 
     // --- Credits State ---
-    // True when the user is authenticated but has zero credits.
+    // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
-    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits === 0);
+    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0);
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
