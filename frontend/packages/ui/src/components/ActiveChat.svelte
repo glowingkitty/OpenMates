@@ -94,6 +94,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
@@ -2134,6 +2135,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleChatNavigate(chatId: string) {
         console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
         try {
+            // Clean up the current draft before navigating — prevents garbage draft chats
+            // from accumulating when the user searches and clicks an existing chat instead of sending.
+            await clearCurrentDraft();
+
             await chatDB.init();
             const chat = await chatDB.getChat(chatId);
             if (!chat) {
@@ -10345,6 +10350,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                             embedId={embedFullscreenData.embedId}
+                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
