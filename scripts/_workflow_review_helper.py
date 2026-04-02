@@ -466,6 +466,7 @@ def cmd_run_review(yesterday: str) -> None:
         agent="plan",
         timeout=900,
         job_type="workflow-review",
+        linear_task=False,
     )
 
     if session_id:

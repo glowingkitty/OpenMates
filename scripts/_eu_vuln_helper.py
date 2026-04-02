@@ -894,6 +894,7 @@ def check_vulns() -> None:
         job_type="eu-vulns",
         context_summary=f"{len(to_dispatch)} EU-source vulnerability(ies) dispatched for fix",
         kill_on_exit=True,
+        linear_task=False,
     )
 
     # End session if Claude didn't deploy (cleanup)

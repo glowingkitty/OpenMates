@@ -287,6 +287,7 @@ def run_scanner(scan_type: str) -> None:
         job_type=scan_type,
         model=HAIKU_MODEL,
         kill_on_exit=True,
+        linear_task=False,
     )
 
     # Check if Claude wrote the output file (incremental writes)

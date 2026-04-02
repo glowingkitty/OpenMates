@@ -435,6 +435,7 @@ def process_alerts() -> None:
         job_type="dependabot",
         context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
         kill_on_exit=True,  # fully automated — no review needed
+        linear_task=False,
     )
 
     # End session if Claude didn't deploy (cleanup)

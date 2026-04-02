@@ -278,6 +278,7 @@ def check_issues() -> None:
         timeout=900,
         job_type="issues",
         context_summary=f"{len(unresolved)} unresolved issue(s) from past 24h",
+        linear_task=False,
     )
 
     if session_id:

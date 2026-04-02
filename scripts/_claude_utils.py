@@ -140,7 +140,7 @@ def run_claude_session(
     job_type=None,
     context_summary=None,
     use_zellij=True,
-    linear_task=True,
+    linear_task=False,
     linear_mode="feature",
     kill_on_exit=False,
     model=None,

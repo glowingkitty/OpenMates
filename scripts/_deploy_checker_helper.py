@@ -362,6 +362,7 @@ def run() -> None:
         timeout=1800, # 30 minutes
         job_type="deploy-fix",
         context_summary=f"Vercel deployment {deploy_id} failed ({state_val})",
+        linear_task=False,
     )
 
     if returncode == 0:

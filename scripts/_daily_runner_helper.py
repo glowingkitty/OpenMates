@@ -579,6 +579,7 @@ def start_claude_analysis() -> None:
             timeout=600,
             job_type="test-analysis",
             context_summary=f"{failed_count} test(s) failed (run_id={run_id})",
+            linear_task=False,
         )
         if session_id:
             # Emit parseable line for run-tests-daily.sh to capture via grep

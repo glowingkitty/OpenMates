@@ -621,6 +621,7 @@ def run_meeting_session(data: dict, today: str, yesterday: str) -> tuple[int, st
         timeout=1800,
         job_type="daily-meeting",
         context_summary="Daily standup meeting — review, health, priorities",
+        linear_task=False,
     )
 
     return returncode, session_id
