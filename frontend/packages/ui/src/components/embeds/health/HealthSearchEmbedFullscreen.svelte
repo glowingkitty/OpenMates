@@ -61,6 +61,8 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
+    /** Child embed to auto-focus when the fullscreen opens (from inline badge click) */
+    initialChildEmbedId?: string;
   }
 
   let {
@@ -76,7 +78,8 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    initialChildEmbedId
   }: Props = $props();
 
   // Local reactive state for streaming updates
@@ -221,6 +224,7 @@
   errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   minCardWidth="260px"
+  {initialChildEmbedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

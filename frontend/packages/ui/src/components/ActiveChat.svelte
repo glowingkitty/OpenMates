@@ -10370,6 +10370,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                              embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                              onClose={handleCloseEmbedFullscreen}
                              {hasPreviousEmbed}
                              {hasNextEmbed}
@@ -10388,6 +10389,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                              status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
                              errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
                              embedId={embedFullscreenData.embedId}
+                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
                              onClose={handleCloseEmbedFullscreen}
                              {hasPreviousEmbed}
                              {hasNextEmbed}
