@@ -18,7 +18,16 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import EventEmbedPreview from './EventEmbedPreview.svelte';
   import EventEmbedFullscreen from './EventEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
 
   interface EventResult {
     embed_id: string;
@@ -76,12 +85,8 @@
   }
 
   interface Props {
-    query: string;
-    provider: string;
-    embedIds?: string | string[];
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /** Dev-preview legacy results (no child embed store needed) */
-    results?: LegacyEventResult[];
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -91,15 +96,10 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query: queryProp,
-    provider: providerProp,
-    embedIds,
-    status: statusProp,
-    results: resultsProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -109,8 +109,11 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId
   }: Props = $props();
+
+  // Extract fields from data prop
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   // Local reactive state for streaming updates
   let localQuery    = $state('');
@@ -120,15 +123,15 @@
   let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
 
   $effect(() => {
-    localQuery    = queryProp    || '';
-    localProvider = providerProp || 'Meetup';
-    localStatus   = statusProp   || 'finished';
+    localQuery    = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
+    localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Meetup';
+    localStatus   = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
   });
 
   let query    = $derived(localQuery);
   let provider = $derived(localProvider);
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
-  let legacyResults = $derived(resultsProp ?? []);
+  let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   /**
    * Transform legacy results (from .preview.ts files) to EventResult format.

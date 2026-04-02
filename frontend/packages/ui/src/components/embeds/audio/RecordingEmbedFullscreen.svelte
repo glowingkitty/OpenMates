@@ -31,34 +31,16 @@
   import { text } from '@repo/ui';
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Max chars for filename display in the info bar */
   const MAX_FILENAME_LENGTH = 40;
 
   interface Props {
-    /** Full transcript text from Mistral Voxtral */
-    transcript?: string;
-    /** Local blob URL (editor context — no S3 fetch needed) */
-    blobUrl?: string;
-    /** Original filename (e.g. "voice_note_2026-02-20.webm") */
-    filename?: string;
-    /** Formatted duration string (e.g. "1:23") */
-    duration?: string;
-    /** S3 file variants: { original: { s3_key, size_bytes } } */
-    s3Files?: Record<string, { s3_key: string; size_bytes: number }>;
-    /** S3 bucket base URL */
-    s3BaseUrl?: string;
-    /** Plaintext AES-256 key (base64) for client-side decryption */
-    aesKey?: string;
-    /** AES-GCM nonce (base64) */
-    aesNonce?: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Embed ID for transcript edit callback */
     embedId?: string;
-    /**
-     * Transcription model name (e.g. 'voxtral-mini-2602').
-     * Displayed as "Transcribed via voxtral-mini-2602" below the transcript.
-     */
-    model?: string;
     /**
      * Whether the transcript is editable.
      * True when the embed is still in the MessageInput editor (pre-send).
@@ -91,16 +73,8 @@
   }
 
   let {
-    transcript: transcriptProp,
-    blobUrl,
-    filename = 'voice_note.webm',
-    duration,
-    s3Files,
-    s3BaseUrl,
-    aesKey,
-    aesNonce,
+    data,
     embedId,
-    model,
     isEditable = false,
     onTranscriptChange,
     onClose,
@@ -112,6 +86,25 @@
     showChatButton = false,
     onShowChat,
   }: Props = $props();
+
+  // -------------------------------------------------------------------------
+  // Extract fields from data.decodedContent
+  // -------------------------------------------------------------------------
+
+  let dc = $derived(data.decodedContent);
+  let transcriptProp = $derived(typeof dc.transcript === 'string' ? dc.transcript : undefined);
+  let blobUrl = $derived(typeof dc.blob_url === 'string' ? dc.blob_url : undefined);
+  let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'voice_note.webm');
+  let duration = $derived(typeof dc.duration === 'string' ? dc.duration : undefined);
+  let s3Files = $derived(
+    (typeof dc.s3_files === 'object' && dc.s3_files !== null)
+      ? dc.s3_files as Record<string, { s3_key: string; size_bytes: number }>
+      : undefined
+  );
+  let s3BaseUrl = $derived(typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined);
+  let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
+  let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined);
+  let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
 
   // -------------------------------------------------------------------------
   // Editable transcript state

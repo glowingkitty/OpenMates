@@ -4,14 +4,13 @@
   Fullscreen view for Web Read skill embeds.
   Uses UnifiedEmbedFullscreen as base and provides web read-specific content.
   
-  Supports both contexts:
-  - Skill preview context: receives previewData from skillPreviewService
-  - Embed context: receives results directly
-  
+  Data-driven: receives a single `data` prop (EmbedFullscreenRawData) and extracts
+  results and url from decodedContent internally.
+
   Data sources (in priority order):
-  1. results[0] - Contains full read results with markdown (from finished embed)
-  2. url prop - Direct URL from embed content (from processing placeholder)
-  
+  1. decodedContent.results[0] - Contains full read results with markdown (from finished embed)
+  2. decodedContent.url - Direct URL from embed content (from processing placeholder)
+
   Layout (per Figma design):
   - Gradient banner header: title (page title), subtitle (word count), favicon
   - Banner CTA: "Open on {hostname}" button at the bottom of the banner
@@ -21,10 +20,10 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import type { BaseSkillPreviewData } from '../../../types/appSkills';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { proxyFavicon, proxyImage, MAX_WIDTH_CONTENT_IMAGE } from '../../../utils/imageProxy';
-  
+
   /**
    * Web read result interface based on read_skill.py
    */
@@ -39,26 +38,14 @@
     og_sitename?: string;
     hash?: string;
   }
-  
-  /**
-   * Preview data interface for web read skill
-   */
-  interface WebReadPreviewData extends BaseSkillPreviewData {
-    results: WebReadResult[];
-    url?: string; // URL from processing placeholder content
-  }
-  
+
   /**
    * Props for web read embed fullscreen
-   * Supports both skill preview data format and direct embed format
+   * Receives raw embed data via the `data` prop and extracts fields internally
    */
   interface Props {
-    /** Web read results (direct format) */
-    results?: WebReadResult[];
-    /** Direct URL from embed content (from processing placeholder) */
-    url?: string;
-    /** Skill preview data (skill preview context) */
-    previewData?: WebReadPreviewData;
+    /** Raw embed data containing decodedContent, attrs, embedData */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -78,11 +65,9 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
   }
-  
+
   let {
-    results: resultsProp,
-    url: urlProp,
-    previewData,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -93,7 +78,25 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
-  
+
+  // ===========================================
+  // Extract fields from data prop
+  // ===========================================
+
+  /** Extract results array from decodedContent */
+  function extractResults(content: Record<string, unknown>): WebReadResult[] {
+    if (content.results && Array.isArray(content.results)) {
+      return content.results as WebReadResult[];
+    }
+    return [];
+  }
+
+  /** Extract string field from decodedContent with typeof check */
+  function extractString(content: Record<string, unknown>, key: string): string {
+    const value = content[key];
+    return typeof value === 'string' ? value : '';
+  }
+
   // ===========================================
   // Local state for embed data (updated via onEmbedDataUpdated callback)
   // CRITICAL: Using $state allows us to update these values when we receive embed updates
@@ -101,17 +104,11 @@
   // ===========================================
   let localResults = $state<WebReadResult[]>([]);
   let localUrl = $state<string>('');
-  
-  // Initialize local state from props
+
+  // Initialize local state from data prop
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localResults = previewData.results || [];
-      localUrl = previewData.url || '';
-    } else {
-      localResults = resultsProp || [];
-      localUrl = urlProp || '';
-    }
+    localResults = extractResults(data.decodedContent);
+    localUrl = extractString(data.decodedContent, 'url');
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -120,13 +117,11 @@
   // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
   
-  // Get URL from multiple sources (priority: results > localUrl > previewData > direct prop)
+  // Get URL from multiple sources (priority: results > localUrl)
   // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
   let effectiveUrl = $derived(
-    firstResult?.url || 
+    firstResult?.url ||
     localUrl ||
-    previewData?.url || 
-    urlProp || 
     ''
   );
   
@@ -225,8 +220,6 @@
       hostname,
       displayTitle,
       wordCount: totalWordCount,
-      hasPreviewData: !!previewData,
-      hasUrlProp: !!urlProp,
       hasLocalResults: localResults.length > 0
     });
   });
@@ -396,7 +389,7 @@
   
   /**
    * Handle opening the website in a new tab
-   * Uses effectiveUrl which includes fallback to urlProp
+   * Uses effectiveUrl which includes fallback to localUrl from decodedContent
    */
   function handleOpenWebsite() {
     if (effectiveUrl) {

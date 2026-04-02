@@ -15,6 +15,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface EventResult {
     embed_id: string;
@@ -52,7 +53,8 @@
   }
 
   interface Props {
-    event: EventResult;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Embed ID forwarded to UnifiedEmbedFullscreen for the share handler */
     embedId?: string;
     onClose: () => void;
@@ -63,7 +65,7 @@
   }
 
   let {
-    event,
+    data,
     embedId,
     onClose,
     hasPreviousEmbed = false,
@@ -71,6 +73,46 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // Build the event object from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let rawVenue = $derived(dc.venue as Record<string, unknown> | undefined);
+  let rawOrganizer = $derived(dc.organizer as Record<string, unknown> | undefined);
+  let rawFee = $derived(dc.fee as Record<string, unknown> | undefined);
+
+  let event: EventResult = {
+    embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
+    id: typeof dc.id === 'string' ? dc.id : undefined,
+    provider: typeof dc.provider === 'string' ? dc.provider : undefined,
+    title: typeof dc.title === 'string' ? dc.title : undefined,
+    description: typeof dc.description === 'string' ? dc.description : undefined,
+    url: typeof dc.url === 'string' ? dc.url : undefined,
+    date_start: typeof dc.date_start === 'string' ? dc.date_start : undefined,
+    date_end: typeof dc.date_end === 'string' ? dc.date_end : undefined,
+    timezone: typeof dc.timezone === 'string' ? dc.timezone : undefined,
+    event_type: typeof dc.event_type === 'string' ? dc.event_type : undefined,
+    venue: rawVenue ? {
+      name: typeof rawVenue.name === 'string' ? rawVenue.name : undefined,
+      address: typeof rawVenue.address === 'string' ? rawVenue.address : undefined,
+      city: typeof rawVenue.city === 'string' ? rawVenue.city : undefined,
+      state: typeof rawVenue.state === 'string' ? rawVenue.state : undefined,
+      country: typeof rawVenue.country === 'string' ? rawVenue.country : undefined,
+      lat: typeof rawVenue.lat === 'number' ? rawVenue.lat : undefined,
+      lon: typeof rawVenue.lon === 'number' ? rawVenue.lon : undefined,
+    } : undefined,
+    organizer: rawOrganizer ? {
+      id: typeof rawOrganizer.id === 'string' ? rawOrganizer.id : undefined,
+      name: typeof rawOrganizer.name === 'string' ? rawOrganizer.name : undefined,
+      slug: typeof rawOrganizer.slug === 'string' ? rawOrganizer.slug : undefined,
+    } : undefined,
+    rsvp_count: typeof dc.rsvp_count === 'number' ? dc.rsvp_count : undefined,
+    is_paid: typeof dc.is_paid === 'boolean' ? dc.is_paid : undefined,
+    fee: rawFee ? {
+      amount: typeof rawFee.amount === 'number' ? rawFee.amount : undefined,
+      currency: typeof rawFee.currency === 'string' ? rawFee.currency : undefined,
+    } : undefined,
+    image_url: typeof dc.image_url === 'string' ? dc.image_url : null,
+  };
 
   // ── Display helpers ──
 

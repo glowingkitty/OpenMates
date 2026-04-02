@@ -21,6 +21,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { getProviderIconUrl } from '../../../data/providerIcons';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface AppointmentData {
     embed_id: string;
@@ -44,16 +45,8 @@
   }
 
   interface Props {
-    appointment?: AppointmentData;
-    slot_datetime?: string;
-    name?: string;
-    speciality?: string;
-    address?: string;
-    gps_coordinates?: { latitude: number; longitude: number };
-    insurance?: string;
-    telehealth?: boolean;
-    practice_url?: string;
-    provider?: string;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -63,16 +56,7 @@
   }
 
   let {
-    appointment,
-    slot_datetime,
-    name,
-    speciality,
-    address,
-    gps_coordinates,
-    insurance,
-    telehealth,
-    practice_url,
-    provider,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -80,6 +64,43 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // Build appointment object from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let rawGps = $derived(dc.gps_coordinates as Record<string, unknown> | undefined);
+
+  let appointment: AppointmentData = {
+    embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
+    slot_datetime: typeof dc.slot_datetime === 'string' ? dc.slot_datetime : undefined,
+    name: typeof dc.name === 'string' ? dc.name : undefined,
+    speciality: typeof dc.speciality === 'string' ? dc.speciality : undefined,
+    address: typeof dc.address === 'string' ? dc.address : undefined,
+    gps_coordinates: (rawGps && typeof rawGps === 'object'
+      && typeof rawGps.latitude === 'number' && typeof rawGps.longitude === 'number')
+      ? { latitude: rawGps.latitude, longitude: rawGps.longitude }
+      : undefined,
+    insurance: typeof dc.insurance === 'string' ? dc.insurance : undefined,
+    telehealth: typeof dc.telehealth === 'boolean' ? dc.telehealth : undefined,
+    practice_url: typeof dc.practice_url === 'string' ? dc.practice_url : undefined,
+    provider: typeof dc.provider === 'string' ? dc.provider : undefined,
+    provider_platform: typeof dc.provider_platform === 'string' ? dc.provider_platform : undefined,
+    booking_url: typeof dc.booking_url === 'string' ? dc.booking_url : undefined,
+    rating: typeof dc.rating === 'number' ? dc.rating : undefined,
+    rating_count: typeof dc.rating_count === 'number' ? dc.rating_count : undefined,
+    price: typeof dc.price === 'number' ? dc.price : undefined,
+    service_name: typeof dc.service_name === 'string' ? dc.service_name : undefined,
+  };
+
+  // Keep flat prop variables for the activeAppointment derived computation below
+  let slot_datetime = appointment.slot_datetime;
+  let name = appointment.name;
+  let speciality = appointment.speciality;
+  let address = appointment.address;
+  let gps_coordinates = appointment.gps_coordinates;
+  let insurance = appointment.insurance;
+  let telehealth = appointment.telehealth;
+  let practice_url = appointment.practice_url;
+  let provider = appointment.provider;
 
   function isNonEmptyString(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;

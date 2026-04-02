@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { onDestroy } from 'svelte';
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap } from 'leaflet';
@@ -32,34 +33,8 @@
   }
 
   interface Props {
-    /** IATA flight number (e.g. 'LH2472') */
-    flightNumber?: string;
-    /** Departure date in YYYY-MM-DD format */
-    departureDate?: string;
-    /** Origin IATA code */
-    originIata?: string;
-    /** Destination IATA code */
-    destinationIata?: string;
-    /** Actual takeoff datetime (ISO 8601) */
-    actualTakeoff?: string;
-    /** Actual landing datetime (ISO 8601) */
-    actualLanding?: string;
-    /** Takeoff runway (e.g. '08L') */
-    runwayTakeoff?: string;
-    /** Landing runway (e.g. '27R') */
-    runwayLanding?: string;
-    /** Actual flight distance in km */
-    actualDistanceKm?: number;
-    /** Actual flight time in minutes */
-    flightTimeMinutes?: number;
-    /** Whether the flight was diverted */
-    diverted?: boolean;
-    /** Actual IATA destination if diverted */
-    actualDestinationIata?: string;
-    /** GPS track points array */
-    tracks?: TrackPoint[];
-    /** Flightradar24 internal flight ID */
-    fr24Id?: string;
+    /** Raw embed data containing decodedContent, attrs, embedData */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Embed ID for share/navigation */
@@ -75,20 +50,7 @@
   }
 
   let {
-    flightNumber,
-    departureDate,
-    originIata,
-    destinationIata,
-    actualTakeoff,
-    actualLanding,
-    runwayTakeoff,
-    runwayLanding,
-    actualDistanceKm,
-    flightTimeMinutes,
-    diverted = false,
-    actualDestinationIata,
-    tracks = [],
-    fr24Id,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -96,6 +58,27 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // ---------------------------------------------------------------------------
+  // Extract fields from data.decodedContent with type safety
+  // ---------------------------------------------------------------------------
+
+  let dc = $derived(data.decodedContent);
+
+  let flightNumber = $derived(typeof dc.flight_number === 'string' ? dc.flight_number : undefined);
+  let departureDate = $derived(typeof dc.departure_date === 'string' ? dc.departure_date : undefined);
+  let originIata = $derived(typeof dc.origin_iata === 'string' ? dc.origin_iata : undefined);
+  let destinationIata = $derived(typeof dc.destination_iata === 'string' ? dc.destination_iata : undefined);
+  let actualTakeoff = $derived(typeof dc.actual_takeoff === 'string' ? dc.actual_takeoff : undefined);
+  let actualLanding = $derived(typeof dc.actual_landing === 'string' ? dc.actual_landing : undefined);
+  let runwayTakeoff = $derived(typeof dc.runway_takeoff === 'string' ? dc.runway_takeoff : undefined);
+  let runwayLanding = $derived(typeof dc.runway_landing === 'string' ? dc.runway_landing : undefined);
+  let actualDistanceKm = $derived(typeof dc.actual_distance_km === 'number' ? dc.actual_distance_km : undefined);
+  let flightTimeMinutes = $derived(typeof dc.flight_time_minutes === 'number' ? dc.flight_time_minutes : undefined);
+  let diverted = $derived(typeof dc.diverted === 'boolean' ? dc.diverted : false);
+  let actualDestinationIata = $derived(typeof dc.actual_destination_iata === 'string' ? dc.actual_destination_iata : undefined);
+  let tracks: TrackPoint[] = $derived(Array.isArray(dc.tracks) ? dc.tracks as TrackPoint[] : []);
+  let fr24Id = $derived(typeof dc.fr24_id === 'string' ? dc.fr24_id : undefined);
 
   // ---------------------------------------------------------------------------
   // Derived display values

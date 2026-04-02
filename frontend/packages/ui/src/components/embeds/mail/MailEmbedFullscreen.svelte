@@ -13,12 +13,18 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
+  /**
+   * Coerce an unknown value to a string, returning empty string for non-strings.
+   */
+  function coerceString(value: unknown): string {
+    return typeof value === 'string' ? value : '';
+  }
 
   interface Props {
-    receiver?: string;
-    subject?: string;
-    content?: string;
-    footer?: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -33,10 +39,7 @@
   }
 
   let {
-    receiver = '',
-    subject = '',
-    content = '',
-    footer = '',
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -49,6 +52,14 @@
     piiMappings = [],
     piiRevealed = false,
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent ─────────────────────────────────
+
+  let dc = $derived(data.decodedContent);
+  let receiver = $derived(coerceString(dc.receiver));
+  let subject = $derived(coerceString(dc.subject));
+  let content = $derived(coerceString(dc.content));
+  let footer = $derived(coerceString(dc.footer));
 
   let localPiiRevealed = $state(false);
   $effect(() => {

@@ -20,6 +20,7 @@
   import WebsiteEmbedFullscreen from "./WebsiteEmbedFullscreen.svelte";
   import VideoEmbedPreview from "../videos/VideoEmbedPreview.svelte";
   import VideoEmbedFullscreen from "../videos/VideoEmbedFullscreen.svelte";
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from "@repo/ui";
 
   // YouTube URL detection pattern — matches youtube.com and youtu.be variants
@@ -31,6 +32,14 @@
    */
   function isYouTubeUrl(url: string | undefined): boolean {
     return !!url && YOUTUBE_URL_RE.test(url);
+  }
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
   }
 
   /**
@@ -63,18 +72,8 @@
   }
 
   interface Props {
-    query?: string;
-    provider?: string;
-    embedIds?: string | string[];
-    status?: "processing" | "finished" | "error" | "cancelled";
-    errorMessage?: string;
-    results?: WebSearchResult[];
-    previewData?: {
-      query?: string;
-      provider?: string;
-      status?: string;
-      results?: unknown[];
-    };
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -84,17 +83,10 @@
     navigateDirection?: "previous" | "next";
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query: queryProp,
-    provider: providerProp,
-    embedIds,
-    status: statusProp,
-    errorMessage: errorMessageProp,
-    results: resultsProp,
-    previewData,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -104,8 +96,12 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId,
   }: Props = $props();
+
+  // Extract fields from data prop
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   // Local reactive state for streaming updates
   let localQuery = $state("");
@@ -118,16 +114,15 @@
   let localErrorMessage = $state("");
 
   $effect(() => {
-    localQuery = previewData?.query || queryProp || "";
-    localProvider = previewData?.provider || providerProp || "Brave Search";
-    localStatus =
-      (previewData?.status as typeof localStatus) || statusProp || "finished";
-    localErrorMessage = errorMessageProp || "";
+    localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
+    localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Brave Search';
+    localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
+    localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
   });
 
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let legacyResults = $derived(previewData?.results || resultsProp || []);
+  let legacyResults = $derived(resultsProp);
   let viaProvider = $derived(`${$text("embeds.via")} ${provider}`);
 
   /**

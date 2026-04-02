@@ -43,6 +43,7 @@
   } from './docsEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { hydrateEmbedLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
 
@@ -50,14 +51,8 @@
    * Props for document embed fullscreen
    */
   interface Props {
-    /** Document HTML content */
-    htmlContent: string;
-    /** Document title */
-    title?: string;
-    /** Document filename (e.g. "Report.docx") */
-    filename?: string;
-    /** Word count */
-    wordCount?: number;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -92,10 +87,7 @@
   }
 
   let {
-    htmlContent,
-    title,
-    filename,
-    wordCount = 0,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -108,6 +100,31 @@
     piiMappings = [],
     piiRevealed = false
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
+
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs);
+  let htmlContent = $derived(
+      typeof dc.html === 'string' ? dc.html
+      : typeof attrs?.code === 'string' ? attrs.code as string
+      : ''
+    );
+  let title = $derived(
+      typeof dc.title === 'string' ? dc.title
+      : typeof attrs?.title === 'string' ? attrs.title as string
+      : undefined
+    );
+  let filename = $derived(
+      typeof dc.filename === 'string' ? dc.filename
+      : typeof attrs?.filename === 'string' ? attrs.filename as string
+      : undefined
+    );
+  let wordCount = $derived(
+      typeof dc.word_count === 'number' ? dc.word_count
+      : typeof attrs?.wordCount === 'number' ? attrs.wordCount as number
+      : 0
+    );
 
   // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
   let localPiiRevealed = $state(false);

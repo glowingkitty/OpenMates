@@ -19,6 +19,7 @@
   import MapLocationEmbedPreview from './MapLocationEmbedPreview.svelte';
   import MapLocationEmbedFullscreen from './MapLocationEmbedFullscreen.svelte';
   import type { ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import type { MapMarker } from '../EmbedLeafletMap.svelte';
 
@@ -36,10 +37,8 @@
   }
 
   interface Props {
-    query: string;
-    provider: string;
-    embedIds?: string | string[];
-    results?: PlaceResult[];
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -49,14 +48,10 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query,
-    provider,
-    embedIds,
-    results: resultsProp = [],
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -66,8 +61,14 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId,
   }: Props = $props();
+
+  // Extract fields from data prop
+  let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '');
+  let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Google');
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as PlaceResult[] : []);
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 

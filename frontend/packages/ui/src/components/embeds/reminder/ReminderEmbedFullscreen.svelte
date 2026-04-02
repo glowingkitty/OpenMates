@@ -15,27 +15,14 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
-  
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
   /**
    * Props for reminder embed fullscreen
    */
   interface Props {
-    /** Reminder ID */
-    reminderId?: string;
-    /** Human-readable trigger time */
-    triggerAtFormatted?: string;
-    /** Unix timestamp of trigger */
-    triggerAt?: number;
-    /** Target type: new_chat or existing_chat */
-    targetType?: 'new_chat' | 'existing_chat';
-    /** Whether this is a repeating reminder */
-    isRepeating?: boolean;
-    /** Confirmation message from the skill */
-    message?: string;
-    /** Warning about email notifications */
-    emailNotificationWarning?: string;
-    /** Error message if any */
-    error?: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -57,18 +44,9 @@
     /** Optional callback when reminder is cancelled */
     onReminderCancelled?: (reminderId: string) => void;
   }
-  
+
   let {
-    reminderId,
-    triggerAtFormatted,
-    triggerAt,
-    targetType,
-    isRepeating = false,
-    // message is accepted by Props but not used in the template — intentional
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    message: _message,
-    emailNotificationWarning,
-    error,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -80,6 +58,43 @@
     onShowChat,
     onReminderCancelled
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
+
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs);
+  let reminderId = $derived(
+      typeof dc.reminder_id === 'string' ? dc.reminder_id
+      : typeof attrs?.reminder_id === 'string' ? attrs.reminder_id as string
+      : undefined
+    );
+  let triggerAtFormatted = $derived(
+      typeof dc.trigger_at_formatted === 'string' ? dc.trigger_at_formatted
+      : typeof attrs?.trigger_at_formatted === 'string' ? attrs.trigger_at_formatted as string
+      : undefined
+    );
+  let triggerAt = $derived(
+      typeof dc.trigger_at === 'number' ? dc.trigger_at
+      : typeof attrs?.trigger_at === 'number' ? attrs.trigger_at as number
+      : undefined
+    );
+  let targetType = $derived(
+    (dc.target_type === 'new_chat' || dc.target_type === 'existing_chat') ? dc.target_type
+    : (attrs?.target_type === 'new_chat' || attrs?.target_type === 'existing_chat') ? attrs.target_type as 'new_chat' | 'existing_chat'
+    : undefined
+  );
+  let isRepeating = $derived(dc.is_repeating === true || attrs?.is_repeating === true);
+  // message is accepted but not used in the template — intentional
+  let emailNotificationWarning = $derived(
+      typeof dc.email_notification_warning === 'string' ? dc.email_notification_warning
+      : typeof attrs?.email_notification_warning === 'string' ? attrs.email_notification_warning as string
+      : undefined
+    );
+  let error = $derived(
+      typeof dc.error === 'string' ? dc.error
+      : typeof attrs?.error === 'string' ? attrs.error as string
+      : undefined
+    );
   
   // State for cancel operation
   let isCancelling = $state(false);

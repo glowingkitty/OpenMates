@@ -16,8 +16,9 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import NewsEmbedPreview from './NewsEmbedPreview.svelte';
   import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
-  
+
   /**
    * News search result interface (transformed from child embeds)
    */
@@ -31,12 +32,10 @@
     extra_snippets?: string | string[];
     page_age?: string;
   }
-  
+
   interface Props {
-    query: string;
-    provider: string;
-    embedIds?: string | string[];
-    results?: NewsSearchResult[];
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -46,14 +45,10 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query,
-    provider,
-    embedIds,
-    results: resultsProp = [],
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -63,9 +58,15 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId
   }: Props = $props();
-  
+
+  // Extract fields from data prop
+  let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '');
+  let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Brave');
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
+
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
   
   /**

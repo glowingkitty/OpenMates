@@ -24,48 +24,20 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { text } from '@repo/ui';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Max display length for the filename in the embed header title (chars) */
   const MAX_FILENAME_LENGTH = 30;
 
   /**
    * Props for uploaded image fullscreen viewer.
+   * Receives raw embed data via `data` prop and extracts fields internally.
    */
   interface Props {
-    /** S3 base URL for image files (from upload response s3_base_url) */
-    s3BaseUrl?: string;
-    /** Files metadata from embed content — original, full, preview variants */
-    files?: {
-      preview?: { s3_key: string; width: number; height: number; format: string };
-      full?: { s3_key: string; width: number; height: number; format: string };
-      original?: { s3_key: string; width: number; height: number; format: string };
-    };
-    /** AES-256 key (base64) for decrypting S3 files */
-    aesKey?: string;
-    /** AES-GCM nonce (base64) shared across all encrypted variants */
-    aesNonce?: string;
-    /** Original filename for display and download */
-    filename?: string;
-    /**
-     * Local blob URL (from the editor embed).
-     * Used as an instant fallback when S3 data is unavailable (unauthenticated users).
-     * This avoids the infinite loading spinner for users who haven't signed up.
-     */
-    src?: string;
-    /** Whether the user is authenticated (controls subtitle text in the info bar) */
-    isAuthenticated?: boolean;
-    /** File size in bytes (from the original File object) — shown in header subtitle */
-    fileSize?: number;
-    /** File MIME type (e.g. 'image/jpeg') — shown in header subtitle */
-    fileType?: string;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
-    /**
-     * AI detection metadata from SightEngine (set after upload by the server pipeline).
-     * Shape: { ai_generated: number (0–1), provider: string } | null
-     * The AI generated badge is only shown when ai_generated > 0.7.
-     */
-    aiDetection?: { ai_generated: number; provider: string } | null;
     /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
     /** Whether there is a next embed to navigate to */
@@ -83,17 +55,8 @@
   }
 
   let {
-    s3BaseUrl,
-    files,
-    aesKey,
-    aesNonce,
-    filename = 'image',
-    src,
-    isAuthenticated = true,
-    fileSize,
-    fileType,
+    data,
     onClose,
-    aiDetection = null,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
@@ -102,6 +65,25 @@
     showChatButton = false,
     onShowChat,
   }: Props = $props();
+
+  // Extract fields from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let s3BaseUrl = $derived(typeof dc.s3BaseUrl === 'string' ? dc.s3BaseUrl : (typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined));
+  let files = $derived(
+    (typeof dc.files === 'object' && dc.files !== null ? dc.files : undefined) as {
+      preview?: { s3_key: string; width: number; height: number; format: string };
+      full?: { s3_key: string; width: number; height: number; format: string };
+      original?: { s3_key: string; width: number; height: number; format: string };
+    } | undefined
+  );
+  let aesKey = $derived(typeof dc.aesKey === 'string' ? dc.aesKey : (typeof dc.aes_key === 'string' ? dc.aes_key : undefined));
+  let aesNonce = $derived(typeof dc.aesNonce === 'string' ? dc.aesNonce : (typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined));
+  let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'image');
+  let src = $derived(typeof dc.src === 'string' ? dc.src : undefined);
+  let isAuthenticated = $derived(typeof dc.isAuthenticated === 'boolean' ? dc.isAuthenticated : true);
+  let fileSize = $derived(typeof dc.fileSize === 'number' ? dc.fileSize : (typeof dc.file_size === 'number' ? dc.file_size : undefined));
+  let fileType = $derived(typeof dc.fileType === 'string' ? dc.fileType : (typeof dc.file_type === 'string' ? dc.file_type : undefined));
+  let aiDetection = $derived((typeof dc.aiDetection === 'object' && dc.aiDetection !== null ? dc.aiDetection : (typeof dc.ai_detection === 'object' && dc.ai_detection !== null ? dc.ai_detection : null)) as { ai_generated: number; provider: string } | null);
 
   /** Threshold matching the backend's "LIKELY AI-GENERATED" log in upload_route.py */
   const AI_GENERATED_THRESHOLD = 0.7;

@@ -30,7 +30,8 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
-  
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
   /** Segment data within a leg */
   interface SegmentData {
     carrier: string;
@@ -59,7 +60,7 @@
     extensions?: string[];
     often_delayed?: boolean;
   }
-  
+
   /** Layover data between segments */
   interface LayoverData {
     airport: string;
@@ -68,7 +69,7 @@
     duration_minutes?: number;
     overnight?: boolean;
   }
-  
+
   /** Leg data */
   interface LegData {
     leg_index: number;
@@ -81,7 +82,7 @@
     segments: SegmentData[];
     layovers?: LayoverData[];
   }
-  
+
   /** Connection data */
   interface ConnectionData {
     embed_id: string;
@@ -132,10 +133,10 @@
       actual_destination_iata?: string;
     };
   }
-  
+
   interface Props {
-    /** Connection data from parent */
-    connection: ConnectionData;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Embed ID for reference */
@@ -149,9 +150,9 @@
     /** Navigate to next connection */
     onNavigateNext?: () => void;
   }
-  
+
   let {
-    connection,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -159,6 +160,42 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // Build the connection object from data.decodedContent
+  // The decodedContent fields map directly to ConnectionData since ActiveChat
+  // previously passed the whole decodedContent as-is to construct the connection prop
+  let dc = $derived(data.decodedContent);
+  let connection: ConnectionData = {
+    embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
+    type: typeof dc.type === 'string' ? dc.type : undefined,
+    transport_method: typeof dc.transport_method === 'string' ? dc.transport_method : undefined,
+    trip_type: typeof dc.trip_type === 'string' ? dc.trip_type : undefined,
+    total_price: typeof dc.total_price === 'string' ? dc.total_price : (typeof dc.price === 'string' ? dc.price : undefined),
+    currency: typeof dc.currency === 'string' ? dc.currency : undefined,
+    bookable_seats: typeof dc.bookable_seats === 'number' ? dc.bookable_seats : undefined,
+    last_ticketing_date: typeof dc.last_ticketing_date === 'string' ? dc.last_ticketing_date : undefined,
+    booking_url: typeof dc.booking_url === 'string' ? dc.booking_url : undefined,
+    booking_provider: typeof dc.booking_provider === 'string' ? dc.booking_provider : undefined,
+    booking_token: typeof dc.booking_token === 'string' ? dc.booking_token : undefined,
+    booking_context: (typeof dc.booking_context === 'object' && dc.booking_context !== null) ? dc.booking_context as Record<string, string> : undefined,
+    origin: typeof dc.origin === 'string' ? dc.origin : undefined,
+    destination: typeof dc.destination === 'string' ? dc.destination : undefined,
+    departure: typeof dc.departure === 'string' ? dc.departure : undefined,
+    arrival: typeof dc.arrival === 'string' ? dc.arrival : undefined,
+    duration: typeof dc.duration === 'string' ? dc.duration : undefined,
+    stops: typeof dc.stops === 'number' ? dc.stops : undefined,
+    carriers: Array.isArray(dc.carriers) ? dc.carriers as string[] : undefined,
+    carrier_codes: Array.isArray(dc.carrier_codes) ? dc.carrier_codes as string[] : undefined,
+    hash: typeof dc.hash === 'string' ? dc.hash : undefined,
+    legs: Array.isArray(dc.legs) ? dc.legs as LegData[] : undefined,
+    origin_country_code: typeof dc.origin_country_code === 'string' ? dc.origin_country_code : undefined,
+    destination_country_code: typeof dc.destination_country_code === 'string' ? dc.destination_country_code : undefined,
+    airline_logo: typeof dc.airline_logo === 'string' ? dc.airline_logo : undefined,
+    co2_kg: typeof dc.co2_kg === 'number' ? dc.co2_kg : undefined,
+    co2_typical_kg: typeof dc.co2_typical_kg === 'number' ? dc.co2_typical_kg : undefined,
+    co2_difference_percent: typeof dc.co2_difference_percent === 'number' ? dc.co2_difference_percent : undefined,
+    flight_track: (typeof dc.flight_track === 'object' && dc.flight_track !== null) ? dc.flight_track as ConnectionData['flight_track'] : undefined,
+  };
 
   // Defensive: connection may be undefined during async component loading in dev preview
   type MaybeConnection = ConnectionData | undefined;

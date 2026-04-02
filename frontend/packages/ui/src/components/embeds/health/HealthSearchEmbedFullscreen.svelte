@@ -18,7 +18,16 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import HealthAppointmentEmbedPreview from './HealthAppointmentEmbedPreview.svelte';
   import HealthAppointmentEmbedFullscreen from './HealthAppointmentEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
 
   /**
    * Appointment result — one appointment slot with doctor metadata.
@@ -46,12 +55,8 @@
   }
 
   interface Props {
-    query?: string;
-    provider?: string;
-    embedIds?: string | string[];
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    errorMessage?: string;
-    results?: unknown[];
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -61,15 +66,10 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
-    /** Child embed to auto-focus when the fullscreen opens (from inline badge click) */
-    initialChildEmbedId?: string;
   }
 
   let {
-    embedIds,
-    status: statusProp,
-    errorMessage: errorMessageProp,
-    results: resultsProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -79,8 +79,11 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId
   }: Props = $props();
+
+  // Extract fields from data prop
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   // Local reactive state for streaming updates
   // embedIdsOverride: only set by handleEmbedDataUpdated during streaming;
@@ -95,9 +98,9 @@
 
   $effect(() => {
     if (!storeResolved) {
-      localResults = resultsProp || [];
-      localStatus = statusProp || 'finished';
-      localErrorMessage = errorMessageProp || '';
+      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
+      localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }
   });
 

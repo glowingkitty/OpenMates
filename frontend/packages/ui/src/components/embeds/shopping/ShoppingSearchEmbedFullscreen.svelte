@@ -12,7 +12,16 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import ShoppingResultEmbedPreview from './ShoppingResultEmbedPreview.svelte';
   import ShoppingResultEmbedFullscreen from './ShoppingResultEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
 
   interface ProductAttributes {
     is_organic?: boolean;
@@ -57,12 +66,8 @@
   }
 
   interface Props {
-    query?: string;
-    provider?: string;
-    embedIds?: string | string[];
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    errorMessage?: string;
-    results?: unknown[];
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -72,16 +77,10 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query: queryProp,
-    provider: providerProp,
-    embedIds,
-    status: statusProp,
-    errorMessage: errorMessageProp,
-    results: resultsProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -91,8 +90,11 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId,
   }: Props = $props();
+
+  // Extract fields from data prop
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let localQuery = $state('');
   let localProvider = $state('REWE');
@@ -106,11 +108,11 @@
 
   $effect(() => {
     if (!storeResolved) {
-      localQuery = queryProp || '';
-      localProvider = providerProp || 'REWE';
-      localResults = resultsProp || [];
-      localStatus = statusProp || 'finished';
-      localErrorMessage = errorMessageProp || '';
+      localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'REWE';
+      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
+      localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }
   });
 
