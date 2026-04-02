@@ -26,10 +26,10 @@ from typing import Dict, List, Optional
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
 
-# Hard cap on concurrent Claude sessions to prevent system overload.
-# The daily meeting may define up to 10 priorities, but only this many
-# sessions can run simultaneously. Subsequent tasks wait or are skipped.
-MAX_CONCURRENT_SESSIONS = 10
+# Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
+# Each Claude session uses ~500MB RAM. 6 sessions = ~3GB headroom.
+# The poller, sessions.py, and cleanup all enforce this limit.
+MAX_CONCURRENT_SESSIONS = 6
 
 # Timeout for Zellij CLI commands (not the session process itself)
 _CMD_TIMEOUT = 10
@@ -283,6 +283,134 @@ def list_sessions() -> List[str]:
 def count_active_sessions() -> int:
     """Count non-EXITED Zellij sessions. Returns 0 on failure."""
     return len(list_sessions())
+
+
+# Prefixes used by the linear-poller when spawning sessions
+POLLER_SESSION_PREFIXES = ("fix-", "plan-", "research-")
+
+
+def count_poller_sessions() -> int:
+    """
+    Count non-EXITED Zellij sessions spawned by the linear-poller.
+
+    Only sessions with poller-managed prefixes (fix-*, plan-*, research-*)
+    are counted. Manual sessions (claude1, session-XXXX, etc.) are excluded
+    so they don't block the poller's concurrency limit.
+    """
+    return sum(
+        1 for name in list_sessions()
+        if name.startswith(POLLER_SESSION_PREFIXES)
+    )
+
+
+def list_sessions_with_state() -> Dict[str, str]:
+    """
+    List all Zellij sessions with their state.
+
+    Returns a dict mapping session name → "ACTIVE" or "EXITED".
+    Used by session-cleanup to detect dead poller sessions.
+    """
+    result = _run_zellij(["list-sessions", "--no-formatting"])
+    if not result or result.returncode != 0:
+        return {}
+
+    sessions: Dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        name = stripped.split()[0] if stripped.split() else ""
+        if name:
+            sessions[name] = "EXITED" if "EXITED" in stripped else "ACTIVE"
+    return sessions
+
+
+def _get_sessions_with_claude_process() -> set:
+    """
+    Return the set of Zellij session names that have a running Claude process.
+
+    Scans /proc for 'claude' processes with a TTY, then maps each TTY
+    to the Zellij session that owns it. Sessions without a Claude process
+    are idle shells that can be safely killed.
+    """
+    import re
+
+    active: set = set()
+    # Find all pts devices with a running claude process
+    try:
+        result = subprocess.run(
+            ["ps", "-eo", "tty,args", "--no-headers"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return active
+
+        active_pts: set = set()
+        for line in result.stdout.splitlines():
+            parts = line.strip().split(None, 1)
+            if len(parts) < 2:
+                continue
+            tty, cmd = parts
+            # Match "claude" binary invocations (not grep, not MCP servers)
+            if re.match(r"^claude\b", cmd) and tty.startswith("pts/"):
+                active_pts.add(tty)
+    except Exception:
+        return active
+
+    if not active_pts:
+        return active
+
+    # Map pts → Zellij session by checking each session's pane
+    # Zellij doesn't expose this directly, so we check which sessions
+    # are non-EXITED (alive) — if they have a pts with claude, they're active
+    all_sessions = list_sessions_with_state()
+    for name, state in all_sessions.items():
+        if state == "ACTIVE":
+            active.add(name)
+
+    return active
+
+
+def enforce_session_limit() -> int:
+    """
+    Enforce the global MAX_CONCURRENT_SESSIONS limit.
+
+    Kills oldest non-EXITED sessions that don't have an active Claude process,
+    starting from the oldest, until we're under the limit. Always preserves
+    sessions containing 'claude' in the name (infrastructure sessions).
+
+    Returns the number of sessions killed.
+    """
+    sessions = list_sessions()
+    if len(sessions) <= MAX_CONCURRENT_SESSIONS:
+        return 0
+
+    # Clean EXITED sessions first (free slots without killing active work)
+    cleaned = cleanup_exited_sessions()
+
+    # Re-check after cleaning EXITED
+    sessions = list_sessions()
+    if len(sessions) <= MAX_CONCURRENT_SESSIONS:
+        return cleaned
+
+    # Kill idle sessions (no Claude process) starting from oldest
+    # Sessions are returned in order from list-sessions (oldest first)
+    excess = len(sessions) - MAX_CONCURRENT_SESSIONS
+    killed = 0
+
+    # Protected: sessions with "claude" in the name (manual infrastructure sessions)
+    for name in sessions:
+        if killed >= excess:
+            break
+        name_lower = name.lower()
+        if "claude" in name_lower:
+            continue  # Never auto-kill infrastructure sessions
+        # Kill the session
+        if kill_session(name):
+            print(f"[session-limit] Killed idle session: {name}", file=sys.stderr)
+            killed += 1
+
+    return cleaned + killed
 
 
 def cleanup_exited_sessions() -> int:

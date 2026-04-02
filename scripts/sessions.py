@@ -2047,15 +2047,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     _linear_start_integration(sid, data, mode, args.task, linear_issue_id)
 
     # ── Zellij integration ────────────────────────────────────────────────
-    try:
-        from _zellij_utils import create_session, _sanitize_session_name
-
-        zellij_name = f"session-{sid}"
-        if create_session(zellij_name):
-            data["sessions"][sid]["zellij_session"] = _sanitize_session_name(zellij_name)
-            _save_sessions(data)
-    except Exception:
-        pass  # Zellij is optional — don't break session start
+    # NOTE: We no longer create a Zellij session on start. The CLI already
+    # runs inside a Zellij session (claude1, claude2, etc). Creating extra
+    # sessions caused unbounded session accumulation and OOM on the server.
+    # Poller-spawned sessions still create their own Zellij sessions via
+    # spawn_claude_session().
 
     # ===================================================================
     # Output context for Claude (mode-aware, structured with box sections)

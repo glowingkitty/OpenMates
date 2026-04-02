@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-04-01T04:30:02Z",
+  "last_run": "2026-04-02T04:30:02Z",
   "processed": [
     {
       "ghsa_id": "GHSA-wfv2-pwc8-crg5",
@@ -293,6 +293,70 @@
       "last_dispatched_at": null,
       "re_dispatch_count": 0,
       "resolved_via_commit": "a9503bb22"
+    },
+    {
+      "ghsa_id": "GHSA-c427-h43c-vf67",
+      "severity": "medium",
+      "package": "aiohttp",
+      "summary": "AIOHTTP accepts duplicate Host headers",
+      "alert_numbers": [
+        163,
+        157,
+        150,
+        149
+      ],
+      "first_seen_at": "2026-04-02T04:30:02Z",
+      "last_dispatched_at": "2026-04-02T04:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-m5qp-6w8w-w647",
+      "severity": "medium",
+      "package": "aiohttp",
+      "summary": "AIOHTTP has a Multipart Header Size Bypass",
+      "alert_numbers": [
+        158,
+        152,
+        139,
+        137
+      ],
+      "first_seen_at": "2026-04-02T04:30:02Z",
+      "last_dispatched_at": "2026-04-02T04:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-p998-jp59-783m",
+      "severity": "medium",
+      "package": "aiohttp",
+      "summary": "AIOHTTP affected by UNC SSRF/NTLMv2 Credential Theft/Local File Read in static resource handler on Windows",
+      "alert_numbers": [
+        151,
+        136,
+        133,
+        132
+      ],
+      "first_seen_at": "2026-04-02T04:30:02Z",
+      "last_dispatched_at": "2026-04-02T04:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-w2fm-2cpv-w7v5",
+      "severity": "medium",
+      "package": "aiohttp",
+      "summary": "aiohttp allows unlimited trailer headers, leading to possible uncapped memory usage",
+      "alert_numbers": [
+        127,
+        126,
+        125,
+        124
+      ],
+      "first_seen_at": "2026-04-02T04:30:02Z",
+      "last_dispatched_at": "2026-04-02T04:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
     }
   ]
 }
