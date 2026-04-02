@@ -405,6 +405,58 @@ def run_claude_session(
             pass
 
 
+def start_sessions_py(mode: str, task: str, project_root: str, log_prefix: str) -> str | None:
+    """Start a sessions.py session for cron-dispatched Claude sessions.
+
+    Returns the session ID (e.g. "a3f1") or None if it failed.
+    This allows cron jobs to use `sessions.py deploy` for commits,
+    getting the same linting, translation validation, and tracking
+    as manual sessions.
+    """
+    try:
+        result = subprocess.run(
+            ["python3", "scripts/sessions.py", "start",
+             "--mode", mode, "--task", task],
+            capture_output=True, text=True, timeout=30,
+            cwd=project_root,
+        )
+        if result.returncode != 0:
+            print(f"{log_prefix} WARNING: sessions.py start failed: {result.stderr.strip()[:200]}", file=sys.stderr)
+            return None
+
+        # Extract session ID from output — it's in the "== SESSION XXXX ==" line
+        for line in result.stdout.splitlines():
+            if "SESSION" in line and "=" in line:
+                # Format: "== SESSION a3f1 ═══..."
+                parts = line.split()
+                for i, part in enumerate(parts):
+                    if part == "SESSION" and i + 1 < len(parts):
+                        sid = parts[i + 1].strip()
+                        if sid and len(sid) <= 8:
+                            print(f"{log_prefix} sessions.py: started session {sid}")
+                            return sid
+        print(f"{log_prefix} WARNING: could not extract session ID from sessions.py output", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"{log_prefix} WARNING: sessions.py start failed: {e}", file=sys.stderr)
+        return None
+
+
+def end_sessions_py(session_id: str, project_root: str, log_prefix: str) -> None:
+    """End a sessions.py session (without deploying). Used as cleanup."""
+    if not session_id:
+        return
+    try:
+        subprocess.run(
+            ["python3", "scripts/sessions.py", "end", "--session", session_id],
+            capture_output=True, text=True, timeout=15,
+            cwd=project_root,
+        )
+        print(f"{log_prefix} sessions.py: ended session {session_id}")
+    except Exception as e:
+        print(f"{log_prefix} WARNING: sessions.py end failed: {e}", file=sys.stderr)
+
+
 def spawn_interactive_session(
     prompt,
     session_title,

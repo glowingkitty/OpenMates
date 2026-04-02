@@ -2,15 +2,81 @@ You are running the OpenMates daily standup meeting.
 
 **Date:** {{DATE}} | **Yesterday:** {{YESTERDAY}}
 
-Three subagent reports have been prepared for you. Read all three files now:
+---
 
-1. `scripts/.tmp/daily-meeting-health.md` — System health (tests, providers, errors, large files)
-2. `scripts/.tmp/daily-meeting-work.md` — Yesterday's work (commits, nightly jobs, issues, sessions)
-3. `scripts/.tmp/daily-meeting-linear.md` — Linear backlog (priority review, proposed top 10)
+## Gathered Data
+
+All data has been gathered automatically. Review each section below — this is the raw data from nightly cronjobs and live server queries. No intermediate summarization has been applied.
+
+### Yesterday's Daily Priorities
+
+{{YESTERDAY_PRIORITIES}}
+
+### Git Commits (last 24h)
+
+{{GIT_LOG}}
+
+### Nightly Cronjob Reports
+
+{{NIGHTLY_REPORTS}}
+
+### Test Results (last run)
+
+{{TEST_SUMMARY}}
+
+### Failed Test Details
+
+{{FAILED_TESTS}}
+
+### Coverage
+
+{{COVERAGE}}
+
+### Production Smoke Tests
+
+{{PROD_SMOKE}}
+
+### Provider Health (from /v1/status)
+
+{{PROVIDER_HEALTH}}
+
+### OpenObserve — Top Errors (Dev Server, last 24h)
+
+{{OPENOBSERVE_DEV}}
+
+### OpenObserve — Top Errors (Production, last 24h)
+
+{{OPENOBSERVE_PROD}}
+
+### Large File Check
+
+{{LARGE_FILES}}
+
+### Server Stats
+
+{{SERVER_STATS}}
+
+### Session Quality (Yesterday)
+
+{{SESSION_QUALITY}}
+
+### User-Reported Issues (last 24h)
+
+{{USER_ISSUES}}
+
+### Current Milestone State
+
+{{MILESTONE_STATE}}
+
+### Data Failures
+
+{{DATA_FAILURES}}
+
+---
 
 Also read:
-4. `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
-5. `scripts/.tmp/daily-meeting-summary-*.md` — Previous meeting summary (most recent date)
+- `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
+- `scripts/.tmp/daily-meeting-summary-*.md` — Previous meeting summary (most recent date)
 
 ---
 
@@ -34,7 +100,7 @@ Wait for user input. Update Linear statuses based on their answers before procee
 
 ### Step 2: YESTERDAY REVIEW 📋
 
-Using the work report, Linear report, and previous meeting summary:
+Using the gathered data and previous meeting summary:
 - Summarize what was accomplished (commits grouped by area, with counts)
 - Review yesterday's daily priorities:
   - ✅ DONE / 🔄 IN PROGRESS / ❌ NOT STARTED — with brief explanation each
@@ -45,7 +111,7 @@ Wait for user input (they may have corrections or context).
 
 ### Step 3: SYSTEM HEALTH 🏥
 
-Using the health report:
+Using the gathered health data:
 - Lead with anything broken or degraded
 - Test results with emojis:
   - ✅ `53/94 passing` → show as: `📊 Tests: 53/94 (56%) — ⚠️ 41 failures`
@@ -58,7 +124,7 @@ Wait for user input (they may know about issues the data missed).
 
 ### Step 4: PROJECT TRAJECTORY 🗺️
 
-Using work report + milestone state:
+Using milestone state + nightly reports:
 - Current milestone progress
 - Scope/timeline concerns
 - Session quality trend
@@ -72,7 +138,7 @@ Wait for user input.
 
 Before suggesting priorities, ask **5 targeted questions — one at a time, one per round**. Wait for the user's answer after each question before asking the next. These questions help you make an educated recommendation rather than relying purely on data.
 
-Adapt questions based on what you've learned from the reports and the conversation so far. Pick from these categories (don't repeat a category):
+Adapt questions based on what you've learned from the data and the conversation so far. Pick from these categories (don't repeat a category):
 
 1. **Focus & energy** — "What kind of work are you in the mood for today? Deep technical work, cleanup, or quick wins?"
 2. **Blockers & friction** — "Is anything blocking you right now? Waiting on someone, stuck on a problem, or dreading a task?"
@@ -89,16 +155,24 @@ Rules for asking:
 
 ### Step 6: TODAY'S PRIORITIES 🎯
 
-Using the Linear report's proposed top 10 **combined with the user's answers from Step 5**:
+Query Linear for all active tasks (Todo, In Progress, Backlog) and propose priorities:
 - Present a **ranked list of up to 10 tasks** for the day
 - The **top 3 are the "must complete" targets** — the clear goal is to finish at least these 3
 - Tasks 4-10 define what to pick up next (via `/next-task`) once the top 3 are done
 - Present each with: rank, Linear ID, title, rationale, estimated effort
-- Adjust if health report revealed urgent issues
+- Adjust if health data revealed urgent issues
 - Adjust based on user's stated energy, blockers, time constraints, and strategic focus
 - For each: 🔥 urgent / ⚡ high / 📋 medium
 - Briefly explain how user's answers influenced your recommendations
 - **Note:** Only 4 sessions can run simultaneously — the rest queue automatically
+
+Priority selection rules (in order):
+1. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
+2. **High/Urgent Linear priority** — respect existing priority fields
+3. **Outages/broken tests** — if health data shows broken items
+4. **User-reported issues** — should appear within 48h of report
+5. **Milestone-critical tasks** — from roadmap phase sequence
+6. **Age of task** — older unattended tasks get a boost
 
 Then ask: **"These are today's 10 priorities (goal: complete at least the top 3). Confirm, or tell me what to adjust."**
 
@@ -106,7 +180,7 @@ Wait for user to confirm or adjust.
 
 ### Step 7: MILESTONE CHECK 📐
 
-Based on everything gathered (reports + user context), evaluate whether any milestone changes are warranted:
+Based on everything gathered (data + user context), evaluate whether any milestone changes are warranted:
 
 - **New milestone needed?** — If the user mentioned a new strategic direction, or if trajectory data shows scope has shifted significantly
 - **Update existing milestone?** — If timeline is slipping, scope should be cut, or priorities have clearly changed
@@ -142,7 +216,7 @@ Use this JSON structure for the state file:
   ],
   "confirmed_by": "user",
   "confirmed_at": "<ISO timestamp>",
-  "session_id": "{{SESSION_ID}}",
+  "session_id": null,
   "context_answers": {
     "focus_energy": "",
     "blockers": "",

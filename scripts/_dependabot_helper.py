@@ -41,10 +41,10 @@ import json
 import os
 import subprocess
 
-from _claude_utils import run_claude_session
+from _claude_utils import run_claude_session, start_sessions_py, end_sessions_py
 from _nightly_report import write_nightly_report
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 # Severity levels to process (skip "low")
@@ -75,7 +75,34 @@ def _load_tracking(tracking_file: str) -> dict:
 
 
 def _save_tracking(tracking_file: str, data: dict) -> None:
-    """Save the tracking file atomically via a temp file."""
+    """Save the tracking file atomically via a temp file.
+
+    Prunes resolved entries older than 72 hours to prevent unbounded growth.
+    """
+    PRUNE_HOURS = 72
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=PRUNE_HOURS)
+    original_count = len(data.get("processed", []))
+
+    pruned = []
+    for entry in data.get("processed", []):
+        # Keep unresolved entries (still need tracking)
+        if not entry.get("resolved_via_commit"):
+            pruned.append(entry)
+            continue
+        # Keep resolved entries newer than cutoff
+        first_seen = entry.get("first_seen_at", "")
+        try:
+            seen_dt = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
+            if seen_dt >= cutoff:
+                pruned.append(entry)
+        except (ValueError, TypeError):
+            pruned.append(entry)  # Keep if date is unparseable
+
+    data["processed"] = pruned
+    removed = original_count - len(pruned)
+    if removed > 0:
+        print(f"[dependabot] Pruned {removed} resolved entries older than {PRUNE_HOURS}h")
+
     tmp_path = tracking_file + ".tmp"
     with open(tmp_path, "w") as f:
         json.dump(data, f, indent=2)
@@ -358,13 +385,37 @@ def process_alerts() -> None:
         prompt_template = f.read()
 
     alert_summary = _build_alert_summary(to_dispatch)
+
+    # Step 5: Start a sessions.py session for proper deploy workflow
+    session_title = f"security: dependabot {today_date}"
+    sessions_py_id = None
+    if not dry_run:
+        sessions_py_id = start_sessions_py(
+            mode="bug",
+            task=f"Dependabot: fix {len(to_dispatch)} security alert(s)",
+            project_root=project_root,
+            log_prefix="[dependabot]",
+        )
+
+    # Inject session ID into prompt so Claude uses sessions.py deploy
+    deploy_instructions = ""
+    if sessions_py_id:
+        deploy_instructions = (
+            f"\n\n## Deploy Instructions\n\n"
+            f"Use `sessions.py deploy` to commit and push your changes:\n"
+            f"```bash\n"
+            f"python3 scripts/sessions.py deploy --session {sessions_py_id} "
+            f'--title "fix: <description> (<GHSA-ID>)" --end\n'
+            f"```\n"
+            f"Do NOT use raw `git commit` or `git push`.\n"
+        )
+
     prompt = (
         prompt_template
         .replace("{{DATE}}", today_date)
         .replace("{{ALERT_SUMMARY}}", alert_summary)
-    )
+    ) + deploy_instructions
 
-    # Step 5: Run claude
     if dry_run:
         print("[dependabot] DRY RUN — would run claude with the following prompt:")
         print("-" * 60)
@@ -372,7 +423,6 @@ def process_alerts() -> None:
         print("-" * 60)
         return
 
-    session_title = f"security: dependabot {today_date}"
     print(f"[dependabot] Starting claude session for {len(to_dispatch)} alert(s)...")
 
     run_claude_session(
@@ -386,6 +436,10 @@ def process_alerts() -> None:
         context_summary=f"{len(to_dispatch)} alert(s) dispatched for fix",
         kill_on_exit=True,  # fully automated — no review needed
     )
+
+    # End session if Claude didn't deploy (cleanup)
+    if sessions_py_id:
+        end_sessions_py(sessions_py_id, project_root, "[dependabot]")
 
     # Write nightly report with security disclosure details
     _write_dependabot_report(

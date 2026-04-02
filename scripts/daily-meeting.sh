@@ -3,21 +3,17 @@
 # OpenMates Daily Standup Meeting
 #
 # Orchestrates the daily meeting with Claude Code:
-# 1. Gathers data from 10 sources (git, tests, health, OpenObserve, etc.)
-# 2. Spawns 3 parallel subagent sessions (health, work, linear reports)
-# 3. Starts the main meeting session with the summarized reports
-# 4. Sends email with resume link (claude resume --dangerous <session-id>)
-# 5. Spawns auto-confirm timer (70 min) for priority confirmation
+# 1. Gathers data from 11 sources (nightly reports, git, tests, health, etc.)
+# 2. Starts the main meeting session with all data injected into the prompt
+# 3. Sends email with resume link (claude resume --dangerous <session-id>)
+# 4. Spawns auto-confirm timer (70 min) for priority confirmation
 #
-# Consolidates former nightly-workflow-review.sh and nightly-issues-check.sh
-# into a single daily ritual.
+# No subagents — the meeting session reads all data directly, avoiding
+# unnecessary summarization layers that add latency and failure risk.
 #
-# Triggered by a system crontab entry (Berlin timezone, DST-aware):
-#   0 10 * * * TZ=Europe/Berlin /home/superdev/projects/OpenMates/scripts/daily-meeting.sh >> /home/superdev/projects/OpenMates/logs/daily-meeting.log 2>&1
-#
-# Can also be invoked manually:
+# Can be invoked manually or via /daily-meeting skill:
 #   ./scripts/daily-meeting.sh                    # run full meeting
-#   DRY_RUN=true ./scripts/daily-meeting.sh       # print prompts, skip claude
+#   DRY_RUN=true ./scripts/daily-meeting.sh       # print prompt, skip claude
 #   MEETING_DATE=2026-03-26 ./scripts/daily-meeting.sh  # review specific date
 #
 # Env vars (sourced from .env automatically):

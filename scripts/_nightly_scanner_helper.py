@@ -17,6 +17,7 @@ Both scanners share the same lifecycle:
 Commands:
     run-quick-wins          Run the quick-wins scanner
     run-pattern-consistency  Run the pattern-consistency scanner
+    run-code-structure      Run the code structure cleanup scanner
 
 Environment variables (set by shell wrappers):
     DRY_RUN             — "true" to skip Claude, print prompt only
@@ -111,12 +112,14 @@ SECTOR_SCHEDULE = {
 OUTPUT_FILES = {
     "quick-wins": "logs/nightly-reports/quick-wins.json",
     "pattern-consistency": "logs/nightly-reports/pattern-inconsistencies.json",
+    "code-structure": "logs/nightly-reports/code-structure.json",
 }
 
 # Nightly report job names (for write_nightly_report)
 REPORT_JOB_NAMES = {
     "quick-wins": "quick-wins",
     "pattern-consistency": "pattern-consistency",
+    "code-structure": "code-structure",
 }
 
 
@@ -335,7 +338,7 @@ def run_scanner(scan_type: str) -> None:
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            f"Usage: {sys.argv[0]} <run-quick-wins|run-pattern-consistency>",
+            f"Usage: {sys.argv[0]} <run-quick-wins|run-pattern-consistency|run-code-structure>",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -345,6 +348,8 @@ if __name__ == "__main__":
         run_scanner("quick-wins")
     elif command == "run-pattern-consistency":
         run_scanner("pattern-consistency")
+    elif command == "run-code-structure":
+        run_scanner("code-structure")
     else:
         print(f"[scanner] Unknown command: {command}", file=sys.stderr)
         sys.exit(1)

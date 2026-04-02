@@ -62,11 +62,11 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _claude_utils import run_claude_session
+from _claude_utils import run_claude_session, start_sessions_py, end_sessions_py
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +139,33 @@ def _load_json_file(path: str, default: Any) -> Any:
 
 
 def _save_json_file(path: str, data: Any) -> None:
-    """Save JSON atomically via temp file."""
+    """Save JSON atomically via temp file.
+
+    If the data has a "processed" list, prunes resolved entries older than 72h.
+    """
+    if isinstance(data, dict) and "processed" in data:
+        PRUNE_HOURS = 72
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=PRUNE_HOURS)
+        original_count = len(data["processed"])
+
+        pruned = []
+        for entry in data["processed"]:
+            if not entry.get("resolved_via_commit"):
+                pruned.append(entry)
+                continue
+            first_seen = entry.get("first_seen_at", "")
+            try:
+                seen_dt = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
+                if seen_dt >= cutoff:
+                    pruned.append(entry)
+            except (ValueError, TypeError):
+                pruned.append(entry)
+
+        data["processed"] = pruned
+        removed = original_count - len(pruned)
+        if removed > 0:
+            print(f"[eu-vulns] Pruned {removed} resolved entries older than {PRUNE_HOURS}h")
+
     tmp_path = path + ".tmp"
     with open(tmp_path, "w") as f:
         json.dump(data, f, indent=2)
@@ -812,13 +838,37 @@ def check_vulns() -> None:
         for f in disclosure_pkgs
     )
 
+    # Start a sessions.py session for proper deploy workflow
+    session_title = f"security: eu-vulns {today_date}"
+    sessions_py_id = None
+    if not dry_run:
+        sessions_py_id = start_sessions_py(
+            mode="bug",
+            task=f"EU vulns: fix {len(to_dispatch)} vulnerability(ies)",
+            project_root=project_root,
+            log_prefix="[eu-vulns]",
+        )
+
+    # Inject session ID into prompt so Claude uses sessions.py deploy
+    deploy_instructions = ""
+    if sessions_py_id:
+        deploy_instructions = (
+            f"\n\n## Deploy Instructions\n\n"
+            f"Use `sessions.py deploy` to commit and push your changes:\n"
+            f"```bash\n"
+            f"python3 scripts/sessions.py deploy --session {sessions_py_id} "
+            f'--title "fix: <description> (<vuln-ID>)" --end\n'
+            f"```\n"
+            f"Do NOT use raw `git commit` or `git push`.\n"
+        )
+
     prompt = (
         prompt_template
         .replace("{{DATE}}", today_date)
         .replace("{{ALERT_SUMMARY}}", alert_summary)
         .replace("{{DISCLOSURE_SUMMARY}}", disclosure_section)
         .replace("{{TOTAL_FINDINGS}}", str(len(to_dispatch)))
-    )
+    ) + deploy_instructions
 
     if dry_run:
         print("[eu-vulns] DRY RUN — would run claude with the following prompt:")
@@ -832,7 +882,6 @@ def check_vulns() -> None:
         print(_build_json_summary(to_dispatch))
         return
 
-    session_title = f"security: eu-vulns {today_date}"
     print(f"[eu-vulns] Starting claude session for {len(to_dispatch)} finding(s)...")
 
     run_claude_session(
@@ -846,6 +895,10 @@ def check_vulns() -> None:
         context_summary=f"{len(to_dispatch)} EU-source vulnerability(ies) dispatched for fix",
         kill_on_exit=True,
     )
+
+    # End session if Claude didn't deploy (cleanup)
+    if sessions_py_id:
+        end_sessions_py(sessions_py_id, project_root, "[eu-vulns]")
 
 
 def _disclosure_reason(package_name: str) -> str:

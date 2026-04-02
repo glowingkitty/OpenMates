@@ -7,6 +7,7 @@ key_files:
   - scripts/nightly-dead-code-removal.sh
   - scripts/weekly-codebase-audit.sh
   - scripts/security-audit.sh
+  - scripts/nightly-code-structure.sh
   - scripts/daily-meeting.sh
   - scripts/_daily_meeting_helper.py
   - scripts/_claude_utils.py
@@ -26,14 +27,18 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 | Schedule                      | Script                                 | Purpose                                   |
 |-------------------------------|----------------------------------------|-------------------------------------------|
-| `10:00 Berlin daily`          | `daily-meeting.sh`                     | **Daily standup**: review, health, priorities |
+| on-demand                     | `daily-meeting.sh`                     | **Daily standup**: review, health, priorities |
 | `*/2 * * * *`                 | `check-deploy-status.sh`               | Watch Vercel for build failures           |
-| `02:00 daily`                 | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
+| `02:00 Mon-Fri`               | `nightly-dead-code-removal.sh`         | Remove detected dead code                 |
 | `02:00 Mon+Thu`               | `weekly-codebase-audit.sh`             | Top 5 improvement findings (plan only)    |
-| `03:00 daily`                 | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
-| `04:30 daily`                 | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
+| `02:15 Mon-Fri`               | `nightly-quick-wins.sh`                | Quick-win improvements (Haiku, plan only) |
 | `02:30 Tue+Fri`               | `security-audit.sh`                    | Security code review (plan only)          |
 | `02:30 Wed+Sat`               | `red-teaming.sh`                       | External attacker simulation (GET only)   |
+| `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
+| `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
+| `03:00 Mon-Fri`               | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
+| `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
+| `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images/containers/volumes |
 | `@reboot`                     | `agent-trigger-watcher.sh`             | Poll for admin-submitted issue triggers   |
 
@@ -41,7 +46,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 ### Job Details
 
-**Daily standup meeting** (10:00 Berlin, DST-aware): Two-phase architecture — gathers data from 10 sources (git, tests, health, OpenObserve, Linear, nightly state files), spawns 3 parallel Sonnet subagents (health-report, work-report, linear-report), then starts an interactive Opus meeting session. Proposes top 3 daily priorities. Sends email with `claude resume --dangerous <id>` link; auto-confirms after 70 min if user doesn't join. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. State: `scripts/.daily-meeting-state.json`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `INTERNAL_API_URL`, `SECRET__ADMIN__DEBUG_CLI__API_KEY`, `INTERNAL_API_SHARED_TOKEN`.
+**Daily standup meeting** (on-demand via `/daily-meeting` skill): Gathers data from 11 sources (nightly reports, git, tests, health, OpenObserve, server stats, user issues, session quality, milestone state) and starts a single interactive meeting session with all data injected directly into the prompt. No subagents — the meeting reads nightly cronjob reports as-is, avoiding redundant summarization. Queries Linear live via MCP tools. Proposes up to 10 daily priorities (goal: complete top 3). Auto-confirms after 70 min if user doesn't join. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. State: `scripts/.daily-meeting-state.json`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `INTERNAL_API_URL`, `SECRET__ADMIN__DEBUG_CLI__API_KEY`, `INTERNAL_API_SHARED_TOKEN`.
 
 **Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches a claude build-mode session with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
@@ -53,13 +58,17 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Issues check**: _Consolidated into daily meeting (2026-03-27)._ Helper `_issues_checker.py` still available as importable library.
 
-**Dependabot check** (04:30): Fetches critical/high/medium alerts via `gh` CLI. Dispatches fix session for new or stale (>7 days) alerts. State: `scripts/dependabot-processed.json`.
+**Dependabot check** (hourly at xx:30): Fetches critical/high/medium alerts via `gh` CLI. Dispatches fix session for new or stale (>7 days) alerts. No-ops in seconds when no new alerts are found (no Claude session spawned). Uses `sessions.py deploy` for commits. Resolved entries auto-pruned after 72h. State: `scripts/dependabot-processed.json`.
+
+**EU vulnerability check** (hourly at xx:35, 5 min after Dependabot): Queries OSV + NVD for vulnerabilities Dependabot misses. Cross-refs against `dependabot-processed.json`. No-ops in seconds when no new vulns found. Uses `sessions.py deploy` for commits. Resolved entries auto-pruned after 72h. State: `scripts/eu-vuln-processed.json`.
 
 **Workflow review**: _Consolidated into daily meeting (2026-03-27)._ Helper `_workflow_review_helper.py` still available as importable library.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
 **Red team probe** (Wed+Sat 02:30): Simulates external attacker against dev endpoints (GET/HEAD/OPTIONS only, max 5 req/endpoint, 20-min timeout). Three phases: reconnaissance, external probing, safe exploitation. No destructive requests. Uses `--permission-mode plan` with `--allowedTools "Read,Grep,Glob,Bash(curl *)"`.
+
+**Code structure cleanup** (02:50 daily): Scans for repository hygiene issues — gitignore gaps, open-source readiness (leaked internal values), folder organization, file consolidation, naming inconsistencies, stale artifacts. Haiku, plan mode, 25-min soft limit / 30-min hard kill. Suggestions only, no code changes. Uses `_nightly_scanner_helper.py` with rotating sector schedule. Output: `logs/nightly-reports/code-structure.json`. Manual: `./scripts/nightly-code-structure.sh [--dry-run]`.
 
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 

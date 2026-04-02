@@ -14,17 +14,16 @@ For each alert below:
 3. **Run the relevant tests** to confirm nothing breaks after the upgrade:
    - Frontend: `pnpm --filter @openmates/ui test` (vitest unit tests)
    - Backend: `python -m pytest backend/tests/ -m "not integration" -q`
-4. **Include the vulnerability ID in your commit message**, e.g.:
+4. **Include the vulnerability ID in your commit title**, e.g.:
    `fix: upgrade lodash to 4.17.22 (GHSA-xxxx-yyyy-zzzz / CVE-2026-12345)`
-5. **Commit to the `dev` branch** — do NOT open a PR to main.
+5. **Deploy using `sessions.py deploy`** — see Deploy Instructions below. Do NOT use raw `git commit` or `git push`.
 
 ## Constraints
 
-- One commit per vulnerability ID (or one commit for a batch of related upgrades in the same package).
+- One deploy per vulnerability ID (or one deploy for a batch of related upgrades in the same package).
 - If upgrading introduces breaking API changes, note them but still upgrade — security takes priority.
 - If no patch version exists yet, skip the upgrade and note it. Do not downgrade.
 - Do not change unrelated code.
-- **Do NOT use `sessions.py`** — no `sessions.py start`, `deploy`, or `end`. This is a cron-dispatched session; the caller handles task tracking. Just commit directly with `git commit`.
 
 ## Alerts to Fix
 

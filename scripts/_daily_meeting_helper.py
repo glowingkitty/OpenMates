@@ -2,20 +2,19 @@
 """
 scripts/_daily_meeting_helper.py
 
-Daily standup meeting orchestrator — gathers data from 10 sources, spawns
-3 parallel Claude subagent sessions (health, work, linear) to summarize,
-then launches the main meeting session with the compact reports.
+Daily standup meeting orchestrator — gathers data from 10 sources and launches
+the main meeting session with the data injected directly into the prompt.
 
-Architecture context: See .claude/plans/binary-orbiting-thacker.md
+No subagents: the meeting session reads nightly reports and live data directly,
+avoiding a redundant summarization layer that added latency and failure risk.
 
 Commands:
-    gather          Gather all data and run subagents (writes .tmp/ reports)
-    run-meeting     Full pipeline: gather → subagents → main meeting session
-    dry-run         Gather data and print what would be sent (no Claude sessions)
+    run-meeting     Full pipeline: gather data → start main meeting session
+    dry-run         Gather data and print the meeting prompt (no Claude session)
     auto-confirm    Apply proposed priorities to Linear (called by timer)
+    spawn-planning  Spawn planning sessions for confirmed priorities
 
 State file: scripts/.daily-meeting-state.json
-Subagent outputs: scripts/.tmp/daily-meeting-{health,work,linear}.md
 
 Data sources:
     A. git log (24h)                    — subprocess
@@ -23,10 +22,10 @@ Data sources:
     C. /v1/status (provider health)     — HTTP request
     D. OpenObserve errors (dev + prod)  — docker exec debug.py
     E. check-file-sizes.sh --ci         — subprocess
-    F. Nightly job state files          — file reads
+    F. Nightly job state files          — file reads (logs/nightly-reports/)
     G. Workflow review (session quality) — import from _workflow_review_helper
     H. User-reported issues             — docker exec debug_issue.py (Vault key)
-    I. Linear tasks                     — gathered by linear subagent (MCP)
+    I. Linear tasks                     — queried live by meeting session (MCP)
     J. Milestone state                  — file read (.planning/)
     K. Server stats                     — docker exec server_stats_query.py
 
@@ -55,18 +54,12 @@ TMP_DIR = SCRIPTS_DIR / ".tmp"
 STATE_FILE = SCRIPTS_DIR / ".daily-meeting-state.json"
 TEST_RESULTS_DIR = PROJECT_ROOT / "test-results"
 
-# Prompt templates
-PROMPT_HEALTH = SCRIPTS_DIR / "prompts" / "daily-meeting-health.md"
-PROMPT_WORK = SCRIPTS_DIR / "prompts" / "daily-meeting-work.md"
-PROMPT_LINEAR = SCRIPTS_DIR / "prompts" / "daily-meeting-linear.md"
+# Main meeting prompt template
 PROMPT_MEETING = SCRIPTS_DIR / "prompts" / "daily-meeting.md"
 PROMPT_PLANNING = SCRIPTS_DIR / "prompts" / "daily-planning-task.md"
 
 # Internal API for provider status
 INTERNAL_API_URL = os.environ.get("INTERNAL_API_URL", "http://localhost:8000")
-
-# Auto-confirm timeout (seconds) — 70 minutes
-AUTO_CONFIRM_TIMEOUT = 70 * 60
 
 LOG_PREFIX = "[daily-meeting]"
 
@@ -126,11 +119,7 @@ def _safe_json_read(path: Path, label: str) -> str:
 
 
 def gather_git_log(project_root: str) -> str:
-    """Source A: git commits from the last 24 hours.
-
-    Uses --oneline (no stat) to keep output compact. The subagent doesn't
-    need per-file diffs — just commit messages grouped by area.
-    """
+    """Source A: git commits from the last 24 hours."""
     try:
         result = subprocess.run(
             ["git", "-C", project_root, "log", "--since=24 hours ago",
@@ -140,7 +129,6 @@ def gather_git_log(project_root: str) -> str:
         output = result.stdout.strip()
         if not output:
             return "(No commits in the last 24 hours.)"
-        # Cap at 5000 chars — typically enough for ~100 commits
         if len(output) > 5000:
             lines = output.splitlines()
             output = "\n".join(lines[:80]) + f"\n\n[...{len(lines) - 80} more commits truncated...]"
@@ -151,7 +139,6 @@ def gather_git_log(project_root: str) -> str:
 
 def gather_test_results() -> dict:
     """Source B: test results from last run."""
-    # Extract only the summary portion from last-run.json (not all 577 tests)
     try:
         last_run_path = TEST_RESULTS_DIR / "last-run.json"
         if last_run_path.is_file():
@@ -164,7 +151,6 @@ def gather_test_results() -> dict:
                 "summary": full_data.get("summary", {}),
                 "suites": {},
             }
-            # Include only suite status + failed test names (not all passed tests)
             for suite_name, suite_data in full_data.get("suites", {}).items():
                 failed_tests = [
                     {"name": t["name"], "status": t["status"],
@@ -183,7 +169,6 @@ def gather_test_results() -> dict:
     except Exception as e:
         summary = f"[DATA UNAVAILABLE: test summary — {e}]"
 
-    # Cap failed tests JSON — only include first 10 failures with truncated errors
     try:
         failed_path = TEST_RESULTS_DIR / "last-failed-tests.json"
         if failed_path.is_file():
@@ -210,23 +195,20 @@ def gather_test_results() -> dict:
     if reports_dir.is_dir():
         for md_path in sorted(reports_dir.glob("*.md")):
             content = _safe_read(md_path, f"failed report {md_path.name}")
-            # Cap each report at 4000 chars to avoid context explosion
             if len(content) > 4000:
                 content = content[:4000] + "\n\n[...truncated...]"
             failed_reports.append(f"### {md_path.name}\n\n{content}")
 
-    # Coverage — extract only the top-level summary, not per-file data
+    # Coverage
     def _extract_coverage_summary(path: Path, label: str) -> str:
         try:
             if not path.is_file():
                 return f"({label}: no coverage file)"
             data = json.loads(path.read_text())
-            # Coverage JSON typically has a "total" or top-level summary
             if isinstance(data, dict):
                 total = data.get("total", data.get("summary", {}))
                 if total:
                     return json.dumps(total, indent=2)
-                # Fallback: just show top-level keys and their types
                 return json.dumps({k: type(v).__name__ for k, v in data.items()})
             return str(data)[:500]
         except Exception as e:
@@ -239,7 +221,6 @@ def gather_test_results() -> dict:
         TEST_RESULTS_DIR / "coverage" / "pytest-coverage.json", "pytest coverage"
     )
 
-    # Prod smoke
     prod_smoke = _safe_json_read(
         TEST_RESULTS_DIR / "last-run-prod-smoke.json", "production smoke tests"
     )
@@ -261,7 +242,6 @@ def gather_provider_health() -> str:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
-        # Extract unhealthy/degraded services
         lines = []
         groups = data.get("groups", [])
         all_healthy = True
@@ -298,7 +278,7 @@ def gather_openobserve_errors(production: bool = False) -> str:
         "docker", "exec", "api", "python",
         "/app/backend/scripts/debug.py", "logs",
         "--o2",
-        "--since", "1440",  # 24 hours — matches the report heading
+        "--since", "1440",
         "--sql", (
             'SELECT message, service, level, COUNT(*) as count FROM "default" '
             "WHERE compose_project = 'openmates-core' "
@@ -359,7 +339,6 @@ def gather_large_files(project_root: str) -> str:
         output = result.stdout.strip()
         if result.returncode == 0:
             return output if output else "No new large file violations."
-        # returncode 1 = new violations found
         return output if output else "Large file check returned violations but no output."
     except Exception as e:
         return f"[DATA UNAVAILABLE: large file check — {e}]"
@@ -369,9 +348,7 @@ def gather_nightly_state_files() -> dict:
     """Source F: auto-discover all nightly job reports from logs/nightly-reports/.
 
     Each cron job writes a standardized JSON report via _nightly_report.py.
-    This function reads all of them and returns a dict with:
-    - One key per discovered job (e.g. "dependabot", "dead-code", "security-audit")
-    - A special "_consolidated" key with a human-readable summary of all jobs
+    Returns a dict with per-job text summaries and a "_consolidated" key.
     """
     from _nightly_report import read_all_reports
 
@@ -382,7 +359,6 @@ def gather_nightly_state_files() -> dict:
             "_consolidated": "(No nightly reports found in logs/nightly-reports/.)",
         }
 
-    # Build per-job summaries for backwards-compatible template vars
     result: dict[str, str] = {}
     consolidated_lines: list[str] = []
 
@@ -393,10 +369,8 @@ def gather_nightly_state_files() -> dict:
         details = report.get("details", {})
         disclosure = report.get("security_disclosure")
 
-        # Per-job entry (compact text for template substitution)
         lines = [f"Status: {status}", f"Last run: {ran_at}", f"Summary: {summary}"]
         if details:
-            # Include key details but cap to avoid bloating the prompt
             details_str = json.dumps(details, indent=2)
             if len(details_str) > 1000:
                 details_str = details_str[:1000] + "\n  ...(truncated)"
@@ -407,7 +381,7 @@ def gather_nightly_state_files() -> dict:
             if risk:
                 lines.append(f"Security disclosure: {risk}")
             if packages:
-                for pkg in packages[:10]:  # Cap at 10 packages
+                for pkg in packages[:10]:
                     pkg_line = (
                         f"  - {pkg.get('name', '?')}: {pkg.get('severity', '?')} "
                         f"({pkg.get('ghsa_id', '?')}) — {pkg.get('summary', '')[:100]}"
@@ -416,53 +390,32 @@ def gather_nightly_state_files() -> dict:
 
         result[job_name] = "\n".join(lines)
 
-        # Consolidated one-liner for the combined section
         status_emoji = {"ok": "OK", "warning": "WARN", "error": "ERR", "skipped": "SKIP"}.get(
             status, status.upper()
         )
         consolidated_lines.append(f"- **{job_name}** [{status_emoji}]: {summary}")
 
     result["_consolidated"] = "\n".join(consolidated_lines)
-
-    # Backwards-compatible keys (mapped from new job names)
-    compat_map = {
-        "dependabot": "dependabot",
-        "dead_code": "dead-code",
-        "security": "security-audit",
-        "audit": "codebase-audit",
-    }
-    for old_key, new_key in compat_map.items():
-        if old_key not in result and new_key in result:
-            result[old_key] = result[new_key]
-
     return result
 
 
 def gather_session_quality(yesterday: str) -> str:
-    """Source G: session quality data from workflow review helper.
-
-    Caps to 8000 chars — the subagent only needs a summary, not the full digest.
-    """
+    """Source G: session quality data from workflow review helper."""
     try:
         from _workflow_review_helper import build_session_digests
         digest_text, count, chars = build_session_digests(yesterday, verbose=False)
         if count == 0:
             return "(No relevant Claude Code sessions found for yesterday.)"
-        # Cap digest to keep the work subagent prompt reasonable
         MAX_SESSION_CHARS = 8000
         if len(digest_text) > MAX_SESSION_CHARS:
             digest_text = digest_text[:MAX_SESSION_CHARS] + "\n\n[...truncated for daily meeting...]"
-        return f"({count} sessions, {chars:,} chars total — showing first {MAX_SESSION_CHARS})\n\n{digest_text}"
+        return f"({count} sessions, {chars:,} chars total)\n\n{digest_text}"
     except Exception as e:
         return f"[DATA UNAVAILABLE: session quality — {e}]"
 
 
 def gather_user_issues(project_root: str) -> str:
-    """Source H: user-reported issues via debug_issue.py inside Docker.
-
-    Runs inside the api container so it has Vault access for the admin API key.
-    Uses --list --json for structured output, then formats for the subagent.
-    """
+    """Source H: user-reported issues via debug_issue.py inside Docker."""
     cmd = [
         "docker", "exec", "api", "python",
         "/app/backend/scripts/debug_issue.py",
@@ -485,11 +438,9 @@ def gather_user_issues(project_root: str) -> str:
         if not issues:
             return "No user-reported issues in the last 24h."
 
-        # Filter to last 24h
         since_dt = datetime.now(timezone.utc) - timedelta(hours=24)
         lines = []
         for issue in issues:
-            # Check age — skip issues older than 24h
             created_str = issue.get("created_at") or issue.get("timestamp", "")
             if created_str:
                 try:
@@ -498,7 +449,7 @@ def gather_user_issues(project_root: str) -> str:
                     if created_at < since_dt:
                         continue
                 except (ValueError, TypeError):
-                    pass  # Include if unparseable (conservative)
+                    pass
 
             issue_id = issue.get("id", "?")
             title = issue.get("title") or issue.get("decrypted", {}).get("title", "(no title)")
@@ -521,16 +472,13 @@ def gather_milestone_state() -> str:
     """Source J: milestone state from .planning/."""
     planning_dir = PROJECT_ROOT / ".planning"
 
-    # Try PROJECT.md first
     project_md = planning_dir / "PROJECT.md"
     if project_md.is_file():
         content = project_md.read_text(errors="replace")
-        # Cap at 3000 chars — milestone overview should be at the top
         if len(content) > 3000:
             content = content[:3000] + "\n\n[...truncated...]"
         return content
 
-    # Fallback: check config.json
     config = planning_dir / "config.json"
     if config.is_file():
         return _safe_json_read(config, "planning config")
@@ -539,17 +487,15 @@ def gather_milestone_state() -> str:
 
 
 def gather_all_data(project_root: str, yesterday: str) -> dict:
-    """
-    Gather all 10 data sources in parallel where possible.
+    """Gather all data sources in parallel where possible.
 
-    Returns a dict with keys matching the subagent template placeholders.
+    Returns a dict with all gathered data, ready for prompt injection.
     """
     data = {}
     failures = []
 
     print(f"{LOG_PREFIX} Gathering data from 11 sources...")
 
-    # Run independent data sources in parallel
     with ThreadPoolExecutor(max_workers=7) as pool:
         futures = {
             pool.submit(gather_git_log, project_root): "git_log",
@@ -571,7 +517,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
                 data[key] = f"[DATA UNAVAILABLE: {key} — {e}]"
                 failures.append(key)
 
-    # Sequential: nightly state files (fast file reads)
+    # Sequential: fast file reads
     data["nightly_states"] = gather_nightly_state_files()
     data["milestone_state"] = gather_milestone_state()
 
@@ -594,64 +540,22 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     return data
 
 
-# ── Subagent prompt builders ─────────────────────────────────────────────────
+# ── Meeting prompt builder ───────────────────────────────────────────────────
 
-def build_health_prompt(data: dict, today: str) -> str:
-    """Build the health subagent prompt from gathered data."""
-    template = PROMPT_HEALTH.read_text()
-    test = data.get("test_results", {})
+def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
+    """Build the main meeting prompt with all gathered data injected directly.
 
-    return (
-        template
-        .replace("{{DATE}}", today)
-        .replace("{{TEST_SUMMARY}}", test.get("summary", "N/A") if isinstance(test, dict) else str(test))
-        .replace("{{FAILED_TESTS}}", test.get("failed_reports", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{COVERAGE}}", test.get("coverage", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{PROD_SMOKE}}", test.get("prod_smoke", "N/A") if isinstance(test, dict) else "N/A")
-        .replace("{{PROVIDER_HEALTH}}", data.get("provider_health", "N/A"))
-        .replace("{{OPENOBSERVE_DEV}}", data.get("openobserve_dev", "N/A"))
-        .replace("{{OPENOBSERVE_PROD}}", data.get("openobserve_prod", "N/A"))
-        .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
-        .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
-    )
-
-
-def build_work_prompt(data: dict, today: str, yesterday: str) -> str:
-    """Build the work subagent prompt from gathered data."""
-    template = PROMPT_WORK.read_text()
-    nightly = data.get("nightly_states", {})
-
-    # Build consolidated nightly reports section from all auto-discovered reports
-    nightly_text = nightly.get("_consolidated", "N/A")
-    # Also append per-job detail blocks for jobs with security disclosures
-    for job_name, job_text in sorted(nightly.items()):
-        if job_name.startswith("_"):
-            continue
-        if "Security disclosure:" in job_text:
-            nightly_text += f"\n\n#### {job_name} (security details)\n{job_text}"
-
-    return (
-        template
-        .replace("{{DATE}}", today)
-        .replace("{{YESTERDAY}}", yesterday)
-        .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
-        .replace("{{NIGHTLY_REPORTS}}", nightly_text)
-        .replace("{{SESSION_DIGESTS}}", data.get("session_quality", "N/A"))
-        .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
-    )
-
-
-def build_linear_prompt(data: dict, today: str, yesterday: str) -> str:
-    """Build the linear subagent prompt from gathered data.
-
-    Note: The linear subagent uses MCP tools to query Linear directly,
-    so we only inject the milestone state and previous priorities here.
-    The template placeholders for Linear data are filled by the subagent.
+    Instead of reading subagent reports, the meeting session receives
+    all raw data inline — nightly reports, test results, health, etc.
     """
-    template = PROMPT_LINEAR.read_text()
-    prev_state = data.get("previous_state", {})
-    priorities = prev_state.get("priorities", [])
+    template = PROMPT_MEETING.read_text()
 
+    test = data.get("test_results", {})
+    nightly = data.get("nightly_states", {})
+    prev_state = data.get("previous_state", {})
+
+    # Format yesterday's priorities
+    priorities = prev_state.get("priorities", [])
     if priorities:
         priority_lines = []
         for p in priorities:
@@ -663,139 +567,56 @@ def build_linear_prompt(data: dict, today: str, yesterday: str) -> str:
     else:
         yesterday_priorities = "(No daily priorities were set yesterday.)"
 
+    # Nightly reports: consolidated + security details
+    nightly_text = nightly.get("_consolidated", "N/A")
+    for job_name, job_text in sorted(nightly.items()):
+        if job_name.startswith("_"):
+            continue
+        if "Security disclosure:" in job_text:
+            nightly_text += f"\n\n#### {job_name} (security details)\n{job_text}"
+
+    # Data failures
+    failures = data.get("_failures", [])
+    failures_text = ", ".join(failures) if failures else "none"
+
     return (
         template
         .replace("{{DATE}}", today)
         .replace("{{YESTERDAY}}", yesterday)
         .replace("{{YESTERDAY_PRIORITIES}}", yesterday_priorities)
-        .replace("{{ACTIVE_TASKS}}", "(Use Linear MCP tools to query all active tasks: mcp__linear__list_issues with status filter)")
-        .replace("{{RECENTLY_COMPLETED}}", "(Use Linear MCP tools to query recently completed tasks)")
+        .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
+        .replace("{{NIGHTLY_REPORTS}}", nightly_text)
+        .replace("{{SESSION_QUALITY}}", data.get("session_quality", "N/A"))
+        .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
+        .replace("{{TEST_SUMMARY}}", test.get("summary", "N/A") if isinstance(test, dict) else str(test))
+        .replace("{{FAILED_TESTS}}", test.get("failed_reports", "N/A") if isinstance(test, dict) else "N/A")
+        .replace("{{COVERAGE}}", test.get("coverage", "N/A") if isinstance(test, dict) else "N/A")
+        .replace("{{PROD_SMOKE}}", test.get("prod_smoke", "N/A") if isinstance(test, dict) else "N/A")
+        .replace("{{PROVIDER_HEALTH}}", data.get("provider_health", "N/A"))
+        .replace("{{OPENOBSERVE_DEV}}", data.get("openobserve_dev", "N/A"))
+        .replace("{{OPENOBSERVE_PROD}}", data.get("openobserve_prod", "N/A"))
+        .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
+        .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
         .replace("{{MILESTONE_STATE}}", data.get("milestone_state", "N/A"))
+        .replace("{{DATA_FAILURES}}", failures_text)
     )
-
-
-def build_meeting_prompt(today: str, yesterday: str, session_id: str) -> str:
-    """Build the main meeting session prompt."""
-    template = PROMPT_MEETING.read_text()
-    return (
-        template
-        .replace("{{DATE}}", today)
-        .replace("{{YESTERDAY}}", yesterday)
-        .replace("{{SESSION_ID}}", session_id or "unknown")
-    )
-
-
-# ── Subagent runner ──────────────────────────────────────────────────────────
-
-def run_subagent(name: str, prompt: str, today: str) -> tuple[str, int, str | None]:
-    """
-    Run a subagent Claude session and return (name, returncode, session_id).
-
-    The subagent writes its report to scripts/.tmp/daily-meeting-{name}.md.
-    """
-    session_title = f"daily-meeting-{name} {today}"
-
-    # For the linear subagent, we need MCP access (Linear tools), so use plan
-    # mode with allowed tools. Health and work subagents are pure data summaries.
-    if name == "linear":
-        allowed_tools = [
-            "Read", "Grep", "Glob",
-            "mcp__linear__list_issues",
-            "mcp__linear__get_issue",
-            "mcp__linear__save_issue",
-            "mcp__linear__save_comment",
-        ]
-    else:
-        allowed_tools = ["Read", "Grep", "Glob"]
-
-    # Wrap the prompt to tell the subagent where to write its report
-    output_path = f"scripts/.tmp/daily-meeting-{name}.md"
-    wrapped_prompt = (
-        f"{prompt}\n\n---\n\n"
-        f"**IMPORTANT:** Write your complete report to `{output_path}` using the Write tool. "
-        f"This file will be read by the main meeting session."
-    )
-
-    returncode, session_id = run_claude_session(
-        prompt=wrapped_prompt,
-        session_title=session_title,
-        project_root=str(PROJECT_ROOT),
-        log_prefix=f"{LOG_PREFIX}[{name}]",
-        agent="plan",
-        allowed_tools=allowed_tools + ["Write"],
-        timeout=300,
-        job_type=None,  # No email for subagents
-        linear_task=False,  # Internal subagents don't need their own Linear issues
-        use_zellij=False,  # Subagents are headless — Zellij adds overhead and fails silently
-    )
-
-    return name, returncode, session_id
-
-
-def run_subagents(data: dict, today: str, yesterday: str) -> dict:
-    """
-    Run all 3 subagents in parallel. Returns dict of {name: success_bool}.
-    """
-    TMP_DIR.mkdir(parents=True, exist_ok=True)
-
-    prompts = {
-        "health": build_health_prompt(data, today),
-        "work": build_work_prompt(data, today, yesterday),
-        "linear": build_linear_prompt(data, today, yesterday),
-    }
-
-    results = {}
-    print(f"{LOG_PREFIX} Spawning 3 subagents in parallel...")
-
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        futures = {
-            pool.submit(run_subagent, name, prompt, today): name
-            for name, prompt in prompts.items()
-        }
-
-        for future in as_completed(futures):
-            name = futures[future]
-            try:
-                agent_name, rc, sid = future.result()
-                success = rc == 0
-                results[agent_name] = success
-                status = "OK" if success else f"FAILED (exit {rc})"
-                print(f"{LOG_PREFIX} Subagent '{agent_name}': {status}")
-            except Exception as e:
-                results[name] = False
-                print(f"{LOG_PREFIX} Subagent '{name}' exception: {e}", file=sys.stderr)
-
-    # Write fallback reports for failed subagents
-    for name, success in results.items():
-        report_path = TMP_DIR / f"daily-meeting-{name}.md"
-        if not success and not report_path.is_file():
-            report_path.write_text(
-                f"## {name.title()} Report — {today}\n\n"
-                f"[SUBAGENT FAILED: The {name} subagent did not complete successfully. "
-                f"Data may be partially available in the raw gathered data.]\n"
-            )
-
-    return results
 
 
 # ── Main meeting session ─────────────────────────────────────────────────────
 
-def run_meeting_session(today: str, yesterday: str) -> tuple[int, str | None]:
-    """
-    Run the main meeting Claude session (interactive, Opus).
+def run_meeting_session(data: dict, today: str, yesterday: str) -> tuple[int, str | None]:
+    """Run the main meeting Claude session (interactive).
 
     Returns (returncode, session_id).
     """
     session_title = f"daily-meeting {today}"
-    prompt = build_meeting_prompt(today, yesterday, session_id="(will be set after start)")
+    prompt = build_meeting_prompt(data, today, yesterday)
 
     returncode, session_id = run_claude_session(
         prompt=prompt,
         session_title=session_title,
         project_root=str(PROJECT_ROOT),
         log_prefix=LOG_PREFIX,
-        # Main meeting runs in build mode (not plan) so it can write state file
-        # and use Linear MCP tools for label management
         agent=None,
         timeout=1800,
         job_type="daily-meeting",
@@ -808,68 +629,36 @@ def run_meeting_session(today: str, yesterday: str) -> tuple[int, str | None]:
 # ── Commands ─────────────────────────────────────────────────────────────────
 
 def cmd_dry_run(yesterday: str) -> None:
-    """Gather data and print what would be sent, without starting Claude sessions."""
+    """Gather data and print the meeting prompt (no Claude session)."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     print(f"{LOG_PREFIX} DRY RUN — gathering data for {today} (reviewing {yesterday})")
 
     data = gather_all_data(str(PROJECT_ROOT), yesterday)
 
     print(f"\n{'=' * 70}")
-    print("HEALTH SUBAGENT PROMPT (first 3000 chars):")
+    print("MEETING PROMPT (first 5000 chars):")
     print("=" * 70)
-    health_prompt = build_health_prompt(data, today)
-    print(health_prompt[:3000])
-    if len(health_prompt) > 3000:
-        print(f"\n... ({len(health_prompt) - 3000:,} more chars)")
+    prompt = build_meeting_prompt(data, today, yesterday)
+    print(prompt[:5000])
+    if len(prompt) > 5000:
+        print(f"\n... ({len(prompt) - 5000:,} more chars)")
 
     print(f"\n{'=' * 70}")
-    print("WORK SUBAGENT PROMPT (first 3000 chars):")
-    print("=" * 70)
-    work_prompt = build_work_prompt(data, today, yesterday)
-    print(work_prompt[:3000])
-    if len(work_prompt) > 3000:
-        print(f"\n... ({len(work_prompt) - 3000:,} more chars)")
-
-    print(f"\n{'=' * 70}")
-    print("LINEAR SUBAGENT PROMPT (first 3000 chars):")
-    print("=" * 70)
-    linear_prompt = build_linear_prompt(data, today, yesterday)
-    print(linear_prompt[:3000])
-
-    print(f"\n{'=' * 70}")
+    print(f"Total prompt length: {len(prompt):,} chars")
     print(f"Data failures: {data['_failures']}")
     print(f"Previous priorities: {data['previous_state'].get('priorities', [])}")
     print("=" * 70)
 
 
-def cmd_gather(yesterday: str) -> None:
-    """Gather data and run subagents (writes .tmp/ reports)."""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    print(f"{LOG_PREFIX} Phase 1: Gathering data for {today}...")
-
-    data = gather_all_data(str(PROJECT_ROOT), yesterday)
-
-    print(f"{LOG_PREFIX} Phase 2: Running subagents...")
-    results = run_subagents(data, today, yesterday)
-
-    success_count = sum(1 for v in results.values() if v)
-    print(f"{LOG_PREFIX} Subagents complete: {success_count}/3 succeeded")
-
-
 def cmd_run_meeting(yesterday: str) -> None:
-    """Full pipeline: gather → subagents → main meeting session."""
+    """Full pipeline: gather data → start main meeting session."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     print(f"{LOG_PREFIX} Starting daily meeting for {today}...")
 
-    # Phase 1 + 2: gather and run subagents
     data = gather_all_data(str(PROJECT_ROOT), yesterday)
-    subagent_results = run_subagents(data, today, yesterday)
 
-    success_count = sum(1 for v in subagent_results.values() if v)
-    print(f"{LOG_PREFIX} Subagents: {success_count}/3 succeeded. Starting main meeting...")
-
-    # Phase 3: main meeting session
-    returncode, session_id = run_meeting_session(today, yesterday)
+    print(f"{LOG_PREFIX} Starting meeting session...")
+    returncode, session_id = run_meeting_session(data, today, yesterday)
 
     if session_id:
         print(f"CLAUDE_SESSION_ID:{session_id}")
@@ -881,42 +670,46 @@ def cmd_run_meeting(yesterday: str) -> None:
 
 
 def cmd_auto_confirm() -> None:
-    """
-    Apply proposed priorities from the meeting to Linear.
+    """Apply proposed priorities from the meeting to Linear.
 
     Called by the auto-confirm timer after 70 minutes if the user didn't join.
-    Reads the Linear report, extracts proposed tasks, and applies labels via
-    the Linear API directly (no Claude session needed).
+    Reads the meeting summary to extract proposed tasks.
     """
     state = load_meeting_state()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # Check if priorities were already confirmed today
     if state.get("date") == today and state.get("confirmed_by"):
         print(f"{LOG_PREFIX} Priorities already confirmed for {today} by {state['confirmed_by']} — skipping.")
         return
 
-    # Read the linear subagent report to extract proposed priorities
-    linear_report = TMP_DIR / "daily-meeting-linear.md"
-    if not linear_report.is_file():
-        print(f"{LOG_PREFIX} ERROR: Linear report not found at {linear_report}", file=sys.stderr)
-        sys.exit(1)
-
-    report_content = linear_report.read_text()
-
-    # Parse OPE-XX IDs from the "Proposed Top 10" section (up to 10)
+    # Look for today's meeting summary
     import re
-    proposed_ids = re.findall(r'\*\*OPE-\d+:', report_content)
-    proposed_ids = [pid.strip("*:") for pid in proposed_ids[:10]]
+    summary_file = TMP_DIR / f"daily-meeting-summary-{today}.md"
+    if not summary_file.is_file():
+        print(f"{LOG_PREFIX} WARNING: Meeting summary not found at {summary_file}", file=sys.stderr)
+        print(f"{LOG_PREFIX} Auto-confirm skipped — no meeting ran today.", file=sys.stderr)
+        return
+
+    report_content = summary_file.read_text()
+
+    # Parse OPE-XX IDs from the priorities section
+    proposed_ids = re.findall(r'OPE-\d+', report_content)
+    # Deduplicate while preserving order
+    seen = set()
+    unique_ids = []
+    for pid in proposed_ids:
+        if pid not in seen:
+            seen.add(pid)
+            unique_ids.append(pid)
+    proposed_ids = unique_ids[:10]
 
     if not proposed_ids:
-        print(f"{LOG_PREFIX} WARNING: Could not extract proposed priorities from Linear report.")
+        print(f"{LOG_PREFIX} WARNING: Could not extract proposed priorities from meeting summary.")
         print(f"{LOG_PREFIX} Auto-confirm skipped — manual confirmation needed.")
         return
 
     print(f"{LOG_PREFIX} Auto-confirming priorities: {', '.join(proposed_ids)}")
 
-    # Update state with auto-confirmed priorities
     state["date"] = today
     state["last_meeting"] = datetime.now(timezone.utc).isoformat()
     state["priorities"] = [
@@ -937,7 +730,6 @@ def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) ->
     """Fill the planning prompt template with Linear issue data and meeting context."""
     template = PROMPT_PLANNING.read_text()
 
-    # Format comments
     comments_text = "(No comments.)"
     if issue_data.get("comments"):
         lines = []
@@ -959,18 +751,12 @@ def build_planning_prompt(issue_data: dict, meeting_summary: str, today: str) ->
 
 
 def cmd_spawn_planning() -> None:
-    """Spawn planning sessions for today's confirmed priorities.
-
-    Reads the meeting state file, fetches Linear context for each priority,
-    and spawns a Claude Code planning session in a separate Zellij tab.
-    Respects MAX_CONCURRENT_SESSIONS — stops spawning once the cap is hit.
-    """
+    """Spawn planning sessions for today's confirmed priorities."""
     from _zellij_utils import spawn_claude_session, count_active_sessions, MAX_CONCURRENT_SESSIONS
 
     state = load_meeting_state()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    # Validate state
     if state.get("date") != today:
         print(f"{LOG_PREFIX} No confirmed priorities for today ({today}). Run the meeting first.", file=sys.stderr)
         sys.exit(1)
@@ -980,13 +766,11 @@ def cmd_spawn_planning() -> None:
         print(f"{LOG_PREFIX} No priorities in state file.", file=sys.stderr)
         sys.exit(1)
 
-    # Load meeting summary for context
     meeting_summary = ""
     summary_pattern = TMP_DIR / f"daily-meeting-summary-{today}.md"
     if summary_pattern.is_file():
         meeting_summary = summary_pattern.read_text(errors="replace")[:3000]
 
-    # Fetch Linear context and spawn sessions
     try:
         from _linear_client import get_issue_with_comments
     except ImportError:
@@ -1000,7 +784,6 @@ def cmd_spawn_planning() -> None:
         if not linear_id:
             continue
 
-        # Enforce hard cap — stop spawning once we hit the limit
         active = count_active_sessions()
         if active >= MAX_CONCURRENT_SESSIONS:
             skipped.append(linear_id)
@@ -1013,13 +796,11 @@ def cmd_spawn_planning() -> None:
         session_name = f"plan-{linear_id}-{today}"
         print(f"{LOG_PREFIX} Spawning planning session for {linear_id}...")
 
-        # Fetch issue context
         issue_data = None
         if get_issue_with_comments:
             issue_data = get_issue_with_comments(linear_id)
 
         if not issue_data:
-            # Minimal fallback
             issue_data = {
                 "identifier": linear_id,
                 "title": priority.get("title", "Unknown"),
@@ -1029,12 +810,10 @@ def cmd_spawn_planning() -> None:
                 "comments": [],
             }
 
-        # Build prompt, write to temp file
         prompt = build_planning_prompt(issue_data, meeting_summary, today)
         prompt_file = TMP_DIR / f"planning-prompt-{linear_id}.txt"
         prompt_file.write_text(prompt, encoding="utf-8")
 
-        # Spawn via Zellij layout
         rel_path = prompt_file.relative_to(PROJECT_ROOT)
         claude_prompt = f"Read {rel_path} in full and follow all the instructions precisely."
 
@@ -1051,7 +830,6 @@ def cmd_spawn_planning() -> None:
         else:
             print(f"{LOG_PREFIX}   → FAILED to spawn for {linear_id}", file=sys.stderr)
 
-    # Summary
     print(f"\n{LOG_PREFIX} Spawned {len(spawned)}/{len(priorities)} planning sessions.")
     if skipped:
         print(f"{LOG_PREFIX} Skipped {len(skipped)} due to session cap ({MAX_CONCURRENT_SESSIONS}): {', '.join(skipped)}")
@@ -1067,7 +845,6 @@ def cmd_spawn_planning() -> None:
 def main() -> None:
     args = sys.argv[1:]
 
-    # Default to yesterday in UTC
     override_date = os.environ.get("MEETING_DATE", "")
     if override_date:
         yesterday = override_date
@@ -1075,14 +852,12 @@ def main() -> None:
         yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     if not args:
-        print(f"Usage: {sys.argv[0]} <dry-run|gather|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <dry-run|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
         sys.exit(1)
 
     command = args[0]
     if command == "dry-run":
         cmd_dry_run(yesterday)
-    elif command == "gather":
-        cmd_gather(yesterday)
     elif command == "run-meeting":
         cmd_run_meeting(yesterday)
     elif command == "auto-confirm":
@@ -1091,7 +866,7 @@ def main() -> None:
         cmd_spawn_planning()
     else:
         print(f"{LOG_PREFIX} Unknown command: {command}", file=sys.stderr)
-        print(f"Usage: {sys.argv[0]} <dry-run|gather|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <dry-run|run-meeting|auto-confirm|spawn-planning>", file=sys.stderr)
         sys.exit(1)
 
 
