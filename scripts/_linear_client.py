@@ -169,7 +169,7 @@ def get_issue_with_comments(identifier: str) -> Optional[Dict[str, Any]]:
             state { name }
             assignee { name displayName }
             labels { nodes { id name } }
-            comments(first: 10) {
+            comments(last: 10) {
                 nodes {
                     body
                     createdAt

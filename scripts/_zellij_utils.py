@@ -285,6 +285,46 @@ def count_active_sessions() -> int:
     return len(list_sessions())
 
 
+# Prefixes used by the linear-poller when spawning sessions
+POLLER_SESSION_PREFIXES = ("fix-", "plan-", "research-")
+
+
+def count_poller_sessions() -> int:
+    """
+    Count non-EXITED Zellij sessions spawned by the linear-poller.
+
+    Only sessions with poller-managed prefixes (fix-*, plan-*, research-*)
+    are counted. Manual sessions (claude1, session-XXXX, etc.) are excluded
+    so they don't block the poller's concurrency limit.
+    """
+    return sum(
+        1 for name in list_sessions()
+        if name.startswith(POLLER_SESSION_PREFIXES)
+    )
+
+
+def list_sessions_with_state() -> Dict[str, str]:
+    """
+    List all Zellij sessions with their state.
+
+    Returns a dict mapping session name → "ACTIVE" or "EXITED".
+    Used by session-cleanup to detect dead poller sessions.
+    """
+    result = _run_zellij(["list-sessions", "--no-formatting"])
+    if not result or result.returncode != 0:
+        return {}
+
+    sessions: Dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        name = stripped.split()[0] if stripped.split() else ""
+        if name:
+            sessions[name] = "EXITED" if "EXITED" in stripped else "ACTIVE"
+    return sessions
+
+
 def cleanup_exited_sessions() -> int:
     """
     Delete all Zellij sessions in EXITED state.

@@ -21,9 +21,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import fcntl
+import json
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # Ensure sibling modules are importable
 _SCRIPTS_DIR = str(Path(__file__).parent)
@@ -44,13 +48,94 @@ from _linear_client import (
 )
 from _zellij_utils import (
     MAX_CONCURRENT_SESSIONS,
-    count_active_sessions,
+    count_poller_sessions,
     spawn_claude_session,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
 TMP_DIR = PROJECT_ROOT / "scripts" / ".tmp"
 LOG_PREFIX = "[linear-poller]"
+
+# Tracking file for poller-spawned sessions (read by session-cleanup.py)
+POLLER_SESSIONS_FILE = TMP_DIR / "poller-sessions.json"
+POLLER_SESSIONS_LOCK = TMP_DIR / "poller-sessions.lock"
+
+# Directory where Claude Code stores session JSONL transcripts
+CLAUDE_SESSIONS_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-projects-OpenMates"
+
+
+# ── Session Tracking ────────────────────────────────────────────────────────
+
+
+def _read_poller_sessions() -> Dict:
+    """Read the poller sessions tracking file. Returns {} if missing or invalid."""
+    try:
+        if POLLER_SESSIONS_FILE.exists():
+            return json.loads(POLLER_SESSIONS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        pass
+    return {}
+
+
+def _write_poller_sessions(data: Dict) -> None:
+    """Atomically write the poller sessions tracking file with file locking."""
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(POLLER_SESSIONS_LOCK, "w") as lock_fd:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            tmp = POLLER_SESSIONS_FILE.with_suffix(".tmp")
+            with open(tmp, "w") as f:
+                json.dump(data, f, indent=2)
+                f.write("\n")
+            tmp.replace(POLLER_SESSIONS_FILE)
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+    except OSError as e:
+        print(f"{LOG_PREFIX} Warning: failed to write poller-sessions.json: {e}", file=sys.stderr)
+
+
+def _discover_claude_session_id() -> Optional[str]:
+    """
+    Find the Claude session UUID for a just-spawned session.
+
+    Scans the JSONL directory for files created in the last 15 seconds
+    and returns the UUID of the newest one. Returns None if no match.
+    """
+    if not CLAUDE_SESSIONS_DIR.is_dir():
+        return None
+
+    now = time.time()
+    newest_file = None
+    newest_mtime = 0.0
+
+    for f in CLAUDE_SESSIONS_DIR.iterdir():
+        if not f.suffix == ".jsonl":
+            continue
+        try:
+            mtime = f.stat().st_mtime
+        except OSError:
+            continue
+        if now - mtime < 15 and mtime > newest_mtime:
+            newest_mtime = mtime
+            newest_file = f
+
+    if newest_file:
+        return newest_file.stem  # UUID is the filename without extension
+    return None
+
+
+def _register_poller_session(
+    session_name: str, issue: Dict, mode: str, claude_session_id: Optional[str]
+) -> None:
+    """Register a spawned session in the tracking file for cleanup monitoring."""
+    data = _read_poller_sessions()
+    data[session_name] = {
+        "issue_id": issue["id"],
+        "identifier": issue["identifier"],
+        "mode": mode,
+        "started": datetime.now(timezone.utc).isoformat(),
+        "claude_session_id": claude_session_id,
+    }
+    _write_poller_sessions(data)
 
 
 # ── Prompt Builders ─────────────────────────────────────────────────────────
@@ -80,11 +165,21 @@ def _build_linear_tracking_instructions(
         f'  Use mcp__linear__save_comment with issueId: "{identifier}" and body: "your update"\n'
         f"- Good examples: 'Found root cause in file.ts:245 — race condition on X'\n"
         f"  or 'Fix deployed: commit abc123, updated key derivation'\n"
-        f"- At END: update status via mcp__linear__save_issue with\n"
-        f'  id: "{identifier}", state: "In Review",\n'
-        f"  and post a final comment including resume commands:\n"
-        f"  zellij attach {session_name}\n"
-        f"  claude --resume <your-session-id>\n"
+        f"\n"
+        f"BEFORE YOU FINISH (whether success or failure):\n"
+        f"1. Post a final comment summarizing: outcome, what was done, what remains\n"
+        f"2. Update status via mcp__linear__save_issue:\n"
+        f'   - Success: id: "{identifier}", state: "In Review"\n'
+        f'   - Blocked/failed: id: "{identifier}", state: "Todo"\n'
+        f"3. Remove the claude-is-working label by calling mcp__linear__save_issue\n"
+        f'   with id: "{identifier}" and the current labelIds minus the\n'
+        f"   claude-is-working label\n"
+        f"4. Include resume commands in the final comment:\n"
+        f"   zellij attach {session_name}\n"
+        f"   claude --resume <your-session-id>\n"
+        f"\n"
+        f"If you hit a tool error, token limit, or cannot proceed:\n"
+        f"  Post a comment explaining what happened and set status to Todo.\n"
     )
 
 
@@ -136,9 +231,9 @@ def _build_prompt(issue: Dict, mode: str, session_name: str) -> str:
         f"3. Search for existing patterns to reuse\n"
         f"4. Assess complexity — scope, risks, dependencies\n"
         + (
-            f"5. Implement the fix and deploy via sessions.py deploy\n"
+            "5. Implement the fix and deploy via sessions.py deploy\n"
             if mode == "execute"
-            else f"5. Write a structured summary of findings and recommended approach\n"
+            else "5. Write a structured summary of findings and recommended approach\n"
         )
         + tracking
     )
@@ -186,6 +281,17 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
     if not success:
         print(f"{LOG_PREFIX} {identifier}: FAILED to spawn session", file=sys.stderr)
         return False
+
+    # Wait briefly for Claude to create its JSONL session file, then capture UUID
+    time.sleep(3)
+    claude_session_id = _discover_claude_session_id()
+    if claude_session_id:
+        print(f"{LOG_PREFIX} {identifier}: captured Claude session {claude_session_id}")
+    else:
+        print(f"{LOG_PREFIX} {identifier}: could not capture Claude session ID", file=sys.stderr)
+
+    # Register in tracking file for cleanup monitoring
+    _register_poller_session(session_name, full_issue, mode, claude_session_id)
 
     # Swap labels: remove trigger label, add claude-is-working
     current_labels = full_issue.get("label_ids", [])
@@ -246,15 +352,22 @@ def poll_and_spawn(dry_run: bool = False) -> None:
     print(f"{LOG_PREFIX} Found {len(candidates)} issue(s) to process")
 
     for issue, mode in candidates:
-        active = count_active_sessions()
+        active = count_poller_sessions()
         if active >= MAX_CONCURRENT_SESSIONS:
-            label_name = {"plan": "plan", "research": "research", "execute": "fix"}.get(mode, mode)
-            post_comment(
-                issue["id"],
-                f"**Queued** — session limit reached ({active}/{MAX_CONCURRENT_SESSIONS}). "
-                f"This task will auto-start when a slot opens. "
-                f"The `claude-{label_name}` label is retained for retry."
+            # Only post a "Queued" comment once — check existing comments first
+            full_issue = get_issue_with_comments(issue["identifier"])
+            comments = full_issue.get("comments", []) if full_issue else []
+            already_queued = any(
+                c.get("body", "").startswith("**Queued**") for c in comments
             )
+            if not already_queued:
+                label_name = {"plan": "plan", "research": "research", "execute": "fix"}.get(mode, mode)
+                post_comment(
+                    issue["id"],
+                    f"**Queued** — session limit reached ({active}/{MAX_CONCURRENT_SESSIONS}). "
+                    f"This task will auto-start when a slot opens. "
+                    f"The `claude-{label_name}` label is retained for retry."
+                )
             print(f"{LOG_PREFIX} {issue['identifier']}: queued (limit {active}/{MAX_CONCURRENT_SESSIONS})")
             continue
 
