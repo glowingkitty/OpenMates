@@ -21,28 +21,41 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Default Caddyfile paths (checked in order)
-DEFAULT_DEV_CADDYFILE="$SCRIPT_DIR/dev_server/Caddyfile"
-DEFAULT_CADDYFILE="$SCRIPT_DIR/Caddyfile"
+# Server-specific Caddyfile paths
+PROD_CADDYFILE="$SCRIPT_DIR/prod_server/Caddyfile"
+DEV_CADDYFILE="$SCRIPT_DIR/dev_server/Caddyfile"
 
 # System Caddyfile location
 SYSTEM_CADDYFILE="/etc/caddy/Caddyfile"
 
+# Load SERVER_ENVIRONMENT from .env if not already set
+if [ -z "$SERVER_ENVIRONMENT" ]; then
+    ENV_FILE="$PROJECT_ROOT/.env"
+    if [ -f "$ENV_FILE" ]; then
+        SERVER_ENVIRONMENT=$(grep -E '^SERVER_ENVIRONMENT=' "$ENV_FILE" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+    fi
+fi
+
 # Determine which Caddyfile to use
 if [ -n "$1" ]; then
-    # Use provided path
+    # Use provided path (explicit override)
     CADDYFILE_PATH="$1"
-elif [ -f "$DEFAULT_DEV_CADDYFILE" ]; then
-    # Use dev_server Caddyfile (default)
-    CADDYFILE_PATH="$DEFAULT_DEV_CADDYFILE"
-elif [ -f "$DEFAULT_CADDYFILE" ]; then
-    # Fall back to deployment/Caddyfile
-    CADDYFILE_PATH="$DEFAULT_CADDYFILE"
+elif [ "$SERVER_ENVIRONMENT" = "production" ] && [ -f "$PROD_CADDYFILE" ]; then
+    # Production server → use prod Caddyfile
+    CADDYFILE_PATH="$PROD_CADDYFILE"
+elif [ "$SERVER_ENVIRONMENT" = "development" ] && [ -f "$DEV_CADDYFILE" ]; then
+    # Dev server → use dev Caddyfile
+    CADDYFILE_PATH="$DEV_CADDYFILE"
+elif [ -f "$DEV_CADDYFILE" ]; then
+    # Fallback to dev (backwards compat, but warn)
+    CADDYFILE_PATH="$DEV_CADDYFILE"
+    echo -e "${YELLOW}Warning: SERVER_ENVIRONMENT not set — defaulting to dev_server Caddyfile${NC}"
+    echo -e "${YELLOW}Set SERVER_ENVIRONMENT=production in .env on prod servers${NC}"
 else
     echo -e "${RED}Error: No Caddyfile found${NC}"
     echo -e "${YELLOW}Checked locations:${NC}"
-    echo "  - $DEFAULT_DEV_CADDYFILE"
-    echo "  - $DEFAULT_CADDYFILE"
+    echo "  - $PROD_CADDYFILE (for SERVER_ENVIRONMENT=production)"
+    echo "  - $DEV_CADDYFILE (for SERVER_ENVIRONMENT=development)"
     echo ""
     echo "Usage: sudo $0 [path-to-caddyfile]"
     exit 1
@@ -62,9 +75,18 @@ if [ ! -f "$CADDYFILE_PATH" ]; then
 fi
 
 echo -e "${BLUE}=== Applying Caddy Configuration ===${NC}"
+echo -e "Environment: ${GREEN}${SERVER_ENVIRONMENT:-unknown}${NC}"
 echo -e "Source: ${GREEN}$CADDYFILE_PATH${NC}"
 echo -e "Target: ${GREEN}$SYSTEM_CADDYFILE${NC}"
 echo ""
+
+# Safety check: warn if Caddyfile doesn't match environment
+if [ "$SERVER_ENVIRONMENT" = "production" ] && echo "$CADDYFILE_PATH" | grep -q "dev_server"; then
+    echo -e "${RED}ERROR: Attempting to apply dev_server Caddyfile on a PRODUCTION server!${NC}"
+    echo -e "${RED}This would expose dev-only domains (penpot, pad, jupyter) on prod.${NC}"
+    echo -e "${YELLOW}Use: sudo $0 deployment/prod_server/Caddyfile${NC}"
+    exit 1
+fi
 
 # Step 1: Validate Caddyfile syntax
 echo -e "${BLUE}[1/3] Validating Caddyfile syntax...${NC}"
