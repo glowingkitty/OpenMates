@@ -40,6 +40,7 @@
     import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
     import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
     import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
+    import HealthAppointmentEmbedFullscreen from './embeds/health/HealthAppointmentEmbedFullscreen.svelte';
     import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
     import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
     import HomeSearchEmbedFullscreen from './embeds/home/HomeSearchEmbedFullscreen.svelte';
@@ -10822,6 +10823,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         navigateDirection={embedNavigateDirection}
                         showChatButton={showChatButtonInFullscreen}
                         onShowChat={handleShowChat}
+                    />
+                {:else if embedFullscreenData.embedType === 'health-appointment'}
+                    <!-- Health Appointment Fullscreen (child embed of a Health Search result) -->
+                    <HealthAppointmentEmbedFullscreen
+                        appointment={{
+                            embed_id: embedFullscreenData.embedId || '',
+                            slot_datetime: typeof embedFullscreenData.decodedContent?.slot_datetime === 'string' ? embedFullscreenData.decodedContent.slot_datetime : undefined,
+                            name: typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined,
+                            speciality: typeof embedFullscreenData.decodedContent?.speciality === 'string' ? embedFullscreenData.decodedContent.speciality : undefined,
+                            address: typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : undefined,
+                            gps_coordinates: embedFullscreenData.decodedContent?.gps_coordinates as { latitude: number; longitude: number } | undefined,
+                            insurance: typeof embedFullscreenData.decodedContent?.insurance === 'string' ? embedFullscreenData.decodedContent.insurance : undefined,
+                            telehealth: typeof embedFullscreenData.decodedContent?.telehealth === 'boolean' ? embedFullscreenData.decodedContent.telehealth : undefined,
+                            practice_url: typeof embedFullscreenData.decodedContent?.practice_url === 'string' ? embedFullscreenData.decodedContent.practice_url : undefined,
+                            provider: typeof embedFullscreenData.decodedContent?.provider === 'string' ? embedFullscreenData.decodedContent.provider : undefined,
+                            provider_platform: typeof embedFullscreenData.decodedContent?.provider_platform === 'string' ? embedFullscreenData.decodedContent.provider_platform : undefined,
+                            booking_url: typeof embedFullscreenData.decodedContent?.booking_url === 'string' ? embedFullscreenData.decodedContent.booking_url : undefined,
+                            rating: typeof embedFullscreenData.decodedContent?.rating === 'number' ? embedFullscreenData.decodedContent.rating : undefined,
+                            rating_count: typeof embedFullscreenData.decodedContent?.rating_count === 'number' ? embedFullscreenData.decodedContent.rating_count : undefined,
+                            price: typeof embedFullscreenData.decodedContent?.price === 'number' ? embedFullscreenData.decodedContent.price : undefined,
+                            service_name: typeof embedFullscreenData.decodedContent?.service_name === 'string' ? embedFullscreenData.decodedContent.service_name : undefined,
+                        }}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
                     />
                 {:else if embedFullscreenData.embedType === 'maps'}
                     <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->

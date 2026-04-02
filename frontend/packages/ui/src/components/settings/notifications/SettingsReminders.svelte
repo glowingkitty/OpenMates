@@ -476,7 +476,7 @@
 		padding: 0 0.625rem;
 	}
 
-	/* Native date/time/number inputs styled to match SettingsInput */
+	/* Native date/time/number inputs styled to match SettingsDropdown */
 	.native-input {
 		width: 100%;
 		padding: 1.0625rem 1.4375rem;
@@ -495,6 +495,8 @@
 		font-size: var(--input-font-size, 1rem);
 		line-height: 1.25;
 		color: var(--color-grey-100);
+		appearance: none;
+		-webkit-appearance: none;
 		transition: box-shadow 0.2s ease;
 		box-sizing: border-box;
 	}
