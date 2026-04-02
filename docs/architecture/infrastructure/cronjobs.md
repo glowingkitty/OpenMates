@@ -39,7 +39,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `03:00 Mon-Fri`               | `run-tests-daily.sh`                   | Full test suite (Playwright + pytest)     |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
-| `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images/containers/volumes |
+| `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
 | `@reboot`                     | `agent-trigger-watcher.sh`             | Poll for admin-submitted issue triggers   |
 
 > **Consolidated (2026-03-27):** `nightly-issues-check.sh` and `nightly-workflow-review.sh` have been folded into the daily meeting. Their helpers (`_issues_checker.py`, `_workflow_review_helper.py`) are kept as importable libraries.
