@@ -856,12 +856,21 @@ function convertNodeToTiptap(node: Node): any {
         // Internal links should not have target attribute
 
         // When the LLM writes [](embed:ref) the <a> tag has no text children,
-        // so `content` is empty.  Synthesise a text node so the link mark is
-        // not silently dropped.  convertEmbedLinksInNode will later convert
-        // this into an embedInline with a domain-derived display text.
+        // so `content` is empty.  Synthesise a text node with a domain-derived
+        // display label so the link mark survives the paragraph content filter
+        // (which strips text === "").  convertEmbedLinksInNode will later
+        // convert this text+link-mark into an embedInline node.
         let linkContent = content;
-        if (linkContent.length === 0) {
-          linkContent = [{ type: "text", text: "" }];
+        if (linkContent.length === 0 && finalHref.startsWith("embed:")) {
+          const rawRef = finalHref.slice("embed:".length);
+          // Try to extract domain from ref (e.g. "techcrunch.com-AOq" → "techcrunch.com")
+          const domainMatch = rawRef.match(
+            /^([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/,
+          );
+          const fallbackText = domainMatch ? domainMatch[1] : rawRef;
+          linkContent = [{ type: "text", text: fallbackText }];
+        } else if (linkContent.length === 0) {
+          linkContent = [{ type: "text", text: finalHref }];
         }
 
         return linkContent.map((item) => ({
