@@ -1170,12 +1170,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     messages_v_from_db = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
                     expected_total_messages = messages_v_from_db if messages_v_from_db > 0 else 1
 
-                    # Count messages excluding the current message (which was just added to history at the end)
-                    # Current message gets appended later, so history should have (expected - 1) previous messages
-                    expected_previous_messages = max(0, expected_total_messages - 1)
-                    actual_previous_messages = len(message_history_for_ai)
+                    # The current user message was saved to AI cache (LPUSH at line ~524)
+                    # BEFORE the history fetch, so message_history_for_ai includes it.
+                    # Subtract it to get the true count of *previous* messages in cache.
+                    current_msg_in_cache = 1 if _current_message_resolved_in_history is not None else 0
+                    actual_previous_messages = len(message_history_for_ai) - current_msg_in_cache
 
-                    logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, decryption_failures={decryption_failures}")
+                    # expected_previous = all messages already in DB. messages_v is read
+                    # at handler start (before current message is persisted), so it does
+                    # NOT include the current message. No need to subtract 1.
+                    expected_previous_messages = expected_total_messages
+
+                    logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, current_msg_in_cache={current_msg_in_cache}, decryption_failures={decryption_failures}")
 
                     # For existing chats with expected history, validate we have sufficient context
                     if is_existing_chat and expected_previous_messages > 0:
