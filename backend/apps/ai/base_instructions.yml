@@ -626,7 +626,16 @@ postprocess_response_tool:
          - Only include apps that actually exist in the system
          - If no apps are clearly relevant, return an empty array
 
-      5. **daily_inspiration_topic_suggestions**: Generate 3 short topic/interest phrases based on what the user discussed or expressed curiosity about.
+      5. **updated_chat_title**: ONLY generate a new title if the conversation has **significantly** drifted from its original topic.
+         - The current chat title (if any) is provided in the system context.
+         - Return an empty string or omit this field if the current title still describes the chat reasonably well.
+         - A title update is warranted when: the user switched to an entirely different topic, the scope expanded dramatically, or the original title was clearly wrong/vague.
+         - A title update is NOT warranted for: minor topic extensions, follow-up questions on the same theme, or slight refinements of the original topic.
+         - Keep the new title concise (3-8 words), descriptive, and specific to the conversation content.
+         - Generate in the USER'S SYSTEM LANGUAGE (as specified in system message).
+         - For new chats (no current title provided): do NOT generate — title is handled by preprocessing.
+
+      6. **daily_inspiration_topic_suggestions**: Generate 3 short topic/interest phrases based on what the user discussed or expressed curiosity about.
          - These are captured to inform future personalized daily inspiration generation
          - Each phrase should be a concise topic (2-5 words) that could inspire a fascinating educational video, article, or exploration
          - Capture genuine interests revealed in the conversation, not generic topics
@@ -669,6 +678,9 @@ postprocess_response_tool:
         chat_summary:
           type: "string"
           description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
+        updated_chat_title:
+          type: "string"
+          description: "A new chat title (3-8 words) ONLY if the conversation has significantly drifted from the current title. Return empty string if the current title still fits. Generate in the USER'S SYSTEM LANGUAGE. Do NOT generate for new chats without a title."
         daily_inspiration_topic_suggestions:
           type: "array"
           description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead. NEVER extract political party names, political candidates, electoral campaigns, or partisan ideology — rephrase to the underlying policy or governance issue (e.g. 'universal healthcare economics' not any party's health plan). NEVER extract religious promotion topics — historical/cultural/architectural religious context is allowed, proselytizing or devotional framing is not."

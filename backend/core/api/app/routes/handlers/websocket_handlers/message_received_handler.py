@@ -1425,6 +1425,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mentioned_settings_memories_cleartext = None
             logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
 
+        # OPE-265: Pass the current chat title (decrypted by client) to post-processing
+        # so the LLM can decide if the title needs updating when the conversation drifts.
+        current_chat_title_from_client = message_payload_from_client.get("current_chat_title")
+        if current_chat_title_from_client and not isinstance(current_chat_title_from_client, str):
+            current_chat_title_from_client = None
+
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -1432,6 +1438,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
+            current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,

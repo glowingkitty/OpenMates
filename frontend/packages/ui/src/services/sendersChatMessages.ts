@@ -649,6 +649,7 @@ export async function sendNewMessageImpl(
 			category?: string;
 			model_name?: string;
 			chat_has_title?: boolean;
+			current_chat_title?: string | null; // OPE-265: Decrypted title for post-processing title update evaluation
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
 		is_incognito?: boolean;
@@ -734,6 +735,28 @@ export async function sendNewMessageImpl(
 		} catch (e) {
 			console.warn(
 				"[ChatSyncService:Senders] Failed to decrypt active_focus_id, AI will use default focus:",
+				e
+			);
+		}
+	}
+
+	// OPE-265: Send the current decrypted chat title to the backend so post-processing
+	// can evaluate whether the title still fits the conversation after topic drift.
+	if (!isIncognitoChat && chatHasTitle && chat?.encrypted_title) {
+		try {
+			const chatKey = await chatKeyManager.getKey(message.chat_id);
+			if (chatKey) {
+				const currentTitle = await decryptWithChatKey(
+					chat.encrypted_title,
+					chatKey
+				);
+				if (currentTitle) {
+					payload.message.current_chat_title = currentTitle;
+				}
+			}
+		} catch (e) {
+			console.warn(
+				"[ChatSyncService:Senders] Failed to decrypt chat title for post-processing title evaluation:",
 				e
 			);
 		}

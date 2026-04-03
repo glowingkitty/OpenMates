@@ -57,6 +57,7 @@ class AskSkillRequest(BaseModel):
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[AIHistoryMessage] = Field(..., description="The complete history of messages in the chat, ordered chronologically. Each message is an AIHistoryMessage model. The last message is the current one.") # Emphasized completeness and order, and specified model type
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
+    current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip post-processing and use 'incognito' as chat_id for billing.")
     is_external: bool = Field(default=False, description="Whether this is an external API request. External requests skip cache warming, vault lookup, and storage.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")

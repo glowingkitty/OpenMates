@@ -1969,6 +1969,14 @@ async def _async_process_ai_skill_ask_task(
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
 
             # Phase 1: Post-processing with category selection
+            # OPE-265: Determine current chat title for post-processing title update evaluation.
+            # For new chats, use the preprocessing title. For follow-ups, use the client-provided title.
+            current_title_for_postproc = None
+            if preprocessing_result and preprocessing_result.title:
+                current_title_for_postproc = preprocessing_result.title
+            elif getattr(request_data, 'current_chat_title', None):
+                current_title_for_postproc = request_data.current_chat_title
+
             postprocessing_result = await handle_postprocessing(
                 task_id=task_id,
                 user_message=last_user_message,
@@ -1986,6 +1994,7 @@ async def _async_process_ai_skill_ask_task(
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
                 output_language=chat_output_language,
                 user_system_language=user_system_language,
+                current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
             )
 
 
@@ -2014,8 +2023,12 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
-
             }
+
+            # OPE-265: Include updated title only when the postprocessor determined a title change is needed
+            if postprocessing_result.updated_chat_title:
+                postprocessing_payload["updated_chat_title"] = postprocessing_result.updated_chat_title
+                logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
             await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)

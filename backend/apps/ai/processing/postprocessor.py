@@ -206,6 +206,9 @@ class PostProcessingResult(BaseModel):
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
+    # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
+    # None means the current title still fits. See OPE-265 for feature context.
+    updated_chat_title: Optional[str] = Field(None, description="New chat title (3-8 words) if the current title no longer describes the conversation well. None if no update needed.")
     # Daily inspiration: Topic suggestions collected from conversation for personalized inspiration generation
     # Cached server-side (24h TTL, rolling 50 per user) to inform daily inspiration LLM calls
     daily_inspiration_topic_suggestions: List[str] = Field(
@@ -231,6 +234,7 @@ async def handle_postprocessing(
     is_incognito: bool = False,
     output_language: str = "en",
     user_system_language: str = "en",
+    current_chat_title: Optional[str] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -260,6 +264,8 @@ async def handle_postprocessing(
         user_system_language: ISO 639-1 code of the user's UI/system language (from user profile).
             Used for generating new chat suggestions in a consistent language on the welcome screen,
             regardless of which language individual chats were conducted in.
+        current_chat_title: The current decrypted chat title (if available). Passed to the LLM so it
+            can decide whether the title still fits the conversation. None for new chats (first message).
 
     Returns:
         PostProcessingResult with suggestions, summaries, and metadata
@@ -341,6 +347,20 @@ async def handle_postprocessing(
     # are now generated inline by the main AI processor as deep links in the response text.
     memory_prefix_context = ""
 
+    # Build title update context: pass the current title so the LLM can judge whether it still fits
+    if current_chat_title:
+        title_context = (
+            f"\n\nCurrent chat title: \"{current_chat_title}\"\n"
+            "Evaluate whether this title still accurately describes the conversation. "
+            "If the conversation has significantly drifted or expanded beyond the original title, "
+            "generate an updated_chat_title. If the title still fits reasonably well, leave updated_chat_title empty/null."
+        )
+    else:
+        title_context = (
+            "\n\nThis chat does not have a title yet (first message). "
+            "Do NOT generate an updated_chat_title — the title is generated separately during preprocessing."
+        )
+
     # Build language instruction for suggestion generation
     # Follow-up suggestions should match the conversation language (output_language) so they
     # feel natural in context. New chat suggestions should use the user's system/UI language
@@ -349,7 +369,8 @@ async def handle_postprocessing(
         f"\n\nLanguage instructions:\n"
         f"- **follow_up_request_suggestions**: Generate in '{output_language}' (the conversation language).\n"
         f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).\n"
-        f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language)."
+        f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).\n"
+        f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed."
     )
 
     system_message = (
@@ -367,6 +388,7 @@ async def handle_postprocessing(
         f"{available_apps_context}"
         f"{skills_context}{focus_context}{memory_prefix_context}"
         f"{app_prefix_context}"
+        f"{title_context}"
         f"{language_instruction}"
     )
     messages.append({"role": "system", "content": system_message})
@@ -506,6 +528,23 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    # Validate updated_chat_title from post-processing LLM (OPE-265)
+    # Only set when the LLM determines the current title no longer fits the conversation.
+    postproc_updated_title = llm_result.arguments.get("updated_chat_title")
+    if postproc_updated_title and isinstance(postproc_updated_title, str) and postproc_updated_title.strip():
+        postproc_updated_title = postproc_updated_title.strip()
+        # Reject if it's the same as the current title (no-op update)
+        if current_chat_title and postproc_updated_title.lower() == current_chat_title.lower():
+            logger.debug(f"[Task ID: {task_id}] [PostProcessor] updated_chat_title is identical to current title — ignoring")
+            postproc_updated_title = None
+        else:
+            logger.info(
+                f"[Task ID: {task_id}] [PostProcessor] updated_chat_title generated: "
+                f"'{postproc_updated_title}' (current: '{current_chat_title or 'N/A'}')"
+            )
+    else:
+        postproc_updated_title = None
+
     # Translate the chat summary into the user's system/UI language when the conversation
     # was conducted in a different language. This mirrors the translate_new_chat_suggestions
     # pattern: an isolated call with no conversation context avoids language bleed reliably.
@@ -520,6 +559,19 @@ async def handle_postprocessing(
         postproc_chat_summary = await translate_chat_summary(
             task_id=task_id,
             summary=postproc_chat_summary,
+            target_language=user_system_language,
+            secrets_manager=secrets_manager,
+        )
+
+    # Translate the updated title into the user's system/UI language (same pattern as chat_summary).
+    # Reuses translate_chat_summary since it's the same isolated translation pattern.
+    if postproc_updated_title and output_language != user_system_language:
+        logger.info(
+            f"[Task ID: {task_id}] [PostProcessor] Translating updated_chat_title to '{user_system_language}'"
+        )
+        postproc_updated_title = await translate_chat_summary(
+            task_id=task_id,
+            summary=postproc_updated_title,
             target_language=user_system_language,
             secrets_manager=secrets_manager,
         )
@@ -567,6 +619,7 @@ async def handle_postprocessing(
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
+        updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
 
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
     )
