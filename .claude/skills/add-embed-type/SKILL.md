@@ -81,9 +81,15 @@ In `AppSkillUseRenderer.ts`:
 2. Add routing block in `render()` method (before generic fallback)
 3. Add `render{SkillName}Component()` private method at bottom
 
-### Step 6: Register Fullscreen
+### Step 6: Fullscreen Registration (Automatic)
 
-In `ActiveChat.svelte`: add your case to the `embedType === 'app-skill-use'` handler.
+Fullscreen routing is **automatic** via `embedRegistry.generated.ts` and `embedFullscreenResolver.ts`. When your embed preview fires an `embedfullscreen` event, ActiveChat dynamically loads and renders your fullscreen component — **no manual ActiveChat changes needed**.
+
+Ensure your fullscreen component:
+1. Accepts `data: EmbedFullscreenRawData` (from `types/embedFullscreen.ts`) as a required prop
+2. Extracts fields from `data.decodedContent` internally (not via individual props)
+3. Uses `UnifiedEmbedFullscreen` as the base wrapper
+4. Is the default export of `{SkillName}EmbedFullscreen.svelte`
 
 ### Step 7: Register embedText
 

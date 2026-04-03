@@ -124,6 +124,25 @@ async def query_stats() -> str:
     else:
         lines.append(f"(No server stats found for {yesterday_str})")
 
+    # ── Newsletter Subscribers ───────────────────────────────────────────────
+    lines.append("")
+    lines.append("**Newsletter**")
+    try:
+        collection_url = f"{directus.base_url}/items/newsletter_subscribers"
+        params = {
+            "limit": 1,
+            "meta": "filter_count",
+            "filter[confirmed_at][_nnull]": "true",
+        }
+        resp = await directus._make_api_request("GET", collection_url, params=params)
+        if resp.status_code == 200:
+            nl_count = _int(resp.json().get("meta", {}).get("filter_count"))
+        else:
+            nl_count = 0
+        lines.append(f"- Confirmed subscribers: {nl_count:,}")
+    except Exception as e:
+        lines.append(f"- Confirmed subscribers: ERROR — {e}")
+
     # ── Web Analytics (yesterday) ────────────────────────────────────────────
     lines.append("")
     try:
