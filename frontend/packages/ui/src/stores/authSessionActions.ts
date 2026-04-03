@@ -1323,6 +1323,18 @@ export function setAuthenticatedState(): void {
       "[setAuthenticatedState] Starting clientLogForwarder",
     );
     clientLogForwarder.start();
+
+    // On production, OTel tracing is deferred until login (dev inits at startup).
+    // Start tracing now for admins so browser traces reach OpenObserve.
+    if (!isDevEnvironment()) {
+      import("../config/api").then(({ getApiUrl }) =>
+        import("../services/tracing/setup").then(({ initTracing }) => {
+          initTracing(getApiUrl());
+        })
+      ).catch(() => {
+        // Non-critical — tracing failure must not break the app
+      });
+    }
   } else {
     try {
       const debugSession = localStorage.getItem("debug_session");
@@ -1333,6 +1345,15 @@ export function setAuthenticatedState(): void {
           : Infinity;
         if (expiresAt > Date.now() && parsed.debugging_id) {
           clientLogForwarder.startDebugSession(parsed.debugging_id);
+
+          // Start tracing for debug session users on production
+          if (!isDevEnvironment()) {
+            import("../config/api").then(({ getApiUrl }) =>
+              import("../services/tracing/setup").then(({ initTracing }) => {
+                initTracing(getApiUrl());
+              })
+            ).catch(() => {});
+          }
         } else {
           localStorage.removeItem("debug_session");
         }

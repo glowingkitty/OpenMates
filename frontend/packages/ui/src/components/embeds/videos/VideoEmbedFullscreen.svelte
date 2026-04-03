@@ -30,29 +30,25 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN, MAX_WIDTH_CHANNEL_THUMBNAIL } from '../../../utils/imageProxy';
-  
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
   // Import VideoMetadata type from preview component
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
-  
+
   // ===========================================
   // Constants: Preview Server Image Proxy
   // ===========================================
-  
-  
+
+
   /**
-   * Props for video embed fullscreen
+   * Props for video embed fullscreen.
+   * Receives raw embed data via `data` prop and extracts fields internally.
    */
   interface Props {
-    /** Video URL */
-    url: string;
-    /** Video title */
-    title?: string;
+    /** Raw embed data containing decodedContent and attrs */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
-    /** Optional: Video ID (for restoration from PiP) */
-    videoId?: string;
-    /** Optional: Flag indicating this was opened from PiP (video already playing) */
-    restoreFromPip?: boolean;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
     /** Whether there is a previous embed to navigate to */
@@ -69,16 +65,11 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
-    /** Metadata passed from VideoEmbedPreview (already fetched from preview server) */
-    metadata?: VideoMetadata;
   }
-  
+
   let {
-    url,
-    title,
+    data,
     onClose,
-    videoId: propVideoId,
-    restoreFromPip = false,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -87,8 +78,40 @@
     navigateDirection = null,
     showChatButton = false,
     onShowChat,
-    metadata
   }: Props = $props();
+
+  // Extract fields from data.decodedContent with attrs fallback
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs ?? {});
+  let url = $derived(typeof dc.url === 'string' ? dc.url : (typeof attrs.url === 'string' ? attrs.url : ''));
+  let title = $derived(typeof dc.title === 'string' ? dc.title : (typeof attrs.title === 'string' ? attrs.title : undefined));
+  let propVideoId = $derived(typeof dc.video_id === 'string' ? dc.video_id : (typeof dc.videoId === 'string' ? dc.videoId : (typeof attrs.videoId === 'string' ? attrs.videoId : undefined)));
+  let restoreFromPip = data.restoreFromPip ?? false;
+
+  // Build metadata object from decodedContent
+  let metadata: VideoMetadata | undefined = (() => {
+    // Check if we have enough metadata fields to construct a VideoMetadata object
+    let hasMetadata = $derived(dc.channel_name || dc.thumbnail || dc.duration_seconds || dc.view_count);
+    if (!hasMetadata) return undefined;
+    return {
+      title: typeof dc.title === 'string' ? dc.title : undefined,
+      videoId: typeof dc.video_id === 'string' ? dc.video_id : (typeof dc.videoId === 'string' ? dc.videoId : undefined),
+      thumbnailUrl: typeof dc.thumbnail === 'string' ? dc.thumbnail : undefined,
+      channelName: typeof dc.channel_name === 'string' ? dc.channel_name : undefined,
+      channelId: typeof dc.channel_id === 'string' ? dc.channel_id : undefined,
+      channelThumbnail: typeof dc.channel_thumbnail === 'string' ? dc.channel_thumbnail : undefined,
+      description: typeof dc.description === 'string' ? dc.description : undefined,
+      duration: (typeof dc.duration_seconds === 'number' || typeof dc.duration_formatted === 'string')
+        ? {
+          totalSeconds: typeof dc.duration_seconds === 'number' ? dc.duration_seconds : 0,
+          formatted: typeof dc.duration_formatted === 'string' ? dc.duration_formatted : ''
+        }
+        : undefined,
+      viewCount: typeof dc.view_count === 'number' ? dc.view_count : undefined,
+      likeCount: typeof dc.like_count === 'number' ? dc.like_count : undefined,
+      publishedAt: typeof dc.published_at === 'string' ? dc.published_at : undefined,
+    } as VideoMetadata;
+  })();
   
   // ===========================================
   // State: Video Information

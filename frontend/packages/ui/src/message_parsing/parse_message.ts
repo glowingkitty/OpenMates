@@ -167,31 +167,24 @@ function convertEmbedLinksInNode(
         };
       }
 
-      // ── Fallback for [](embed:ref) — treat as [!](embed:ref) ───────────
-      // Empty display text (from LLM hallucination or omission) is treated
-      // the same as "!" — a visually highlighted embed preview block.
-      // The embedPreviewSmall concept has been removed; all block-level
-      // embed previews use the unified embedPreviewLarge node type, which
-      // renders responsively (compact at ≤300px, expanded when wider).
-      if (displayText === "") {
-        const { cleanRef } = _parseLineFragment(rawRef);
-        const appId =
-          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
-        return {
-          type: "embedPreviewLarge",
-          attrs: {
-            embedRef: cleanRef,
-            embedId: null,
-            appId,
-            carouselIndex: 0,
-            carouselTotal: 1,
-          },
-        };
-      }
-
       // ── Standard inline embed link: [display text](embed:ref) ────────────
       // Parse optional #L line-range fragment from the embed ref.
       const { cleanRef, lineStart, lineEnd } = _parseLineFragment(rawRef);
+
+      // When the LLM omits the display text ([](embed:ref)) or uses a
+      // short placeholder like [>](embed:ref) or [>>](embed:ref), derive a
+      // human-readable label from the embed ref slug.  The ref typically
+      // contains a domain (e.g. "techcrunch.com-AOq") — extract the domain
+      // portion.  Falls back to the full ref if no domain pattern is found.
+      // Note: [!](embed:ref) is handled above as embedPreviewLarge.
+      let resolvedDisplayText = displayText;
+      if (resolvedDisplayText.length <= 3) {
+        // Try to extract domain from ref (e.g. "cnbc.com-qDe" → "cnbc.com")
+        const domainMatch = cleanRef.match(
+          /^([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/,
+        );
+        resolvedDisplayText = domainMatch ? domainMatch[1] : cleanRef;
+      }
 
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
@@ -204,7 +197,7 @@ function convertEmbedLinksInNode(
         attrs: {
           embedRef: cleanRef,
           embedId: null, // resolved lazily at click time via embedStore.resolveByRef()
-          displayText,
+          displayText: resolvedDisplayText,
           appId,
           focusLineStart: lineStart,
           focusLineEnd: lineEnd,
@@ -261,86 +254,189 @@ function convertEmbedLinks(doc: any): any {
 // embedPreviewLarge child. We hoist those nodes to the
 // document level so TipTap treats them as block-level elements.
 //
-// A paragraph qualifies for hoisting if ALL its meaningful content is a single
-// embedPreviewLarge atom. Purely whitespace-only text
-// siblings are discarded.
+// Hoisting handles three scenarios:
+//   1. Paragraph with ONLY embed links → hoist each embed as a block node.
+//   2. Paragraph with text THEN trailing embed links → split: keep text in
+//      the paragraph, hoist embeds as separate block nodes.
+//   3. Embeds inside list items / blockquotes → recurse into nested content.
+//
+// After hoisting, Phase B groups consecutive embedPreviewLarge nodes into
+// carousel runs (assigning carouselIndex, carouselTotal, runRef).  Empty
+// paragraphs (from blank lines between [!] links) are tolerated and discarded.
 
 const BLOCK_EMBED_PREVIEW_TYPES = new Set(["embedPreviewLarge"]);
 
-function _hoistBlockEmbedPreviews(doc: any): any {
-  if (!doc || !doc.content) return doc;
+/** True for whitespace-only text, hardBreak, softBreak — nodes that are
+ *  insignificant separators between [!](embed:ref) links. */
+function _isIgnorableInlineNode(c: any): boolean {
+  if (c.type === "hardBreak" || c.type === "softBreak") return true;
+  if (c.type === "text" && !c.text?.trim()) return true;
+  return false;
+}
 
-  // Phase A: hoist block-preview embeds out of their paragraph wrappers.
-  const hoisted: any[] = [];
+function _isEmptyParagraph(node: any): boolean {
+  return (
+    node.type === "paragraph" &&
+    (!Array.isArray(node.content) || node.content.length === 0)
+  );
+}
 
-  for (const node of doc.content) {
-    // Only inspect paragraph nodes for potential hoisting
-    if (node.type !== "paragraph" || !Array.isArray(node.content)) {
-      hoisted.push(node);
+/**
+ * Phase A: Hoist embedPreviewLarge nodes out of paragraphs.
+ *
+ * For each paragraph, determine if it contains only embeds (hoist all) or
+ * text followed by trailing embeds (split — keep text, hoist embeds).
+ * Recurses into list items, blockquotes, and other container nodes.
+ */
+function _hoistEmbeds(nodes: any[]): any[] {
+  const result: any[] = [];
+
+  for (const node of nodes) {
+    // Recurse into container nodes (lists, blockquotes, list items, etc.)
+    if (
+      node.type !== "paragraph" &&
+      Array.isArray(node.content) &&
+      node.content.length > 0
+    ) {
+      result.push({ ...node, content: _hoistEmbeds(node.content) });
       continue;
     }
 
-    // Find all non-whitespace children
+    // Only inspect paragraph nodes for potential hoisting
+    if (node.type !== "paragraph" || !Array.isArray(node.content)) {
+      result.push(node);
+      continue;
+    }
+
+    // Separate meaningful children from ignorable separators.
     const meaningful = node.content.filter(
-      (c: any) => !(c.type === "text" && !c.text?.trim()),
+      (c: any) => !_isIgnorableInlineNode(c),
     );
 
-    // If the paragraph contains ONLY block-preview embeds (one or more), hoist
-    // each one individually.  This handles the common case where the LLM writes
-    // multiple [!](embed:ref) links on consecutive lines without blank lines
-    // between them — markdown-it wraps them in a single paragraph.  Hoisting
-    // each embed individually lets Phase B group them into a carousel.
+    // Case 1: paragraph contains ONLY block-preview embeds → hoist all.
     const allBlockPreviews =
       meaningful.length > 0 &&
       meaningful.every((c: any) => BLOCK_EMBED_PREVIEW_TYPES.has(c.type));
     if (allBlockPreviews) {
       for (const embedNode of meaningful) {
-        hoisted.push(embedNode);
+        result.push(embedNode);
       }
-    } else {
-      hoisted.push(node);
+      continue;
     }
+
+    // Case 2: paragraph has text content then TRAILING embed(s).
+    // Split at the boundary: text stays in the paragraph, embeds are hoisted.
+    // Find the index of the first embedPreviewLarge in the original content.
+    const firstEmbedIdx = node.content.findIndex(
+      (c: any) => c.type === "embedPreviewLarge",
+    );
+    if (firstEmbedIdx > 0) {
+      // Check that everything from firstEmbedIdx onward is either an embed
+      // or an ignorable separator (whitespace, breaks).
+      const tail = node.content.slice(firstEmbedIdx);
+      const tailMeaningful = tail.filter(
+        (c: any) => !_isIgnorableInlineNode(c),
+      );
+      const allTailEmbeds =
+        tailMeaningful.length > 0 &&
+        tailMeaningful.every((c: any) =>
+          BLOCK_EMBED_PREVIEW_TYPES.has(c.type),
+        );
+
+      if (allTailEmbeds) {
+        // Keep the text portion as a paragraph (strip trailing whitespace/breaks)
+        const headContent = node.content.slice(0, firstEmbedIdx);
+        // Remove trailing whitespace-only text and breaks from the head
+        while (
+          headContent.length > 0 &&
+          _isIgnorableInlineNode(headContent[headContent.length - 1])
+        ) {
+          headContent.pop();
+        }
+        if (headContent.length > 0) {
+          result.push({ ...node, content: headContent });
+        }
+        // Hoist each embed from the tail
+        for (const embedNode of tailMeaningful) {
+          result.push(embedNode);
+        }
+        continue;
+      }
+    }
+
+    // Case 3: no embeds or embeds mixed into the middle of text → keep as-is.
+    result.push(node);
   }
 
-  // Phase B: assign carouselIndex + carouselTotal to consecutive embedPreviewLarge
-  // runs.  Walk the hoisted array and annotate runs of consecutive large-preview
-  // nodes with their position within the run.
-  const finalContent: any[] = [];
-  let runStart = -1;
+  return result;
+}
 
-  function flushRun(endExclusive: number) {
-    if (runStart < 0) return;
-    const runLen = endExclusive - runStart;
-    // The first card's embedRef is the shared runRef — all cards in the run
-    // use it as the carousel store key so their navigation is synchronised.
-    const runRef = hoisted[runStart].attrs.embedRef as string;
-    for (let i = runStart; i < endExclusive; i++) {
+/**
+ * Phase B: Assign carousel metadata to consecutive embedPreviewLarge runs.
+ *
+ * Empty paragraphs (from blank lines between [!](embed:ref) links) are
+ * tolerated within a run and discarded.  Recurses into container nodes.
+ */
+function _assignCarouselRuns(nodes: any[]): any[] {
+  const finalContent: any[] = [];
+  let currentRun: any[] = [];
+  let pendingEmpties: any[] = [];
+
+  function flushRun() {
+    if (currentRun.length === 0) return;
+    const runRef = currentRun[0].attrs.embedRef as string;
+    const runLen = currentRun.length;
+    for (let idx = 0; idx < runLen; idx++) {
       finalContent.push({
-        ...hoisted[i],
+        ...currentRun[idx],
         attrs: {
-          ...hoisted[i].attrs,
-          carouselIndex: i - runStart,
+          ...currentRun[idx].attrs,
+          carouselIndex: idx,
           carouselTotal: runLen,
           runRef,
         },
       });
     }
-    runStart = -1;
+    currentRun = [];
+    pendingEmpties = [];
   }
 
-  for (let i = 0; i < hoisted.length; i++) {
-    if (hoisted[i].type === "embedPreviewLarge") {
-      if (runStart < 0) runStart = i;
-      // continue accumulating the run
+  for (const node of nodes) {
+    if (node.type === "embedPreviewLarge") {
+      pendingEmpties = [];
+      currentRun.push(node);
+    } else if (_isEmptyParagraph(node) && currentRun.length > 0) {
+      pendingEmpties.push(node);
     } else {
-      flushRun(i);
-      finalContent.push(hoisted[i]);
+      flushRun();
+      finalContent.push(...pendingEmpties);
+      pendingEmpties = [];
+      // Recurse into container nodes so list-item embeds get carousel metadata.
+      if (
+        node.type !== "paragraph" &&
+        Array.isArray(node.content) &&
+        node.content.length > 0
+      ) {
+        finalContent.push({
+          ...node,
+          content: _assignCarouselRuns(node.content),
+        });
+      } else {
+        finalContent.push(node);
+      }
     }
   }
-  // Flush any trailing run
-  flushRun(hoisted.length);
+  flushRun();
 
-  return { ...doc, content: finalContent };
+  return finalContent;
+}
+
+function _hoistBlockEmbedPreviews(doc: any): any {
+  if (!doc || !doc.content) return doc;
+
+  const hoisted = _hoistEmbeds(doc.content);
+  const withCarousels = _assignCarouselRuns(hoisted);
+  return { ...doc, content: withCarousels };
 }
 
 // ─── Source quote detection ──────────────────────────────────────────────────

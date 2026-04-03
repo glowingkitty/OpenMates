@@ -19,35 +19,15 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
    * Props for listing fullscreen view.
+   * Receives raw embed data via `data` prop and extracts fields internally.
    */
   interface Props {
-    /** Direct link to listing on platform */
-    url: string;
-    /** Listing title */
-    title?: string;
-    /** Human-readable price (e.g. "850 EUR/month") */
-    price_label?: string;
-    /** Living area in square meters */
-    size_sqm?: number;
-    /** Number of rooms */
-    rooms?: number;
-    /** Address (city + district/street) */
-    address?: string;
-    /** First listing image URL */
-    image_url?: string;
-    /** Provider name (ImmoScout24, Kleinanzeigen, WG-Gesucht) */
-    provider?: string;
-    /** Listing type (rent or buy) */
-    listing_type?: string;
-    /** Move-in date (DD.MM.YYYY format, WG-Gesucht only) */
-    available_from?: string;
-    /** Deposit amount in EUR (WG-Gesucht only) */
-    deposit?: number;
-    /** Whether the listing is furnished (WG-Gesucht only) */
-    furnished?: boolean;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Embed ID for sharing */
@@ -69,18 +49,7 @@
   }
 
   let {
-    url,
-    title,
-    price_label,
-    size_sqm,
-    rooms,
-    address,
-    image_url,
-    provider,
-    listing_type,
-    available_from,
-    deposit,
-    furnished,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -91,6 +60,21 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // Extract fields from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let url = $derived(typeof dc.url === 'string' ? dc.url : '');
+  let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
+  let price_label = $derived(typeof dc.price_label === 'string' ? dc.price_label : undefined);
+  let size_sqm = $derived(typeof dc.size_sqm === 'number' ? dc.size_sqm : undefined);
+  let rooms = $derived(typeof dc.rooms === 'number' ? dc.rooms : undefined);
+  let address = $derived(typeof dc.address === 'string' ? dc.address : undefined);
+  let image_url = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
+  let provider = $derived(typeof dc.provider === 'string' ? dc.provider : undefined);
+  let listing_type = $derived(typeof dc.listing_type === 'string' ? dc.listing_type : undefined);
+  let available_from = $derived(typeof dc.available_from === 'string' ? dc.available_from : undefined);
+  let deposit = $derived(typeof dc.deposit === 'number' ? dc.deposit : undefined);
+  let furnished = $derived(typeof dc.furnished === 'boolean' ? dc.furnished : undefined);
 
   let imageError = $state(false);
 

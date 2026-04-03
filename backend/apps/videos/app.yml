@@ -229,7 +229,7 @@ skills:
                 description: Number of results for this request (max 20)
                 minimum: 1
                 maximum: 20
-                default: 10
+                default: 6
               country:
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."

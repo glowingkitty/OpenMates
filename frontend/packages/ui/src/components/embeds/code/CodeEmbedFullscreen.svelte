@@ -24,21 +24,16 @@
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
-  
+
   /**
    * Props for code embed fullscreen
    */
   interface Props {
-    /** Programming language */
-    language?: string;
-    /** Filename */
-    filename?: string;
-    /** Number of lines in the code */
-    lineCount?: number;
-    /** Code content (full code) */
-    codeContent: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
@@ -71,12 +66,9 @@
      */
     piiRevealed?: boolean;
   }
-  
+
   let {
-    language = '',
-    filename,
-    lineCount = 0,
-    codeContent,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -89,6 +81,32 @@
     piiMappings = [],
     piiRevealed = false
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
+
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs);
+  let codeContent = $derived(
+      typeof dc.code === 'string' ? dc.code
+      : typeof attrs?.code === 'string' ? attrs.code as string
+      : ''
+    );
+  let language = $derived(
+      typeof dc.language === 'string' ? dc.language
+      : typeof attrs?.language === 'string' ? attrs.language as string
+      : ''
+    );
+  let filename = $derived(
+      typeof dc.filename === 'string' ? dc.filename
+      : typeof attrs?.filename === 'string' ? attrs.filename as string
+      : undefined
+    );
+  let lineCount = $derived(
+      typeof dc.line_count === 'number' ? dc.line_count
+      : typeof dc.lineCount === 'number' ? dc.lineCount
+      : typeof attrs?.lineCount === 'number' ? attrs.lineCount as number
+      : 0
+    );
 
   // Local PII reveal toggle — initialised to false; synced from prop via $effect below.
   let localPiiRevealed = $state(false);

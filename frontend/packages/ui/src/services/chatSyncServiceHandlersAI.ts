@@ -1811,6 +1811,7 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
+    updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
   },
 ): Promise<void> {
   console.info(
@@ -1824,6 +1825,7 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatSummary: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
+    let encryptedUpdatedTitle: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
     if (!chat) {
@@ -1932,12 +1934,28 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
+    // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed
+    if (payload.updated_chat_title) {
+      encryptedUpdatedTitle = await encryptWithChatKey(
+        payload.updated_chat_title,
+        chatKey,
+      );
+      if (encryptedUpdatedTitle) {
+        chat.encrypted_title = encryptedUpdatedTitle;
+        chat.title_v = (chat.title_v || 0) + 1;
+        console.info(
+          `[ChatSyncService:AI] Post-processing title update: '${payload.updated_chat_title}' (title_v: ${chat.title_v})`,
+        );
+      }
+    }
+
     // Update chat with all encrypted metadata at once
     if (
       payload.follow_up_request_suggestions?.length > 0 ||
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
-      encryptedTopRecommendedApps
+      encryptedTopRecommendedApps ||
+      encryptedUpdatedTitle
     ) {
       await chatDB.updateChat(chat);
       // CRITICAL: Invalidate metadata cache so context menu shows updated summary
@@ -1966,7 +1984,8 @@ export async function handlePostProcessingCompletedImpl(
       encryptedNewChatSuggestions.length > 0 ||
       encryptedChatSummary ||
       encryptedChatTags ||
-      encryptedTopRecommendedApps
+      encryptedTopRecommendedApps ||
+      encryptedUpdatedTitle
     ) {
       const { sendPostProcessingMetadataImpl } =
         await import("./chatSyncServiceSenders");
@@ -1978,6 +1997,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
+        encryptedUpdatedTitle || "",
       );
       console.debug(
         `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,
@@ -2220,6 +2240,25 @@ export async function handleRequestChatHistoryImpl(
       }
     }
 
+    // OPE-265: Decrypt current title for post-processing title update evaluation
+    let currentChatTitle: string | null = null;
+    if (chatHasTitle && chat?.encrypted_title) {
+      try {
+        const chatKey = await chatKeyManager.getKey(payload.chat_id);
+        if (chatKey) {
+          currentChatTitle = await decryptWithChatKey(
+            chat.encrypted_title,
+            chatKey,
+          );
+        }
+      } catch (e) {
+        console.warn(
+          "[ChatSyncService:AI] Failed to decrypt chat title for resend:",
+          e,
+        );
+      }
+    }
+
     // Build resend payload. active_focus_id goes at top-level (matches sendNewMessageImpl
     // in chatSyncServiceSenders.ts) so the backend reads it from payload.get("active_focus_id").
     const resendPayload: Record<string, unknown> = {
@@ -2231,6 +2270,7 @@ export async function handleRequestChatHistoryImpl(
         created_at: latestUserMessage.created_at,
         sender_name: latestUserMessage.sender_name,
         chat_has_title: chatHasTitle,
+        current_chat_title: currentChatTitle,  // OPE-265
         message_history: messageHistory, // Include full history
       },
       // Include encrypted_chat_key for device-sync broadcast (mirrors normal send path)

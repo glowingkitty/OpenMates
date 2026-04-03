@@ -21,41 +21,14 @@
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
-    import WebSearchEmbedFullscreen from './embeds/web/WebSearchEmbedFullscreen.svelte';
-    import NewsSearchEmbedFullscreen from './embeds/news/NewsSearchEmbedFullscreen.svelte';
-    import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
-    import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
-    import MapsLocationEmbedFullscreen from './embeds/maps/MapsLocationEmbedFullscreen.svelte';
-    import MapLocationEmbedFullscreen from './embeds/maps/MapLocationEmbedFullscreen.svelte';
-    import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
-    import DocsEmbedFullscreen from './embeds/docs/DocsEmbedFullscreen.svelte';
-    import MailEmbedFullscreen from './embeds/mail/MailEmbedFullscreen.svelte';
-    import SheetEmbedFullscreen from './embeds/sheets/SheetEmbedFullscreen.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
-    import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
-    import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
-    import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
-    import ReminderEmbedFullscreen from './embeds/reminder/ReminderEmbedFullscreen.svelte';
-    import TravelSearchEmbedFullscreen from './embeds/travel/TravelSearchEmbedFullscreen.svelte';
-    import TravelPriceCalendarEmbedFullscreen from './embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte';
-    import TravelStaysEmbedFullscreen from './embeds/travel/TravelStaysEmbedFullscreen.svelte';
-    import HealthSearchEmbedFullscreen from './embeds/health/HealthSearchEmbedFullscreen.svelte';
-    import ShoppingSearchEmbedFullscreen from './embeds/shopping/ShoppingSearchEmbedFullscreen.svelte';
-    import EventsSearchEmbedFullscreen from './embeds/events/EventsSearchEmbedFullscreen.svelte';
-    import HomeSearchEmbedFullscreen from './embeds/home/HomeSearchEmbedFullscreen.svelte';
-    import EventEmbedFullscreen from './embeds/events/EventEmbedFullscreen.svelte';
-    import TravelConnectionEmbedFullscreen from './embeds/travel/TravelConnectionEmbedFullscreen.svelte';
-    import TravelStayEmbedFullscreen from './embeds/travel/TravelStayEmbedFullscreen.svelte';
-    import ImagesSearchEmbedFullscreen from './embeds/images/ImagesSearchEmbedFullscreen.svelte';
-    import ImageGenerateEmbedFullscreen from './embeds/images/ImageGenerateEmbedFullscreen.svelte';
-    import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
-    import ImageResultEmbedFullscreen from './embeds/images/ImageResultEmbedFullscreen.svelte';
-    import MathCalculateEmbedFullscreen from './embeds/math/MathCalculateEmbedFullscreen.svelte';
-    import MathPlotEmbedFullscreen from './embeds/math/MathPlotEmbedFullscreen.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
+    import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
+    import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
     import { userProfile } from '../stores/userProfile';
@@ -90,6 +63,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
@@ -131,12 +105,9 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache } from '../services/chatMetadataCache'; // For decrypting recent chat titles
-    import type { 
+    import type {
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
-        VideoTranscriptResult,
-        CodeGetDocsSkillPreviewData,
-        CodeGetDocsResult
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
@@ -318,100 +289,6 @@
         previewData: SkillPreviewData;
         chat_id: string;
         message_id: string;
-    };
-
-    // Minimal result shapes for fullscreen embed components (mirrors local interfaces there).
-    type ActiveChatWebSearchResult = {
-        embed_id: string;
-        url: string;
-        title?: string;
-        favicon_url?: string;
-        preview_image_url?: string;
-        snippet?: string;
-        description?: string;
-        extra_snippets?: string | string[];
-        page_age?: string;
-        isVideo: boolean;
-        video_id?: string;
-        channel_name?: string;
-        channel_id?: string;
-        channel_thumbnail?: string;
-        duration_seconds?: number;
-        duration_formatted?: string;
-        view_count?: number;
-        like_count?: number;
-        published_at?: string;
-    };
-
-    type ActiveChatNewsSearchResult = {
-        embed_id: string;
-        url: string;
-        title?: string;
-        favicon_url?: string;
-        thumbnail?: string;
-        description?: string;
-    };
-
-    type ActiveChatVideoSearchResult = {
-        embed_id: string;
-        url: string;
-        title?: string;
-        description?: string;
-        channel_title?: string;
-        channel_id?: string;
-        thumbnail_url?: string;
-        view_count?: number;
-        duration?: string;
-    };
-
-    type ActiveChatPlaceSearchResult = {
-        embed_id: string;
-        displayName?: string;
-        formattedAddress?: string;
-        location?: { latitude?: number; longitude?: number };
-        rating?: number;
-        userRatingCount?: number;
-        websiteUri?: string;
-        placeId?: string;
-    };
-
-    type ActiveChatWebReadResult = {
-        type: string;
-        url: string;
-        title?: string;
-        markdown?: string;
-        language?: string;
-        favicon?: string;
-        og_image?: string;
-        og_sitename?: string;
-        hash?: string;
-    };
-
-    type WebReadPreviewData = {
-        app_id: 'web';
-        skill_id: 'read';
-        status: WebSearchSkillPreviewData['status'];
-        results: ActiveChatWebReadResult[];
-        url?: string;
-    };
-
-    type ActiveChatTravelConnectionResult = {
-        embed_id: string;
-        type?: string;
-        transport_method?: string;
-        trip_type?: string;
-        total_price?: string;
-        currency?: string;
-        bookable_seats?: number;
-        last_ticketing_date?: string;
-        origin?: string;
-        destination?: string;
-        departure?: string;
-        arrival?: string;
-        duration?: string;
-        stops?: number;
-        carriers?: string[];
-        hash?: string;
     };
 
     type AppCardEntry = {
@@ -1088,66 +965,6 @@
         recordingFullscreenData = {};
     }
 
-    // Normalize embed result arrays for fullscreen components with strict prop types.
-    function getWebSearchResults(results?: unknown[]): ActiveChatWebSearchResult[] {
-        return Array.isArray(results) ? (results as ActiveChatWebSearchResult[]) : [];
-    }
-
-    function getNewsSearchResults(results?: unknown[]): ActiveChatNewsSearchResult[] {
-        return Array.isArray(results) ? (results as ActiveChatNewsSearchResult[]) : [];
-    }
-
-    function getVideoSearchResults(results?: unknown[]): ActiveChatVideoSearchResult[] {
-        return Array.isArray(results) ? (results as ActiveChatVideoSearchResult[]) : [];
-    }
-
-    function getPlaceSearchResults(results?: unknown[]): ActiveChatPlaceSearchResult[] {
-        return Array.isArray(results) ? (results as ActiveChatPlaceSearchResult[]) : [];
-    }
-
-    function getVideoTranscriptResults(results?: unknown[]): VideoTranscriptResult[] {
-        return Array.isArray(results) ? (results as VideoTranscriptResult[]) : [];
-    }
-
-    function getWebReadResults(results?: unknown[]): ActiveChatWebReadResult[] {
-        return Array.isArray(results) ? (results as ActiveChatWebReadResult[]) : [];
-    }
-
-    function getCodeDocsResults(results?: unknown[]): CodeGetDocsResult[] {
-        return Array.isArray(results) ? (results as CodeGetDocsResult[]) : [];
-    }
-
-    function getTravelConnectionResults(results?: unknown[]): ActiveChatTravelConnectionResult[] {
-        return Array.isArray(results) ? (results as ActiveChatTravelConnectionResult[]) : [];
-    }
-
-    // Coerce skill preview status to embed status.
-    // Both embed and skill preview now support 'cancelled' status natively.
-    function toEmbedStatus(status: SkillPreviewData['status']): EmbedResolverData['status'] {
-        return status;
-    }
-
-    /**
-     * Normalize unknown status values into a supported embed status.
-     * This guards against loosely typed decodedContent fields.
-     * Canonical definition: services/embedStateMachine.ts normalizeEmbedStatus()
-     */
-    function normalizeEmbedStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
-        if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') {
-            return value;
-        }
-        return 'finished';
-    }
-
-    // Normalize unknown values from embed payloads into the primitive types UI components expect.
-    function coerceString(value: unknown, fallback: string = ''): string {
-        return typeof value === 'string' ? value : fallback;
-    }
-
-    function coerceNumber(value: unknown, fallback: number = 0): number {
-        return typeof value === 'number' ? value : fallback;
-    }
-    
     // Add state for embed fullscreen
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
@@ -1434,32 +1251,11 @@
         // - Renderers use UI types (e.g. "code-code", "app-skill-use")
         // - Some synced/stored embeds can expose server types (e.g. "code", "app_skill_use")
         // - Deep links dispatch a placeholder type, but we can infer from stored embed when needed
+        // Use the generated normalizeEmbedType from embedRegistry to map server types → frontend types.
+        // This replaces the local hardcoded switch that grew stale with each new embed type.
         const normalizeEmbedType = (t: string | null | undefined): string | null => {
             if (!t) return null;
-            switch (t) {
-                case 'app_skill_use':
-                case 'app-skill-use':
-                    return 'app-skill-use';
-                case 'web-website':
-                case 'website':
-                    return 'website';
-                case 'code':
-                case 'code-code':
-                    return 'code-code';
-                case 'document':
-                case 'docs-doc':
-                    return 'docs-doc';
-                case 'video':
-                case 'videos-video':
-                    return 'videos-video';
-                case 'sheet':
-                case 'sheets-sheet':
-                    return 'sheets-sheet';
-                case 'math-plot':
-                    return 'math-plot';
-                default:
-                    return t;
-            }
+            return registryNormalizeEmbedType(t);
         };
         
         let resolvedEmbedType = normalizeEmbedType(embedType) || embedType;
@@ -1487,7 +1283,7 @@
         // denote the output format) are NOT valid top-level embed types and must NOT override
         // 'app-skill-use' — doing so causes the fullscreen branch to be skipped entirely because
         // no template case handles embedType === 'image'.
-        const validTopLevelEmbedTypes = new Set(['website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps', 'math-plot']);
+        const validTopLevelEmbedTypes = new Set(['web-website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps', 'math-plot']);
         if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
             const contentType = typeof finalDecodedContent.type === 'string' ? finalDecodedContent.type : null;
             if (contentType) {
@@ -1597,7 +1393,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Filter out nulls and add to decoded content
                     finalDecodedContent.results = results.filter(r => r !== null);
-                    const websiteResults = getWebSearchResults(finalDecodedContent.results);
+                    const websiteResults = Array.isArray(finalDecodedContent.results) ? finalDecodedContent.results : [];
                     console.info('[ActiveChat] Loaded', websiteResults.length, 'website results for web search fullscreen:', 
                         websiteResults.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
                 } catch (error) {
@@ -1648,9 +1444,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Filter out nulls and add to decoded content
                     finalDecodedContent.results = results.filter(r => r !== null);
-                    const placeResults = getPlaceSearchResults(finalDecodedContent.results);
-                    console.info('[ActiveChat] Loaded', placeResults.length, 'place results for maps search fullscreen:', 
-                        placeResults.map(r => ({ name: r?.displayName?.substring(0, 30), address: r?.formattedAddress })));
+                    const placeResults = Array.isArray(finalDecodedContent.results) ? finalDecodedContent.results : [];
+                    console.info('[ActiveChat] Loaded', placeResults.length, 'place results for maps search fullscreen:',
+                        placeResults.map((r: Record<string, unknown>) => ({ name: String(r?.displayName ?? '').substring(0, 30), address: r?.formattedAddress })));
                 } catch (error) {
                     console.error('[ActiveChat] Error loading child embeds for maps search:', error);
                     // Continue without results - fullscreen will show "No results" message
@@ -2130,6 +1926,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleChatNavigate(chatId: string) {
         console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
         try {
+            // Clean up the current draft before navigating — prevents garbage draft chats
+            // from accumulating when the user searches and clicks an existing chat instead of sending.
+            await clearCurrentDraft();
+
             await chatDB.init();
             const chat = await chatDB.getChat(chatId);
             if (!chat) {
@@ -6488,37 +6288,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
-        // ─── Chat Header: update summary when post-processing completes ─────────────
-        // The summary arrives separately (post_processing_metadata) after the main header
-        // is already shown. Decrypt and display it immediately so the header updates live.
-        if (detail.type === 'post_processing_metadata' && incomingChatMetadata?.encrypted_chat_summary) {
+        // ─── Chat Header: update summary + title when post-processing completes ────
+        // Summary and updated title arrive via post_processing_metadata after the main
+        // header is already shown. Decrypt and display them immediately so the header
+        // updates live without needing to close and reopen the chat.
+        if (detail.type === 'post_processing_metadata' && (incomingChatMetadata?.encrypted_chat_summary || incomingChatMetadata?.encrypted_title)) {
             try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
                 // Safe key retrieval — same pattern as the title_updated handler above.
-                let summaryKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
-                if (!summaryKey && incomingChatMetadata.encrypted_chat_key) {
+                let postProcKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
+                if (!postProcKey && incomingChatMetadata.encrypted_chat_key) {
                     try {
                         const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
-                        if (k) { summaryKey = k; chatDB.setChatKey(incomingChatId, k); }
+                        if (k) { postProcKey = k; chatDB.setChatKey(incomingChatId, k); }
                     } catch (keyErr) {
-                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
+                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key for post-processing: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
                     }
                 }
-                if (!summaryKey) {
-                    summaryKey = await chatKeyManager.getKey(incomingChatId);
-                    if (!summaryKey) {
-                        console.warn('[ActiveChat] handleChatUpdated: No chat key for summary decrypt of', incomingChatId);
+                if (!postProcKey) {
+                    postProcKey = await chatKeyManager.getKey(incomingChatId);
+                    if (!postProcKey) {
+                        console.warn('[ActiveChat] handleChatUpdated: No chat key for post-processing decrypt of', incomingChatId);
                     }
                 }
-                if (summaryKey) {
-                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
-                    if (decryptedSummary) {
-                        activeChatDecryptedSummary = decryptedSummary;
-                        console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
+                if (postProcKey) {
+                    // Decrypt summary if present
+                    if (incomingChatMetadata.encrypted_chat_summary) {
+                        const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
+                        if (decryptedSummary) {
+                            activeChatDecryptedSummary = decryptedSummary;
+                            console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
+                        }
+                    }
+                    // OPE-265: Decrypt updated title if post-processing detected conversation drift
+                    if (incomingChatMetadata.encrypted_title) {
+                        const decryptedTitle = await decryptWithChatKey(incomingChatMetadata.encrypted_title, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_title' });
+                        if (decryptedTitle) {
+                            activeChatDecryptedTitle = decryptedTitle;
+                            console.debug('[ActiveChat] Chat header title updated from post-processing:', decryptedTitle);
+                        }
                     }
                 }
             } catch (err) {
-                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat summary: chat_id=${incomingChatId} field=encrypted_chat_summary`, err);
+                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt post-processing metadata: chat_id=${incomingChatId}`, err);
             }
         }
 
@@ -9209,7 +9021,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // Set fullscreen data for web search
                             embedFullscreenData = {
                                 embedType: 'app-skill-use',
-                                embedData: { status: toEmbedStatus(previewData.status) },
+                                embedData: { status: previewData.status },
                                 decodedContent: previewData as unknown as EmbedDecodedContent
                             };
                             showEmbedFullscreen = true;
@@ -9231,7 +9043,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             // Set fullscreen data for video transcript
                             embedFullscreenData = {
                                 embedType: 'app-skill-use',
-                                embedData: { status: toEmbedStatus(previewData.status) },
+                                embedData: { status: previewData.status },
                                 decodedContent: previewData as unknown as EmbedDecodedContent
                             };
                             showEmbedFullscreen = true;
@@ -10105,25 +9917,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             {#if showImageEmbedFullscreen}
                 <ImageEmbedFullscreen
-                    src={imageEmbedFullscreenData.src}
-                    s3BaseUrl={imageEmbedFullscreenData.s3BaseUrl}
-                    files={imageEmbedFullscreenData.s3Files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
-                    aesKey={imageEmbedFullscreenData.aesKey}
-                    aesNonce={imageEmbedFullscreenData.aesNonce}
-                    filename={imageEmbedFullscreenData.filename}
-                    isAuthenticated={imageEmbedFullscreenData.isAuthenticated}
-                    fileSize={imageEmbedFullscreenData.fileSize}
-                    fileType={imageEmbedFullscreenData.fileType}
-                    aiDetection={imageEmbedFullscreenData.aiDetection}
+                    data={{
+                        decodedContent: {
+                            src: imageEmbedFullscreenData.src,
+                            s3_base_url: imageEmbedFullscreenData.s3BaseUrl,
+                            files: imageEmbedFullscreenData.s3Files,
+                            aes_key: imageEmbedFullscreenData.aesKey,
+                            aes_nonce: imageEmbedFullscreenData.aesNonce,
+                            filename: imageEmbedFullscreenData.filename,
+                            is_authenticated: imageEmbedFullscreenData.isAuthenticated,
+                            file_size: imageEmbedFullscreenData.fileSize,
+                            file_type: imageEmbedFullscreenData.fileType,
+                            ai_detection: imageEmbedFullscreenData.aiDetection,
+                        },
+                    }}
                     onClose={handleCloseImageEmbedFullscreen}
                 />
             {/if}
 
             {#if showPdfEmbedFullscreen}
                 <PDFEmbedFullscreen
+                    data={{
+                        decodedContent: {
+                            filename: pdfFullscreenData.filename,
+                            page_count: pdfFullscreenData.pageCount,
+                        },
+                    }}
                     embedId={pdfFullscreenData.embedId}
-                    filename={pdfFullscreenData.filename}
-                    pageCount={pdfFullscreenData.pageCount}
                     onClose={handleClosePdfFullscreen}
                 />
             {/if}
@@ -10153,16 +9973,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             {#if showRecordingFullscreen}
                 <RecordingEmbedFullscreen
-                    transcript={recordingFullscreenData.transcript}
-                    blobUrl={recordingFullscreenData.blobUrl}
-                    filename={recordingFullscreenData.filename}
-                    duration={recordingFullscreenData.duration}
-                    s3Files={recordingFullscreenData.s3Files}
-                    s3BaseUrl={recordingFullscreenData.s3BaseUrl}
-                    aesKey={recordingFullscreenData.aesKey}
-                    aesNonce={recordingFullscreenData.aesNonce}
+                    data={{
+                        decodedContent: {
+                            transcript: recordingFullscreenData.transcript,
+                            blob_url: recordingFullscreenData.blobUrl,
+                            filename: recordingFullscreenData.filename,
+                            duration: recordingFullscreenData.duration,
+                            s3_files: recordingFullscreenData.s3Files,
+                            s3_base_url: recordingFullscreenData.s3BaseUrl,
+                            aes_key: recordingFullscreenData.aesKey,
+                            aes_nonce: recordingFullscreenData.aesNonce,
+                            model: recordingFullscreenData.model,
+                        },
+                    }}
                     embedId={recordingFullscreenData.embedId}
-                    model={recordingFullscreenData.model}
                     isEditable={recordingFullscreenData.isEditable}
                     onTranscriptChange={handleRecordingTranscriptChange}
                     onClose={handleCloseRecordingFullscreen}
@@ -10189,348 +10013,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
                      (same embedId, same type) must still re-mount the fullscreen so it opens the correct child. -->
                 {#key `${embedFullscreenData.embedId}:${embedFullscreenData.focusChildEmbedId ?? ''}`}
-                {#if embedFullscreenData.embedType === 'app-skill-use'}
-                    {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
-                    {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
-                    
-                    {#if appId === 'web' && skillId === 'search'}
-                        <!-- Web Search Fullscreen -->
-                        <!-- Pass embedIds for proper child embed loading (has extra_snippets, page_age, etc.) -->
-                        <!-- Falls back to results if embedIds not available (legacy embeds) -->
-                        <WebSearchEmbedFullscreen 
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
-                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getWebSearchResults(embedFullscreenData.decodedContent?.results) as ReturnType<typeof getWebSearchResults>}
-                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
-                            embedId={embedFullscreenData.embedId}
-                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'news' && skillId === 'search'}
-                        <!-- News Search Fullscreen -->
-                        <!-- Pass embedIds for proper child embed loading -->
-                        <NewsSearchEmbedFullscreen 
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
-                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getNewsSearchResults(embedFullscreenData.decodedContent?.results)}
-                            embedId={embedFullscreenData.embedId}
-                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'videos' && skillId === 'search'}
-                        <!-- Videos Search Fullscreen -->
-                        <!-- Pass embedIds for proper child embed loading -->
-                        <VideosSearchEmbedFullscreen 
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
-                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getVideoSearchResults(embedFullscreenData.decodedContent?.results)}
-                            embedId={embedFullscreenData.embedId}
-                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'maps' && skillId === 'search'}
-                        <!-- Maps Search Fullscreen -->
-                        <!-- Pass embedIds for proper child embed loading -->
-                        <MapsSearchEmbedFullscreen 
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
-                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getPlaceSearchResults(embedFullscreenData.decodedContent?.results)}
-                            embedId={embedFullscreenData.embedId}
-                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'maps' && skillId === 'location'}
-                        <!-- Maps Location Fullscreen -->
-                        <!-- Displays an interactive Leaflet map (or static image) with location details -->
-                        <MapsLocationEmbedFullscreen
-                            lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : undefined}
-                            lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : undefined}
-                            zoom={typeof embedFullscreenData.decodedContent?.zoom === 'number' ? embedFullscreenData.decodedContent.zoom : 15}
-                            name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined}
-                            address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : undefined}
-                            locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : undefined}
-                            mapImageUrl={typeof embedFullscreenData.decodedContent?.map_image_url === 'string' ? embedFullscreenData.decodedContent.map_image_url : undefined}
-                            status="finished"
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'travel' && skillId === 'search_connections'}
-                        <!-- Travel Search Connections Fullscreen -->
-                        <TravelSearchEmbedFullscreen 
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
-                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={getTravelConnectionResults(embedFullscreenData.decodedContent?.results)}
-                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
-                            embedId={embedFullscreenData.embedId}
-                            initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'travel' && skillId === 'price_calendar'}
-                        <!-- Travel Price Calendar Fullscreen -->
-                        <TravelPriceCalendarEmbedFullscreen
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results : []}
-                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'travel' && skillId === 'search_stays'}
-                        <!-- Travel Search Stays Fullscreen -->
-                        <TravelStaysEmbedFullscreen
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
-                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
-                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                            errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                              onNavigateNext={handleNavigateNextEmbed}
-                              navigateDirection={embedNavigateDirection}
-                              showChatButton={showChatButtonInFullscreen}
-                              onShowChat={handleShowChat}
-                          />
-                     {:else if appId === 'health' && skillId === 'search_appointments'}
-                         <!-- Health Search Appointments Fullscreen -->
-                         <HealthSearchEmbedFullscreen
-                             query={embedFullscreenData.decodedContent?.query || ''}
-                             provider={embedFullscreenData.decodedContent?.provider || 'Doctolib'}
-                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
-                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
-                             embedId={embedFullscreenData.embedId}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             navigateDirection={embedNavigateDirection}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                         />
-                     {:else if appId === 'shopping' && skillId === 'search_products'}
-                         <!-- Shopping Search Products Fullscreen -->
-                         <ShoppingSearchEmbedFullscreen
-                             query={embedFullscreenData.decodedContent?.query || ''}
-                             provider={embedFullscreenData.decodedContent?.provider || 'REWE'}
-                             results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
-                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                             errorMessage={typeof embedFullscreenData.decodedContent?.error === 'string' ? embedFullscreenData.decodedContent.error : ''}
-                             embedId={embedFullscreenData.embedId}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             navigateDirection={embedNavigateDirection}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                         />
-                     {:else if appId === 'images' && skillId === 'search'}
-                         <!-- Images Search Fullscreen -->
-                         <!-- Results are stored as child embeds — pass embedIds for child loading -->
-                         <ImagesSearchEmbedFullscreen
-                             query={embedFullscreenData.decodedContent?.query || ''}
-                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
-                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                             embedId={embedFullscreenData.embedId}
-                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             navigateDirection={embedNavigateDirection}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                         />
-                     {:else if appId === 'events' && skillId === 'search'}
-                         <!-- Events Search Fullscreen -->
-                         <!-- Results are stored as child embeds (like news/web search) — pass embedIds for loading -->
-                         <EventsSearchEmbedFullscreen
-                             query={embedFullscreenData.decodedContent?.query || ''}
-                             provider={embedFullscreenData.decodedContent?.provider || 'Meetup'}
-                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                             embedId={embedFullscreenData.embedId}
-                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             navigateDirection={embedNavigateDirection}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                         />
-                     {:else if appId === 'home' && skillId === 'search'}
-                         <!-- Home Search Fullscreen -->
-                         <!-- Results are stored as child embeds (listing) — pass embedIds for loading -->
-                         <HomeSearchEmbedFullscreen
-                             query={embedFullscreenData.decodedContent?.query || ''}
-                             provider={embedFullscreenData.decodedContent?.provider || 'Multi'}
-                             embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
-                             status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                             embedId={embedFullscreenData.embedId}
-                             initialChildEmbedId={embedFullscreenData.focusChildEmbedId ?? undefined}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             navigateDirection={embedNavigateDirection}
-                             showChatButton={showChatButtonInFullscreen}
-                             onShowChat={handleShowChat}
-                         />
-                     {:else if appId === 'videos' && skillId === 'get_transcript'}
-                        <!-- Video Transcript Fullscreen -->
-                        {@const previewData: VideoTranscriptSkillPreviewData = {
-                            app_id: 'videos',
-                            skill_id: 'get_transcript',
-                            status: (embedFullscreenData.embedData?.status || 'finished') as VideoTranscriptSkillPreviewData['status'],
-                            results: getVideoTranscriptResults(embedFullscreenData.decodedContent?.results),
-                            video_count: embedFullscreenData.decodedContent?.video_count || 0,
-                            success_count: embedFullscreenData.decodedContent?.success_count || 0,
-                            failed_count: embedFullscreenData.decodedContent?.failed_count || 0
-                        }}
-                        {@const debugRender = (() => {
-                            console.debug('[ActiveChat] Rendering VideoTranscriptEmbedFullscreen:', {
-                                appId,
-                                skillId,
-                                hasPreviewData: !!previewData,
-                                resultsCount: previewData.results?.length || 0
-                            });
-                            return null;
-                        })()}
-                        {debugRender}
-                        <VideoTranscriptEmbedFullscreen 
-                            previewData={previewData}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'web' && skillId === 'read'}
-                        <!-- Web Read Fullscreen -->
-                        <!-- Pass URL from decoded content (from processing placeholder or original_metadata) -->
-                        {@const webReadResults = getWebReadResults(embedFullscreenData.decodedContent?.results)}
-                        {@const webReadUrl = embedFullscreenData.decodedContent?.url || 
-                            embedFullscreenData.decodedContent?.original_metadata?.url || 
-                            webReadResults?.[0]?.url || ''}
-                        {@const previewData: WebReadPreviewData = {
-                            app_id: 'web',
-                            skill_id: 'read',
-                            status: (embedFullscreenData.embedData?.status || 'finished') as WebReadPreviewData['status'],
-                            results: webReadResults,
-                            url: webReadUrl
-                        }}
-                        <WebReadEmbedFullscreen 
-                            previewData={previewData}
-                            url={webReadUrl}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'code' && skillId === 'get_docs'}
-                        <!-- Code Get Docs Fullscreen -->
-                        {@const CodeGetDocsEmbedFullscreenPromise = import('./embeds/code/CodeGetDocsEmbedFullscreen.svelte')}
-                        {#await CodeGetDocsEmbedFullscreenPromise then module}
-                            {@const CodeGetDocsEmbedFullscreen = module.default}
-                            {@const previewData: CodeGetDocsSkillPreviewData = {
-                                app_id: 'code',
-                                skill_id: 'get_docs',
-                                status: (embedFullscreenData.embedData?.status || 'finished') as CodeGetDocsSkillPreviewData['status'],
-                                results: getCodeDocsResults(embedFullscreenData.decodedContent?.results),
-                                library: embedFullscreenData.decodedContent?.library || ''
-                            }}
-                            {@const debugRender = (() => {
-                                console.debug('[ActiveChat] Rendering CodeGetDocsEmbedFullscreen:', {
-                                    appId,
-                                    skillId,
-                                    hasPreviewData: !!previewData,
-                                    resultsCount: previewData.results?.length || 0,
-                                    library: previewData.library
-                                });
-                                return null;
-                            })()}
-                            {debugRender}
-                            <CodeGetDocsEmbedFullscreen 
-                                previewData={previewData}
-                                results={embedFullscreenData.decodedContent?.results || []}
-                                library={embedFullscreenData.decodedContent?.library || ''}
+                <!-- Data-driven embed fullscreen routing via embedFullscreenResolver.
+                     Each component receives a standardized `data` prop and extracts its own fields.
+                     Architecture: docs/architecture/frontend/data-driven-embed-fullscreen-routing.md -->
+                {@const registryKey = resolveRegistryKey(
+                    registryNormalizeEmbedType(embedFullscreenData.embedType || ''),
+                    embedFullscreenData.decodedContent ?? undefined
+                )}
+                {#if registryKey && hasFullscreenComponent(registryKey)}
+                    {#await loadFullscreenComponent(registryKey) then FullscreenComponent}
+                        {#if FullscreenComponent}
+                            <FullscreenComponent
+                                data={{
+                                    decodedContent: embedFullscreenData.decodedContent ?? {},
+                                    attrs: embedFullscreenData.attrs,
+                                    embedData: embedFullscreenData.embedData,
+                                    focusChildEmbedId: embedFullscreenData.focusChildEmbedId,
+                                    restoreFromPip: embedFullscreenData.restoreFromPip,
+                                    highlightQuoteText: embedFullscreenData.highlightQuoteText,
+                                    focusLineRange: embedFullscreenData.focusLineRange,
+                                }}
                                 embedId={embedFullscreenData.embedId}
                                 onClose={handleCloseEmbedFullscreen}
                                 {hasPreviousEmbed}
@@ -10540,450 +10042,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 navigateDirection={embedNavigateDirection}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
+                                piiMappings={cumulativePIIMappingsArray}
+                                piiRevealed={piiRevealed}
                             />
-                        {/await}
-                    {:else if appId === 'reminder' && skillId === 'set-reminder'}
-                        <!-- Reminder Set Fullscreen -->
-                        {@const reminderId = coerceString(embedFullscreenData.decodedContent?.reminder_id ?? embedFullscreenData.attrs?.reminderId, '')}
-                        {@const triggerAtFormatted = coerceString(embedFullscreenData.decodedContent?.trigger_at_formatted ?? embedFullscreenData.attrs?.triggerAtFormatted, '')}
-                        {@const triggerAt = coerceNumber(embedFullscreenData.decodedContent?.trigger_at ?? embedFullscreenData.attrs?.triggerAt, 0)}
-                        {@const targetType = (embedFullscreenData.decodedContent?.target_type ?? embedFullscreenData.attrs?.targetType) as 'new_chat' | 'existing_chat' | undefined}
-                        {@const isRepeating = Boolean(embedFullscreenData.decodedContent?.is_repeating ?? embedFullscreenData.attrs?.isRepeating)}
-                        {@const message = coerceString(embedFullscreenData.decodedContent?.message ?? embedFullscreenData.attrs?.message, '')}
-                        {@const emailNotificationWarning = coerceString(embedFullscreenData.decodedContent?.email_notification_warning ?? embedFullscreenData.attrs?.emailNotificationWarning, '')}
-                        {@const error = coerceString(embedFullscreenData.decodedContent?.error ?? embedFullscreenData.attrs?.error, '')}
-                        <ReminderEmbedFullscreen 
-                            reminderId={reminderId || undefined}
-                            triggerAtFormatted={triggerAtFormatted || undefined}
-                            triggerAt={triggerAt || undefined}
-                            targetType={targetType}
-                            {isRepeating}
-                            message={message || undefined}
-                            emailNotificationWarning={emailNotificationWarning || undefined}
-                            error={error || undefined}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'images' && (skillId === 'generate' || skillId === 'generate_draft')}
-                        <!-- Image Generate Fullscreen -->
-                        {@const imgContent = (embedFullscreenData.decodedContent || {}) as Record<string, unknown>}
-                        <ImageGenerateEmbedFullscreen
-                            prompt={String(imgContent.prompt || '')}
-                            model={String(imgContent.model || '')}
-                            aspectRatio={String(imgContent.aspect_ratio || '')}
-                            s3BaseUrl={String(imgContent.s3_base_url || '')}
-                            files={imgContent.files as { preview?: { s3_key: string; width: number; height: number; format: string }; full?: { s3_key: string; width: number; height: number; format: string }; original?: { s3_key: string; width: number; height: number; format: string } } | undefined}
-                            aesKey={String(imgContent.aes_key || '')}
-                            aesNonce={String(imgContent.aes_nonce || '')}
-                            status={embedFullscreenData.embedData?.status || 'finished'}
-                            error={String(imgContent.error || '')}
-                            onClose={handleCloseEmbedFullscreen}
-                            embedId={embedFullscreenData.embedId}
-                            skillId={skillId === 'generate_draft' ? 'generate_draft' : 'generate'}
-                            generatedAt={imgContent.generated_at ? String(imgContent.generated_at) : undefined}
-                            inputEmbedIds={Array.isArray(imgContent.input_embed_ids) ? imgContent.input_embed_ids as string[] : undefined}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else if appId === 'math' && skillId === 'calculate'}
-                        <!-- Math Calculate Fullscreen -->
-                        <MathCalculateEmbedFullscreen
-                            query={embedFullscreenData.decodedContent?.query || ''}
-                            results={Array.isArray(embedFullscreenData.decodedContent?.results) ? embedFullscreenData.decodedContent.results as unknown[] : []}
-                            status={normalizeEmbedStatus(embedFullscreenData.embedData?.status ?? embedFullscreenData.decodedContent?.status)}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {:else}
-                        <!-- Generic app skill fullscreen (fallback) -->
-                        <div class="embed-fullscreen-fallback">
-                            <div class="fullscreen-header">
-                                <button onclick={handleCloseEmbedFullscreen}>Close</button>
-                            </div>
-                            <div class="fullscreen-content">
-                                <pre>{JSON.stringify(embedFullscreenData.decodedContent, null, 2)}</pre>
-                            </div>
-                        </div>
-                    {/if}
-                {:else if embedFullscreenData.embedType === 'website'}
-                    <!-- Website Fullscreen -->
-                    {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
-                        <WebsiteEmbedFullscreen 
-                            url={embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
-                            title={embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
-                            description={embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description}
-                            favicon={embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon}
-                            image={embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image}
-                            extra_snippets={embedFullscreenData.decodedContent?.extra_snippets}
-                            meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
-                            thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
-                            dataDate={embedFullscreenData.decodedContent?.page_age}
-                            embedId={embedFullscreenData.embedId}
-                            onClose={handleCloseEmbedFullscreen}
-                            {hasPreviousEmbed}
-                            {hasNextEmbed}
-                            onNavigatePrevious={handleNavigatePreviousEmbed}
-                            onNavigateNext={handleNavigateNextEmbed}
-                            navigateDirection={embedNavigateDirection}
-                            showChatButton={showChatButtonInFullscreen}
-                            onShowChat={handleShowChat}
-                        />
-                    {/if}
-                {:else if embedFullscreenData.embedType === 'code-code'}
-                    <!-- Code Fullscreen -->
-                    {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
-                        {@const codeContent = coerceString(embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
-                        {@const codeLanguage = coerceString(embedFullscreenData.decodedContent?.language ?? embedFullscreenData.attrs?.language, '')}
-                        {@const codeFilename = coerceString(embedFullscreenData.decodedContent?.filename ?? embedFullscreenData.attrs?.filename, '')}
-                        {@const codeLineCount = coerceNumber(embedFullscreenData.decodedContent?.line_count ?? embedFullscreenData.decodedContent?.lineCount ?? embedFullscreenData.attrs?.lineCount, 0)}
-                        <CodeEmbedFullscreen 
-                             codeContent={codeContent}
-                             language={codeLanguage}
-                             filename={codeFilename}
-                             lineCount={codeLineCount}
-                             embedId={embedFullscreenData.embedId}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                              onNavigateNext={handleNavigateNextEmbed}
-                              navigateDirection={embedNavigateDirection}
-                              showChatButton={showChatButtonInFullscreen}
-                              onShowChat={handleShowChat}
-                              piiMappings={cumulativePIIMappingsArray}
-                              piiRevealed={piiRevealed}
-                          />
-                    {/if}
-                {:else if embedFullscreenData.embedType === 'docs-doc'}
-                    <!-- Document Fullscreen -->
-                    {#if embedFullscreenData.decodedContent?.html || embedFullscreenData.attrs?.code}
-                        {@const htmlContent = coerceString(embedFullscreenData.decodedContent?.html ?? embedFullscreenData.attrs?.code, '')}
-                        {@const docTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
-                        {@const docWordCount = coerceNumber(embedFullscreenData.decodedContent?.word_count ?? embedFullscreenData.attrs?.wordCount, 0)}
-                        <DocsEmbedFullscreen 
-                             htmlContent={htmlContent}
-                             title={docTitle}
-                             wordCount={docWordCount}
-                             embedId={embedFullscreenData.embedId}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                              onNavigateNext={handleNavigateNextEmbed}
-                              navigateDirection={embedNavigateDirection}
-                              showChatButton={showChatButtonInFullscreen}
-                              onShowChat={handleShowChat}
-                              piiMappings={cumulativePIIMappingsArray}
-                              piiRevealed={piiRevealed}
-                          />
-                    {/if}
-                {:else if embedFullscreenData.embedType === 'sheets-sheet'}
-                    <!-- Sheet/Table Fullscreen -->
-                    <!-- TOON content uses: table (markdown), title, row_count, col_count -->
-                    <!-- Fallback to legacy fields (code, rows, cols) for backward compatibility -->
-                    {#if embedFullscreenData.decodedContent?.table || embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
-                        {@const sheetContent = coerceString(embedFullscreenData.decodedContent?.table ?? embedFullscreenData.decodedContent?.code ?? embedFullscreenData.attrs?.code, '')}
-                        {@const sheetTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
-                        {@const sheetRows = coerceNumber(embedFullscreenData.decodedContent?.row_count ?? embedFullscreenData.decodedContent?.rows ?? embedFullscreenData.attrs?.rows, 0)}
-                        {@const sheetCols = coerceNumber(embedFullscreenData.decodedContent?.col_count ?? embedFullscreenData.decodedContent?.cols ?? embedFullscreenData.attrs?.cols, 0)}
-                        <SheetEmbedFullscreen 
-                             tableContent={sheetContent}
-                             title={sheetTitle}
-                             rowCount={sheetRows}
-                             colCount={sheetCols}
-                             embedId={embedFullscreenData.embedId}
-                             onClose={handleCloseEmbedFullscreen}
-                             {hasPreviousEmbed}
-                             {hasNextEmbed}
-                             onNavigatePrevious={handleNavigatePreviousEmbed}
-                             onNavigateNext={handleNavigateNextEmbed}
-                             navigateDirection={embedNavigateDirection}
-                              showChatButton={showChatButtonInFullscreen}
-                              onShowChat={handleShowChat}
-                              piiMappings={cumulativePIIMappingsArray}
-                              piiRevealed={piiRevealed}
-                         />
-                    {/if}
-                {:else if embedFullscreenData.embedType === 'videos-video'}
-                    <!-- Video Fullscreen -->
-                    <!-- Constructs VideoMetadata from decodedContent (backend TOON format: snake_case) -->
-                    <!-- This ensures all video details (channel, duration, thumbnail, etc.) display in fullscreen -->
-                    {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
-                        {@const VideoEmbedFullscreenPromise = import('../components/embeds/videos/VideoEmbedFullscreen.svelte')}
-                        {#await VideoEmbedFullscreenPromise then module}
-                            {@const VideoEmbedFullscreen = module.default}
-                            {@const videoUrl = coerceString(embedFullscreenData.decodedContent?.url ?? embedFullscreenData.attrs?.url, '')}
-                            {@const videoTitle = coerceString(embedFullscreenData.decodedContent?.title ?? embedFullscreenData.attrs?.title, '')}
-                            {@const videoId = coerceString(
-                                embedFullscreenData.decodedContent?.video_id ??
-                                embedFullscreenData.decodedContent?.videoId ??
-                                embedFullscreenData.attrs?.videoId,
-                                ''
-                            )}
-                            {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
-                            <!-- Construct VideoMetadata from decoded content.
-                                 TOON preserves nested objects and camelCase field names from the backend.
-                                 Video search results use: channelTitle, viewCount, thumbnail.original, etc.
-                                 GroupRenderer enrichedContent uses: channel_name, view_count, thumbnail (string), etc.
-                                 We must handle BOTH formats here. -->
-                            {@const dc = embedFullscreenData.decodedContent}
-                            {@const thumbnailStr =
-                                (typeof dc?.thumbnail === 'string' ? dc.thumbnail : null) ??
-                                dc?.thumbnail_original ??
-                                (typeof dc?.thumbnail === 'object' && dc?.thumbnail != null ? (dc.thumbnail as Record<string, unknown>).original as string | undefined : null) ??
-                                ''}
-                            {@const videoMetadata = {
-                                videoId,
-                                title: videoTitle,
-                                description: coerceString(dc?.description, ''),
-                                channelName: coerceString(dc?.channel_name ?? dc?.channelTitle, ''),
-                                channelId: coerceString(dc?.channel_id ?? dc?.channelId, ''),
-                                thumbnailUrl: coerceString(thumbnailStr, ''),
-                                duration: (dc?.duration_seconds || dc?.duration_formatted) ? {
-                                    totalSeconds: coerceNumber(dc?.duration_seconds, 0),
-                                    formatted: coerceString(dc?.duration_formatted, '')
-                                } : undefined,
-                                viewCount: coerceNumber(dc?.view_count ?? dc?.viewCount, 0),
-                                likeCount: coerceNumber(dc?.like_count ?? dc?.likeCount, 0),
-                                publishedAt: coerceString(dc?.published_at ?? dc?.publishedAt, '')
-                            }}
-                            <VideoEmbedFullscreen
-                                url={videoUrl}
-                                title={videoTitle}
-                                videoId={videoId}
-                                embedId={embedFullscreenData.embedId}
-                                restoreFromPip={restoreFromPip}
-                                onClose={handleCloseEmbedFullscreen}
-                                {hasPreviousEmbed}
-                                {hasNextEmbed}
-                                onNavigatePrevious={handleNavigatePreviousEmbed}
-                                 onNavigateNext={handleNavigateNextEmbed}
-                                 navigateDirection={embedNavigateDirection}
-                                 showChatButton={showChatButtonInFullscreen}
-                                 onShowChat={handleShowChat}
-                                 metadata={videoMetadata}
-                             />
-                        {/await}
-                    {/if}
-                {:else if embedFullscreenData.embedType === 'images-image-result'}
-                    <!-- Image Result Fullscreen (child embed from [!](embed:ref) large preview) -->
-                    <ImageResultEmbedFullscreen
-                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined}
-                        sourceDomain={typeof embedFullscreenData.decodedContent?.source_domain === 'string' ? embedFullscreenData.decodedContent.source_domain : undefined}
-                        sourcePageUrl={typeof embedFullscreenData.decodedContent?.source_page_url === 'string' ? embedFullscreenData.decodedContent.source_page_url : undefined}
-                        imageUrl={typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : undefined}
-                        thumbnailUrl={typeof embedFullscreenData.decodedContent?.thumbnail_url === 'string' ? embedFullscreenData.decodedContent.thumbnail_url : undefined}
-                        faviconUrl={typeof embedFullscreenData.decodedContent?.favicon_url === 'string' ? embedFullscreenData.decodedContent.favicon_url : undefined}
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                    />
-                {:else if embedFullscreenData.embedType === 'maps-place'}
-                    <!-- Maps Place Fullscreen (child embed of a Maps Search result) -->
-                    <!-- Data comes from the place's decodedContent (displayName, formattedAddress, location, etc.) -->
-                    <MapLocationEmbedFullscreen
-                        displayName={typeof embedFullscreenData.decodedContent?.displayName === 'string' ? embedFullscreenData.decodedContent.displayName : (typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined)}
-                        formattedAddress={typeof embedFullscreenData.decodedContent?.formattedAddress === 'string' ? embedFullscreenData.decodedContent.formattedAddress : (typeof embedFullscreenData.decodedContent?.formatted_address === 'string' ? embedFullscreenData.decodedContent.formatted_address : undefined)}
-                        lat={typeof (embedFullscreenData.decodedContent?.location as Record<string, unknown> | undefined)?.latitude === 'number' ? (embedFullscreenData.decodedContent?.location as Record<string, unknown>).latitude as number : undefined}
-                        lon={typeof (embedFullscreenData.decodedContent?.location as Record<string, unknown> | undefined)?.longitude === 'number' ? (embedFullscreenData.decodedContent?.location as Record<string, unknown>).longitude as number : undefined}
-                        rating={typeof embedFullscreenData.decodedContent?.rating === 'number' ? embedFullscreenData.decodedContent.rating : undefined}
-                        userRatingCount={typeof embedFullscreenData.decodedContent?.userRatingCount === 'number' ? embedFullscreenData.decodedContent.userRatingCount : undefined}
-                        placeType={typeof embedFullscreenData.decodedContent?.place_type === 'string' ? embedFullscreenData.decodedContent.place_type : undefined}
-                        websiteUri={typeof embedFullscreenData.decodedContent?.websiteUri === 'string' ? embedFullscreenData.decodedContent.websiteUri : undefined}
-                        placeId={typeof embedFullscreenData.decodedContent?.placeId === 'string' ? embedFullscreenData.decodedContent.placeId : undefined}
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                        navigateDirection={embedNavigateDirection}
-                        showChatButton={showChatButtonInFullscreen}
-                        onShowChat={handleShowChat}
-                    />
-                {:else if embedFullscreenData.embedType === 'maps'}
-                    <!-- Maps Location Fullscreen (user-inserted via MapsView picker) -->
-                    <!-- Coordinates / address come from decodedContent (EmbedStore TOON) or attrs fallback.
-                         The attrs fallback is used when the EmbedStore lookup fails (e.g. embed not yet synced). -->
-                    <MapsLocationEmbedFullscreen
-                        lat={typeof embedFullscreenData.decodedContent?.lat === 'number' ? embedFullscreenData.decodedContent.lat : (typeof embedFullscreenData.attrs?.lat === 'number' ? embedFullscreenData.attrs.lat : undefined)}
-                        lon={typeof embedFullscreenData.decodedContent?.lon === 'number' ? embedFullscreenData.decodedContent.lon : (typeof embedFullscreenData.attrs?.lon === 'number' ? embedFullscreenData.attrs.lon : undefined)}
-                        name={typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : (typeof embedFullscreenData.attrs?.name === 'string' ? embedFullscreenData.attrs.name : undefined)}
-                        address={typeof embedFullscreenData.decodedContent?.address === 'string' ? embedFullscreenData.decodedContent.address : (typeof embedFullscreenData.attrs?.address === 'string' ? embedFullscreenData.attrs.address : undefined)}
-                        locationType={typeof embedFullscreenData.decodedContent?.location_type === 'string' ? embedFullscreenData.decodedContent.location_type : (typeof embedFullscreenData.attrs?.locationType === 'string' ? embedFullscreenData.attrs.locationType : undefined)}
-                        status="finished"
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                        navigateDirection={embedNavigateDirection}
-                        showChatButton={showChatButtonInFullscreen}
-                        onShowChat={handleShowChat}
-                    />
-                {:else if embedFullscreenData.embedType === 'math-plot'}
-                    <!-- Math Plot Fullscreen (direct-type embed rendered from ```plot ... ``` blocks) -->
-                    <MathPlotEmbedFullscreen
-                        plotSpec={typeof embedFullscreenData.decodedContent?.plot_spec === 'string' ? embedFullscreenData.decodedContent.plot_spec : (typeof embedFullscreenData.decodedContent?.['expression'] === 'string' ? embedFullscreenData.decodedContent['expression'] as string : (typeof embedFullscreenData.attrs?.code === 'string' ? embedFullscreenData.attrs.code : ''))}
-                        title={typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : (typeof embedFullscreenData.attrs?.title === 'string' ? embedFullscreenData.attrs.title : 'Function Plot')}
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                        navigateDirection={embedNavigateDirection}
-                        showChatButton={showChatButtonInFullscreen}
-                        onShowChat={handleShowChat}
-                    />
-                {:else if embedFullscreenData.embedType === 'mail-email'}
-                    <!-- Mail Fullscreen (direct-type embed rendered from ```email ... ``` blocks) -->
-                    <MailEmbedFullscreen
-                        receiver={coerceString(embedFullscreenData.decodedContent?.receiver, '')}
-                        subject={coerceString(embedFullscreenData.decodedContent?.subject, '')}
-                        content={coerceString(embedFullscreenData.decodedContent?.content, '')}
-                        footer={coerceString(embedFullscreenData.decodedContent?.footer, '')}
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                        navigateDirection={embedNavigateDirection}
-                        showChatButton={showChatButtonInFullscreen}
-                        onShowChat={handleShowChat}
-                        piiMappings={cumulativePIIMappingsArray}
-                        piiRevealed={piiRevealed}
-                    />
-                {:else if embedFullscreenData.embedType === 'events-event'}
-                    <!-- Single Event Fullscreen (child embed from [!](embed:ref) large preview) -->
-                    <!-- Reconstructs EventResult from decodedContent to render EventEmbedFullscreen directly -->
-                    <EventEmbedFullscreen
-                        embedId={embedFullscreenData.embedId}
-                        event={{
-                            embed_id: embedFullscreenData.embedId ?? '',
-                            id: typeof embedFullscreenData.decodedContent?.id === 'string' ? embedFullscreenData.decodedContent.id : undefined,
-                            provider: typeof embedFullscreenData.decodedContent?.provider === 'string' ? embedFullscreenData.decodedContent.provider : undefined,
-                            title: typeof embedFullscreenData.decodedContent?.title === 'string' ? embedFullscreenData.decodedContent.title : undefined,
-                            description: typeof embedFullscreenData.decodedContent?.description === 'string' ? embedFullscreenData.decodedContent.description : undefined,
-                            url: typeof embedFullscreenData.decodedContent?.url === 'string' ? embedFullscreenData.decodedContent.url : undefined,
-                            date_start: typeof embedFullscreenData.decodedContent?.date_start === 'string' ? embedFullscreenData.decodedContent.date_start : undefined,
-                            date_end: typeof embedFullscreenData.decodedContent?.date_end === 'string' ? embedFullscreenData.decodedContent.date_end : undefined,
-                            timezone: typeof embedFullscreenData.decodedContent?.timezone === 'string' ? embedFullscreenData.decodedContent.timezone : undefined,
-                            event_type: typeof embedFullscreenData.decodedContent?.event_type === 'string' ? embedFullscreenData.decodedContent.event_type : undefined,
-                            venue: embedFullscreenData.decodedContent?.venue as Record<string, unknown> | undefined,
-                            organizer: embedFullscreenData.decodedContent?.organizer as Record<string, unknown> | undefined,
-                            rsvp_count: typeof embedFullscreenData.decodedContent?.rsvp_count === 'number' ? embedFullscreenData.decodedContent.rsvp_count : undefined,
-                            is_paid: typeof embedFullscreenData.decodedContent?.is_paid === 'boolean' ? embedFullscreenData.decodedContent.is_paid : undefined,
-                            fee: embedFullscreenData.decodedContent?.fee as Record<string, unknown> | undefined,
-                            image_url: typeof embedFullscreenData.decodedContent?.image_url === 'string' ? embedFullscreenData.decodedContent.image_url : null,
-                        }}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                    />
-                {:else if embedFullscreenData.embedType === 'travel-connection'}
-                    <!-- Single Travel Connection Fullscreen (child embed from [!](embed:ref) large preview) -->
-                    <!-- Reconstructs ConnectionData from decodedContent to render TravelConnectionEmbedFullscreen directly -->
-                    <TravelConnectionEmbedFullscreen
-                        connection={{
-                            embed_id: embedFullscreenData.embedId ?? '',
-                            type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
-                            transport_method: typeof embedFullscreenData.decodedContent?.transport_method === 'string' ? embedFullscreenData.decodedContent.transport_method : undefined,
-                            trip_type: typeof embedFullscreenData.decodedContent?.trip_type === 'string' ? embedFullscreenData.decodedContent.trip_type : undefined,
-                            total_price: typeof embedFullscreenData.decodedContent?.total_price === 'string' ? embedFullscreenData.decodedContent.total_price : (typeof embedFullscreenData.decodedContent?.price === 'string' ? embedFullscreenData.decodedContent.price : undefined),
-                            currency: typeof embedFullscreenData.decodedContent?.currency === 'string' ? embedFullscreenData.decodedContent.currency : undefined,
-                            bookable_seats: typeof embedFullscreenData.decodedContent?.bookable_seats === 'number' ? embedFullscreenData.decodedContent.bookable_seats : undefined,
-                            last_ticketing_date: typeof embedFullscreenData.decodedContent?.last_ticketing_date === 'string' ? embedFullscreenData.decodedContent.last_ticketing_date : undefined,
-                            booking_url: typeof embedFullscreenData.decodedContent?.booking_url === 'string' ? embedFullscreenData.decodedContent.booking_url : undefined,
-                            booking_provider: typeof embedFullscreenData.decodedContent?.booking_provider === 'string' ? embedFullscreenData.decodedContent.booking_provider : undefined,
-                            booking_token: typeof embedFullscreenData.decodedContent?.booking_token === 'string' ? embedFullscreenData.decodedContent.booking_token : undefined,
-                            booking_context: embedFullscreenData.decodedContent?.booking_context as Record<string, string> | undefined,
-                            origin: typeof embedFullscreenData.decodedContent?.origin === 'string' ? embedFullscreenData.decodedContent.origin : undefined,
-                            destination: typeof embedFullscreenData.decodedContent?.destination === 'string' ? embedFullscreenData.decodedContent.destination : undefined,
-                            departure: typeof embedFullscreenData.decodedContent?.departure === 'string' ? embedFullscreenData.decodedContent.departure : undefined,
-                            arrival: typeof embedFullscreenData.decodedContent?.arrival === 'string' ? embedFullscreenData.decodedContent.arrival : undefined,
-                            duration: typeof embedFullscreenData.decodedContent?.duration === 'string' ? embedFullscreenData.decodedContent.duration : undefined,
-                            stops: typeof embedFullscreenData.decodedContent?.stops === 'number' ? embedFullscreenData.decodedContent.stops : undefined,
-                            carriers: Array.isArray(embedFullscreenData.decodedContent?.carriers) ? embedFullscreenData.decodedContent.carriers as string[] : undefined,
-                            carrier_codes: Array.isArray(embedFullscreenData.decodedContent?.carrier_codes) ? embedFullscreenData.decodedContent.carrier_codes as string[] : undefined,
-                            hash: typeof embedFullscreenData.decodedContent?.hash === 'string' ? embedFullscreenData.decodedContent.hash : undefined,
-                            legs: Array.isArray(embedFullscreenData.decodedContent?.legs) ? embedFullscreenData.decodedContent.legs as never[] : undefined,
-                            airline_logo: typeof embedFullscreenData.decodedContent?.airline_logo === 'string' ? embedFullscreenData.decodedContent.airline_logo : undefined,
-                            co2_kg: typeof embedFullscreenData.decodedContent?.co2_kg === 'number' ? embedFullscreenData.decodedContent.co2_kg : undefined,
-                            co2_typical_kg: typeof embedFullscreenData.decodedContent?.co2_typical_kg === 'number' ? embedFullscreenData.decodedContent.co2_typical_kg : undefined,
-                            co2_difference_percent: typeof embedFullscreenData.decodedContent?.co2_difference_percent === 'number' ? embedFullscreenData.decodedContent.co2_difference_percent : undefined,
-                        }}
-                        embedId={embedFullscreenData.embedId}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                    />
-                {:else if embedFullscreenData.embedType === 'travel-stay'}
-                    <!-- Single Travel Stay Fullscreen (child embed from [!](embed:ref) large preview) -->
-                    <!-- Reconstructs StayData from decodedContent to render TravelStayEmbedFullscreen directly -->
-                    <TravelStayEmbedFullscreen
-                        embedId={embedFullscreenData.embedId}
-                        stay={{
-                            type: typeof embedFullscreenData.decodedContent?.type === 'string' ? embedFullscreenData.decodedContent.type : undefined,
-                            name: typeof embedFullscreenData.decodedContent?.name === 'string' ? embedFullscreenData.decodedContent.name : undefined,
-                            description: typeof embedFullscreenData.decodedContent?.description === 'string' ? embedFullscreenData.decodedContent.description : undefined,
-                            property_type: typeof embedFullscreenData.decodedContent?.property_type === 'string' ? embedFullscreenData.decodedContent.property_type : undefined,
-                            link: typeof embedFullscreenData.decodedContent?.link === 'string' ? embedFullscreenData.decodedContent.link : undefined,
-                            property_token: typeof embedFullscreenData.decodedContent?.property_token === 'string' ? embedFullscreenData.decodedContent.property_token : undefined,
-                            gps_coordinates: embedFullscreenData.decodedContent?.gps_coordinates as { latitude: number; longitude: number } | undefined,
-                            hotel_class: typeof embedFullscreenData.decodedContent?.hotel_class === 'number' ? embedFullscreenData.decodedContent.hotel_class : undefined,
-                            overall_rating: typeof embedFullscreenData.decodedContent?.overall_rating === 'number' ? embedFullscreenData.decodedContent.overall_rating : undefined,
-                            reviews: typeof embedFullscreenData.decodedContent?.reviews === 'number' ? embedFullscreenData.decodedContent.reviews : undefined,
-                            rate_per_night: typeof embedFullscreenData.decodedContent?.rate_per_night === 'string' ? embedFullscreenData.decodedContent.rate_per_night : undefined,
-                            extracted_rate_per_night: typeof embedFullscreenData.decodedContent?.extracted_rate_per_night === 'number' ? embedFullscreenData.decodedContent.extracted_rate_per_night : undefined,
-                            total_rate: typeof embedFullscreenData.decodedContent?.total_rate === 'string' ? embedFullscreenData.decodedContent.total_rate : undefined,
-                            extracted_total_rate: typeof embedFullscreenData.decodedContent?.extracted_total_rate === 'number' ? embedFullscreenData.decodedContent.extracted_total_rate : undefined,
-                            currency: typeof embedFullscreenData.decodedContent?.currency === 'string' ? embedFullscreenData.decodedContent.currency : undefined,
-                            check_in_time: typeof embedFullscreenData.decodedContent?.check_in_time === 'string' ? embedFullscreenData.decodedContent.check_in_time : undefined,
-                            check_out_time: typeof embedFullscreenData.decodedContent?.check_out_time === 'string' ? embedFullscreenData.decodedContent.check_out_time : undefined,
-                            amenities: Array.isArray(embedFullscreenData.decodedContent?.amenities) ? embedFullscreenData.decodedContent.amenities as string[] : undefined,
-                            images: Array.isArray(embedFullscreenData.decodedContent?.images) ? embedFullscreenData.decodedContent.images as never[] : undefined,
-                            thumbnail: typeof embedFullscreenData.decodedContent?.thumbnail === 'string' ? embedFullscreenData.decodedContent.thumbnail : undefined,
-                            nearby_places: Array.isArray(embedFullscreenData.decodedContent?.nearby_places) ? embedFullscreenData.decodedContent.nearby_places as never[] : undefined,
-                            eco_certified: typeof embedFullscreenData.decodedContent?.eco_certified === 'boolean' ? embedFullscreenData.decodedContent.eco_certified : undefined,
-                            free_cancellation: typeof embedFullscreenData.decodedContent?.free_cancellation === 'boolean' ? embedFullscreenData.decodedContent.free_cancellation : undefined,
-                        }}
-                        onClose={handleCloseEmbedFullscreen}
-                        {hasPreviousEmbed}
-                        {hasNextEmbed}
-                        onNavigatePrevious={handleNavigatePreviousEmbed}
-                        onNavigateNext={handleNavigateNextEmbed}
-                    />
+                        {/if}
+                    {/await}
                 {:else}
-                    <!-- Fallback for unknown embed types -->
+                    <!-- Fallback for unknown/unregistered embed types -->
                     <div class="embed-fullscreen-fallback">
                         <div class="fullscreen-header">
                             <button onclick={handleCloseEmbedFullscreen}>Close</button>

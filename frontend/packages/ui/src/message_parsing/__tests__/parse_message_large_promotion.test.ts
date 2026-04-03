@@ -51,6 +51,82 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[1].attrs.carouselTotal).toBe(2);
   });
 
+  it("groups [!](embed:ref) links separated by blank line into carousel", () => {
+    // When the LLM writes two [!](embed:ref) on separate lines with a blank
+    // line between them, the preprocessor inserts an <!-- EMPTY_PARAGRAPH -->
+    // which becomes an empty paragraph.  Phase B must skip these so the
+    // large-preview nodes form a single carousel run.
+    const markdown = [
+      "[!](embed:ref-alpha)",
+      "",
+      "[!](embed:ref-beta)",
+      "",
+      "[!](embed:ref-gamma)",
+    ].join("\n");
+
+    const doc = parseAssistant(markdown);
+    const largeNodes = (doc.content || []).filter(
+      (node: any) => node.type === "embedPreviewLarge",
+    );
+
+    expect(largeNodes).toHaveLength(3);
+    expect(largeNodes[0].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[1].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[2].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[0].attrs.carouselIndex).toBe(0);
+    expect(largeNodes[1].attrs.carouselIndex).toBe(1);
+    expect(largeNodes[2].attrs.carouselIndex).toBe(2);
+    expect(largeNodes[1].attrs.runRef).toBe("ref-alpha");
+  });
+
+  it("groups [!](embed:ref) links on consecutive lines (no blank) into carousel", () => {
+    // Single newlines — markdown-it keeps them in one paragraph with breaks.
+    // Phase A must filter out hardBreak/softBreak nodes to hoist properly.
+    const markdown = [
+      "[!](embed:ref-one)",
+      "[!](embed:ref-two)",
+    ].join("\n");
+
+    const doc = parseAssistant(markdown);
+    const largeNodes = (doc.content || []).filter(
+      (node: any) => node.type === "embedPreviewLarge",
+    );
+
+    expect(largeNodes).toHaveLength(2);
+    expect(largeNodes[0].attrs.carouselTotal).toBe(2);
+    expect(largeNodes[1].attrs.carouselTotal).toBe(2);
+  });
+
+  it("hoists trailing [!](embed:ref) from list items with text and groups into carousel", () => {
+    // Real-world pattern: LLM writes a bullet list where each item has text
+    // followed by one or more [!](embed:ref) links on separate lines.
+    // The embeds must be split out of the paragraph and grouped.
+    const markdown = [
+      "*   **Acquisition:** OpenAI has acquired TBPN.",
+      "    [!](embed:cnbc.com-qDe)",
+      "    [!](embed:nytimes.com-BVV)",
+      "*   **Sora Shutdown:** OpenAI shut down Sora.",
+    ].join("\n");
+
+    const doc = parseAssistant(markdown);
+
+    function findLarge(nodes: any[]): any[] {
+      const out: any[] = [];
+      for (const node of nodes || []) {
+        if (node?.type === "embedPreviewLarge") out.push(node);
+        if (Array.isArray(node?.content)) out.push(...findLarge(node.content));
+      }
+      return out;
+    }
+
+    const largeNodes = findLarge(doc.content || []);
+    expect(largeNodes).toHaveLength(2);
+    expect(largeNodes[0].attrs.embedRef).toBe("cnbc.com-qDe");
+    expect(largeNodes[1].attrs.embedRef).toBe("nytimes.com-BVV");
+    expect(largeNodes[0].attrs.carouselTotal).toBe(2);
+    expect(largeNodes[1].attrs.carouselTotal).toBe(2);
+  });
+
   it("keeps multi code blocks as horizontal grouped embeds", () => {
     const markdown = [
       "```ts",

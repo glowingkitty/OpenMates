@@ -33,7 +33,7 @@ class VideoSearchRequestItem(BaseModel):
     """A single video search request."""
 
     query: str = Field(description="Search query string (e.g. 'Python tutorial', 'funny cats').")
-    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    count: int = Field(default=6, description="Number of results for this request (max 20).")
     country: Optional[str] = Field(
         default=None,
         description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
@@ -513,7 +513,7 @@ class SearchSkill(BaseSkill):
             # Sort by view count (highest first)
             enriched_videos.sort(key=lambda x: x['view_count'], reverse=True)
             
-            # Take top req_count videos (default 10) after sorting by view count
+            # Take top req_count videos (default 6) after sorting by view count
             # We always search for 50 videos from Brave, but return only req_count after sorting
             result_count = req_count if req_count else 10
             top_videos = enriched_videos[:result_count]

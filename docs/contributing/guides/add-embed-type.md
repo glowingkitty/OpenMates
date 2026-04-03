@@ -846,13 +846,27 @@ private render{SkillName}Component(
 
 ---
 
-### Step 10 — Register the fullscreen in `ActiveChat.svelte`
+### Step 10 — Fullscreen registration (automatic — no ActiveChat changes needed)
 
-The fullscreen is opened when the preview fires an `embedfullscreen` DOM event. `ActiveChat.svelte` listens for these events and mounts the correct fullscreen component.
+Fullscreen routing is **data-driven** via `embedFullscreenResolver.ts` and `embedRegistry.generated.ts`. When your preview fires an `embedfullscreen` DOM event, `ActiveChat.svelte` automatically:
 
-Open `frontend/apps/web_app/src/routes/(authenticated)/chat/[chatId]/ActiveChat.svelte` (or wherever fullscreen dispatch is handled) and add a case for your embed type. Follow the existing pattern — search for `embedType === 'app-skill-use'` to find the dispatch handler, then add your case alongside it.
+1. Calls `resolveRegistryKey()` to map `app_id + skill_id` → `"app:{appId}:{skillId}"` registry key
+2. Looks up the component path in `EMBED_FULLSCREEN_COMPONENTS` (auto-generated from `app.yml`)
+3. Lazy-loads your fullscreen component via `loadFullscreenComponent()`
+4. Renders it with a standardized `data: EmbedFullscreenRawData` prop
 
-> The exact mechanism varies — check the current `ActiveChat.svelte` implementation for the handler that processes `embedfullscreen` events. Mirror the pattern used by the nearest existing skill (e.g., `news` or `shopping`).
+**You do NOT need to:**
+- Add branches to `ActiveChat.svelte`
+- Manually extract fields and pass individual props
+- Register fullscreen cases by hand
+
+**Your fullscreen component must:**
+- Accept `data: EmbedFullscreenRawData` as a required prop (import from `types/embedFullscreen.ts`)
+- Extract its own fields from `data.decodedContent` using `$derived()` with type guards
+- Use `UnifiedEmbedFullscreen` as the base wrapper
+- Be the default export of `{SkillName}EmbedFullscreen.svelte`
+
+> Architecture: `docs/architecture/frontend/data-driven-embed-fullscreen-routing.md`
 
 ---
 
@@ -977,8 +991,7 @@ Use this checklist when adding any new app-skill-use embed. Every item must be c
 | `frontend/packages/ui/src/components/EmbedHeader.svelte`                                              | `:global(.skill-icon[...])` CSS block                              | Yes               |
 | `frontend/packages/ui/src/i18n/sources/embeds.yml`                                                    | Skill label for all 20 locales                                     | Yes               |
 | `frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts` | Import + routing block + render method                             | Yes               |
-| `frontend/apps/web_app/src/routes/(authenticated)/chat/[chatId]/ActiveChat.svelte`                    | Fullscreen dispatch case for `app_id` + `skill_id`                 | Yes               |
-| `frontend/packages/ui/src/data/embedRegistry.generated.ts`                                            | Entry in `EMBED_RENDERER_MAP` (auto-generated — verify it's there) | Yes               |
+| `frontend/packages/ui/src/data/embedRegistry.generated.ts`                                            | Entry in `EMBED_FULLSCREEN_COMPONENTS` (auto-generated from `app.yml` — verify it's there) | Yes (auto)        |
 
 ### If your skill produces groupable child embeds
 

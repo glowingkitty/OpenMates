@@ -301,7 +301,7 @@ class EmailTemplateService:
                 logger.debug("Using Mailjet as email provider (Brevo not available)")
             else:
                 logger.error("Cannot send email: No email provider credentials found (Brevo or Mailjet)")
-            return False
+                return False
         try:
             # Initialize default context if needed
             if context is None:

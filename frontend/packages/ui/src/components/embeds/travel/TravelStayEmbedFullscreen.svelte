@@ -18,18 +18,20 @@
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
-  
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
   interface NearbyPlace {
     name?: string;
     transportations?: Array<{ type?: string; duration?: string }>;
   }
-  
+
   interface StayImage {
     thumbnail?: string;
     original_image?: string;
   }
-  
+
   interface StayData {
     type?: string;
     name?: string;
@@ -56,9 +58,10 @@
     free_cancellation?: boolean;
     hash?: string;
   }
-  
+
   interface Props {
-    stay: StayData;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Embed ID forwarded to UnifiedEmbedFullscreen for the share handler */
     embedId?: string;
     onClose: () => void;
@@ -67,9 +70,9 @@
     onNavigatePrevious?: () => void;
     onNavigateNext?: () => void;
   }
-  
+
   let {
-    stay,
+    data,
     embedId,
     onClose,
     hasPreviousEmbed = false,
@@ -77,6 +80,37 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  // Build the stay object from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let rawGps = $derived(dc.gps_coordinates as Record<string, unknown> | undefined);
+  let stay: StayData = {
+    type: typeof dc.type === 'string' ? dc.type : undefined,
+    name: typeof dc.name === 'string' ? dc.name : undefined,
+    description: typeof dc.description === 'string' ? dc.description : undefined,
+    property_type: typeof dc.property_type === 'string' ? dc.property_type : undefined,
+    link: typeof dc.link === 'string' ? dc.link : undefined,
+    property_token: typeof dc.property_token === 'string' ? dc.property_token : undefined,
+    gps_coordinates: (rawGps && typeof rawGps === 'object')
+      ? { latitude: typeof rawGps.latitude === 'number' ? rawGps.latitude : undefined, longitude: typeof rawGps.longitude === 'number' ? rawGps.longitude : undefined }
+      : undefined,
+    hotel_class: typeof dc.hotel_class === 'number' ? dc.hotel_class : undefined,
+    overall_rating: typeof dc.overall_rating === 'number' ? dc.overall_rating : undefined,
+    reviews: typeof dc.reviews === 'number' ? dc.reviews : undefined,
+    rate_per_night: typeof dc.rate_per_night === 'string' ? dc.rate_per_night : undefined,
+    extracted_rate_per_night: typeof dc.extracted_rate_per_night === 'number' ? dc.extracted_rate_per_night : undefined,
+    total_rate: typeof dc.total_rate === 'string' ? dc.total_rate : undefined,
+    extracted_total_rate: typeof dc.extracted_total_rate === 'number' ? dc.extracted_total_rate : undefined,
+    currency: typeof dc.currency === 'string' ? dc.currency : undefined,
+    check_in_time: typeof dc.check_in_time === 'string' ? dc.check_in_time : undefined,
+    check_out_time: typeof dc.check_out_time === 'string' ? dc.check_out_time : undefined,
+    amenities: Array.isArray(dc.amenities) ? dc.amenities as string[] : undefined,
+    images: Array.isArray(dc.images) ? dc.images as StayImage[] : undefined,
+    thumbnail: typeof dc.thumbnail === 'string' ? dc.thumbnail : undefined,
+    nearby_places: Array.isArray(dc.nearby_places) ? dc.nearby_places as NearbyPlace[] : undefined,
+    eco_certified: typeof dc.eco_certified === 'boolean' ? dc.eco_certified : undefined,
+    free_cancellation: typeof dc.free_cancellation === 'boolean' ? dc.free_cancellation : undefined,
+  };
 
   // Defensive: stay may be undefined during async component loading in dev preview
   type MaybeStay = StayData | undefined;
@@ -111,17 +145,18 @@
     mapCenter ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: name }] : []
   );
 
-  // Image gallery
+  // Image gallery — all external URLs must be proxied for privacy
   let allImages = $derived.by(() => {
     const s = stay as MaybeStay;
     if (!s?.images || s.images.length === 0) {
-      return s?.thumbnail ? [s.thumbnail] : [];
+      return s?.thumbnail ? [proxyImage(s.thumbnail, MAX_WIDTH_HEADER_IMAGE)] : [];
     }
     return s.images
       .map(img => img.original_image || img.thumbnail)
-      .filter((url): url is string => !!url);
+      .filter((url): url is string => !!url)
+      .map(url => proxyImage(url, MAX_WIDTH_HEADER_IMAGE));
   });
-  
+
   let currentImageIndex = $state(0);
   let currentImage = $derived(allImages.length > 0 ? allImages[currentImageIndex] : undefined);
   

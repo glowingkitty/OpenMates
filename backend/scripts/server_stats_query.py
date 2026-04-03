@@ -5,6 +5,9 @@ scripts/_server_stats_query.py
 Queries server stats from Directus and Redis for the daily meeting health report.
 Runs inside Docker via: docker exec api python3 /app/scripts/_server_stats_query.py
 
+Supports --prod flag to query production stats via the Admin Debug API endpoint
+(/v1/admin/debug/server-stats) instead of local Directus.
+
 Outputs structured text to stdout with sections:
   - User Growth (registrations, signups, total users)
   - Engagement (messages, chats, page loads, unique visits)
@@ -121,6 +124,25 @@ async def query_stats() -> str:
     else:
         lines.append(f"(No server stats found for {yesterday_str})")
 
+    # ── Newsletter Subscribers ───────────────────────────────────────────────
+    lines.append("")
+    lines.append("**Newsletter**")
+    try:
+        collection_url = f"{directus.base_url}/items/newsletter_subscribers"
+        params = {
+            "limit": 1,
+            "meta": "filter_count",
+            "filter[confirmed_at][_nnull]": "true",
+        }
+        resp = await directus._make_api_request("GET", collection_url, params=params)
+        if resp.status_code == 200:
+            nl_count = _int(resp.json().get("meta", {}).get("filter_count"))
+        else:
+            nl_count = 0
+        lines.append(f"- Confirmed subscribers: {nl_count:,}")
+    except Exception as e:
+        lines.append(f"- Confirmed subscribers: ERROR — {e}")
+
     # ── Web Analytics (yesterday) ────────────────────────────────────────────
     lines.append("")
     try:
@@ -222,10 +244,124 @@ async def query_stats() -> str:
     return "\n".join(lines)
 
 
+async def _query_prod_stats(as_json: bool = False) -> None:
+    """Query production server stats via Admin Debug API.
+
+    Uses the same vault-based API key and prod endpoint pattern as debug_logs.py.
+    """
+    import aiohttp
+
+    sys.path.insert(0, "/app/backend/scripts")
+    from debug_utils import get_api_key_from_vault
+
+    # Same constant as debug_logs.py — production Admin Debug API base URL
+    PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
+
+    api_key = await get_api_key_from_vault()
+    if not api_key:
+        print("Cannot query production: no admin API key in Vault", file=sys.stderr)
+        sys.exit(1)
+
+    url = f"{PROD_API_BASE}/server-stats"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    timeout = aiohttp.ClientTimeout(total=60)
+
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    print(f"Admin API error {resp.status}: {text[:300]}", file=sys.stderr)
+                    sys.exit(1)
+                data = await resp.json()
+    except Exception as e:
+        print(f"Failed to reach production Admin Debug API: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if as_json:
+        print(json.dumps(data, indent=2))
+        return
+
+    _print_prod_stats_text(data.get("sections", {}), data.get("date", "?"))
+
+
+def _print_prod_stats_text(sections: dict, date: str) -> None:
+    """Format production stats response as readable markdown text."""
+    lines = [f"[Production Server Stats — {date}]", ""]
+
+    ug = sections.get("user_growth", {})
+    if "error" not in ug:
+        lines.append("**User Growth**")
+        lines.append(f"- Total registered users: {ug.get('total_users', '?')}")
+        lines.append(f"- New registrations: {ug.get('new_registrations', 0)}")
+        lines.append(f"- Completed signups: {ug.get('completed_signups', 0)}")
+        lines.append("")
+
+    eng = sections.get("engagement", {})
+    if "error" not in eng:
+        lines.append("**Engagement**")
+        lines.append(f"- Messages sent: {eng.get('messages_sent', 0)}")
+        lines.append(f"- Chats created: {eng.get('chats_created', 0)}")
+        lines.append(f"- Embeds created: {eng.get('embeds_created', 0)}")
+        lines.append("")
+
+    rev = sections.get("revenue", {})
+    if "error" not in rev:
+        lines.append("**Revenue**")
+        income = rev.get("income_eur", 0)
+        lines.append(f"- Income: EUR {income:.2f}" if isinstance(income, (int, float)) else f"- Income: EUR {income}")
+        lines.append(f"- Credits sold: {rev.get('credits_sold', 0)} | used: {rev.get('credits_used', 0)}")
+        lines.append(f"- Purchases: {rev.get('purchases', 0)}")
+        lines.append(
+            f"- Subscriptions: {rev.get('active_subscriptions', '?')} active "
+            f"(+{rev.get('subscription_creations', 0)}/-{rev.get('subscription_cancellations', 0)})"
+        )
+        lines.append("")
+
+    ai = sections.get("ai_usage", {})
+    if "error" not in ai:
+        lines.append("**AI Usage**")
+        lines.append(f"- Input tokens: {ai.get('input_tokens', 0):,}")
+        lines.append(f"- Output tokens: {ai.get('output_tokens', 0):,}")
+        lines.append("")
+
+    wa = sections.get("web_analytics", {})
+    if "error" not in wa:
+        lines.append("**Web Analytics**")
+        lines.append(f"- Page loads: {wa.get('page_loads', 0):,}")
+        lines.append(f"- Unique visits: ~{wa.get('unique_visits', 0):,}")
+
+    nl = sections.get("newsletter", {})
+    if "error" not in nl and nl:
+        lines.append("")
+        lines.append("**Newsletter**")
+        lines.append(f"- Confirmed subscribers: {nl.get('confirmed_subscribers', 0):,}")
+
+    dh = sections.get("data_health", {})
+    if "error" not in dh and dh:
+        lines.append("")
+        lines.append("**Data Health**")
+        lines.append(f"- daily_inspiration_defaults: today={dh.get('daily_inspiration_today', '?')}, total={dh.get('daily_inspiration_total', '?')}")
+
+    print("\n".join(lines))
+
+
 def main() -> None:
-    """Entry point."""
-    result = asyncio.run(query_stats())
-    print(result)
+    """Entry point with --prod and --json flags."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Query server stats from Directus")
+    parser.add_argument("--prod", action="store_true",
+                        help="Query production via Admin Debug API instead of local Directus")
+    parser.add_argument("--json", action="store_true", dest="as_json",
+                        help="Output raw JSON (prod mode only)")
+    args = parser.parse_args()
+
+    if args.prod:
+        asyncio.run(_query_prod_stats(as_json=args.as_json))
+    else:
+        result = asyncio.run(query_stats())
+        print(result)
 
 
 if __name__ == "__main__":

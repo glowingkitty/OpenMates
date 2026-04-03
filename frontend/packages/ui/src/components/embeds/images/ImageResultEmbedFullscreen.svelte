@@ -14,20 +14,11 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
-    /** Image title */
-    title?: string;
-    /** Source domain name (e.g., "flickr.com") */
-    sourceDomain?: string;
-    /** Full URL of the source page (for the "View source" link) */
-    sourcePageUrl?: string;
-    /** Full-size proxied image URL (caller must proxy before passing) */
-    imageUrl?: string;
-    /** Proxied thumbnail URL (shown while full-size loads) */
-    thumbnailUrl?: string;
-    /** Favicon URL for the source site */
-    faviconUrl?: string;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Child embed ID */
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -38,12 +29,7 @@
   }
 
   let {
-    title,
-    sourceDomain,
-    sourcePageUrl,
-    imageUrl,
-    thumbnailUrl,
-    faviconUrl: _faviconUrl,
+    data,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -51,6 +37,15 @@
     onNavigateNext,
     onClose
   }: Props = $props();
+
+  // Extract fields from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
+  let sourceDomain = $derived(typeof dc.source_domain === 'string' ? dc.source_domain : undefined);
+  let sourcePageUrl = $derived(typeof dc.source_page_url === 'string' ? dc.source_page_url : undefined);
+  let imageUrl = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
+  let thumbnailUrl = $derived(typeof dc.thumbnail_url === 'string' ? dc.thumbnail_url : undefined);
+  let _faviconUrl = $derived(typeof dc.favicon_url === 'string' ? dc.favicon_url : undefined);
 
   let imageLoaded = $state(false);
   let imageFailed = $state(false);

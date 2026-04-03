@@ -35,17 +35,16 @@
   import { onMount, onDestroy, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Max display length for the filename in the bottom bar title (chars) */
   const MAX_FILENAME_LENGTH = 40;
 
   interface Props {
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Embed ID used to look up screenshot_s3_keys + AES credentials from IndexedDB */
     embedId?: string;
-    /** Original filename of the uploaded PDF (from TipTap node attrs — always available) */
-    filename?: string;
-    /** Number of pages in the PDF (from TipTap node attrs — available after upload) */
-    pageCount?: number | null;
     /** Close handler */
     onClose: () => void;
     /** Whether there is a previous embed to navigate to */
@@ -65,9 +64,8 @@
   }
 
   let {
+    data,
     embedId,
-    filename = 'document.pdf',
-    pageCount,
     onClose,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -77,6 +75,14 @@
     showChatButton = false,
     onShowChat,
   }: Props = $props();
+
+  // -------------------------------------------------------------------------
+  // Extract fields from data.decodedContent
+  // -------------------------------------------------------------------------
+
+  let dc = $derived(data.decodedContent);
+  let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'document.pdf');
+  let pageCount = $derived(typeof dc.page_count === 'number' ? dc.page_count : (typeof dc.page_count === 'string' ? parseInt(dc.page_count, 10) || null : null));
 
   // ---------------------------------------------------------------------------
   // Embed content: screenshot keys + AES credentials for client-side decryption

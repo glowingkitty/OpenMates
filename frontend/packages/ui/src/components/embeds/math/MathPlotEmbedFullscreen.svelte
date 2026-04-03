@@ -14,12 +14,11 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import katex from 'katex';
   import functionPlot from 'function-plot';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
-    /** Raw plot specification string (function definitions) */
-    plotSpec?: string;
-    /** Plot title shown in the banner */
-    title?: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close callback */
     onClose: () => void;
     /** Embed ID for the share button */
@@ -36,8 +35,7 @@
   }
 
   let {
-    plotSpec: plotSpecProp,
-    title: titleProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -48,6 +46,22 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // ── Extract fields from data ────────────────────────────────────────────────
+
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs);
+  let plotSpecProp = $derived(
+      typeof dc.plot_spec === 'string' ? dc.plot_spec
+      : typeof dc.expression === 'string' ? dc.expression
+      : typeof attrs?.code === 'string' ? attrs.code as string
+      : undefined
+    );
+  let titleProp = $derived(
+      typeof dc.title === 'string' ? dc.title
+      : typeof attrs?.title === 'string' ? attrs.title as string
+      : 'Function Plot'
+    );
 
   // ── Local state ─────────────────────────────────────────────────────────────
   let localPlotSpec = $state('');

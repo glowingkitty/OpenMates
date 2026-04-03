@@ -1168,6 +1168,7 @@ async def handle_main_processing(
         preselected_skills = preselected_skills | set(always_include_skills)
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
+
     # When user explicitly requested skills, add a mandatory instruction so the model must use them
     if user_requested_skills_only and preselected_skills:
         mandatory_skills_list = ", ".join(sorted(preselected_skills))
@@ -1805,6 +1806,7 @@ async def handle_main_processing(
     total_skill_calls = 0
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
+    images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     
     # === SKILL CALL DEDUPLICATION ===
@@ -1855,6 +1857,20 @@ async def handle_main_processing(
             )
             iteration_system_prompt = full_system_prompt + budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
+
+        # Inject embed preview instruction when images-search was executed
+        if images_search_executed:
+            image_embed_instruction = (
+                "\n\n--- IMPORTANT: Image Search Results Available ---\n"
+                "You have image search results available. You MUST include them visually in your response "
+                "using large embed preview cards. For each relevant image result, use the syntax:\n"
+                "[!](embed:embed_ref)\n"
+                "Place each image card on its own line. When showing multiple images, place them consecutively "
+                "to create a carousel. Use the embed_ref values from the image search tool results.\n"
+                "--- End Image Search Instructions ---\n"
+            )
+            iteration_system_prompt = iteration_system_prompt + image_embed_instruction
+            logger.info(f"{log_prefix} [IMAGE_SEARCH] Injected embed preview instruction into system prompt")
 
         # === MODEL FALLBACK RETRY LOGIC ===
         # Try models in sequence until one succeeds or all fail
@@ -3343,10 +3359,6 @@ async def handle_main_processing(
                         else:
                             preview_data["results_toon"] = json.dumps({"results": results, "count": len(results)})
                 
-                # Filter results for current LLM inference (removes non-essential fields to reduce tokens)
-                # Full results are kept in preview_data for UI rendering and will be stored in chat history
-                filtered_results = _filter_skill_results_for_llm(results, ignore_fields_for_inference) if not is_async_skill else []
-
                 # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
                 # CRITICAL: Slugs are generated HERE (once) so that:
                 #   1. The LLM sees them in the tool result → can write [text](embed:ref) inline refs
@@ -3397,6 +3409,15 @@ async def handle_main_processing(
                 else:
                     results_with_refs = results
 
+                # Filter results WITH embed_refs for current LLM inference
+                # Removes non-essential fields (URLs, thumbnails, etc.) to reduce noise
+                # and make embed_ref more prominent. Full results are already stored in
+                # preview_data["results_toon"] for UI rendering.
+                if ignore_fields_for_inference and not is_async_skill:
+                    filtered_results_with_refs = _filter_skill_results_for_llm(results_with_refs, ignore_fields_for_inference)
+                else:
+                    filtered_results_with_refs = results_with_refs
+
                 # CRITICAL: Store FULL results (not filtered) in chat history for persistence
                 # This ensures all fields from Brave search (page_age, profile.name, url, etc.) are available
                 # for future LLM calls and UI rendering. The filtered version is only used for the current LLM call.
@@ -3437,37 +3458,37 @@ async def handle_main_processing(
                             "its domain-suffix, or the random code as display text."
                         )
 
-                        if len(results_with_refs) == 1:
-                            # Single result - flatten and encode full result as TOON for chat history
-                            flattened_result = _flatten_for_toon_tabular(results_with_refs[0])
+                        if len(filtered_results_with_refs) == 1:
+                            # Single result - flatten and encode filtered result as TOON for LLM inference
+                            flattened_result = _flatten_for_toon_tabular(filtered_results_with_refs[0])
                             if _sq_hint:
                                 flattened_result["source_quote_hint"] = _sq_hint
                             flattened_result["embed_ref_hint"] = _ref_hint
                             tool_result_content_str = encode(flattened_result)
                         else:
-                            # Multiple results - flatten each result, then combine and encode as TOON
+                            # Multiple results - flatten each filtered result, then combine and encode as TOON
                             # Flattening enables TOON to use tabular format for uniform objects
-                            flattened_results = [_flatten_for_toon_tabular(result) for result in results_with_refs]
-                            toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(results_with_refs)}
+                            flattened_results = [_flatten_for_toon_tabular(result) for result in filtered_results_with_refs]
+                            toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(filtered_results_with_refs)}
                             if _sq_hint:
                                 toon_wrapper["source_quote_hint"] = _sq_hint
                             toon_wrapper["embed_ref_hint"] = _ref_hint
                             tool_result_content_str = encode(toon_wrapper)
-                        
-                        logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
-                        
+
+                        logger.debug(f"{log_prefix} TOON conversion (LLM inference) length={len(tool_result_content_str)} chars")
+
                         logger.debug(
                             f"{log_prefix} Skill '{tool_name}' executed successfully, returned {len(results)} result(s). "
-                            f"Full results stored in chat history (all fields preserved). "
-                            f"Filtered {len(filtered_results)} result(s) used for current LLM call (ignored fields: {ignore_fields_for_inference or 'none'})"
+                            f"Full results in preview_data (all fields preserved). "
+                            f"Filtered to {len(filtered_results_with_refs)} result(s) for LLM call (ignored fields: {ignore_fields_for_inference or 'none'})"
                         )
                     except Exception as e:
-                        # Fallback to JSON if TOON encoding fails
+                        # Fallback to JSON if TOON encoding fails — still use filtered results
                         logger.warning(f"{log_prefix} TOON encoding failed for skill '{tool_name}', falling back to JSON: {e}")
-                        if len(results) == 1:
-                            tool_result_content_str = json.dumps(results[0])
+                        if len(filtered_results_with_refs) == 1:
+                            tool_result_content_str = json.dumps(filtered_results_with_refs[0])
                         else:
-                            tool_result_content_str = json.dumps({"results": results, "count": len(results)})
+                            tool_result_content_str = json.dumps({"results": filtered_results_with_refs, "count": len(filtered_results_with_refs)})
                 
                 # Calculate and charge credits for skill execution
                 # NOTE: Skip for async skills - credits are charged by the Celery task
@@ -4170,7 +4191,11 @@ async def handle_main_processing(
                     f"app_id={app_id}, skill_id={skill_id}, embed_count={len(embed_ids)}, "
                     f"results_toon_length={len(preview_data.get('results_toon', ''))}"
                 )
-                
+
+                # Track images-search execution so we can inject embed preview instructions
+                if app_id == "images" and skill_id == "search":
+                    images_search_executed = True
+
             except json.JSONDecodeError as e:
                 logger.error(f"{log_prefix} Invalid JSON in tool arguments for '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid JSON in function arguments.", "details": str(e)})

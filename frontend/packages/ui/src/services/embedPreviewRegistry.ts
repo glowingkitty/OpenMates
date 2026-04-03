@@ -6,7 +6,7 @@
  * This is the single source of truth for the mapping:
  *   (embedId, embedData, decodedContent) → { component: SvelteComponent, props: Record<string, unknown> }
  *
- * Modelled after embedFullscreenHandler.ts (which does the same for fullscreen components).
+ * Modelled after embedFullscreenResolver.ts (which does the same for fullscreen components).
  * Previously, AppEmbedsPanel.svelte and SettingsShare.svelte each maintained independent
  * copy-paste if/else chains with subtle divergences (wrong field names, missing embed types).
  * This registry fixes all of that and ensures a single addition registers a new embed type
@@ -96,6 +96,28 @@ resolvers.set(
   async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } =
       await import("../components/embeds/web/WebSearchEmbedPreview.svelte");
+    return {
+      component,
+      props: {
+        id: embedId,
+        query: decodedContent.query || "",
+        provider: decodedContent.provider || "Brave Search",
+        status: normalizeStatus(embedData.status),
+        results: decodedContent.results || [],
+        isMobile: false,
+        onFullscreen,
+      },
+    };
+  },
+);
+
+// ── App-skill-use: images / search ────────────────────────────────────────────
+
+resolvers.set(
+  "app:images:search",
+  async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+    const { default: component } =
+      await import("../components/embeds/images/ImagesSearchEmbedPreview.svelte");
     return {
       component,
       props: {

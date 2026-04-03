@@ -145,24 +145,10 @@ preprocess_request_tool:
           - Read each skill's description to understand when it applies. Include skills that might help fulfill the request.
           - When multiple skills from the same app could apply, include all of them and let the main LLM decide.
 
-          **Multimodal Search Selection (CRITICAL):**
+          **Search Selection:**
           - Treat `web-search` as the default for broad factual retrieval.
-          - Add `images-search` when visual evidence or visual discovery would help, e.g.:
-            - User asks to "show images/photos/pictures"
-            - User asks about appearance/design/style/look of a device/place/object
-            - User asks for inspiration, references, moodboards, or visual examples
-          - Add `videos-search` when demonstration or walkthrough content would help, e.g.:
-            - User asks for tutorials, walkthroughs, demos, reviews, talks, lectures, or interviews
-            - User intent is "watch how", "learn by seeing", or step-by-step in video
-          - Add both `images-search` and `videos-search` if both visual references and demos are likely useful.
-
-          **Entity-Specific Heuristic:**
-          - New device/product: often include `images-search`; include `videos-search` for reviews, demos, or comparisons.
-          - Specific place/location: include `images-search` for visuals/landmarks; include `videos-search` for tours/walkthroughs.
-          - Specific software/tool: include `videos-search` for tutorials; include `images-search` only when UI/visual comparison is relevant.
-
-          **Precision Guardrails:**
-          - Do NOT include `images-search`/`videos-search` for purely factual text requests (release date, specs, pricing, policy, API docs) unless user intent implies visual/demo content.
+          - Add `videos-search` when demonstration or walkthrough content would help (tutorials, reviews, demos).
+          - Add `images-search` when the user explicitly asks for images/photos/pictures, OR when the topic has a physical/visual form that would benefit from images (products, devices, food, recipes, animals, plants, places, landmarks, people, fashion, architecture, DIY, news events with visual impact). Skip for abstract concepts, code/programming, pure data lookups, financial numbers, scheduling, or topics with no meaningful visual form.
 
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
@@ -270,6 +256,7 @@ preprocess_request_tool:
           items:
             type: "string"
           maxItems: 10
+
         category:
           type: "string"
           description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category; use 'general_knowledge' only as a last resort. On follow-ups, default to {PREVIOUS_CATEGORY} unless the topic has CLEARLY changed. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
@@ -295,6 +282,7 @@ preprocess_request_tool:
         - "relevant_embedded_previews"
         - "chat_summary"
         - "chat_tags"
+
         # category, harmful_or_illegal, misuse_risk, output_language are added to required by Python
         # on follow-up messages (when is_first_message is False)
 
@@ -498,29 +486,28 @@ base_app_deep_linking_instruction: |
 base_proactive_skill_usage_instruction: |
   **Skill Usage Guidelines**
 
+  **MANDATORY: Search before answering factual questions.**
+  You MUST use a search tool before answering — never rely on memory alone for factual topics.
+  - Prefer specialized skills when available (travel, maps, events, etc.)
+  - Otherwise use `web-search` (general facts) or `news-search` (current events/developments)
+  - Only skip searching for: creative tasks, code, math, casual chat, or explicit "don't search"
+
   **Tool Priority (use in this order):**
   1. Specialized domain tools first (travel/maps/news/code/docs/etc.)
   2. `web-read` if user provides a specific URL
-  3. Search modality selection:
-     - `web-search` for broad factual retrieval
-     - `images-search` for visual discovery/evidence
-     - `videos-search` for tutorials/demos/walkthroughs
-  4. Use multiple search modalities only when they materially improve answer quality
+  3. `web-search` or `news-search` for factual retrieval (see mandatory rules above)
+  4. `videos-search` for tutorials/demos/walkthroughs
 
-  **Multimodal Search Policy:**
-  - Do NOT default to all search tools.
-  - Use `web-search` alone for purely factual text questions.
-  - Add `images-search` and/or `videos-search` when user intent implies visual or demonstrative content.
-  - For follow-ups like "show me images" or "any videos?" after a text search, add the corresponding modality skill.
+  **Image Search (`images-search`):** Proactively use `images-search` when the topic has a physical or visual form — do not wait for the user to ask explicitly. This enriches your answer with relevant visuals.
+  - **USE** for: products, devices, supplements, food, recipes, animals, plants, places, landmarks, cities, people, fashion, architecture, DIY projects, news events with visual impact, or any topic where seeing the subject would enhance the answer.
+  - **SKIP** for: abstract concepts (philosophy, economics), code/programming, pure data lookups (dates, stats, calculations), financial numbers, scheduling, logistics, or topics with no meaningful visual form.
+  - Use a concise, descriptive English query (e.g., "spirulina supplement powder", "MacBook Pro 2026", "Eiffel Tower Paris").
 
   **Search Limitation:**
   - Make only ONE search call per request by default.
-  - Multiple calls/modalities are allowed when:
+  - Multiple calls are allowed when:
     - user explicitly asks for comparison/multiple assets, or
-    - multimodal evidence is clearly beneficial, or
     - research focus mode is active.
-
-  When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
 
   **CRITICAL: Only use skills that are actually provided in your function calling interface.** If no relevant skill is available for a query, honestly tell the user what you can and cannot do.
 
@@ -626,7 +613,16 @@ postprocess_response_tool:
          - Only include apps that actually exist in the system
          - If no apps are clearly relevant, return an empty array
 
-      5. **daily_inspiration_topic_suggestions**: Generate 3 short topic/interest phrases based on what the user discussed or expressed curiosity about.
+      5. **updated_chat_title**: ONLY generate a new title if the conversation has **significantly** drifted from its original topic.
+         - The current chat title (if any) is provided in the system context.
+         - Return an empty string if the current title still describes the chat reasonably well.
+         - A title update is warranted when: the user switched to an entirely different topic, the scope expanded dramatically, or the original title was clearly wrong/vague.
+         - A title update is NOT warranted for: minor topic extensions, follow-up questions on the same theme, or slight refinements of the original topic.
+         - Keep the new title concise (3-8 words), descriptive, and specific to the conversation content.
+         - Generate in the USER'S SYSTEM LANGUAGE (as specified in system message).
+         - For new chats (no current title provided): do NOT generate — title is handled by preprocessing.
+
+      6. **daily_inspiration_topic_suggestions**: Generate 3 short topic/interest phrases based on what the user discussed or expressed curiosity about.
          - These are captured to inform future personalized daily inspiration generation
          - Each phrase should be a concise topic (2-5 words) that could inspire a fascinating educational video, article, or exploration
          - Capture genuine interests revealed in the conversation, not generic topics
@@ -669,6 +665,9 @@ postprocess_response_tool:
         chat_summary:
           type: "string"
           description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
+        updated_chat_title:
+          type: "string"
+          description: "A new chat title (3-8 words) ONLY if the conversation has significantly drifted from the current title. Return an empty string if the current title still fits. Generate in the USER'S SYSTEM LANGUAGE. Do NOT generate for new chats without a title — return empty string."
         daily_inspiration_topic_suggestions:
           type: "array"
           description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead. NEVER extract political party names, political candidates, electoral campaigns, or partisan ideology — rephrase to the underlying policy or governance issue (e.g. 'universal healthcare economics' not any party's health plan). NEVER extract religious promotion topics — historical/cultural/architectural religious context is allowed, proselytizing or devotional framing is not."
@@ -681,6 +680,7 @@ postprocess_response_tool:
         - "new_chat_request_suggestions"
         - "harmful_response"
         - "chat_summary"
+        - "updated_chat_title"
         - "daily_inspiration_topic_suggestions"
 
 url_correction_tool:
@@ -841,6 +841,10 @@ base_embed_referencing_instruction: |
   - `[Turkish Airlines 06:45](embed:turkish-airlines-0645-x4F)` — links to a specific flight card
   - `[Wikipedia article](embed:wikipedia.org-k8D)` — links to a specific search result
   - `[Eiffel Tower](embed:eiffel-tower-p2R)` — links to a specific place card
+  - `[Spirulina powder photo](embed:pexels.com-k8D)` — links to a specific image search result
+  - `[Mountain landscape](embed:unsplash.com-x4F)` — links to a specific image search result
+
+  Image search results use the same domain-based `embed_ref` format as web search results (e.g. `pexels.com-k8D`, `unsplash.com-x4F`). Never derive image embed_refs from the image title — always use the `embed_ref` field from the tool result.
 
   **Rules:**
   - Only use `embed_ref` values that actually appear in the conversation context — never invent or guess an `embed_ref`.

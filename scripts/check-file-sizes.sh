@@ -6,8 +6,9 @@
 # Exit code: 0 always (report-only per D-08), but prints WARNING for new violations.
 #
 # Usage:
-#   bash scripts/check-file-sizes.sh              # Full report
-#   bash scripts/check-file-sizes.sh --ci         # CI mode: compact output, non-zero if new violations
+#   bash scripts/check-file-sizes.sh              # Full report (known vs new, with baseline)
+#   bash scripts/check-file-sizes.sh --ci         # Summary: top 10 largest files over threshold
+#   bash scripts/check-file-sizes.sh --ci --full  # Summary: all files over threshold
 #   bash scripts/check-file-sizes.sh --update     # Update baseline with current large files
 
 set -euo pipefail
@@ -126,24 +127,51 @@ mode_update() {
 }
 
 mode_ci() {
-  load_baseline
+  local show_full="${1:-false}"
   local all_dirs=("${STRICT_DIRS[@]}" "${INFO_DIRS[@]}")
-  local new_violations=0
+  local tmpfile
+  tmpfile=$(mktemp)
 
-  while IFS=$'\t' read -r count path; do
-    if [[ -z "${BASELINE_FILES[$path]+x}" ]]; then
-      echo "NEW VIOLATION: $path ($count lines)"
-      new_violations=$((new_violations + 1))
-    fi
-  done < <(find_large_files "${all_dirs[@]}")
+  # Collect all large files, sorted by line count descending
+  find_large_files "${all_dirs[@]}" | sort -t$'\t' -k1 -rn > "$tmpfile"
 
-  if (( new_violations > 0 )); then
-    echo "$new_violations new file(s) exceed $THRESHOLD lines"
-    exit 1
-  else
-    echo "No new violations (threshold: $THRESHOLD lines)"
+  local total
+  total=$(wc -l < "$tmpfile")
+
+  if (( total == 0 )); then
+    echo "No files exceed $THRESHOLD lines"
+    rm -f "$tmpfile"
     exit 0
   fi
+
+  echo "Files over $THRESHOLD lines: $total"
+  echo ""
+
+  if [[ "$show_full" == "true" ]]; then
+    # Show all files
+    while IFS=$'\t' read -r count path; do
+      printf '  %5d  %s\n' "$count" "$path"
+    done < "$tmpfile"
+  else
+    # Show top 10
+    local shown=0
+    while IFS=$'\t' read -r count path; do
+      printf '  %5d  %s\n' "$count" "$path"
+      shown=$((shown + 1))
+      if (( shown >= 10 )); then
+        break
+      fi
+    done < "$tmpfile"
+
+    local remaining=$((total - shown))
+    if (( remaining > 0 )); then
+      echo ""
+      echo "  ... and $remaining more (use --full to see all)"
+    fi
+  fi
+
+  rm -f "$tmpfile"
+  exit 0
 }
 
 mode_report() {
@@ -210,7 +238,11 @@ case "${1:-}" in
     mode_update
     ;;
   --ci)
-    mode_ci
+    if [[ "${2:-}" == "--full" ]]; then
+      mode_ci true
+    else
+      mode_ci false
+    fi
     ;;
   *)
     mode_report

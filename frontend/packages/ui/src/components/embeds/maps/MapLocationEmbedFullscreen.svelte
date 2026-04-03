@@ -26,30 +26,11 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
-    /** Place display name */
-    displayName?: string;
-    /** Formatted address */
-    formattedAddress?: string;
-    /** Latitude */
-    lat?: number;
-    /** Longitude */
-    lon?: number;
-    /** Map zoom level (default: 15) */
-    zoom?: number;
-    /** Rating (0–5) */
-    rating?: number;
-    /** Number of user ratings */
-    userRatingCount?: number;
-    /** Place category type */
-    placeType?: string;
-    /** Place image URL */
-    imageUrl?: string;
-    /** Website URI */
-    websiteUri?: string;
-    /** Google place ID (for Google Maps deep link) */
-    placeId?: string;
+    /** Raw embed data containing decodedContent */
+    data: EmbedFullscreenRawData;
     /** Embed ID for sharing */
     embedId?: string;
     /** Close handler */
@@ -71,17 +52,7 @@
   }
 
   let {
-    displayName,
-    formattedAddress,
-    lat,
-    lon,
-    zoom = 15,
-    rating,
-    userRatingCount,
-    placeType,
-    imageUrl,
-    websiteUri,
-    placeId,
+    data,
     embedId,
     onClose,
     hasPreviousEmbed = false,
@@ -92,6 +63,21 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // Extract fields from data.decodedContent
+  let dc = $derived(data.decodedContent);
+  let rawLocation = $derived(dc.location as Record<string, unknown> | undefined);
+  let displayName = $derived(typeof dc.displayName === 'string' ? dc.displayName : (typeof dc.name === 'string' ? dc.name : undefined));
+  let formattedAddress = $derived(typeof dc.formattedAddress === 'string' ? dc.formattedAddress : (typeof dc.formatted_address === 'string' ? dc.formatted_address : undefined));
+  let lat = $derived((rawLocation && typeof rawLocation.latitude === 'number') ? rawLocation.latitude : (typeof dc.lat === 'number' ? dc.lat : undefined));
+  let lon = $derived((rawLocation && typeof rawLocation.longitude === 'number') ? rawLocation.longitude : (typeof dc.lon === 'number' ? dc.lon : undefined));
+  let zoom = $derived(typeof dc.zoom === 'number' ? dc.zoom : 15);
+  let rating = $derived(typeof dc.rating === 'number' ? dc.rating : undefined);
+  let userRatingCount = $derived(typeof dc.userRatingCount === 'number' ? dc.userRatingCount : undefined);
+  let placeType = $derived(typeof dc.place_type === 'string' ? dc.place_type : undefined);
+  let imageUrl = $derived(typeof dc.imageUrl === 'string' ? dc.imageUrl : undefined);
+  let websiteUri = $derived(typeof dc.websiteUri === 'string' ? dc.websiteUri : undefined);
+  let placeId = $derived(typeof dc.placeId === 'string' ? dc.placeId : undefined);
 
   let showShare = $derived(!!embedId);
 

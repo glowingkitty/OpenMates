@@ -33,21 +33,16 @@
   } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../../../types/chat';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { replaceEmbedLinksInText, hydrateEmbedLinks, stripEmbedLinks } from '../../../utils/embedLinkUtils';
-  
+
   /**
    * Props for sheet embed fullscreen
    */
   interface Props {
-    /** Table title */
-    title?: string;
-    /** Number of rows */
-    rowCount?: number;
-    /** Number of columns */
-    colCount?: number;
-    /** Table content (markdown format) */
-    tableContent: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -80,12 +75,9 @@
      */
     piiRevealed?: boolean;
   }
-  
+
   let {
-    title = '',
-    rowCount = 0,
-    colCount = 0,
-    tableContent,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -98,6 +90,34 @@
     piiMappings = [],
     piiRevealed = false
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
+
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs);
+  let tableContent = $derived(
+      typeof dc.table === 'string' ? dc.table
+      : typeof dc.code === 'string' ? dc.code
+      : typeof attrs?.code === 'string' ? attrs.code as string
+      : ''
+    );
+  let title = $derived(
+      typeof dc.title === 'string' ? dc.title
+      : typeof attrs?.title === 'string' ? attrs.title as string
+      : ''
+    );
+  let rowCount = $derived(
+      typeof dc.row_count === 'number' ? dc.row_count
+      : typeof dc.rows === 'number' ? dc.rows
+      : typeof attrs?.rows === 'number' ? attrs.rows as number
+      : 0
+    );
+  let colCount = $derived(
+      typeof dc.col_count === 'number' ? dc.col_count
+      : typeof dc.cols === 'number' ? dc.cols
+      : typeof attrs?.cols === 'number' ? attrs.cols as number
+      : 0
+    );
 
   // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
   let localPiiRevealed = $state(false);

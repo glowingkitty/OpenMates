@@ -134,10 +134,11 @@
   .result-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
     opacity: 0;
     transition: opacity 0.2s ease;
+    background: var(--color-grey-15, #ebebeb);
   }
 
   .result-image.visible {
@@ -194,6 +195,10 @@
   @keyframes pulse {
     0%, 100% { opacity: 0.6; }
     50%       { opacity: 1; }
+  }
+
+  :global(.dark) .result-image {
+    background: var(--color-grey-85, #222);
   }
 
   :global(.dark) .skeleton-image,

@@ -4,10 +4,9 @@
   Fullscreen view for Code Get Docs skill embeds.
   Uses UnifiedEmbedFullscreen as base and provides get_docs-specific content.
   
-  Supports both contexts:
-  - Skill preview context: receives previewData from skillPreviewService
-  - Embed context: receives results directly
-  
+  Data-driven: receives a single `data` prop (EmbedFullscreenRawData) and extracts
+  results, library, and question from decodedContent internally.
+
   Layout:
   - Header at top: library ID (selected library), question below, "Open on Context7" button
   - "via Context7: X words" label
@@ -23,23 +22,18 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import type { CodeGetDocsSkillPreviewData, CodeGetDocsResult } from '../../../types/appSkills';
+  import type { CodeGetDocsResult } from '../../../types/appSkills';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  
+
   /**
    * Props for code get docs embed fullscreen
-   * Supports both skill preview data format and direct embed format
+   * Receives raw embed data via the `data` prop and extracts fields internally
    */
   interface Props {
-    /** Get docs results (direct format) */
-    results?: CodeGetDocsResult[];
-    /** Library name from request */
-    library?: string;
-    /** Question/query that was asked (for display) */
-    question?: string;
-    /** Skill preview data (skill preview context) */
-    previewData?: CodeGetDocsSkillPreviewData;
+    /** Raw embed data containing decodedContent, attrs, embedData */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -59,12 +53,9 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
   }
-  
+
   let {
-    results: resultsProp,
-    library: libraryProp,
-    question: questionProp,
-    previewData,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -75,7 +66,25 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
-  
+
+  // ===========================================
+  // Extract fields from data prop
+  // ===========================================
+
+  /** Extract results array from decodedContent */
+  function extractResults(content: Record<string, unknown>): CodeGetDocsResult[] {
+    if (content.results && Array.isArray(content.results)) {
+      return content.results as CodeGetDocsResult[];
+    }
+    return [];
+  }
+
+  /** Extract string field from decodedContent with typeof check */
+  function extractString(content: Record<string, unknown>, key: string): string {
+    const value = content[key];
+    return typeof value === 'string' ? value : '';
+  }
+
   // ===========================================
   // Local state for embed data (updated via onEmbedDataUpdated callback)
   // CRITICAL: Using $state allows us to update these values when we receive embed updates
@@ -84,19 +93,12 @@
   let localResults = $state<CodeGetDocsResult[]>([]);
   let localLibrary = $state<string>('');
   let localQuestion = $state<string>('');
-  
-  // Initialize local state from props
+
+  // Initialize local state from data prop
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localResults = previewData.results || [];
-      localLibrary = previewData.library || '';
-      localQuestion = previewData.question || '';
-    } else {
-      localResults = resultsProp || [];
-      localLibrary = libraryProp || '';
-      localQuestion = questionProp || '';
-    }
+    localResults = extractResults(data.decodedContent);
+    localLibrary = extractString(data.decodedContent, 'library');
+    localQuestion = extractString(data.decodedContent, 'question');
   });
   
   // Use local state as the source of truth (allows updates from embed events)

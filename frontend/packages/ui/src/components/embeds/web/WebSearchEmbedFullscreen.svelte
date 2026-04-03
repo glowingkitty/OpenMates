@@ -20,6 +20,8 @@
   import WebsiteEmbedFullscreen from "./WebsiteEmbedFullscreen.svelte";
   import VideoEmbedPreview from "../videos/VideoEmbedPreview.svelte";
   import VideoEmbedFullscreen from "../videos/VideoEmbedFullscreen.svelte";
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { text } from "@repo/ui";
 
   // YouTube URL detection pattern — matches youtube.com and youtu.be variants
@@ -31,6 +33,14 @@
    */
   function isYouTubeUrl(url: string | undefined): boolean {
     return !!url && YOUTUBE_URL_RE.test(url);
+  }
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
   }
 
   /**
@@ -63,18 +73,8 @@
   }
 
   interface Props {
-    query?: string;
-    provider?: string;
-    embedIds?: string | string[];
-    status?: "processing" | "finished" | "error" | "cancelled";
-    errorMessage?: string;
-    results?: WebSearchResult[];
-    previewData?: {
-      query?: string;
-      provider?: string;
-      status?: string;
-      results?: unknown[];
-    };
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -84,17 +84,10 @@
     navigateDirection?: "previous" | "next";
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query: queryProp,
-    provider: providerProp,
-    embedIds,
-    status: statusProp,
-    errorMessage: errorMessageProp,
-    results: resultsProp,
-    previewData,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -104,8 +97,12 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId,
   }: Props = $props();
+
+  // Extract fields from data prop
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   // Local reactive state for streaming updates
   let localQuery = $state("");
@@ -118,16 +115,15 @@
   let localErrorMessage = $state("");
 
   $effect(() => {
-    localQuery = previewData?.query || queryProp || "";
-    localProvider = previewData?.provider || providerProp || "Brave Search";
-    localStatus =
-      (previewData?.status as typeof localStatus) || statusProp || "finished";
-    localErrorMessage = errorMessageProp || "";
+    localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
+    localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Brave Search';
+    localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
+    localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
   });
 
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
-  let legacyResults = $derived(previewData?.results || resultsProp || []);
+  let legacyResults = $derived(resultsProp);
   let viaProvider = $derived(`${$text("embeds.via")} ${provider}`);
 
   /**
@@ -339,7 +335,7 @@
         url={result.url}
         title={result.title}
         description={result.snippet}
-        favicon={result.favicon_url}
+        favicon={proxyImage(result.favicon_url, MAX_WIDTH_FAVICON)}
         image={result.preview_image_url}
         status="finished"
         isMobile={false}
@@ -351,45 +347,17 @@
   {#snippet childFullscreen(nav)}
     {#if nav.result.isVideo}
       <VideoEmbedFullscreen
-        url={nav.result.url}
-        title={nav.result.title}
+        data={{ decodedContent: nav.result }}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
-        videoId={nav.result.video_id}
         hasPreviousEmbed={nav.hasPrevious}
         hasNextEmbed={nav.hasNext}
         onNavigatePrevious={nav.onPrevious}
         onNavigateNext={nav.onNext}
-        metadata={nav.result.video_id
-          ? {
-              videoId: nav.result.video_id,
-              title: nav.result.title,
-              description: nav.result.description || nav.result.snippet,
-              channelName: nav.result.channel_name,
-              channelId: nav.result.channel_id,
-              channelThumbnail: nav.result.channel_thumbnail,
-              thumbnailUrl: nav.result.preview_image_url,
-              duration: nav.result.duration_seconds
-                ? {
-                    totalSeconds: nav.result.duration_seconds,
-                    formatted: nav.result.duration_formatted || "",
-                  }
-                : undefined,
-              viewCount: nav.result.view_count,
-              likeCount: nav.result.like_count,
-              publishedAt: nav.result.published_at,
-            }
-          : undefined}
       />
     {:else}
       <WebsiteEmbedFullscreen
-        url={nav.result.url}
-        title={nav.result.title}
-        description={nav.result.description || nav.result.snippet}
-        favicon={nav.result.favicon_url}
-        image={nav.result.preview_image_url}
-        extra_snippets={nav.result.extra_snippets}
-        dataDate={nav.result.page_age}
+        data={{ decodedContent: nav.result }}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
         hasPreviousEmbed={nav.hasPrevious}

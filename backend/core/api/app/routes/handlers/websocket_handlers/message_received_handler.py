@@ -1170,12 +1170,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     messages_v_from_db = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
                     expected_total_messages = messages_v_from_db if messages_v_from_db > 0 else 1
 
-                    # Count messages excluding the current message (which was just added to history at the end)
-                    # Current message gets appended later, so history should have (expected - 1) previous messages
-                    expected_previous_messages = max(0, expected_total_messages - 1)
-                    actual_previous_messages = len(message_history_for_ai)
+                    # The current user message was saved to AI cache (LPUSH at line ~524)
+                    # BEFORE the history fetch, so message_history_for_ai includes it.
+                    # Subtract it to get the true count of *previous* messages in cache.
+                    current_msg_in_cache = 1 if _current_message_resolved_in_history is not None else 0
+                    actual_previous_messages = len(message_history_for_ai) - current_msg_in_cache
 
-                    logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, decryption_failures={decryption_failures}")
+                    # expected_previous = all messages already in DB. messages_v is read
+                    # at handler start (before current message is persisted), so it does
+                    # NOT include the current message. No need to subtract 1.
+                    expected_previous_messages = expected_total_messages
+
+                    logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, current_msg_in_cache={current_msg_in_cache}, decryption_failures={decryption_failures}")
 
                     # For existing chats with expected history, validate we have sufficient context
                     if is_existing_chat and expected_previous_messages > 0:
@@ -1425,6 +1431,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mentioned_settings_memories_cleartext = None
             logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
 
+        # OPE-265: Pass the current chat title (decrypted by client) to post-processing
+        # so the LLM can decide if the title needs updating when the conversation drifts.
+        current_chat_title_from_client = message_payload_from_client.get("current_chat_title")
+        if current_chat_title_from_client and not isinstance(current_chat_title_from_client, str):
+            current_chat_title_from_client = None
+
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -1432,6 +1444,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
+            current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
             is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,

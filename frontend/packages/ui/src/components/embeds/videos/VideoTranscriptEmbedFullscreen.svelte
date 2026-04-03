@@ -4,10 +4,9 @@
   Fullscreen view for Video Transcript skill embeds.
   Uses UnifiedEmbedFullscreen as base and provides video transcript-specific content.
   
-  Supports both contexts:
-  - Skill preview context: receives previewData from skillPreviewService
-  - Embed context: receives results directly
-  
+  Data-driven: receives a single `data` prop (EmbedFullscreenRawData) and extracts
+  results from decodedContent internally.
+
   Shows video metadata, full transcript, and allows viewing both summary and original transcript.
 -->
 
@@ -16,18 +15,17 @@
   import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
+  import type { VideoTranscriptResult } from '../../../types/appSkills';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  
+
   /**
    * Props for video transcript embed fullscreen
-   * Supports both skill preview data format and direct embed format
+   * Receives raw embed data via the `data` prop and extracts fields internally
    */
   interface Props {
-    /** Video transcript results (direct format) */
-    results?: VideoTranscriptResult[];
-    /** Skill preview data (skill preview context) */
-    previewData?: VideoTranscriptSkillPreviewData;
+    /** Raw embed data containing decodedContent, attrs, embedData */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
@@ -47,10 +45,9 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
   }
-  
+
   let {
-    results: resultsProp,
-    previewData,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -61,22 +58,29 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
-  
+
+  // ===========================================
+  // Extract fields from data prop
+  // ===========================================
+
+  /** Extract results array from decodedContent */
+  function extractResults(content: Record<string, unknown>): VideoTranscriptResult[] {
+    if (content.results && Array.isArray(content.results)) {
+      return content.results as VideoTranscriptResult[];
+    }
+    return [];
+  }
+
   // ===========================================
   // Local state for embed data (updated via onEmbedDataUpdated callback)
   // CRITICAL: Using $state allows us to update these values when we receive embed updates
   // via the onEmbedDataUpdated callback from UnifiedEmbedFullscreen
   // ===========================================
   let localResults = $state<VideoTranscriptResult[]>([]);
-  
-  // Initialize local state from props
+
+  // Initialize local state from data prop
   $effect(() => {
-    // Initialize from previewData or direct props
-    if (previewData) {
-      localResults = previewData.results || [];
-    } else {
-      localResults = resultsProp || [];
-    }
+    localResults = extractResults(data.decodedContent);
   });
   
   // Use local state as the source of truth (allows updates from embed events)
@@ -109,8 +113,6 @@
   $effect(() => {
     console.debug('[VideoTranscriptEmbedFullscreen] Results:', {
       resultsLength: results?.length,
-      previewData: previewData,
-      resultsProp: resultsProp,
       firstResult: results?.[0]
     });
   });

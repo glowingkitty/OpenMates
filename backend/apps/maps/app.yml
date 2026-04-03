@@ -18,7 +18,7 @@ embed_types:
     preview_component: maps/MapsSearchEmbedPreview.svelte
     fullscreen_component: maps/MapsSearchEmbedFullscreen.svelte
     child_preview_component: maps/MapsLocationEmbedPreview.svelte
-    child_fullscreen_component: maps/MapsLocationEmbedFullscreen.svelte
+    child_fullscreen_component: maps/MapLocationEmbedFullscreen.svelte
     icon: search
     gradient_var: "--color-app-maps"
     i18n_namespace: embeds.maps.search

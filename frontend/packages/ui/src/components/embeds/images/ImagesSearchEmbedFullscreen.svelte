@@ -16,8 +16,17 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import ImageResultEmbedPreview from './ImageResultEmbedPreview.svelte';
   import ImageResultEmbedFullscreen from './ImageResultEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
-  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
 
   /**
    * Single image result (child embed content schema).
@@ -46,15 +55,8 @@
   }
 
   interface Props {
-    query: string;
-    provider: string;
-    embedIds?: string | string[];
-    /**
-     * Direct results array (dev preview / legacy format).
-     * Used when no embedIds are available — bypasses child embed loading.
-     */
-    results?: LegacyImageResult[];
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -64,15 +66,10 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
-    initialChildEmbedId?: string;
   }
 
   let {
-    query: queryProp,
-    provider: providerProp,
-    embedIds,
-    results: resultsProp,
-    status: statusProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -82,8 +79,17 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    initialChildEmbedId
   }: Props = $props();
+
+  // Extract fields from data prop
+  let statusProp = $derived(normalizeStatus(data.embedData?.status ?? data.decodedContent?.status));
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let resultsProp = $derived(
+    Array.isArray(data.decodedContent?.results)
+      ? data.decodedContent.results as LegacyImageResult[]
+      : undefined
+  );
 
   // Local reactive state for streaming
   let localQuery    = $state('');
@@ -92,18 +98,25 @@
   let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
 
   $effect(() => {
-    localQuery    = queryProp    || '';
-    localProvider = providerProp || 'Brave';
+    localQuery    = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
+    localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Brave';
   });
 
   let query    = $derived(localQuery);
   let provider = $derived(localProvider);
   let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
 
-  /** Proxy an external image URL — cap at 1024px for grid cards */
+  /** Extract hostname from a URL, stripping 'www.' prefix. Returns empty string on failure. */
+  function extractDomain(url: string | undefined): string {
+    if (!url) return '';
+    try { return new URL(url).hostname.replace(/^www\./, ''); }
+    catch { return ''; }
+  }
+
+  /** Proxy an external image URL — 520px is sufficient for grid cards (~180px * 2x retina) */
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return proxyImage(url, MAX_WIDTH_HEADER_IMAGE);
+    return proxyImage(url, MAX_WIDTH_PREVIEW_THUMBNAIL);
   }
 
   /**
@@ -183,21 +196,16 @@
     <ImageResultEmbedPreview
       id={result.embed_id}
       title={result.title}
-      sourceDomain={result.source}
-      thumbnailUrl={proxyUrl(result.thumbnail_url || result.image_url)}
-      faviconUrl={result.favicon_url}
+      sourceDomain={result.source || extractDomain(result.source_page_url)}
+      thumbnailUrl={proxyUrl(result.image_url || result.thumbnail_url)}
+      faviconUrl={proxyUrl(result.favicon_url)}
       onFullscreen={onSelect}
     />
   {/snippet}
 
   {#snippet childFullscreen(nav)}
     <ImageResultEmbedFullscreen
-      title={nav.result.title}
-      sourceDomain={nav.result.source}
-      sourcePageUrl={nav.result.source_page_url}
-      imageUrl={proxyUrl(nav.result.image_url || nav.result.thumbnail_url)}
-      thumbnailUrl={proxyUrl(nav.result.thumbnail_url || nav.result.image_url)}
-      faviconUrl={nav.result.favicon_url}
+      data={{ decodedContent: nav.result }}
       embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}

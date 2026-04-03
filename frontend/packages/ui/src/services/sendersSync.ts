@@ -357,7 +357,8 @@ export async function sendPostProcessingMetadataImpl(
 	encrypted_new_chat_suggestions: string[],
 	encrypted_chat_summary: string,
 	encrypted_chat_tags: string,
-	encrypted_top_recommended_apps: string = ""
+	encrypted_top_recommended_apps: string = "",
+	encrypted_updated_title: string = ""
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
 		console.warn(
@@ -374,6 +375,8 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_chat_summary?: string;
 			encrypted_chat_tags?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
+			encrypted_title?: string; // OPE-265: Updated title from post-processing
+			title_v?: number;
 		}
 
 		// Build payload with all the encrypted post-processing metadata
@@ -389,6 +392,11 @@ export async function sendPostProcessingMetadataImpl(
 		if (encrypted_top_recommended_apps) {
 			payload.encrypted_top_recommended_apps_for_chat =
 				encrypted_top_recommended_apps;
+		}
+
+		// OPE-265: Include updated title from post-processing if the conversation drifted
+		if (encrypted_updated_title) {
+			payload.encrypted_title = encrypted_updated_title;
 		}
 
 		console.debug(

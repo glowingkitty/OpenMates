@@ -19,7 +19,17 @@
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import TravelStayEmbedPreview from './TravelStayEmbedPreview.svelte';
   import TravelStayEmbedFullscreen from './TravelStayEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
+
+  /**
+   * Normalize a raw status value to one of the valid embed status strings.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
 
   /**
    * Stay result interface (transformed from decoded child embed content)
@@ -55,12 +65,8 @@
   }
 
   interface Props {
-    query?: string;
-    provider?: string;
-    embedIds?: string | string[];
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    errorMessage?: string;
-    results?: unknown[];
+    /** Raw embed data — component extracts its own fields internally */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -73,12 +79,7 @@
   }
 
   let {
-    query: queryProp,
-    provider: providerProp,
-    embedIds,
-    status: statusProp,
-    errorMessage: errorMessageProp,
-    results: resultsProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -87,8 +88,12 @@
     onNavigateNext,
     navigateDirection,
     showChatButton = false,
-    onShowChat
+    onShowChat,
   }: Props = $props();
+
+  // Extract fields from data prop
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   // Local reactive state for streaming updates
   let _localQuery = $state('');
@@ -102,11 +107,11 @@
 
   $effect(() => {
     if (!storeResolved) {
-      _localQuery = queryProp || '';
-      localProvider = providerProp || 'Google';
-      localResults = resultsProp || [];
-      localStatus = statusProp || 'finished';
-      localErrorMessage = errorMessageProp || '';
+      _localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Google';
+      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
+      localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }
   });
 
@@ -245,9 +250,9 @@
    * Get first thumbnail image URL for a property.
    */
   function getThumbnail(stay: StayResult): string | undefined {
-    if (stay.thumbnail) return stay.thumbnail;
-    if (stay.images && stay.images.length > 0) return stay.images[0].thumbnail || stay.images[0].original_image;
-    return undefined;
+    const raw = stay.thumbnail
+      || (stay.images && stay.images.length > 0 ? (stay.images[0].thumbnail || stay.images[0].original_image) : undefined);
+    return raw ? proxyImage(raw, MAX_WIDTH_PREVIEW_THUMBNAIL) : undefined;
   }
 
   /**
@@ -292,6 +297,7 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
   onResultsLoaded={(results) => { allLoadedResults = results; }}
   minCardWidth="260px"
+  {initialChildEmbedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -324,8 +330,9 @@
 
   {#snippet childFullscreen(nav)}
     <TravelStayEmbedFullscreen
-      stay={nav.result}
+      data={{ decodedContent: nav.result }}
       onClose={nav.onClose}
+      embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}
       hasNextEmbed={nav.hasNext}
       onNavigatePrevious={nav.onPrevious}

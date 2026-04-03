@@ -27,34 +27,20 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
-  
+  import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
   /**
-   * Props for website embed fullscreen
+   * Props for website embed fullscreen.
+   * Receives raw embed data via `data` prop and extracts fields internally.
    */
   interface Props {
-    /** Website URL */
-    url: string;
-    /** Website title */
-    title?: string;
-    /** Website description */
-    description?: string;
-    /** Favicon URL */
-    favicon?: string;
-    /** Preview image URL */
-    image?: string;
-    /** Extra snippets from backend TOON (pipe-delimited string or array) */
-    extra_snippets?: string | string[];
-    /** Meta URL favicon (alternative source) */
-    meta_url_favicon?: string;
-    /** Thumbnail original (alternative image source) */
-    thumbnail_original?: string;
+    /** Raw embed data containing decodedContent and attrs */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
-    /** Optional: Date when data was fetched */
-    dataDate?: string;
     /** Whether there is a previous embed to navigate to */
     hasPreviousEmbed?: boolean;
     /** Whether there is a next embed to navigate to */
@@ -70,19 +56,11 @@
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
   }
-  
+
   let {
-    url,
-    title,
-    description,
-    favicon,
-    image,
-    extra_snippets,
-    meta_url_favicon,
-    thumbnail_original,
+    data,
     onClose,
     embedId,
-    dataDate,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
@@ -91,6 +69,20 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // Extract fields from data.decodedContent with attrs fallback
+  // Use $derived for reactivity — Svelte 5 warns if props are referenced outside closures/deriveds.
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs ?? {});
+  let url = $derived(typeof dc.url === 'string' ? dc.url : (typeof attrs.url === 'string' ? attrs.url : ''));
+  let title = $derived(typeof dc.title === 'string' ? dc.title : (typeof attrs.title === 'string' ? attrs.title : undefined));
+  let description = $derived(typeof dc.description === 'string' ? dc.description : (typeof attrs.description === 'string' ? attrs.description : undefined));
+  let meta_url_favicon = $derived(typeof dc.meta_url_favicon === 'string' ? dc.meta_url_favicon : undefined);
+  let favicon = $derived(typeof dc.favicon === 'string' ? dc.favicon : (typeof attrs.favicon === 'string' ? attrs.favicon : undefined));
+  let thumbnail_original = $derived(typeof dc.thumbnail_original === 'string' ? dc.thumbnail_original : undefined);
+  let image = $derived(typeof dc.image === 'string' ? dc.image : (typeof attrs.image === 'string' ? attrs.image : undefined));
+  let extra_snippets = $derived(dc.extra_snippets as string | string[] | undefined);
+  let dataDate = $derived(typeof dc.page_age === 'string' ? dc.page_age : undefined);
   
   // ===========================================
   // HTML Tag Stripping (Client-side fallback)
@@ -235,9 +227,11 @@
   let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
   
   // Favicon URL with fallback chain
+  // SECURITY: All favicon sources must be proxied to prevent user IP leaks.
+  // meta_url_favicon and favicon are raw external URLs from search results.
   let faviconUrl = $derived(
-    meta_url_favicon || 
-    favicon || 
+    proxyImage(meta_url_favicon, MAX_WIDTH_FAVICON) ||
+    proxyImage(favicon, MAX_WIDTH_FAVICON) ||
     proxyFavicon(url)
   );
   

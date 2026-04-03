@@ -13,6 +13,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
    * Individual calculation result from the backend TOON content.
@@ -26,15 +27,17 @@
     error?: string;
   }
 
+  /**
+   * Normalize an unknown status value to a valid embed status string.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
+
   interface Props {
-    /** Expression shown in the gradient banner */
-    query?: string;
-    /** Subtitle (e.g. mode used: "numeric", "symbolic") */
-    subtitle?: string;
-    /** Processing status */
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /** Calculation results array */
-    results?: CalculateResult[];
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close callback */
     onClose: () => void;
     /** Embed ID for the share button */
@@ -51,10 +54,7 @@
   }
 
   let {
-    query: queryProp,
-    subtitle: subtitleProp,
-    status: statusProp,
-    results: resultsProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -65,6 +65,14 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // ── Extract fields from data ────────────────────────────────────────────────
+
+  let dc = $derived(data.decodedContent);
+  let queryProp = $derived(typeof dc.query === 'string' ? dc.query : undefined);
+  let subtitleProp = $derived(typeof dc.subtitle === 'string' ? dc.subtitle : undefined);
+  let statusProp = $derived(normalizeStatus(dc.status));
+  let resultsProp = $derived(Array.isArray(dc.results) ? dc.results as CalculateResult[] : undefined);
 
   // ── Local state ─────────────────────────────────────────────────────────────
   let localQuery    = $state('');

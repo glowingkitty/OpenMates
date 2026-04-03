@@ -290,18 +290,32 @@ def run_scanner(scan_type: str) -> None:
         linear_task=False,
     )
 
-    # Check if Claude wrote the output file (incremental writes)
+    # Preserve Claude's detailed findings before write_nightly_report overwrites
+    # the same file.  Claude writes items to OUTPUT_FILES[scan_type] but
+    # write_nightly_report also writes to {job}.json — for quick-wins and
+    # code-structure these are the SAME file, so we must merge items in.
     items_found = 0
+    claude_items = []
     if output_path.is_file():
         try:
             data = json.loads(output_path.read_text())
-            items_found = len(data.get("details", {}).get("items", []))
+            raw_items = data.get("details", {}).get("items", [])
+            if isinstance(raw_items, list):
+                claude_items = raw_items
+            else:
+                print(
+                    f"{log_prefix} WARNING: Claude output 'items' is not a list "
+                    f"(type={type(raw_items).__name__})",
+                    file=sys.stderr,
+                )
+            items_found = len(claude_items)
         except Exception:
             pass
 
     timed_out = returncode == 124
 
-    # Write nightly report summary (consumed by daily meeting auto-discovery)
+    # Write nightly report summary (consumed by daily meeting auto-discovery).
+    # Includes Claude's detailed items so they survive the file overwrite.
     job_name = REPORT_JOB_NAMES[scan_type]
     write_nightly_report(
         job=job_name,
@@ -319,6 +333,7 @@ def run_scanner(scan_type: str) -> None:
             "sector_scanned": sector["name"],
             "items_found": items_found,
             "timed_out": timed_out,
+            "items": claude_items,
         },
     )
 

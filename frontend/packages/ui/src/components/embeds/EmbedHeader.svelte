@@ -93,6 +93,13 @@
   let useDecoSkillIcon = $derived(!!skillIconName);
 
   import { handleImageError } from '../../utils/offlineImageHandler';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
+
+  // SECURITY: Defense-in-depth — ensure favicon URLs are always proxied even if
+  // the caller forgot. Prevents user IP leaks to external favicon hosts.
+  let safeFaviconUrl = $derived(
+    faviconUrl ? proxyImage(faviconUrl, MAX_WIDTH_FAVICON) : undefined
+  );
 
   function hideFavicon(e: Event) {
     handleImageError(e.target as HTMLImageElement);
@@ -174,9 +181,9 @@
 
       {#if title}
         <div class="header-title">
-          {#if faviconUrl}
+          {#if safeFaviconUrl}
             <img
-              src={faviconUrl}
+              src={safeFaviconUrl}
               alt=""
               class="header-favicon"
               class:circular={faviconIsCircular}

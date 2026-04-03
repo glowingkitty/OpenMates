@@ -1696,7 +1696,18 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const title = decodedContent?.title || "";
-    const sourceDomain = decodedContent?.source || "";
+    // Prefer explicit source field; fallback to extracting domain from source_page_url
+    let sourceDomain = decodedContent?.source || "";
+    if (!sourceDomain && decodedContent?.source_page_url) {
+      try { sourceDomain = new URL(decodedContent.source_page_url).hostname.replace(/^www\./, ''); }
+      catch { /* ignore invalid URLs */ }
+    }
+    console.debug("[AppSkillUseRenderer] image_result source debug:", {
+      source: decodedContent?.source,
+      source_page_url: decodedContent?.source_page_url,
+      resolvedDomain: sourceDomain,
+      allKeys: decodedContent ? Object.keys(decodedContent) : [],
+    });
     const status =
       decodedContent?.status ||
       embedData?.status ||

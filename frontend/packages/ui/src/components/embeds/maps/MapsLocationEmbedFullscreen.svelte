@@ -19,16 +19,11 @@
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
-    lat?: number;
-    lon?: number;
-    zoom?: number;
-    name?: string;
-    address?: string;
-    locationType?: string;
-    mapImageUrl?: string;
-    status?: 'processing' | 'finished' | 'error';
+    /** Raw embed data containing decodedContent and attrs */
+    data: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -41,13 +36,7 @@
   }
 
   let {
-    lat,
-    lon,
-    zoom = 15,
-    name,
-    address,
-    locationType,
-    mapImageUrl,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -58,6 +47,17 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // Extract fields from data.decodedContent with attrs fallback
+  let dc = $derived(data.decodedContent);
+  let attrs = $derived(data.attrs ?? {});
+  let lat = $derived(typeof dc.lat === 'number' ? dc.lat : (typeof attrs.lat === 'number' ? attrs.lat : undefined));
+  let lon = $derived(typeof dc.lon === 'number' ? dc.lon : (typeof attrs.lon === 'number' ? attrs.lon : undefined));
+  let zoom = $derived(typeof dc.zoom === 'number' ? dc.zoom : 15);
+  let name = $derived(typeof dc.name === 'string' ? dc.name : undefined);
+  let address = $derived(typeof dc.address === 'string' ? dc.address : undefined);
+  let locationType = $derived(typeof dc.location_type === 'string' ? dc.location_type : undefined);
+  let mapImageUrl = $derived(typeof dc.map_image_url === 'string' ? dc.map_image_url : undefined);
 
   let showNearbyLabel = $derived(locationType === 'area');
   let showShare = $derived(!!embedId);

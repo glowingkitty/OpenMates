@@ -454,6 +454,7 @@ class PreprocessingResult(BaseModel):
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
     relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")
 
+
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
@@ -2632,6 +2633,7 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] 'web-read' already preselected by LLM — no override needed."
                 )
 
+
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
     # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.
@@ -2680,6 +2682,7 @@ async def handle_preprocessing(
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
+
         user_requested_skills_only=user_requested_skills_only,  # True when user specified @skill; main processor must not merge always_include_skills
         user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
         output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)

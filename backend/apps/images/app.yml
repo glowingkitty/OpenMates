@@ -239,8 +239,8 @@ skills:
                   Mutually exclusive with query.
               count:
                 type: integer
-                description: Number of image results to return (default 10, max 20).
-                default: 10
+                description: Number of image results to return (default 6, max 20).
+                default: 6
                 minimum: 1
                 maximum: 20
               country:
@@ -253,6 +253,13 @@ skills:
                 default: "en"
       required:
         - requests
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # Only exclude rendering-specific fields. Keep type, source_page_url, and image_url
+    # so the LLM recognizes these as real image results (too-aggressive filtering caused
+    # the LLM to think results were missing and re-trigger image search).
+    exclude_fields_for_llm:
+      - "thumbnail_url"
+      - "favicon_url"
   - id: generate
     name_translation_key: images.generate
     description_translation_key: images.generate.description

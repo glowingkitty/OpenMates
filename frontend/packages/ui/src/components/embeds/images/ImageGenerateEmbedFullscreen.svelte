@@ -21,33 +21,30 @@
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
-  
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
+  /**
+   * Type for files metadata from embed content
+   */
+  interface ImageFileVariant {
+    s3_key: string;
+    width: number;
+    height: number;
+    format: string;
+  }
+
+  interface ImageFiles {
+    preview?: ImageFileVariant;
+    full?: ImageFileVariant;
+    original?: ImageFileVariant;
+  }
+
   /**
    * Props for image generate embed fullscreen
    */
   interface Props {
-    /** Image prompt */
-    prompt?: string;
-    /** Model reference */
-    model?: string;
-    /** Aspect ratio */
-    aspectRatio?: string;
-    /** S3 base URL for image files */
-    s3BaseUrl?: string;
-    /** Files metadata from embed content */
-    files?: {
-      preview?: { s3_key: string; width: number; height: number; format: string };
-      full?: { s3_key: string; width: number; height: number; format: string };
-      original?: { s3_key: string; width: number; height: number; format: string };
-    };
-    /** AES key for image decryption */
-    aesKey?: string;
-    /** AES nonce for image decryption */
-    aesNonce?: string;
-    /** Embed status */
-    status?: string;
-    /** Error message if any */
-    error?: string;
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -66,25 +63,10 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
-    /** Skill identifier ('generate' or 'generate_draft') - determines display title */
-    skillId?: 'generate' | 'generate_draft';
-    /** ISO timestamp of when the image was generated (for download metadata) */
-    generatedAt?: string;
-    /** Embed IDs of the source images used for image-to-image generation */
-    inputEmbedIds?: string[];
   }
-  
+
   let {
-    prompt,
-    model,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    aspectRatio,
-    s3BaseUrl,
-    files,
-    aesKey,
-    aesNonce,
-    status = 'finished',
-    error,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -94,10 +76,25 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
-    skillId: skillIdProp = 'generate',
-    generatedAt,
-    inputEmbedIds
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent and data.embedData ──────────────
+
+  let dc = $derived(data.decodedContent);
+  let ed = $derived(data.embedData);
+  let prompt = $derived(typeof dc.prompt === 'string' ? dc.prompt : undefined);
+  let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let aspectRatio = $derived(typeof dc.aspect_ratio === 'string' ? dc.aspect_ratio : undefined);
+  let s3BaseUrl = $derived(typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined);
+  let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as ImageFiles : undefined);
+  let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
+  let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined);
+  let status = typeof ed?.status === 'string' ? ed.status : 'finished';
+  let error = $derived(typeof dc.error === 'string' ? dc.error : undefined);
+  let skillIdProp: 'generate' | 'generate_draft' = typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft' : 'generate';
+  let generatedAt = $derived(typeof dc.generated_at === 'string' ? dc.generated_at : undefined);
+  let inputEmbedIds = $derived(Array.isArray(dc.input_embed_ids) ? dc.input_embed_ids as string[] : undefined);
   
   // Image state
   // Progressive loading: show the preview image instantly while the full-res version loads.

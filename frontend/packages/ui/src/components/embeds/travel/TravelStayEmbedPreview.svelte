@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
   
   /**
@@ -130,7 +131,7 @@
       <!-- Thumbnail -->
       {#if thumbnail}
         <div class="stay-thumb">
-          <img src={thumbnail} alt={name || 'Property'} loading="lazy" />
+          <img src={proxyImage(thumbnail, MAX_WIDTH_PREVIEW_THUMBNAIL)} alt={name || 'Property'} loading="lazy" />
         </div>
       {:else}
         <div class="stay-thumb placeholder">

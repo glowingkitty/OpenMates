@@ -1665,42 +1665,56 @@ Usage Settings - View usage statistics and export usage data
                             <span class="entry-detail-value">{selEntry.server_region}</span>
                         </div>
                     {/if}
-                    <!-- Token breakdown - only for AI Ask entries -->
+                    <!-- Token breakdown — receipt-style: sub-items first, totals at bottom.    -->
+                    <!-- When app skills were used, the LLM is called multiple times. Each call   -->
+                    <!-- re-sends the full context, so cumulative input_tokens > single-call sum. -->
+                    <!-- We show: system prompt, your input, app skills overhead (computed),       -->
+                    <!-- then a separator, then total input + AI response.                        -->
                     {#if selEntry.system_prompt_tokens}
                         <div class="entry-detail-row" data-testid="usage-system-prompt-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.system_prompt_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.system_prompt_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.user_input_tokens}
                         <div class="entry-detail-row" data-testid="usage-user-input-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.user_input_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.user_input_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.user_input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
+                    <!-- App skills row: shown when tool iterations occurred and there are         -->
+                    <!-- unaccounted tokens (cumulative input > system_prompt + user_input).       -->
+                    <!-- The computed value represents tokens consumed by re-processing the full   -->
+                    <!-- conversation across multiple AI calls triggered by app skill use.         -->
+                    {#if selEntry.tool_inference_iterations != null && selEntry.tool_inference_iterations > 0 && selEntry.input_tokens && selEntry.system_prompt_tokens != null && selEntry.user_input_tokens != null}
+                        {@const appSkillTokens = selEntry.input_tokens - (selEntry.system_prompt_tokens || 0) - (selEntry.user_input_tokens || 0)}
+                        {#if appSkillTokens > 0}
+                            <div class="entry-detail-row" data-testid="usage-app-skill-tokens">
+                                <span class="entry-detail-label">
+                                    {$text('settings.usage.app_skills_tokens_label')} (×{selEntry.tool_inference_iterations})
+                                </span>
+                                <span class="entry-detail-value" data-testid="entry-value">{appSkillTokens.toLocaleString()}</span>
+                            </div>
+                        {/if}
+                    {/if}
+                    <!-- Separator + totals -->
                     {#if selEntry.input_tokens}
-                        <div class="entry-detail-row" data-testid="usage-input-tokens">
-                            <span class="entry-detail-label">{$text('settings.usage.input_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.input_tokens.toLocaleString()}</span>
+                        <div class="entry-detail-row entry-detail-row--total" data-testid="usage-input-tokens">
+                            <span class="entry-detail-label">{$text('settings.usage.total_input_tokens_label')}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.input_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
                     {#if selEntry.output_tokens}
                         <div class="entry-detail-row" data-testid="usage-output-tokens">
                             <span class="entry-detail-label">{$text('settings.usage.output_tokens_label')}</span>
-                            <span class="entry-detail-value">{selEntry.output_tokens.toLocaleString()}</span>
+                            <span class="entry-detail-value" data-testid="entry-value">{selEntry.output_tokens.toLocaleString()}</span>
                         </div>
                     {/if}
-                    <!-- Tool inference iterations hint (only shown when tool use occurred, i.e. > 0) -->
-                    <!-- This tells the user why their token count is higher than expected:        -->
-                    <!-- the AI called one or more app skills and re-processed the full context    -->
-                    <!-- after receiving each result, adding an extra LLM call per skill round.   -->
-                    <!-- FAQ: https://openmates.app/faq#tool-inference (do NOT show URL in UI)   -->
+                    <!-- App skills hint — explains why token count is higher than expected -->
                     {#if selEntry.tool_inference_iterations != null && selEntry.tool_inference_iterations > 0}
-                        <div class="entry-detail-row">
-                            <span class="entry-detail-label">{$text('settings.usage.tool_iterations_label')}</span>
-                            <span class="entry-detail-value entry-detail-value--hint">
-                                {selEntry.tool_inference_iterations}
-                                <span class="entry-detail-hint">{$text('settings.usage.tool_iterations_hint')}</span>
+                        <div class="entry-detail-row entry-detail-row--hint" data-testid="usage-app-skills-hint">
+                            <span class="entry-detail-hint">
+                                {$text('settings.usage.app_skills_hint')}
                             </span>
                         </div>
                     {/if}
@@ -2733,17 +2747,27 @@ Usage Settings - View usage statistics and export usage data
         font-weight: 400;
     }
 
-    /* Tool iteration hint: subtle secondary text shown after the iteration count */
-    .entry-detail-value--hint {
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: 6px;
+    /* Total row: top border acts as receipt separator line */
+    .entry-detail-row--total {
+        border-top: 2px solid var(--color-grey-20);
+    }
+
+    .entry-detail-row--total .entry-detail-label,
+    .entry-detail-row--total .entry-detail-value {
+        font-weight: 600;
+    }
+
+    /* Hint row: full-width explanation text below the token breakdown */
+    .entry-detail-row--hint {
+        padding: 8px 0 14px 0;
+        border-bottom: none;
     }
 
     .entry-detail-hint {
         font-size: 12px;
         font-weight: 400;
         color: var(--color-grey-50);
+        line-height: 1.4;
     }
 
 </style>

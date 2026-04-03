@@ -19,7 +19,16 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
-  
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+
+  /**
+   * Normalize an unknown status value to a valid embed status string.
+   */
+  function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
+    if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
+    return 'finished';
+  }
+
   /**
    * Price calendar entry for a single day
    */
@@ -64,14 +73,8 @@
    * Props for travel price calendar embed fullscreen
    */
   interface Props {
-    /** Route summary query */
-    query?: string;
-    /** Processing status */
-    status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /** Optional error message */
-    errorMessage?: string;
-    /** Results array (non-composite: data embedded directly) */
-    results?: PriceCalendarResult[];
+    /** Standardized raw embed data (decodedContent, attrs, embedData) */
+    data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing */
@@ -91,12 +94,9 @@
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
   }
-  
+
   let {
-    query: queryProp,
-    status: statusProp,
-    errorMessage: errorMessageProp,
-    results: resultsProp,
+    data,
     onClose,
     embedId,
     hasPreviousEmbed = false,
@@ -107,6 +107,14 @@
     showChatButton = false,
     onShowChat
   }: Props = $props();
+
+  // ── Extract fields from data.decodedContent ─────────────────────────────────
+
+  let dc = $derived(data.decodedContent);
+  let queryProp = $derived(typeof dc.query === 'string' ? dc.query : undefined);
+  let statusProp = $derived(normalizeStatus(dc.status));
+  let errorMessageProp = $derived(typeof dc.error === 'string' ? dc.error : undefined);
+  let resultsProp = $derived(Array.isArray(dc.results) ? dc.results as PriceCalendarResult[] : undefined);
   
   // Local reactive state — initialised to defaults; synced from props via $effect below
   let localQuery = $state<string>('');

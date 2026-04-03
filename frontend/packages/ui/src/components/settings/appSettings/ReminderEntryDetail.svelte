@@ -324,6 +324,8 @@
 		font-size: var(--input-font-size, 1rem);
 		line-height: 1.25;
 		color: var(--color-grey-100);
+		appearance: none;
+		-webkit-appearance: none;
 		transition: box-shadow 0.2s ease;
 		box-sizing: border-box;
 	}
