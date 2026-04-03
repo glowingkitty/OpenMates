@@ -148,7 +148,7 @@ preprocess_request_tool:
           **Search Selection:**
           - Treat `web-search` as the default for broad factual retrieval.
           - Add `videos-search` when demonstration or walkthrough content would help (tutorials, reviews, demos).
-          - Add `images-search` ONLY when the user explicitly asks for images/photos/pictures (e.g., "show me images of X", "find photos of Y"). For implicit visual topics, use `visual_search_query` instead (see below).
+          - Add `images-search` when the user explicitly asks for images/photos/pictures, OR when the topic has a physical/visual form that would benefit from images (products, devices, food, recipes, animals, plants, places, landmarks, people, fashion, architecture, DIY, news events with visual impact). Skip for abstract concepts, code/programming, pure data lookups, financial numbers, scheduling, or topics with no meaningful visual form.
 
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
@@ -182,11 +182,6 @@ preprocess_request_tool:
           Be specific — include names, technologies, or details that distinguish this chat from others.
       11. **chat_tags**: Up to 10 relevant tags for categorization and search.
           Include topics, technologies, concepts, and themes discussed in the conversation.
-      12. **visual_search_query**: If the topic describes something with a physical/visual form, provide a short image search query (in English) to fetch highlight images automatically.
-          - **SET** for: products, devices, supplements, food, recipes, animals, plants, places, landmarks, cities, people, fashion, architecture, DIY, news events with visual impact, or any topic where seeing the subject would enrich the answer.
-          - **LEAVE EMPTY** ("") for: abstract concepts (philosophy, economics), code/programming, pure data lookups (dates, stats, calculations), financial numbers, scheduling, logistics, or topics with no meaningful visual form.
-          - The query should be concise and descriptive, e.g.: "spirulina supplement powder", "MacBook Pro 2026", "Eiffel Tower Paris", "golden retriever puppy".
-          - On follow-up messages: set if the NEW message topic is visual; leave empty if it's a non-visual follow-up.
 
       # --- Follow-up message only (when title already exists) ---
       # The fields below are added to the required list on follow-up messages only.
@@ -261,9 +256,7 @@ preprocess_request_tool:
           items:
             type: "string"
           maxItems: 10
-        visual_search_query:
-          type: "string"
-          description: "Short English image search query for topics with a physical/visual form (e.g. 'spirulina supplement', 'MacBook Pro 2026', 'Eiffel Tower'). Empty string if the topic is abstract or has no visual form."
+
         category:
           type: "string"
           description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category; use 'general_knowledge' only as a last resort. On follow-ups, default to {PREVIOUS_CATEGORY} unless the topic has CLEARLY changed. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
@@ -289,7 +282,7 @@ preprocess_request_tool:
         - "relevant_embedded_previews"
         - "chat_summary"
         - "chat_tags"
-        - "visual_search_query"
+
         # category, harmful_or_illegal, misuse_risk, output_language are added to required by Python
         # on follow-up messages (when is_first_message is False)
 
@@ -505,7 +498,10 @@ base_proactive_skill_usage_instruction: |
   3. `web-search` or `news-search` for factual retrieval (see mandatory rules above)
   4. `videos-search` for tutorials/demos/walkthroughs
 
-  **Note:** Image search for visual topics is handled automatically by the system. Only call `images-search` yourself if the user explicitly asks for images/photos and the tool is available.
+  **Image Search (`images-search`):** Proactively use `images-search` when the topic has a physical or visual form — do not wait for the user to ask explicitly. This enriches your answer with relevant visuals.
+  - **USE** for: products, devices, supplements, food, recipes, animals, plants, places, landmarks, cities, people, fashion, architecture, DIY projects, news events with visual impact, or any topic where seeing the subject would enhance the answer.
+  - **SKIP** for: abstract concepts (philosophy, economics), code/programming, pure data lookups (dates, stats, calculations), financial numbers, scheduling, logistics, or topics with no meaningful visual form.
+  - Use a concise, descriptive English query (e.g., "spirulina supplement powder", "MacBook Pro 2026", "Eiffel Tower Paris").
 
   **Search Limitation:**
   - Make only ONE search call per request by default.
@@ -619,7 +615,7 @@ postprocess_response_tool:
 
       5. **updated_chat_title**: ONLY generate a new title if the conversation has **significantly** drifted from its original topic.
          - The current chat title (if any) is provided in the system context.
-         - Return an empty string or omit this field if the current title still describes the chat reasonably well.
+         - Return an empty string if the current title still describes the chat reasonably well.
          - A title update is warranted when: the user switched to an entirely different topic, the scope expanded dramatically, or the original title was clearly wrong/vague.
          - A title update is NOT warranted for: minor topic extensions, follow-up questions on the same theme, or slight refinements of the original topic.
          - Keep the new title concise (3-8 words), descriptive, and specific to the conversation content.
@@ -671,7 +667,7 @@ postprocess_response_tool:
           description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
         updated_chat_title:
           type: "string"
-          description: "A new chat title (3-8 words) ONLY if the conversation has significantly drifted from the current title. Return empty string if the current title still fits. Generate in the USER'S SYSTEM LANGUAGE. Do NOT generate for new chats without a title."
+          description: "A new chat title (3-8 words) ONLY if the conversation has significantly drifted from the current title. Return an empty string if the current title still fits. Generate in the USER'S SYSTEM LANGUAGE. Do NOT generate for new chats without a title — return empty string."
         daily_inspiration_topic_suggestions:
           type: "array"
           description: "3 concise topic/interest phrases (2-5 words each, in English) based on what the user discussed or showed curiosity about. Used to personalize daily inspiration content. Capture specific topics, not broad categories. Always generate exactly 3. Never include brand names, product names, or app names — capture the underlying concept instead (e.g. 'knowledge graph note-taking' not 'Obsidian app'). PROHIBITED: never generate topics about illegal drugs/substance abuse, explicit sexual content, graphic violence, self-harm, or weapons — find an adjacent educational angle or a different interest instead. NEVER extract political party names, political candidates, electoral campaigns, or partisan ideology — rephrase to the underlying policy or governance issue (e.g. 'universal healthcare economics' not any party's health plan). NEVER extract religious promotion topics — historical/cultural/architectural religious context is allowed, proselytizing or devotional framing is not."
@@ -684,6 +680,7 @@ postprocess_response_tool:
         - "new_chat_request_suggestions"
         - "harmful_response"
         - "chat_summary"
+        - "updated_chat_title"
         - "daily_inspiration_topic_suggestions"
 
 url_correction_tool:

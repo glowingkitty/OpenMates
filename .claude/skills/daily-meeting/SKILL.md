@@ -37,7 +37,8 @@ These are safe, reliable commands that should never fail. Issue them all in para
    for n, s in d.get('suites', {}).items():
        failed = [{'name': t['name'], 'error': (t.get('error') or '')[:300]}
                  for t in s.get('tests', []) if t.get('status') != 'passed']
-       compact['suites'][n] = {'status': s.get('status'), 'total': len(s.get('tests', [])), 'failed': failed}
+       passed = [t['name'] for t in s.get('tests', []) if t.get('status') == 'passed']
+       compact['suites'][n] = {'status': s.get('status'), 'total': len(s.get('tests', [])), 'failed': failed, 'passed': passed}
    print(json.dumps(compact, indent=2))
    "
    ```
@@ -92,16 +93,21 @@ These commands may fail due to missing config. Issue them in a SEPARATE parallel
    docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health --prod
    ```
 
+11. **Production server stats** — Bash:
+   ```bash
+   docker exec api python3 /app/backend/scripts/server_stats_query.py --prod
+   ```
+
 #### Parallel Batch 2 — file reads (issue simultaneously after batch 1):
 
-11. **Failed tests** — Read: `test-results/last-failed-tests.json`
-12. **Failed test reports** — Glob `test-results/reports/failed/*.md`, then Read each (limit 4000 chars per file)
-13. **Vitest coverage** — Read: `test-results/coverage/vitest-coverage.json`
-14. **Pytest coverage** — Read: `test-results/coverage/pytest-coverage.json`
-15. **Prod smoke tests** — Read: `test-results/last-run-prod-smoke.json`
-16. **Nightly reports** — Glob `logs/nightly-reports/*.json`, then Read each
-17. **Milestone state** — Read: `.planning/PROJECT.md` (fallback: `.planning/ROADMAP.md`, `.planning/STATE.md`, `.planning/config.json`)
-18. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
+12. **Failed tests** — Read: `test-results/last-failed-tests.json`
+13. **Failed test reports** — Glob `test-results/reports/failed/*.md`, then Read each (limit 4000 chars per file)
+14. **Vitest coverage** — Read: `test-results/coverage/vitest-coverage.json`
+15. **Pytest coverage** — Read: `test-results/coverage/pytest-coverage.json`
+16. **Prod smoke tests** — Read: `test-results/last-run-prod-smoke.json`
+17. **Nightly reports** — Glob `logs/nightly-reports/*.json` (path: `/home/superdev/projects/OpenMates`), then Read each
+18. **Milestone state** — Read: `.planning/PROJECT.md` (fallback: `.planning/ROADMAP.md`, `.planning/STATE.md`, `.planning/config.json`)
+19. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
 
 ### Step 2: Read Prompt Template & Start Meeting
 

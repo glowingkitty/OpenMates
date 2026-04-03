@@ -52,9 +52,13 @@ All data has been gathered automatically. Review each section below — this is 
 
 {{LARGE_FILES}}
 
-### Server Stats
+### Server Stats (Dev)
 
 {{SERVER_STATS}}
+
+### Server Stats (Production)
+
+{{SERVER_STATS_PROD}}
 
 ### Session Quality (Yesterday)
 
@@ -115,6 +119,7 @@ Using the gathered health data:
 - Lead with anything broken or degraded
 - Test results with emojis:
   - ✅ `53/94 passing` → show as: `📊 Tests: 53/94 (56%) — ⚠️ 41 failures`
+  - **Show passing Playwright tests by name** — grouped by area (e.g., "Auth: login-flow ✅, signup-flow ✅" / "Skills: web-search ✅, maps-search ✅"). This shows which areas are stable and don't need attention.
   - Group failures by root cause with counts
 - ⚠️ Flag data sources that were unavailable or stale
 - If "no errors" is reported but seems unlikely, flag it as potentially unreliable (OTel gap)

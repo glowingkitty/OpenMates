@@ -1168,19 +1168,6 @@ async def handle_main_processing(
         preselected_skills = preselected_skills | set(always_include_skills)
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
-    # AUTO-IMAGE-SEARCH: When preprocessor set visual_search_query, ensure images-search
-    # is in the preselected skills so the embed/results infrastructure is available.
-    # The actual auto-execution happens later in the processing loop.
-    visual_search_query = getattr(preprocessing_results, "visual_search_query", None)
-    if visual_search_query and not user_requested_skills_only:
-        if "images-search" not in preselected_skills:
-            preselected_skills.add("images-search")
-            logger.info(
-                f"{log_prefix} [AUTO_IMAGE_SEARCH] Added 'images-search' to preselected skills for "
-                f"visual_search_query='{visual_search_query}'. Will auto-execute after first LLM iteration."
-            )
-        else:
-            logger.debug(f"{log_prefix} [AUTO_IMAGE_SEARCH] 'images-search' already preselected.")
 
     # When user explicitly requested skills, add a mandatory instruction so the model must use them
     if user_requested_skills_only and preselected_skills:
@@ -1883,7 +1870,7 @@ async def handle_main_processing(
                 "--- End Image Search Instructions ---\n"
             )
             iteration_system_prompt = iteration_system_prompt + image_embed_instruction
-            logger.info(f"{log_prefix} [AUTO_IMAGE_SEARCH] Injected embed preview instruction into system prompt")
+            logger.info(f"{log_prefix} [IMAGE_SEARCH] Injected embed preview instruction into system prompt")
 
         # === MODEL FALLBACK RETRY LOGIC ===
         # Try models in sequence until one succeeds or all fail
@@ -2353,30 +2340,6 @@ async def handle_main_processing(
                 break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
-
-        # === AUTO IMAGE SEARCH: inject synthetic tool call ===
-        # When preprocessor set visual_search_query and the LLM didn't already call
-        # images-search, append a synthetic tool call so it goes through the normal
-        # tool execution pipeline (placeholders, embeds, budget, etc.).
-        if (
-            visual_search_query
-            and iteration == 0
-            and not any(tc.function_name in ("images-search", "images_search") for tc in tool_calls_for_this_turn)
-            and "images-search" in (preselected_skills or set())
-        ):
-            import uuid
-            synthetic_args = json.dumps({"requests": [{"query": visual_search_query, "count": 3}]})
-            synthetic_tool_call = ParsedOpenAIToolCall(
-                tool_call_id=f"auto_img_{uuid.uuid4().hex[:8]}",
-                function_name="images-search",
-                function_arguments_raw=synthetic_args,
-                function_arguments_parsed=json.loads(synthetic_args),
-            )
-            tool_calls_for_this_turn.append(synthetic_tool_call)
-            logger.info(
-                f"{log_prefix} [AUTO_IMAGE_SEARCH] Injected synthetic images-search tool call "
-                f"for visual_search_query='{visual_search_query}'"
-            )
 
         if not tool_calls_for_this_turn:
             break

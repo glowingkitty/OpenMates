@@ -2032,6 +2032,7 @@ async def _o2_custom_sql_prod_fallback(args) -> None:
     params = {
         "since_minutes": min(args.since, 10080),
         "top": args.max_rows,
+        "compose_project": getattr(args, "compose_project", "openmates-core"),
     }
 
     try:
@@ -2563,6 +2564,8 @@ async def main():
                         help="Include representative raw examples in --o2 mode")
     parser.add_argument("--quiet-health", action="store_true",
                         help="Filter routine /health and /healthz 200 logs in --o2 mode")
+    parser.add_argument("--compose-project", type=str, default="openmates-core",
+                        help="Docker Compose project name for OpenObserve queries (default: openmates-core)")
 
     # Satellite log options
     parser.add_argument("--services", type=str, default=None,

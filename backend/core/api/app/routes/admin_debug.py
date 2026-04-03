@@ -23,6 +23,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -1653,6 +1654,7 @@ async def list_error_logs(
     request: Request,
     since_minutes: int = 1440,
     top: int = 15,
+    compose_project: str = "openmates-core",
     admin_user: User = Depends(require_admin_api_key),
 ) -> ErrorLogsResponse:
     """
@@ -1665,6 +1667,7 @@ async def list_error_logs(
     Query params:
         since_minutes: Time window in minutes (default 1440 = 24h, max 10080 = 7d)
         top: Max error groups to return (default 15, max 100)
+        compose_project: Docker Compose project name filter (default 'openmates-core')
 
     Security:
         - Requires admin API key
@@ -1673,15 +1676,19 @@ async def list_error_logs(
     since_minutes = min(max(1, since_minutes), 10080)
     top = min(max(1, top), 100)
 
+    # Sanitize compose_project to prevent SQL injection
+    if not re.match(r'^[a-zA-Z0-9_-]+$', compose_project):
+        raise HTTPException(status_code=400, detail="Invalid compose_project name")
+
     logger.info(
         f"Admin {admin_user.id} querying error logs "
-        f"(since={since_minutes}m, top={top})"
+        f"(since={since_minutes}m, top={top}, project={compose_project})"
     )
 
     sql = (
         f"SELECT message, service, level, COUNT(*) as count "
         f"FROM \"default\" "
-        f"WHERE compose_project = 'openmates-core' "
+        f"WHERE compose_project = '{compose_project}' "
         f"AND (level = 'ERROR' OR level = 'CRITICAL' "
         f"OR LOWER(message) LIKE '%traceback%') "
         f"GROUP BY message, service, level "
@@ -1717,6 +1724,200 @@ async def list_error_logs(
             status_code=500,
             detail=f"Failed to query error logs: {str(e)}",
         )
+
+
+# ============================================================================
+# OPENOBSERVE DIAGNOSTICS
+# ============================================================================
+
+
+@router.get("/errors/health", include_in_schema=False)
+@limiter.limit("30/minute")
+async def openobserve_health(
+    request: Request,
+    admin_user: User = Depends(require_admin_api_key),
+) -> Dict[str, Any]:
+    """
+    Diagnostic endpoint to check OpenObserve connectivity and data ingestion.
+
+    Use this to remotely diagnose why error queries return empty on production
+    without SSH access.  Returns whether OpenObserve is reachable, total record
+    count (no filter), and the distinct compose_project values actually present.
+    """
+    logger.info(f"Admin {admin_user.id} running OpenObserve health check")
+
+    result: Dict[str, Any] = {
+        "reachable": False,
+        "total_records": 0,
+        "sample_compose_projects": [],
+    }
+
+    try:
+        start_time = datetime.now(timezone.utc) - timedelta(hours=24)
+
+        # Total records (no filter) to confirm data is being ingested
+        count_sql = 'SELECT COUNT(*) as total FROM "default"'
+        count_hits = await openobserve_log_collector._search(
+            "default", count_sql, start_time=start_time,
+        )
+        result["reachable"] = True
+        if count_hits:
+            result["total_records"] = int(count_hits[0].get("total", 0))
+
+        # Distinct compose_project values — reveals the actual project name on prod
+        projects_sql = (
+            'SELECT compose_project, COUNT(*) as count FROM "default" '
+            'GROUP BY compose_project ORDER BY count DESC LIMIT 10'
+        )
+        proj_hits = await openobserve_log_collector._search(
+            "default", projects_sql, start_time=start_time,
+        )
+        if proj_hits:
+            result["sample_compose_projects"] = [
+                {"name": h.get("compose_project", "?"), "count": int(h.get("count", 0))}
+                for h in proj_hits
+            ]
+
+    except Exception as e:
+        logger.error(f"OpenObserve health check failed: {e}", exc_info=True)
+        result["error"] = str(e)
+
+    result["generated_at"] = datetime.now(timezone.utc).isoformat()
+    return result
+
+
+# ============================================================================
+# SERVER STATS (OPE-296)
+# ============================================================================
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    """Safely convert a Directus value (may be str, None, or int) to int."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
+@router.get("/server-stats", include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_server_stats(
+    request: Request,
+    admin_user: User = Depends(require_admin_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Query server stats from Directus for remote consumption.
+
+    Returns the same data as server_stats_query.py but as structured JSON,
+    accessible via the Admin Debug API so dev can query production stats
+    without direct Directus access.
+    """
+    import json as _json
+
+    today = datetime.now(timezone.utc)
+    today_str = today.strftime("%Y-%m-%d")
+    yesterday_str = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    logger.info(f"Admin {admin_user.id} querying server stats for {yesterday_str}")
+
+    result: Dict[str, Any] = {"success": True, "date": yesterday_str, "sections": {}}
+
+    # ── Server Stats (yesterday) ─────────────────────────────────────────
+    try:
+        items = await directus_service.get_items(
+            "server_stats_global_daily",
+            {"filter": {"date": {"_eq": yesterday_str}}, "limit": 1},
+            admin_required=True,
+        )
+        stats = items[0] if items else None
+        if stats:
+            result["sections"]["user_growth"] = {
+                "total_users": stats.get("total_regular_users"),
+                "new_registrations": _safe_int(stats.get("new_users_registered")),
+                "completed_signups": _safe_int(stats.get("new_users_finished_signup")),
+            }
+            result["sections"]["engagement"] = {
+                "messages_sent": _safe_int(stats.get("messages_sent")),
+                "chats_created": _safe_int(stats.get("chats_created")),
+                "embeds_created": _safe_int(stats.get("embeds_created")),
+            }
+            income_cents = _safe_int(stats.get("income_eur_cents"))
+            result["sections"]["revenue"] = {
+                "income_eur": income_cents / 100.0,
+                "credits_sold": _safe_int(stats.get("credits_sold")),
+                "credits_used": _safe_int(stats.get("credits_used")),
+                "purchases": _safe_int(stats.get("purchase_count")),
+                "active_subscriptions": stats.get("active_subscriptions"),
+                "subscription_creations": _safe_int(stats.get("subscription_creations")),
+                "subscription_cancellations": _safe_int(stats.get("subscription_cancellations")),
+                "credit_liability": stats.get("liability_total"),
+            }
+            result["sections"]["ai_usage"] = {
+                "input_tokens": _safe_int(stats.get("total_input_tokens")),
+                "output_tokens": _safe_int(stats.get("total_output_tokens")),
+            }
+        else:
+            result["sections"]["server_stats"] = {"error": f"No data for {yesterday_str}"}
+    except Exception as e:
+        logger.error(f"Server stats query failed: {e}", exc_info=True)
+        result["sections"]["server_stats"] = {"error": str(e)}
+
+    # ── Web Analytics (yesterday) ────────────────────────────────────────
+    try:
+        wa_items = await directus_service.get_items(
+            "web_analytics_daily",
+            {"filter": {"date": {"_eq": yesterday_str}}, "limit": 1},
+            admin_required=True,
+        )
+        wa = wa_items[0] if wa_items else None
+        if wa:
+            countries_raw = wa.get("countries")
+            if isinstance(countries_raw, str):
+                try:
+                    countries_raw = _json.loads(countries_raw)
+                except Exception:
+                    countries_raw = {}
+            devices_raw = wa.get("devices")
+            if isinstance(devices_raw, str):
+                try:
+                    devices_raw = _json.loads(devices_raw)
+                except Exception:
+                    devices_raw = {}
+            result["sections"]["web_analytics"] = {
+                "page_loads": wa.get("page_loads", 0),
+                "unique_visits": wa.get("unique_visits_approx", 0),
+                "countries": countries_raw or {},
+                "devices": devices_raw or {},
+            }
+    except Exception as e:
+        logger.error(f"Web analytics query failed: {e}", exc_info=True)
+        result["sections"]["web_analytics"] = {"error": str(e)}
+
+    # ── Data Health ──────────────────────────────────────────────────────
+    try:
+        today_items = await directus_service.get_items(
+            "daily_inspiration_defaults",
+            {"filter": {"date": {"_eq": today_str}}, "fields": ["id"], "limit": 100},
+            admin_required=True,
+        )
+        all_items = await directus_service.get_items(
+            "daily_inspiration_defaults",
+            {"fields": ["id"], "limit": 500},
+            admin_required=True,
+        )
+        result["sections"]["data_health"] = {
+            "daily_inspiration_today": len(today_items) if today_items else 0,
+            "daily_inspiration_total": len(all_items) if all_items else 0,
+        }
+    except Exception as e:
+        logger.error(f"Data health query failed: {e}", exc_info=True)
+        result["sections"]["data_health"] = {"error": str(e)}
+
+    result["generated_at"] = datetime.now(timezone.utc).isoformat()
+    return result
 
 
 # ============================================================================
