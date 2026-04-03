@@ -52,14 +52,25 @@ skills:
         credits: 5
     providers:
       - name: Meetup
+        id: meetup
+        scope: global
         no_api_key: true
       - name: Luma
+        id: luma
+        scope: global
         no_api_key: true
       - name: Google Events
+        id: google_events
+        scope: global
         api_key_vault_path: kv/data/providers/serpapi
       - name: Resident Advisor
+        id: resident_advisor
+        scope: global
         no_api_key: true
       - name: Siegessäule
+        id: siegessaeule
+        scope: city
+        region: Berlin
         no_api_key: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:

@@ -25,6 +25,18 @@ _VALID_PROVIDER_IDS = frozenset({
     "meetup", "luma", "google_events", "resident_advisor", "siegessaeule",
 })
 
+# Map display names (from app.yml "name" field) to internal provider IDs.
+# The registry originally expected an "id" field in app.yml provider metadata,
+# but app.yml only has "name". This mapping bridges the gap.
+_NAME_TO_ID: Dict[str, str] = {
+    "meetup": "meetup",
+    "luma": "luma",
+    "google events": "google_events",
+    "resident advisor": "resident_advisor",
+    "siegessäule": "siegessaeule",
+    "siegessaeule": "siegessaeule",
+}
+
 
 def filter_providers(
     requested_providers: Optional[List[str]],
@@ -51,7 +63,11 @@ def filter_providers(
     # Build region-applicable set from metadata
     applicable: List[str] = []
     for meta in providers_meta:
+        # Prefer explicit "id" field; fall back to deriving from "name"
         pid = meta.get("id")
+        if not pid:
+            name = (meta.get("name") or "").lower()
+            pid = _NAME_TO_ID.get(name)
         if not pid or pid not in _VALID_PROVIDER_IDS:
             continue
 
