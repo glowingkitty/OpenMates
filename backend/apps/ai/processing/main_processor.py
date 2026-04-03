@@ -2339,6 +2339,65 @@ async def handle_main_processing(
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
+        # === AUTO IMAGE SEARCH (runs after first iteration, regardless of tool calls) ===
+        # When the preprocessor detected a visual topic (visual_search_query is set),
+        # and the main LLM didn't already call images-search, auto-fire an images-search
+        # call so the response includes highlight images.
+        if (
+            visual_search_query
+            and iteration == 0
+            and not any(tc.function_name in ("images-search", "images_search") for tc in tool_calls_for_this_turn)
+            and "images-search" in (preselected_skills or set())
+        ):
+            try:
+                logger.info(
+                    f"{log_prefix} [AUTO_IMAGE_SEARCH] Executing auto images-search for "
+                    f"visual_search_query='{visual_search_query}'"
+                )
+                auto_image_args = {"requests": [{"query": visual_search_query, "count": 3}]}
+                auto_image_results = await execute_skill_with_multiple_requests(
+                    app_id="images",
+                    skill_id="search",
+                    arguments=auto_image_args,
+                    timeout=DEFAULT_SKILL_TIMEOUT,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    skill_task_id=f"{request_data.chat_id}_auto_image_search",
+                    cache_service=cache_service
+                )
+                if auto_image_results and cache_service and directus_service and encryption_service:
+                    from backend.core.api.app.services.embed_service import EmbedService
+                    embed_service_for_images = EmbedService(
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        encryption_service=encryption_service
+                    )
+                    auto_embed_data = await embed_service_for_images.create_embeds_from_skill_results(
+                        app_id="images",
+                        skill_id="search",
+                        results=auto_image_results,
+                        chat_id=request_data.chat_id,
+                        message_id=request_data.message_id,
+                        user_id=request_data.user_id,
+                        user_id_hash=request_data.user_id_hash,
+                        user_vault_key_id=user_vault_key_id,
+                        task_id=task_id,
+                        log_prefix=f"{log_prefix}[AUTO_IMAGE_SEARCH]",
+                    )
+                    if auto_embed_data and auto_embed_data.get("embed_id"):
+                        auto_embed_id = auto_embed_data["embed_id"]
+                        yield f"\n\n[](embed:{auto_embed_id})\n\n"
+                        total_skill_calls += 1
+                        logger.info(
+                            f"{log_prefix} [AUTO_IMAGE_SEARCH] Successfully created image embed "
+                            f"{auto_embed_id} with {len(auto_image_results)} results"
+                        )
+                elif not auto_image_results:
+                    logger.info(f"{log_prefix} [AUTO_IMAGE_SEARCH] No results for query '{visual_search_query}'")
+            except Exception as e:
+                logger.warning(f"{log_prefix} [AUTO_IMAGE_SEARCH] Failed (non-fatal): {e}")
+
         if not tool_calls_for_this_turn:
             break
 
@@ -4397,74 +4456,6 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
-
-        # === AUTO IMAGE SEARCH ===
-        # When the preprocessor detected a visual topic (visual_search_query is set),
-        # and the main LLM didn't already call images-search in this iteration,
-        # auto-fire an images-search call so the response includes highlight images.
-        # Only runs once (first iteration) to avoid duplicate image searches.
-        if (
-            visual_search_query
-            and iteration == 0
-            and not any(tc.function_name in ("images-search", "images_search") for tc in tool_calls_for_this_turn)
-            and "images-search" in (preselected_skills or set())
-        ):
-            try:
-                logger.info(
-                    f"{log_prefix} [AUTO_IMAGE_SEARCH] Executing auto images-search for "
-                    f"visual_search_query='{visual_search_query}'"
-                )
-                auto_image_args = {"requests": [{"query": visual_search_query, "count": 3}]}
-                auto_image_results = await execute_skill_with_multiple_requests(
-                    app_id="images",
-                    skill_id="search",
-                    arguments=auto_image_args,
-                    timeout=DEFAULT_SKILL_TIMEOUT,
-                    chat_id=request_data.chat_id,
-                    message_id=request_data.message_id,
-                    user_id=request_data.user_id,
-                    skill_task_id=f"{request_data.chat_id}_auto_image_search",
-                    cache_service=cache_service
-                )
-                if auto_image_results:
-                    # Create embed for the image results so they render in the frontend
-                    if cache_service and directus_service and encryption_service:
-                        from backend.core.api.app.services.embed_service import EmbedService
-                        embed_service_for_images = EmbedService(
-                            cache_service=cache_service,
-                            directus_service=directus_service,
-                            encryption_service=encryption_service
-                        )
-                        auto_embed_data = await embed_service_for_images.create_embeds_from_skill_results(
-                            app_id="images",
-                            skill_id="search",
-                            results=auto_image_results,
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=f"{log_prefix}[AUTO_IMAGE_SEARCH]",
-                        )
-                        if auto_embed_data and auto_embed_data.get("embed_id"):
-                            auto_embed_id = auto_embed_data["embed_id"]
-                            # Yield the embed reference so the stream consumer includes it
-                            yield f"\n\n[](embed:{auto_embed_id})\n\n"
-                            total_skill_calls += 1
-                            logger.info(
-                                f"{log_prefix} [AUTO_IMAGE_SEARCH] Successfully created image embed "
-                                f"{auto_embed_id} with {len(auto_image_results)} results"
-                            )
-                        else:
-                            logger.warning(f"{log_prefix} [AUTO_IMAGE_SEARCH] Embed creation returned no embed_id")
-                    else:
-                        logger.warning(f"{log_prefix} [AUTO_IMAGE_SEARCH] Missing services for embed creation")
-                else:
-                    logger.info(f"{log_prefix} [AUTO_IMAGE_SEARCH] No results returned for query '{visual_search_query}'")
-            except Exception as e:
-                # Non-fatal: auto image search failure should not break the main response
-                logger.warning(f"{log_prefix} [AUTO_IMAGE_SEARCH] Failed: {e}")
 
         # === MAX ITERATIONS HANDLING ===
         # If we're on the second-to-last iteration and the LLM is still requesting tools,
