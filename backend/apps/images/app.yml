@@ -254,14 +254,12 @@ skills:
       required:
         - requests
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
-    # The LLM only needs title, source, and embed_ref to write correct inline references.
-    # Removing URL noise makes embed_ref more prominent and reduces hallucinated slugs.
+    # Only exclude rendering-specific fields. Keep type, source_page_url, and image_url
+    # so the LLM recognizes these as real image results (too-aggressive filtering caused
+    # the LLM to think results were missing and re-trigger image search).
     exclude_fields_for_llm:
-      - "type"
       - "thumbnail_url"
       - "favicon_url"
-      - "image_url"
-      - "source_page_url"
   - id: generate
     name_translation_key: images.generate
     description_translation_key: images.generate.description
