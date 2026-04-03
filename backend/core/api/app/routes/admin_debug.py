@@ -1916,6 +1916,18 @@ async def get_server_stats(
         logger.error(f"Data health query failed: {e}", exc_info=True)
         result["sections"]["data_health"] = {"error": str(e)}
 
+    # ── Newsletter Subscribers ──────────────────────────────────────────
+    try:
+        from backend.core.api.app.routes.newsletter import get_total_newsletter_subscribers_count
+
+        nl_count = await get_total_newsletter_subscribers_count(directus_service)
+        result["sections"]["newsletter"] = {
+            "confirmed_subscribers": nl_count,
+        }
+    except Exception as e:
+        logger.error(f"Newsletter stats query failed: {e}", exc_info=True)
+        result["sections"]["newsletter"] = {"error": str(e)}
+
     result["generated_at"] = datetime.now(timezone.utc).isoformat()
     return result
 
