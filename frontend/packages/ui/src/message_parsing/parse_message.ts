@@ -171,12 +171,14 @@ function convertEmbedLinksInNode(
       // Parse optional #L line-range fragment from the embed ref.
       const { cleanRef, lineStart, lineEnd } = _parseLineFragment(rawRef);
 
-      // When the LLM omits the display text ([](embed:ref)), derive a
+      // When the LLM omits the display text ([](embed:ref)) or uses a
+      // short placeholder like [>](embed:ref) or [>>](embed:ref), derive a
       // human-readable label from the embed ref slug.  The ref typically
       // contains a domain (e.g. "techcrunch.com-AOq") — extract the domain
       // portion.  Falls back to the full ref if no domain pattern is found.
+      // Note: [!](embed:ref) is handled above as embedPreviewLarge.
       let resolvedDisplayText = displayText;
-      if (resolvedDisplayText === "") {
+      if (resolvedDisplayText.length <= 3) {
         // Try to extract domain from ref (e.g. "cnbc.com-qDe" → "cnbc.com")
         const domainMatch = cleanRef.match(
           /^([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/,
