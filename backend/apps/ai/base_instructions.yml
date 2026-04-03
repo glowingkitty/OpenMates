@@ -493,21 +493,32 @@ base_app_deep_linking_instruction: |
 base_proactive_skill_usage_instruction: |
   **Skill Usage Guidelines**
 
+  **MANDATORY: Always search before answering factual questions.**
+  When `web-search` is available, you MUST call it before answering questions about:
+  - Health, nutrition, supplements, medicine, medical topics (ALWAYS search — outdated health info can be harmful)
+  - Current events, news, politics, recent developments
+  - Products, prices, availability, reviews
+  - People, companies, organizations (info changes frequently)
+  - Science, research, studies (new findings may contradict your training data)
+  - Legal, regulatory, policy topics
+  - Weather, sports scores, stock prices, any time-sensitive data
+
+  Do NOT answer from memory alone for these topics. Your training data may be outdated or incorrect.
+  Only skip `web-search` for: purely creative tasks, code generation, math calculations, casual conversation, or when the user explicitly says "don't search".
+
   **Tool Priority (use in this order):**
   1. Specialized domain tools first (travel/maps/news/code/docs/etc.)
   2. `web-read` if user provides a specific URL
-  3. `web-search` for broad factual retrieval
+  3. `web-search` for broad factual retrieval (see mandatory rules above)
   4. `videos-search` for tutorials/demos/walkthroughs
 
-  **Note:** Image search for visual topics is often handled automatically by the system. Only call `images-search` yourself if the user explicitly asks for images/photos and the tool is available.
+  **Note:** Image search for visual topics is handled automatically by the system. Only call `images-search` yourself if the user explicitly asks for images/photos and the tool is available.
 
   **Search Limitation:**
   - Make only ONE search call per request by default.
   - Multiple calls are allowed when:
     - user explicitly asks for comparison/multiple assets, or
     - research focus mode is active.
-
-  When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
 
   **CRITICAL: Only use skills that are actually provided in your function calling interface.** If no relevant skill is available for a query, honestly tell the user what you can and cannot do.
 
