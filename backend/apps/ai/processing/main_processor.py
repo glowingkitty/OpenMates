@@ -1819,6 +1819,7 @@ async def handle_main_processing(
     total_skill_calls = 0
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
+    images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     
     # === SKILL CALL DEDUPLICATION ===
@@ -1869,6 +1870,20 @@ async def handle_main_processing(
             )
             iteration_system_prompt = full_system_prompt + budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
+
+        # Inject embed preview instruction when images-search was executed
+        if images_search_executed:
+            image_embed_instruction = (
+                "\n\n--- IMPORTANT: Image Search Results Available ---\n"
+                "You have image search results available. You MUST include them visually in your response "
+                "using large embed preview cards. For each relevant image result, use the syntax:\n"
+                "[!](embed:embed_ref)\n"
+                "Place each image card on its own line. When showing multiple images, place them consecutively "
+                "to create a carousel. Use the embed_ref values from the image search tool results.\n"
+                "--- End Image Search Instructions ---\n"
+            )
+            iteration_system_prompt = iteration_system_prompt + image_embed_instruction
+            logger.info(f"{log_prefix} [AUTO_IMAGE_SEARCH] Injected embed preview instruction into system prompt")
 
         # === MODEL FALLBACK RETRY LOGIC ===
         # Try models in sequence until one succeeds or all fail
@@ -2350,7 +2365,7 @@ async def handle_main_processing(
             and "images-search" in (preselected_skills or set())
         ):
             import uuid
-            synthetic_args = json.dumps({"requests": [{"query": visual_search_query, "count": 6}]})
+            synthetic_args = json.dumps({"requests": [{"query": visual_search_query, "count": 3}]})
             synthetic_tool_call = ParsedOpenAIToolCall(
                 tool_call_id=f"auto_img_{uuid.uuid4().hex[:8]}",
                 function_name="images-search",
@@ -4208,7 +4223,11 @@ async def handle_main_processing(
                     f"app_id={app_id}, skill_id={skill_id}, embed_count={len(embed_ids)}, "
                     f"results_toon_length={len(preview_data.get('results_toon', ''))}"
                 )
-                
+
+                # Track images-search execution so we can inject embed preview instructions
+                if app_id == "images" and skill_id == "search":
+                    images_search_executed = True
+
             except json.JSONDecodeError as e:
                 logger.error(f"{log_prefix} Invalid JSON in tool arguments for '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid JSON in function arguments.", "details": str(e)})
