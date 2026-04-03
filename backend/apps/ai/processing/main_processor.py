@@ -2350,7 +2350,7 @@ async def handle_main_processing(
             and "images-search" in (preselected_skills or set())
         ):
             import uuid
-            synthetic_args = json.dumps({"requests": [{"query": visual_search_query, "count": 3}]})
+            synthetic_args = json.dumps({"requests": [{"query": visual_search_query, "count": 6}]})
             synthetic_tool_call = ParsedOpenAIToolCall(
                 tool_call_id=f"auto_img_{uuid.uuid4().hex[:8]}",
                 function_name="images-search",
