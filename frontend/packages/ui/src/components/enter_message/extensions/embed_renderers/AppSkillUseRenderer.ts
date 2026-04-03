@@ -1702,6 +1702,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       try { sourceDomain = new URL(decodedContent.source_page_url).hostname.replace(/^www\./, ''); }
       catch { /* ignore invalid URLs */ }
     }
+    console.debug("[AppSkillUseRenderer] image_result source debug:", {
+      source: decodedContent?.source,
+      source_page_url: decodedContent?.source_page_url,
+      resolvedDomain: sourceDomain,
+      allKeys: decodedContent ? Object.keys(decodedContent) : [],
+    });
     const status =
       decodedContent?.status ||
       embedData?.status ||
