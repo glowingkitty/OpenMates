@@ -21,6 +21,7 @@
   import VideoEmbedPreview from "../videos/VideoEmbedPreview.svelte";
   import VideoEmbedFullscreen from "../videos/VideoEmbedFullscreen.svelte";
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { text } from "@repo/ui";
 
   // YouTube URL detection pattern — matches youtube.com and youtu.be variants
@@ -334,7 +335,7 @@
         url={result.url}
         title={result.title}
         description={result.snippet}
-        favicon={result.favicon_url}
+        favicon={proxyImage(result.favicon_url, MAX_WIDTH_FAVICON)}
         image={result.preview_image_url}
         status="finished"
         isMobile={false}

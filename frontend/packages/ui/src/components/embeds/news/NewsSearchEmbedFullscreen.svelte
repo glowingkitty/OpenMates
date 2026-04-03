@@ -17,6 +17,7 @@
   import NewsEmbedPreview from './NewsEmbedPreview.svelte';
   import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
 
   /**
@@ -156,7 +157,7 @@
       url={result.url}
       title={result.title}
       description={result.description}
-      favicon={result.favicon_url}
+      favicon={proxyImage(result.favicon_url, MAX_WIDTH_FAVICON)}
       image={result.thumbnail}
       status="finished"
       isMobile={false}
@@ -169,7 +170,7 @@
       url={nav.result.url}
       title={nav.result.title}
       description={nav.result.description}
-      favicon={nav.result.favicon_url}
+      favicon={proxyImage(nav.result.favicon_url, MAX_WIDTH_FAVICON)}
       thumbnail={nav.result.thumbnail}
       extra_snippets={nav.result.extra_snippets}
       dataDate={nav.result.page_age}

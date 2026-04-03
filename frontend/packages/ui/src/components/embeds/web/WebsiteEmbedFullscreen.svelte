@@ -27,7 +27,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
@@ -227,9 +227,11 @@
   let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
   
   // Favicon URL with fallback chain
+  // SECURITY: All favicon sources must be proxied to prevent user IP leaks.
+  // meta_url_favicon and favicon are raw external URLs from search results.
   let faviconUrl = $derived(
-    meta_url_favicon || 
-    favicon || 
+    proxyImage(meta_url_favicon, MAX_WIDTH_FAVICON) ||
+    proxyImage(favicon, MAX_WIDTH_FAVICON) ||
     proxyFavicon(url)
   );
   

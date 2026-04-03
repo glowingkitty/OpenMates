@@ -16,6 +16,7 @@
 <script lang="ts">
   import { text } from '@repo/ui';
   import { handleImageError } from '../../utils/offlineImageHandler';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
   
   /**
    * Props interface for basic info bar
@@ -76,7 +77,13 @@
   // in parent components; taskId is reserved for future cancellation logic.
   // Use $effect to suppress Svelte 5 "state_referenced_locally" warning for reactive props.
   $effect(() => { void skillId; void taskId; });
-  
+
+  // SECURITY: Defense-in-depth — ensure favicon URLs are always proxied even if
+  // the caller forgot. Prevents user IP leaks to external favicon hosts.
+  let safeFaviconUrl = $derived(
+    faviconUrl ? proxyImage(faviconUrl, MAX_WIDTH_FAVICON) : undefined
+  );
+
   // Status text from translations or custom text
   let statusText = $derived(() => {
     // Use custom status text if provided
@@ -111,9 +118,9 @@
   <!-- Mobile Layout: Vertical layout with app icon, skill icon, status text, and stop button -->
   <div class="basic-infos-bar mobile">
     <!-- App icon container OR favicon (full width, 44px height, gradient background) -->
-    {#if faviconUrl}
+    {#if safeFaviconUrl}
       <div class="app-icon-container {appId}" style={appGradientStyle}>
-        <img src={faviconUrl} alt="" class="favicon-image-mobile" crossorigin="anonymous" />
+        <img src={safeFaviconUrl} alt="" class="favicon-image-mobile" crossorigin="anonymous" />
       </div>
     {:else}
       <div class="app-icon-container {appId}" style={appGradientStyle}>
@@ -166,9 +173,9 @@
       <span class="status-label">
         {#if titleIcon}
           {@render titleIcon()}
-        {:else if faviconUrl}
-          <img 
-            src={faviconUrl} 
+        {:else if safeFaviconUrl}
+          <img
+            src={safeFaviconUrl}
             alt="" 
             class="title-favicon" 
             class:circular={faviconIsCircular}

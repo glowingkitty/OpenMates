@@ -191,7 +191,7 @@
       title={result.title}
       sourceDomain={result.source}
       thumbnailUrl={proxyUrl(result.thumbnail_url || result.image_url)}
-      faviconUrl={result.favicon_url}
+      faviconUrl={proxyUrl(result.favicon_url)}
       onFullscreen={onSelect}
     />
   {/snippet}

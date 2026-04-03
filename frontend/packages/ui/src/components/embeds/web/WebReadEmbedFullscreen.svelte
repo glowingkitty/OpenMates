@@ -22,7 +22,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
-  import { proxyFavicon, proxyImage, MAX_WIDTH_CONTENT_IMAGE } from '../../../utils/imageProxy';
+  import { proxyFavicon, proxyImage, MAX_WIDTH_CONTENT_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
 
   /**
    * Web read result interface based on read_skill.py
@@ -179,11 +179,11 @@
   
   // Favicon URL for display
   // Priority: result favicon > generated from URL > undefined
+  // SECURITY: All favicon sources must be proxied to prevent user IP leaks.
   let faviconUrl = $derived.by(() => {
     if (firstResult?.favicon) {
-      return firstResult.favicon;
+      return proxyImage(firstResult.favicon, MAX_WIDTH_FAVICON);
     }
-    // Generate favicon URL from effectiveUrl if available
     if (effectiveUrl) {
       return proxyFavicon(effectiveUrl);
     }

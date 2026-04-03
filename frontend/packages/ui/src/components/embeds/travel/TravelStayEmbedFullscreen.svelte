@@ -18,6 +18,7 @@
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
@@ -144,17 +145,18 @@
     mapCenter ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: name }] : []
   );
 
-  // Image gallery
+  // Image gallery — all external URLs must be proxied for privacy
   let allImages = $derived.by(() => {
     const s = stay as MaybeStay;
     if (!s?.images || s.images.length === 0) {
-      return s?.thumbnail ? [s.thumbnail] : [];
+      return s?.thumbnail ? [proxyImage(s.thumbnail, MAX_WIDTH_HEADER_IMAGE)] : [];
     }
     return s.images
       .map(img => img.original_image || img.thumbnail)
-      .filter((url): url is string => !!url);
+      .filter((url): url is string => !!url)
+      .map(url => proxyImage(url, MAX_WIDTH_HEADER_IMAGE));
   });
-  
+
   let currentImageIndex = $state(0);
   let currentImage = $derived(allImages.length > 0 ? allImages[currentImageIndex] : undefined);
   

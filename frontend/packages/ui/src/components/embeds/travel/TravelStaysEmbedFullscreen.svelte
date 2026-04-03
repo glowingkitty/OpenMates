@@ -20,6 +20,7 @@
   import TravelStayEmbedPreview from './TravelStayEmbedPreview.svelte';
   import TravelStayEmbedFullscreen from './TravelStayEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
 
   /**
@@ -249,9 +250,9 @@
    * Get first thumbnail image URL for a property.
    */
   function getThumbnail(stay: StayResult): string | undefined {
-    if (stay.thumbnail) return stay.thumbnail;
-    if (stay.images && stay.images.length > 0) return stay.images[0].thumbnail || stay.images[0].original_image;
-    return undefined;
+    const raw = stay.thumbnail
+      || (stay.images && stay.images.length > 0 ? (stay.images[0].thumbnail || stay.images[0].original_image) : undefined);
+    return raw ? proxyImage(raw, MAX_WIDTH_PREVIEW_THUMBNAIL) : undefined;
   }
 
   /**
