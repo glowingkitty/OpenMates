@@ -18,7 +18,7 @@
   import ImageResultEmbedFullscreen from './ImageResultEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
-  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -106,10 +106,17 @@
   let provider = $derived(localProvider);
   let embedHeaderSubtitle = $derived(`${$text('embeds.via')} ${provider}`);
 
-  /** Proxy an external image URL — cap at 1024px for grid cards */
+  /** Extract hostname from a URL, stripping 'www.' prefix. Returns empty string on failure. */
+  function extractDomain(url: string | undefined): string {
+    if (!url) return '';
+    try { return new URL(url).hostname.replace(/^www\./, ''); }
+    catch { return ''; }
+  }
+
+  /** Proxy an external image URL — 520px is sufficient for grid cards (~180px * 2x retina) */
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
-    return proxyImage(url, MAX_WIDTH_HEADER_IMAGE);
+    return proxyImage(url, MAX_WIDTH_PREVIEW_THUMBNAIL);
   }
 
   /**
@@ -189,8 +196,8 @@
     <ImageResultEmbedPreview
       id={result.embed_id}
       title={result.title}
-      sourceDomain={result.source}
-      thumbnailUrl={proxyUrl(result.thumbnail_url || result.image_url)}
+      sourceDomain={result.source || extractDomain(result.source_page_url)}
+      thumbnailUrl={proxyUrl(result.image_url || result.thumbnail_url)}
       faviconUrl={proxyUrl(result.favicon_url)}
       onFullscreen={onSelect}
     />

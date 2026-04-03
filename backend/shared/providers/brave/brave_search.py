@@ -16,6 +16,7 @@ import os
 import asyncio
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 import httpx
 from typing import Dict, Any, List, Optional
 
@@ -900,13 +901,24 @@ async def search_images(
                 else None
             )
 
+            # source is the domain name of the host page — may be empty in
+            # Brave Image Search. Fall back to extracting from the page URL.
+            source = item.get("source", "")
+            source_page_url = item.get("url", "")
+            if not source and source_page_url:
+                try:
+                    hostname = urlparse(source_page_url).hostname or ""
+                    source = hostname.removeprefix("www.")
+                except Exception:
+                    pass
+
             formatted.append({
                 "type": "image_result",
                 "title": item.get("title", ""),
-                "source_page_url": item.get("url", ""),
+                "source_page_url": source_page_url,
                 "image_url": image_url or "",
                 "thumbnail_url": thumbnail_url or "",
-                "source": item.get("source", ""),
+                "source": source,
                 "favicon_url": favicon_url or "",
             })
 
