@@ -453,6 +453,7 @@ class PreprocessingResult(BaseModel):
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
     relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
     relevant_focus_modes: Optional[List[str]] = Field(None, description="List of relevant focus mode identifiers (format: 'app_id-focus_id') that could help with this request.")
+    visual_search_query: Optional[str] = Field(None, description="Image search query for topics with a visual/physical form. Set by preprocessor, auto-executed by main processor.")
 
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -2632,25 +2633,6 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] 'web-read' already preselected by LLM — no override needed."
                 )
 
-        # --- images-search (auto-pair with web/news search) ---
-        # When web-search or news-search is preselected, also include images-search
-        # so the main LLM can proactively fetch highlight images for visual topics
-        # (products, places, people, food, events, etc.). The main LLM decides
-        # per-query whether to actually call it — this just ensures the tool is available.
-        has_web_or_news = any(
-            s in validated_relevant_skills for s in ("web-search", "news-search")
-        )
-        if has_web_or_news and "images-search" in available_skill_ids:
-            if "images-search" not in validated_relevant_skills:
-                validated_relevant_skills.append("images-search")
-                logger.info(
-                    f"{log_prefix} [RULE_BASED] Auto-paired 'images-search' with web/news search: "
-                    f"main LLM will decide per-query whether to fetch highlight images."
-                )
-            else:
-                logger.debug(
-                    f"{log_prefix} [RULE_BASED] 'images-search' already preselected by LLM — no override needed."
-                )
 
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
@@ -2700,6 +2682,7 @@ async def handle_preprocessing(
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         relevant_focus_modes=validated_relevant_focus_modes,  # Use validated relevant focus modes (filtered against available focus modes)
+        visual_search_query=llm_analysis_args.get("visual_search_query", "").strip() or None,  # Image search query for visual topics (None if empty/not set)
         user_requested_skills_only=user_requested_skills_only,  # True when user specified @skill; main processor must not merge always_include_skills
         user_requested_focus_only=user_requested_focus_only,  # True when user specified @focus
         output_language=output_language_val,  # Detected language of user's request (ISO 639-1 code)

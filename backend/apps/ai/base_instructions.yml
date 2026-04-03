@@ -145,24 +145,10 @@ preprocess_request_tool:
           - Read each skill's description to understand when it applies. Include skills that might help fulfill the request.
           - When multiple skills from the same app could apply, include all of them and let the main LLM decide.
 
-          **Multimodal Search Selection (CRITICAL):**
+          **Search Selection:**
           - Treat `web-search` as the default for broad factual retrieval.
-          - Add `images-search` when visual evidence or visual discovery would help, e.g.:
-            - User asks to "show images/photos/pictures"
-            - User asks about appearance/design/style/look of a device/place/object
-            - User asks for inspiration, references, moodboards, or visual examples
-          - Add `videos-search` when demonstration or walkthrough content would help, e.g.:
-            - User asks for tutorials, walkthroughs, demos, reviews, talks, lectures, or interviews
-            - User intent is "watch how", "learn by seeing", or step-by-step in video
-          - Add both `images-search` and `videos-search` if both visual references and demos are likely useful.
-
-          **Entity-Specific Heuristic:**
-          - New device/product: often include `images-search`; include `videos-search` for reviews, demos, or comparisons.
-          - Specific place/location: include `images-search` for visuals/landmarks; include `videos-search` for tours/walkthroughs.
-          - Specific software/tool: include `videos-search` for tutorials; include `images-search` only when UI/visual comparison is relevant.
-
-          **Precision Guardrails:**
-          - Do NOT include `images-search`/`videos-search` for purely factual text requests (release date, specs, pricing, policy, API docs) unless user intent implies visual/demo content.
+          - Add `videos-search` when demonstration or walkthrough content would help (tutorials, reviews, demos).
+          - Add `images-search` ONLY when the user explicitly asks for images/photos/pictures (e.g., "show me images of X", "find photos of Y"). For implicit visual topics, use `visual_search_query` instead (see below).
 
           **CRITICAL: Follow-up Query Detection:**
           - ALWAYS analyze the full conversation history, not just the last message
@@ -196,6 +182,11 @@ preprocess_request_tool:
           Be specific — include names, technologies, or details that distinguish this chat from others.
       11. **chat_tags**: Up to 10 relevant tags for categorization and search.
           Include topics, technologies, concepts, and themes discussed in the conversation.
+      12. **visual_search_query**: If the topic describes something with a physical/visual form, provide a short image search query (in English) to fetch highlight images automatically.
+          - **SET** for: products, devices, supplements, food, recipes, animals, plants, places, landmarks, cities, people, fashion, architecture, DIY, news events with visual impact, or any topic where seeing the subject would enrich the answer.
+          - **LEAVE EMPTY** ("") for: abstract concepts (philosophy, economics), code/programming, pure data lookups (dates, stats, calculations), financial numbers, scheduling, logistics, or topics with no meaningful visual form.
+          - The query should be concise and descriptive, e.g.: "spirulina supplement powder", "MacBook Pro 2026", "Eiffel Tower Paris", "golden retriever puppy".
+          - On follow-up messages: set if the NEW message topic is visual; leave empty if it's a non-visual follow-up.
 
       # --- Follow-up message only (when title already exists) ---
       # The fields below are added to the required list on follow-up messages only.
@@ -270,6 +261,9 @@ preprocess_request_tool:
           items:
             type: "string"
           maxItems: 10
+        visual_search_query:
+          type: "string"
+          description: "Short English image search query for topics with a physical/visual form (e.g. 'spirulina supplement', 'MacBook Pro 2026', 'Eiffel Tower'). Empty string if the topic is abstract or has no visual form."
         category:
           type: "string"
           description: "Most fitting category from {CATEGORIES_LIST}. Always prefer the most specific category; use 'general_knowledge' only as a last resort. On follow-ups, default to {PREVIOUS_CATEGORY} unless the topic has CLEARLY changed. Use 'life_coach_psychology' for crisis/self-harm. NEVER use 'onboarding_support' for general tasks — only for direct questions about the OpenMates platform itself."
@@ -295,6 +289,7 @@ preprocess_request_tool:
         - "relevant_embedded_previews"
         - "chat_summary"
         - "chat_tags"
+        - "visual_search_query"
         # category, harmful_or_illegal, misuse_risk, output_language are added to required by Python
         # on follow-up messages (when is_first_message is False)
 
@@ -501,38 +496,14 @@ base_proactive_skill_usage_instruction: |
   **Tool Priority (use in this order):**
   1. Specialized domain tools first (travel/maps/news/code/docs/etc.)
   2. `web-read` if user provides a specific URL
-  3. Search modality selection:
-     - `web-search` for broad factual retrieval
-     - `images-search` for visual discovery/evidence
-     - `videos-search` for tutorials/demos/walkthroughs
-  4. Use multiple search modalities only when they materially improve answer quality
+  3. `web-search` for broad factual retrieval
+  4. `videos-search` for tutorials/demos/walkthroughs
 
-  **Multimodal Search Policy:**
-  - When `images-search` is available alongside `web-search` or `news-search`, **proactively call BOTH** to enrich the response with 1-3 highlight images — whenever the topic describes something that exists in the physical world and has a visual form.
-  - **The default behavior is: call `images-search` alongside `web-search`/`news-search`.** Only skip images when the topic is purely abstract (see below).
-  - **CALL `images-search` for (non-exhaustive — use judgement):**
-    - Products, devices, gadgets, hardware, supplements, materials
-    - Places, cities, landmarks, travel destinations, hotels, restaurants
-    - People (public figures, celebrities, athletes — when relevant)
-    - Food, recipes, dishes, ingredients, superfoods, plants, herbs
-    - Animals, plants, nature, species, organisms (including algae, fungi, etc.)
-    - Fashion, clothing, interior design, architecture
-    - News events with strong visual component (launches, protests, disasters, ceremonies)
-    - DIY, crafts, home improvement
-    - "What is X" questions where X is a physical thing (even if the question sounds definitional)
-    - Any query where seeing the subject would make the answer more useful
-  - **SKIP `images-search` ONLY for:**
-    - Purely abstract concepts with no visual form (economics theory, philosophy, legal principles)
-    - Code, programming, technical documentation
-    - Pure data lookups (dates, statistics, conversions, calculations)
-    - Financial numbers (stock prices, budgets — not visual)
-    - Scheduling, planning, logistics
-  - Add `videos-search` when demonstration or walkthrough content would help.
-  - For follow-ups like "show me images" or "any videos?" after a text search, add the corresponding modality skill.
+  **Note:** Image search for visual topics is often handled automatically by the system. Only call `images-search` yourself if the user explicitly asks for images/photos and the tool is available.
 
   **Search Limitation:**
-  - Make only ONE call per search modality per request by default (one `web-search` call + one `images-search` call is fine — that's two different modalities).
-  - Multiple calls within the same modality are allowed when:
+  - Make only ONE search call per request by default.
+  - Multiple calls are allowed when:
     - user explicitly asks for comparison/multiple assets, or
     - research focus mode is active.
 
