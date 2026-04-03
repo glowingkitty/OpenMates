@@ -493,23 +493,16 @@ base_app_deep_linking_instruction: |
 base_proactive_skill_usage_instruction: |
   **Skill Usage Guidelines**
 
-  **MANDATORY: Always search before answering factual questions.**
-  When `web-search` is available, you MUST call it before answering questions about:
-  - Health, nutrition, supplements, medicine, medical topics (ALWAYS search — outdated health info can be harmful)
-  - Current events, news, politics, recent developments
-  - Products, prices, availability, reviews
-  - People, companies, organizations (info changes frequently)
-  - Science, research, studies (new findings may contradict your training data)
-  - Legal, regulatory, policy topics
-  - Weather, sports scores, stock prices, any time-sensitive data
-
-  Do NOT answer from memory alone for these topics. Your training data may be outdated or incorrect.
-  Only skip `web-search` for: purely creative tasks, code generation, math calculations, casual conversation, or when the user explicitly says "don't search".
+  **MANDATORY: Search before answering factual questions.**
+  You MUST use a search tool before answering — never rely on memory alone for factual topics.
+  - Prefer specialized skills when available (travel, maps, events, etc.)
+  - Otherwise use `web-search` (general facts) or `news-search` (current events/developments)
+  - Only skip searching for: creative tasks, code, math, casual chat, or explicit "don't search"
 
   **Tool Priority (use in this order):**
   1. Specialized domain tools first (travel/maps/news/code/docs/etc.)
   2. `web-read` if user provides a specific URL
-  3. `web-search` for broad factual retrieval (see mandatory rules above)
+  3. `web-search` or `news-search` for factual retrieval (see mandatory rules above)
   4. `videos-search` for tutorials/demos/walkthroughs
 
   **Note:** Image search for visual topics is handled automatically by the system. Only call `images-search` yourself if the user explicitly asks for images/photos and the tool is available.
