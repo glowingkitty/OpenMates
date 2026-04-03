@@ -49,7 +49,7 @@ skills:
       backend.apps.events.skills.search_skill.SearchSkill
     pricing:
       per_unit:
-        credits: 5
+        credits: 30
     providers:
       - name: Meetup
         id: meetup
