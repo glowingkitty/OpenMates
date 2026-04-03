@@ -6288,37 +6288,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
-        // ─── Chat Header: update summary when post-processing completes ─────────────
-        // The summary arrives separately (post_processing_metadata) after the main header
-        // is already shown. Decrypt and display it immediately so the header updates live.
-        if (detail.type === 'post_processing_metadata' && incomingChatMetadata?.encrypted_chat_summary) {
+        // ─── Chat Header: update summary + title when post-processing completes ────
+        // Summary and updated title arrive via post_processing_metadata after the main
+        // header is already shown. Decrypt and display them immediately so the header
+        // updates live without needing to close and reopen the chat.
+        if (detail.type === 'post_processing_metadata' && (incomingChatMetadata?.encrypted_chat_summary || incomingChatMetadata?.encrypted_title)) {
             try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
                 // Safe key retrieval — same pattern as the title_updated handler above.
-                let summaryKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
-                if (!summaryKey && incomingChatMetadata.encrypted_chat_key) {
+                let postProcKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
+                if (!postProcKey && incomingChatMetadata.encrypted_chat_key) {
                     try {
                         const k = await decryptChatKeyWithMasterKey(incomingChatMetadata.encrypted_chat_key);
-                        if (k) { summaryKey = k; chatDB.setChatKey(incomingChatId, k); }
+                        if (k) { postProcKey = k; chatDB.setChatKey(incomingChatId, k); }
                     } catch (keyErr) {
-                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key for summary: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
+                        console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat key for post-processing: chat_id=${incomingChatId} field=encrypted_chat_key`, keyErr);
                     }
                 }
-                if (!summaryKey) {
-                    summaryKey = await chatKeyManager.getKey(incomingChatId);
-                    if (!summaryKey) {
-                        console.warn('[ActiveChat] handleChatUpdated: No chat key for summary decrypt of', incomingChatId);
+                if (!postProcKey) {
+                    postProcKey = await chatKeyManager.getKey(incomingChatId);
+                    if (!postProcKey) {
+                        console.warn('[ActiveChat] handleChatUpdated: No chat key for post-processing decrypt of', incomingChatId);
                     }
                 }
-                if (summaryKey) {
-                    const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, summaryKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
-                    if (decryptedSummary) {
-                        activeChatDecryptedSummary = decryptedSummary;
-                        console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
+                if (postProcKey) {
+                    // Decrypt summary if present
+                    if (incomingChatMetadata.encrypted_chat_summary) {
+                        const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
+                        if (decryptedSummary) {
+                            activeChatDecryptedSummary = decryptedSummary;
+                            console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
+                        }
+                    }
+                    // OPE-265: Decrypt updated title if post-processing detected conversation drift
+                    if (incomingChatMetadata.encrypted_title) {
+                        const decryptedTitle = await decryptWithChatKey(incomingChatMetadata.encrypted_title, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_title' });
+                        if (decryptedTitle) {
+                            activeChatDecryptedTitle = decryptedTitle;
+                            console.debug('[ActiveChat] Chat header title updated from post-processing:', decryptedTitle);
+                        }
                     }
                 }
             } catch (err) {
-                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt chat summary: chat_id=${incomingChatId} field=encrypted_chat_summary`, err);
+                console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt post-processing metadata: chat_id=${incomingChatId}`, err);
             }
         }
 
