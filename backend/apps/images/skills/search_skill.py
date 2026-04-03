@@ -83,7 +83,7 @@ class ImageSearchRequestItem(BaseModel):
         description="The original filename (embed_ref) of an image in the conversation to "
         "reverse-search. Mutually exclusive with query.",
     )
-    count: int = Field(default=10, description="Number of image results to return (default 10, max 20).")
+    count: int = Field(default=6, description="Number of image results to return (default 6, max 20).")
     country: str = Field(default="us", description="Country code for localised results (default 'us').")
     search_lang: str = Field(default="en", description="Language code for search (default 'en').")
     size: Optional[str] = Field(
@@ -112,7 +112,7 @@ class SearchRequest(BaseModel):
         description=(
             "Array of image search request objects. Each object must contain either "
             "'query' (text image search) or 'file_path' (reverse image search using an "
-            "uploaded image's embed_ref). Optional: 'count' (default 10, max 20), "
+            "uploaded image's embed_ref). Optional: 'count' (default 6, max 20), "
             "'country' (default 'us'), 'search_lang' (default 'en')."
         ),
     )
