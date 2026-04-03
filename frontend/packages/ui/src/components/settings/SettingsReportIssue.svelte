@@ -65,6 +65,18 @@
     let agentAction = $state<'none' | 'research' | 'fix'>('none');
 
     /**
+     * Admin-only: whether to create a Linear issue for this report.
+     * Defaults to false so admins can be selective about what goes to Linear.
+     */
+    let addToLinear = $state(false);
+
+    /**
+     * Admin-only: whether to send email notifications for this report.
+     * Defaults to false so admins can be selective about email noise.
+     */
+    let sendEmailNotification = $state(false);
+
+    /**
      * Whether the current context has an active chat or embed that can be shared.
      * When false, the share toggle is hidden since there's nothing to share.
      */
@@ -574,7 +586,13 @@
                     trace_ids: recentTraceIds,
                     // Admin-only: trigger agent action on submit.
                     // Only honoured server-side when reporter is a verified admin.
-                    agent_action: isAdminUser ? agentAction : 'none'
+                    agent_action: isAdminUser ? agentAction : 'none',
+                    // Admin-only: whether to create a Linear issue (default false for admin).
+                    // Non-admin reports always create Linear issues (server-side default).
+                    add_to_linear: isAdminUser ? addToLinear : true,
+                    // Admin-only: whether to send email notifications (default false for admin).
+                    // Non-admin reports always send emails (server-side default).
+                    send_email_notification: isAdminUser ? sendEmailNotification : true
                 }),
                 credentials: 'include'
             });
@@ -631,6 +649,9 @@
                 contactEmail = '';
                 // Re-enable the email toggle for authenticated users after a successful submission
                 includeEmailToggle = true;
+                // Reset admin toggles back to defaults (off)
+                addToLinear = false;
+                sendEmailNotification = false;
                 titleError = '';
                 emailError = '';
                 showTitleWarning = false;
@@ -996,6 +1017,8 @@
             contactEmail,
             includeEmailToggle,
             agentAction,
+            addToLinear,
+            sendEmailNotification,
             pickedElementHtml,
             screenshotDataUrl
         });
@@ -1468,6 +1491,8 @@
             contactEmail = draft.contactEmail;
             includeEmailToggle = draft.includeEmailToggle;
             if (draft.agentAction !== undefined) agentAction = draft.agentAction;
+            if (draft.addToLinear !== undefined) addToLinear = draft.addToLinear;
+            if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
             pickedElementHtml = draft.pickedElementHtml;
             screenshotDataUrl = draft.screenshotDataUrl;
             // Clear the draft now that it has been consumed
@@ -1639,6 +1664,35 @@
                     />
                 {/if}
                 <p class="input-hint">{$text('settings.report_issue.email_hint')}</p>
+            </div>
+        {/if}
+
+        <!-- Admin-only toggles for Linear issue creation and email notification -->
+        {#if isAdminUser}
+            <div class="toggle-group">
+                <div class="toggle-row">
+                    <label for="add-to-linear-toggle">{$text('settings.report_issue.add_to_linear_label')}</label>
+                    <Toggle
+                        id="add-to-linear-toggle"
+                        bind:checked={addToLinear}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.add_to_linear_label')}
+                    />
+                </div>
+                <p class="input-hint">{$text('settings.report_issue.add_to_linear_hint')}</p>
+            </div>
+
+            <div class="toggle-group">
+                <div class="toggle-row">
+                    <label for="send-email-toggle">{$text('settings.report_issue.send_email_notification_label')}</label>
+                    <Toggle
+                        id="send-email-toggle"
+                        bind:checked={sendEmailNotification}
+                        disabled={isSubmitting}
+                        ariaLabel={$text('settings.report_issue.send_email_notification_label')}
+                    />
+                </div>
+                <p class="input-hint">{$text('settings.report_issue.send_email_notification_hint')}</p>
             </div>
         {/if}
 

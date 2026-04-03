@@ -9111,6 +9111,98 @@ report_issue.screenshot_upload_failed:
   sv: Det gick inte att läsa den uppladdade bilden.
   he: קריאת התמונה שהועלתה נכשלה.
   verified_by_human: []
+report_issue.add_to_linear_label:
+  context: Admin-only toggle label — whether to create a Linear issue for this report
+  en: Add to Linear
+  de: Zu Linear hinzufügen
+  zh: 添加到 Linear
+  es: Añadir a Linear
+  fr: Ajouter à Linear
+  pt: Adicionar ao Linear
+  ru: Добавить в Linear
+  ja: Linear に追加
+  ko: Linear에 추가
+  ar: إضافة إلى Linear
+  hi: Linear में जोड़ें
+  nl: Toevoegen aan Linear
+  it: Aggiungi a Linear
+  pl: Dodaj do Linear
+  tr: Linear'a ekle
+  uk: Додати до Linear
+  th: เพิ่มไปยัง Linear
+  cs: Přidat do Linear
+  sv: Lägg till i Linear
+  he: הוסף ל-Linear
+  verified_by_human: []
+report_issue.add_to_linear_hint:
+  context: Hint text for the admin-only Linear toggle — explains it controls whether a tracking issue is created
+  en: Create a Linear issue to track this report on the project board.
+  de: Ein Linear-Issue erstellen, um diesen Bericht im Projektboard zu verfolgen.
+  zh: 创建 Linear 问题以在项目看板上跟踪此报告。
+  es: Crear un issue de Linear para rastrear este informe en el tablero del proyecto.
+  fr: Créer un ticket Linear pour suivre ce rapport sur le tableau du projet.
+  pt: Criar uma issue no Linear para acompanhar este relatório no quadro do projeto.
+  ru: Создать задачу в Linear для отслеживания этого отчёта на доске проекта.
+  ja: プロジェクトボードでこのレポートを追跡する Linear イシューを作成します。
+  ko: 프로젝트 보드에서 이 보고서를 추적할 Linear 이슈를 생성합니다.
+  ar: إنشاء مشكلة في Linear لتتبع هذا التقرير على لوحة المشروع.
+  hi: प्रोजेक्ट बोर्ड पर इस रिपोर्ट को ट्रैक करने के लिए Linear इश्यू बनाएं।
+  nl: Maak een Linear-issue aan om dit rapport op het projectbord te volgen.
+  it: Crea un issue Linear per tracciare questo report sulla board del progetto.
+  pl: Utwórz zgłoszenie Linear, aby śledzić ten raport na tablicy projektu.
+  tr: Bu raporu proje panosunda takip etmek için bir Linear sorunu oluşturun.
+  uk: Створити задачу в Linear для відстеження цього звіту на дошці проєкту.
+  th: สร้าง Linear issue เพื่อติดตามรายงานนี้บนบอร์ดโปรเจกต์
+  cs: Vytvořit Linear issue pro sledování tohoto reportu na projektové desce.
+  sv: Skapa ett Linear-ärende för att spåra denna rapport på projektbrädet.
+  he: צור issue ב-Linear כדי לעקוב אחרי דיווח זה בלוח הפרויקט.
+  verified_by_human: []
+report_issue.send_email_notification_label:
+  context: Admin-only toggle label — whether to send email notifications for this report
+  en: Send email notification
+  de: E-Mail-Benachrichtigung senden
+  zh: 发送电子邮件通知
+  es: Enviar notificación por correo
+  fr: Envoyer une notification par e-mail
+  pt: Enviar notificação por e-mail
+  ru: Отправить уведомление по электронной почте
+  ja: メール通知を送信
+  ko: 이메일 알림 보내기
+  ar: إرسال إشعار بالبريد الإلكتروني
+  hi: ईमेल सूचना भेजें
+  nl: E-mailmelding versturen
+  it: Invia notifica email
+  pl: Wyślij powiadomienie e-mail
+  tr: E-posta bildirimi gönder
+  uk: Надіслати сповіщення електронною поштою
+  th: ส่งการแจ้งเตือนทางอีเมล
+  cs: Odeslat e-mailové oznámení
+  sv: Skicka e-postavisering
+  he: שלח התראה באימייל
+  verified_by_human: []
+report_issue.send_email_notification_hint:
+  context: Hint text for the admin-only email toggle — explains it controls admin notification and reporter confirmation emails
+  en: Send an email notification to admin and a confirmation to the reporter.
+  de: Eine E-Mail-Benachrichtigung an den Admin und eine Bestätigung an den Melder senden.
+  zh: 向管理员发送电子邮件通知，并向报告者发送确认。
+  es: Enviar una notificación por correo al administrador y una confirmación al reportante.
+  fr: Envoyer une notification par e-mail à l'administrateur et une confirmation au signalant.
+  pt: Enviar uma notificação por e-mail ao administrador e uma confirmação ao relator.
+  ru: Отправить уведомление администратору и подтверждение отправителю.
+  ja: 管理者にメール通知を送信し、報告者に確認メールを送信します。
+  ko: 관리자에게 이메일 알림을 보내고 보고자에게 확인 메일을 보냅니다.
+  ar: إرسال إشعار بالبريد الإلكتروني للمسؤول وتأكيد للمُبلِّغ.
+  hi: व्यवस्थापक को ईमेल सूचना और रिपोर्टर को पुष्टि भेजें।
+  nl: Stuur een e-mailmelding naar de admin en een bevestiging naar de melder.
+  it: Invia una notifica email all'amministratore e una conferma al segnalante.
+  pl: Wyślij powiadomienie e-mail do administratora i potwierdzenie do zgłaszającego.
+  tr: Yöneticiye e-posta bildirimi ve bildirene onay gönderin.
+  uk: Надіслати сповіщення адміністратору та підтвердження звітувачу.
+  th: ส่งการแจ้งเตือนทางอีเมลไปยังผู้ดูแลระบบและการยืนยันไปยังผู้รายงาน
+  cs: Odeslat e-mailové oznámení administrátorovi a potvrzení reportérovi.
+  sv: Skicka e-postavisering till admin och bekräftelse till rapportören.
+  he: שלח התראה באימייל למנהל ואישור למדווח.
+  verified_by_human: []
 report_issue.agent_action_label:
   context: Admin-only label for the agent action radio group in the issue report form
   en: Agent action

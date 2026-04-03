@@ -2402,6 +2402,22 @@ class IssueReportRequest(BaseModel):
         ),
         pattern="^(none|research|fix)$",
     )
+    add_to_linear: bool = Field(
+        True,
+        description=(
+            "Whether to create a Linear issue for this report. "
+            "Admin users can set this to false to skip Linear issue creation. "
+            "Non-admin reports default to true (always create)."
+        ),
+    )
+    send_email_notification: bool = Field(
+        True,
+        description=(
+            "Whether to send email notifications (admin + reporter confirmation) for this report. "
+            "Admin users can set this to false to skip email sending. "
+            "Non-admin reports default to true (always send)."
+        ),
+    )
 
 
 class IssueReportResponse(BaseModel):
@@ -2943,71 +2959,84 @@ async def report_issue(
             # but S3 upload will be skipped since issue_id is None
             issue_id = None
         
-        # Dispatch the email task with sanitized data
-        # The email task will create the YAML file, encrypt it, upload to S3, and update the database with the S3 key
         from backend.core.api.app.tasks.celery_config import app
-        task_result = app.send_task(
-            name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
-            kwargs={
-                "admin_email": admin_email,
-                "issue_id": issue_id,  # Pass issue ID so email task can update database with S3 key
-                "issue_title": sanitized_title,
-                "issue_description": sanitized_description,
-                "chat_or_embed_url": sanitized_url,
-                "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
-                "language": sanitized_language,    # Client UI language for confirmation email localisation
-                "timestamp": current_time,
-                "estimated_location": estimated_location,
-                "device_info": device_info_str,
-                "console_logs": console_logs_str,
-                "indexeddb_report": indexeddb_report_str,
-                "last_messages_html": last_messages_html_str,
-                "active_chat_sidebar_html": active_chat_sidebar_html_str,
-                "runtime_debug_state": runtime_debug_state_str,
-                "action_history": action_history_str,
-                # outerHTML of the DOM element the user picked via the element picker overlay.
-                # Captures the exact HTML of a broken UI element for debugging layout/rendering issues.
-                "picked_element_html": picked_element_html_str,
-                # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
-                # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
-                "screenshot_presigned_url": screenshot_presigned_url,
-                # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
-                "trace_ids": issue_data.trace_ids or []
-            },
-            queue='email'
-        )
-        
-        logger.info(
-            f"Issue report submitted: '{issue_data.title[:50]}...' - "
-            f"email task dispatched to queue 'email' with task_id={task_result.id}, "
-            f"recipient={admin_email}"
-        )
 
-        # Auto-create a Linear issue for tracking on the project board.
-        # Dispatched fire-and-forget alongside the email task — never blocks the response.
-        try:
-            linear_task_result = app.send_task(
-                name='app.tasks.linear_issue_task.create_linear_issue_for_report',
+        # Dispatch the email task with sanitized data (skipped when admin sets send_email_notification=false).
+        # The email task will create the YAML file, encrypt it, upload to S3, and update the database with the S3 key.
+        if issue_data.send_email_notification:
+            task_result = app.send_task(
+                name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
                 kwargs={
-                    "issue_id": issue_id,
+                    "admin_email": admin_email,
+                    "issue_id": issue_id,  # Pass issue ID so email task can update database with S3 key
                     "issue_title": sanitized_title,
                     "issue_description": sanitized_description,
                     "chat_or_embed_url": sanitized_url,
-                    "is_from_admin": is_from_admin,
-                    "contact_email": sanitized_email if sanitized_email else None,
-                    "ascii_smuggling_detected": ascii_smuggling_detected,
+                    "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
+                    "language": sanitized_language,    # Client UI language for confirmation email localisation
+                    "timestamp": current_time,
+                    "estimated_location": estimated_location,
+                    "device_info": device_info_str,
+                    "console_logs": console_logs_str,
+                    "indexeddb_report": indexeddb_report_str,
+                    "last_messages_html": last_messages_html_str,
+                    "active_chat_sidebar_html": active_chat_sidebar_html_str,
+                    "runtime_debug_state": runtime_debug_state_str,
+                    "action_history": action_history_str,
+                    # outerHTML of the DOM element the user picked via the element picker overlay.
+                    # Captures the exact HTML of a broken UI element for debugging layout/rendering issues.
+                    "picked_element_html": picked_element_html_str,
+                    # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
+                    # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
+                    "screenshot_presigned_url": screenshot_presigned_url,
+                    # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
+                    "trace_ids": issue_data.trace_ids or []
                 },
                 queue='email'
             )
             logger.info(
-                f"Linear issue creation task dispatched for issue '{issue_data.title[:50]}...' "
-                f"(task_id={linear_task_result.id})"
+                f"Issue report submitted: '{issue_data.title[:50]}...' - "
+                f"email task dispatched to queue 'email' with task_id={task_result.id}, "
+                f"recipient={admin_email}"
             )
-        except Exception as _linear_err:
-            # Never block the issue report response if Linear task dispatch fails
-            logger.error(
-                f"Failed to dispatch Linear issue creation task: {_linear_err}",
-                exc_info=True
+        else:
+            logger.info(
+                f"Issue report submitted: '{issue_data.title[:50]}...' - "
+                f"email notification skipped (admin toggle off)"
+            )
+
+        # Auto-create a Linear issue for tracking on the project board.
+        # Dispatched fire-and-forget alongside the email task — never blocks the response.
+        # Skipped when admin sets add_to_linear=false.
+        if issue_data.add_to_linear:
+            try:
+                linear_task_result = app.send_task(
+                    name='app.tasks.linear_issue_task.create_linear_issue_for_report',
+                    kwargs={
+                        "issue_id": issue_id,
+                        "issue_title": sanitized_title,
+                        "issue_description": sanitized_description,
+                        "chat_or_embed_url": sanitized_url,
+                        "is_from_admin": is_from_admin,
+                        "contact_email": sanitized_email if sanitized_email else None,
+                        "ascii_smuggling_detected": ascii_smuggling_detected,
+                    },
+                    queue='email'
+                )
+                logger.info(
+                    f"Linear issue creation task dispatched for issue '{issue_data.title[:50]}...' "
+                    f"(task_id={linear_task_result.id})"
+                )
+            except Exception as _linear_err:
+                # Never block the issue report response if Linear task dispatch fails
+                logger.error(
+                    f"Failed to dispatch Linear issue creation task: {_linear_err}",
+                    exc_info=True
+                )
+        else:
+            logger.info(
+                f"Linear issue creation skipped for '{issue_data.title[:50]}...' "
+                f"(admin toggle off)"
             )
 
         # Admin-only: trigger agent investigation if requested.

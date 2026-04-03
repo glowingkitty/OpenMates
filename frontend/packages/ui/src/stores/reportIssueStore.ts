@@ -46,6 +46,10 @@ export interface ReportIssueFormDraft {
   includeEmailToggle: boolean;
   /** Admin-only: what agent action to trigger on submit ('none' | 'research' | 'fix'). */
   agentAction?: 'none' | 'research' | 'fix';
+  /** Admin-only: whether to create a Linear issue for this report. */
+  addToLinear?: boolean;
+  /** Admin-only: whether to send email notifications for this report. */
+  sendEmailNotification?: boolean;
   pickedElementHtml: string | null;
   screenshotDataUrl: string | null;
 }
