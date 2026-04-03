@@ -1168,6 +1168,27 @@ async def handle_main_processing(
         preselected_skills = preselected_skills | set(always_include_skills)
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
+    # AUTO-PAIR: When web-search or news-search is in the final preselected set (whether from
+    # preprocessing or always_include_skills), also add images-search so the main LLM can
+    # proactively fetch highlight images for visual topics. The main LLM decides per-query
+    # whether to actually call it based on the multimodal search policy instructions.
+    if preselected_skills and not user_requested_skills_only:
+        has_web_or_news = bool(preselected_skills & {"web-search", "news-search"})
+        images_search_exists = (
+            discovered_apps_metadata
+            and "images" in discovered_apps_metadata
+            and any(
+                s.id == "search"
+                for s in discovered_apps_metadata["images"].skills
+            )
+        )
+        if has_web_or_news and images_search_exists and "images-search" not in preselected_skills:
+            preselected_skills.add("images-search")
+            logger.info(
+                f"{log_prefix} [SKILL_HARDENING] Auto-paired 'images-search' with web/news search. "
+                f"Main LLM will decide per-query whether to fetch highlight images."
+            )
+
     # When user explicitly requested skills, add a mandatory instruction so the model must use them
     if user_requested_skills_only and preselected_skills:
         mandatory_skills_list = ", ".join(sorted(preselected_skills))
