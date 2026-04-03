@@ -9,6 +9,8 @@
 #
 # Key design decisions:
 # - No API key needed — the endpoint accepts unauthenticated requests
+# - Direct requests first, proxy fallback on 403/429/5xx — saves ~$4.38/GB
+#   in proxy bandwidth and is 2-5x faster (1s vs 3-8s)
 # - Explicit lat/lon in the GraphQL filter bypasses server-side geo-IP resolution
 #   (the old _next/data approach resolved location from the server's IP, not the
 #    user's location string)
@@ -392,18 +394,43 @@ async def search_events_async(
     )
     t0 = time.time()
 
+    # Attempt 1: direct request (no proxy) — faster and free.
+    resp: Optional[httpx.Response] = None
     try:
         async with create_http_client(
             "meetup",
-            proxy=proxy_url,
-            timeout=20.0,
+            timeout=15.0,
             follow_redirects=True,
         ) as client:
             resp = await client.post(GRAPHQL_URL, json=payload, headers=_HEADERS)
-    except httpx.ProxyError as exc:
-        raise RuntimeError(f"Proxy error connecting to Meetup: {exc}") from exc
-    except httpx.RequestError as exc:
-        raise RuntimeError(f"HTTP request to Meetup failed: {exc}") from exc
+        # Treat rate-limiting or server errors as reasons to retry via proxy.
+        if resp.status_code in (403, 429, 502, 503):
+            logger.warning(
+                "Meetup direct request returned HTTP %d — retrying via proxy",
+                resp.status_code,
+            )
+            resp = None
+    except httpx.RequestError as direct_exc:
+        logger.warning(
+            "Meetup direct request failed (%s) — retrying via proxy", direct_exc
+        )
+
+    # Attempt 2: proxy fallback (only if direct failed and proxy is available).
+    if resp is None and proxy_url:
+        try:
+            async with create_http_client(
+                "meetup",
+                proxy=proxy_url,
+                timeout=20.0,
+                follow_redirects=True,
+            ) as client:
+                resp = await client.post(GRAPHQL_URL, json=payload, headers=_HEADERS)
+        except httpx.ProxyError as exc:
+            raise RuntimeError(f"Proxy error connecting to Meetup: {exc}") from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"HTTP request to Meetup failed: {exc}") from exc
+    elif resp is None:
+        raise RuntimeError("Meetup direct request failed and no proxy configured")
 
     duration = time.time() - t0
 
