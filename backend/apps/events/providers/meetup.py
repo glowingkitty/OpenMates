@@ -13,14 +13,14 @@
 #   (the old _next/data approach resolved location from the server's IP, not the
 #    user's location string)
 # - Description is returned inline — no extra requests needed (1–5 KB per event)
+# - Event images via featuredEventPhoto.highResUrl (inline in GraphQL response,
+#   no per-event page scraping needed). Falls back to group.groupPhoto.highResUrl.
 # - Relay cursor-based pagination via pageInfo.endCursor / hasNextPage
 #
 # Request cost estimation:
 #   Typical response: ~50–200 KB per page (50 events)
-#   Webshare proxy cost: $0.10/GB (rotating residential proxy)
-#   Cost per request: 200 KB × ($0.10/1,000,000 KB) = $0.00002 ≈ 0.002 cents
-#   → margin at 5 credits ($0.005 at $0.001/credit) is ~250× above raw proxy cost
-#   → 5 credits covers compute + markup comfortably
+#   Webshare proxy cost: $4.38/GB (rotating residential proxy)
+#   Cost per request: 200 KB × ($4.38/1,000,000 KB) = $0.000876 ≈ 0.09 cents
 #
 # Rate limiting:
 #   Meetup has undocumented server-side throttling. A 1.2s polite delay is added
@@ -28,8 +28,6 @@
 
 import logging
 import time
-import asyncio
-import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -86,6 +84,7 @@ query eventSearch(
                 eventType
                 eventUrl
                 description
+                featuredEventPhoto { highResUrl }
                 rsvps { totalCount }
                 venue {
                     name
@@ -101,6 +100,7 @@ query eventSearch(
                     name
                     urlname
                     timezone
+                    groupPhoto { highResUrl }
                 }
                 feeSettings {
                     amount
@@ -115,14 +115,6 @@ query eventSearch(
 # Polite delay between consecutive paginated requests to avoid triggering
 # Meetup's undocumented rate limiter.
 _PAGE_DELAY_SECONDS = 1.2
-_IMAGE_FETCH_TIMEOUT_SECONDS = 10.0
-_IMAGE_FETCH_CONCURRENCY = 6
-_OG_IMAGE_META_PATTERNS = (
-    re.compile(r'<meta[^>]*property=["\']og:image["\'][^>]*content=["\']([^"\']+)["\']', re.IGNORECASE),
-    re.compile(r'<meta[^>]*content=["\']([^"\']+)["\'][^>]*property=["\']og:image["\']', re.IGNORECASE),
-    re.compile(r'<meta[^>]*name=["\']twitter:image["\'][^>]*content=["\']([^"\']+)["\']', re.IGNORECASE),
-    re.compile(r'<meta[^>]*content=["\']([^"\']+)["\'][^>]*name=["\']twitter:image["\']', re.IGNORECASE),
-)
 
 
 # ---------------------------------------------------------------------------
@@ -447,10 +439,6 @@ async def search_events_async(
     )
 
     normalised_events = [_normalise_event(edge.get("node", {})) for edge in edges]
-    await _enrich_events_with_image_urls_async(
-        events=normalised_events,
-        proxy_url=proxy_url,
-    )
     return (normalised_events, total_count)
 
 
@@ -511,76 +499,12 @@ def _normalise_event(node: Dict[str, Any]) -> Dict[str, Any]:
         "rsvp_count": (node.get("rsvps") or {}).get("totalCount", 0),
         "is_paid": fee is not None,
         "fee": fee,
-        "image_url": None,
+        "image_url": (
+            (node.get("featuredEventPhoto") or {}).get("highResUrl")
+            or (group_raw.get("groupPhoto") or {}).get("highResUrl")
+        ),
     }
 
-
-async def _enrich_events_with_image_urls_async(
-    *,
-    events: List[Dict[str, Any]],
-    proxy_url: Optional[str],
-) -> None:
-    """Populate missing Meetup event image URLs by scraping event page metadata."""
-    events_needing_images = [event for event in events if event.get("url") and not event.get("image_url")]
-    if not events_needing_images:
-        return
-
-    semaphore = asyncio.Semaphore(_IMAGE_FETCH_CONCURRENCY)
-
-    async with create_http_client(
-        "meetup",
-        proxy=proxy_url,
-        timeout=_IMAGE_FETCH_TIMEOUT_SECONDS,
-        follow_redirects=True,
-    ) as client:
-        async def fetch_and_attach(event: Dict[str, Any]) -> None:
-            async with semaphore:
-                image_url = await _fetch_event_image_url_async(client, event["url"])
-                if image_url:
-                    event["image_url"] = image_url
-
-        await asyncio.gather(*(fetch_and_attach(event) for event in events_needing_images))
-
-
-async def _fetch_event_image_url_async(client: httpx.AsyncClient, event_url: str) -> Optional[str]:
-    """Fetch an event page and extract og:image/twitter:image URL."""
-    try:
-        response = await client.get(
-            event_url,
-            headers={
-                "User-Agent": _HEADERS["User-Agent"],
-                "Accept": "text/html,application/xhtml+xml",
-                "Referer": "https://www.meetup.com/find/",
-            },
-        )
-        if response.status_code != 200:
-            return None
-
-        return _extract_social_image_url(response.text)
-    except Exception as exc:
-        logger.debug("Failed to fetch Meetup event image from %s: %s", event_url, exc)
-        return None
-
-
-def _extract_social_image_url(html: str) -> Optional[str]:
-    """Extract first og:image/twitter:image URL from page HTML."""
-    if not html:
-        return None
-
-    for pattern in _OG_IMAGE_META_PATTERNS:
-        match = pattern.search(html)
-        if match:
-            image_url = match.group(1).strip()
-            if image_url:
-                # Meetup returns relative paths for default group cover images
-                # (e.g. "/images/fallbacks/redesign/group-cover-3-wide.jpeg").
-                # These generic placeholders are behind CloudFront and return 403
-                # on direct access, so discard them — the frontend handles missing
-                # images gracefully with its own fallback chain.
-                if image_url.startswith("/"):
-                    return None
-                return image_url
-    return None
 
 
 def _resolve_via_meetup_geocoder(location_str: str) -> Tuple[float, float, str, str]:

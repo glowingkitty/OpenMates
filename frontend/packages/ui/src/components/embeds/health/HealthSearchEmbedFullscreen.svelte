@@ -135,14 +135,20 @@
   function parseGpsCoordinates(content: Record<string, unknown>):
     | { latitude: number; longitude: number }
     | undefined {
+    // Nested: gps_coordinates: { latitude, longitude } (from search transformer or non-flattened data)
     const gps = content.gps_coordinates;
-    if (!gps || typeof gps !== 'object') return undefined;
-
-    const latitude = asNumber((gps as Record<string, unknown>).latitude ?? (gps as Record<string, unknown>).lat);
-    const longitude = asNumber((gps as Record<string, unknown>).longitude ?? (gps as Record<string, unknown>).lon);
-    if (latitude === undefined || longitude === undefined) return undefined;
-
-    return { latitude, longitude };
+    if (gps && typeof gps === 'object') {
+      const g = gps as Record<string, unknown>;
+      const latitude = asNumber(g.latitude) ?? asNumber(g.lat);
+      const longitude = asNumber(g.longitude) ?? asNumber(g.lon);
+      if (latitude !== undefined && longitude !== undefined) return { latitude, longitude };
+    }
+    // Flat TOON: gps_coordinates_latitude, gps_coordinates_longitude
+    // (from _flatten_for_toon_tabular in embed_service.py)
+    const flatLat = asNumber(content.gps_coordinates_latitude);
+    const flatLon = asNumber(content.gps_coordinates_longitude);
+    if (flatLat !== undefined && flatLon !== undefined) return { latitude: flatLat, longitude: flatLon };
+    return undefined;
   }
 
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {

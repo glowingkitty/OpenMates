@@ -20,7 +20,6 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
-  import { getProviderIconUrl } from '../../../data/providerIcons';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface AppointmentData {
@@ -65,80 +64,68 @@
     onNavigateNext,
   }: Props = $props();
 
-  // Build appointment object from data.decodedContent
+  // Build appointment object from data.decodedContent.
+  // Must be $derived so it updates when navigating between results (prev/next).
+  // Handles both nested gps_coordinates object (from search transformer) and flat TOON
+  // fields (gps_coordinates_latitude, gps_coordinates_longitude — from _flatten_for_toon_tabular).
   let dc = $derived(data.decodedContent);
-  let rawGps = $derived(dc.gps_coordinates as Record<string, unknown> | undefined);
 
-  let appointment: AppointmentData = {
-    embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
-    slot_datetime: typeof dc.slot_datetime === 'string' ? dc.slot_datetime : undefined,
-    name: typeof dc.name === 'string' ? dc.name : undefined,
-    speciality: typeof dc.speciality === 'string' ? dc.speciality : undefined,
-    address: typeof dc.address === 'string' ? dc.address : undefined,
-    gps_coordinates: (rawGps && typeof rawGps === 'object'
-      && typeof rawGps.latitude === 'number' && typeof rawGps.longitude === 'number')
-      ? { latitude: rawGps.latitude, longitude: rawGps.longitude }
-      : undefined,
-    insurance: typeof dc.insurance === 'string' ? dc.insurance : undefined,
-    telehealth: typeof dc.telehealth === 'boolean' ? dc.telehealth : undefined,
-    practice_url: typeof dc.practice_url === 'string' ? dc.practice_url : undefined,
-    provider: typeof dc.provider === 'string' ? dc.provider : undefined,
-    provider_platform: typeof dc.provider_platform === 'string' ? dc.provider_platform : undefined,
-    booking_url: typeof dc.booking_url === 'string' ? dc.booking_url : undefined,
-    rating: typeof dc.rating === 'number' ? dc.rating : undefined,
-    rating_count: typeof dc.rating_count === 'number' ? dc.rating_count : undefined,
-    price: typeof dc.price === 'number' ? dc.price : undefined,
-    service_name: typeof dc.service_name === 'string' ? dc.service_name : undefined,
-  };
-
-  // Keep flat prop variables for the activeAppointment derived computation below
-  let slot_datetime = appointment.slot_datetime;
-  let name = appointment.name;
-  let speciality = appointment.speciality;
-  let address = appointment.address;
-  let gps_coordinates = appointment.gps_coordinates;
-  let insurance = appointment.insurance;
-  let telehealth = appointment.telehealth;
-  let practice_url = appointment.practice_url;
-  let provider = appointment.provider;
-
-  function isNonEmptyString(value: unknown): value is string {
-    return typeof value === 'string' && value.trim().length > 0;
+  /** Parse a number from unknown value (handles TOON string→number edge cases). */
+  function asNumber(v: unknown): number | undefined {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') { const n = Number(v); if (Number.isFinite(n)) return n; }
+    return undefined;
   }
 
+  function asString(v: unknown): string | undefined {
+    return typeof v === 'string' ? v : undefined;
+  }
+
+  function parseGps(content: Record<string, unknown>): AppointmentData['gps_coordinates'] {
+    // Nested: gps_coordinates: { latitude, longitude }
+    const gps = content.gps_coordinates;
+    if (gps && typeof gps === 'object') {
+      const g = gps as Record<string, unknown>;
+      const lat = asNumber(g.latitude) ?? asNumber(g.lat);
+      const lon = asNumber(g.longitude) ?? asNumber(g.lon);
+      if (lat != null && lon != null) return { latitude: lat, longitude: lon };
+    }
+    // Flat TOON: gps_coordinates_latitude, gps_coordinates_longitude
+    const flatLat = asNumber(content.gps_coordinates_latitude);
+    const flatLon = asNumber(content.gps_coordinates_longitude);
+    if (flatLat != null && flatLon != null) return { latitude: flatLat, longitude: flatLon };
+    return undefined;
+  }
+
+  let appointment: AppointmentData = $derived.by(() => ({
+    embed_id: asString(dc.embed_id) || (embedId || ''),
+    slot_datetime: asString(dc.slot_datetime),
+    name: asString(dc.name),
+    speciality: asString(dc.speciality),
+    address: asString(dc.address),
+    gps_coordinates: parseGps(dc),
+    insurance: asString(dc.insurance),
+    telehealth: typeof dc.telehealth === 'boolean' ? dc.telehealth : undefined,
+    practice_url: asString(dc.practice_url),
+    provider: asString(dc.provider),
+    provider_platform: asString(dc.provider_platform),
+    booking_url: asString(dc.booking_url),
+    rating: asNumber(dc.rating),
+    rating_count: asNumber(dc.rating_count),
+    price: asNumber(dc.price),
+    service_name: asString(dc.service_name),
+  }));
+
   function getAddressLines(value: unknown): string[] {
-    if (!isNonEmptyString(value)) return [];
+    if (typeof value !== 'string' || !value.trim()) return [];
     return value
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
   }
 
-  let activeAppointment = $derived.by(() => {
-    if (appointment) return appointment;
-
-    const hasFlatData =
-      isNonEmptyString(name) ||
-      isNonEmptyString(speciality) ||
-      isNonEmptyString(address) ||
-      isNonEmptyString(slot_datetime) ||
-      isNonEmptyString(practice_url);
-
-    if (!hasFlatData) return undefined;
-
-    return {
-      embed_id: embedId || 'health-appointment-preview',
-      slot_datetime,
-      name,
-      speciality,
-      address,
-      gps_coordinates,
-      insurance,
-      telehealth,
-      practice_url,
-      provider,
-    } as AppointmentData;
-  });
+  // appointment is always an object (from $derived.by above), so alias directly
+  let activeAppointment = $derived(appointment);
 
   function formatSlot(iso: string): string {
     try {
