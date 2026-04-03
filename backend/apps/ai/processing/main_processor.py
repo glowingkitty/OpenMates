@@ -2339,64 +2339,29 @@ async def handle_main_processing(
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
-        # === AUTO IMAGE SEARCH (runs after first iteration, regardless of tool calls) ===
-        # When the preprocessor detected a visual topic (visual_search_query is set),
-        # and the main LLM didn't already call images-search, auto-fire an images-search
-        # call so the response includes highlight images.
+        # === AUTO IMAGE SEARCH: inject synthetic tool call ===
+        # When preprocessor set visual_search_query and the LLM didn't already call
+        # images-search, append a synthetic tool call so it goes through the normal
+        # tool execution pipeline (placeholders, embeds, budget, etc.).
         if (
             visual_search_query
             and iteration == 0
             and not any(tc.function_name in ("images-search", "images_search") for tc in tool_calls_for_this_turn)
             and "images-search" in (preselected_skills or set())
         ):
-            try:
-                logger.info(
-                    f"{log_prefix} [AUTO_IMAGE_SEARCH] Executing auto images-search for "
-                    f"visual_search_query='{visual_search_query}'"
-                )
-                auto_image_args = {"requests": [{"query": visual_search_query, "count": 3}]}
-                auto_image_results = await execute_skill_with_multiple_requests(
-                    app_id="images",
-                    skill_id="search",
-                    arguments=auto_image_args,
-                    timeout=DEFAULT_SKILL_TIMEOUT,
-                    chat_id=request_data.chat_id,
-                    message_id=request_data.message_id,
-                    user_id=request_data.user_id,
-                    skill_task_id=f"{request_data.chat_id}_auto_image_search",
-                    cache_service=cache_service
-                )
-                if auto_image_results and cache_service and directus_service and encryption_service:
-                    from backend.core.api.app.services.embed_service import EmbedService
-                    embed_service_for_images = EmbedService(
-                        cache_service=cache_service,
-                        directus_service=directus_service,
-                        encryption_service=encryption_service
-                    )
-                    auto_embed_data = await embed_service_for_images.create_embeds_from_skill_results(
-                        app_id="images",
-                        skill_id="search",
-                        results=auto_image_results,
-                        chat_id=request_data.chat_id,
-                        message_id=request_data.message_id,
-                        user_id=request_data.user_id,
-                        user_id_hash=request_data.user_id_hash,
-                        user_vault_key_id=user_vault_key_id,
-                        task_id=task_id,
-                        log_prefix=f"{log_prefix}[AUTO_IMAGE_SEARCH]",
-                    )
-                    if auto_embed_data and auto_embed_data.get("embed_id"):
-                        auto_embed_id = auto_embed_data["embed_id"]
-                        yield f"\n\n[](embed:{auto_embed_id})\n\n"
-                        total_skill_calls += 1
-                        logger.info(
-                            f"{log_prefix} [AUTO_IMAGE_SEARCH] Successfully created image embed "
-                            f"{auto_embed_id} with {len(auto_image_results)} results"
-                        )
-                elif not auto_image_results:
-                    logger.info(f"{log_prefix} [AUTO_IMAGE_SEARCH] No results for query '{visual_search_query}'")
-            except Exception as e:
-                logger.warning(f"{log_prefix} [AUTO_IMAGE_SEARCH] Failed (non-fatal): {e}")
+            import uuid
+            synthetic_args = json.dumps({"requests": [{"query": visual_search_query, "count": 3}]})
+            synthetic_tool_call = ParsedOpenAIToolCall(
+                tool_call_id=f"auto_img_{uuid.uuid4().hex[:8]}",
+                function_name="images-search",
+                function_arguments_raw=synthetic_args,
+                function_arguments_parsed=json.loads(synthetic_args),
+            )
+            tool_calls_for_this_turn.append(synthetic_tool_call)
+            logger.info(
+                f"{log_prefix} [AUTO_IMAGE_SEARCH] Injected synthetic images-search tool call "
+                f"for visual_search_query='{visual_search_query}'"
+            )
 
         if not tool_calls_for_this_turn:
             break
