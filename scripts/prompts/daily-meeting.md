@@ -92,13 +92,17 @@ Use emojis for scanability: ✅ done, 🔄 in progress, ❌ not started/failed, 
 
 ### Step 1: STATUS CLEANUP 🧹
 
-Query Linear for ALL tasks not in Done/Canceled state. Flag:
+Query Linear for ALL tasks not in Done/Canceled state. Use `mcp__linear__list_issues` with **no limit** (or limit: 200) across states "Todo", "In Progress", "In Review", "Backlog", and "Triage". If the result count equals the limit, paginate with `after` cursor to get the rest. **Every task must appear — never truncate the list.**
+
+Sort results for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age (oldest first).
+
+Flag:
 - 🧊 **Stale In Progress**: tasks In Progress > 3 days without recent commits
 - 🧊 **Stale In Review**: tasks In Review > 2 days
 - ⚠️ **Ghost tasks**: In Progress with `claude-is-working` label but no active session
 - ⚠️ **Missing metadata**: No milestone, no priority, or no labels assigned
 
-Present as a table with columns: Linear ID, Title, Short Description, Status, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
+Present as a table with columns: Linear ID, Title, Short Description, Status, Priority, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
 
 Wait for user input. Update Linear statuses based on their answers before proceeding.
 
@@ -160,7 +164,7 @@ Rules for asking:
 
 ### Step 6: TODAY'S PRIORITIES 🎯
 
-Query Linear for all active tasks (Todo, In Progress, Backlog) and propose priorities:
+Query Linear for ALL active tasks (Todo, In Progress, Backlog) using `mcp__linear__list_issues` with **no limit** (or limit: 200). Paginate if needed. Sort by status (**Todo before Backlog**), then by priority (Urgent → High → Medium → Low → No priority). Use this complete list to propose priorities:
 - Present a **ranked list of up to 10 tasks** for the day
 - The **top 3 are the "must complete" targets** — the clear goal is to finish at least these 3
 - Tasks 4-10 define what to pick up next (via `/next-task`) once the top 3 are done

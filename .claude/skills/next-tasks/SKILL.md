@@ -15,7 +15,7 @@ Read all 3 data sources **in parallel**:
 
 1. **Daily meeting state** — read `scripts/.daily-meeting-state.json`
 2. **Recent git commits** — run `git log --oneline -30` to see what's been shipped since the meeting
-3. **Linear task statuses** — for each task in `priorities[]` from the state file, call `mcp__linear__get_issue` to get the current status, labels, and completion state
+3. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority). Also call `mcp__linear__get_issue` for each task in `priorities[]` from the state file to get detailed current status, labels, and completion state
 
 ### Step 2: Cross-Reference & Detect Staleness
 
@@ -65,12 +65,9 @@ Show the remaining tasks that are ready to be started:
 | 2 | OPE-XXX: Title | High | Feature | one-line summary |
 ```
 
-If fewer than 2 tasks remain from daily priorities, also check the broader Linear backlog:
-```
-mcp__linear__list_issues with state: "unstarted", team: "OpenMates", limit: 10
-```
+If fewer than 2 tasks remain from daily priorities, use the full task list already fetched in Step 1 (all non-Done/non-Canceled tasks). Filter to tasks not already in daily priorities.
 
-Rank by: Urgent/High priority first, then user-feedback label, then age.
+Rank by: **Todo before Backlog**, then Urgent/High priority first, then user-feedback label, then age.
 
 ### Step 5: Clarify Task Details (5 Rounds)
 
@@ -138,6 +135,7 @@ All sessions visible at http://localhost:8082.
 ## Rules
 
 - **Always read daily-meeting-state.json first** — it defines today's priorities
+- **Always fetch ALL Linear tasks** — use no limit (or limit: 200) with pagination. Never truncate the task list. Sort: Todo before Backlog, then by priority (Urgent → High → Medium → Low → No priority)
 - **Always cross-reference git commits** — don't suggest tasks that are already done
 - **Exactly 5 question rounds** — no more, no less. One question per round, wait for answer.
 - **Questions must be specific** — reference task IDs and concrete decisions, not generic
