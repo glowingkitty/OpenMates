@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # for results that will be filtered out. This ensures users still get their requested count.
 TABLOID_FILTER_OVER_REQUEST_COUNT = 15
 # Default number of results to return to the user after filtering
-DEFAULT_RESULT_COUNT = 10
+DEFAULT_RESULT_COUNT = 6
 
 
 def strip_html_tags(text: str) -> str:
@@ -83,7 +83,7 @@ class WebSearchRequestItem(BaseModel):
     )
 
     query: str = Field(description="Search query string (e.g. 'Python async', 'FastAPI best practices').")
-    count: int = Field(default=10, description="Number of results for this request (max 20).")
+    count: int = Field(default=6, description="Number of results for this request (max 20).")
     country: Optional[str] = Field(
         default=None,
         description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
