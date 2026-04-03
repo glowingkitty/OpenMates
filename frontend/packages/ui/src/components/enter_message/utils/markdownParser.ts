@@ -855,7 +855,16 @@ function convertNodeToTiptap(node: Node): any {
         }
         // Internal links should not have target attribute
 
-        return content.map((item) => ({
+        // When the LLM writes [](embed:ref) the <a> tag has no text children,
+        // so `content` is empty.  Synthesise a text node so the link mark is
+        // not silently dropped.  convertEmbedLinksInNode will later convert
+        // this into an embedInline with a domain-derived display text.
+        let linkContent = content;
+        if (linkContent.length === 0) {
+          linkContent = [{ type: "text", text: "" }];
+        }
+
+        return linkContent.map((item) => ({
           ...item,
           marks: [...(item.marks || []), { type: "link", attrs: linkAttrs }],
         }));
