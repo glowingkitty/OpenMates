@@ -16,6 +16,7 @@
     import { authStore } from '../../stores/authStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsSectionHeading } from './elements';
     import AppStoreCard from './AppStoreCard.svelte';
     import type { AppMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
@@ -130,14 +131,6 @@
     }
 
     /**
-     * Normalise category icon_image to the icon name for the memory gradient Icon.
-     */
-    function getCategoryIconName(iconImage: string | undefined, fallback: string): string {
-        if (!iconImage) return fallback;
-        return iconImage.replace(/\.svg$/, '');
-    }
-
-    /**
      * Navigate to the per-category settings/memories page for an app.
      * Passes cameFrom='settings_memories' so that back navigation from the category page
      * returns here instead of the parent app settings page.
@@ -190,13 +183,10 @@
         {#each appSections as section, sectionIndex (section.app.id)}
             <!-- Spacing between app sections (not before the first one) -->
             <div class="app-section" class:section-gap={sectionIndex > 0}>
-                <!-- App section heading — shows app icon with app gradient -->
-                <SettingsItem
-                    type="heading"
-                    icon={getAppIconName(section.app.icon_image, section.app.id)}
-                    iconBackground="none"
-                    iconColor={`var(--color-app-${section.app.id})`}
+                <!-- App section heading — uses canonical SettingsSectionHeading with gradient icon + underline bar -->
+                <SettingsSectionHeading
                     title={section.app.name_translation_key ? $text(section.app.name_translation_key) : section.app.id}
+                    icon={getAppIconName(section.app.icon_image, section.app.id)}
                 />
 
                 <!-- Category cards for this app -->
