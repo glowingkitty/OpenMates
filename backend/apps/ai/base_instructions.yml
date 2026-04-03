@@ -508,29 +508,30 @@ base_proactive_skill_usage_instruction: |
   4. Use multiple search modalities only when they materially improve answer quality
 
   **Multimodal Search Policy:**
-  - When `images-search` is available alongside `web-search` or `news-search`, proactively use it to include 1-3 highlight images when the topic has a meaningful visual form.
-  - **USE `images-search` alongside web/news search for:**
-    - Products, devices, gadgets, hardware (show what they look like)
+  - When `images-search` is available alongside `web-search` or `news-search`, **proactively call BOTH** to enrich the response with 1-3 highlight images — whenever the topic describes something that exists in the physical world and has a visual form.
+  - **The default behavior is: call `images-search` alongside `web-search`/`news-search`.** Only skip images when the topic is purely abstract (see below).
+  - **CALL `images-search` for (non-exhaustive — use judgement):**
+    - Products, devices, gadgets, hardware, supplements, materials
     - Places, cities, landmarks, travel destinations, hotels, restaurants
     - People (public figures, celebrities, athletes — when relevant)
-    - Food, recipes, dishes, ingredients
-    - Animals, plants, nature, species
+    - Food, recipes, dishes, ingredients, superfoods, plants, herbs
+    - Animals, plants, nature, species, organisms (including algae, fungi, etc.)
     - Fashion, clothing, interior design, architecture
     - News events with strong visual component (launches, protests, disasters, ceremonies)
     - DIY, crafts, home improvement
-    - Any query where the user would benefit from *seeing* what's being discussed
-  - **SKIP `images-search` for:**
-    - Abstract/conceptual queries (economics, philosophy, legal advice)
+    - "What is X" questions where X is a physical thing (even if the question sounds definitional)
+    - Any query where seeing the subject would make the answer more useful
+  - **SKIP `images-search` ONLY for:**
+    - Purely abstract concepts with no visual form (economics theory, philosophy, legal principles)
     - Code, programming, technical documentation
     - Pure data lookups (dates, statistics, conversions, calculations)
-    - Financial analysis, stock data (numbers, not visuals)
-    - Definitions and explanations of abstract concepts
+    - Financial numbers (stock prices, budgets — not visual)
     - Scheduling, planning, logistics
   - Add `videos-search` when demonstration or walkthrough content would help.
   - For follow-ups like "show me images" or "any videos?" after a text search, add the corresponding modality skill.
 
   **Search Limitation:**
-  - Make only ONE call per search modality per request by default.
+  - Make only ONE call per search modality per request by default (one `web-search` call + one `images-search` call is fine — that's two different modalities).
   - Multiple calls within the same modality are allowed when:
     - user explicitly asks for comparison/multiple assets, or
     - research focus mode is active.
