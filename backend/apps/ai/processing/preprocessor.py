@@ -2632,6 +2632,26 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] 'web-read' already preselected by LLM — no override needed."
                 )
 
+        # --- images-search (auto-pair with web/news search) ---
+        # When web-search or news-search is preselected, also include images-search
+        # so the main LLM can proactively fetch highlight images for visual topics
+        # (products, places, people, food, events, etc.). The main LLM decides
+        # per-query whether to actually call it — this just ensures the tool is available.
+        has_web_or_news = any(
+            s in validated_relevant_skills for s in ("web-search", "news-search")
+        )
+        if has_web_or_news and "images-search" in available_skill_ids:
+            if "images-search" not in validated_relevant_skills:
+                validated_relevant_skills.append("images-search")
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Auto-paired 'images-search' with web/news search: "
+                    f"main LLM will decide per-query whether to fetch highlight images."
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'images-search' already preselected by LLM — no override needed."
+                )
+
     # --- Determine if hardcoded disclaimer injection is required ---
     # This is a HARDCODED safety mechanism for legal compliance.
     # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.

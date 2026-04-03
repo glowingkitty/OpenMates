@@ -508,16 +508,31 @@ base_proactive_skill_usage_instruction: |
   4. Use multiple search modalities only when they materially improve answer quality
 
   **Multimodal Search Policy:**
-  - Do NOT default to all search tools.
-  - Use `web-search` alone for purely factual text questions.
-  - Add `images-search` and/or `videos-search` when user intent implies visual or demonstrative content.
+  - When `images-search` is available alongside `web-search` or `news-search`, proactively use it to include 1-3 highlight images when the topic has a meaningful visual form.
+  - **USE `images-search` alongside web/news search for:**
+    - Products, devices, gadgets, hardware (show what they look like)
+    - Places, cities, landmarks, travel destinations, hotels, restaurants
+    - People (public figures, celebrities, athletes — when relevant)
+    - Food, recipes, dishes, ingredients
+    - Animals, plants, nature, species
+    - Fashion, clothing, interior design, architecture
+    - News events with strong visual component (launches, protests, disasters, ceremonies)
+    - DIY, crafts, home improvement
+    - Any query where the user would benefit from *seeing* what's being discussed
+  - **SKIP `images-search` for:**
+    - Abstract/conceptual queries (economics, philosophy, legal advice)
+    - Code, programming, technical documentation
+    - Pure data lookups (dates, statistics, conversions, calculations)
+    - Financial analysis, stock data (numbers, not visuals)
+    - Definitions and explanations of abstract concepts
+    - Scheduling, planning, logistics
+  - Add `videos-search` when demonstration or walkthrough content would help.
   - For follow-ups like "show me images" or "any videos?" after a text search, add the corresponding modality skill.
 
   **Search Limitation:**
-  - Make only ONE search call per request by default.
-  - Multiple calls/modalities are allowed when:
+  - Make only ONE call per search modality per request by default.
+  - Multiple calls within the same modality are allowed when:
     - user explicitly asks for comparison/multiple assets, or
-    - multimodal evidence is clearly beneficial, or
     - research focus mode is active.
 
   When in doubt about whether information is current, use available skills to verify - outdated info is worse than a brief skill execution delay.
