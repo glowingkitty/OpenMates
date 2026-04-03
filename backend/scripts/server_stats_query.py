@@ -331,6 +331,12 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
         lines.append(f"- Page loads: {wa.get('page_loads', 0):,}")
         lines.append(f"- Unique visits: ~{wa.get('unique_visits', 0):,}")
 
+    nl = sections.get("newsletter", {})
+    if "error" not in nl and nl:
+        lines.append("")
+        lines.append("**Newsletter**")
+        lines.append(f"- Confirmed subscribers: {nl.get('confirmed_subscribers', 0):,}")
+
     dh = sections.get("data_health", {})
     if "error" not in dh and dh:
         lines.append("")
