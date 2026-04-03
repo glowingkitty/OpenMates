@@ -30,6 +30,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.apps.home.providers.immoscout24 import search_listings as is24_search
 from backend.apps.home.providers.kleinanzeigen import search_listings as ka_search
 from backend.apps.home.providers.wg_gesucht import search_listings as wg_search
+from backend.shared.python_utils.geo_utils import geocode_address
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +201,35 @@ class SearchSkill(BaseSkill):
             providers=successful_providers,
         )
 
+    async def _geocode_listings(
+        self,
+        listings: List[Dict[str, Any]],
+        city: str,
+    ) -> None:
+        """
+        Attach latitude/longitude to each listing by geocoding its address.
+
+        Uses geocode_address() from geo_utils which tries a local city table
+        first (zero cost), then falls back to Nominatim (OSM). Listings without
+        a resolvable address are left without coordinates — the frontend will
+        simply hide the map for those.
+
+        Geocoding is done sequentially to respect Nominatim's 1 req/s rate limit.
+        The local city table handles the common case (city-level addresses) with
+        zero network calls, so most listings resolve instantly.
+
+        Args:
+            listings: Mutable list of listing dicts — latitude/longitude keys
+                      are added in-place.
+            city: The search city name (used as fallback for geocoding).
+        """
+        for listing in listings:
+            address = listing.get("address", "")
+            coords = await geocode_address(address=address, city=city)
+            if coords:
+                listing["latitude"] = coords[0]
+                listing["longitude"] = coords[1]
+
     async def _process_single_request(
         self,
         req: Dict[str, Any],
@@ -281,6 +311,12 @@ class SearchSkill(BaseSkill):
 
         # Truncate to max_results
         merged = merged[:max_results]
+
+        # Geocode listing addresses for map display.
+        # Each listing has a text address (e.g. "Berlin Kreuzberg") but no GPS
+        # coordinates. We resolve lat/lon so the frontend can show a map via
+        # EntryWithMapTemplate — same pattern as events and health appointments.
+        await self._geocode_listings(merged, city=query)
 
         # Build error string if some providers failed (but we still have results)
         error = "; ".join(provider_errors) if provider_errors and not merged else None
