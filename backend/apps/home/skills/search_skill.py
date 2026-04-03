@@ -59,7 +59,7 @@ FOLLOW_UP_SUGGESTIONS: List[str] = [
 ]
 
 # Fields excluded from LLM context (kept in UI results for rendering)
-IGNORE_FIELDS_FOR_LLM: List[str] = ["type", "image_url", "id"]
+IGNORE_FIELDS_FOR_LLM: List[str] = ["type", "image_url", "id", "latitude", "longitude"]
 
 
 # ---------------------------------------------------------------------------
