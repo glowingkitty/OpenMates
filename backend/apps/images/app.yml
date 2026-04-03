@@ -253,6 +253,15 @@ skills:
                 default: "en"
       required:
         - requests
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # The LLM only needs title, source, and embed_ref to write correct inline references.
+    # Removing URL noise makes embed_ref more prominent and reduces hallucinated slugs.
+    exclude_fields_for_llm:
+      - "type"
+      - "thumbnail_url"
+      - "favicon_url"
+      - "image_url"
+      - "source_page_url"
   - id: generate
     name_translation_key: images.generate
     description_translation_key: images.generate.description

@@ -844,6 +844,10 @@ base_embed_referencing_instruction: |
   - `[Turkish Airlines 06:45](embed:turkish-airlines-0645-x4F)` — links to a specific flight card
   - `[Wikipedia article](embed:wikipedia.org-k8D)` — links to a specific search result
   - `[Eiffel Tower](embed:eiffel-tower-p2R)` — links to a specific place card
+  - `[Spirulina powder photo](embed:pexels.com-k8D)` — links to a specific image search result
+  - `[Mountain landscape](embed:unsplash.com-x4F)` — links to a specific image search result
+
+  Image search results use the same domain-based `embed_ref` format as web search results (e.g. `pexels.com-k8D`, `unsplash.com-x4F`). Never derive image embed_refs from the image title — always use the `embed_ref` field from the tool result.
 
   **Rules:**
   - Only use `embed_ref` values that actually appear in the conversation context — never invent or guess an `embed_ref`.
