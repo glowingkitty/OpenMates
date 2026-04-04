@@ -38,6 +38,7 @@ async def handle_post_processing_metadata(
         "encrypted_chat_tags": "...",  // Encrypted array of tags (max 10)
         "encrypted_top_recommended_apps_for_chat": "...",  // Optional: Encrypted array of up to 5 app IDs
         "encrypted_title": "...",  // Optional (OPE-265): Updated title from post-processing when conversation drifted
+        "encrypted_chat_key": "...",  // Optional (OPE-314): For server-side key validation to prevent stale-key metadata
     }
 
     All fields are encrypted CLIENT-SIDE (not server-encrypted) for zero-knowledge storage.
@@ -57,6 +58,9 @@ async def handle_post_processing_metadata(
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
             encrypted_top_recommended_apps_for_chat = payload.get("encrypted_top_recommended_apps_for_chat")
             encrypted_title = payload.get("encrypted_title")  # OPE-265: Updated title from post-processing
+            # OPE-314: Client includes encrypted_chat_key so server can validate metadata
+            # was encrypted with the correct key (prevents stale-key metadata from persisting)
+            encrypted_chat_key = payload.get("encrypted_chat_key")
 
             if not chat_id:
                 logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
@@ -113,6 +117,11 @@ async def handle_post_processing_metadata(
             if encrypted_title:
                 chat_update_fields["encrypted_title"] = encrypted_title
                 logger.info(f"Including updated encrypted_title in post-processing metadata for chat {chat_id}")
+
+            # OPE-314: Forward encrypted_chat_key so persistence task can validate
+            # metadata was encrypted with the correct key
+            if encrypted_chat_key:
+                chat_update_fields["encrypted_chat_key"] = encrypted_chat_key
 
             if not chat_update_fields:
                 logger.warning(f"No metadata fields to update for chat {chat_id}")

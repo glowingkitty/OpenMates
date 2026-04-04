@@ -30,6 +30,8 @@ async def handle_update_title(
     try:
         chat_id = payload.get("chat_id")
         encrypted_title_from_client = payload.get("encrypted_title")  # Frontend sends encrypted title
+        # OPE-314: Client includes encrypted_chat_key for server-side key validation
+        encrypted_chat_key = payload.get("encrypted_chat_key")
 
         if not chat_id or encrypted_title_from_client is None:
             logger.warning(f"Received update_title with missing chat_id or encrypted_title from {user_id}/{device_fingerprint_hash}")
@@ -85,13 +87,18 @@ async def handle_update_title(
             # For now, continue with broadcast and DB persistence.
 
         # Dispatch Celery task to persist to Directus
+        # OPE-314: Forward encrypted_chat_key so persistence task can validate
+        # the title was encrypted with the correct key
+        persist_kwargs = {
+            "chat_id": chat_id,
+            "encrypted_title": encrypted_new_title,
+            "title_v": new_cache_title_v
+        }
+        if encrypted_chat_key:
+            persist_kwargs["encrypted_chat_key"] = encrypted_chat_key
         celery_app_instance.send_task(
-            'app.tasks.persistence_tasks.persist_chat_title', 
-            kwargs={
-                "chat_id": chat_id,
-                "encrypted_title": encrypted_new_title,
-                "title_v": new_cache_title_v
-            },
+            'app.tasks.persistence_tasks.persist_chat_title',
+            kwargs=persist_kwargs,
             queue='persistence'
         )
         logger.info(f"Dispatched Celery task to persist title for chat {chat_id}, version {new_cache_title_v}")
