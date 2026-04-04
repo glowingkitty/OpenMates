@@ -23,21 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --filter openmates...
+        working-directory: frontend/packages/openmates-cli
+        run: npm install
 
       - name: Run CLI tests
-        run: pnpm --filter openmates test
+        working-directory: frontend/packages/openmates-cli
+        run: npm test
 
       - name: Build CLI
-        run: pnpm --filter openmates build
+        working-directory: frontend/packages/openmates-cli
+        run: npm run build
 
       - name: Bump prerelease version (dev only)
         if: github.ref == 'refs/heads/dev'
