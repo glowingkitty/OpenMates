@@ -62,7 +62,7 @@ import { renderPdf } from '../components/embeds/pdf/pdfEmbedText';
 import { renderRecording, renderAudioTranscribe } from '../components/embeds/audio/audioEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
-import { renderShoppingSearch } from '../components/embeds/shopping/shoppingEmbedText';
+import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 
@@ -125,6 +125,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'events-event': renderEvent,
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
+	'shopping-product': renderShoppingProduct,
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';
 		return `**Focus Mode**${name ? ` — ${name}` : ''}`;
