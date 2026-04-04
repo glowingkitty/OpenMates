@@ -11,6 +11,8 @@ on:
     branches: [main, dev]
     paths:
       - 'frontend/packages/openmates-cli/**'
+      - '.github/workflows/publish-cli.yml'
+  workflow_dispatch: {}
 
 defaults:
   run:
