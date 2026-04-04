@@ -3664,6 +3664,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+
+    // Generation counter to prevent stale loadChat() completions from overwriting currentMessages.
+    // Each loadChat() call increments this; if the counter has moved on by the time async work
+    // completes, the stale call bails out instead of writing wrong messages into the view.
+    let loadChatGeneration = 0;
     let lastDebugChatInspectionId = $state<string | null>(null);
 
     // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
@@ -6192,7 +6197,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.warn('[ActiveChat] handleChatUpdated: Event for non-active chat, no current chat, or chat_id mismatch. Current:', currentChat?.chat_id, 'Event chat_id:', incomingChatId, 'Ignoring.');
             return;
         }
-        
+
+        // RACE CONDITION GUARD: During the async gap in loadChat() (between setting currentChat
+        // and setting currentMessages), currentMessages may still hold messages from the PREVIOUS
+        // chat. If we process a chatUpdated event now, we'd append/merge the new chat's messages
+        // into the old chat's message array — causing cross-chat message leaks (e.g. demo-for-everyone
+        // messages appearing inside a real chat). Detect this by checking if currentMessages[0]
+        // belongs to a different chat than currentChat.
+        if (currentMessages.length > 0 && detail.newMessage) {
+            const firstMsgChatId = currentMessages[0]?.chat_id;
+            if (firstMsgChatId && firstMsgChatId !== currentChat.chat_id) {
+                console.warn(`[ActiveChat] handleChatUpdated: currentMessages belongs to ${firstMsgChatId} but currentChat is ${currentChat.chat_id} — loadChat async gap detected. Skipping newMessage append to prevent cross-chat message leak.`);
+                return;
+            }
+        }
+
         console.debug('[ActiveChat] handleChatUpdated: Processing event for active chat.');
 
         // ─── Chat Header: decrypt & display title/category/icon when they arrive ───────
@@ -6574,6 +6593,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean }) {
+         // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
+         // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
+         // chatUpdated events can see the new currentChat but operate on the old currentMessages.
+         // On slow devices (iPad), this window can be 100-500ms, long enough for sync events to
+         // append messages from the wrong chat. The generation counter prevents stale completions
+         // from overwriting currentMessages after a newer loadChat has started.
+         const thisLoadGeneration = ++loadChatGeneration;
+
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
          // Reset the chat header state when switching to any chat.
@@ -7099,6 +7126,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     hasUserWaitingAlone
                 });
             }
+        }
+
+        // RACE CONDITION GUARD: If another loadChat() was called while we were awaiting
+        // DB reads / decryption, this completion is stale — bail out to prevent overwriting
+        // currentMessages with messages from the wrong chat.
+        if (thisLoadGeneration !== loadChatGeneration) {
+            console.warn(`[ActiveChat] loadChat: Stale completion for ${chat.chat_id} (gen ${thisLoadGeneration}, current ${loadChatGeneration}) — aborting to prevent message mixup`);
+            return;
         }
 
         currentMessages = newMessages;
