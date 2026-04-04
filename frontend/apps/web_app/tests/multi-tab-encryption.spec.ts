@@ -617,13 +617,15 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 		// This simulates the exact OPE-314 scenario: new tab must load master key
 		// from IDB, decrypt encrypted_chat_key, then decrypt messages.
 		// Before the fix, this would show "[Content decryption failed]" permanently.
+		// Navigate to root '/' (not '/chat') to avoid Vercel SPA routing 404 on direct paths.
 		await new Promise(r => setTimeout(r, 3000));
 
 		const freshTab = await context.newPage();
 		attachListeners(freshTab, 'FRESH-TAB', logsFresh);
 
-		logFresh('Fresh tab navigating to /chat...');
-		await freshTab.goto(getE2EDebugUrl('/chat'));
+		logFresh('Fresh tab navigating to / (already authenticated via shared cookies)...');
+		await freshTab.goto(getE2EDebugUrl('/'));
+		// Wait for redirect to /chat (authenticated users are auto-redirected)
 		await freshTab.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
 		logFresh('Fresh tab reached /chat.');
 		await screenshotFresh(freshTab, 'loaded');
