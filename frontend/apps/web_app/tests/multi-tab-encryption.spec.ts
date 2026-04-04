@@ -368,9 +368,10 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 		await loginToApp(tabA, logA);
 		await screenshotA(tabA, 'logged-in');
 
-		// Step 2: Tab B navigates to /chat -- already authenticated
-		logB('Tab B navigating to /chat (shared session)...');
-		await tabB.goto(getE2EDebugUrl('/chat'));
+		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
+		// Authenticated users auto-redirect to /chat.
+		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
+		await tabB.goto(getE2EDebugUrl('/'));
 		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
 		logB('Tab B reached /chat -- authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
@@ -482,9 +483,9 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		await loginToApp(tabA, logA);
 		await screenshotA(tabA, 'logged-in');
 
-		// Step 2: Tab B navigates to /chat (already authenticated via shared cookies)
-		logB('Tab B navigating to /chat (shared session)...');
-		await tabB.goto(getE2EDebugUrl('/chat'));
+		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
+		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
+		await tabB.goto(getE2EDebugUrl('/'));
 		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
 		logB('Tab B reached /chat.');
 		await screenshotB(tabB, 'authenticated');
