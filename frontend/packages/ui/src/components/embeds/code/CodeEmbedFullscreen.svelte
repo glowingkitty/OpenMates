@@ -439,22 +439,22 @@
     overflow: hidden;
   }
 
-  /* Desktop: 50/50 horizontal split */
+  /* Desktop: 30/70 horizontal split — code narrow, preview wide */
   .code-panel {
     width: 100%;
     overflow: auto;
   }
 
   .code-panel.code-panel-split {
-    width: 50%;
-    flex: 0 0 50%;
+    width: 30%;
+    flex: 0 0 30%;
     overflow: auto;
     background-color: var(--color-grey-15);
   }
 
   .preview-panel {
-    width: 50%;
-    flex: 0 0 50%;
+    width: 70%;
+    flex: 0 0 70%;
     overflow: hidden;
     background-color: var(--color-grey-15);
     /* position: relative so child can use absolute positioning to fill the panel
@@ -462,17 +462,11 @@
     position: relative;
   }
 
-  /* Mobile: vertical stack — code shortened on top, preview below */
+  /* Mobile: preview only — hide code panel, show full-width preview.
+     The user can toggle the preview button off to see code again. */
   @media (max-width: 768px) {
-    .code-split-wrapper.split-active {
-      flex-direction: column;
-    }
-
     .code-panel.code-panel-split {
-      width: 100%;
-      flex: 0 0 auto;
-      max-height: 35vh;
-      overflow: auto;
+      display: none;
     }
 
     .preview-panel {
