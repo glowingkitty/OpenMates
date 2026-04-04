@@ -406,7 +406,7 @@
   .code-fullscreen-container {
     width: calc(100% - 10px);
     background-color: var(--color-grey-15);
-    margin-top: 70px;
+    margin-top: 15px;
     padding-bottom: 16px;
     margin-left: 10px;
     margin-right: 10px;
@@ -419,7 +419,7 @@
   .code-fullscreen-container.preview-split {
     display: flex;
     flex-direction: column;
-    flex: 1;
+    height: calc(100vh - 358px);
     min-height: 0;
     overflow: hidden;
     padding-bottom: 0;
