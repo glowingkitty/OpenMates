@@ -11,7 +11,7 @@
   import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
-  import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
+  import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
   import { chatListCache } from '../../services/chatListCache'; // Global cache for last messages
   import ChatContextMenu from './ChatContextMenu.svelte';
   import { copyChatToClipboard, type PIIExportOptions } from '../../services/chatExportService';
@@ -946,6 +946,19 @@
     }
   }
 
+  // OPE-327: Handler for chat key becoming ready after initial render.
+  // When the master key loads after the sidebar already rendered, chatMetadataCache
+  // dispatches this event so we re-decrypt category/icon/title for the affected chat.
+  async function handleChatKeyReady(event: Event) {
+    const chatId = (event as CustomEvent<{ chatId: string }>).detail?.chatId;
+    if (chat && chatId === chat.chat_id) {
+      // Cache was already invalidated by chatMetadataCache's onKeyReady listener.
+      // Re-fetch the chat from IDB (it has the encrypted fields) and re-run display update.
+      const freshChat = await chatDB.getChat(chat.chat_id).catch(() => null);
+      await updateDisplayInfo(freshChat ?? chat);
+    }
+  }
+
   // Handler for hiding chat after unlock
   function handleHideChatAfterUnlock(event: Event) {
     const customEvent = event as CustomEvent<{ chatId: string }>;
@@ -977,6 +990,9 @@
     // re-running updateDisplayInfo will pick up the fresh encrypted_active_focus_id.
     chatSyncService.addEventListener('focusModeActivated', handleFocusModeChange as EventListener);
     chatSyncService.addEventListener('focusModeDeactivated', handleFocusModeChange as EventListener);
+
+    // OPE-327: Re-decrypt metadata when a chat key loads after initial render.
+    window.addEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
   });
 
   onDestroy(() => {
@@ -992,6 +1008,7 @@
     window.removeEventListener('hideChatAfterUnlock', handleHideChatAfterUnlock);
     chatSyncService.removeEventListener('focusModeActivated', handleFocusModeChange as EventListener);
     chatSyncService.removeEventListener('focusModeDeactivated', handleFocusModeChange as EventListener);
+    window.removeEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
   });
 
   function truncateText(textToTruncate: string, maxLength: number = 60): string { // Renamed param

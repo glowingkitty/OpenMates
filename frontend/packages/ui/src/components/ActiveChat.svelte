@@ -9131,7 +9131,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // key arrives (via bulk_init retry, server sync, or cross-tab broadcast),
         // re-load the messages so they decrypt with the now-available key.
         const unsubscribeKeyReady = chatKeyManager.onKeyReady(async (readyChatId: string) => {
-            if (currentChat?.chat_id === readyChatId && currentMessages.some((m: Record<string, unknown>) => m._decryptionPending)) {
+            if (currentChat?.chat_id !== readyChatId) return;
+
+            // OPE-314: Re-decrypt pending messages
+            if (currentMessages.some((m: Record<string, unknown>) => m._decryptionPending)) {
                 console.info(`[ActiveChat] Key ready for chat ${readyChatId}, re-decrypting pending messages`);
                 try {
                     const freshMessages = await chatDB.getMessagesForChat(readyChatId);
@@ -9143,6 +9146,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 } catch (err) {
                     console.error(`[ActiveChat] Failed to re-decrypt messages for ${readyChatId}:`, err);
+                }
+            }
+
+            // OPE-327: Re-decrypt chat header metadata (category/icon/title) when key arrives.
+            // Without this, the ChatHeader stays in "Creating new chat..." shimmer forever
+            // because activeChatDecryptedCategory remains null from the failed initial decrypt.
+            if (!activeChatDecryptedCategory) {
+                console.info(`[ActiveChat] Key ready for chat ${readyChatId}, re-decrypting header metadata`);
+                try {
+                    const chatForHeader = await chatDB.getChat(readyChatId);
+                    if (chatForHeader) {
+                        const chatKey = chatKeyManager.getKeySync(readyChatId);
+                        if (chatKey) {
+                            const { decryptWithChatKey } = await import('../services/cryptoService');
+                            let t = '';
+                            let c: string | null = null;
+                            let ic: string | null = null;
+                            let s: string | null = null;
+                            if (chatForHeader.encrypted_title) {
+                                try { t = await decryptWithChatKey(chatForHeader.encrypted_title, chatKey, { chatId: readyChatId, fieldName: 'encrypted_title' }) ?? ''; } catch { /* keep blank */ }
+                            }
+                            if (chatForHeader.encrypted_category) {
+                                try { c = await decryptWithChatKey(chatForHeader.encrypted_category, chatKey, { chatId: readyChatId, fieldName: 'encrypted_category' }); } catch { /* keep null */ }
+                            }
+                            if (chatForHeader.encrypted_icon) {
+                                try { ic = await decryptWithChatKey(chatForHeader.encrypted_icon, chatKey, { chatId: readyChatId, fieldName: 'encrypted_icon' }); } catch { /* keep null */ }
+                            }
+                            if (chatForHeader.encrypted_chat_summary) {
+                                try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: readyChatId, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
+                            }
+                            if (t && c) {
+                                activeChatDecryptedTitle = t;
+                                activeChatDecryptedCategory = c;
+                                activeChatDecryptedIcon = ic;
+                                activeChatDecryptedSummary = s;
+                                isNewChatGeneratingTitle = false;
+                                console.info(`[ActiveChat] Header re-decrypted for ${readyChatId}: title=${t}, category=${c}, icon=${ic}`);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error(`[ActiveChat] Failed to re-decrypt header for ${readyChatId}:`, err);
                 }
             }
         });

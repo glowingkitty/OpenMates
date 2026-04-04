@@ -70,7 +70,20 @@ class ChatMetadataCache {
     // Decrypt and cache new metadata
     const decryptedMetadata = await this.decryptChatMetadata(chat);
     if (decryptedMetadata) {
-      this.setCachedMetadata(chat.chat_id, decryptedMetadata);
+      // OPE-327: Only cache if we actually decrypted at least one encrypted field.
+      // When the chat key isn't ready yet (master key still loading), all encrypted
+      // fields return null. Caching that null result would prevent re-decryption for
+      // up to 5 minutes, even after the key loads. By skipping the cache, the next
+      // render call retries decryption immediately.
+      const hasDecryptedContent =
+        decryptedMetadata.title ||
+        decryptedMetadata.icon ||
+        decryptedMetadata.category ||
+        decryptedMetadata.summary ||
+        decryptedMetadata.draftPreview;
+      if (hasDecryptedContent) {
+        this.setCachedMetadata(chat.chat_id, decryptedMetadata);
+      }
     }
 
     return decryptedMetadata;
@@ -259,6 +272,31 @@ class ChatMetadataCache {
 
 // Export a singleton instance
 export const chatMetadataCache = new ChatMetadataCache();
+
+/**
+ * OPE-327: Window event name dispatched when a chat key becomes ready and cached
+ * metadata is invalidated. Sidebar Chat components listen for this to re-render
+ * with freshly decrypted category/icon/title.
+ */
+export const CHAT_METADATA_KEY_READY_EVENT = "chatMetadataKeyReady";
+
+// OPE-327: Subscribe to key-ready notifications so metadata is re-decrypted when
+// a chat key loads after a delay (master key race on page load / new tab).
+// Without this, null metadata from a failed decryption stays cached for 5 minutes,
+// leaving the sidebar with missing category/icon and ChatHeader stuck in loading state.
+chatKeyManager.onKeyReady((chatId: string) => {
+  chatMetadataCache.invalidateChat(chatId);
+  // Dispatch a window event so sidebar Chat components can re-render for this chat.
+  // This is lightweight: only fires once per chat when its key transitions to "ready".
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(CHAT_METADATA_KEY_READY_EVENT, { detail: { chatId } }),
+    );
+  }
+  console.info(
+    `[ChatMetadataCache] Key ready for chat ${chatId} — cache invalidated, re-decrypt on next render`,
+  );
+});
 
 // Set up periodic cleanup of expired entries (every 2 minutes)
 setInterval(
