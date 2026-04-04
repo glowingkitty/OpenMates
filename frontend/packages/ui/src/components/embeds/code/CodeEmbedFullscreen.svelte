@@ -412,11 +412,16 @@
     margin-right: 10px;
   }
 
-  /* When preview split is active, container fills available height */
+  /* When preview split is active, container fills available height.
+     Uses flex: 1 instead of height: calc() because the parent .content-area
+     is itself a flex child (flex: 1) — percentage heights don't resolve
+     against flex-sized parents. */
   .code-fullscreen-container.preview-split {
     display: flex;
     flex-direction: column;
-    height: calc(100% - 70px);
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     padding-bottom: 0;
   }
 

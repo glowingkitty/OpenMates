@@ -64,49 +64,51 @@
   };
 
   /**
-   * Rendered HTML for markdown content.
-   * For HTML content, we use the raw sanitized string directly in the iframe.
+   * DOMPurify config for HTML rendering (rendered in sandboxed iframe).
+   * Preserves full document structure including <style> tags and inline styles.
+   * Safe because the iframe uses sandbox="" which blocks all script execution.
    */
-  let renderedHtml = $derived.by(() => {
-    if (previewType === 'markdown') {
-      const rawHtml = md.render(code);
-      return DOMPurify.sanitize(rawHtml, MD_SANITIZE_OPTIONS);
-    }
-    // HTML: sanitize for the iframe srcdoc
-    return DOMPurify.sanitize(code);
+  const HTML_SANITIZE_OPTIONS: DOMPurify.Config = {
+    WHOLE_DOCUMENT: true,
+    ADD_TAGS: ['style', 'link', 'meta'],
+    ADD_ATTR: ['style'],
+    ALLOW_DATA_ATTR: false
+  };
+
+  /**
+   * Rendered HTML for markdown content (inline rendering).
+   */
+  let renderedMarkdownHtml = $derived.by(() => {
+    if (previewType !== 'markdown') return '';
+    const rawHtml = md.render(code);
+    return DOMPurify.sanitize(rawHtml, MD_SANITIZE_OPTIONS);
   });
 
   /**
-   * Full HTML document for the sandboxed iframe (HTML preview).
-   * Includes basic styling for readability inside the iframe.
+   * Sanitized HTML document for the sandboxed iframe.
+   * WHOLE_DOCUMENT: true preserves the original <html>/<head>/<style> structure.
+   * If the source HTML has no <style> tag, a basic fallback stylesheet is injected.
    */
   let iframeSrcdoc = $derived.by(() => {
     if (previewType !== 'html') return '';
-    return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body {
-    margin: 16px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: #e4e4e7;
-    background: #18181b;
-    line-height: 1.6;
-  }
+    const sanitized = DOMPurify.sanitize(code, HTML_SANITIZE_OPTIONS);
+    // If the source HTML already has its own styles, use it as-is
+    if (sanitized.includes('<style')) return sanitized;
+    // Otherwise inject a basic fallback stylesheet for readability
+    const fallbackStyle = `<style>
+  body { margin: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
   img { max-width: 100%; height: auto; }
-  a { color: #818cf8; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #3f3f46; padding: 8px 12px; text-align: left; }
-  th { background: #27272a; }
-  pre { background: #27272a; padding: 12px; border-radius: 6px; overflow-x: auto; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; }
   code { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.9em; }
-  blockquote { border-left: 3px solid #3f3f46; margin-left: 0; padding-left: 16px; color: #a1a1aa; }
-</style>
-</head>
-<body>${renderedHtml}</body>
-</html>`;
+  blockquote { border-left: 3px solid #ddd; margin-left: 0; padding-left: 16px; color: #666; }
+</style>`;
+    // Inject before </head> if present, otherwise prepend
+    if (sanitized.includes('</head>')) {
+      return sanitized.replace('</head>', fallbackStyle + '</head>');
+    }
+    return fallbackStyle + sanitized;
   });
 </script>
 
@@ -115,7 +117,7 @@
     <!-- Markdown: rendered inline with sanitized HTML -->
     <div class="markdown-preview">
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-      {@html renderedHtml}
+      {@html renderedMarkdownHtml}
     </div>
   {:else}
     <!-- HTML: rendered in sandboxed iframe — no script execution allowed -->
