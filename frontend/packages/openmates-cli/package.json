@@ -27,6 +27,11 @@
     "cli",
     "sdk"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glowingkitty/OpenMates.git",
+    "directory": "frontend/packages/openmates-cli"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=20"

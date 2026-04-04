@@ -28,6 +28,9 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      - name: Upgrade npm (Trusted Publishing requires >=11.5.1)
+        run: npm install -g npm@latest
+
       - name: Install dependencies
         run: |
           cd frontend/packages/openmates-cli && npm install
