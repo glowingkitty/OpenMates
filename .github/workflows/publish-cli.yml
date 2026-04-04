@@ -29,8 +29,9 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
-        working-directory: frontend/packages/openmates-cli
-        run: npm install
+        run: |
+          cd frontend/packages/openmates-cli && npm install
+          cd ../secret-scanner && npm install
 
       - name: Run CLI tests
         working-directory: frontend/packages/openmates-cli
