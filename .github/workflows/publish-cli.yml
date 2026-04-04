@@ -33,13 +33,13 @@ jobs:
           cd frontend/packages/openmates-cli && npm install
           cd ../secret-scanner && npm install
 
-      - name: Run CLI tests
-        working-directory: frontend/packages/openmates-cli
-        run: npm test
-
       - name: Build CLI
         working-directory: frontend/packages/openmates-cli
         run: npm run build
+
+      - name: Run CLI tests
+        working-directory: frontend/packages/openmates-cli
+        run: npm test
 
       - name: Bump prerelease version (dev only)
         if: github.ref == 'refs/heads/dev'
