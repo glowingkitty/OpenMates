@@ -272,6 +272,19 @@
      * The parent component is responsible for updating piiRevealed state.
      */
     onTogglePII?: () => void;
+
+    /* ============================================
+       Preview Toggle Props (for markdown/HTML render)
+       ============================================ */
+
+    /** Whether to show the preview/render toggle button in the top bar. */
+    showPreview?: boolean;
+
+    /** Whether preview mode is currently active (highlights the button). */
+    previewActive?: boolean;
+
+    /** Callback when user clicks the preview toggle button. */
+    onTogglePreview?: () => void;
   }
   
   let {
@@ -314,7 +327,11 @@
     // PII toggle props (for sensitive data masking)
     showPIIToggle = false,
     piiRevealed = false,
-    onTogglePII
+    onTogglePII,
+    // Preview toggle props (for markdown/HTML render)
+    showPreview = false,
+    previewActive = false,
+    onTogglePreview
   }: Props = $props();
   
   // ============================================
@@ -1073,6 +1090,8 @@
       {showShare}
       showCopy={!!onCopy}
       showDownload={!!onDownload}
+      {showPreview}
+      {previewActive}
       {showPIIToggle}
       {piiRevealed}
       onClose={handleClose}
@@ -1082,6 +1101,7 @@
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}
+      {onTogglePreview}
       showDebug={isAdminUser}
       debugActive={$chatDebugStore.rawTextMode}
       onToggleDebug={handleToggleEmbedDebug}

@@ -299,6 +299,11 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/download.svg");
 }
 
+.clickable-icon.icon_preview {
+  -webkit-mask-image: url("@openmates/ui/static/icons/preview.svg");
+  mask-image: url("@openmates/ui/static/icons/preview.svg");
+}
+
 .clickable-icon.icon_fullscreen {
   -webkit-mask-image: url("@openmates/ui/static/icons/fullscreen.svg");
   mask-image: url("@openmates/ui/static/icons/fullscreen.svg");

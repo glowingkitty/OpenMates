@@ -57,7 +57,14 @@ def _notify_session(
     """
     Send a non-fatal email notification about the completed session.
     Never raises — logs errors and returns silently.
+
+    Set CRON_SESSION_EMAILS_DISABLED=true to suppress all cron session emails.
+    This does NOT affect test run summary emails (dispatched by run_tests.py).
     """
+    if os.environ.get("CRON_SESSION_EMAILS_DISABLED", "").lower() in ("true", "1", "yes"):
+        print(f"{log_prefix} Cron session emails disabled (CRON_SESSION_EMAILS_DISABLED=true)", file=sys.stderr)
+        return
+
     internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
     if not internal_token:
         # Try reading from .env

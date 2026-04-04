@@ -25,6 +25,10 @@
     showCopy?: boolean;
     /** Whether to show the download button (truthy = show). */
     showDownload?: boolean;
+    /** Whether to show the preview/render button (for markdown/HTML code embeds). */
+    showPreview?: boolean;
+    /** Whether preview mode is currently active (highlights the button). */
+    previewActive?: boolean;
     /** Whether to show the PII hide/show toggle. */
     showPIIToggle?: boolean;
     /** Whether PII is currently revealed (controls toggle visual state). */
@@ -34,6 +38,7 @@
     onShare?: () => void;
     onCopy?: () => void;
     onDownload?: () => void;
+    onTogglePreview?: () => void;
     onReportIssue?: () => void;
     /** Whether to show the admin debug toggle button. */
     showDebug?: boolean;
@@ -49,12 +54,15 @@
     showShare = true,
     showCopy = false,
     showDownload = false,
+    showPreview = false,
+    previewActive = false,
     showPIIToggle = false,
     piiRevealed = false,
     onClose,
     onShare,
     onCopy,
     onDownload,
+    onTogglePreview,
     onReportIssue,
     showDebug = false,
     debugActive = false,
@@ -112,6 +120,19 @@
           onclick={onDownload}
           aria-label="Download"
           title="Download"
+        ></button>
+      </div>
+    {/if}
+
+    <!-- Preview / Render (for markdown/HTML code embeds) -->
+    {#if showPreview && onTogglePreview}
+      <div class="button-wrapper" class:preview-active={previewActive}>
+        <button
+          class="clickable-icon icon_preview top-button"
+          data-testid="embed-preview-button"
+          onclick={onTogglePreview}
+          aria-label={previewActive ? 'Hide preview' : 'Show preview'}
+          title={previewActive ? 'Hide preview' : 'Show preview'}
         ></button>
       </div>
     {/if}
@@ -220,6 +241,11 @@
   .button-wrapper:active {
     transform: scale(0.95);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Preview toggle: primary tint when preview mode is active */
+  .preview-active {
+    background-color: rgba(99, 102, 241, 0.25) !important;
   }
 
   /* PII toggle: amber tint when sensitive data is revealed — matches ActiveChat.svelte */
