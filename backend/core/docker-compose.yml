@@ -1601,9 +1601,8 @@ services:
           memory: 64M
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - sh
-      - -c
       - |
         sed "s|\${INTERNAL_API_SHARED_TOKEN}|${INTERNAL_API_SHARED_TOKEN}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
         exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
