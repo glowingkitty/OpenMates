@@ -455,8 +455,11 @@
   .preview-panel {
     width: 50%;
     flex: 0 0 50%;
-    overflow: auto;
+    overflow: hidden;
     background-color: var(--color-grey-15);
+    /* position: relative so child can use absolute positioning to fill the panel
+       without expanding it to the iframe's content height */
+    position: relative;
   }
 
   /* Mobile: vertical stack — code shortened on top, preview below */

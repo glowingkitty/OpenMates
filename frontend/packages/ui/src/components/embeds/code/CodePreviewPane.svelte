@@ -132,8 +132,11 @@
 
 <style>
   .code-preview-pane {
-    width: 100%;
-    height: 100%;
+    /* Absolutely fill the parent .preview-panel so the iframe doesn't
+       expand the container to its content height. Scrolling happens
+       inside the iframe (for HTML) or inside this div (for markdown). */
+    position: absolute;
+    inset: 0;
     overflow: auto;
     background-color: var(--color-grey-15);
   }
