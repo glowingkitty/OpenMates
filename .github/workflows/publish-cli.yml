@@ -14,10 +14,6 @@ on:
       - '.github/workflows/publish-cli.yml'
   workflow_dispatch: {}
 
-defaults:
-  run:
-    working-directory: frontend/packages/openmates-cli
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -27,28 +23,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --no-frozen-lockfile --filter openmates...
 
       - name: Run CLI tests
-        run: npm test
+        run: pnpm --filter openmates test
 
       - name: Build CLI
-        run: npx tsup src/index.ts src/cli.ts --format esm --dts --clean
+        run: pnpm --filter openmates build
 
       - name: Bump prerelease version (dev only)
         if: github.ref == 'refs/heads/dev'
+        working-directory: frontend/packages/openmates-cli
         run: npm version prerelease --preid alpha --no-git-tag-version
 
       - name: Publish to npm (stable)
         if: github.ref == 'refs/heads/main'
+        working-directory: frontend/packages/openmates-cli
         run: npm publish --provenance --access public
 
       - name: Publish to npm (alpha)
         if: github.ref == 'refs/heads/dev'
+        working-directory: frontend/packages/openmates-cli
         run: npm publish --provenance --access public --tag alpha
