@@ -183,10 +183,11 @@
         {#each appSections as section, sectionIndex (section.app.id)}
             <!-- Spacing between app sections (not before the first one) -->
             <div class="app-section" class:section-gap={sectionIndex > 0}>
-                <!-- App section heading — uses canonical SettingsSectionHeading with gradient icon + underline bar -->
+                <!-- App section heading — uses canonical SettingsSectionHeading with app-specific gradient icon -->
                 <SettingsSectionHeading
                     title={section.app.name_translation_key ? $text(section.app.name_translation_key) : section.app.id}
-                    icon={getAppIconName(section.app.icon_image, section.app.id)}
+                    icon={section.app.id}
+                    iconClass="icon settings_size app-{section.app.id}"
                 />
 
                 <!-- Category cards for this app -->
