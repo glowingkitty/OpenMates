@@ -1,10 +1,14 @@
-# Publish openmates CLI to npm when CLI code changes on main.
-# Requires NPM_TOKEN secret (npmjs.com → Access Tokens → Granular → publish for 'openmates').
+# Publish openmates CLI to npm when CLI code changes.
+# - main branch → npm `latest` tag (stable release)
+# - dev branch → npm `alpha` tag (prerelease)
+#
+# Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret needed.
+# Configure at: npmjs.com → openmates → Settings → Trusted Publishing → Link GitHub repo.
 name: Publish CLI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'frontend/packages/openmates-cli/**'
 
@@ -13,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write  # Required for npm Trusted Publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +36,20 @@ jobs:
       - name: Build CLI
         run: pnpm --filter openmates build
 
-      - name: Publish to npm
-        run: pnpm --filter openmates publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Bump prerelease version (dev only)
+        if: github.ref == 'refs/heads/dev'
+        working-directory: frontend/packages/openmates-cli
+        run: |
+          # Auto-increment prerelease: 0.8.0-alpha.1 → 0.8.0-alpha.2 → ...
+          # If current version is stable (e.g. 0.8.0), creates 0.8.1-alpha.0
+          npm version prerelease --preid alpha --no-git-tag-version
+
+      - name: Publish to npm (stable)
+        if: github.ref == 'refs/heads/main'
+        working-directory: frontend/packages/openmates-cli
+        run: npm publish --provenance --access public
+
+      - name: Publish to npm (alpha)
+        if: github.ref == 'refs/heads/dev'
+        working-directory: frontend/packages/openmates-cli
+        run: npm publish --provenance --access public --tag alpha
