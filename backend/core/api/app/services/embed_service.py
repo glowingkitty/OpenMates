@@ -2057,7 +2057,7 @@ class EmbedService:
         elif app_id == "home" and skill_id == "search":
             return "listing"
         elif app_id == "shopping" and skill_id == "search_products":
-            return "website"
+            return "product"
         elif app_id == "news" and skill_id == "search":
             return "website"
         elif app_id == "web" and skill_id == "search":
@@ -2232,6 +2232,11 @@ class EmbedService:
                 else:
                     title = result.get("title") or result.get("source") or ""
                     slug = _slugify(title) if title else "image"
+
+            elif child_type == "product":
+                # Shopping product: use product title or brand
+                title = result.get("title") or result.get("brand") or ""
+                slug = _slugify(title) if title else "product"
 
             else:
                 # Generic fallback: try title/name fields

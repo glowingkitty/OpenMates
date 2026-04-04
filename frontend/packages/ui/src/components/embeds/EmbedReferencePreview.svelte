@@ -101,9 +101,23 @@
       }
     }
 
+    // Determine type — prefer the child type override for renderer routing.
+    // This ensures child embeds (e.g. product, image_result) use their specific
+    // renderer instead of falling through to the parent's type (e.g. "web-website").
+    // Only override if the normalized child type has a registered renderer — prevents
+    // breaking types like "web_result" or "news_result" that intentionally fall through
+    // to "web-website" rendering.
+    let resolvedType = normalizeEmbedType(String(data.type || 'app-skill-use'));
+    if (skillId && CHILD_TYPE_OVERRIDES.has(skillId)) {
+      const childNormalized = normalizeEmbedType(skillId);
+      if (childNormalized !== resolvedType && getEmbedRenderer(childNormalized)) {
+        resolvedType = childNormalized;
+      }
+    }
+
     return {
       id,
-      type: normalizeEmbedType(String(data.type || 'app-skill-use')),
+      type: resolvedType,
       status: String(data.status || 'finished') as EmbedNodeAttributes['status'],
       contentRef: `embed:${id}`,
       app_id: appId,

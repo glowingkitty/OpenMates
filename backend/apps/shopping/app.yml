@@ -23,8 +23,8 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: true
-    child_type: website
-    child_frontend_type: web-website
+    child_type: product
+    child_frontend_type: shopping-product
     groupable: false
     preview_component: shopping/ShoppingSearchEmbedPreview.svelte
     fullscreen_component: shopping/ShoppingSearchEmbedFullscreen.svelte
