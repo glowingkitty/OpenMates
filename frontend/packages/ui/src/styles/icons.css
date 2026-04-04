@@ -1524,6 +1524,13 @@ div.clickable-icon {
 
 
 
+.icon.app-books {
+  background: var(--color-app-books);
+  &::before {
+    background-image: url("@openmates/ui/static/icons/book.svg");
+  }
+}
+
 .icon.app-code {
   background: var(--color-app-code);
   &::before {
