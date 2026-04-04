@@ -1202,6 +1202,11 @@ async def passkey_registration_complete(
                     )
                     if update_success:
                         logger.info(f"Successfully updated encrypted_email_with_master_key for existing user {user_id}")
+                        # Evict stale profile cache so passkey login picks up the new value
+                        try:
+                            await cache_service.cache.delete(f"user_profile:{user_id}")
+                        except Exception:
+                            pass  # Non-critical — cache will expire naturally
                     else:
                         # CRITICAL: This is now a failure condition - passkey login won't work without this
                         logger.error(
@@ -1984,8 +1989,14 @@ async def passkey_assertion_verify(
         if not user_profile.get("encrypted_email_with_master_key"):
             logger.warning(
                 f"encrypted_email_with_master_key missing from cached user object for user {user_id[:6]}...; "
-                "fetching full profile from Directus"
+                "evicting stale profile cache and fetching fresh from Directus"
             )
+            # Evict the stale profile cache so get_user_profile fetches from Directus
+            # instead of returning the same cached None value.
+            try:
+                await cache_service.cache.delete(f"user_profile:{user_id}")
+            except Exception:
+                pass  # Best effort — get_user_profile will still try Directus on cache miss
             profile_success, full_profile, _ = await directus_service.get_user_profile(user_id)
             if profile_success and full_profile:
                 # Merge required encrypted fields into the cached user object and persist back to cache_service
