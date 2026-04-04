@@ -199,15 +199,72 @@ this via its Docker Hub mode).
 | `backend/core/docker-compose.yml` | **Edit** | Remove update env vars from sidecar block |
 | `frontend/packages/openmates-cli/src/server.ts` | **Edit** | Add `auto-update` subcommands |
 
+## Night Deploy Window + Post-Deploy Smoke Tests
+
+**Incident context (2026-04-04):** A manual server restart during active user sessions
+caused 4 bug reports (OPE-316 through OPE-319) from a single user within 40 minutes.
+Cache was wiped, sync broke, AI lost conversation context, responses rendered as empty,
+and the user was charged 1,687 credits for broken responses (balance went to -17).
+
+### Requirements
+
+1. **Scheduled deploy window** — auto-deploy only between 2:00–4:00 AM CET (lowest
+   traffic). PRs merged outside this window are queued until the next window.
+
+2. **Pre-deploy active user check** — query connected WebSocket count before starting.
+   If > 0 active users, delay deploy by 15 min and re-check (max 3 retries, then
+   deploy anyway with alert).
+
+3. **Post-deploy smoke test** — after containers are healthy, run a minimal E2E test:
+   - Login with test account
+   - Send a chat message and verify AI response is received
+   - Verify WebSocket connection is established
+   - If smoke fails → alert (email + push), do NOT auto-rollback (manual investigation)
+
+4. **Smoke test runs on production** — verify the actual production deployment, not dev.
+
+5. **Nightly test suite runs after deploy** — the existing `run_tests.py --daily`
+   Playwright suite should run after a successful deploy + smoke pass, not on a fixed
+   schedule. This catches regressions from the deploy.
+
+6. **Production E2E tests** — extend the nightly suite to run key specs against
+   production (login, chat, shared chat, payments). Currently all E2E tests only
+   run against dev.
+
+### Deploy Sequence
+
+```
+1. PR merged to main → queued for next deploy window
+2. Deploy window opens (2:00 AM CET)
+3. Check active WebSocket connections → delay if users online
+4. Run deploy: git pull → build → up -d → vault/cms setup → Caddy reload
+5. Health check: poll /health for 60s
+6. Post-deploy smoke test: login + send message + verify response
+7. If smoke passes → run nightly E2E suite (dev + production specs)
+8. If smoke fails → alert admin, log failure, do NOT rollback automatically
+```
+
+### Additional Config
+
+```
+DEPLOY_WINDOW_START_HOUR       — earliest hour for deploy in server timezone (default: 2)
+DEPLOY_WINDOW_END_HOUR         — latest hour for deploy (default: 4)
+DEPLOY_MAX_ACTIVE_USERS        — max WebSocket connections before delaying (default: 0)
+DEPLOY_SMOKE_TEST_ENABLED      — run smoke test after deploy (default: true)
+```
+
 ## Implementation Order
 
 1. Deploy agent script + systemd unit + Caddy routes (core auto-deploy)
-2. Strip update logic from admin-sidecar (clean separation)
-3. CLI setup command (self-hosted experience)
+2. Night deploy window + active user check
+3. Post-deploy smoke test (login + chat + WS verification)
+4. Production E2E specs in nightly suite
+5. Strip update logic from admin-sidecar (clean separation)
+6. CLI setup command (self-hosted experience)
 
 ## Out of Scope (Future)
 
 - **GHCR image publishing** — for self-hosted users who shouldn't build locally
-- **Auto-rollback** — health check provides visibility now; auto-revert to previous git SHA later
+- **Auto-rollback** — smoke test provides visibility now; auto-revert to previous git SHA later
 - **Staging environment**
 - **Database migration automation**
