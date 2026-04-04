@@ -27,6 +27,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
+  import CodePreviewPane from './CodePreviewPane.svelte';
 
   /**
    * Props for code embed fullscreen
@@ -254,6 +255,48 @@
     }
   }
 
+  // ── Preview/Render mode ─────────────────────────────────────────────
+
+  /** Languages that support preview rendering. */
+  const PREVIEWABLE_LANGUAGES = new Set(['markdown', 'md', 'html', 'htm', 'xml']);
+
+  /** File extensions that support preview rendering. */
+  const PREVIEWABLE_EXTENSIONS = new Set(['.md', '.markdown', '.html', '.htm']);
+
+  /**
+   * Whether this code embed supports preview rendering.
+   * True for markdown/HTML content (detected by language or filename extension).
+   */
+  let isPreviewable = $derived.by(() => {
+    if (PREVIEWABLE_LANGUAGES.has(renderLanguage.toLowerCase())) return true;
+    if (renderFilename) {
+      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
+      if (PREVIEWABLE_EXTENSIONS.has(ext)) return true;
+    }
+    return false;
+  });
+
+  /**
+   * Determine the preview type based on language/filename.
+   * Returns 'markdown' or 'html'.
+   */
+  let previewType = $derived.by(() => {
+    const lang = renderLanguage.toLowerCase();
+    if (lang === 'markdown' || lang === 'md') return 'markdown' as const;
+    if (renderFilename) {
+      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
+      if (ext === '.md' || ext === '.markdown') return 'markdown' as const;
+    }
+    return 'html' as const;
+  });
+
+  /** Whether preview mode is currently active (toggled by the preview button). */
+  let previewActive = $state(false);
+
+  function togglePreview() {
+    previewActive = !previewActive;
+  }
+
   // Share is handled by UnifiedEmbedFullscreen's built-in share handler
   // which uses currentEmbedId, appId, and skillId to construct the embed
   // share context and properly opens the settings panel (including on mobile).
@@ -273,6 +316,9 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  showPreview={isPreviewable}
+  {previewActive}
+  onTogglePreview={togglePreview}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -284,8 +330,8 @@
 >
   {#snippet content()}
     {#if renderCodeContent}
-      <!-- Full code with syntax highlighting -->
-      <div class="code-fullscreen-container">
+      <!-- Split-pane layout when preview is active, full code otherwise -->
+      <div class="code-fullscreen-container" class:preview-split={previewActive}>
         {#if hasPII}
           <!-- PII reveal toggle bar -->
           <div class="code-pii-bar">
@@ -316,24 +362,34 @@
             </button>
           </div>
         {/if}
-        <!-- Per-line code display — each line is a flex row: gutter number + code text.
-             This structure enables GitHub-style per-line highlighting via a background
-             bar that spans the full width, without affecting text selection or wrapping.
-             data-line attribute (1-indexed) is used by the auto-scroll logic. -->
-        <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
-          {#each highlightedLines as lineHtml, i}
-            {@const lineNum = i + 1}
-            {@const isHighlighted = highlightRange != null && lineNum >= highlightRange.start && lineNum <= highlightRange.end}
-            <div
-              class="code-line"
-              class:code-line--highlighted={isHighlighted}
-              data-line={lineNum}
-            >
-              <span class="code-line-gutter" aria-hidden="true">{lineNum}</span>
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-              <code class="code-line-text">{@html lineHtml}</code>
+
+        <div class="code-split-wrapper" class:split-active={previewActive}>
+          <!-- Code panel — always visible. When preview is active, takes 50% on desktop,
+               or becomes a shortened scrollable container on mobile. -->
+          <div class="code-panel" class:code-panel-split={previewActive}>
+            <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
+              {#each highlightedLines as lineHtml, i}
+                {@const lineNum = i + 1}
+                {@const isHighlighted = highlightRange != null && lineNum >= highlightRange.start && lineNum <= highlightRange.end}
+                <div
+                  class="code-line"
+                  class:code-line--highlighted={isHighlighted}
+                  data-line={lineNum}
+                >
+                  <span class="code-line-gutter" aria-hidden="true">{lineNum}</span>
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                  <code class="code-line-text">{@html lineHtml}</code>
+                </div>
+              {/each}
             </div>
-          {/each}
+          </div>
+
+          <!-- Preview panel — only rendered when preview mode is active -->
+          {#if previewActive}
+            <div class="preview-panel">
+              <CodePreviewPane code={renderCodeContent} {previewType} />
+            </div>
+          {/if}
         </div>
       </div>
     {:else}
@@ -350,10 +406,74 @@
   .code-fullscreen-container {
     width: calc(100% - 10px);
     background-color: var(--color-grey-15);
-    margin-top: 70px;
+    margin-top: 15px;
     padding-bottom: 16px;
     margin-left: 10px;
     margin-right: 10px;
+  }
+
+  /* When preview split is active, container fills available height.
+     Uses flex: 1 instead of height: calc() because the parent .content-area
+     is itself a flex child (flex: 1) — percentage heights don't resolve
+     against flex-sized parents. */
+  .code-fullscreen-container.preview-split {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 358px);
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  /* ── Split wrapper — holds code panel + preview panel side by side ── */
+  .code-split-wrapper {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .code-split-wrapper.split-active {
+    display: flex;
+    gap: 1px;
+    background-color: var(--color-grey-20);
+    overflow: hidden;
+  }
+
+  /* Desktop: 30/70 horizontal split — code narrow, preview wide */
+  .code-panel {
+    width: 100%;
+    overflow: auto;
+  }
+
+  .code-panel.code-panel-split {
+    width: 30%;
+    flex: 0 0 30%;
+    overflow: auto;
+    background-color: var(--color-grey-15);
+  }
+
+  .preview-panel {
+    width: 70%;
+    flex: 0 0 70%;
+    overflow: hidden;
+    background-color: var(--color-grey-15);
+    /* position: relative so child can use absolute positioning to fill the panel
+       without expanding it to the iframe's content height */
+    position: relative;
+  }
+
+  /* Mobile: preview only — hide code panel, show full-width preview.
+     The user can toggle the preview button off to see code again. */
+  @media (max-width: 768px) {
+    .code-panel.code-panel-split {
+      display: none;
+    }
+
+    .preview-panel {
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
   }
 
   /* PII toggle bar — shown above the code when PII mappings exist */

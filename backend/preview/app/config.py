@@ -172,6 +172,7 @@ class Settings(BaseSettings):
             "image/png",
             "image/gif",
             "image/webp",
+            "image/avif",
             "image/svg+xml",
             "image/x-icon",
             "image/vnd.microsoft.icon"

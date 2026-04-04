@@ -115,7 +115,7 @@
 
   // Local reactive state — updated when embed data changes via onEmbedDataUpdated
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('Meetup');
+  let localProvider = $state<string>('');
   let localProviders = $state<string[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
@@ -128,7 +128,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
-      localProvider = providerProp || 'Meetup';
+      localProvider = providerProp || '';
       localProviders = providersProp || [];
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
@@ -238,7 +238,7 @@
       return `${via} ${labels[0]}, ${labels[1]} +${labels.length - 2}`;
     }
     // Fallback to legacy single provider (backwards compatibility with existing embeds)
-    if (provider && provider !== 'auto') {
+    if (provider && provider !== 'auto' && provider !== 'none') {
       return `${via} ${getProviderLabel(provider)}`;
     }
     return '';

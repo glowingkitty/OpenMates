@@ -324,10 +324,13 @@ async def search_events_async(
     # Normalise all entries into canonical event dicts (async for geocoding).
     events = list(await asyncio.gather(*[_normalise_event(e, city_name) for e in raw_entries]))
 
-    # Fetch descriptions in parallel from lu.ma/<slug> pages.
+    # Fetch descriptions in parallel via Luma event detail API.
     if fetch_descriptions and events:
         slugs = [ev.get("_url_slug") for ev in events]
-        descriptions = await _fetch_descriptions_parallel(slugs, proxy_url=proxy_url)
+        event_api_ids = [ev.get("id") for ev in events]
+        descriptions = await _fetch_descriptions_parallel(
+            slugs, proxy_url=proxy_url, event_api_ids=event_api_ids,
+        )
         for ev, desc in zip(events, descriptions):
             ev["description"] = desc
             ev.pop("_url_slug", None)
@@ -531,34 +534,82 @@ async def _get_with_proxy_fallback(
 async def _fetch_descriptions_parallel(
     slugs: List[Optional[str]],
     proxy_url: Optional[str] = None,
+    event_api_ids: Optional[List[Optional[str]]] = None,
 ) -> List[Optional[str]]:
     """
-    Fetch event descriptions in parallel from lu.ma/<slug> pages.
+    Fetch event descriptions in parallel via the Luma event detail API.
 
-    Extracts from __NEXT_DATA__ -> description_mirror (ProseMirror AST).
-    Falls back to og:description meta tag (truncated ~155 chars).
-    Returns None for any slug that fails. Proxy fallback applied per-request.
+    Uses GET api2.luma.com/event/get?event_api_id=<id> which returns
+    description_mirror (ProseMirror AST) as JSON (~20KB per event, vs ~200KB
+    for HTML page scraping). Falls back to HTML scraping if API call fails.
 
     Args:
-        slugs:     List of Luma URL slugs (None entries return None immediately).
-        proxy_url: Optional proxy URL passed to each individual fetch for fallback.
+        slugs:          List of Luma URL slugs (used as fallback identifier).
+        proxy_url:      Optional proxy URL for fallback requests.
+        event_api_ids:  List of Luma event API IDs (e.g. "evt-LYAqCSNvtevyKoF").
+                        If provided, uses the detail API. If None, falls back to
+                        HTML scraping via slug.
     """
-    tasks = [_fetch_single_description(slug, proxy_url=proxy_url) for slug in slugs]
+    tasks = [
+        _fetch_single_description(
+            slug,
+            proxy_url=proxy_url,
+            event_api_id=event_api_ids[i] if event_api_ids and i < len(event_api_ids) else None,
+        )
+        for i, slug in enumerate(slugs)
+    ]
     return list(await asyncio.gather(*tasks))
+
+
+_EVENT_DETAIL_ENDPOINT = f"{API_BASE}/event/get"
 
 
 async def _fetch_single_description(
     slug: Optional[str],
     proxy_url: Optional[str] = None,
+    event_api_id: Optional[str] = None,
 ) -> Optional[str]:
     """
-    Fetch description for a single Luma event page. Returns None on error.
+    Fetch description for a single Luma event. Returns None on error.
 
-    Tries direct request first; retries via proxy on rejection if proxy_url set.
+    Primary: GET api2.luma.com/event/get?event_api_id=<id> -> description_mirror
+    Fallback: HTML scrape of lu.ma/<slug> page (if API fails or no api_id).
     """
-    if not slug:
+    if not slug and not event_api_id:
         return None
 
+    # Primary: event detail API (20KB JSON vs 200KB HTML)
+    if event_api_id:
+        try:
+            resp = await _get_with_proxy_fallback(
+                url=_EVENT_DETAIL_ENDPOINT,
+                params={"event_api_id": event_api_id},
+                headers=_HEADERS,
+                proxy_url=proxy_url,
+                label=f"luma-event/{event_api_id}",
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                dm = data.get("description_mirror")
+                if dm and isinstance(dm, dict):
+                    text = _prosemirror_to_text(dm).strip()
+                    if text:
+                        return text[:_MAX_DESCRIPTION_CHARS]
+        except (httpx.RequestError, RuntimeError) as exc:
+            logger.debug("Luma event detail API failed for %r: %s", event_api_id, exc)
+
+    # Fallback: HTML scrape
+    if slug:
+        return await _fetch_description_from_html(slug, proxy_url=proxy_url)
+
+    return None
+
+
+async def _fetch_description_from_html(
+    slug: str,
+    proxy_url: Optional[str] = None,
+) -> Optional[str]:
+    """Fallback: scrape lu.ma/<slug> HTML page for description."""
     url = f"https://lu.ma/{slug}"
     try:
         resp = await _get_with_proxy_fallback(
@@ -575,20 +626,10 @@ async def _fetch_single_description(
         logger.debug("Luma description HTTP %d for slug %r", resp.status_code, slug)
         return None
 
-    return _extract_description_from_html(resp.text, slug)
-
-
-def _extract_description_from_html(html: str, slug: str = "") -> Optional[str]:
-    """
-    Extract event description from a lu.ma event page.
-
-    Primary: __NEXT_DATA__ JSON -> description_mirror (ProseMirror AST, full text).
-    Fallback: og:description meta tag (truncated at ~155 chars by Luma).
-    """
-    # Primary: full description from __NEXT_DATA__ JSON
+    # Extract from __NEXT_DATA__ JSON
     m = re.search(
         r'<script[^>]*id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>',
-        html,
+        resp.text,
         re.DOTALL,
     )
     if m:
@@ -611,7 +652,7 @@ def _extract_description_from_html(html: str, slug: str = "") -> Optional[str]:
     # Fallback: og:description meta tag
     m2 = re.search(
         r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']*)["\']',
-        html,
+        resp.text,
     )
     if m2:
         text = m2.group(1).strip()

@@ -299,3 +299,4 @@ backend/tests/output/
 .claude/tasks/
 .claude/backlog.json
 
+temp-ssh-access.sh

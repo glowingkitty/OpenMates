@@ -16,9 +16,14 @@ if echo "$COMMAND" | grep -qE 'sessions\.py\s+deploy'; then
   exit 0
 fi
 
-# --- Block pnpm build (crashes the server) ---
-if echo "$COMMAND" | grep -q 'pnpm build'; then
-  echo '{"decision":"block","reason":"BLOCKED: pnpm build is not allowed — it crashes the server. Use more targeted commands instead."}' >&2
+# --- Allow git operations in the marketing repo (no code, just yml/md content) ---
+if echo "$COMMAND" | grep -qE 'openmates-marketing'; then
+  exit 0
+fi
+
+# --- Block pnpm / npx commands (crashes the server / exhausts memory) ---
+if echo "$COMMAND" | grep -qE '\b(pnpm|npx)\b'; then
+  echo '{"decision":"block","reason":"BLOCKED: pnpm/npx commands are not allowed — they crash the server. Use sessions.py deploy for builds, and python3 scripts/run_tests.py for tests."}' >&2
   exit 2
 fi
 

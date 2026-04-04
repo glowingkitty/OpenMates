@@ -59,6 +59,7 @@ _VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events", "resident_advisor
 
 # Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
 _PROVIDER_ALIASES: Dict[str, str] = {
+    "none": "auto",
     "google events": "google_events",
     "google": "google_events",
     "googleevents": "google_events",

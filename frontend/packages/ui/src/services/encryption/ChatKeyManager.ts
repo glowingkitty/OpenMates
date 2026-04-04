@@ -178,6 +178,13 @@ export class ChatKeyManager {
   private pendingOps: Map<string, QueuedOperation[]> = new Map();
 
   /**
+   * OPE-314: Callbacks invoked when a key transitions to "ready" state.
+   * Used by ActiveChat to re-decrypt messages that showed "[Decrypting...]"
+   * because the key wasn't available at initial render time.
+   */
+  private keyReadyListeners: Array<(chatId: string) => void> = [];
+
+  /**
    * Operation lock counter. When > 0, clearAll() is deferred.
    * This prevents multi-tab auth disruptions from wiping the key cache
    * while sendEncryptedStoragePackage() or other critical crypto operations
@@ -813,6 +820,19 @@ export class ChatKeyManager {
     return true;
   }
 
+  // ---- Key Ready Listeners ----
+
+  /**
+   * OPE-314: Register a callback for when any chat key transitions to "ready".
+   * Returns an unsubscribe function.
+   */
+  onKeyReady(listener: (chatId: string) => void): () => void {
+    this.keyReadyListeners.push(listener);
+    return () => {
+      this.keyReadyListeners = this.keyReadyListeners.filter((l) => l !== listener);
+    };
+  }
+
   // ---- Internal Key Setting ----
 
   /**
@@ -824,6 +844,7 @@ export class ChatKeyManager {
     chatKey: Uint8Array,
     source: KeySource,
   ): void {
+    const wasReady = this.states.get(chatId) === "ready";
     this.keys.set(chatId, chatKey);
     this.states.set(chatId, "ready");
     this.provenances.set(chatId, {
@@ -834,6 +855,17 @@ export class ChatKeyManager {
     // Clear decryption failure cache for this chat — new key may succeed
     // where the old one failed (key rotation, re-encryption, etc.)
     clearDecryptionFailureCache(chatId);
+    // OPE-314: Notify listeners so components can re-decrypt pending messages.
+    // Only fire when key is newly ready (not on repeated sets of the same key).
+    if (!wasReady) {
+      for (const listener of this.keyReadyListeners) {
+        try {
+          listener(chatId);
+        } catch (err) {
+          console.error(`[ChatKeyManager] keyReady listener error for ${chatId}:`, err);
+        }
+      }
+    }
   }
 
   // ---- Queue-and-Flush ----

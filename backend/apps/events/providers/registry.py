@@ -20,10 +20,26 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# All known provider IDs — used for backward-compat validation
+# All known provider IDs — used for backward-compat validation.
+# Siegessäule temporarily excluded from auto-select: its 25s proxy timeout
+# exceeds the 20s skill executor timeout, causing the entire search to fail
+# with ReadTimeout when the proxy is slow. Re-enable after OPE-XXX fixes
+# the timeout hierarchy and makes Siegessäule opt-in for LGBTQ+ queries only (OPE-301).
 _VALID_PROVIDER_IDS = frozenset({
-    "meetup", "luma", "google_events", "resident_advisor", "siegessaeule",
+    "meetup", "luma", "google_events", "resident_advisor",
 })
+
+# Map display names (from app.yml "name" field) to internal provider IDs.
+# The registry originally expected an "id" field in app.yml provider metadata,
+# but app.yml only has "name". This mapping bridges the gap.
+_NAME_TO_ID: Dict[str, str] = {
+    "meetup": "meetup",
+    "luma": "luma",
+    "google events": "google_events",
+    "resident advisor": "resident_advisor",
+    "siegessäule": "siegessaeule",
+    "siegessaeule": "siegessaeule",
+}
 
 
 def filter_providers(
@@ -51,7 +67,11 @@ def filter_providers(
     # Build region-applicable set from metadata
     applicable: List[str] = []
     for meta in providers_meta:
+        # Prefer explicit "id" field; fall back to deriving from "name"
         pid = meta.get("id")
+        if not pid:
+            name = (meta.get("name") or "").lower()
+            pid = _NAME_TO_ID.get(name)
         if not pid or pid not in _VALID_PROVIDER_IDS:
             continue
 

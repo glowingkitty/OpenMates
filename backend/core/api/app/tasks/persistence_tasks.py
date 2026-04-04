@@ -19,18 +19,50 @@ from backend.core.api.app.services.s3.service import S3UploadService
 
 logger = logging.getLogger(__name__)
 
-async def _async_persist_chat_title_task(chat_id: str, encrypted_title: str, title_v: int, task_id: str):
+async def _async_persist_chat_title_task(
+    chat_id: str, encrypted_title: str, title_v: int, task_id: str,
+    encrypted_chat_key: Optional[str] = None
+):
     """
     Async logic for persisting an updated chat title.
+    OPE-314: Added encrypted_chat_key validation to prevent persisting titles
+    encrypted with a stale/wrong key from a secondary device.
     """
     logger.info(f"Task _async_persist_chat_title_task (task_id: {task_id}): Persisting title for chat {chat_id}, version: {title_v}")
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
+    # OPE-314: Validate that the title was encrypted with the correct key
+    if encrypted_chat_key:
+        try:
+            existing_chat = await directus_service.get_items('chats', params={
+                'filter[id][_eq]': chat_id,
+                'fields': 'encrypted_chat_key',
+                'limit': 1
+            }, admin_required=True)
+            if existing_chat and existing_chat[0].get('encrypted_chat_key'):
+                existing_key = existing_chat[0]['encrypted_chat_key']
+                if existing_key != encrypted_chat_key:
+                    logger.warning(
+                        f"[CHAT_KEY_IMMUTABLE] ⚠️ Blocked title update for chat {chat_id}: "
+                        f"client's encrypted_chat_key differs from stored key. "
+                        f"Title was likely encrypted with a stale key. (task_id: {task_id})"
+                    )
+                    return
+                else:
+                    logger.debug(
+                        f"[CHAT_KEY_MATCH] ✓ Title update key validated for chat {chat_id} (task_id: {task_id})"
+                    )
+        except Exception as key_err:
+            logger.error(
+                f"Failed to validate chat key for title update on chat {chat_id}: {key_err}. "
+                f"Proceeding with update as safety fallback. (task_id: {task_id})"
+            )
+
     fields_to_update = {
         "encrypted_title": encrypted_title,
         "title_v": title_v,
-        "updated_at": int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
+        "updated_at": int(datetime.now(timezone.utc).timestamp())
     }
 
     try:
@@ -44,18 +76,16 @@ async def _async_persist_chat_title_task(chat_id: str, encrypted_title: str, tit
             logger.error(f"Failed to persist title for chat {chat_id} (task_id: {task_id}). Update operation returned false.")
     except Exception as e:
         logger.error(f"Error in _async_persist_chat_title_task for chat {chat_id} (task_id: {task_id}): {e}", exc_info=True)
-        # Consider re-raising for Celery's retry mechanisms if configured
-        # raise
 
 @app.task(name="app.tasks.persistence_tasks.persist_chat_title", bind=True)
-def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: int):
+def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: int, encrypted_chat_key: Optional[str] = None):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(f"SYNC_WRAPPER: persist_chat_title_task for chat {chat_id}, task_id: {task_id}")
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_persist_chat_title_task(chat_id, encrypted_title, title_v, task_id))
+        loop.run_until_complete(_async_persist_chat_title_task(chat_id, encrypted_title, title_v, task_id, encrypted_chat_key))
     except Exception as e:
         logger.error(f"SYNC_WRAPPER_ERROR: persist_chat_title_task for chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
         raise # Re-raise to let Celery handle retries/failure
@@ -1655,6 +1685,14 @@ async def _async_persist_encrypted_chat_metadata(
                         f"[CHAT_KEY_ROTATION] ⚠️ Allowing encrypted_chat_key rotation for chat {chat_id}. "
                         f"Reason: {chat_key_rotation_reason or 'unspecified'}. (task_id: {task_id})"
                     )
+                elif incoming_chat_key == existing_chat_key:
+                    # OPE-314: Key matches — metadata is safe, just remove key from update
+                    # to avoid unnecessary write (key is already set correctly).
+                    update_fields.pop("encrypted_chat_key", None)
+                    logger.debug(
+                        f"[CHAT_KEY_MATCH] ✓ encrypted_chat_key matches for chat {chat_id}. "
+                        f"Metadata fields allowed. (task_id: {task_id})"
+                    )
                 else:
                     # Chat already has an encrypted_chat_key - NEVER overwrite it
                     update_fields.pop("encrypted_chat_key", None)
@@ -1666,7 +1704,10 @@ async def _async_persist_encrypted_chat_metadata(
                     # Root cause: stale cached JS on secondary devices (e.g. iPadOS Safari)
                     # generates a new random key instead of using the originator's key.
                     rejected_metadata = []
-                    for field in ("encrypted_title", "encrypted_icon", "encrypted_category"):
+                    for field in ("encrypted_title", "encrypted_icon", "encrypted_category",
+                                  "encrypted_chat_summary", "encrypted_chat_tags",
+                                  "encrypted_follow_up_request_suggestions",
+                                  "encrypted_top_recommended_apps_for_chat"):
                         if field in update_fields:
                             rejected_metadata.append(field)
                             update_fields.pop(field)

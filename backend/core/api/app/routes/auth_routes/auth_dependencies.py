@@ -4,8 +4,11 @@ This file contains functions that provide services to all auth-related endpoints
 including retrieving the currently authenticated user.
 """
 import logging
+import time
 from fastapi import Request, HTTPException, Depends, Cookie
 from typing import Optional
+
+from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 
 # Import services and models needed by get_current_user
 from backend.core.api.app.services.directus import DirectusService
@@ -72,7 +75,7 @@ async def get_current_user(
         cached_vault_key_id = cached_data.get("vault_key_id")
         
         if not cached_user_id:
-            logger.error(f"CRITICAL: user_id is missing from cached data for token")
+            logger.error("CRITICAL: user_id is missing from cached data for token")
             raise HTTPException(status_code=500, detail="User data incomplete: missing user ID")
         
         if not cached_username:
@@ -124,22 +127,54 @@ async def get_current_user(
             encrypted_auto_topup_last_triggered=cached_data.get("encrypted_auto_topup_last_triggered")
         )
     
-    # If no cache hit, validate token and get user data
-    # Note: validate_token might need adjustment if it wasn't moved/updated
-    success, token_data = await directus_service.validate_token(refresh_token)
-    if not success or not token_data:
+    # If no cache hit, refresh token with Directus and rebuild cache.
+    # The cookie contains a refresh token (not an access token), so we must call
+    # /auth/refresh first to get a valid access token for /users/me.
+    logger.info("No session data in cache for token — attempting refresh with Directus")
+
+    refresh_success, auth_data, refresh_message = await directus_service.refresh_token(refresh_token)
+    if not refresh_success or not auth_data:
+        logger.info(f"Token refresh failed: {refresh_message}")
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
-    # Get user ID from token data
+
+    # Extract the access token from the refresh response
+    response_data = auth_data.get("data", {})
+    cookies = auth_data.get("cookies", {})
+
+    access_token = response_data.get("access_token")
+    if not access_token:
+        for cookie_name in ("directus_access_token", "access_token"):
+            if cookie_name in cookies:
+                access_token = cookies[cookie_name]
+                break
+
+    if not access_token:
+        logger.warning("Token refresh succeeded but no access token in response")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    # Use the access token to get user data from /users/me
+    success, token_data = await directus_service.validate_token(access_token)
+    if not success or not token_data:
+        logger.warning("Failed to validate access token from refresh response")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
     user_id = token_data.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token data: Missing user ID")
 
-    # Fetch complete user profile (which now includes decrypted gifted_credits_for_signup)
+    # Fetch complete user profile
     success, user_data, profile_message = await directus_service.get_user_profile(user_id)
     if not success or not user_data:
         logger.error(f"Failed to fetch user profile for user {user_id}: {profile_message}")
         raise HTTPException(status_code=500, detail=f"Could not fetch user data: {profile_message}")
+
+    # Rebuild the cache so subsequent requests don't need another refresh
+    if "user_id" not in user_data and "id" in user_data:
+        user_data["user_id"] = user_data["id"]
+    user_data["token_expiry"] = int(time.time()) + ACCESS_TOKEN_TTL_SECONDS
+    new_refresh_token = cookies.get("directus_refresh_token") or refresh_token
+    await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_service.SESSION_TTL)
+    logger.info(f"Cache rebuilt for user {user_id[:6]}... via get_current_user fallback")
 
     # CRITICAL: Validate required fields before creating User object - fail fast if missing
     # These fields are required by the User model and must not be None

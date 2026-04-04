@@ -1266,3 +1266,95 @@ describe("SYNC-02: BroadcastChannel cross-tab key propagation", () => {
     expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-new-key");
   });
 });
+
+// ---------------------------------------------------------------------------
+// OPE-314: onKeyReady callback — re-decrypt pending messages
+// ---------------------------------------------------------------------------
+
+describe("ChatKeyManager — onKeyReady (OPE-314)", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(() => {
+    _rvCounter = 100;
+    mgr = new ChatKeyManager();
+  });
+
+  afterEach(() => {
+    mgr.clearAll();
+  });
+
+  it("fires listener when key transitions from unloaded to ready", () => {
+    const readyChats: string[] = [];
+    mgr.onKeyReady((chatId) => readyChats.push(chatId));
+
+    // Inject a key (transitions from unloaded → ready)
+    mgr.injectKey("chat-A", makeKey(10), "injected");
+
+    expect(readyChats).toEqual(["chat-A"]);
+  });
+
+  it("does NOT fire listener on repeated set of the same key", () => {
+    const readyChats: string[] = [];
+
+    // First inject → fires
+    mgr.injectKey("chat-B", makeKey(20), "injected");
+    mgr.onKeyReady((chatId) => readyChats.push(chatId));
+
+    // Second inject with different key bytes — state is already "ready", should NOT fire
+    mgr.injectKey("chat-B", makeKey(21), "injected");
+
+    expect(readyChats).toEqual([]);
+  });
+
+  it("fires for each chat independently", () => {
+    const readyChats: string[] = [];
+    mgr.onKeyReady((chatId) => readyChats.push(chatId));
+
+    mgr.injectKey("chat-X", makeKey(30), "injected");
+    mgr.injectKey("chat-Y", makeKey(31), "injected");
+    mgr.injectKey("chat-Z", makeKey(32), "injected");
+
+    expect(readyChats).toEqual(["chat-X", "chat-Y", "chat-Z"]);
+  });
+
+  it("unsubscribe prevents further callbacks", () => {
+    const readyChats: string[] = [];
+    const unsub = mgr.onKeyReady((chatId) => readyChats.push(chatId));
+
+    mgr.injectKey("chat-1", makeKey(40), "injected");
+    expect(readyChats).toEqual(["chat-1"]);
+
+    // Unsubscribe
+    unsub();
+
+    mgr.injectKey("chat-2", makeKey(41), "injected");
+    expect(readyChats).toEqual(["chat-1"]); // No new entry
+  });
+
+  it("listener error does not break other listeners", () => {
+    const readyChats: string[] = [];
+    mgr.onKeyReady(() => {
+      throw new Error("boom");
+    });
+    mgr.onKeyReady((chatId) => readyChats.push(chatId));
+
+    // Should not throw, second listener should still fire
+    mgr.injectKey("chat-err", makeKey(50), "injected");
+    expect(readyChats).toEqual(["chat-err"]);
+  });
+
+  it("fires after clearAll + re-inject (key goes unloaded → ready again)", () => {
+    const readyChats: string[] = [];
+    mgr.onKeyReady((chatId) => readyChats.push(chatId));
+
+    mgr.injectKey("chat-R", makeKey(60), "injected");
+    expect(readyChats).toEqual(["chat-R"]);
+
+    // clearAll resets state to unloaded
+    mgr.clearAll();
+
+    // Re-inject — should fire again
+    mgr.injectKey("chat-R", makeKey(61), "injected");
+    expect(readyChats).toEqual(["chat-R", "chat-R"]);
+  });
+});

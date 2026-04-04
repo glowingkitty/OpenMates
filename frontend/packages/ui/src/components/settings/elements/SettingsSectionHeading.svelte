@@ -12,17 +12,22 @@
     let {
         title,
         icon,
+        iconClass,
     }: {
         /** Heading text displayed next to the icon */
         title: string;
-        /** Subsetting icon name from icons.css (e.g., "announcement", "email", "coins") */
+        /** Subsetting icon name from icons.css (e.g., "announcement", "email", "coins").
+         *  Ignored when iconClass is provided. */
         icon: string;
+        /** Optional full CSS class override for the icon element (e.g., "icon app-ai").
+         *  When set, replaces the default "subsetting_icon {icon}" classes. */
+        iconClass?: string;
     } = $props();
 </script>
 
 <div class="settings-section-heading">
     <div class="heading-row">
-        <div class="heading-icon subsetting_icon {icon}"></div>
+        <div class="heading-icon {iconClass ?? `subsetting_icon ${icon}`}"></div>
         <h3 class="heading-text">{title}</h3>
     </div>
     <div class="heading-bar"></div>

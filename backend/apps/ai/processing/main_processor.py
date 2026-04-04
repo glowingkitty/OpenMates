@@ -423,6 +423,11 @@ def _validate_skill_provider(
     if provider in skill_providers:
         return provider
 
+    # "auto" and "none" are valid meta-values meaning "use all providers" —
+    # don't override them with a specific provider name.
+    if provider and provider.lower() in ("auto", "none"):
+        return provider
+
     # Provider is invalid (hallucinated or wrong) — override with the first valid one
     correct_provider = skill_providers[0]
     if provider:

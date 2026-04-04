@@ -74,45 +74,81 @@
     onNavigateNext,
   }: Props = $props();
 
-  // Build the event object from data.decodedContent
+  // Build the event object from data.decodedContent.
+  // Must be $derived so it updates when navigating between results (prev/next).
+  // Handles both nested venue object (from search transformer) and flat TOON fields
+  // (venue_lat, venue_lon, etc. — from _flatten_for_toon_tabular in embed_service.py).
   let dc = $derived(data.decodedContent);
-  let rawVenue = $derived(dc.venue as Record<string, unknown> | undefined);
-  let rawOrganizer = $derived(dc.organizer as Record<string, unknown> | undefined);
-  let rawFee = $derived(dc.fee as Record<string, unknown> | undefined);
 
-  let event: EventResult = {
-    embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
-    id: typeof dc.id === 'string' ? dc.id : undefined,
-    provider: typeof dc.provider === 'string' ? dc.provider : undefined,
-    title: typeof dc.title === 'string' ? dc.title : undefined,
-    description: typeof dc.description === 'string' ? dc.description : undefined,
-    url: typeof dc.url === 'string' ? dc.url : undefined,
-    date_start: typeof dc.date_start === 'string' ? dc.date_start : undefined,
-    date_end: typeof dc.date_end === 'string' ? dc.date_end : undefined,
-    timezone: typeof dc.timezone === 'string' ? dc.timezone : undefined,
-    event_type: typeof dc.event_type === 'string' ? dc.event_type : undefined,
-    venue: rawVenue ? {
-      name: typeof rawVenue.name === 'string' ? rawVenue.name : undefined,
-      address: typeof rawVenue.address === 'string' ? rawVenue.address : undefined,
-      city: typeof rawVenue.city === 'string' ? rawVenue.city : undefined,
-      state: typeof rawVenue.state === 'string' ? rawVenue.state : undefined,
-      country: typeof rawVenue.country === 'string' ? rawVenue.country : undefined,
-      lat: typeof rawVenue.lat === 'number' ? rawVenue.lat : undefined,
-      lon: typeof rawVenue.lon === 'number' ? rawVenue.lon : undefined,
-    } : undefined,
-    organizer: rawOrganizer ? {
-      id: typeof rawOrganizer.id === 'string' ? rawOrganizer.id : undefined,
-      name: typeof rawOrganizer.name === 'string' ? rawOrganizer.name : undefined,
-      slug: typeof rawOrganizer.slug === 'string' ? rawOrganizer.slug : undefined,
-    } : undefined,
-    rsvp_count: typeof dc.rsvp_count === 'number' ? dc.rsvp_count : undefined,
-    is_paid: typeof dc.is_paid === 'boolean' ? dc.is_paid : undefined,
-    fee: rawFee ? {
-      amount: typeof rawFee.amount === 'number' ? rawFee.amount : undefined,
-      currency: typeof rawFee.currency === 'string' ? rawFee.currency : undefined,
-    } : undefined,
-    image_url: typeof dc.image_url === 'string' ? dc.image_url : null,
-  };
+  /** Parse a number from unknown value (handles TOON string→number edge cases). */
+  function asNumber(v: unknown): number | undefined {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') { const n = Number(v); if (Number.isFinite(n)) return n; }
+    return undefined;
+  }
+
+  function asString(v: unknown): string | undefined {
+    return typeof v === 'string' ? v : undefined;
+  }
+
+  let event: EventResult = $derived.by(() => {
+    // Venue: try nested object first, fall back to flat TOON fields (venue_lat, venue_lon, etc.)
+    let venue: EventResult['venue'] | undefined;
+    const rawVenue = dc.venue;
+    if (rawVenue && typeof rawVenue === 'object') {
+      const v = rawVenue as Record<string, unknown>;
+      venue = {
+        name: asString(v.name), address: asString(v.address),
+        city: asString(v.city), state: asString(v.state), country: asString(v.country),
+        lat: asNumber(v.lat), lon: asNumber(v.lon),
+      };
+    } else if (dc.venue_city || dc.venue_country || dc.venue_lat != null) {
+      venue = {
+        name: asString(dc.venue_name), address: asString(dc.venue_address),
+        city: asString(dc.venue_city), state: asString(dc.venue_state), country: asString(dc.venue_country),
+        lat: asNumber(dc.venue_lat), lon: asNumber(dc.venue_lon),
+      };
+    }
+
+    // Organizer: nested or flat
+    let organizer: EventResult['organizer'] | undefined;
+    const rawOrg = dc.organizer;
+    if (rawOrg && typeof rawOrg === 'object') {
+      const o = rawOrg as Record<string, unknown>;
+      organizer = { id: asString(o.id), name: asString(o.name), slug: asString(o.slug) };
+    } else if (dc.organizer_name) {
+      organizer = { id: asString(dc.organizer_id), name: asString(dc.organizer_name), slug: asString(dc.organizer_slug) };
+    }
+
+    // Fee: nested or flat
+    let fee: EventResult['fee'] | undefined;
+    const rawFee = dc.fee;
+    if (rawFee && typeof rawFee === 'object') {
+      const f = rawFee as Record<string, unknown>;
+      fee = { amount: asNumber(f.amount), currency: asString(f.currency) };
+    } else if (dc.fee_amount != null) {
+      fee = { amount: asNumber(dc.fee_amount), currency: asString(dc.fee_currency) };
+    }
+
+    return {
+      embed_id: asString(dc.embed_id) || (embedId || ''),
+      id: asString(dc.id),
+      provider: asString(dc.provider),
+      title: asString(dc.title),
+      description: asString(dc.description),
+      url: asString(dc.url),
+      date_start: asString(dc.date_start),
+      date_end: asString(dc.date_end),
+      timezone: asString(dc.timezone),
+      event_type: asString(dc.event_type),
+      venue,
+      organizer,
+      rsvp_count: asNumber(dc.rsvp_count),
+      is_paid: typeof dc.is_paid === 'boolean' ? dc.is_paid : undefined,
+      fee,
+      image_url: asString(dc.image_url) ?? null,
+    };
+  });
 
   // ── Display helpers ──
 

@@ -252,8 +252,53 @@ export async function loadChatKeysFromDatabase(
               const { getKeyFromStorage } = await import("../cryptoService");
               const prefetchedMasterKey = await getKeyFromStorage();
               if (!prefetchedMasterKey) {
-                console.warn("[ChatDatabase] No master key available, skipping bulk key decryption");
-                resolve();
+                // OPE-314: Don't silently skip — schedule a retry so keys eventually load.
+                // Without this, all message decryption permanently fails on new tabs where
+                // the master key isn't immediately available (e.g., stayLoggedIn loading from IDB).
+                console.warn(
+                  `[ChatDatabase] No master key available yet, scheduling retry for ${keysToDecrypt.length} chat keys`,
+                );
+                const RETRY_DELAY_MS = 500;
+                const MAX_RETRIES = 6; // 3 seconds total
+                let retryCount = 0;
+                const retryBulkDecrypt = async () => {
+                  retryCount++;
+                  const masterKey = await getKeyFromStorage();
+                  if (masterKey) {
+                    console.info(
+                      `[ChatDatabase] Master key available on retry ${retryCount}, decrypting ${keysToDecrypt.length} chat keys`,
+                    );
+                    const BATCH_SIZE = 20;
+                    for (let i = 0; i < keysToDecrypt.length; i += BATCH_SIZE) {
+                      const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
+                      await Promise.all(
+                        batch.map(({ chatId, encryptedKey }) =>
+                          decryptChatKeyWithMasterKey(encryptedKey, masterKey)
+                            .then((chatKey) => {
+                              if (chatKey) {
+                                chatKeyManager.injectKey(chatId, chatKey, "bulk_init");
+                              }
+                            })
+                            .catch((err) => {
+                              console.error(`[ChatDatabase] Retry: error decrypting key for ${chatId}:`, err);
+                            }),
+                        ),
+                      );
+                    }
+                    console.debug(
+                      `[ChatDatabase] Retry: loaded ${keysToDecrypt.length} chat keys`,
+                    );
+                  } else if (retryCount < MAX_RETRIES) {
+                    setTimeout(retryBulkDecrypt, RETRY_DELAY_MS);
+                  } else {
+                    console.error(
+                      `[ChatDatabase] Master key still unavailable after ${MAX_RETRIES} retries. ` +
+                        `${keysToDecrypt.length} chat keys remain undecrypted.`,
+                    );
+                  }
+                };
+                setTimeout(retryBulkDecrypt, RETRY_DELAY_MS);
+                resolve(); // Don't block init — retry happens in background
                 return;
               }
 
@@ -648,6 +693,23 @@ export async function decryptMessageFields(
   if (!chatKey) {
     const keyState = chatKeyManager.getState(chatId);
     const prov = chatKeyManager.getProvenance(chatId);
+    // OPE-314: Do NOT record a decryption failure when the key simply isn't available yet.
+    // The key may still be loading (master key not ready, bulk init in progress, etc.).
+    // Recording a failure here would permanently prevent re-decryption once the key arrives.
+    // Instead, mark the message with a transient flag so the UI can show a loading state
+    // and retry when the key becomes available.
+    const isKeyStillLoading = keyState === "unloaded" || keyState === "loading";
+    if (isKeyStillLoading) {
+      console.warn(
+        `[CLIENT_DECRYPT] ⏳ Chat key not yet available for chat ${chatId} (state: ${keyState}). ` +
+          `Message ${message.message_id} will be retried when key loads. ` +
+          `NOT recording as permanent failure.`,
+      );
+      // Set a transient placeholder — NOT cached as permanent failure
+      decryptedMessage.content = message.content || "[Decrypting...]";
+      (decryptedMessage as Record<string, unknown>)._decryptionPending = true;
+      return decryptedMessage;
+    }
     console.error(
       `[CLIENT_DECRYPT] ❌ CRITICAL: No chat key found for chat ${chatId}, cannot decrypt message fields! ` +
         `Message ID: ${message.message_id}, Role: ${message.role}, Status: ${message.status}, ` +

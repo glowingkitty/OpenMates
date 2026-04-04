@@ -293,7 +293,8 @@ async function assertChatDecryptedCorrectly(
 		/decryption error/i,
 		/\[encrypted\]/i,
 		/failed to decrypt/i,
-		/content unavailable/i
+		/content unavailable/i,
+		/\[Decrypting\.\.\.\]/i  // OPE-314: transient state should resolve before assertion
 	];
 	for (const pattern of decryptionErrorPatterns) {
 		if (pattern.test(bodyText)) {
@@ -367,9 +368,10 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 		await loginToApp(tabA, logA);
 		await screenshotA(tabA, 'logged-in');
 
-		// Step 2: Tab B navigates to /chat -- already authenticated
-		logB('Tab B navigating to /chat (shared session)...');
-		await tabB.goto(getE2EDebugUrl('/chat'));
+		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
+		// Authenticated users auto-redirect to /chat.
+		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
+		await tabB.goto(getE2EDebugUrl('/'));
 		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
 		logB('Tab B reached /chat -- authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
@@ -481,9 +483,9 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		await loginToApp(tabA, logA);
 		await screenshotA(tabA, 'logged-in');
 
-		// Step 2: Tab B navigates to /chat (already authenticated via shared cookies)
-		logB('Tab B navigating to /chat (shared session)...');
-		await tabB.goto(getE2EDebugUrl('/chat'));
+		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
+		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
+		await tabB.goto(getE2EDebugUrl('/'));
 		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
 		logB('Tab B reached /chat.');
 		await screenshotB(tabB, 'authenticated');
@@ -550,6 +552,133 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 			logA(`Warning: cleanup failed: ${err}`);
 		}
 
+		await context.close();
+		await browser.close();
+	}
+});
+
+// ---- TEST-03: Fresh tab after original closes — key loads from IDB (OPE-314) ----
+
+test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB key (OPE-314)', async () => {
+	test.slow();
+	test.setTimeout(TEST_TIMEOUT_MS);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logA = createSignupLogger('FRESH_TAB_A');
+	const logFresh = createSignupLogger('FRESH_TAB_NEW');
+	const screenshotA = createStepScreenshotter(logA, { filenamePrefix: 'fresh-tab-a' });
+	const screenshotFresh = createStepScreenshotter(logFresh, { filenamePrefix: 'fresh-tab-new' });
+
+	await archiveExistingScreenshots(logA);
+
+	const logsA = createSessionLogs();
+	const logsFresh = createSessionLogs();
+
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	const browser = await chromium.launch();
+	const context = await browser.newContext({ baseURL });
+
+	let chatId = '';
+
+	try {
+		// Step 1: Login in tab A
+		const tabA = await context.newPage();
+		attachListeners(tabA, 'TAB-A', logsA);
+
+		logA('Logging in via Tab A...');
+		await loginToApp(tabA, logA);
+		await screenshotA(tabA, 'logged-in');
+
+		// Wait for initial sync and key loading to complete
+		logA(`Waiting ${INITIAL_SYNC_WAIT_MS / 1000}s for initial sync...`);
+		await tabA.waitForTimeout(INITIAL_SYNC_WAIT_MS);
+
+		// Step 2: Create chat and send message
+		await startNewChat(tabA, logA);
+		chatId = await sendMessageAndGetChatId(
+			tabA,
+			'Fresh tab decryption test for OPE-314',
+			logA
+		);
+		logA(`Chat created with ID: ${chatId}`);
+		await screenshotA(tabA, 'message-sent');
+
+		// Step 3: Wait for AI response to complete
+		await waitForAssistantResponse(tabA, '.', logA, AI_RESPONSE_TIMEOUT_MS);
+		await screenshotA(tabA, 'ai-response');
+		logA('AI response received. Closing Tab A...');
+
+		// Step 4: CLOSE Tab A — kills in-memory key cache and BroadcastChannel.
+		// The key now only exists in IndexedDB (encrypted_chat_key on the chat record).
+		await tabA.close();
+		logA('Tab A closed. Key only exists in IDB now.');
+
+		// Step 5: Wait, then open a FRESH tab.
+		// This simulates the exact OPE-314 scenario: new tab must load master key
+		// from IDB, decrypt encrypted_chat_key, then decrypt messages.
+		// Before the fix, this would show "[Content decryption failed]" permanently.
+		// Navigate to root '/' (not '/chat') to avoid Vercel SPA routing 404 on direct paths.
+		await new Promise(r => setTimeout(r, 3000));
+
+		const freshTab = await context.newPage();
+		attachListeners(freshTab, 'FRESH-TAB', logsFresh);
+
+		logFresh('Fresh tab navigating to / (already authenticated via shared cookies)...');
+		await freshTab.goto(getE2EDebugUrl('/'));
+		// Wait for redirect to /chat (authenticated users are auto-redirected)
+		await freshTab.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
+		logFresh('Fresh tab reached /chat.');
+		await screenshotFresh(freshTab, 'loaded');
+
+		// Step 6: Find and open the test chat in sidebar
+		await waitForChatInSidebarAndClick(freshTab, 'fresh tab', logFresh, SIDEBAR_SYNC_TIMEOUT_MS);
+		await screenshotFresh(freshTab, 'chat-opened');
+
+		// Step 7: Wait for key loading + decryption (OPE-314 retry mechanism).
+		// The fix adds a 3-second retry loop for master key loading, plus
+		// onKeyReady re-decryption. Give it time to complete.
+		await freshTab.waitForTimeout(5000);
+
+		// Step 8: Assert decryption works
+		logsFresh.decryptionErrors = [];
+
+		await assertChatDecryptedCorrectly(
+			freshTab,
+			/.+/,
+			'FRESH-TAB',
+			logsFresh,
+			logFresh
+		);
+
+		// Verify: zero decryption errors
+		if (logsFresh.decryptionErrors.length > 0) {
+			throw new Error(
+				`Fresh tab had ${logsFresh.decryptionErrors.length} decryption errors:\n${logsFresh.decryptionErrors.join('\n')}`
+			);
+		}
+
+		logFresh('TEST-03 PASSED: Fresh tab decrypted messages from IDB key after originating tab closed.');
+
+		// Cleanup: delete the test chat
+		try {
+			await deleteActiveChat(freshTab, logFresh);
+		} catch (err) {
+			logFresh(`Warning: cleanup failed: ${err}`);
+		}
+
+		await freshTab.close();
+	} catch (error) {
+		try {
+			const pages = context.pages();
+			for (let i = 0; i < pages.length; i++) {
+				await pages[i].screenshot({ path: `artifacts/test03-failure-page-${i}.png`, fullPage: true });
+			}
+		} catch {
+			// Best-effort screenshot capture
+		}
+		throw error;
+	} finally {
 		await context.close();
 		await browser.close();
 	}

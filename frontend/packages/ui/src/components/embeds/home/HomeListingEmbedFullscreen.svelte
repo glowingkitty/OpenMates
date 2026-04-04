@@ -2,20 +2,22 @@
   frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
 
   Fullscreen view for a single Home listing embed (child of search results).
-  Uses UnifiedEmbedFullscreen as base and provides listing-specific content.
+  Uses EntryWithMapTemplate for responsive map + detail card layout — same
+  pattern as EventEmbedFullscreen and HealthAppointmentEmbedFullscreen.
+
+  Shows an interactive map when the listing has latitude/longitude coordinates
+  (geocoded by the backend search skill). Falls back to details-only layout
+  when no coordinates are available.
 
   Layout:
-  - Large header image (listing photo)
-  - Title + price (prominent)
-  - Address
-  - Metadata grid: size, rooms, listing type, provider
+  - Map background with detail card overlay (wide) or stacked (narrow)
+  - Listing photo, price, address
+  - Metadata: size, rooms, listing type, provider, available from, deposit
   - "Open on {provider}" CTA button
-
-  Bottom bar shows home gradient icon + truncated title.
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -61,20 +63,31 @@
     onShowChat
   }: Props = $props();
 
-  // Extract fields from data.decodedContent
+  /** Parse a number from unknown value (handles TOON string→number edge cases). */
+  function asNumber(v: unknown): number | undefined {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') { const n = Number(v); if (Number.isFinite(n)) return n; }
+    return undefined;
+  }
+
+  // Extract fields from data.decodedContent.
+  // Must be $derived so it updates when navigating between results (prev/next).
+  // Handles both direct fields and flat TOON format from _flatten_for_toon_tabular.
   let dc = $derived(data.decodedContent);
   let url = $derived(typeof dc.url === 'string' ? dc.url : '');
   let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let price_label = $derived(typeof dc.price_label === 'string' ? dc.price_label : undefined);
-  let size_sqm = $derived(typeof dc.size_sqm === 'number' ? dc.size_sqm : undefined);
-  let rooms = $derived(typeof dc.rooms === 'number' ? dc.rooms : undefined);
+  let size_sqm = $derived(asNumber(dc.size_sqm));
+  let rooms = $derived(asNumber(dc.rooms));
   let address = $derived(typeof dc.address === 'string' ? dc.address : undefined);
   let image_url = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
   let provider = $derived(typeof dc.provider === 'string' ? dc.provider : undefined);
   let listing_type = $derived(typeof dc.listing_type === 'string' ? dc.listing_type : undefined);
   let available_from = $derived(typeof dc.available_from === 'string' ? dc.available_from : undefined);
-  let deposit = $derived(typeof dc.deposit === 'number' ? dc.deposit : undefined);
+  let deposit = $derived(asNumber(dc.deposit));
   let furnished = $derived(typeof dc.furnished === 'boolean' ? dc.furnished : undefined);
+  let latitude = $derived(asNumber(dc.latitude));
+  let longitude = $derived(asNumber(dc.longitude));
 
   let imageError = $state(false);
 
@@ -95,6 +108,19 @@
       return provider || 'listing';
     }
   });
+
+  // Map data — only when listing has geocoded coordinates
+  let mapCenter = $derived(
+    latitude != null && longitude != null
+      ? { lat: latitude, lon: longitude }
+      : undefined
+  );
+
+  let mapMarkers = $derived(
+    mapCenter
+      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: title || address }]
+      : []
+  );
 
   /** Format size with unit */
   let sizeDisplay = $derived(
@@ -129,7 +155,7 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<EntryWithMapTemplate
   appId="home"
   skillId="listing"
   embedHeaderTitle={displayTitle}
@@ -145,198 +171,143 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  {mapCenter}
+  mapZoom={14}
+  {mapMarkers}
 >
   {#snippet embedHeaderCta()}
     <EmbedHeaderCtaButton label="Open on {hostname}" onclick={handleOpenOnPlatform} />
   {/snippet}
 
-  <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
-  {#snippet content(_)}
-    <div class="listing-fullscreen-content">
-      <!-- Header Image -->
-      {#if headerImageUrl}
-        <div class="header-image-container">
-          <img
-            src={headerImageUrl}
-            alt={displayTitle}
-            class="header-image"
-            loading="lazy"
-            crossorigin="anonymous"
-            onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
-          />
-        </div>
-      {/if}
+  {#snippet detailContent(_ctx)}
+    <!-- Header Image -->
+    {#if headerImageUrl}
+      <img
+        src={headerImageUrl}
+        alt={displayTitle}
+        class="listing-image"
+        loading="lazy"
+        crossorigin="anonymous"
+        onerror={(e) => { imageError = true; handleImageError(e.currentTarget as HTMLImageElement); }}
+      />
+    {/if}
 
-      <!-- Address -->
-      {#if address}
-        <p class="listing-address">{address}</p>
-      {/if}
-
-      <!-- Metadata Grid -->
-      <div class="metadata-grid">
-        {#if sizeDisplay}
-          <div class="metadata-item">
-            <span class="metadata-label">Size</span>
-            <span class="metadata-value">{sizeDisplay}</span>
-          </div>
-        {/if}
-
-        {#if roomsDisplay}
-          <div class="metadata-item">
-            <span class="metadata-label">Rooms</span>
-            <span class="metadata-value">{roomsDisplay}</span>
-          </div>
-        {/if}
-
-        {#if typeDisplay}
-          <div class="metadata-item">
-            <span class="metadata-label">Type</span>
-            <span class="metadata-value">{typeDisplay}</span>
-          </div>
-        {/if}
-
-        {#if provider}
-          <div class="metadata-item">
-            <span class="metadata-label">Source</span>
-            <span class="metadata-value">{provider}</span>
-          </div>
-        {/if}
-
-        {#if available_from}
-          <div class="metadata-item">
-            <span class="metadata-label">Available</span>
-            <span class="metadata-value">{available_from}</span>
-          </div>
-        {/if}
-
-        {#if depositDisplay}
-          <div class="metadata-item">
-            <span class="metadata-label">Deposit</span>
-            <span class="metadata-value">{depositDisplay}</span>
-          </div>
-        {/if}
-
-        {#if furnishedDisplay}
-          <div class="metadata-item">
-            <span class="metadata-label">Furnished</span>
-            <span class="metadata-value">{furnishedDisplay}</span>
-          </div>
-        {/if}
+    <!-- Address -->
+    {#if address}
+      <div class="listing-section">
+        <div class="section-label">Location</div>
+        <div class="section-value">{address}</div>
       </div>
+    {/if}
+
+    <!-- Key details row: size, rooms, type -->
+    <div class="listing-meta-row">
+      {#if sizeDisplay}
+        <span class="listing-meta-badge">{sizeDisplay}</span>
+      {/if}
+      {#if roomsDisplay}
+        <span class="listing-meta-badge">{roomsDisplay}</span>
+      {/if}
+      {#if typeDisplay}
+        <span class="listing-type-badge">{typeDisplay}</span>
+      {/if}
+      {#if provider}
+        <span class="listing-source-badge">{provider}</span>
+      {/if}
     </div>
+
+    <!-- Additional details -->
+    {#if available_from}
+      <div class="listing-section">
+        <div class="section-label">Available From</div>
+        <div class="section-value">{available_from}</div>
+      </div>
+    {/if}
+
+    {#if depositDisplay}
+      <div class="listing-section">
+        <div class="section-label">Deposit</div>
+        <div class="section-value">{depositDisplay}</div>
+      </div>
+    {/if}
+
+    {#if furnishedDisplay}
+      <div class="listing-section">
+        <div class="section-label">Furnished</div>
+        <div class="section-value">{furnishedDisplay}</div>
+      </div>
+    {/if}
   {/snippet}
-</UnifiedEmbedFullscreen>
+</EntryWithMapTemplate>
 
 <style>
-  .listing-fullscreen-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 40px 40px;
-    max-width: 600px;
-    margin: 0 auto;
+  .listing-image {
     width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Header Image */
-  .header-image-container {
-    width: 100%;
-    max-width: 511px;
-    border-radius: 30px;
-    overflow: hidden;
-    margin-bottom: 24px;
-    background-color: var(--color-grey-30);
-  }
-
-  .header-image {
-    width: 100%;
-    height: auto;
-    min-height: 168px;
-    max-height: 300px;
-    display: block;
+    height: 190px;
     object-fit: cover;
+    border-radius: 12px;
   }
 
-  /* Address */
-  .listing-address {
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 1rem;
+  .listing-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .listing-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--color-grey-20);
+    color: var(--color-font-primary);
+  }
+
+  .listing-type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--color-app-home-start, #6b4c9a);
+    color: #fff; /* intentional: always white on brand colour */
+  }
+
+  .listing-source-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.75rem;
     font-weight: 500;
-    color: var(--color-grey-70);
-    line-height: 1.5;
-    width: 100%;
-    max-width: 500px;
-    margin: 0 0 24px 0;
-    word-break: break-word;
+    background: var(--color-grey-15);
+    color: var(--color-font-secondary);
+    border: 1px solid var(--color-grey-25);
   }
 
-  /* Metadata Grid */
-  .metadata-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    width: 100%;
-    max-width: 500px;
-  }
-
-  .metadata-item {
+  .listing-section {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 16px;
-    background-color: var(--color-grey-0);
-    border-radius: 16px;
   }
 
-  .metadata-label {
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--color-grey-60);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .metadata-value {
-    font-family: 'Lexend Deca', sans-serif;
-    font-size: 1rem;
+  .section-label {
+    font-size: 0.6875rem;
     font-weight: 600;
-    color: var(--color-grey-100);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-grey-60);
   }
 
-  /* Responsive */
-  @container fullscreen (max-width: 600px) {
-    .listing-fullscreen-content {
-      padding: 20px 20px 30px;
-    }
-
-    .header-image-container {
-      border-radius: 20px;
-    }
-
-    .metadata-grid {
-      gap: 10px;
-    }
-
-    .metadata-item {
-      padding: 12px;
-      border-radius: 12px;
-    }
-  }
-
-  @container fullscreen (max-width: 400px) {
-    .listing-fullscreen-content {
-      padding: 16px 16px 24px;
-    }
-
-    .header-image {
-      min-height: 120px;
-      max-height: 200px;
-    }
-
-    .metadata-grid {
-      grid-template-columns: 1fr;
-    }
+  .section-value {
+    font-size: 0.9375rem;
+    color: var(--color-font-primary);
+    line-height: 1.5;
   }
 </style>

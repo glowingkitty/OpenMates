@@ -1989,6 +1989,11 @@ export async function handlePostProcessingCompletedImpl(
     ) {
       const { sendPostProcessingMetadataImpl } =
         await import("./chatSyncServiceSenders");
+      // OPE-314: Include encrypted_chat_key so server-side immutability guard can
+      // validate metadata was encrypted with the correct key. Without this, a stale
+      // key on a secondary device would produce metadata the primary device can't decrypt.
+      const chatRecord = await chatDB.getChat(payload.chat_id);
+      const encryptedChatKeyForValidation = chatRecord?.encrypted_chat_key || "";
       await sendPostProcessingMetadataImpl(
         serviceInstance,
         payload.chat_id,
@@ -1998,6 +2003,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
         encryptedUpdatedTitle || "",
+        encryptedChatKeyForValidation,
       );
       console.debug(
         `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,

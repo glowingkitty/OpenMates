@@ -9090,6 +9090,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
 
+        // OPE-314: Re-decrypt messages when a chat key becomes available.
+        // Handles the race condition where messages render before the master key
+        // finishes loading, showing "[Decrypting...]" instead of content. When the
+        // key arrives (via bulk_init retry, server sync, or cross-tab broadcast),
+        // re-load the messages so they decrypt with the now-available key.
+        const unsubscribeKeyReady = chatKeyManager.onKeyReady(async (readyChatId: string) => {
+            if (currentChat?.chat_id === readyChatId && currentMessages.some((m: Record<string, unknown>) => m._decryptionPending)) {
+                console.info(`[ActiveChat] Key ready for chat ${readyChatId}, re-decrypting pending messages`);
+                try {
+                    const freshMessages = await chatDB.getMessagesForChat(readyChatId);
+                    if (freshMessages && freshMessages.length > 0) {
+                        currentMessages = freshMessages;
+                        if (chatHistoryRef) {
+                            chatHistoryRef.updateMessages(currentMessages);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`[ActiveChat] Failed to re-decrypt messages for ${readyChatId}:`, err);
+                }
+            }
+        });
+
         return () => {
             // Remove listeners from chatSyncService
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
@@ -9116,6 +9138,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
             skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
+            unsubscribeKeyReady(); // OPE-314: Remove key-ready re-decrypt listener
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
             window.removeEventListener('language-changed-complete', handleLanguageChange);

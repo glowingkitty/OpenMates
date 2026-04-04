@@ -34,7 +34,7 @@ _SCRIPTS_DIR = str(Path(__file__).parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _linear_client import (
+from _linear_client import (  # noqa: E402
     LABEL_CLAUDE_FIX_ID,
     LABEL_CLAUDE_PLAN_ID,
     LABEL_CLAUDE_RESEARCH_ID,
@@ -48,7 +48,7 @@ from _linear_client import (
     remove_specific_label,
     update_issue_status,
 )
-from _zellij_utils import (
+from _zellij_utils import (  # noqa: E402
     MAX_CONCURRENT_SESSIONS,
     count_active_sessions,
     enforce_session_limit,
@@ -330,6 +330,268 @@ def _spawn_for_issue(issue: Dict, mode: str) -> bool:
 
 COMPLETED_STATES = {"In Review", "Done", "Cancelled"}
 
+# Minimum number of comments expected on a processed task (pickup + results).
+# If the issue has fewer non-pickup comments, the session failed to report back.
+PICKUP_COMMENT_PREFIX = "**Claude "  # e.g. "**Claude plan session started:**"
+
+
+def _find_jsonl_for_session(
+    claude_session_id: Optional[str],
+    session_started: Optional[str],
+) -> Optional[Path]:
+    """
+    Find the JSONL transcript file for a poller session.
+
+    Tries the explicit session ID first, then falls back to finding the JSONL
+    created closest to the session start time (within a 60s window).
+    """
+    if not CLAUDE_SESSIONS_DIR.is_dir():
+        return None
+
+    # Try explicit ID first
+    if claude_session_id:
+        path = CLAUDE_SESSIONS_DIR / f"{claude_session_id}.jsonl"
+        if path.exists():
+            return path
+
+    # Fallback: find JSONL created closest to session start time
+    if not session_started:
+        return None
+
+    try:
+        start_ts = datetime.fromisoformat(
+            session_started.replace("Z", "+00:00")
+        ).timestamp()
+    except (ValueError, AttributeError):
+        return None
+
+    best_match: Optional[Path] = None
+    best_delta = 60.0  # Max 60s window
+
+    for f in CLAUDE_SESSIONS_DIR.iterdir():
+        if f.suffix != ".jsonl":
+            continue
+        try:
+            birth = f.stat().st_birthtime
+        except AttributeError:
+            # Linux may not have st_birthtime — use st_ctime as fallback
+            birth = f.stat().st_ctime
+
+        delta = abs(birth - start_ts)
+        if delta < best_delta:
+            best_delta = delta
+            best_match = f
+
+    return best_match
+
+
+def _extract_findings_from_transcript(claude_session_id: str) -> Optional[str]:
+    """
+    Extract the last substantive assistant message from a Claude JSONL transcript.
+
+    Used to salvage research findings when a session exits without posting
+    results back to Linear. Returns None if no useful content is found.
+    """
+    if not claude_session_id or not CLAUDE_SESSIONS_DIR.is_dir():
+        return None
+
+    jsonl_path = CLAUDE_SESSIONS_DIR / f"{claude_session_id}.jsonl"
+    if not jsonl_path.exists():
+        return None
+
+    # Collect all assistant text blocks, keep the last substantive ones
+    assistant_texts: List[str] = []
+    try:
+        with open(jsonl_path) as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                if entry.get("type") != "assistant":
+                    continue
+
+                msg = entry.get("message", {})
+                content = msg.get("content", [])
+                if not isinstance(content, list):
+                    continue
+
+                for block in content:
+                    if block.get("type") == "text":
+                        text = (block.get("text") or "").strip()
+                        if text and len(text) > 50:
+                            assistant_texts.append(text)
+    except OSError:
+        return None
+
+    if not assistant_texts:
+        return None
+
+    # Take the last few substantive messages (likely the findings/summary)
+    # Cap at 3000 chars to keep the Linear comment readable
+    MAX_CHARS = 3000
+    combined = ""
+    for text in reversed(assistant_texts):
+        candidate = text + "\n\n---\n\n" + combined if combined else text
+        if len(candidate) > MAX_CHARS:
+            break
+        combined = candidate
+
+    return combined or assistant_texts[-1][:MAX_CHARS]
+
+
+def _session_posted_results(identifier: str) -> bool:
+    """
+    Check whether the session posted any substantive comment beyond the
+    initial pickup comment. Returns True if results were posted.
+    """
+    issue = get_issue_with_comments(identifier)
+    if not issue:
+        return False
+
+    comments = issue.get("comments", [])
+    for c in comments:
+        body = c.get("body", "")
+        # Skip the pickup/session-started comment
+        if body.startswith(PICKUP_COMMENT_PREFIX):
+            continue
+        # Skip queued comments
+        if body.startswith("**Queued**"):
+            continue
+        # Any other comment means results were posted
+        if len(body) > 20:
+            return True
+
+    return False
+
+
+def _is_session_stale(info: Dict) -> bool:
+    """
+    Check if a tracked session has been running longer than STALE_SESSION_HOURS
+    without posting results. Catches sessions that are technically "alive" in
+    Zellij but idle (e.g. Claude finished but left the shell open).
+    """
+    started = info.get("started")
+    if not started:
+        return False
+    try:
+        start_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return False
+
+    age_hours = (datetime.now(timezone.utc) - start_dt).total_seconds() / 3600
+    return age_hours >= STALE_SESSION_HOURS
+
+
+# Sessions older than this without results are considered stale
+STALE_SESSION_HOURS = 1.0
+
+
+def _salvage_abandoned_sessions() -> int:
+    """
+    Detect sessions that failed to post results back to Linear.
+
+    Handles two failure modes:
+    1. EXITED sessions — Zellij process died (crash, context limit, OOM)
+    2. Stale ACTIVE sessions — Claude finished but didn't post back (idle shell)
+
+    For each, extracts findings from the JSONL transcript and posts them
+    as a salvaged comment on the Linear issue.
+
+    Returns the number of sessions salvaged.
+    """
+    tracked = _read_poller_sessions()
+    if not tracked:
+        return 0
+
+    zellij_state = list_sessions_with_state()
+    salvaged = 0
+    to_remove: List[str] = []
+
+    for session_name, info in tracked.items():
+        identifier = info.get("identifier")
+        if not identifier:
+            continue
+
+        state = zellij_state.get(session_name)
+
+        # Skip sessions that are still actively running and not stale
+        if state == "ACTIVE" and not _is_session_stale(info):
+            continue
+
+        # Check if the Linear task is already completed (handled by _cleanup_completed_sessions)
+        issue_data = get_issue(identifier)
+        if not issue_data:
+            continue
+        if issue_data.get("state") in COMPLETED_STATES:
+            continue  # Already done — _cleanup_completed_sessions handles this
+
+        # Check if results were already posted
+        if _session_posted_results(identifier):
+            # Results posted but session exited without updating status —
+            # clean up the session tracking and kill the Zellij session
+            if state in ("EXITED", "ACTIVE"):
+                kill_session(session_name)
+            to_remove.append(session_name)
+            salvaged += 1
+            print(f"{LOG_PREFIX} {identifier}: results posted, cleaning up exited session")
+            continue
+
+        # No results posted — try to find and extract findings from the JSONL
+        claude_session_id = info.get("claude_session_id")
+        jsonl_path = _find_jsonl_for_session(claude_session_id, info.get("started"))
+
+        findings = None
+        if jsonl_path:
+            findings = _extract_findings_from_transcript(jsonl_path.stem)
+
+        status_label = "exited" if state != "ACTIVE" else "stale (idle)"
+
+        if findings:
+            comment_body = (
+                f"**Session {status_label} without posting results** — salvaged from transcript:\n\n"
+                f"---\n\n"
+                f"{findings}\n\n"
+                f"---\n\n"
+                f"*Auto-salvaged by linear-poller. "
+                f"Re-add `claude-research` or `claude-plan` label to retry.*"
+            )
+        else:
+            comment_body = (
+                f"**Session {status_label} without posting results** — "
+                f"no findings could be recovered from the transcript.\n\n"
+                f"The session may have crashed before producing output.\n\n"
+                f"*Re-add `claude-research` or `claude-plan` label to retry.*"
+            )
+
+        post_comment(issue_data["id"], comment_body)
+        print(f"{LOG_PREFIX} {identifier}: salvaged findings from {status_label} session '{session_name}'")
+
+        # Reset status to Todo and remove claude-is-working label
+        update_issue_status(issue_data["id"], "Todo")
+        if "claude-is-working" in issue_data.get("labels", []):
+            remove_label(
+                issue_data["id"],
+                current_label_ids=issue_data.get("label_ids", []),
+            )
+
+        # Kill the Zellij session
+        if state in ("EXITED", "ACTIVE"):
+            kill_session(session_name)
+
+        to_remove.append(session_name)
+        salvaged += 1
+
+    # Update tracking file
+    if to_remove:
+        fresh = _read_poller_sessions()
+        for name in to_remove:
+            fresh.pop(name, None)
+        _write_poller_sessions(fresh)
+
+    return salvaged
+
 
 def _cleanup_completed_sessions() -> int:
     """
@@ -388,10 +650,10 @@ def _cleanup_completed_sessions() -> int:
 def poll_and_spawn(dry_run: bool = False) -> None:
     """Poll Linear for claude-plan/claude-fix issues and spawn sessions."""
 
-    # First: kill sessions whose tasks are already completed (In Review/Done)
-    # This frees slots within 30s of a task completing, instead of waiting
-    # for the 5-minute cleanup timer.
+    # First: salvage findings from exited sessions that didn't post results,
+    # then kill sessions whose tasks are already completed (In Review/Done).
     if not dry_run:
+        _salvage_abandoned_sessions()
         _cleanup_completed_sessions()
 
     # Collect candidates from all trigger labels

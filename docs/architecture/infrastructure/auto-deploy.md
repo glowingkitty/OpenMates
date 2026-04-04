@@ -1,0 +1,213 @@
+# Auto-Deploy Pipeline
+
+Linear: OPE-275
+
+## Problem
+
+Deploying to production is manual and error-prone: SSH in, git pull, rebuild all
+containers (causing downtime), manually update Caddy config. Steps are easy to
+forget — especially Caddyfile updates, which have been a recurring bug source.
+
+The admin-sidecar (`backend/admin_sidecar/main.py`) currently handles update
+orchestration inside Docker Compose, but it has a fundamental flaw: it can't
+reliably restart itself (the process dies mid-execution when its container is
+recreated), and if the Docker stack crashes, the orchestrator dies with it.
+
+## Architecture: Host-Level Deploy Agent + GitHub Webhook
+
+Update orchestration moves to a **host-level systemd service** that lives outside
+Docker Compose. GitHub sends a webhook on push to `main`; the deploy agent
+receives it, verifies the signature, and orchestrates the full update. A polling
+fallback catches missed webhooks.
+
+The admin-sidecar is stripped down to read-only endpoints (logs, version, health).
+
+```
+GitHub (push to main)
+    │
+    ▼  POST /deploy/webhook/github
+┌────────────────────────────────────┐
+│         Caddy (host, systemd)      │
+│   Routes /deploy/* → port 9000    │
+│   Routes everything else → 8000    │
+└────────────────────────────────────┘
+    │                        │
+    ▼                        ▼
+┌──────────────┐   ┌─────────────────────────────────┐
+│ Deploy Agent │   │     Docker Compose Stack         │
+│ (systemd,    │   │                                  │
+│  port 9000)  │──▶│  api, app-*, workers, cache,     │
+│              │   │  vault, cms, admin-sidecar, ...   │
+│ - webhook rx │   │                                  │
+│ - git pull   │   └─────────────────────────────────┘
+│ - compose    │
+│   build/up   │   ┌─────────────────────────────────┐
+│ - caddy      │──▶│  /etc/caddy/Caddyfile           │
+│   reload     │   │  (validate + reload)             │
+│ - health chk │   └─────────────────────────────────┘
+└──────────────┘
+```
+
+### Component Split
+
+| Component | Runs as | Responsibility |
+|---|---|---|
+| **Deploy Agent** (`deployment/deploy-agent.py`) | systemd service on host (port 9000) | Webhook receiver, update orchestration, Caddy reload, health checks, polling fallback |
+| **Admin Sidecar** (`backend/admin_sidecar/main.py`) | Docker container (port 8001) | Read-only: `/admin/logs`, `/admin/version`, `/health` |
+| **CLI** (`openmates server auto-update`) | One-time setup command | Install systemd service, generate webhook secret, configure GitHub |
+
+### Why Host-Level (Not Container)
+
+- **Survives stack crashes** — can bring Docker Compose back up
+- **Can restart everything** including the admin-sidecar itself
+- **Directly manages Caddy** (also on host) — no volume mount gymnastics
+- **No Docker socket inside containers** — smaller attack surface
+- **systemd `Restart=always`** handles agent crashes automatically
+
+## Deploy Flow
+
+1. PR merged to `main` → GitHub sends webhook `POST` to `https://api.openmates.org/deploy/webhook/github`
+2. Caddy routes the request to the deploy agent on port 9000 (bypasses Docker stack entirely)
+3. Deploy agent verifies HMAC-SHA256 signature (`X-Hub-Signature-256` header) using shared secret
+4. Agent checks `ref` matches `refs/heads/main` (configurable branch)
+5. Update sequence runs in background thread:
+   a. `git pull` (120s timeout)
+   b. `docker compose build` all services (600s timeout) — no downtime, old containers keep running
+   c. Optional: stop cache container + `docker volume rm` cache volume (clean restart)
+   d. `docker compose up -d` — swap all containers to new images (~30s downtime)
+   e. `docker compose up -d vault-setup cms-setup` — re-init secrets and schema
+   f. Detect `SERVER_ENVIRONMENT`, copy correct Caddyfile to `/etc/caddy/Caddyfile`, validate, reload
+   g. Health check: poll `http://localhost:8000/health` every 5s for up to 60s
+6. Returns 202 Accepted immediately; caller polls `/deploy/status` for progress
+
+### Polling Fallback
+
+When `GITHUB_POLL_INTERVAL_MINUTES > 0`, a background thread periodically:
+1. Calls `GET https://api.github.com/repos/{owner}/{repo}/commits/{branch}` (unauthenticated, 60 req/hour limit)
+2. Compares returned SHA with local `git rev-parse HEAD`
+3. Triggers update if they differ and no update is in progress
+
+Recommended: 10-minute interval (6 requests/hour, well within rate limits).
+
+## Deploy Agent Endpoints
+
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/webhook/github` | POST | HMAC-SHA256 (GitHub signature) | Receive GitHub push webhook, trigger deploy |
+| `/status` | GET | `X-Admin-Log-Key` header | Last update time, status, step log |
+| `/health` | GET | None | Liveness probe for systemd |
+
+## Configuration
+
+All config via environment variables, loaded from `.env` by systemd `EnvironmentFile`:
+
+```
+GITHUB_WEBHOOK_SECRET          — HMAC shared secret (generated by CLI setup)
+GITHUB_DEPLOY_BRANCH           — branch to deploy (default: main)
+GITHUB_POLL_INTERVAL_MINUTES   — polling interval, 0=disabled (default: 0, recommended: 10)
+GITHUB_REPO                    — owner/repo for polling (e.g. glowingkitty/OpenMates)
+DEPLOY_AGENT_PORT              — listen port (default: 9000)
+GIT_WORK_DIR                   — project root
+SERVER_ENVIRONMENT             — production/development (for Caddyfile selection)
+COMPOSE_FILE                   — path to docker-compose.yml (relative to GIT_WORK_DIR)
+CLEAR_CACHE_ON_UPDATE          — true/false (wipe Dragonfly cache volume)
+CACHE_VOLUME_NAME              — e.g. openmates-cache-data
+ADMIN_LOG_API_KEY              — for /status endpoint auth
+```
+
+## Systemd Service
+
+File: `deployment/openmates-deploy-agent.service`
+
+Follows the same pattern as `scripts/agent-trigger-watcher.service`:
+- `Type=simple` — script runs in foreground
+- `Restart=always`, `RestartSec=10` — auto-restart on crash
+- `EnvironmentFile` — loads `.env` for config
+- `User=<USER>`, `Group=docker` — Docker access without root
+- `After=network.target docker.service` — starts after Docker is ready
+
+## Caddy Routes
+
+Added to both `deployment/prod_server/Caddyfile` and `deployment/dev_server/Caddyfile`,
+before the catch-all `abort`:
+
+```
+@deploy_webhook {
+    path /deploy/webhook/github
+    method POST
+}
+handle @deploy_webhook {
+    reverse_proxy localhost:9000
+}
+
+@deploy_status {
+    path /deploy/status
+    method GET
+}
+handle @deploy_status {
+    reverse_proxy localhost:9000
+}
+```
+
+These routes bypass the Docker stack entirely — even if every container is down,
+the webhook endpoint remains reachable.
+
+## CLI Setup
+
+`openmates server auto-update setup`:
+1. Generates 32-byte hex webhook secret
+2. Appends config to `.env`: `GITHUB_WEBHOOK_SECRET`, `GITHUB_DEPLOY_BRANCH`, `GITHUB_POLL_INTERVAL_MINUTES`, `GITHUB_REPO`, `DEPLOY_AGENT_PORT`
+3. Installs systemd service: copies unit file, fills `<USER>` placeholder, runs `systemctl daemon-reload && systemctl enable --now openmates-deploy-agent`
+4. Prints GitHub webhook setup instructions (payload URL, secret, content type, events)
+5. Optionally creates webhook via `gh api` if GitHub CLI is available
+
+`openmates server auto-update status`:
+- Calls `GET http://localhost:9000/status`
+- Shows last update time, status, deploy branch, poll interval
+
+## Admin Sidecar Changes
+
+The admin-sidecar loses its update endpoints but keeps read-only functions:
+
+| Endpoint | Status |
+|---|---|
+| `POST /admin/update` | **Removed** — moved to deploy agent |
+| `GET /admin/update/status` | **Removed** — moved to deploy agent |
+| `GET /admin/logs` | **Kept** — Docker log access |
+| `GET /admin/version` | **Kept** — commit SHA, tag, branch |
+| `GET /health` | **Kept** — liveness probe |
+
+Docker Compose env vars removed from sidecar: `SERVICE_UPDATE_ALL`, `SERVICE_UPDATE_TARGET`,
+`SERVICE_UPDATE_EXTRAS`, `CLEAR_CACHE_ON_UPDATE`, `CACHE_VOLUME_NAME`.
+
+## Self-Hosted Users
+
+The same deploy agent works for self-hosted installations. The CLI `auto-update setup`
+command provisions everything needed. Future enhancement: GHCR pre-built images so
+self-hosted users can pull instead of building locally (admin-sidecar already supports
+this via its Docker Hub mode).
+
+## Files
+
+| File | Action | Purpose |
+|---|---|---|
+| `deployment/deploy-agent.py` | **New** | Host-level webhook receiver + update orchestrator (stdlib Python, zero deps) |
+| `deployment/openmates-deploy-agent.service` | **New** | Systemd unit file |
+| `deployment/prod_server/Caddyfile` | **Edit** | Add webhook + status routes to port 9000 |
+| `deployment/dev_server/Caddyfile` | **Edit** | Add webhook + status routes to port 9000 |
+| `backend/admin_sidecar/main.py` | **Edit** | Remove update endpoints, keep logs/version/health |
+| `backend/core/docker-compose.yml` | **Edit** | Remove update env vars from sidecar block |
+| `frontend/packages/openmates-cli/src/server.ts` | **Edit** | Add `auto-update` subcommands |
+
+## Implementation Order
+
+1. Deploy agent script + systemd unit + Caddy routes (core auto-deploy)
+2. Strip update logic from admin-sidecar (clean separation)
+3. CLI setup command (self-hosted experience)
+
+## Out of Scope (Future)
+
+- **GHCR image publishing** — for self-hosted users who shouldn't build locally
+- **Auto-rollback** — health check provides visibility now; auto-revert to previous git SHA later
+- **Staging environment**
+- **Database migration automation**

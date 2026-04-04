@@ -399,14 +399,49 @@ class ChatMethods:
                 
                 if is_duplicate and chat_id_val:
                     # UPSERT FALLBACK: Chat already exists — update it with any meaningful fields
-                    # from the payload that the existing record might be missing (e.g., encrypted_chat_key,
-                    # encrypted_title set by a concurrent metadata task).
+                    # from the payload that the existing record might be missing.
                     # Exclude 'id' and 'created_at' since those are immutable.
                     fields_to_update = {
                         k: v for k, v in chat_metadata.items()
                         if k not in ('id', 'created_at') and v is not None and v != '' and v != 0
                     }
-                    
+
+                    # IMMUTABILITY GUARD: encrypted_chat_key must never be overwritten once set.
+                    # Without this, a concurrent task from another device can replace the original
+                    # key, making all previously encrypted messages permanently undecryptable.
+                    # See: docs/architecture/encryption-key-immutability
+                    if 'encrypted_chat_key' in fields_to_update:
+                        try:
+                            existing = await self.directus_service.get_items('chats', params={
+                                'filter[id][_eq]': chat_id_val,
+                                'fields': 'encrypted_chat_key',
+                                'limit': 1
+                            }, admin_required=True)
+                            if existing and existing[0].get('encrypted_chat_key'):
+                                logger.warning(
+                                    f"[CHAT_KEY_IMMUTABLE] Upsert for chat {chat_id_val}: "
+                                    f"existing encrypted_chat_key found. Blocking overwrite to "
+                                    f"preserve message decryptability."
+                                )
+                                fields_to_update.pop('encrypted_chat_key', None)
+                                # Also block metadata encrypted with the wrong key
+                                rejected = []
+                                for field in ('encrypted_title', 'encrypted_icon', 'encrypted_category'):
+                                    if field in fields_to_update:
+                                        rejected.append(field)
+                                        fields_to_update.pop(field)
+                                if rejected:
+                                    logger.warning(
+                                        f"[CHAT_KEY_IMMUTABLE] Also blocked metadata fields "
+                                        f"encrypted with rejected key: {rejected}"
+                                    )
+                        except Exception as key_check_err:
+                            logger.error(
+                                f"Failed to check existing chat key for {chat_id_val}: {key_check_err}. "
+                                f"Removing encrypted_chat_key from upsert as safety measure."
+                            )
+                            fields_to_update.pop('encrypted_chat_key', None)
+
                     if fields_to_update:
                         logger.info(
                             f"Chat {chat_id_val} already exists (race condition). "

@@ -47,10 +47,16 @@ export async function sendUpdateTitleImpl(
 		return;
 	}
 
-	const payload: UpdateTitlePayload = {
+	// OPE-314: Include encrypted_chat_key for server-side key validation.
+	// Prevents persisting a title encrypted with a stale key from a secondary device.
+	const chatRecord = await chatDB.getChat(chat_id);
+	const payload: UpdateTitlePayload & { encrypted_chat_key?: string } = {
 		chat_id,
 		encrypted_title: encryptedTitle
 	};
+	if (chatRecord?.encrypted_chat_key) {
+		payload.encrypted_chat_key = chatRecord.encrypted_chat_key;
+	}
 	const tx = await chatDB.getTransaction(chatDB["CHATS_STORE_NAME"], "readwrite");
 	try {
 		const chat = await chatDB.getChat(chat_id, tx);
