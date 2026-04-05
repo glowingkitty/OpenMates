@@ -592,7 +592,11 @@
                     add_to_linear: isAdminUser ? addToLinear : true,
                     // Admin-only: whether to send email notifications (default false for admin).
                     // Non-admin reports always send emails (server-side default).
-                    send_email_notification: isAdminUser ? sendEmailNotification : true
+                    send_email_notification: isAdminUser ? sendEmailNotification : true,
+                    // Ephemeral log session pseudonym for correlating anonymized browser
+                    // console logs with this issue report. Only present if ephemeral
+                    // forwarding is active. The user explicitly submits this by filing the report.
+                    ephemeral_session_id: sessionStorage.getItem('ephemeral_session_id') ?? null
                 }),
                 credentials: 'include'
             });
