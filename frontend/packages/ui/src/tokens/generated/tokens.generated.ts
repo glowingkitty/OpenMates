@@ -141,3 +141,63 @@ export const FontSize = Object.freeze({
 export const MOBILE_BREAKPOINT = 730;
 /** @deprecated Use Breakpoint.chatsOpen */
 export const CHATS_DEFAULT_OPEN_BREAKPOINT = 1440;
+
+/** Lucide icon name → SF Symbol name mapping for cross-platform icon parity. */
+export const LucideToSF = Object.freeze({
+  'bell': 'bell.fill',
+  'book-open': 'book.fill',
+  'briefcase': 'briefcase.fill',
+  'building-2': 'building.2',
+  'chevron-left': 'chevron.left',
+  'chevron-right': 'chevron.right',
+  'circle-help': 'questionmark.circle',
+  'clock': 'clock',
+  'code': 'chevron.left.forwardslash.chevron.right',
+  'compass': 'safari',
+  'dollar-sign': 'dollarsign.circle',
+  'file-code': 'doc.text',
+  'file-text': 'doc.plaintext',
+  'gavel': 'building.columns',
+  'heart': 'heart.fill',
+  'help-circle': 'questionmark.circle',
+  'megaphone': 'megaphone.fill',
+  'microscope': 'microscope',
+  'palette': 'paintpalette.fill',
+  'pin': 'pin.fill',
+  'server': 'server.rack',
+  'share-2': 'square.and.arrow.up',
+  'shield-check': 'checkmark.shield.fill',
+  'terminal': 'terminal',
+  'trending-up': 'chart.line.uptrend.xyaxis',
+  'tv': 'tv',
+  'users': 'person.2.fill',
+  'utensils': 'fork.knife',
+  'wrench': 'wrench.fill',
+  'x': 'xmark',
+  'zap': 'bolt.fill',
+} as const);
+
+/** App/feature name → actual SVG icon filename aliases. */
+export const IconAlias = Object.freeze({
+  'health': 'heart',
+  'plants': 'plant',
+  'events': 'event',
+  'photos': 'image',
+  'books': 'book',
+  'finance': 'money',
+  'code': 'coding',
+  'hosting': 'server',
+  'diagrams': 'diagram',
+  'whiteboards': 'whiteboard',
+  'messages': 'chat',
+  'pdfeditor': 'pdf',
+  'anthropic': 'claude',
+  'insights': 'insight',
+  'privacy': 'lock',
+  'apps': 'app',
+  'shared': 'share',
+  'messengers': 'chat',
+  'developers': 'coding',
+  'interface': 'language',
+  'contacts': 'contact',
+} as const);

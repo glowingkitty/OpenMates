@@ -50,17 +50,20 @@ frontend/packages/ui/src/tokens/
     z-index.yml                     # Named layer system
     transitions.yml                 # Duration/easing presets
     icons.yml                       # Icon size scale
+    icons-mapping.yml               # Lucide → SF Symbol mapping + icon aliases
     layout.yml                      # Breakpoints, max-widths
   generated/                        # AUTO-GENERATED — never edit
     theme.generated.css             # Replaces :root / [data-theme="dark"] blocks
-    tokens.generated.ts             # TypeScript typed constants
+    tokens.generated.ts             # TypeScript typed constants + icon mapping
     swift/
       ColorTokens.generated.swift   # SwiftUI Color extensions
       TypographyTokens.generated.swift
       SpacingTokens.generated.swift
       GradientTokens.generated.swift
+      IconMapping.generated.swift   # SFSymbol enum + Image extensions + aliases
       Tokens.generated.swift        # Umbrella re-export
       Assets.xcassets/              # Color catalog with light/dark pairs
+      Icons.xcassets/               # SVG icon catalog (202 custom icons)
 ```
 
 This mirrors the i18n pipeline: `src/i18n/sources/*.yml` -> `build-translations.js` -> `src/i18n/locales/*.json`.
@@ -298,6 +301,39 @@ size:
   xl:  40    # 39 uses
   xxl: 48    # 15 uses
 ```
+
+### icons-mapping.yml — cross-platform icon mapping
+
+```yaml
+# Maps semantic icon names to platform implementations.
+# Web uses Lucide (@lucide/svelte), iOS uses SF Symbols.
+# Custom SVGs (static/icons/*.svg) are shared via xcassets.
+
+# Lucide → SF Symbol mapping (31 icons used in web app)
+lucide:
+  bell:          { sf: "bell.fill" }
+  book-open:     { sf: "book.fill" }
+  chevron-left:  { sf: "chevron.left" }
+  heart:         { sf: "heart.fill" }
+  # ... 27 more
+
+# App/feature name → actual SVG filename aliases
+aliases:
+  health: heart        # health app → heart.svg
+  finance: money       # finance app → money.svg
+  code: coding         # code app → coding.svg
+  # ... 18 more
+```
+
+**Generated outputs:**
+- **TypeScript:** `LucideToSF` mapping + `IconAlias` mapping (in `tokens.generated.ts`)
+- **Swift:** `SFSymbol` enum, `Image` extensions for all 202 custom SVGs, `IconAlias` enum
+- **xcassets:** `Icons.xcassets/` with 202 SVG image sets (Xcode imports directly)
+
+**Cross-platform icon strategy:**
+- Standard UI icons: web uses Lucide, iOS uses SF Symbols (native look on each platform)
+- Custom/brand icons: shared SVGs via xcassets (identical on both platforms)
+- Icon sizes: tokenized via `--icon-size-*` / `CGFloat.iconSize*`
 
 ### layout.yml — breakpoints and dimensions
 

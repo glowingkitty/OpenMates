@@ -1,0 +1,73 @@
+# frontend/packages/ui/src/tokens/sources/icons-mapping.yml
+#
+# Cross-platform icon mapping — maps semantic icon names to platform-specific
+# implementations. Web uses Lucide (@lucide/svelte), iOS uses SF Symbols.
+#
+# Custom/brand SVGs (static/icons/*.svg) are shared directly via xcassets.
+# This file only maps the Lucide → SF Symbol equivalents.
+#
+# Generator output:
+#   TypeScript: IconMapping type with lucide + sf fields
+#   Swift: enum AppIcon with sfSymbol computed property
+#
+# SF Symbol search: https://developer.apple.com/sf-symbols/
+
+# ── Lucide icons used in the codebase → SF Symbol equivalents ──────────────
+lucide:
+  bell:          { sf: "bell.fill" }
+  book-open:     { sf: "book.fill" }
+  briefcase:     { sf: "briefcase.fill" }
+  building-2:    { sf: "building.2" }
+  chevron-left:  { sf: "chevron.left" }
+  chevron-right: { sf: "chevron.right" }
+  circle-help:   { sf: "questionmark.circle" }
+  clock:         { sf: "clock" }
+  code:          { sf: "chevron.left.forwardslash.chevron.right" }
+  compass:       { sf: "safari" }
+  dollar-sign:   { sf: "dollarsign.circle" }
+  file-code:     { sf: "doc.text" }
+  file-text:     { sf: "doc.plaintext" }
+  gavel:         { sf: "building.columns" }
+  heart:         { sf: "heart.fill" }
+  help-circle:   { sf: "questionmark.circle" }
+  megaphone:     { sf: "megaphone.fill" }
+  microscope:    { sf: "microscope" }
+  palette:       { sf: "paintpalette.fill" }
+  pin:           { sf: "pin.fill" }
+  server:        { sf: "server.rack" }
+  share-2:       { sf: "square.and.arrow.up" }
+  shield-check:  { sf: "checkmark.shield.fill" }
+  terminal:      { sf: "terminal" }
+  trending-up:   { sf: "chart.line.uptrend.xyaxis" }
+  tv:            { sf: "tv" }
+  users:         { sf: "person.2.fill" }
+  utensils:      { sf: "fork.knife" }
+  wrench:        { sf: "wrench.fill" }
+  x:             { sf: "xmark" }
+  zap:           { sf: "bolt.fill" }
+
+# ── Custom SVG icon aliases (defined in Icon.svelte) ───────────────────────
+# These map app/feature names to actual SVG filenames in static/icons/
+# The Swift app should use Image("{alias}") which resolves via xcassets.
+aliases:
+  health: heart
+  plants: plant
+  events: event
+  photos: image
+  books: book
+  finance: money
+  code: coding
+  hosting: server
+  diagrams: diagram
+  whiteboards: whiteboard
+  messages: chat
+  pdfeditor: pdf
+  anthropic: claude
+  insights: insight
+  privacy: lock
+  apps: app
+  shared: share
+  messengers: chat
+  developers: coding
+  interface: language
+  contacts: contact

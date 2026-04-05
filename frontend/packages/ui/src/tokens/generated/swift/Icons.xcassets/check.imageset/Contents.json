@@ -1,0 +1,16 @@
+{
+  "images": [
+    {
+      "filename": "check.svg",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "build-tokens.js",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true,
+    "template-rendering-intent": "template"
+  }
+}
