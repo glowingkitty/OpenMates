@@ -157,8 +157,9 @@ export {
 // Utils - export clean update function for cache-clearing reloads on app updates
 export { performCleanUpdate } from "./src/utils/cacheManager";
 
-// Styles
-export * from "./src/styles/constants";
+// Styles — design tokens (single source of truth)
+export * from "./src/tokens/generated/tokens.generated";
+import "./src/tokens/generated/theme.generated.css";
 import "./src/styles/buttons.css";
 import "./src/styles/fields.css";
 import "./src/styles/cards.css";
