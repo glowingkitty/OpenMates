@@ -3,7 +3,7 @@
 Ephemeral Client Console Log Forwarding — Rolling Buffer with Error-Triggered Retention
 
 Receives batched browser console logs from ALL authenticated users and pushes
-them to a short-lived OpenObserve stream (client-logs-ephemeral, 48h retention).
+them to a short-lived OpenObserve stream (client_console_ephemeral, 48h retention).
 When an error-level log is received, a Redis flag is set so a periodic Celery
 task can promote the full session context to a longer-retention stream (14d).
 
@@ -158,7 +158,7 @@ async def receive_ephemeral_client_logs(
     """
     Receive batched browser console logs from any authenticated user.
 
-    Logs are pushed to the 'client-logs-ephemeral' OpenObserve stream (48h retention).
+    Logs are pushed to the 'client_console_ephemeral' OpenObserve stream (48h retention).
     When an error-level entry is present, a Redis flag is set so the periodic
     promotion task copies the full session context to the 14-day error-context stream.
 
