@@ -140,6 +140,7 @@
     <!-- Report Issue (always shown) -->
     <div class="button-wrapper">
       <button
+        data-testid="embed-report-issue-button"
         class="clickable-icon icon_bug top-button"
         onclick={onReportIssue}
         aria-label={$text('header.report_issue')}
