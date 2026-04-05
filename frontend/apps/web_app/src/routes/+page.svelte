@@ -1129,8 +1129,8 @@
 			// be called without this explicit check here.
 			{
 				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
-				const { isDevEnvironment } = await import('@repo/ui/config/api');
-				if (localProfile.is_admin || isDevEnvironment()) {
+				const isDev = import.meta.env.VITE_ENV !== 'production';
+				if (localProfile.is_admin || isDev) {
 					console.debug(
 						'[+page.svelte] Starting clientLogForwarder (admin or dev)'
 					);
