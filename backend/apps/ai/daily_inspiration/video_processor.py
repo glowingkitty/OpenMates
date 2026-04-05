@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional, Set
 import httpx
 import yaml
 
+from backend.apps.ai.daily_inspiration.content_filter import check_video_metadata
 from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, call_preprocessing_llm
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.brave.brave_search import search_videos
@@ -158,20 +159,29 @@ async def _classify_channels_with_llm(
         {
             "role": "user",
             "content": (
-                "Classify each YouTube channel as 'corporate' or 'independent'.\n\n"
-                "A channel is CORPORATE if it is owned by or officially represents a company, "
-                "brand, or corporation of any kind — car manufacturers, oil companies, pharma, "
-                "tech giants, banks, retailers, defense contractors, chemical companies, food "
-                "corporations, consumer brands, PR agencies, lobbying groups, etc.\n\n"
-                "A channel is INDEPENDENT if it belongs to an individual creator, educator, "
-                "journalist, university, non-profit, documentary maker, or research institution "
-                "that is NOT commercially owned by a corporation.\n\n"
-                "Examples of CORPORATE channels: BMW, Shell, Pfizer, Google, Ford, Bayer, "
-                "ExxonMobil, Nestlé, McKinsey, 'Tesla Official', 'Shell Energy', 'Bayer Science'.\n\n"
-                "Examples of INDEPENDENT channels: Kurzgesagt, Veritasium, 3Blue1Brown, "
-                "TED-Ed, SciShow, National Geographic (editorially independent), universities.\n\n"
+                "Classify each YouTube channel into one of these categories.\n\n"
+                "CORPORATE: Owned by or officially represents a company, brand, or corporation "
+                "— car manufacturers, oil companies, pharma, tech giants, banks, retailers, "
+                "defense contractors, chemical companies, food corporations, consumer brands, "
+                "PR agencies, lobbying groups, etc.\n\n"
+                "RELIGIOUS_ORG: Owned by a religious organization, church, ministry, or faith-based "
+                "group. Channels that primarily produce sermons, prayer guides, bible studies, "
+                "worship content, or religious testimonials. Examples: Shalom World, Bible Unbound, "
+                "DesiringGod, Hillsong, The Bible Project, GotQuestions, Daily Bread.\n\n"
+                "REVIEW_CHANNEL: Primarily produces product reviews, unboxing videos, buying guides, "
+                "tech comparisons, or deal alerts. The channel's main purpose is evaluating commercial "
+                "products. Examples: RTINGS, Unbox Therapy, JerryRigEverything, MKBHD (when reviewing "
+                "products), Linus Tech Tips (when reviewing products).\n\n"
+                "INDEPENDENT: Individual creator, educator, journalist, university, non-profit, "
+                "documentary maker, or research institution. NOT commercially owned by a corporation, "
+                "NOT a religious organization, NOT primarily a review channel.\n\n"
+                "Examples: Kurzgesagt, Veritasium, 3Blue1Brown, TED-Ed, SciShow = INDEPENDENT.\n"
+                "BMW, Shell, Pfizer, Google, McKinsey = CORPORATE.\n"
+                "Shalom World, Bible Unbound, DesiringGod = RELIGIOUS_ORG.\n"
+                "RTINGS, Unbox Therapy = REVIEW_CHANNEL.\n\n"
+                "Also output English keyword tags for each channel to describe its content focus.\n\n"
                 f"Channels to classify:\n{channel_list_text}\n\n"
-                "For each entry, return its youtube_id and whether it is 'corporate' or 'independent'."
+                "For each entry, return its youtube_id, classification, and content tags."
             ),
         }
     ]
@@ -180,7 +190,7 @@ async def _classify_channels_with_llm(
         "type": "function",
         "function": {
             "name": "classify_channels",
-            "description": "Classify YouTube channels as corporate or independent.",
+            "description": "Classify YouTube channels by type and content focus.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -196,11 +206,20 @@ async def _classify_channels_with_llm(
                                 },
                                 "classification": {
                                     "type": "string",
-                                    "enum": ["corporate", "independent"],
-                                    "description": "Whether the channel is corporate or independent.",
+                                    "enum": ["corporate", "religious_org", "review_channel", "independent"],
+                                    "description": "The channel type classification.",
+                                },
+                                "tags": {
+                                    "type": "array",
+                                    "description": (
+                                        "English keyword tags describing the channel's content focus. "
+                                        "Always in English regardless of channel language. "
+                                        "Examples: ['religion', 'bible', 'sermon'] or ['tech-review', 'gadget', 'unboxing']."
+                                    ),
+                                    "items": {"type": "string"},
                                 },
                             },
-                            "required": ["youtube_id", "classification"],
+                            "required": ["youtube_id", "classification", "tags"],
                         },
                     }
                 },
@@ -226,19 +245,38 @@ async def _classify_channels_with_llm(
             return set()
 
         classifications = result.arguments.get("classifications", [])
-        corporate_ids: Set[str] = set()
+        rejected_ids: Set[str] = set()
+        rejected_classifications: Dict[str, str] = {}  # youtube_id → classification
         for item in classifications:
-            if isinstance(item, dict) and item.get("classification") == "corporate":
-                youtube_id = item.get("youtube_id")
-                if youtube_id:
-                    corporate_ids.add(youtube_id)
+            if not isinstance(item, dict):
+                continue
+            classification = item.get("classification", "")
+            youtube_id = item.get("youtube_id")
+            if not youtube_id:
+                continue
 
+            # Reject corporate, religious orgs, and review channels
+            if classification in ("corporate", "religious_org", "review_channel"):
+                rejected_ids.add(youtube_id)
+                rejected_classifications[youtube_id] = classification
+                continue
+
+            # Also check the LLM-generated tags against the hardcoded blocklist
+            tags = [t.lower().strip() for t in item.get("tags", []) if isinstance(t, str)]
+            if tags:
+                from backend.apps.ai.daily_inspiration.content_filter import check_tags
+                blocked_tags, _ = check_tags(tags)
+                if blocked_tags:
+                    rejected_ids.add(youtube_id)
+                    rejected_classifications[youtube_id] = f"independent(blocked_tags:{blocked_tags})"
+
+        independent_count = len(classifiable) - len(rejected_ids)
         logger.info(
             f"[DailyInspiration][{task_id}] LLM channel classifier: "
-            f"{len(corporate_ids)} corporate / {len(classifiable) - len(corporate_ids)} independent "
-            f"out of {len(classifiable)} classified"
+            f"{len(rejected_ids)} rejected ({rejected_classifications}) / "
+            f"{independent_count} independent out of {len(classifiable)} classified"
         )
-        return corporate_ids
+        return rejected_ids
 
     except Exception as e:
         logger.warning(
@@ -519,6 +557,41 @@ async def find_video_candidates(
         f"[DailyInspiration] Found {len(candidates)} YouTube candidates for '{topic_phrase}'"
     )
 
+    # ── Layer 3: Video metadata keyword filter ───────────────────────────────
+    # Check video titles and channel names against the shared keyword blocklist
+    # BEFORE any LLM calls. This is a free, instant, deterministic filter that
+    # catches religious content, product reviews, political propaganda, etc.
+    # in the video metadata regardless of language (titles are usually in English
+    # or the user's language, both of which the keyword list covers).
+    keyword_rejected: List[str] = []
+    after_keyword_filter: List[Dict[str, Any]] = []
+    for candidate in candidates:
+        violations = check_video_metadata(
+            title=candidate.get("title", ""),
+            channel_name=candidate.get("channel_name"),
+        )
+        if violations:
+            matched_cats = list(violations.keys())
+            keyword_rejected.append(
+                f"{candidate.get('title', '')[:50]} (ch: {candidate.get('channel_name', '?')}) [{matched_cats}]"
+            )
+        else:
+            after_keyword_filter.append(candidate)
+
+    if keyword_rejected:
+        logger.info(
+            f"[DailyInspiration][{task_id}] Layer 3 keyword filter blocked {len(keyword_rejected)} "
+            f"video(s) for '{topic_phrase}': {keyword_rejected}"
+        )
+    candidates = after_keyword_filter
+
+    if not candidates:
+        logger.warning(
+            f"[DailyInspiration][{task_id}] All candidates rejected by keyword filter "
+            f"for '{topic_phrase}'"
+        )
+        return []
+
     # ── Anti-corporate channel filtering (two layers) ────────────────────────
     # Principle: inspirations must come from independent humans (educators,
     # journalists, documentary makers, universities) — never from corporate
@@ -551,37 +624,37 @@ async def find_video_candidates(
         )
         return []
 
-    # Layer 2: LLM-based channel classification — classify remaining candidates as
-    # corporate or independent. Catches channels not in the seed list but still clearly
-    # corporate (e.g. 'Bayer Science', 'Shell Energy', 'Google DeepMind Official').
+    # Layer 4: LLM-based channel classification — classify remaining candidates as
+    # corporate, religious_org, review_channel, or independent. Also generates English
+    # tags per channel which are checked against the hardcoded blocklist.
     # Fails open: if the LLM call fails, all remaining candidates proceed unfiltered.
-    corporate_youtube_ids = await _classify_channels_with_llm(
+    rejected_youtube_ids = await _classify_channels_with_llm(
         candidates, secrets_manager, task_id=task_id
     )
-    if corporate_youtube_ids:
+    if rejected_youtube_ids:
         llm_rejected = [
             f"{c.get('channel_name')} ({c['youtube_id']})"
             for c in candidates
-            if c["youtube_id"] in corporate_youtube_ids
+            if c["youtube_id"] in rejected_youtube_ids
         ]
         logger.info(
-            f"[DailyInspiration][{task_id}] LLM blocked {len(corporate_youtube_ids)} "
-            f"corporate channel(s) for '{topic_phrase}': {llm_rejected}"
+            f"[DailyInspiration][{task_id}] LLM classifier blocked {len(rejected_youtube_ids)} "
+            f"channel(s) for '{topic_phrase}': {llm_rejected}"
         )
-        candidates = [c for c in candidates if c["youtube_id"] not in corporate_youtube_ids]
+        candidates = [c for c in candidates if c["youtube_id"] not in rejected_youtube_ids]
 
     if not candidates:
         logger.warning(
-            f"[DailyInspiration][{task_id}] All candidates rejected by LLM corporate filter "
+            f"[DailyInspiration][{task_id}] All candidates rejected by LLM channel classifier "
             f"for '{topic_phrase}' — no independent creators found"
         )
         return []
 
     logger.info(
         f"[DailyInspiration][{task_id}] {len(candidates)} independent channel candidates "
-        f"remaining after anti-corporate filtering for '{topic_phrase}'"
+        f"remaining after channel filtering for '{topic_phrase}'"
     )
-    # ── End anti-corporate channel filtering ─────────────────────────────────
+    # ── End channel filtering ────────────────────────────────────────────────
 
     # Enrich with YouTube Data API (view counts, duration)
     candidates = await _enrich_with_youtube(candidates, secrets_manager)
