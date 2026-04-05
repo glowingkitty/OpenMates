@@ -418,23 +418,37 @@ class ChatMethods:
                                 'limit': 1
                             }, admin_required=True)
                             if existing and existing[0].get('encrypted_chat_key'):
-                                logger.warning(
-                                    f"[CHAT_KEY_IMMUTABLE] Upsert for chat {chat_id_val}: "
-                                    f"existing encrypted_chat_key found. Blocking overwrite to "
-                                    f"preserve message decryptability."
-                                )
-                                fields_to_update.pop('encrypted_chat_key', None)
-                                # Also block metadata encrypted with the wrong key
-                                rejected = []
-                                for field in ('encrypted_title', 'encrypted_icon', 'encrypted_category'):
-                                    if field in fields_to_update:
-                                        rejected.append(field)
-                                        fields_to_update.pop(field)
-                                if rejected:
-                                    logger.warning(
-                                        f"[CHAT_KEY_IMMUTABLE] Also blocked metadata fields "
-                                        f"encrypted with rejected key: {rejected}"
+                                existing_key = existing[0]['encrypted_chat_key']
+                                incoming_key = fields_to_update.get('encrypted_chat_key')
+                                if incoming_key == existing_key:
+                                    # Keys match — metadata was encrypted with the correct key.
+                                    # Just skip the redundant key write, allow metadata through.
+                                    # This is the normal case when persist_new_chat_message and
+                                    # persist_encrypted_chat_metadata race to create the same chat.
+                                    fields_to_update.pop('encrypted_chat_key', None)
+                                    logger.debug(
+                                        f"[CHAT_KEY_MATCH] Upsert for chat {chat_id_val}: "
+                                        f"incoming key matches existing. Allowing metadata fields."
                                     )
+                                else:
+                                    # Different key — block key AND metadata encrypted with wrong key
+                                    logger.warning(
+                                        f"[CHAT_KEY_IMMUTABLE] Upsert for chat {chat_id_val}: "
+                                        f"existing encrypted_chat_key found with DIFFERENT incoming key. "
+                                        f"Blocking overwrite to preserve message decryptability."
+                                    )
+                                    fields_to_update.pop('encrypted_chat_key', None)
+                                    # Also block metadata encrypted with the wrong key
+                                    rejected = []
+                                    for field in ('encrypted_title', 'encrypted_icon', 'encrypted_category'):
+                                        if field in fields_to_update:
+                                            rejected.append(field)
+                                            fields_to_update.pop(field)
+                                    if rejected:
+                                        logger.warning(
+                                            f"[CHAT_KEY_IMMUTABLE] Also blocked metadata fields "
+                                            f"encrypted with rejected key: {rejected}"
+                                        )
                         except Exception as key_check_err:
                             logger.error(
                                 f"Failed to check existing chat key for {chat_id_val}: {key_check_err}. "
