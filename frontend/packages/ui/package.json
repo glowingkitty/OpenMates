@@ -26,6 +26,10 @@
       "default": "./src/components/settings/elements/index.ts"
     },
     "./src/styles/*": "./src/styles/*",
+    "./config/api": {
+      "types": "./src/config/api.ts",
+      "default": "./src/config/api.ts"
+    },
     "./services/clientLogForwarder": {
       "types": "./src/services/clientLogForwarder.ts",
       "default": "./src/services/clientLogForwarder.ts"
