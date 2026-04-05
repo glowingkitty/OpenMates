@@ -1196,24 +1196,49 @@ async def handle_main_processing(
     if discovered_apps_metadata:
         # Get the conversation category from preprocessing for category-filtered instructions
         conversation_category = preprocessing_results.category if preprocessing_results else None
-        
+
+        # Build normalized set of relevant embed preview types from preprocessing.
+        # The preprocessor uses freeform strings (e.g., 'email', 'document') that may
+        # differ from app embed type IDs (e.g., 'email', 'doc'). The normalization map
+        # bridges cases where the preprocessor string differs from the app.yml ID.
+        relevant_previews = set()
+        if preprocessing_results and preprocessing_results.relevant_embedded_previews:
+            relevant_previews = set(preprocessing_results.relevant_embedded_previews)
+        PREVIEW_TO_EMBED_TYPE = {
+            "document": "doc",
+        }
+        normalized_previews = set()
+        for p in relevant_previews:
+            normalized_previews.add(p)
+            if p in PREVIEW_TO_EMBED_TYPE:
+                normalized_previews.add(PREVIEW_TO_EMBED_TYPE[p])
+
         for app_id, app_metadata in discovered_apps_metadata.items():
             if not app_metadata.instructions:
                 continue
-            
+
             # Check if this app has any skills preselected for this turn.
-            # If the app has skills but none were preselected, skip its instructions
-            # to avoid mentioning tool names the LLM can't actually call.
+            app_has_preselected_skill = False
             if app_metadata.skills and preselected_skills:
                 app_has_preselected_skill = any(
                     f"{app_id}-{skill.id}" in preselected_skills
                     for skill in app_metadata.skills
                 )
-                if not app_has_preselected_skill:
-                    app_instructions_skipped.append(app_id)
-                    continue
-            
+
             for instruction_def in app_metadata.instructions:
+                # Instructions with for_embed_types bypass skill preselection gating.
+                # They are injected when the preprocessor identified any matching embed
+                # preview type as relevant (e.g., email drafting format instructions
+                # triggered by relevant_embedded_previews: ['email']).
+                if instruction_def.for_embed_types:
+                    if not (set(instruction_def.for_embed_types) & normalized_previews):
+                        continue
+                    # Embed-type match — skip skill preselection, fall through to category check
+                else:
+                    # Standard gating: skip if app has skills but none were preselected
+                    if app_metadata.skills and preselected_skills and not app_has_preselected_skill:
+                        continue
+
                 # Check if instruction has category filtering
                 if instruction_def.categories:
                     # Only include if conversation category matches
@@ -1222,12 +1247,16 @@ async def handle_main_processing(
                         app_instructions_added.append(f"{app_id} (category: {conversation_category})")
                     # Skip if categories specified but don't match
                 else:
-                    # No category filter - include when app has preselected skills
                     prompt_parts.append(instruction_def.instruction)
                     app_instructions_added.append(app_id)
+
+            # Track skipped apps (only if ALL instructions were gated out)
+            if app_metadata.skills and preselected_skills and not app_has_preselected_skill:
+                if not any(inst.for_embed_types for inst in app_metadata.instructions):
+                    app_instructions_skipped.append(app_id)
         
         if app_instructions_added:
-            logger.info(f"{log_prefix} [APP_INSTRUCTIONS] Loaded instructions from apps with preselected skills: {', '.join(app_instructions_added)}")
+            logger.info(f"{log_prefix} [APP_INSTRUCTIONS] Loaded instructions from apps: {', '.join(app_instructions_added)}")
         else:
             logger.debug(f"{log_prefix} [APP_INSTRUCTIONS] No app-specific instructions to load (apps: {list(discovered_apps_metadata.keys())})")
         if app_instructions_skipped:

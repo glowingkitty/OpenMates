@@ -9401,6 +9401,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {/if}
                             <div class="new-chat-button-wrapper">
                                 <button
+                                    data-testid="report-issue-button"
                                     class="clickable-icon icon_bug top-button"
                                     aria-label={$text('header.report_issue')}
                                     onclick={handleReportIssue}
@@ -9411,6 +9412,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {#if isAdminUser}
                                 <div class="new-chat-button-wrapper">
                                     <button
+                                        data-testid="start-debugging-button"
                                         class="clickable-icon icon_task top-button"
                                         class:debug-mode-active={$chatDebugStore.rawTextMode}
                                         aria-label={$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}

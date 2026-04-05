@@ -561,6 +561,191 @@ def _time_range(duration_s: int) -> Tuple[int, int]:
     return start_us, now_us
 
 
+# ── Admin Debug API fallback for production queries ─────────────────────────
+# When OPENOBSERVE_PROD_* env vars are not set, route all prod queries through
+# the Admin Debug API at api.openmates.org/v1/admin/debug/o2/*. This avoids
+# needing direct O2 credentials on dev machines.
+
+
+def _get_admin_api_key() -> str:
+    """Get admin API key from Vault (sync wrapper around async function)."""
+    import asyncio
+    from debug_utils import get_api_key_from_vault
+
+    try:
+        loop = asyncio.new_event_loop()
+        return loop.run_until_complete(get_api_key_from_vault())
+    finally:
+        loop.close()
+
+
+def _admin_api_traces_latest(
+    since_minutes: int,
+    size: int = DEFAULT_QUERY_LIMIT,
+    filter_str: str = "",
+    api_key: str = "",
+) -> List[Dict[str, Any]]:
+    """Fetch latest traces via Admin Debug API proxy."""
+    import httpx
+    from debug_logs import PROD_API_BASE
+
+    if not api_key:
+        print("Cannot query production: no admin API key in Vault", file=sys.stderr)
+        return []
+
+    url = f"{PROD_API_BASE}/o2/traces/latest"
+    params = {"since_minutes": since_minutes, "size": size, "filter": filter_str}
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        resp = httpx.get(url, params=params, headers=headers, timeout=30.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("hits", [])
+        print(f"Admin API traces/latest failed ({resp.status_code}): {resp.text[:200]}", file=sys.stderr)
+        return []
+    except Exception as exc:
+        print(f"Admin API connection error: {exc}", file=sys.stderr)
+        return []
+
+
+def _admin_api_trace_sql(
+    sql: str,
+    since_minutes: int,
+    api_key: str = "",
+) -> List[Dict[str, Any]]:
+    """Execute a SQL trace query via Admin Debug API proxy."""
+    import httpx
+    from debug_logs import PROD_API_BASE
+
+    if not api_key:
+        print("Cannot query production: no admin API key in Vault", file=sys.stderr)
+        return []
+
+    url = f"{PROD_API_BASE}/o2/search"
+    params = {"sql": sql, "since_minutes": since_minutes, "stream_type": "traces"}
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        resp = httpx.get(url, params=params, headers=headers, timeout=30.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("hits", [])
+        print(f"Admin API o2/search failed ({resp.status_code}): {resp.text[:200]}", file=sys.stderr)
+        return []
+    except Exception as exc:
+        print(f"Admin API connection error: {exc}", file=sys.stderr)
+        return []
+
+
+def _collect_full_spans_via_admin_api(
+    traces: List[Dict[str, Any]],
+    since_minutes: int,
+    api_key: str = "",
+) -> List[Dict[str, Any]]:
+    """For each trace summary, fetch full spans via Admin Debug API."""
+    all_spans: List[Dict[str, Any]] = []
+    seen_trace_ids: set = set()
+
+    for trace in traces:
+        trace_id = trace.get("trace_id", "")
+        if not trace_id:
+            fe = trace.get("first_event", {})
+            if isinstance(fe, dict):
+                trace_id = fe.get("trace_id", "")
+        if not trace_id or trace_id in seen_trace_ids:
+            continue
+        seen_trace_ids.add(trace_id)
+
+        sql = (
+            f"SELECT * FROM {TRACE_STREAM} "
+            f"WHERE trace_id = '{trace_id}' "
+            f"ORDER BY start_time ASC"
+        )
+        spans = _admin_api_trace_sql(sql, since_minutes, api_key=api_key)
+        all_spans.extend(spans)
+
+    return all_spans
+
+
+def _main_via_admin_api(args, use_json: bool) -> None:
+    """Execute trace commands via Admin Debug API instead of direct O2 connection."""
+    api_key = _get_admin_api_key()
+    if not api_key:
+        print("Cannot query production: no admin API key in Vault", file=sys.stderr)
+        print("No trace data found.")
+        return
+
+    default_lookback_s = 3600
+
+    if args.command == "request":
+        sql = (
+            f"SELECT * FROM {TRACE_STREAM} "
+            f"WHERE trace_id = '{args.trace_id}' "
+            f"ORDER BY start_time ASC"
+        )
+        spans = _admin_api_trace_sql(sql, since_minutes=10080, api_key=api_key)
+
+    elif args.command == "errors":
+        duration_s = parse_duration(args.last)
+        since_minutes = max(1, duration_s // 60)
+        filter_parts = ["span_status = 'ERROR'"]
+        if getattr(args, "route", None):
+            filter_parts.append(f"operation_name LIKE '%{args.route}%'")
+        traces = _admin_api_traces_latest(since_minutes, filter_str=" AND ".join(filter_parts), api_key=api_key)
+        spans = _collect_full_spans_via_admin_api(traces, since_minutes, api_key=api_key)
+
+    elif args.command == "task":
+        sql = (
+            f"SELECT * FROM {TRACE_STREAM} "
+            f"WHERE messaging_message_id = '{args.task_id}' "
+            f"ORDER BY start_time ASC"
+        )
+        spans = _admin_api_trace_sql(sql, since_minutes=10080, api_key=api_key)
+
+    elif args.command == "session":
+        duration_s = parse_duration(args.last)
+        since_minutes = max(1, duration_s // 60)
+        traces = _admin_api_traces_latest(
+            since_minutes, filter_str=f"enduser_id LIKE '%{args.user}%'", api_key=api_key,
+        )
+        spans = _collect_full_spans_via_admin_api(traces, since_minutes, api_key=api_key)
+
+    elif args.command == "slow":
+        duration_s = parse_duration(args.last)
+        since_minutes = max(1, duration_s // 60)
+        threshold_us = args.threshold * 1000
+        traces = _admin_api_traces_latest(
+            since_minutes, filter_str=f"duration > {threshold_us}", api_key=api_key,
+        )
+        spans = _collect_full_spans_via_admin_api(traces, since_minutes, api_key=api_key)
+
+    elif args.command == "login":
+        since_minutes = max(1, default_lookback_s // 60)
+        traces = _admin_api_traces_latest(
+            since_minutes,
+            filter_str=f"enduser.id LIKE '%{args.user}%' AND operation_name LIKE '%login%'",
+            api_key=api_key,
+        )
+        spans = _collect_full_spans_via_admin_api(traces, since_minutes, api_key=api_key)
+
+    elif args.command == "recent":
+        duration_s = parse_duration(args.last)
+        since_minutes = max(1, duration_s // 60)
+        limit = getattr(args, "limit", RECENT_DEFAULT_LIMIT)
+        traces = _admin_api_traces_latest(since_minutes, size=limit, api_key=api_key)
+        spans = _collect_full_spans_via_admin_api(traces, since_minutes, api_key=api_key)
+
+    else:
+        print(f"Unknown trace command: {args.command}", file=sys.stderr)
+        sys.exit(1)
+
+    if use_json:
+        print(format_json(spans))
+    else:
+        print(format_trace_timeline(spans))
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     """Entry point for the trace CLI subcommand.
 
@@ -575,19 +760,19 @@ def main(argv: Optional[List[str]] = None) -> None:
         argv = sys.argv[1:]
 
     args = parse_args(argv)
-    base_url = _get_base_url(args.production)
-    auth = _get_auth(args.production)
     use_json = getattr(args, "json_output", False)
 
-    if args.production and (not auth[0] or not auth[1]):
-        print(
-            "Production OpenObserve not configured. "
-            "Set OPENOBSERVE_PROD_URL, OPENOBSERVE_PROD_EMAIL, "
-            "OPENOBSERVE_PROD_PASSWORD env vars.",
-            file=sys.stderr,
-        )
-        print("No trace data found.")
+    # Determine whether to use direct O2 connection or Admin Debug API proxy.
+    # The Admin Debug API runs inside the prod Docker network and has local O2 access,
+    # so no OPENOBSERVE_PROD_* env vars are needed.
+    auth = _get_auth(args.production)
+    use_admin_api = args.production and (not auth[0] or not auth[1])
+
+    if use_admin_api:
+        _main_via_admin_api(args, use_json)
         return
+
+    base_url = _get_base_url(args.production)
 
     # Default lookback for commands that don't have --last
     default_lookback_s = 3600  # 1 hour

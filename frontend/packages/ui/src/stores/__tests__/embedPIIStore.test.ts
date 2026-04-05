@@ -17,13 +17,13 @@ import {
 import type { PIIMapping } from "../../types/chat";
 
 const emailMapping: PIIMapping = {
-  placeholder: "[EMAIL_com]",
+  placeholder: "[EMAIL_1_com]",
   original: "user@example.com",
   type: "email",
 };
 
 const phoneMapping: PIIMapping = {
-  placeholder: "[PHONE_1]",
+  placeholder: "[PHONE_1_100]",
   original: "+1-555-0100",
   type: "phone",
 };

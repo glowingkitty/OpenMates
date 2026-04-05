@@ -84,20 +84,25 @@ These are safe, reliable commands that should never fail. Issue them all in para
 
 9. **Previous meeting state** — Read: `scripts/.daily-meeting-state.json`
 
+10. **Daily inspiration audit** — Bash:
+    ```bash
+    docker exec api python /app/backend/scripts/audit_inspiration_pool.py --include-defaults --json 2>/dev/null
+    ```
+
 #### Parallel Batch 1a-linear — Linear tasks (issue simultaneously with batch 1a):
 
-10. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age. Collect the title of every task.
+11. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age. Collect the title of every task.
 
 #### Parallel Batch 1b — potentially-failing commands (issue separately from batch 1a)
 
 These commands may fail due to missing config. Issue them in a SEPARATE parallel batch from 1a so failures here don't cascade and cancel the reliable commands above.
 
-11. **OpenObserve prod errors** — Bash:
+12. **OpenObserve prod errors** — Bash:
    ```bash
    docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health --prod
    ```
 
-12. **Production server stats** — Bash:
+13. **Production server stats** — Bash:
    ```bash
    docker exec api python3 /app/backend/scripts/server_stats_query.py --prod
    ```
@@ -128,6 +133,7 @@ Follow the 9-step meeting agenda from the prompt template. **Present ONE section
 1. **STATUS CLEANUP 🧹** — stale/ghost tasks, ask user to confirm status changes
 2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
 3. **SYSTEM HEALTH 🏥** — outages, test failures, errors, data gaps
+3b. **DAILY INSPIRATIONS REVIEW 📰** — show current public default inspirations from the audit data (pool violations count, defaults violations count, and list the titles of today's 3 English defaults). Flag any entries that look low-quality, off-topic, or borderline even if they passed the keyword filter. Ask the user if any should be removed or if the keyword blocklist needs updates.
 4. **PROJECT TRAJECTORY 🗺️** — milestone progress, session quality
 5. **CONTEXT QUESTIONS 🔍** — 5 rounds of targeted questions (one per round, wait for answer each time) to understand the user's current focus, blockers, energy, and upcoming commitments before suggesting priorities
 6. **TODAY'S PRIORITIES 🎯** — present top 10 informed by all data + user answers, ask for confirmation

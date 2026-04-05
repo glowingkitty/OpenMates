@@ -94,7 +94,9 @@ embed_types:
       - name: result_count
         type: number
 instructions:
-  - instruction: |
+  - for_embed_types:
+      - email
+    instruction: |
       **Email Drafting (Mail App)**
       When the user asks to draft, write, compose, or send an email, output the draft inside:
       ```email

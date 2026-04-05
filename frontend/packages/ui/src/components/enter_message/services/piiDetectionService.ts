@@ -89,8 +89,8 @@ interface PIIPattern {
   regex: RegExp;
   /** Human-readable label for the PII type */
   label: string;
-  /** Function to generate placeholder text */
-  getPlaceholder: (match: string, index: number) => string;
+  /** Function to generate placeholder text. Counter is a 1-based per-type index. */
+  getPlaceholder: (match: string, counter: number) => string;
   /** Optional validation function for additional checks (e.g., Luhn for credit cards) */
   validate?: (match: string) => boolean;
 }
@@ -195,20 +195,20 @@ const PII_PATTERNS: PIIPattern[] = [
     type: "AWS_ACCESS_KEY",
     regex: /\bAKIA[0-9A-Z]{16}\b/g,
     label: "AWS Access Key",
-    getPlaceholder: (match) => `[AWS_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[AWS_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "OPENAI_KEY",
     // Matches: sk-proj-..., sk-svcacct-..., sk-... (legacy)
     regex: /\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,200}\b/g,
     label: "OpenAI API Key",
-    getPlaceholder: (match) => `[OPENAI_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[OPENAI_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "ANTHROPIC_KEY",
     regex: /\bsk-ant-api03-[A-Za-z0-9_-]{90,110}\b/g,
     label: "Anthropic API Key",
-    getPlaceholder: (match) => `[ANTHROPIC_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[ANTHROPIC_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "GITHUB_PAT",
@@ -216,27 +216,27 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b(?:ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}|gho_[a-zA-Z0-9]{36})\b/g,
     label: "GitHub Token",
-    getPlaceholder: (match) => `[GITHUB_TOKEN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[GITHUB_TOKEN_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "STRIPE_KEY",
     // Live, test, and restricted keys
     regex: /\b[sr]k_(?:live|test)_[0-9a-zA-Z]{24,99}\b/g,
     label: "Stripe API Key",
-    getPlaceholder: (match) => `[STRIPE_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[STRIPE_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "GOOGLE_API_KEY",
     regex: /\bAIza[0-9A-Za-z\-_]{35}\b/g,
     label: "Google API Key",
-    getPlaceholder: (match) => `[GOOGLE_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[GOOGLE_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "SLACK_TOKEN",
     // Bot, user, and app tokens
     regex: /\bxox[bpras]-[0-9a-zA-Z-]{10,250}\b/g,
     label: "Slack Token",
-    getPlaceholder: (match) => `[SLACK_TOKEN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[SLACK_TOKEN_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "AWS_SECRET_KEY",
@@ -245,21 +245,21 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:aws_secret|secret_key|secretkey|secret_access_key)['":\s=]+([0-9a-zA-Z/+=]{40})\b/gi,
     label: "AWS Secret Key",
-    getPlaceholder: (match) => `[AWS_SECRET_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[AWS_SECRET_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "TWILIO_KEY",
     // Twilio Account SID (AC...) and Auth Token (SK...)
     regex: /\b(?:AC[a-f0-9]{32}|SK[a-f0-9]{32})\b/g,
     label: "Twilio Key",
-    getPlaceholder: (match) => `[TWILIO_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[TWILIO_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "SENDGRID_KEY",
     // SendGrid API keys start with SG.
     regex: /\bSG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}\b/g,
     label: "SendGrid API Key",
-    getPlaceholder: (match) => `[SENDGRID_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[SENDGRID_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "AZURE_KEY",
@@ -268,28 +268,28 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:azure|subscription|ocp-apim)[_-]?(?:key|secret|token)['":\s=]+([0-9a-f]{32})\b/gi,
     label: "Azure Key",
-    getPlaceholder: (match) => `[AZURE_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[AZURE_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "HUGGINGFACE_KEY",
     // Hugging Face API tokens: hf_...
     regex: /\bhf_[a-zA-Z0-9]{34,}\b/g,
     label: "Hugging Face Token",
-    getPlaceholder: (match) => `[HF_TOKEN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[HF_TOKEN_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "DATABRICKS_TOKEN",
     // Databricks personal access tokens: dapi...
     regex: /\bdapi[a-f0-9]{32,40}\b/g,
     label: "Databricks Token",
-    getPlaceholder: (match) => `[DATABRICKS_TOKEN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[DATABRICKS_TOKEN_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "FIREBASE_KEY",
     // Firebase server keys typically start with AAAA and are ~152 chars
     regex: /\bAAAA[A-Za-z0-9_-]{100,200}\b/g,
     label: "Firebase Key",
-    getPlaceholder: (match) => `[FIREBASE_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[FIREBASE_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
 
   {
@@ -302,7 +302,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:api[_-]?key|api[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token|bearer[_-]?token|private[_-]?key|password|passwd|credential|client[_-]?secret|app[_-]?secret|signing[_-]?key|encryption[_-]?key)['":\s=]+['"]?([A-Za-z0-9_\-/.+=]{8,200})['"]?/gi,
     label: "Secret/Credential",
-    getPlaceholder: (match) => `[SECRET_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[SECRET_${counter}_${getSecretSuffix(match)}]`,
   },
 
   // Private keys and tokens
@@ -311,14 +311,14 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/g,
     label: "Private Key",
-    getPlaceholder: (match) => `[PRIVATE_KEY_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[PRIVATE_KEY_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "JWT",
     // JWT format: base64.base64.base64
     regex: /\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+/g,
     label: "JWT Token",
-    getPlaceholder: (match) => `[JWT_TOKEN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[JWT_TOKEN_${counter}_${getSecretSuffix(match)}]`,
   },
 
   // Personal identifiers
@@ -326,7 +326,7 @@ const PII_PATTERNS: PIIPattern[] = [
     type: "EMAIL",
     regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
     label: "Email Address",
-    getPlaceholder: (match) => `[EMAIL_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[EMAIL_${counter}_${getSecretSuffix(match)}]`,
   },
   {
     type: "CREDIT_CARD",
@@ -335,7 +335,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4})\b/g,
     label: "Credit Card",
-    getPlaceholder: (match) => `[CARD_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[CARD_${counter}_${getSecretSuffix(match)}]`,
     validate: luhnCheck,
   },
   {
@@ -343,7 +343,7 @@ const PII_PATTERNS: PIIPattern[] = [
     // US Social Security Number: XXX-XX-XXXX or XXX XX XXXX or XXXXXXXXX
     regex: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
     label: "SSN",
-    getPlaceholder: (match) => `[SSN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[SSN_${counter}_${getSecretSuffix(match)}]`,
     // Additional validation: first 3 digits can't be 000, 666, or 900-999
     validate: (match: string) => {
       const digits = match.replace(/\D/g, "");
@@ -379,7 +379,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:(?:\+|00)[1-9]\d{0,2}[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})|(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}|(?:0\d[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})/g,
     label: "Phone Number",
-    getPlaceholder: (match) => `[PHONE_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[PHONE_${counter}_${getSecretSuffix(match)}]`,
     // Validate: require at least 7 digits total (country code excluded) to avoid
     // matching short number-like strings (zip codes, years, short IDs).
     validate: (match: string) => {
@@ -410,7 +410,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
     label: "IP Address",
-    getPlaceholder: (match) => `[IP_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[IP_${counter}_${getSecretSuffix(match)}]`,
     // Exclude common non-sensitive IPs
     validate: (match: string) => {
       // Allow localhost and private ranges to pass through (not sensitive)
@@ -429,7 +429,7 @@ const PII_PATTERNS: PIIPattern[] = [
     // Full IPv6 format
     regex: /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b/g,
     label: "IPv6 Address",
-    getPlaceholder: (match) => `[IPV6_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[IPV6_${counter}_${getSecretSuffix(match)}]`,
   },
 
   // Bank account numbers (IBAN)
@@ -441,7 +441,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b[A-Z]{2}\d{2}[\s]?[\dA-Z]{4}[\s]?(?:[\dA-Z]{4}[\s]?){1,7}[\dA-Z]{1,4}\b/g,
     label: "IBAN",
-    getPlaceholder: (match) => `[IBAN_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[IBAN_${counter}_${getSecretSuffix(match)}]`,
     validate: ibanCheck,
   },
 
@@ -461,7 +461,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:\/home\/|\/Users\/|[A-Z]:\\Users\\)[a-zA-Z0-9_.-]{1,64}(?=[/\\]|\b)|PS [A-Z]:\\Users\\[a-zA-Z0-9_.-]{1,64}(?=[\\>]|\b)|PS \/(?:home|Users)\/[a-zA-Z0-9_.-]{1,64}(?=[/>]|\b)/g,
     label: "Home Folder",
-    getPlaceholder: (match) => `[HOME_PATH_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[HOME_PATH_${counter}_${getSecretSuffix(match)}]`,
     // Exclude common system/service accounts that are not personal
     validate: (match: string) => {
       const username = match
@@ -497,7 +497,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,31}@[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}(?=[\s:~])/g,
     label: "User@Hostname",
-    getPlaceholder: (match) => `[USER_HOST_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[USER_HOST_${counter}_${getSecretSuffix(match)}]`,
     // Exclude well-known service accounts and non-personal user@host patterns
     validate: (match: string) => {
       const username = match.split("@")[0].toLowerCase();
@@ -541,7 +541,7 @@ const PII_PATTERNS: PIIPattern[] = [
     // Case-insensitive, requires word boundaries to avoid matching inside hex strings.
     regex: /\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b/g,
     label: "MAC Address",
-    getPlaceholder: (match) => `[MAC_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[MAC_${counter}_${getSecretSuffix(match)}]`,
     // Exclude broadcast and zero addresses
     validate: (match: string) => {
       const normalized = match.replace(/[:-]/g, "").toUpperCase();
@@ -566,7 +566,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:passport|reisepass|passeport|pass(?:port)?[\s._-]?(?:no|nr|num(?:ber)?|#))[:\s#=]*([A-Z0-9]{6,9})\b/gi,
     label: "Passport Number",
-    getPlaceholder: (match) => `[PASSPORT_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[PASSPORT_${counter}_${getSecretSuffix(match)}]`,
   },
 
   // Tax ID / VAT numbers (EU VAT + context-dependent national formats)
@@ -585,7 +585,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b(?:AT ?U\d{8}|BE ?0?\d{9,10}|BG ?\d{9,10}|HR ?\d{11}|CY ?\d{8}[A-Z]|CZ ?\d{8,10}|DK ?\d{8}|EE ?\d{9}|FI ?\d{8}|FR ?[0-9A-Z]{2}\d{9}|DE ?\d{9}|EL ?\d{9}|HU ?\d{8}|IE ?\d{7}[A-Z]{1,2}|IT ?\d{11}|LV ?\d{11}|LT ?\d{9,12}|LU ?\d{8}|MT ?\d{8}|NL ?\d{9}B\d{2}|PL ?\d{10}|PT ?\d{9}|RO ?\d{2,10}|SK ?\d{10}|SI ?\d{8}|ES ?[A-Z0-9]\d{7}[A-Z0-9]|SE ?\d{12}|GB ?\d{9}(?:\d{3})?)\b|(?:tax[\s_-]?(?:id|number|no|nr)|steuer(?:nummer|identifikationsnummer|nr|ident(?:nummer)?)?|tin|vat[\s_-]?(?:id|number|no|nr)?|tax[\s_-]?identification(?:[\s_-]?number)?)[:\s#=]+([A-Z0-9\s/-]{5,20})/gi,
     label: "Tax ID",
-    getPlaceholder: (match) => `[TAX_ID_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[TAX_ID_${counter}_${getSecretSuffix(match)}]`,
   },
 
   // Vehicle license plate numbers (DE, AT, CH, UK, FR, NL, IT, ES, PL, US)
@@ -601,7 +601,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /(?:license[\s_-]?plate|plate[\s_-]?(?:number|no|nr)|kennzeichen|nummernschild|kfz[\s_-]?kennzeichen|immatriculation|registration[\s_-]?(?:number|no|nr|plate)|vrm|numberplate)[:\s#=]*([A-Z0-9]{1,4}[\s-]?[A-Z0-9]{1,4}[\s-]?[A-Z0-9]{1,6})\b/gi,
     label: "Vehicle Plate",
-    getPlaceholder: (match) => `[PLATE_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[PLATE_${counter}_${getSecretSuffix(match)}]`,
   },
 
   // Cryptocurrency wallet addresses (Bitcoin + Ethereum)
@@ -620,7 +620,7 @@ const PII_PATTERNS: PIIPattern[] = [
     regex:
       /\b(?:bc1[a-z0-9]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|0x[0-9a-fA-F]{40})\b/g,
     label: "Crypto Wallet",
-    getPlaceholder: (match) => `[WALLET_${getSecretSuffix(match)}]`,
+    getPlaceholder: (match, counter) => `[WALLET_${counter}_${getSecretSuffix(match)}]`,
   },
 ];
 
@@ -741,8 +741,11 @@ export function detectPII(
   const matches: PIIMatch[] = [];
   const coveredRanges: Array<{ start: number; end: number }> = [];
 
-  // Note: typeCounts no longer needed — suffix-based placeholders use the last
-  // 3 characters of the matched value instead of sequential counters.
+  // Per-type counter for unique placeholders. Even with suffix-based naming,
+  // collisions occur when multiple values share the same suffix (e.g., two
+  // emails ending in ".com" both produce suffix "com"). The counter ensures
+  // every placeholder is unique: [EMAIL_1_com], [EMAIL_2_com], etc.
+  const typeCounts: Record<string, number> = {};
 
   const hasExclusions = excludedIds.size > 0;
   const hasDisabledCategories = disabledCategories.size > 0;
@@ -815,12 +818,15 @@ export function detectPII(
         // IDs are now stable ("pii-TYPE-startIndex") so a direct Set.has() works — O(1).
         if (hasExclusions && excludedIds.has(matchId)) continue;
 
+        // Increment per-type counter for unique placeholder generation
+        typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
+
         matches.push({
           type: pattern.type,
           match: matchText,
           startIndex,
           endIndex,
-          placeholder: pattern.getPlaceholder(matchText, 0),
+          placeholder: pattern.getPlaceholder(matchText, typeCounts[pattern.type]),
           id: matchId,
         });
 
@@ -985,7 +991,7 @@ export interface PIIMappingGeneric {
  * PIIMapping format for storage (matches the PIIMapping interface in types/chat.ts)
  */
 export interface PIIMappingForStorage {
-  /** The placeholder text (e.g., "[EMAIL_com]") */
+  /** The placeholder text (e.g., "[EMAIL_1_com]") */
   placeholder: string;
   /** The original PII value (e.g., "user@example.com") */
   original: string;
@@ -1047,7 +1053,7 @@ export function replacePIIOriginalsWithPlaceholders(
  * Restore PII placeholders in text with their original values.
  * Used for displaying the original user content in read-only messages.
  *
- * @param text Text containing PII placeholders (e.g., "[EMAIL_com]")
+ * @param text Text containing PII placeholders (e.g., "[EMAIL_1_com]")
  * @param mappings Array of PII mappings from storage
  * @returns Text with placeholders replaced by original plain-text values
  */

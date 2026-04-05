@@ -502,6 +502,34 @@ async def _async_process_ai_skill_ask_task(
                 
         raise RuntimeError(f"Service initialization failed: {e}")
 
+    # --- Idempotency Guard: Prevent duplicate task execution ---
+    # Celery broker (Dragonfly/Redis) can redeliver the same task message due to
+    # retry_on_timeout or acks_late race conditions. Both copies carry the same task_id.
+    # Use SET NX (set-if-not-exists) to ensure only the first execution proceeds.
+    # TTL of 600s (10 min) covers the max task time_limit (360s) with margin.
+    if cache_service_instance:
+        try:
+            dedup_key = f"celery_task_dedup:{task_id}"
+            client = await cache_service_instance.client
+            was_set = await client.set(dedup_key, "1", ex=600, nx=True)
+            if not was_set:
+                logger.warning(
+                    f"[Task ID: {task_id}] DEDUP: Duplicate task execution detected for "
+                    f"chat_id={request_data.chat_id}, message_id={request_data.message_id}. "
+                    f"Skipping to prevent double processing and double charging."
+                )
+                return {
+                    "status": "deduplicated_skip",
+                    "task_id": task_id,
+                    "chat_id": request_data.chat_id,
+                    "message_id": request_data.message_id,
+                    "_celery_task_state": "SUCCESS"
+                }
+            logger.info(f"[Task ID: {task_id}] DEDUP: Acquired processing lock (key={dedup_key}, ttl=600s)")
+        except Exception as dedup_err:
+            # Don't fail the task if dedup check fails — proceed with processing
+            # This is a safety net, not a hard requirement
+            logger.warning(f"[Task ID: {task_id}] DEDUP: Could not check/set dedup key: {dedup_err}. Proceeding with execution.")
 
     # --- Load configurations from cache (preloaded by main API server at startup) ---
     # The main API server preloads these into the shared Dragonfly cache during startup.

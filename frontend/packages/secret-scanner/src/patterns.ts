@@ -25,7 +25,7 @@ export interface SecretPattern {
   regex: RegExp;
   /** Human-readable label */
   label: string;
-  /** Prefix for placeholder tokens, e.g. "OPENAI_KEY" → [OPENAI_KEY_f9d] */
+  /** Prefix for placeholder tokens, e.g. "OPENAI_KEY" → [OPENAI_KEY_1_f9d] */
   placeholderPrefix: string;
   /** Optional validation function for additional checks */
   validate?: (match: string) => boolean;
@@ -46,18 +46,22 @@ export function getSecretSuffix(match: string, n = 3): string {
 
 /**
  * Generate a placeholder token for a detected secret.
+ * Always includes a 1-based counter to prevent collisions when multiple
+ * values share the same suffix (e.g., two emails ending in ".com").
  *
  * @param prefix The type prefix (e.g., "OPENAI_KEY")
  * @param match The matched secret value
  * @param suffixLength Number of trailing chars to include (default: 3)
- * @returns Placeholder token, e.g. "[OPENAI_KEY_f9d]"
+ * @param counter 1-based per-type counter for uniqueness
+ * @returns Placeholder token, e.g. "[OPENAI_KEY_1_f9d]"
  */
 export function generatePlaceholder(
   prefix: string,
   match: string,
   suffixLength = 3,
+  counter = 1,
 ): string {
-  return `[${prefix}_${getSecretSuffix(match, suffixLength)}]`;
+  return `[${prefix}_${counter}_${getSecretSuffix(match, suffixLength)}]`;
 }
 
 /**

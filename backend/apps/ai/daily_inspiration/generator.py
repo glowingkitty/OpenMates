@@ -23,7 +23,12 @@ import time
 import uuid
 from typing import Any, Dict, List
 
+from backend.apps.ai.daily_inspiration.content_filter import (
+    check_video_metadata,
+    is_blocked_topic,
+)
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationVideo
+from backend.apps.ai.daily_inspiration.validator import validate_inspiration
 from backend.apps.ai.daily_inspiration.video_processor import find_video_candidates
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -33,170 +38,9 @@ logger = logging.getLogger(__name__)
 # Model for inspiration generation — same as post-processing for cost efficiency
 INSPIRATION_MODEL_ID = "mistral/mistral-small-2506"
 
-# Lowercase substrings that identify OpenMates-related topic suggestions.
-# Any topic suggestion containing one of these (case-insensitive) is excluded from
-# the inspiration generator — daily inspirations must never promote the platform itself.
-_OPENMATES_TOPIC_KEYWORDS = [
-    "openmates",
-    "open mates",
-    "openmate",
-    "open mate",
-]
-
-# Lowercase substrings that identify corporate/greenwashing topic suggestions.
-# Topics that are inherently framed around corporate narratives or that are
-# likely to surface corporate PR videos (e.g. "automotive sustainability") are
-# excluded from the inspiration pipeline. The principle: inspirations should
-# spark genuine curiosity, not surface company PR disguised as education.
-# These patterns catch topic suggestions that would inevitably produce
-# search results dominated by corporate greenwashing content.
-_CORPORATE_GREENWASHING_KEYWORDS = [
-    # Industry-as-hero greenwashing frames
-    "industry sustainability",
-    "industry going green",
-    "industry transition",
-    "industry transformation",
-    "industry innovation",
-    "industry future",
-    "industry 2030",
-    "industry 2050",
-    "industry net zero",
-    "industry carbon",
-    "industry clean",
-    "industry racing",
-    "industry leading",
-    "corporate sustainability",
-    "corporate responsibility",
-    "corporate innovation",
-    "corporate social",
-    "esg investment",
-    "green investment",
-    # Automotive-specific greenwashing
-    "automotive sustainability",
-    "automotive innovation",
-    "car industry green",
-    "car company future",
-    "electric car company",
-    "ev company",
-    # Oil/energy greenwashing
-    "oil company clean",
-    "oil company green",
-    "oil company renewable",
-    "fossil fuel transition",
-    "gas company sustainable",
-    "energy company future",
-    "energy company clean",
-    # Pharma/biotech PR
-    "pharma innovation",
-    "pharma pipeline",
-    "pharmaceutical company",
-    "drug company",
-    # Big tech PR
-    "big tech responsibility",
-    "tech giant",
-    "tech company innovation",
-    # Generic corporate PR patterns
-    "company going green",
-    "brand sustainability",
-    "brand innovation",
-]
-
-
-def _is_corporate_greenwashing_topic(phrase: str) -> bool:
-    """
-    Return True if a topic suggestion is likely to surface corporate greenwashing content.
-
-    Catches topic suggestions framed around industry or corporate narratives that
-    would inevitably return corporate PR videos from Brave search — even when the
-    content appears educational. For example, "automotive industry sustainability"
-    would return BMW/Toyota official channel videos instead of independent analysis.
-
-    Uses substring matching (case-insensitive). False positives are acceptable —
-    the user's other topic suggestions or generic fallbacks are used instead.
-    """
-    lower = phrase.lower()
-    return any(kw in lower for kw in _CORPORATE_GREENWASHING_KEYWORDS)
-
-
-# Lowercase substrings that identify sensitive/harmful topic suggestions.
-# Topics touching drugs, explicit sexual content, or graphic violence are excluded
-# from the inspiration pipeline so the feature stays educational and family-friendly.
-# These are intentionally broad to catch edge cases (e.g. "crystal meth synthesis",
-# "drug cartel violence", "explicit sex scene breakdown").
-_SENSITIVE_TOPIC_KEYWORDS = [
-    # Drugs / substance abuse
-    "drug",
-    "cocaine",
-    "heroin",
-    "methamphetamine",
-    "meth ",
-    " meth",
-    "fentanyl",
-    "opioid",
-    "opiate",
-    "marijuana",
-    "cannabis",
-    "weed ",
-    " weed",
-    "lsd ",
-    " lsd",
-    "psychedelic drug",
-    "substance abuse",
-    "drug trafficking",
-    "drug cartel",
-    "narco",
-    # Explicit sexual content
-    "pornograph",
-    "porn ",
-    " porn",
-    "explicit sex",
-    "sex tape",
-    "onlyfans",
-    "adult content",
-    "nsfw",
-    "erotic",
-    # Graphic violence / weapons
-    "graphic violence",
-    "gore ",
-    " gore",
-    "snuff",
-    "torture",
-    "beheading",
-    "mass shooting",
-    "school shooting",
-    "bomb making",
-    "how to make a bomb",
-    "how to make explosives",
-    "weapon synthesis",
-    # Self-harm
-    "suicide method",
-    "how to commit suicide",
-    "self-harm method",
-]
-
-
-def _is_openmates_topic(phrase: str) -> bool:
-    """
-    Return True if a topic suggestion phrase references OpenMates.
-
-    Uses substring matching (case-insensitive) so variations like
-    "OpenMates features", "open mates platform", or "Openmates AI" are all caught.
-    """
-    lower = phrase.lower()
-    return any(kw in lower for kw in _OPENMATES_TOPIC_KEYWORDS)
-
-
-def _is_sensitive_topic(phrase: str) -> bool:
-    """
-    Return True if a topic suggestion phrase touches drugs, explicit sexual content,
-    or graphic violence and should be excluded from the inspiration pipeline.
-
-    Uses substring matching (case-insensitive) with intentionally broad keywords
-    to catch edge cases. False positives (e.g. a legitimate topic filtered out)
-    are acceptable — the user's other topic suggestions or generic fallbacks are used instead.
-    """
-    lower = phrase.lower()
-    return any(kw in lower for kw in _SENSITIVE_TOPIC_KEYWORDS)
+# Topic keyword filtering is now handled by the shared content_filter module.
+# See: backend/apps/ai/daily_inspiration/content_filter.py
+# Keywords defined in: backend/shared/config/blocked_content_keywords.yml
 
 
 # Available chat categories (must match frontend categoryUtils.ts)
@@ -596,20 +440,18 @@ async def generate_inspirations(
     if topic_suggestions:
         # Deduplicate while preserving order (dict.fromkeys keeps first occurrence)
         unique_pool = list(dict.fromkeys(topic_suggestions))
-        # Remove any suggestions that reference OpenMates, touch sensitive content
-        # (drugs, explicit sexual content, graphic violence), or are framed around
-        # corporate/greenwashing narratives that would surface company PR videos.
+        # Remove any suggestions that match blocked content keywords (religious,
+        # product reviews, political, corporate PR, sensitive, OpenMates).
+        # Uses word-boundary regex matching from the shared content_filter module.
         filtered_pool = [
             p for p in unique_pool
-            if not _is_openmates_topic(p)
-            and not _is_sensitive_topic(p)
-            and not _is_corporate_greenwashing_topic(p)
+            if not is_blocked_topic(p)
         ]
         excluded = len(unique_pool) - len(filtered_pool)
         if excluded > 0:
             logger.info(
                 f"[DailyInspiration][{task_id}] Excluded {excluded} topic suggestion(s) "
-                f"(OpenMates-related, sensitive, or corporate greenwashing content) from inspiration generation"
+                f"(blocked content keywords) from inspiration generation"
             )
         # Randomly sample up to `count` phrases from the filtered 3-day pool
         sample_size = min(count, len(filtered_pool))
@@ -656,14 +498,11 @@ async def generate_inspirations(
         return []
 
     # Step 3: Single LLM call to generate all inspiration items.
-    # Filter OpenMates references, sensitive topics, and corporate greenwashing frames
-    # from the topic_suggestions context passed to the LLM, so the model never sees
-    # them as inspiration seeds even indirectly.
+    # Filter blocked topics from the context passed to the LLM, so the model
+    # never sees them as inspiration seeds even indirectly.
     filtered_topic_suggestions = [
         p for p in topic_suggestions
-        if not _is_openmates_topic(p)
-        and not _is_sensitive_topic(p)
-        and not _is_corporate_greenwashing_topic(p)
+        if not is_blocked_topic(p)
     ]
     messages = _build_generation_prompt(
         filtered_topic_suggestions, video_candidates_per_slot, count, language=language,
@@ -735,6 +574,29 @@ async def generate_inspirations(
             )
             continue
 
+        # ── Layer 3 (post-LLM): keyword check on generated + video content ────
+        # The LLM may have selected a video or written content that violates policy.
+        # Check the combined text of the generated content + video metadata against
+        # the keyword blocklist before accepting the inspiration.
+        combined_violations = check_video_metadata(
+            title=candidate.get("title", ""),
+            channel_name=candidate.get("channel_name"),
+        )
+        # Also check the LLM-generated text itself
+        generated_text = f"{phrase} {title} {assistant_response or ''}"
+        from backend.apps.ai.daily_inspiration.content_filter import check_text
+        generated_violations = check_text(generated_text)
+        all_violations = {**combined_violations, **generated_violations}
+        if all_violations:
+            matched_cats = list(all_violations.keys())
+            matched_kws = [kw for kws in all_violations.values() for kw in kws[:3]]
+            logger.warning(
+                f"[DailyInspiration][{task_id}] Layer 3 keyword filter REJECTED inspiration "
+                f"'{title}' (video: {candidate.get('title', '')[:50]}) — "
+                f"categories={matched_cats}, keywords={matched_kws}"
+            )
+            continue
+
         video = DailyInspirationVideo(
             youtube_id=youtube_id,
             title=candidate.get("title", ""),
@@ -758,6 +620,42 @@ async def generate_inspirations(
         )
         inspirations.append(inspiration)
         used_youtube_ids.add(youtube_id)
+
+    # ── Layer 6: Post-generation adversarial LLM validator ───────────────────
+    # Separate LLM call that classifies each assembled inspiration as PASS/REJECT
+    # with English tags. Catches violations that keywords miss (non-English content,
+    # subtle religious/commercial framing). Only runs on inspirations that passed
+    # the keyword check above.
+    if inspirations:
+        validated_inspirations: List[DailyInspiration] = []
+        for inspiration in inspirations:
+            try:
+                is_valid = await validate_inspiration(
+                    phrase=inspiration.phrase,
+                    title=inspiration.title,
+                    assistant_response=inspiration.assistant_response or "",
+                    video_title=inspiration.video.title if inspiration.video else "",
+                    channel_name=inspiration.video.channel_name if inspiration.video else "",
+                    secrets_manager=secrets_manager,
+                    task_id=task_id,
+                )
+                if is_valid:
+                    validated_inspirations.append(inspiration)
+                else:
+                    logger.warning(
+                        f"[DailyInspiration][{task_id}] Layer 6 validator REJECTED: "
+                        f"'{inspiration.title}' (video: {inspiration.video.title[:50] if inspiration.video else '?'})"
+                    )
+            except Exception as e:
+                # Fail open: if the validator crashes, keep the inspiration.
+                # The keyword check already passed, and a validator failure shouldn't
+                # block all inspirations.
+                logger.warning(
+                    f"[DailyInspiration][{task_id}] Layer 6 validator error for "
+                    f"'{inspiration.title}': {e} — keeping inspiration (fail-open)"
+                )
+                validated_inspirations.append(inspiration)
+        inspirations = validated_inspirations
 
     logger.info(
         f"[DailyInspiration][{task_id}] Generated {len(inspirations)}/{count} inspirations "

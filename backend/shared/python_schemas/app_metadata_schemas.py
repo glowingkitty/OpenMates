@@ -194,7 +194,7 @@ class AppInstructionDefinition(BaseModel):
     """
     Defines the structure for app-specific instructions that are dynamically loaded
     into the system prompt ONLY when the app is available.
-    
+
     This prevents the AI from being instructed about capabilities that don't exist
     (e.g., instructing about web search when the web app is unavailable).
     """
@@ -202,6 +202,12 @@ class AppInstructionDefinition(BaseModel):
     categories: Optional[List[str]] = Field(
         default=None,
         description="Optional list of categories where this instruction is most relevant. If provided, the instruction is only injected when the conversation category matches."
+    )
+    for_embed_types: Optional[List[str]] = Field(
+        default=None,
+        description="List of embed type IDs (from this app's embed_types) that trigger this instruction. "
+                    "When the preprocessor's relevant_embedded_previews matches any of these, the instruction "
+                    "is injected regardless of skill preselection. When None, standard skill gating applies."
     )
 
 class AppYAML(BaseModel):

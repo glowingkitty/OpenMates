@@ -192,6 +192,23 @@ class TokenManager:
             masked_token = f"{service_token[:4]}...{service_token[-4:]}" if len(service_token) >= 8 else "****"
             logger.info(f"API service token created successfully: {masked_token}")
 
+            # Verify the actual TTL Vault assigned (may differ from requested if max_ttl is lower)
+            verify_client = self.client.__class__()
+            await verify_client.init_client()
+            verify_client.update_token(service_token)
+            verify_result = await verify_client.vault_request("get", "auth/token/lookup-self", {}, ignore_errors=True)
+            await verify_client.close()
+            if verify_result and verify_result.get("data"):
+                actual_ttl = verify_result["data"].get("ttl", 0)
+                actual_days = actual_ttl / 86400
+                requested_days = 8760 / 24  # 365
+                logger.info(f"New token actual TTL: {actual_days:.1f} days (requested: {requested_days:.0f} days)")
+                if actual_days < 60:
+                    logger.warning(
+                        f"Token TTL ({actual_days:.1f}d) is much lower than requested ({requested_days:.0f}d). "
+                        f"Vault's max_ttl may not be tuned. Token will expire in {actual_days:.0f} days!"
+                    )
+
             # Save *this specific token* to the api.token file for the API service
             if not initializer.save_api_token_only(service_token):
                  logger.error("Failed to save API service token to file!")

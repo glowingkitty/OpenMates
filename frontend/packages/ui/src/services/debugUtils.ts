@@ -20,6 +20,9 @@
  *   window.debug.animation('ai_is_typing_on')  — test rainbow glow + typing indicator
  *   window.debug.animation('ai_is_typing_off') — stop the animation
  *
+ *   window.debug_tools.hide()              — hide Report Issue & Start Debugging buttons
+ *   window.debug_tools.show()              — show Report Issue & Start Debugging buttons
+ *
  * Architecture context: See docs/architecture/embed-encryption.md
  */
 
@@ -3954,7 +3957,10 @@ function showDebugHelp(): void {
       "  window.debug.state()                      — dump current store state summary\n\n" +
       "  Animations:\n" +
       "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
-      "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n",
+      "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n\n" +
+      "  UI Tools:\n" +
+      "  window.debug_tools.hide()                 — hide Report Issue & Start Debugging buttons\n" +
+      "  window.debug_tools.show()                 — show Report Issue & Start Debugging buttons\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4534,6 +4540,33 @@ export function initDebugUtils(): void {
   });
 
   (window as unknown as Record<string, unknown>).debug = debugFn;
+
+  // ─── window.debug_tools — show/hide debug UI buttons ──────────────────────
+  // Targets [data-testid="report-issue-button"] and [data-testid="start-debugging-button"]
+  // in ActiveChat.svelte. Useful for Playwright sessions that need a clean viewport.
+  const DEBUG_TOOL_BUTTON_SELECTORS = [
+    '[data-testid="report-issue-button"]',
+    '[data-testid="start-debugging-button"]',
+  ];
+
+  (window as unknown as Record<string, unknown>).debug_tools = {
+    /** Hide the Report Issue and Start Debugging buttons */
+    hide: () => {
+      for (const selector of DEBUG_TOOL_BUTTON_SELECTORS) {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (el) el.style.display = "none";
+      }
+      console.log("[debug_tools] Report Issue and Start Debugging buttons hidden");
+    },
+    /** Show the Report Issue and Start Debugging buttons */
+    show: () => {
+      for (const selector of DEBUG_TOOL_BUTTON_SELECTORS) {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (el) el.style.display = "";
+      }
+      console.log("[debug_tools] Report Issue and Start Debugging buttons shown");
+    },
+  };
 
   console.info(
     "%c🔧 Debug utilities loaded%c — type %cwindow.debug()%c for health check, %cwindow.debug.help()%c for all commands",

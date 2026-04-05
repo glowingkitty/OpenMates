@@ -287,6 +287,105 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Celery task: audit pool for content policy violations (Layer 7)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.task(name="daily_inspiration.audit_pool", base=BaseServiceTask, bind=True)
+def audit_inspiration_pool(self):
+    """
+    Scheduled Celery task: scan the inspiration pool for content policy violations
+    and auto-delete any entries that match blocked keywords.
+
+    Runs at 06:15 UTC — 15 min before defaults selection (06:30), so any
+    violating entries are removed before they can be selected as public defaults.
+
+    Uses the shared content_filter module with word-boundary regex matching.
+    No LLM calls — pure deterministic keyword check. Fast and free.
+    """
+    return asyncio.run(_audit_pool_async(self))
+
+
+async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
+    """Async implementation of audit_inspiration_pool."""
+    task_id = "daily_pool_audit"
+    logger.info(f"[PoolAudit][{task_id}] Starting scheduled pool audit")
+
+    try:
+        await task.initialize_services()
+    except Exception as e:
+        logger.error(
+            f"[PoolAudit][{task_id}] Failed to initialize services: {e}",
+            exc_info=True,
+        )
+        return {"success": False, "error": str(e)}
+
+    directus = task._directus_service
+    if not directus:
+        logger.error(f"[PoolAudit][{task_id}] DirectusService unavailable")
+        return {"success": False, "error": "DirectusService not initialized"}
+
+    try:
+        from backend.apps.ai.daily_inspiration.content_filter import check_entry
+
+        # Fetch all pool entries
+        items = await directus.get_items(
+            "daily_inspiration_pool",
+            {"sort": ["-generated_at"], "limit": 200},
+            admin_required=True,
+        )
+
+        if not items:
+            logger.info(f"[PoolAudit][{task_id}] Pool is empty — nothing to audit")
+            return {"success": True, "total": 0, "violations": 0, "deleted": 0}
+
+        # Check each entry
+        violations = []
+        for item in items:
+            result = check_entry(item)
+            if result["verdict"] == "REJECT":
+                violations.append(result)
+
+        # Delete violations
+        deleted = 0
+        for v in violations:
+            entry_id = v["entry_id"]
+            entry = v.get("entry", {})
+            matched_cats = list(v.get("violations", {}).keys())
+            try:
+                success = await directus.delete_item("daily_inspiration_pool", entry_id)
+                if success:
+                    deleted += 1
+                    logger.warning(
+                        f"[PoolAudit][{task_id}] Deleted pool entry {entry_id}: "
+                        f"'{entry.get('title', '')}' (video: '{entry.get('video_title', '')[:50]}') "
+                        f"— violations: {matched_cats}"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"[PoolAudit][{task_id}] Failed to delete {entry_id}: {e}"
+                )
+
+        result = {
+            "success": True,
+            "total": len(items),
+            "violations": len(violations),
+            "deleted": deleted,
+        }
+        logger.info(
+            f"[PoolAudit][{task_id}] Completed: {len(items)} scanned, "
+            f"{len(violations)} violations found, {deleted} deleted"
+        )
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"[PoolAudit][{task_id}] Audit failed: {e}",
+            exc_info=True,
+        )
+        return {"success": False, "error": str(e)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -35,7 +35,7 @@ import type {
  * scanner.addPersonalData({ id: "1", textToHide: "John", replaceWith: "[MY_NAME]" });
  *
  * const { redacted, mappings } = scanner.redact("My key is sk-proj-abc123, signed John");
- * // redacted: "My key is [OPENAI_KEY_123], signed [MY_NAME]"
+ * // redacted: "My key is [OPENAI_KEY_1_123], signed [MY_NAME]"
  *
  * const restored = scanner.restore(redacted, mappings);
  * // restored: "My key is sk-proj-abc123, signed John"
@@ -146,6 +146,10 @@ export class SecretScanner {
     }
 
     // Phase 2: Pattern-based scan (regex)
+    // Per-type counter for unique placeholders — prevents collisions when
+    // multiple values share the same suffix (e.g., two keys ending in "f9d").
+    const typeCounts: Record<string, number> = {};
+
     if (this.options.enablePatternDetection) {
       for (const pattern of SECRET_PATTERNS) {
         pattern.regex.lastIndex = 0;
@@ -173,10 +177,13 @@ export class SecretScanner {
           const existing = this.registry.get(matchText);
           if (existing) continue;
 
+          typeCounts[pattern.type] = (typeCounts[pattern.type] || 0) + 1;
+
           const placeholder = generatePlaceholder(
             pattern.placeholderPrefix,
             matchText,
             this.options.suffixLength,
+            typeCounts[pattern.type],
           );
 
           allMappings.push({
