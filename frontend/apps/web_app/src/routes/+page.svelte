@@ -1127,12 +1127,19 @@
 			// optimistic auth path sets isInitialized=true early and initialize() returns
 			// immediately, skipping checkAuth() — so clientLogForwarder.start() would never
 			// be called without this explicit check here.
-			if (localProfile.is_admin) {
-				console.debug(
-					'[+page.svelte] Admin user detected on session restore — starting clientLogForwarder'
-				);
+			{
 				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
-				clientLogForwarder.start();
+				const isDev = import.meta.env.VITE_ENV !== 'production';
+				if (localProfile.is_admin || isDev) {
+					console.debug(
+						'[+page.svelte] Starting clientLogForwarder (admin or dev)'
+					);
+					clientLogForwarder.start();
+				}
+				// Start ephemeral log forwarding for all authenticated users (unless opted out)
+				if (!localProfile.console_log_forwarding_opted_out) {
+					clientLogForwarder.startEphemeral();
+				}
 			}
 		} else {
 			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');

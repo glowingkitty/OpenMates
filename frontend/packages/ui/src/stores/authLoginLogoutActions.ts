@@ -388,6 +388,11 @@ export async function login(
           }
         }
 
+        // Start ephemeral log forwarding (login path)
+        if (!data.user?.console_log_forwarding_opted_out) {
+          clientLogForwarder.startEphemeral();
+        }
+
         return {
           success: true,
           tfa_required: false,
@@ -443,7 +448,8 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
   try {
     // --- Pre-request cleanup (non-cookie items) ---
-    // Stop admin log streaming before clearing auth state
+    // Stop all log forwarding modes before clearing auth state
+    void clientLogForwarder.stopEphemeral();
     void clientLogForwarder.stop();
 
     // Stop OTel tracing (on prod it was started at login; on dev this is a no-op)

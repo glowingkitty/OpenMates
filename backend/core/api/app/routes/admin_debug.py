@@ -1950,7 +1950,7 @@ class O2SearchResponse(BaseModel):
 
 
 @router.get("/o2/search", response_model=O2SearchResponse, include_in_schema=False)
-@limiter.limit("30/minute")
+@limiter.limit("300/minute")
 async def o2_search(
     request: Request,
     sql: str,

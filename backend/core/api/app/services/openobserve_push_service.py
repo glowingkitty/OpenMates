@@ -1,13 +1,18 @@
 """
 OpenObserve Push Service
 
-Pushes custom log streams to OpenObserve via its Loki-compatible HTTP push API.
-Replaces the former loki_push_service.py. OpenObserve speaks the same Loki push
-protocol at /api/{org}/loki/api/v1/push, so the payload format is unchanged.
+Pushes custom log streams to OpenObserve via its native JSON push API.
+Each stream is a separate URL: /api/{org}/{stream_name}/_json.
+
+The Loki-compatible endpoint (/api/{org}/loki/api/v1/push) was used previously
+but silently drops data in OpenObserve v0.70+. The native JSON API is reliable
+and simpler — each record is a flat JSON object with a _timestamp field (us).
 
 Primary use cases:
 - forwarding browser console logs from admin users so they appear alongside
   server-side logs in OpenObserve (called by admin_client_logs route)
+- forwarding anonymized ephemeral logs from all authenticated users for
+  error-triggered retention (48h ephemeral → 14d on error)
 - forwarding normalized daily test-run summaries into the dedicated test-runs
   stream for flaky-test debugging and trend analysis
 
@@ -26,8 +31,14 @@ from typing import List, Dict, Any
 logger = logging.getLogger(__name__)
 
 OPENOBSERVE_ORG = "default"
-TEST_RUNS_STREAM = "test-runs"
-TEST_EVENTS_STREAM = "test-events"
+
+# Stream names (underscores, not hyphens — O2 normalizes hyphens to underscores)
+STREAM_CLIENT_CONSOLE = "client_console"
+STREAM_CLIENT_EPHEMERAL = "client_console_ephemeral"
+STREAM_CLIENT_ERROR_CONTEXT = "client_console_error_context"
+STREAM_CLIENT_ISSUE_REPORT = "client_issue_report"
+STREAM_TEST_RUNS = "test_runs"
+STREAM_TEST_EVENTS = "test_events"
 
 # Ordered rules: first match wins. Keep specific patterns before generic ones.
 _DEVICE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -59,10 +70,11 @@ def derive_device_type(user_agent: str) -> str:
 
 class OpenObservePushService:
     """
-    Service for pushing custom log entries to OpenObserve via its Loki-compatible push API.
+    Service for pushing custom log entries to OpenObserve via its native JSON API.
 
-    OpenObserve accepts the same JSON format as Loki's /loki/api/v1/push endpoint.
-    Labels become searchable fields; values are [nanosecond-timestamp, log-line] pairs.
+    Each push targets a specific stream: /api/{org}/{stream_name}/_json.
+    Records are flat JSON objects with a _timestamp field (microseconds since epoch).
+    All fields become searchable columns in OpenObserve.
     """
 
     def __init__(self) -> None:
@@ -75,6 +87,49 @@ class OpenObservePushService:
     def _auth(self) -> aiohttp.BasicAuth:
         return aiohttp.BasicAuth(self._email, self._password)
 
+    async def _push_to_stream(
+        self,
+        stream_name: str,
+        records: List[Dict[str, Any]],
+        timeout_seconds: int = 10,
+    ) -> bool:
+        """
+        Push records to an OpenObserve stream via the native JSON API.
+
+        Args:
+            stream_name: Target stream (e.g. 'client_console_ephemeral')
+            records: List of flat JSON objects, each with '_timestamp' (microseconds)
+            timeout_seconds: Request timeout
+        """
+        if not records:
+            return True
+
+        url = f"{self.base_url}/api/{self.org}/{stream_name}/_json"
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+
+        try:
+            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
+                async with session.post(
+                    url,
+                    json=records,
+                    headers={"Content-Type": "application/json"},
+                ) as response:
+                    if response.status == 200:
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.error(
+                            f"OpenObserve push to {stream_name} failed "
+                            f"(status={response.status}): {error_text[:300]}"
+                        )
+                        return False
+        except Exception as e:
+            logger.error(
+                f"Error pushing to OpenObserve stream {stream_name}: {e}",
+                exc_info=True,
+            )
+            return False
+
     async def push_client_logs(
         self,
         entries: List[Dict[str, Any]],
@@ -84,10 +139,6 @@ class OpenObservePushService:
         """
         Push a batch of client console log entries to OpenObserve.
 
-        Entries are grouped by level into separate streams so level-based
-        filtering works efficiently. OpenObserve's Loki-compat endpoint returns
-        204 No Content on success, identical to Loki.
-
         Args:
             entries: List of log entries with 'timestamp' (ms epoch), 'level', 'message'
             user_email: Admin user identifier (username used as label)
@@ -96,71 +147,120 @@ class OpenObservePushService:
         if not entries:
             return True
 
-        try:
-            streams_by_level: Dict[str, List[List[str]]] = {}
+        user_agent = metadata.get("userAgent", "")[:200]
+        device_type = derive_device_type(user_agent)
+        page_url = metadata.get("pageUrl", "")
+        tab_id = metadata.get("tabId", "")
 
-            for entry in entries:
-                level = entry.get("level", "log")
-                if level == "log":
-                    level = "info"
+        records = []
+        for entry in entries:
+            level = entry.get("level", "log")
+            if level == "log":
+                level = "info"
 
-                timestamp_ms = entry.get("timestamp", 0)
-                message = entry.get("message", "")
-                timestamp_ns = str(int(timestamp_ms * 1_000_000))
+            timestamp_ms = entry.get("timestamp", 0)
+            message = entry.get("message", "")
+            formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
 
-                page_url = metadata.get("pageUrl", "")
-                tab_id = metadata.get("tabId", "")
-                formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
+            records.append({
+                "_timestamp": int(timestamp_ms * 1_000),  # ms → microseconds
+                "level": level,
+                "message": formatted_message,
+                "user_email": user_email,
+                "server_env": self.server_env,
+                "source": "browser",
+                "user_agent": user_agent,
+                "device_type": device_type,
+                "job": "client-console",
+            })
 
-                streams_by_level.setdefault(level, []).append([timestamp_ns, formatted_message])
+        return await self._push_to_stream(STREAM_CLIENT_CONSOLE, records)
 
-            # Truncate user_agent to avoid exceeding OpenObserve label size limits
-            user_agent = metadata.get("userAgent", "")[:200]
-            device_type = derive_device_type(user_agent)
+    async def push_ephemeral_client_logs(
+        self,
+        entries: List[Dict[str, Any]],
+        session_pseudonym: str,
+        metadata: Dict[str, str],
+    ) -> bool:
+        """
+        Push anonymized client console logs to the ephemeral stream (48h retention).
 
-            streams = []
-            for level, values in streams_by_level.items():
-                streams.append({
-                    "stream": {
-                        "job": "client-console",
-                        "level": level,
-                        "user_email": user_email,
-                        "server_env": self.server_env,
-                        "source": "browser",
-                        "user_agent": user_agent,
-                        # Stable device-type label derived from UA — enables
-                        # simple equality filters like device_type='iphone'
-                        # without UA string parsing in SQL queries.
-                        "device_type": device_type,
-                    },
-                    "values": values,
-                })
+        Unlike push_client_logs(), this method does NOT include user_email or
+        user_id. The only identifier is the random per-session session_pseudonym
+        which cannot be linked to a user unless they include it in an issue report.
 
-            payload = {"streams": streams}
+        Args:
+            entries: Log entries with 'timestamp' (ms), 'level', 'message'
+            session_pseudonym: Random UUIDv4 per browser page load
+            metadata: Client metadata (userAgent, pageUrl, tabId)
+        """
+        if not entries:
+            return True
 
-            # OpenObserve Loki-compatible push endpoint
-            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
-            timeout = aiohttp.ClientTimeout(total=10)
+        user_agent = metadata.get("userAgent", "")[:200]
+        device_type = derive_device_type(user_agent)
+        page_url = metadata.get("pageUrl", "")
+        tab_id = metadata.get("tabId", "")
 
-            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
-                async with session.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                ) as response:
-                    if response.status == 204:
-                        return True
-                    else:
-                        error_text = await response.text()
-                        logger.error(
-                            f"OpenObserve push failed (status={response.status}): {error_text[:300]}"
-                        )
-                        return False
+        records = []
+        for entry in entries:
+            level = entry.get("level", "log")
+            if level == "log":
+                level = "info"
 
-        except Exception as e:
-            logger.error(f"Error pushing client logs to OpenObserve: {e}", exc_info=True)
-            return False
+            timestamp_ms = entry.get("timestamp", 0)
+            message = entry.get("message", "")
+            formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
 
+            records.append({
+                "_timestamp": int(timestamp_ms * 1_000),  # ms → microseconds
+                "level": level,
+                "message": formatted_message,
+                "session_pseudonym": session_pseudonym,
+                "device_type": device_type,
+                "server_env": self.server_env,
+                "source": "browser",
+                "job": "client-console-ephemeral",
+            })
+
+        return await self._push_to_stream(STREAM_CLIENT_EPHEMERAL, records)
+
+    async def push_error_context_logs(
+        self,
+        entries: List[Dict[str, Any]],
+        session_pseudonym: str,
+    ) -> bool:
+        """
+        Push promoted error-context logs to the long-retention stream (14d).
+
+        Called by the ephemeral log promotion Celery task when a session has
+        error-level logs. Copies the full session context (all log levels)
+        from the ephemeral stream to the error-context stream for debugging.
+
+        Args:
+            entries: Log entries with '_timestamp' (us) and 'message' (from O2 query)
+            session_pseudonym: The session whose logs are being promoted
+        """
+        if not entries:
+            return True
+
+        records = []
+        for entry in entries:
+            # Entries from O2 queries already have _timestamp in microseconds
+            timestamp_us = entry.get("_timestamp", int(time.time() * 1_000_000))
+            message = str(entry.get("message", ""))
+            records.append({
+                "_timestamp": int(timestamp_us),
+                "message": message,
+                "session_pseudonym": session_pseudonym,
+                "server_env": self.server_env,
+                "source": "promoted",
+                "job": "client-console-error-context",
+            })
+
+        return await self._push_to_stream(
+            STREAM_CLIENT_ERROR_CONTEXT, records, timeout_seconds=30,
+        )
 
     async def push_issue_logs(
         self,
@@ -172,65 +272,37 @@ class OpenObservePushService:
         """
         Push the console log snapshot captured at issue-report time to OpenObserve.
 
-        This is a one-shot push triggered when any authenticated user submits an
-        issue report. The logs are tagged with the issue_id so they can be
-        correlated with the Directus issue record.
+        One-shot push triggered when any authenticated user submits an issue report.
+        Tagged with the issue_id for correlation with the Directus issue record.
 
         Args:
             logs_text: Pre-formatted log text from logCollector.getLogsAsText()
-            issue_id: The Directus issue record ID returned by /v1/settings/issues
-            user_id: The authenticated user's ID (user_id from profile)
+            issue_id: The Directus issue record ID
+            user_id: The authenticated user's ID
             metadata: Client environment dict with 'userAgent', 'pageUrl'
         """
         if not logs_text or not logs_text.strip():
             return True
 
-        try:
-            timestamp_ns = str(int(__import__('time').time() * 1_000_000_000))
-            page_url = metadata.get("pageUrl", "")
-            user_agent = metadata.get("userAgent", "")
+        page_url = metadata.get("pageUrl", "")
+        user_agent = metadata.get("userAgent", "")
 
-            formatted_message = (
-                f"[issue_id={issue_id}] [user={user_id}] "
-                f"[page={page_url}] [ua={user_agent[:80]}]\n{logs_text}"
-            )
+        formatted_message = (
+            f"[issue_id={issue_id}] [user={user_id}] "
+            f"[page={page_url}] [ua={user_agent[:80]}]\n{logs_text}"
+        )
 
-            payload = {
-                "streams": [
-                    {
-                        "stream": {
-                            "job": "client-issue-report",
-                            "issue_id": issue_id,
-                            "user_id": user_id,
-                            "server_env": self.server_env,
-                            "source": "browser",
-                        },
-                        "values": [[timestamp_ns, formatted_message]],
-                    }
-                ]
-            }
+        records = [{
+            "_timestamp": int(time.time() * 1_000_000),
+            "message": formatted_message,
+            "issue_id": issue_id,
+            "user_id": user_id,
+            "server_env": self.server_env,
+            "source": "browser",
+            "job": "client-issue-report",
+        }]
 
-            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
-            timeout = aiohttp.ClientTimeout(total=10)
-
-            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
-                async with session.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                ) as response:
-                    if response.status == 204:
-                        return True
-                    else:
-                        error_text = await response.text()
-                        logger.error(
-                            f"OpenObserve issue-log push failed (status={response.status}): {error_text[:300]}"
-                        )
-                        return False
-
-        except Exception as e:
-            logger.error(f"Error pushing issue logs to OpenObserve: {e}", exc_info=True)
-            return False
+        return await self._push_to_stream(STREAM_CLIENT_ISSUE_REPORT, records)
 
     async def push_debug_session_logs(
         self,
@@ -242,10 +314,8 @@ class OpenObservePushService:
         """
         Push console log entries from a user debug log sharing session.
 
-        Uses the same stream ('client-console') as admin log forwarding, but
-        with a 'debugging_id' label instead of 'user_email'. This allows
-        support to query logs via `debug.py logs --debug-id <ID>` to see
-        both frontend and backend logs correlated by the same debugging_id.
+        Uses the same stream as admin log forwarding, but with a debugging_id
+        field instead of user_email. Allows querying via `debug.py logs --debug-id <ID>`.
 
         Args:
             entries: Log entries with 'timestamp' (ms), 'level', 'message'
@@ -256,72 +326,42 @@ class OpenObservePushService:
         if not entries:
             return True
 
-        try:
-            streams_by_level: Dict[str, List[List[str]]] = {}
+        user_agent = metadata.get("userAgent", "")[:200]
+        device_type = derive_device_type(user_agent)
+        page_url = metadata.get("pageUrl", "")
+        tab_id = metadata.get("tabId", "")
 
-            for entry in entries:
-                level = entry.get("level", "log")
-                if level == "log":
-                    level = "info"
+        records = []
+        for entry in entries:
+            level = entry.get("level", "log")
+            if level == "log":
+                level = "info"
 
-                timestamp_ms = entry.get("timestamp", 0)
-                message = entry.get("message", "")
-                timestamp_ns = str(int(timestamp_ms * 1_000_000))
+            timestamp_ms = entry.get("timestamp", 0)
+            message = entry.get("message", "")
+            formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
 
-                page_url = metadata.get("pageUrl", "")
-                tab_id = metadata.get("tabId", "")
-                formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
+            records.append({
+                "_timestamp": int(timestamp_ms * 1_000),  # ms → microseconds
+                "level": level,
+                "message": formatted_message,
+                "debugging_id": debugging_id,
+                "user_id": user_id,
+                "server_env": self.server_env,
+                "source": "browser",
+                "user_agent": user_agent,
+                "device_type": device_type,
+                "job": "client-console",
+            })
 
-                streams_by_level.setdefault(level, []).append([timestamp_ns, formatted_message])
-
-            user_agent = metadata.get("userAgent", "")[:200]
-            device_type = derive_device_type(user_agent)
-
-            streams = []
-            for level, values in streams_by_level.items():
-                streams.append({
-                    "stream": {
-                        "job": "client-console",
-                        "level": level,
-                        "debugging_id": debugging_id,
-                        "user_id": user_id,
-                        "server_env": self.server_env,
-                        "source": "browser",
-                        "user_agent": user_agent,
-                        "device_type": device_type,
-                    },
-                    "values": values,
-                })
-
-            payload = {"streams": streams}
-            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
-            timeout = aiohttp.ClientTimeout(total=10)
-
-            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
-                async with session.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                ) as response:
-                    if response.status == 204:
-                        return True
-                    else:
-                        error_text = await response.text()
-                        logger.error(
-                            f"OpenObserve debug-session push failed (status={response.status}): {error_text[:300]}"
-                        )
-                        return False
-
-        except Exception as e:
-            logger.error(f"Error pushing debug session logs to OpenObserve: {e}", exc_info=True)
-            return False
+        return await self._push_to_stream(STREAM_CLIENT_CONSOLE, records)
 
     async def push_test_run_summary(self, summary_payload: Dict[str, Any]) -> bool:
         """
         Push one daily test-run summary event into the dedicated test-runs stream.
 
-        The stream labels are intentionally low-cardinality for query performance.
-        High-cardinality details (failed test names/errors) remain in the log body.
+        Low-cardinality fields are top-level for efficient filtering.
+        High-cardinality details (failed test names/errors) are in the message body.
         """
         try:
             run_id = str(summary_payload.get("run_id", ""))
@@ -348,8 +388,8 @@ class OpenObservePushService:
                     }
                 )
 
-            timestamp_ns = str(int(time.time() * 1_000_000_000))
-            body = {
+            records = [{
+                "_timestamp": int(time.time() * 1_000_000),
                 "run_id": run_id,
                 "suite": suite,
                 "status": status,
@@ -362,46 +402,14 @@ class OpenObservePushService:
                 "failed": failed,
                 "skipped": skipped,
                 "not_started": not_started,
-                "failed_tests": failed_tests,
-                "top_failures": top_failures,
-            }
+                "failed_tests": json.dumps(failed_tests),
+                "top_failures": json.dumps(top_failures),
+                "server_env": self.server_env,
+                "source": "daily-test-runner",
+                "job": "test-runs",
+            }]
 
-            payload = {
-                "streams": [
-                    {
-                        "stream": {
-                            "job": "test-runs",
-                            "suite": suite,
-                            "status": status,
-                            "environment": environment,
-                            "git_branch": git_branch,
-                            "server_env": self.server_env,
-                            "source": "daily-test-runner",
-                        },
-                        "values": [[timestamp_ns, json.dumps(body)]],
-                    }
-                ]
-            }
-
-            # Push to the standard Loki-compatible endpoint; OpenObserve routes
-            # to the correct stream based on the 'job' label in the payload.
-            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
-            timeout = aiohttp.ClientTimeout(total=10)
-
-            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
-                async with session.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                ) as response:
-                    if response.status == 204:
-                        return True
-
-                    error_text = await response.text()
-                    logger.error(
-                        f"OpenObserve test-run push failed (status={response.status}): {error_text[:300]}"
-                    )
-                    return False
+            return await self._push_to_stream(STREAM_TEST_RUNS, records)
 
         except Exception as e:
             logger.error(f"Error pushing test run summary to OpenObserve: {e}", exc_info=True)
@@ -413,12 +421,6 @@ class OpenObservePushService:
         into the dedicated test-events stream.
 
         Called by the Playwright api-reporter via /internal/openobserve/push-test-event.
-        Events are per-spec granularity, enabling real-time monitoring of E2E runs
-        in OpenObserve as they execute.
-
-        Stream labels (low-cardinality): job, event_type, status, environment,
-        worker_slot, git_branch, server_env, source.
-        Body (high-cardinality): test_file, test_name, error_message, duration, etc.
         """
         try:
             event_type = str(event_payload.get("event_type", "test_end"))
@@ -436,15 +438,14 @@ class OpenObservePushService:
             failed = event_payload.get("failed")
             skipped = event_payload.get("skipped")
 
-            timestamp_ns = str(int(time.time() * 1_000_000_000))
-
             # Console log aggregation fields (from console-monitor.ts via api-reporter)
             total_console_messages = event_payload.get("total_console_messages")
             console_errors = event_payload.get("console_errors")
             console_warnings = event_payload.get("console_warnings")
             console_logs_top = event_payload.get("console_logs_top")
 
-            body: Dict[str, Any] = {
+            record: Dict[str, Any] = {
+                "_timestamp": int(time.time() * 1_000_000),
                 "event_type": event_type,
                 "test_file": test_file,
                 "test_name": test_name,
@@ -454,61 +455,27 @@ class OpenObservePushService:
                 "environment": environment,
                 "git_branch": git_branch,
                 "run_id": run_id,
+                "server_env": self.server_env,
+                "source": "playwright-reporter",
+                "job": "test-events",
             }
             if error_message:
-                body["error_message"] = error_message
+                record["error_message"] = error_message
             if total is not None:
-                body["total"] = total
-                body["passed"] = passed
-                body["failed"] = failed
-                body["skipped"] = skipped
-            # Include console log aggregation data when available
+                record["total"] = total
+                record["passed"] = passed
+                record["failed"] = failed
+                record["skipped"] = skipped
             if total_console_messages is not None:
-                body["total_console_messages"] = total_console_messages
+                record["total_console_messages"] = total_console_messages
             if console_errors:
-                body["console_errors"] = json.dumps(console_errors)
+                record["console_errors"] = json.dumps(console_errors)
             if console_warnings:
-                body["console_warnings"] = json.dumps(console_warnings)
+                record["console_warnings"] = json.dumps(console_warnings)
             if console_logs_top:
-                body["console_logs_top"] = json.dumps(console_logs_top)
+                record["console_logs_top"] = json.dumps(console_logs_top)
 
-            payload = {
-                "streams": [
-                    {
-                        "stream": {
-                            "job": "test-events",
-                            "event_type": event_type,
-                            "status": status,
-                            "environment": environment,
-                            "worker_slot": worker_slot,
-                            "git_branch": git_branch,
-                            "server_env": self.server_env,
-                            "source": "playwright-reporter",
-                        },
-                        "values": [[timestamp_ns, json.dumps(body)]],
-                    }
-                ]
-            }
-
-            # Push to the standard Loki-compatible endpoint; OpenObserve routes
-            # to the correct stream based on the 'job' label in the payload.
-            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
-            timeout = aiohttp.ClientTimeout(total=10)
-
-            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
-                async with session.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                ) as response:
-                    if response.status == 204:
-                        return True
-
-                    error_text = await response.text()
-                    logger.error(
-                        f"OpenObserve test-event push failed (status={response.status}): {error_text[:300]}"
-                    )
-                    return False
+            return await self._push_to_stream(STREAM_TEST_EVENTS, [record])
 
         except Exception as e:
             logger.error(f"Error pushing test event to OpenObserve: {e}", exc_info=True)

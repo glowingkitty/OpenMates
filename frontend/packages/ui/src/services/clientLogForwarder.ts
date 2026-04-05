@@ -39,8 +39,11 @@ import { getApiEndpoint, apiEndpoints } from "../config/api";
 
 // ----- Configuration -------------------------------------------------------
 
-/** How often (ms) to flush the pending batch to the backend. */
+/** How often (ms) to flush the pending batch to the backend (admin/debug modes). */
 const FLUSH_INTERVAL_MS = 5_000;
+
+/** Flush interval for ephemeral mode — slower to reduce request volume. */
+const EPHEMERAL_FLUSH_INTERVAL_MS = 10_000;
 
 /** Maximum entries per batch (matches backend validation limit). */
 const MAX_BATCH_SIZE = 50;
@@ -118,6 +121,19 @@ class ClientLogForwarderService {
   private debugSessionId: string | null = null;
 
   /**
+   * When set, the forwarder runs in ephemeral mode for all authenticated users:
+   * - Uses POST /v1/client-logs with a random session_pseudonym
+   * - No user_email or user_id sent — only the per-session UUID
+   * - Drops debug-level logs and deduplicates repeated messages
+   * - Content-level sanitization strips PII (emails, UUIDs, base64, long strings)
+   */
+  private ephemeralMode: {
+    sessionPseudonym: string;
+    flushTimer: ReturnType<typeof setInterval> | null;
+    buffer: QueuedLogEntry[];
+  } | null = null;
+
+  /**
    * When set, the forwarder runs in E2E test mode:
    * - Uses POST /e2e/client-logs with X-E2E-Debug-Token header
    * - No session cookie required (credentials: "omit")
@@ -130,7 +146,24 @@ class ClientLogForwarderService {
   private volatileQueue: QueuedLogEntry[] = [];
 
   private readonly logListener = (entry: ConsoleLogEntry): void => {
+    // Feed main queue (admin/debug/e2e modes)
     void this.enqueue(entry);
+    // Feed ephemeral buffer if active (with content sanitization + level filter)
+    if (this.ephemeralMode) {
+      // Drop debug-level logs in ephemeral mode (high volume, low debugging value)
+      if (entry.level === 'debug') return;
+      // Apply content-level sanitization to strip PII
+      const sanitizedMessage = logCollector.sanitizeContent(entry.message);
+      this.ephemeralMode.buffer.push({
+        timestamp: entry.timestamp,
+        level: entry.level,
+        message: sanitizedMessage,
+      });
+      // Cap buffer at 500 entries to prevent memory issues
+      if (this.ephemeralMode.buffer.length > 500) {
+        this.ephemeralMode.buffer = this.ephemeralMode.buffer.slice(-500);
+      }
+    }
   };
 
   /**
@@ -189,9 +222,62 @@ class ClientLogForwarderService {
     console.debug(`[ClientLogForwarder] E2E mode started, run_id=${runId}`);
   }
 
+  /**
+   * Start forwarding in ephemeral mode for all authenticated users.
+   * Logs are anonymized (content sanitization + random session UUID) and sent
+   * to the /v1/client-logs endpoint. No user identity is included.
+   *
+   * Runs in parallel with admin/debug modes if the user is also an admin.
+   * Safe to call multiple times — idempotent.
+   */
+  startEphemeral(): void {
+    if (this.ephemeralMode) return; // idempotent
+
+    // Generate a per-session UUID. Use sessionStorage so it dies on tab close.
+    let pseudonym = sessionStorage.getItem('ephemeral_session_id');
+    if (!pseudonym) {
+      pseudonym = crypto.randomUUID();
+      sessionStorage.setItem('ephemeral_session_id', pseudonym);
+    }
+
+    this.ephemeralMode = {
+      sessionPseudonym: pseudonym,
+      flushTimer: null,
+      buffer: [],
+    };
+
+    // If we're not already listening for logs (admin mode not running), start.
+    if (!this.running && !this.e2eMode) {
+      logCollector.onNewLog(this.logListener);
+    }
+
+    this.ephemeralMode.flushTimer = setInterval(
+      () => void this.flushEphemeral(),
+      EPHEMERAL_FLUSH_INTERVAL_MS,
+    );
+    console.debug('[ClientLogForwarder] Ephemeral mode started');
+  }
+
+  /**
+   * Stop ephemeral mode forwarding and drain any remaining buffer.
+   */
+  async stopEphemeral(): Promise<void> {
+    if (!this.ephemeralMode) return;
+    if (this.ephemeralMode.flushTimer !== null) {
+      clearInterval(this.ephemeralMode.flushTimer);
+    }
+    // Best-effort final drain
+    await this.flushEphemeral();
+    this.ephemeralMode = null;
+    // Only remove listener if no other mode is active
+    if (!this.running && !this.e2eMode) {
+      logCollector.offNewLog(this.logListener);
+    }
+  }
+
   /** Whether the forwarder is currently running (any mode). */
   get isRunning(): boolean {
-    return this.running || this.e2eMode !== null;
+    return this.running || this.e2eMode !== null || this.ephemeralMode !== null;
   }
 
   /** The active debug session ID, or null if in admin mode or stopped. */
@@ -215,14 +301,17 @@ class ClientLogForwarderService {
     if (!this.running) return;
     this.running = false;
     this.debugSessionId = null;
-    // Only remove the log listener if E2E mode is also inactive.
-    // If E2E mode is active, keep the listener so E2E logs keep flowing.
-    if (!this.e2eMode) {
+    // Ephemeral mode runs independently — do NOT stop it here.
+    // It has its own lifecycle (startEphemeral/stopEphemeral) and should
+    // survive admin/debug stop calls. It is only stopped explicitly on
+    // logout via stopEphemeral() or when the user opts out.
+    // Only remove the log listener if no other mode needs it.
+    if (!this.e2eMode && !this.ephemeralMode) {
       logCollector.offNewLog(this.logListener);
-      if (this.flushTimer !== null) {
-        clearInterval(this.flushTimer);
-        this.flushTimer = null;
-      }
+    }
+    if (this.flushTimer !== null) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
     }
     // Best-effort final drain before teardown.
     await this.flush(true);
@@ -306,6 +395,75 @@ class ClientLogForwarderService {
       db.close();
     } catch {
       // Keep entries in persistent queue when deletion fails; retry on next flush.
+    }
+  }
+
+  /**
+   * Flush the ephemeral buffer to /v1/client-logs.
+   * Runs on its own timer (every 10s). Never throws.
+   */
+  private async flushEphemeral(): Promise<void> {
+    if (!this.ephemeralMode || this.ephemeralMode.buffer.length === 0) return;
+
+    // Take up to MAX_BATCH_SIZE entries from the buffer
+    const batch = this.ephemeralMode.buffer.splice(0, MAX_BATCH_SIZE);
+
+    // Deduplicate: if the same message appears >3 times, collapse
+    const deduped: QueuedLogEntry[] = [];
+    const counts = new Map<string, number>();
+    for (const entry of batch) {
+      const key = `${entry.level}:${entry.message.slice(0, 80)}`;
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      if (count <= 3) {
+        deduped.push(entry);
+      } else if (count === 4) {
+        // Add a single "repeated N times" entry
+        deduped.push({
+          timestamp: entry.timestamp,
+          level: entry.level,
+          message: `[repeated] ${entry.message.slice(0, 200)}`,
+        });
+      }
+      // count > 4: silently drop
+    }
+
+    const entries = deduped.map((e) => ({
+      timestamp: e.timestamp,
+      level: e.level,
+      message: e.message,
+    }));
+
+    const metadata = {
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      pageUrl: getPagePath(),
+      tabId: TAB_ID,
+    };
+
+    try {
+      const endpoint = getApiEndpoint(apiEndpoints.settings.clientLogsEphemeral);
+      const body = {
+        logs: entries,
+        metadata,
+        session_pseudonym: this.ephemeralMode.sessionPseudonym,
+      };
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include', // needed for auth + rate limiting only
+        keepalive: true,
+      });
+    } catch (err) {
+      // Push entries back to buffer on failure (retry next interval)
+      console.warn('[ClientLogForwarder] Ephemeral flush failed, will retry:', err);
+      if (this.ephemeralMode) {
+        this.ephemeralMode.buffer.unshift(...deduped);
+        // Re-cap after re-insert
+        if (this.ephemeralMode.buffer.length > 500) {
+          this.ephemeralMode.buffer = this.ephemeralMode.buffer.slice(-500);
+        }
+      }
     }
   }
 

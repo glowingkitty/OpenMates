@@ -201,6 +201,7 @@ export const apiEndpoints = {
     importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
     debugSession: "/v1/settings/debug-session", // Create/get/delete user debug log sharing session
     debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
+    clientLogsEphemeral: "/v1/client-logs", // Ephemeral anonymized console log forwarding for all authenticated users (48h retention)
   },
   payments: {
     config: "/v1/payments/config", // Get public config for payment provider

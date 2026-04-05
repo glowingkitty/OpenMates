@@ -854,22 +854,20 @@ async def fetch_issue_timeline_local(
     # Job values: 'client-console' (browser), 'api-logs' (structured API),
     #   'audit-compliance-logs', or empty/NULL (raw container stdout).
 
-    # 1. Browser console logs (job=client-console).
-    # The user_id / issue_id are NOT structured fields on client-console entries,
-    # so we match on the user_id in the message body when available.
+    # 1. Browser console logs (client_console stream).
+    # user_email is a structured field; user_id / issue_id may appear in message body.
     if user_id:
         user_id_esc = _sql_esc(user_id)
         browser_where = (
-            f"job = 'client-console' AND "
-            f"(message LIKE '%{user_id_esc}%' OR message LIKE '%{issue_id_esc}%')"
+            f"message LIKE '%{user_id_esc}%' OR message LIKE '%{issue_id_esc}%'"
         )
     else:
         browser_where = (
-            f"job = 'client-console' AND message LIKE '%{issue_id_esc}%'"
+            f"message LIKE '%{issue_id_esc}%'"
         )
     queries.append((
         f"SELECT _timestamp, message, level "
-        f'FROM "default" '
+        f'FROM "client_console" '
         f"WHERE {browser_where} "
         f"ORDER BY _timestamp ASC",
         "browser",

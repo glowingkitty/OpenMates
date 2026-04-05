@@ -687,6 +687,13 @@ export async function checkAuth(
         }
       }
 
+      // Start ephemeral log forwarding for all authenticated users (unless opted out).
+      // This sends anonymized console logs (no user identity) to a short-lived stream
+      // for debugging production errors. Users can opt out in Settings > Privacy.
+      if (!data.user.console_log_forwarding_opted_out) {
+        clientLogForwarder.startEphemeral();
+      }
+
       // Register encrypted session metadata if the server indicates it hasn't been done yet.
       // The /session response includes session_device_info (plaintext device name, IP, country)
       // which the client encrypts with the master key and POSTs back. This is a one-time
@@ -1159,6 +1166,11 @@ export async function checkAuth(
           }
         }
 
+        // Start ephemeral log forwarding (offline-first path)
+        if (!localProfile.console_log_forwarding_opted_out) {
+          clientLogForwarder.startEphemeral();
+        }
+
         // Check if user is in signup flow (offline-first mode)
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Avoid using tfa_enabled=false to keep passkey-only users out of OTP setup
@@ -1361,5 +1373,10 @@ export function setAuthenticatedState(): void {
     } catch {
       // Non-critical
     }
+  }
+
+  // Start ephemeral log forwarding for all authenticated users (fresh login path)
+  if (!profile.console_log_forwarding_opted_out) {
+    clientLogForwarder.startEphemeral();
   }
 }

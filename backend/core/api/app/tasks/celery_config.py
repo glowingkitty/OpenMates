@@ -135,6 +135,7 @@ TASK_CONFIG = [
      {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.software_update_tasks'},  # Software update auto-check tasks
      {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
      {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
+     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
  ]
 
 
@@ -1220,6 +1221,14 @@ app.conf.beat_schedule = {
     'auto-expire-stale-devices-daily': {
         'task': 'app.tasks.auto_delete_tasks.auto_expire_stale_devices',
         'schedule': crontab(hour=4, minute=0),  # Daily 04:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Ephemeral log promotion — promotes browser console logs from sessions that had
+    # errors to the long-retention error-context stream (14d). Scans Redis for flagged
+    # sessions and copies their full log context for debugging.
+    'promote-ephemeral-error-logs': {
+        'task': 'ephemeral_logs.promote_error_sessions',
+        'schedule': timedelta(seconds=900),  # Every 15 minutes
         'options': {'queue': 'persistence'},
     },
     # Daily Inspiration generation - generates personalized inspirations for active users.

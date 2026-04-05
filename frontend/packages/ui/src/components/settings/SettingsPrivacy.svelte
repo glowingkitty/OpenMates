@@ -51,6 +51,30 @@ Based on Figma design: settings/privacy (node 1895:20576)
         });
     }
 
+    // ─── Ephemeral Log Forwarding Opt-out ──────────────────────────────────
+    // Anonymized console logs forwarded to help diagnose production errors.
+    // ON by default (legitimate interest, GDPR Art. 6(1)(f)), user can opt out.
+    let stabilityLogsEnabled = $derived(!($userProfile.console_log_forwarding_opted_out ?? false));
+
+    /**
+     * Toggle ephemeral log forwarding opt-out.
+     * When toggling OFF: stops ephemeral forwarding immediately.
+     * When toggling ON: starts ephemeral forwarding (takes effect on next page load
+     * or immediately if the forwarder detects the profile change).
+     */
+    function toggleStabilityLogs(): void {
+        const newOptedOut = !($userProfile.console_log_forwarding_opted_out ?? false);
+        updateProfile({ console_log_forwarding_opted_out: newOptedOut });
+        // Immediately start/stop the forwarder for responsive UX
+        import('../../services/clientLogForwarder').then(({ clientLogForwarder }) => {
+            if (newOptedOut) {
+                clientLogForwarder.stopEphemeral();
+            } else {
+                clientLogForwarder.startEphemeral();
+            }
+        });
+    }
+
     // ─── Debug Logging Opt-in ────────────────────────────────────────────
     // Read debug logging preference from the user profile (synced to Directus).
     let debugLoggingEnabled = $derived($userProfile.debug_logging_opted_in ?? false);
@@ -190,6 +214,29 @@ Based on Figma design: settings/privacy (node 1895:20576)
 <!-- Compliance note — uses global .settings-note from settings.css -->
 <div class="settings-note" data-testid="settings-note">
     <p>{$text('settings.privacy.auto_deletion.compliance_note')}</p>
+</div>
+
+<!-- ─── Stability Logs Section ──────────────────────────────────────────── -->
+<SettingsItem
+    type="heading"
+    icon="log"
+    title={$text('settings.privacy.stability_logs_title')}
+/>
+
+<!-- Stability logs toggle — anonymized console log forwarding for error diagnosis -->
+<SettingsItem
+    type="subsubmenu"
+    icon="log"
+    subtitleTop={$text('settings.privacy.stability_logs_description')}
+    title={$text('settings.privacy.stability_logs_toggle_label')}
+    hasToggle={true}
+    checked={stabilityLogsEnabled}
+    onClick={toggleStabilityLogs}
+/>
+
+<!-- Stability logs privacy note -->
+<div class="settings-note">
+    <p>{$text('settings.privacy.stability_logs_privacy_note')}</p>
 </div>
 
 <!-- ─── Debug Logging Section ──────────────────────────────────────────── -->

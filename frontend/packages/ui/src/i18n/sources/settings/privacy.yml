@@ -2350,6 +2350,102 @@ auth.title:
   sv: Verifiera din identitet
   he: אמת את זהותך
   verified_by_human: []
+stability_logs_title:
+  context: Section heading for the anonymized stability log forwarding toggle in Privacy settings
+  en: Stability Logs
+  de: Stabilitätsprotokolle
+  zh: 稳定性日志
+  es: Registros de estabilidad
+  fr: Journaux de stabilité
+  pt: Logs de estabilidade
+  ru: Журналы стабильности
+  ja: 安定性ログ
+  ko: 안정성 로그
+  it: Log di stabilità
+  tr: Kararlılık günlükleri
+  vi: Nhật ký ổn định
+  id: Log stabilitas
+  pl: Logi stabilności
+  nl: Stabiliteitslogboeken
+  ar: سجلات الاستقرار
+  hi: स्थिरता लॉग
+  th: บันทึกเสถียรภาพ
+  cs: Protokoly stability
+  sv: Stabilitetsloggar
+  he: יומני יציבות
+  verified_by_human: []
+stability_logs_description:
+  context: Description text explaining what anonymized stability logs collect — shown above the toggle
+  en: Help improve OpenMates by sharing anonymized error logs. No message content, chat titles, or personal data is included — only technical error information.
+  de: Helfen Sie, OpenMates zu verbessern, indem Sie anonymisierte Fehlerprotokolle teilen. Keine Nachrichteninhalte, Chat-Titel oder persönliche Daten sind enthalten — nur technische Fehlerinformationen.
+  zh: 通过分享匿名错误日志帮助改进 OpenMates。不包含任何消息内容、聊天标题或个人数据——仅包含技术错误信息。
+  es: Ayuda a mejorar OpenMates compartiendo registros de errores anónimos. No se incluye contenido de mensajes, títulos de chat ni datos personales, solo información técnica de errores.
+  fr: Aidez à améliorer OpenMates en partageant des journaux d'erreurs anonymisés. Aucun contenu de message, titre de chat ou donnée personnelle n'est inclus — uniquement des informations techniques d'erreur.
+  pt: Ajude a melhorar o OpenMates compartilhando logs de erros anonimizados. Nenhum conteúdo de mensagens, títulos de chat ou dados pessoais são incluídos — apenas informações técnicas de erros.
+  ru: Помогите улучшить OpenMates, делясь анонимизированными журналами ошибок. Содержимое сообщений, заголовки чатов и личные данные не включаются — только техническая информация об ошибках.
+  ja: 匿名化されたエラーログを共有して、OpenMates の改善にご協力ください。メッセージの内容、チャットのタイトル、個人データは含まれません。技術的なエラー情報のみです。
+  ko: 익명화된 오류 로그를 공유하여 OpenMates 개선에 도움을 주세요. 메시지 내용, 채팅 제목 또는 개인 데이터는 포함되지 않으며 기술적인 오류 정보만 포함됩니다.
+  it: Aiuta a migliorare OpenMates condividendo log degli errori anonimizzati. Nessun contenuto di messaggi, titoli di chat o dati personali è incluso — solo informazioni tecniche sugli errori.
+  tr: Anonim hata günlüklerini paylaşarak OpenMates'i iyileştirmeye yardımcı olun. Mesaj içeriği, sohbet başlıkları veya kişisel veriler dahil değildir — yalnızca teknik hata bilgileri.
+  vi: Giúp cải thiện OpenMates bằng cách chia sẻ nhật ký lỗi ẩn danh. Không bao gồm nội dung tin nhắn, tiêu đề trò chuyện hay dữ liệu cá nhân — chỉ có thông tin lỗi kỹ thuật.
+  id: Bantu tingkatkan OpenMates dengan berbagi log kesalahan anonim. Tidak ada konten pesan, judul obrolan, atau data pribadi yang disertakan — hanya informasi kesalahan teknis.
+  pl: Pomóż ulepszyć OpenMates, udostępniając zanonimizowane dzienniki błędów. Nie obejmuje treści wiadomości, tytułów czatów ani danych osobowych — tylko techniczne informacje o błędach.
+  nl: Help OpenMates te verbeteren door geanonimiseerde foutlogs te delen. Geen berichtinhoud, chattitels of persoonlijke gegevens worden meegestuurd — alleen technische foutinformatie.
+  ar: ساعد في تحسين OpenMates من خلال مشاركة سجلات الأخطاء المجهولة. لا يتم تضمين محتوى الرسائل أو عناوين المحادثات أو البيانات الشخصية — فقط معلومات الأخطاء التقنية.
+  hi: अनामिकृत त्रुटि लॉग साझा करके OpenMates को बेहतर बनाने में मदद करें। कोई संदेश सामग्री, चैट शीर्षक या व्यक्तिगत डेटा शामिल नहीं है — केवल तकनीकी त्रुटि जानकारी।
+  th: ช่วยปรับปรุง OpenMates โดยแชร์บันทึกข้อผิดพลาดที่ไม่ระบุตัวตน ไม่รวมเนื้อหาข้อความ ชื่อแชท หรือข้อมูลส่วนบุคคล — เฉพาะข้อมูลข้อผิดพลาดทางเทคนิคเท่านั้น
+  cs: Pomozte zlepšit OpenMates sdílením anonymizovaných protokolů chyb. Nejsou zahrnuty žádné obsahy zpráv, názvy chatů ani osobní údaje — pouze technické informace o chybách.
+  sv: Hjälp till att förbättra OpenMates genom att dela anonymiserade felloggar. Inget meddelandeinnehåll, chatttitlar eller personuppgifter ingår — bara teknisk felinformation.
+  he: עזור לשפר את OpenMates על ידי שיתוף יומני שגיאות אנונימיים. לא נכלל תוכן הודעות, כותרות צ'אט או נתונים אישיים — רק מידע טכני על שגיאות.
+  verified_by_human: []
+stability_logs_toggle_label:
+  context: Label for the stability logs toggle switch
+  en: Help improve stability
+  de: Stabilität verbessern helfen
+  zh: 帮助提高稳定性
+  es: Ayudar a mejorar la estabilidad
+  fr: Aider à améliorer la stabilité
+  pt: Ajudar a melhorar a estabilidade
+  ru: Помочь улучшить стабильность
+  ja: 安定性の向上に協力する
+  ko: 안정성 향상에 도움
+  it: Aiuta a migliorare la stabilità
+  tr: Kararlılığı iyileştirmeye yardımcı ol
+  vi: Giúp cải thiện sự ổn định
+  id: Bantu tingkatkan stabilitas
+  pl: Pomóż poprawić stabilność
+  nl: Help stabiliteit te verbeteren
+  ar: ساعد في تحسين الاستقرار
+  hi: स्थिरता सुधारने में मदद करें
+  th: ช่วยปรับปรุงเสถียรภาพ
+  cs: Pomozte zlepšit stabilitu
+  sv: Hjälp till att förbättra stabiliteten
+  he: עזור לשפר את היציבות
+  verified_by_human: []
+stability_logs_privacy_note:
+  context: Privacy disclaimer shown below the stability logs toggle explaining that no personal data is collected
+  en: Only anonymized technical logs are collected. No message content, chat titles, names, or email addresses are ever included. Logs are automatically deleted after 48 hours unless an error occurred. You can disable this at any time.
+  de: Es werden nur anonymisierte technische Protokolle erfasst. Nachrichteninhalte, Chat-Titel, Namen oder E-Mail-Adressen sind niemals enthalten. Protokolle werden nach 48 Stunden automatisch gelöscht, es sei denn, ein Fehler ist aufgetreten. Sie können dies jederzeit deaktivieren.
+  zh: 仅收集匿名化的技术日志。不包含任何消息内容、聊天标题、姓名或电子邮件地址。日志在 48 小时后自动删除，除非发生了错误。您可以随时禁用此功能。
+  es: Solo se recopilan registros técnicos anonimizados. Nunca se incluye contenido de mensajes, títulos de chat, nombres o direcciones de correo electrónico. Los registros se eliminan automáticamente después de 48 horas a menos que haya ocurrido un error. Puedes desactivar esto en cualquier momento.
+  fr: Seuls des journaux techniques anonymisés sont collectés. Aucun contenu de message, titre de chat, nom ou adresse e-mail n'est jamais inclus. Les journaux sont automatiquement supprimés après 48 heures sauf si une erreur s'est produite. Vous pouvez désactiver cela à tout moment.
+  pt: Apenas logs técnicos anonimizados são coletados. Nenhum conteúdo de mensagens, títulos de chat, nomes ou endereços de e-mail são incluídos. Os logs são automaticamente excluídos após 48 horas, a menos que um erro tenha ocorrido. Você pode desativar isso a qualquer momento.
+  ru: Собираются только анонимизированные технические журналы. Содержимое сообщений, заголовки чатов, имена и адреса электронной почты никогда не включаются. Журналы автоматически удаляются через 48 часов, если не произошла ошибка. Вы можете отключить это в любое время.
+  ja: 匿名化された技術ログのみが収集されます。メッセージの内容、チャットのタイトル、名前、メールアドレスは含まれません。ログはエラーが発生しない限り、48時間後に自動的に削除されます。いつでも無効にできます。
+  ko: 익명화된 기술 로그만 수집됩니다. 메시지 내용, 채팅 제목, 이름 또는 이메일 주소는 절대 포함되지 않습니다. 로그는 오류가 발생하지 않는 한 48시간 후 자동으로 삭제됩니다. 언제든지 비활성화할 수 있습니다.
+  it: Vengono raccolti solo log tecnici anonimizzati. Nessun contenuto di messaggi, titoli di chat, nomi o indirizzi email è mai incluso. I log vengono eliminati automaticamente dopo 48 ore a meno che non si sia verificato un errore. Puoi disattivarlo in qualsiasi momento.
+  tr: Yalnızca anonimleştirilmiş teknik günlükler toplanır. Mesaj içeriği, sohbet başlıkları, adlar veya e-posta adresleri asla dahil edilmez. Günlükler, bir hata oluşmadıkça 48 saat sonra otomatik olarak silinir. Bunu istediğiniz zaman devre dışı bırakabilirsiniz.
+  vi: Chỉ thu thập nhật ký kỹ thuật ẩn danh. Không bao giờ bao gồm nội dung tin nhắn, tiêu đề trò chuyện, tên hoặc địa chỉ email. Nhật ký được tự động xóa sau 48 giờ trừ khi có lỗi xảy ra. Bạn có thể tắt tính năng này bất kỳ lúc nào.
+  id: Hanya log teknis anonim yang dikumpulkan. Konten pesan, judul obrolan, nama, atau alamat email tidak pernah disertakan. Log otomatis dihapus setelah 48 jam kecuali terjadi kesalahan. Anda dapat menonaktifkan ini kapan saja.
+  pl: Zbierane są tylko zanonimizowane dzienniki techniczne. Treść wiadomości, tytuły czatów, nazwy i adresy e-mail nigdy nie są uwzględniane. Dzienniki są automatycznie usuwane po 48 godzinach, chyba że wystąpił błąd. Możesz to wyłączyć w dowolnym momencie.
+  nl: Alleen geanonimiseerde technische logs worden verzameld. Berichtinhoud, chattitels, namen of e-mailadressen worden nooit meegestuurd. Logs worden automatisch na 48 uur verwijderd, tenzij er een fout is opgetreden. U kunt dit op elk moment uitschakelen.
+  ar: يتم جمع السجلات التقنية المجهولة فقط. لا يتم أبداً تضمين محتوى الرسائل أو عناوين المحادثات أو الأسماء أو عناوين البريد الإلكتروني. يتم حذف السجلات تلقائياً بعد 48 ساعة ما لم يحدث خطأ. يمكنك تعطيل هذا في أي وقت.
+  hi: केवल अनामिकृत तकनीकी लॉग एकत्र किए जाते हैं। संदेश सामग्री, चैट शीर्षक, नाम या ईमेल पते कभी शामिल नहीं होते। 48 घंटे बाद लॉग स्वचालित रूप से हटा दिए जाते हैं जब तक कि कोई त्रुटि न हो। आप इसे किसी भी समय अक्षम कर सकते हैं।
+  th: รวบรวมเฉพาะบันทึกทางเทคนิคที่ไม่ระบุตัวตนเท่านั้น ไม่มีเนื้อหาข้อความ ชื่อแชท ชื่อ หรืออีเมลรวมอยู่ด้วย บันทึกจะถูกลบโดยอัตโนมัติหลังจาก 48 ชั่วโมง เว้นแต่จะเกิดข้อผิดพลาด คุณสามารถปิดการใช้งานนี้ได้ตลอดเวลา
+  cs: Jsou shromažďovány pouze anonymizované technické protokoly. Obsah zpráv, názvy chatů, jména ani e-mailové adresy nejsou nikdy zahrnuty. Protokoly jsou automaticky smazány po 48 hodinách, pokud nedošlo k chybě. Toto můžete kdykoli vypnout.
+  sv: Endast anonymiserade tekniska loggar samlas in. Meddelandeinnehåll, chatttitlar, namn eller e-postadresser inkluderas aldrig. Loggar raderas automatiskt efter 48 timmar om inget fel har inträffat. Du kan inaktivera detta när som helst.
+  he: רק יומנים טכניים אנונימיים נאספים. תוכן הודעות, כותרות צ'אט, שמות או כתובות דוא"ל אינם נכללים לעולם. היומנים נמחקים אוטומטית לאחר 48 שעות אלא אם התרחשה שגיאה. תוכל להשבית זאת בכל עת.
+  verified_by_human: []
 debug_logging_title:
   context: Section heading for the debug logging opt-in toggle in Privacy settings
   en: Debug Logging

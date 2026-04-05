@@ -37,6 +37,26 @@ const MAX_ERROR_LOGS = 100;
 /** Maximum length of a single log message before truncation */
 const MAX_MESSAGE_LENGTH = 1000;
 
+/**
+ * Content sanitization patterns for ephemeral log forwarding.
+ * These strip PII and user content that should never appear in anonymized logs.
+ * Only active in ephemeral mode — admin/debug modes keep full messages.
+ */
+const CONTENT_SANITIZE_PATTERNS: Array<[RegExp, string]> = [
+	[/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL-REDACTED]'],
+	[/[A-Za-z0-9+/=]{50,}/g, '[BASE64-REDACTED]'],
+	[/"[^"]{100,}"/g, '"[LONG-STRING-REDACTED]"'],
+	[/'[^']{100,}'/g, "'[LONG-STRING-REDACTED]'"],
+	[
+		/(chat[_-]?id|message[_-]?id|embed[_-]?id)[=:]\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+		'$1=[UUID-REDACTED]'
+	],
+	[
+		/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g,
+		'/[UUID-REDACTED]'
+	]
+];
+
 class LogCollectorService {
   /** Main circular buffer — all log levels */
   private logs: ConsoleLogEntry[] = [];
@@ -251,6 +271,22 @@ class LogCollectorService {
       }
       return arg;
     });
+  }
+
+  /**
+   * Apply content-level sanitization for ephemeral log forwarding.
+   * Strips emails, base64 blobs, long quoted strings, and UUIDs in
+   * chat/message contexts. Only used by the ephemeral forwarder —
+   * admin and debug modes skip this to preserve full debugging context.
+   */
+  public sanitizeContent(message: string): string {
+    let result = message;
+    for (const [pattern, replacement] of CONTENT_SANITIZE_PATTERNS) {
+      // Reset lastIndex for global regexes (they're stateful)
+      pattern.lastIndex = 0;
+      result = result.replace(pattern, replacement);
+    }
+    return result;
   }
 
   /**

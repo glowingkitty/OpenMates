@@ -20,8 +20,8 @@
  *   window.debug.animation('ai_is_typing_on')  — test rainbow glow + typing indicator
  *   window.debug.animation('ai_is_typing_off') — stop the animation
  *
- *   window.debug_tools.hide()              — hide Report Issue & Start Debugging buttons
- *   window.debug_tools.show()              — show Report Issue & Start Debugging buttons
+ *   window.debug_tools.hide()              — hide Report Issue & Start Debugging buttons (chat + embed)
+ *   window.debug_tools.show()              — show Report Issue & Start Debugging buttons (chat + embed)
  *
  * Architecture context: See docs/architecture/embed-encryption.md
  */
@@ -3959,8 +3959,8 @@ function showDebugHelp(): void {
       "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
       "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n\n" +
       "  UI Tools:\n" +
-      "  window.debug_tools.hide()                 — hide Report Issue & Start Debugging buttons\n" +
-      "  window.debug_tools.show()                 — show Report Issue & Start Debugging buttons\n",
+      "  window.debug_tools.hide()                 — hide Report Issue & Start Debugging buttons (chat + embed)\n" +
+      "  window.debug_tools.show()                 — show Report Issue & Start Debugging buttons (chat + embed)\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4542,11 +4542,13 @@ export function initDebugUtils(): void {
   (window as unknown as Record<string, unknown>).debug = debugFn;
 
   // ─── window.debug_tools — show/hide debug UI buttons ──────────────────────
-  // Targets [data-testid="report-issue-button"] and [data-testid="start-debugging-button"]
-  // in ActiveChat.svelte. Useful for Playwright sessions that need a clean viewport.
+  // Targets Report Issue & Start Debugging buttons in both ActiveChat.svelte
+  // and EmbedTopBar.svelte. Useful for Playwright sessions that need a clean viewport.
   const DEBUG_TOOL_BUTTON_SELECTORS = [
     '[data-testid="report-issue-button"]',
     '[data-testid="start-debugging-button"]',
+    '[data-testid="embed-report-issue-button"]',
+    '[data-testid="embed-toggle-debug"]',
   ];
 
   (window as unknown as Record<string, unknown>).debug_tools = {
@@ -4556,7 +4558,7 @@ export function initDebugUtils(): void {
         const el = document.querySelector(selector) as HTMLElement | null;
         if (el) el.style.display = "none";
       }
-      console.log("[debug_tools] Report Issue and Start Debugging buttons hidden");
+      console.log("[debug_tools] Report Issue and Start Debugging buttons hidden (chat + embed)");
     },
     /** Show the Report Issue and Start Debugging buttons */
     show: () => {
@@ -4564,7 +4566,7 @@ export function initDebugUtils(): void {
         const el = document.querySelector(selector) as HTMLElement | null;
         if (el) el.style.display = "";
       }
-      console.log("[debug_tools] Report Issue and Start Debugging buttons shown");
+      console.log("[debug_tools] Report Issue and Start Debugging buttons shown (chat + embed)");
     },
   };
 

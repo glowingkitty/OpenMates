@@ -42,6 +42,7 @@ from backend.core.api.app.routes.push import router as push_router  # noqa: E402
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
+from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
@@ -512,10 +513,18 @@ async def compliance_log_backup_task(app: "FastAPI") -> None:
             except Exception as _e:
                 _task_logger.warning(f"Could not init OO stream '{_stream_name}': {_e}")
 
-    # Set stream-level retention (retries every 5 min until stream exists)
+    # Set stream-level retention (retries every 5 min until stream exists).
+    # NOTE: per-stream retention via the OO settings API is broken in v0.70.0-rc3
+    # (PUT returns 200 but doesn't persist). The global ZO_COMPACT_DATA_RETENTION_DAYS=14
+    # acts as the effective default. These calls are kept so retention is correctly applied
+    # once OO is upgraded to a version where the API works.
     asyncio.gather(
-        _set_openobserve_stream_retention("audit_compliance", retention_days=730),      # 2 years
-        _set_openobserve_stream_retention("financial_compliance", retention_days=3650), # 10 years
+        _set_openobserve_stream_retention("audit_compliance", retention_days=730),             # 2 years
+        _set_openobserve_stream_retention("financial_compliance", retention_days=3650),        # 10 years
+        _set_openobserve_stream_retention("client_console", retention_days=30),                # 30 days — admin browser logs
+        _set_openobserve_stream_retention("client_console_ephemeral", retention_days=2),       # 48h — anonymous rolling buffer
+        _set_openobserve_stream_retention("client_console_error_context", retention_days=14),  # 14 days — promoted error sessions
+        _set_openobserve_stream_retention("client_issue_report", retention_days=90),            # 90 days — issue report snapshots
     )
 
     # --- Nightly loop ---
@@ -1681,6 +1690,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
+    app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
     app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
