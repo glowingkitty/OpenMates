@@ -78,6 +78,7 @@ async def _async_generate_and_send_action_verification_email(
     Cache key pattern: action_verification:{user_id}:{action}
     """
     secrets_manager = SecretsManager()
+    cache_service = None
 
     try:
         cache_service = CacheService()
@@ -134,4 +135,6 @@ async def _async_generate_and_send_action_verification_email(
         )
         return False
     finally:
+        if cache_service:
+            await cache_service.close()
         await secrets_manager.aclose()

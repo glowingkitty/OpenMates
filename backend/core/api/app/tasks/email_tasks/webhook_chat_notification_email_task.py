@@ -15,8 +15,6 @@ Related: ai_response_notification_email_task.py (same structure)
 
 import asyncio
 import logging
-import os
-from typing import Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.email_template import EmailTemplateService
@@ -89,6 +87,8 @@ async def _async_send_webhook_chat_notification(
     and sends via EmailTemplateService.
     """
     secrets_manager = SecretsManager()
+    cache_service = None
+    encryption_service = None
 
     try:
         await secrets_manager.initialize()
@@ -165,4 +165,8 @@ async def _async_send_webhook_chat_notification(
         logger.error(f"[WEBHOOK_EMAIL] Error: {e}", exc_info=True)
         return False
     finally:
+        if cache_service:
+            await cache_service.close()
+        if encryption_service and hasattr(encryption_service, 'close'):
+            await encryption_service.close()
         await secrets_manager.aclose()

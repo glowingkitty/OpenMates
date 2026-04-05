@@ -65,9 +65,8 @@ async def _update_cache_async(data: Dict[str, Any]) -> bool:
     Returns:
         True if cache was updated successfully
     """
+    cache_service = CacheService()
     try:
-        cache_service = CacheService()
-
         # Store full leaderboard data as JSON
         cache_value = json.dumps(data, ensure_ascii=False)
         await cache_service.set(
@@ -82,6 +81,8 @@ async def _update_cache_async(data: Dict[str, Any]) -> bool:
     except Exception as e:
         logger.error(f"[LEADERBOARD] Failed to update cache: {e}", exc_info=True)
         return False
+    finally:
+        await cache_service.close()
 
 
 async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
@@ -91,8 +92,8 @@ async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
     Returns:
         Cached leaderboard data or None if not found
     """
+    cache_service = CacheService()
     try:
-        cache_service = CacheService()
         cached = await cache_service.get(LEADERBOARD_CACHE_KEY)
 
         if cached:
@@ -105,6 +106,8 @@ async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"[LEADERBOARD] Failed to get from cache: {e}", exc_info=True)
         return None
+    finally:
+        await cache_service.close()
 
 
 @app.task(

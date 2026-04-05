@@ -271,8 +271,10 @@ async def _async_process_support_contribution_receipt_and_send_email(
         return False
     finally:
         # CRITICAL: Close async resources (like httpx clients) before the event loop closes
-        # This prevents "Event loop is closed" errors during cleanup
+        # This prevents "Event loop is closed" errors and Redis connection leaks
         try:
+            if cache_service:
+                await cache_service.close()
             await task.cleanup_services()
             logger.debug("Task services cleaned up successfully for support contribution receipt task")
         except Exception as cleanup_error:

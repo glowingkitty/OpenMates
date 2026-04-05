@@ -97,7 +97,7 @@ def periodic_draft_persistence_scan(self):
         return
 
     logger.info("Periodic draft persistence scan: Starting scan...")
-    cache_service = CacheService() # Instantiate for async methods
+    cache_service = CacheService()  # Instantiate for async methods (closed at end of scan)
 
     # Pattern for list_item_data keys: user:{user_id}:chat:{chat_id}:list_item_data
     # CacheService defines CHAT_LIST_ITEM_DATA_TTL
@@ -190,6 +190,12 @@ def periodic_draft_persistence_scan(self):
     except Exception as e_outer:
         logger.error(f"Unexpected error during periodic draft persistence scan: {e_outer}", exc_info=True)
     
+    # Close the CacheService to prevent Redis connection leaks
+    try:
+        asyncio.run(cache_service.close())
+    except Exception as close_err:
+        logger.warning(f"Error closing CacheService after periodic scan: {close_err}")
+
     logger.info(f"Periodic draft persistence scan: Finished. Processed ~{processed_keys} keys. Dispatched {tasks_dispatched} persistence tasks.")
 
 
