@@ -1,0 +1,4 @@
+# Disable Dependabot auto-PRs — upgrades are handled manually.
+# Security alerts remain enabled via repo settings (Settings > Code security).
+version: 2
+updates: []

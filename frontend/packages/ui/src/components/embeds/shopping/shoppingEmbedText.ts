@@ -5,7 +5,18 @@
 
 import { str, trunc, formatPrice, resolveResultCount } from '../../../data/embedTextRenderers';
 
-/** app:shopping:search_products — composite (children are web-website) */
+/** shopping-product — individual product child embed */
+export function renderShoppingProduct(c: Record<string, unknown>): string {
+	const title = str(c.title) ?? str(c.name) ?? 'Product';
+	const brand = str(c.brand) ?? '';
+	const price = str(c.price_eur) ?? str(c.price) ?? formatPrice(c.price_amount, c.currency_symbol);
+	const lines: string[] = [title];
+	if (brand) lines.push(brand);
+	if (price) lines.push(price);
+	return lines.join('\n');
+}
+
+/** app:shopping:search_products — composite (children are shopping-product) */
 export function renderShoppingSearch(
 	c: Record<string, unknown>,
 	children?: Record<string, unknown>[]

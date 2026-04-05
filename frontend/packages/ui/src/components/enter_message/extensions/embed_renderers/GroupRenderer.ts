@@ -37,6 +37,7 @@ import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
@@ -255,6 +256,16 @@ export class GroupRenderer implements EmbedRenderer {
         "home-listing",
         (item, embedData, decodedContent, content) =>
           this.renderHomeListingComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "shopping-product",
+        (item, embedData, decodedContent, content) =>
+          this.renderShoppingProductComponent(
             item,
             embedData,
             decodedContent,
@@ -539,6 +550,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHealthAppointmentItem(item, embedData, decodedContent);
       case "home-listing":
         return this.renderHomeListingItem(item, embedData, decodedContent);
+      case "shopping-product":
+        return this.renderShoppingProductItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -4155,6 +4168,7 @@ export class GroupRenderer implements EmbedRenderer {
       "maps-place": "place",
       "images-image-result": "image",
       "home-listing": "listing",
+      "shopping-product": "product",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
@@ -4346,6 +4360,94 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render a shopping product child embed using ShoppingResultEmbedPreview.
+   * These are individual product cards from the shopping/search_products skill.
+   */
+  private async renderShoppingProductComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping ShoppingResultEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(ShoppingResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          brand: decodedContent?.brand as string | undefined,
+          price_cents: typeof decodedContent?.price_cents === "number"
+            ? decodedContent.price_cents
+            : null,
+          price_eur: decodedContent?.price_eur as string | undefined,
+          was_price_cents: typeof decodedContent?.was_price_cents === "number"
+            ? decodedContent.was_price_cents
+            : null,
+          grammage: decodedContent?.grammage as string | undefined,
+          image_url: decodedContent?.image_url as string | undefined,
+          old_price: decodedContent?.old_price as string | undefined,
+          old_price_amount: typeof decodedContent?.old_price_amount === "number"
+            ? decodedContent.old_price_amount
+            : null,
+          price: decodedContent?.price as string | undefined,
+          price_amount: typeof decodedContent?.price_amount === "number"
+            ? decodedContent.price_amount
+            : null,
+          currency_symbol: decodedContent?.currency_symbol as string | undefined,
+          attributes: decodedContent?.attributes as Record<string, boolean> | undefined,
+          rating: typeof decodedContent?.rating === "number"
+            ? decodedContent.rating
+            : null,
+          reviews: typeof decodedContent?.reviews === "number"
+            ? decodedContent.reviews
+            : null,
+          prime: typeof decodedContent?.prime === "boolean"
+            ? decodedContent.prime
+            : null,
+          status: (embedData?.status || item.status || "finished") as
+            | "processing"
+            | "finished"
+            | "error",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted ShoppingResultEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount ShoppingResultEmbedPreview:",
+        err,
+      );
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Product preview unavailable</div>`;
+    }
+  }
+
+  /**
    * HTML fallback renderer for home-listing embeds (used in group rendering).
    */
   private async renderHomeListingItem(
@@ -4367,6 +4469,32 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${title}</div>
         ${address ? `<div class="embed-text-subline">${address}</div>` : ""}
         ${provider ? `<div class="embed-text-subline">${provider}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for shopping-product embeds (used in group rendering).
+   */
+  private async renderShoppingProductItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const title = decodedContent?.title || "Product";
+    const brand = decodedContent?.brand || "";
+    const priceEur = decodedContent?.price_eur || decodedContent?.price || "";
+
+    return `
+      <div class="embed-app-icon shopping">
+        <span class="icon icon_shopping"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${esc(String(title))}</div>
+        ${brand ? `<div class="embed-text-subline">${esc(String(brand))}</div>` : ""}
+        ${priceEur ? `<div class="embed-text-subline">${esc(String(priceEur))}</div>` : ""}
       </div>
     `;
   }

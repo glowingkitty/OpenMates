@@ -44,6 +44,11 @@ class PolicyManager:
           capabilities = ["read", "list"]
         }
 
+        # Allow API to persist auto-generated VAPID keys across restarts
+        path "kv/data/providers/vapid" {
+          capabilities = ["create", "read", "update", "list"]
+        }
+
         # Allow API service to manage (CRUDL) user-specific raw AES keys for draft encryption
         path "kv/data/user-draft-aes-keys/*" {
           capabilities = ["create", "read", "update", "delete", "list"]
