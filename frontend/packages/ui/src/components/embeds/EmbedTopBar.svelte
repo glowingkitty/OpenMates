@@ -151,6 +151,7 @@
     {#if showDebug && onToggleDebug}
       <div class="button-wrapper">
         <button
+          data-testid="embed-toggle-debug"
           class="clickable-icon icon_task top-button"
           class:debug-mode-active={debugActive}
           onclick={onToggleDebug}

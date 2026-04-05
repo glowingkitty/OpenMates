@@ -622,6 +622,7 @@
                 <!-- Debug mode toggle: admin only -->
                 <div class="menu-separator"></div>
                 <button
+                    data-testid="context-menu-toggle-debug"
                     class="menu-item debug"
                     class:debug-active={$chatDebugStore.rawTextMode}
                     onclick={handleToggleDebug}
