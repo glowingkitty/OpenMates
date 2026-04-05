@@ -494,10 +494,9 @@ def gather_ephemeral_error_context() -> str:
         "--o2",
         "--since", "1440",
         "--sql", (
-            'SELECT session_pseudonym, log, COUNT(*) as count '
-            'FROM "client-logs-error-context" '
-            "WHERE compose_project = 'openmates-core' "
-            "GROUP BY session_pseudonym, log "
+            'SELECT session_pseudonym, message, COUNT(*) as count '
+            'FROM "client_console_error_context" '
+            "GROUP BY session_pseudonym, message "
             "ORDER BY count DESC LIMIT 30"
         ),
         "--json", "--quiet-health",
@@ -518,7 +517,7 @@ def gather_ephemeral_error_context() -> str:
 def gather_pii_leak_audit() -> str:
     """Source M: PII leak detection scan across ephemeral log streams."""
     # Scan both streams for patterns that should have been sanitized
-    streams = ["client-logs-ephemeral", "client-logs-error-context"]
+    streams = ["client_console_ephemeral", "client_console_error_context"]
     results = []
 
     for stream in streams:
@@ -528,13 +527,12 @@ def gather_pii_leak_audit() -> str:
             "--o2",
             "--since", "1440",
             "--sql", (
-                f'SELECT log, _timestamp FROM "{stream}" '
-                "WHERE compose_project = 'openmates-core' "
-                "AND ("
-                "LOWER(log) LIKE '%@%.%' "
-                "OR log LIKE '%Bearer %' "
-                "OR LOWER(log) LIKE '%password%' "
-                "OR log LIKE '%[REDACTED]%' "
+                f'SELECT message, _timestamp FROM "{stream}" '
+                "WHERE ("
+                "LOWER(message) LIKE '%@%.%' "
+                "OR message LIKE '%Bearer %' "
+                "OR LOWER(message) LIKE '%password%' "
+                "OR message LIKE '%[REDACTED]%' "
                 ") "
                 "LIMIT 20"
             ),

@@ -58,8 +58,8 @@ async def _query_ephemeral_logs(session_pseudonym: str) -> list:
     query_payload = {
         "query": {
             "sql": (
-                f'SELECT _timestamp, log FROM "client-logs-ephemeral" '
-                f"WHERE str_match(log, '{session_pseudonym}') "
+                f'SELECT _timestamp, message FROM "client_console_ephemeral" '
+                f"WHERE session_pseudonym = '{session_pseudonym}' "
                 f"ORDER BY _timestamp ASC "
                 f"LIMIT {MAX_ENTRIES_PER_SESSION}"
             ),
@@ -96,8 +96,8 @@ async def _query_ephemeral_logs(session_pseudonym: str) -> list:
                 entries = []
                 for hit in hits:
                     entries.append({
-                        "timestamp_ns": str(int(hit.get("_timestamp", 0) * 1000)),
-                        "message": hit.get("log", ""),
+                        "_timestamp": hit.get("_timestamp", 0),
+                        "message": hit.get("message", ""),
                     })
                 return entries
 

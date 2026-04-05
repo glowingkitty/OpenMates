@@ -301,22 +301,17 @@ class ClientLogForwarderService {
     if (!this.running) return;
     this.running = false;
     this.debugSessionId = null;
-    // Also stop ephemeral mode on logout (it restarts on next login)
-    if (this.ephemeralMode) {
-      if (this.ephemeralMode.flushTimer !== null) {
-        clearInterval(this.ephemeralMode.flushTimer);
-      }
-      await this.flushEphemeral();
-      this.ephemeralMode = null;
-    }
-    // Only remove the log listener if E2E mode is also inactive.
-    // If E2E mode is active, keep the listener so E2E logs keep flowing.
-    if (!this.e2eMode) {
+    // Ephemeral mode runs independently — do NOT stop it here.
+    // It has its own lifecycle (startEphemeral/stopEphemeral) and should
+    // survive admin/debug stop calls. It is only stopped explicitly on
+    // logout via stopEphemeral() or when the user opts out.
+    // Only remove the log listener if no other mode needs it.
+    if (!this.e2eMode && !this.ephemeralMode) {
       logCollector.offNewLog(this.logListener);
-      if (this.flushTimer !== null) {
-        clearInterval(this.flushTimer);
-        this.flushTimer = null;
-      }
+    }
+    if (this.flushTimer !== null) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
     }
     // Best-effort final drain before teardown.
     await this.flush(true);
@@ -459,8 +454,9 @@ class ClientLogForwarderService {
         credentials: 'include', // needed for auth + rate limiting only
         keepalive: true,
       });
-    } catch {
+    } catch (err) {
       // Push entries back to buffer on failure (retry next interval)
+      console.warn('[ClientLogForwarder] Ephemeral flush failed, will retry:', err);
       if (this.ephemeralMode) {
         this.ephemeralMode.buffer.unshift(...deduped);
         // Re-cap after re-insert

@@ -1152,11 +1152,9 @@ async def _query_browser_logs_openobserve(
 
     Returns the latest timestamp (in nanoseconds) seen, or None if no results.
     Browser logs are pushed by admin_client_logs via OpenObservePushService using the
-    Loki-compatible push endpoint. Despite the stream label being "client-console",
-    Loki-compat pushes land in the "default" stream with job='client-console' as a
-    searchable field — there is no separate stream named "client-console".
+    native JSON push API. Data lives in the 'client_console' stream.
 
-    The 'device_type' label is set by openobserve_push_service.derive_device_type()
+    The 'device_type' field is set by openobserve_push_service.derive_device_type()
     and is one of: iphone, ipad, android, windows-phone, windows, mac, linux,
     chromeos, unknown.
     """
@@ -1164,8 +1162,7 @@ async def _query_browser_logs_openobserve(
     email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
     password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
 
-    # job='client-console' is the label set by openobserve_push_service.push_client_logs()
-    where_clauses = ["job = 'client-console'"]
+    where_clauses: list[str] = []
     if level:
         where_clauses.append(f"level = '{sql_escape(level)}'")
     if user:
@@ -1178,10 +1175,11 @@ async def _query_browser_logs_openobserve(
         where_clauses.append(f"message LIKE '%{sql_escape(search)}%'")
 
     where_sql = " AND ".join(where_clauses)
+    where_part = f"WHERE {where_sql} " if where_sql else ""
     sql = (
         f"SELECT _timestamp, message, level, user_email, device_type "
-        f'FROM "default" '
-        f"WHERE {where_sql} "
+        f'FROM "client_console" '
+        f"{where_part}"
         f"ORDER BY _timestamp ASC LIMIT {limit}"
     )
 
@@ -1189,7 +1187,6 @@ async def _query_browser_logs_openobserve(
         start_us = int((time.time() - since_minutes * 60) * 1_000_000)
     end_us = int(time.time() * 1_000_000)
 
-    # Loki-compat pushes land in "default" stream — use /_search, not /client-console/_search
     url = f"{OPENOBSERVE_URL}/api/{OPENOBSERVE_ORG}/_search"
     body = {"query": {"sql": sql, "start_time": start_us, "end_time": end_us}}
 
@@ -2392,11 +2389,11 @@ async def run_debug_session_mode(args: argparse.Namespace) -> None:
 
     all_entries: list[dict[str, Any]] = []
 
-    # 1. Frontend console logs (tagged with debugging_id label)
+    # 1. Frontend console logs (tagged with debugging_id field)
     frontend_sql = (
         f"SELECT _timestamp, message, level, device_type, user_id "
-        f'FROM "default" '
-        f"WHERE job = 'client-console' AND debugging_id = '{debugging_id}' "
+        f'FROM "client_console" '
+        f"WHERE debugging_id = '{debugging_id}' "
         f"ORDER BY _timestamp ASC LIMIT {limit}"
     )
     try:
