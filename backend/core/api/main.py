@@ -513,10 +513,18 @@ async def compliance_log_backup_task(app: "FastAPI") -> None:
             except Exception as _e:
                 _task_logger.warning(f"Could not init OO stream '{_stream_name}': {_e}")
 
-    # Set stream-level retention (retries every 5 min until stream exists)
+    # Set stream-level retention (retries every 5 min until stream exists).
+    # NOTE: per-stream retention via the OO settings API is broken in v0.70.0-rc3
+    # (PUT returns 200 but doesn't persist). The global ZO_COMPACT_DATA_RETENTION_DAYS=14
+    # acts as the effective default. These calls are kept so retention is correctly applied
+    # once OO is upgraded to a version where the API works.
     asyncio.gather(
-        _set_openobserve_stream_retention("audit_compliance", retention_days=730),      # 2 years
-        _set_openobserve_stream_retention("financial_compliance", retention_days=3650), # 10 years
+        _set_openobserve_stream_retention("audit_compliance", retention_days=730),             # 2 years
+        _set_openobserve_stream_retention("financial_compliance", retention_days=3650),        # 10 years
+        _set_openobserve_stream_retention("client_console", retention_days=30),                # 30 days — admin browser logs
+        _set_openobserve_stream_retention("client_console_ephemeral", retention_days=2),       # 48h — anonymous rolling buffer
+        _set_openobserve_stream_retention("client_console_error_context", retention_days=14),  # 14 days — promoted error sessions
+        _set_openobserve_stream_retention("client_issue_report", retention_days=90),            # 90 days — issue report snapshots
     )
 
     # --- Nightly loop ---
