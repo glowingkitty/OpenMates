@@ -20,8 +20,8 @@
  *   window.debug.animation('ai_is_typing_on')  — test rainbow glow + typing indicator
  *   window.debug.animation('ai_is_typing_off') — stop the animation
  *
- *   window.debug_tools.hide()              — hide Report Issue & Start Debugging buttons (chat + embed)
- *   window.debug_tools.show()              — show Report Issue & Start Debugging buttons (chat + embed)
+ *   window.debug_tools.hide()              — hide New Chat, Report Issue & Start Debugging buttons (chat + embed)
+ *   window.debug_tools.show()              — show New Chat, Report Issue & Start Debugging buttons (chat + embed)
  *
  * Architecture context: See docs/architecture/embed-encryption.md
  */
@@ -3959,8 +3959,8 @@ function showDebugHelp(): void {
       "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
       "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n\n" +
       "  UI Tools:\n" +
-      "  window.debug_tools.hide()                 — hide Report Issue & Start Debugging buttons (chat + embed)\n" +
-      "  window.debug_tools.show()                 — show Report Issue & Start Debugging buttons (chat + embed)\n",
+      "  window.debug_tools.hide()                 — hide New Chat, Report Issue & Start Debugging buttons (chat + embed)\n" +
+      "  window.debug_tools.show()                 — show New Chat, Report Issue & Start Debugging buttons (chat + embed)\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4542,31 +4542,36 @@ export function initDebugUtils(): void {
   (window as unknown as Record<string, unknown>).debug = debugFn;
 
   // ─── window.debug_tools — show/hide debug UI buttons ──────────────────────
-  // Targets Report Issue & Start Debugging buttons in both ActiveChat.svelte
-  // and EmbedTopBar.svelte. Useful for Playwright sessions that need a clean viewport.
-  const DEBUG_TOOL_BUTTON_SELECTORS = [
-    '[data-testid="report-issue-button"]',
-    '[data-testid="start-debugging-button"]',
-    '[data-testid="embed-report-issue-button"]',
-    '[data-testid="embed-toggle-debug"]',
-  ];
+  // Hides the new-chat CTA, Report Issue & Start Debugging buttons in both
+  // ActiveChat.svelte and EmbedTopBar.svelte. Uses an injected <style> tag so
+  // the rules persist across DOM changes (e.g. opening embed fullscreen later).
+  const DEBUG_TOOLS_STYLE_ID = "debug-tools-hide-style";
+  const DEBUG_TOOLS_HIDE_CSS = `
+    .new-chat-button-wrapper:has([data-testid="new-chat-button"]),
+    .new-chat-button-wrapper:has([data-testid="report-issue-button"]),
+    .new-chat-button-wrapper:has([data-testid="start-debugging-button"]),
+    .button-wrapper:has([data-testid="embed-report-issue-button"]),
+    .button-wrapper:has([data-testid="embed-toggle-debug"]) {
+      display: none !important;
+    }
+  `;
 
   (window as unknown as Record<string, unknown>).debug_tools = {
-    /** Hide the Report Issue and Start Debugging buttons */
+    /** Hide the new-chat button, Report Issue and Start Debugging buttons (persistent across DOM changes) */
     hide: () => {
-      for (const selector of DEBUG_TOOL_BUTTON_SELECTORS) {
-        const el = document.querySelector(selector) as HTMLElement | null;
-        if (el) el.style.display = "none";
+      if (!document.getElementById(DEBUG_TOOLS_STYLE_ID)) {
+        const style = document.createElement("style");
+        style.id = DEBUG_TOOLS_STYLE_ID;
+        style.textContent = DEBUG_TOOLS_HIDE_CSS;
+        document.head.appendChild(style);
       }
-      console.log("[debug_tools] Report Issue and Start Debugging buttons hidden (chat + embed)");
+      console.log("[debug_tools] New chat, Report Issue and Start Debugging buttons hidden (chat + embed)");
     },
-    /** Show the Report Issue and Start Debugging buttons */
+    /** Show the new-chat button, Report Issue and Start Debugging buttons */
     show: () => {
-      for (const selector of DEBUG_TOOL_BUTTON_SELECTORS) {
-        const el = document.querySelector(selector) as HTMLElement | null;
-        if (el) el.style.display = "";
-      }
-      console.log("[debug_tools] Report Issue and Start Debugging buttons shown (chat + embed)");
+      const style = document.getElementById(DEBUG_TOOLS_STYLE_ID);
+      if (style) style.remove();
+      console.log("[debug_tools] New chat, Report Issue and Start Debugging buttons shown (chat + embed)");
     },
   };
 
