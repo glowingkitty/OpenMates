@@ -423,7 +423,7 @@
         inset: 0;
         border-radius: 24px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        z-index: 200;
+        z-index: var(--z-index-sticky);
         display: flex;
         flex-direction: column;
         align-items: center;

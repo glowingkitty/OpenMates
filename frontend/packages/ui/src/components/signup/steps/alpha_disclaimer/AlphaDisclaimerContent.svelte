@@ -117,7 +117,7 @@
             gap: var(--spacing-0);
         }
         .disclaimer-text p {
-            font-size: 14.5px
+            font-size: 0.90625rem
         }
     }
 </style>

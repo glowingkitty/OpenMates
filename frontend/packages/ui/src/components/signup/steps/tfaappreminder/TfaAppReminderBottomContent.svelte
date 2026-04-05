@@ -293,10 +293,10 @@ step_6_bottom_content_svelte:
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .input-group {
@@ -311,7 +311,7 @@ step_6_bottom_content_svelte:
     }
 
     .clickable-icon {
-        margin-right: 8px;
+        margin-right: var(--spacing-4);
     }
 
     .search-results {
@@ -322,13 +322,13 @@ step_6_bottom_content_svelte:
         right: 5%;
         background: var(--color-grey-0);
         border: 1px solid var(--color-grey-20);
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         max-height: 300px;
         height: auto;
         overflow: hidden;
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: opacity 0.3s ease-in-out;
+        transition: opacity var(--duration-slow) var(--easing-in-out);
         opacity: 0;
         animation: fadeIn 0.3s forwards;
     }
@@ -353,16 +353,16 @@ step_6_bottom_content_svelte:
         display: flex;
         align-items: center;
         text-align: left;
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
         border-radius: 15px;
     }
 
     .search-result:first-child {
-        padding-top: 10px;
+        padding-top: var(--spacing-5);
     }
 
     .search-result:last-child {
-        padding-bottom: 10px;
+        padding-bottom: var(--spacing-5);
         margin-bottom: 0;
     }
 
@@ -373,7 +373,7 @@ step_6_bottom_content_svelte:
     .mini-icon {
         width: 44px;
         height: 44px;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         margin-right: 11px;
         opacity: 1;
         animation: unset;
@@ -390,7 +390,7 @@ step_6_bottom_content_svelte:
     }
 
     input {
-        padding-left: 10px; /* Default padding */
+        padding-left: var(--spacing-5); /* Default padding */
     }
 
     input.selected-app {
@@ -416,6 +416,6 @@ step_6_bottom_content_svelte:
     }
 
     .safety-tip-subtext {
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 </style>

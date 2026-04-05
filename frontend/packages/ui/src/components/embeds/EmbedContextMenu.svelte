@@ -428,7 +428,7 @@
     border-radius: var(--radius-5);
     padding: var(--spacing-4);
     box-shadow: var(--shadow-md);
-    z-index: 99999; /* Very high z-index to ensure it's above everything */
+    z-index: var(--z-index-popover); /* Very high z-index to ensure it's above everything */
     isolation: isolate; /* Create new stacking context */
     opacity: 0;
     pointer-events: none;

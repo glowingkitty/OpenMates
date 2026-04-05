@@ -246,7 +246,7 @@
         border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
         border-radius: var(--radius-4);
         color: var(--color-text-primary, #ffffff);
-        font-size: 15px;
+        font-size: null;
         padding: 12px 14px;
         transition: border-color var(--duration-normal) var(--easing-default);
     }
@@ -309,7 +309,7 @@
         background: var(--color-primary, #4f8ef7);
         color: white;
         border-radius: var(--radius-4);
-        font-size: 15px;
+        font-size: null;
         font-weight: 500;
         padding: 14px 20px;
         cursor: pointer;

@@ -26,6 +26,7 @@ function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const exactOnly = args.includes("--exact-only");
+  const includeManual = args.includes("--include-manual");
   const filePaths = args.filter(a => !a.startsWith("--"));
 
   if (filePaths.length === 0) {
@@ -53,10 +54,11 @@ function main() {
     let replacements = fileData.replacements;
     if (exactOnly) {
       replacements = replacements.filter(r => r.confidence === "exact");
-    } else {
+    } else if (!includeManual) {
       // Skip manual confidence by default (only exact + approximate)
       replacements = replacements.filter(r => r.confidence !== "manual");
     }
+    // With --include-manual, all replacements are applied (including z-index)
 
     if (replacements.length === 0) {
       console.log(`[migrate-tokens] No applicable replacements for ${filePath} — skipping.`);

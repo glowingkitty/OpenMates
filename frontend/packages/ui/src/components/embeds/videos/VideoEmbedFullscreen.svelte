@@ -814,7 +814,7 @@
     cursor: pointer;
     transition: all var(--duration-normal) var(--easing-in-out);
     padding: 0;
-    z-index: 10;
+    z-index: var(--z-index-dropdown-1);
   }
   
   .play-button-overlay:hover {

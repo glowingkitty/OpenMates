@@ -2816,7 +2816,7 @@
         position: absolute;
         top: 15px;
         left: 15px;
-        z-index: 100; /* Above app icon grids */
+        z-index: var(--z-index-dropdown); /* Above app icon grids */
         background-color: var(--color-grey-10);
         border-radius: 40px;
         padding: var(--spacing-4);

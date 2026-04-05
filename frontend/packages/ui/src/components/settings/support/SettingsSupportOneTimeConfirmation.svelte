@@ -116,7 +116,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 
     .amount-value {
         color: var(--color-grey-100);
-        font-size: 28px;
+        font-size: var(--font-size-xxl);
         font-weight: 600;
     }
 
@@ -201,7 +201,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 
     @media (max-width: 480px) {
         .amount-value {
-            font-size: 22px;
+            font-size: var(--font-size-xl);
         }
 
         .heart-icon {
@@ -211,7 +211,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 
         .done-button {
             padding: var(--spacing-6) var(--spacing-10);
-            font-size: 15px;
+            font-size: null;
         }
     }
 </style>

@@ -536,7 +536,7 @@ When enabled, notifications are sent to the user's login email (from account set
     }
     
     .pwa-install-title {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: var(--color-font-primary);
         line-height: 1.4;
@@ -580,7 +580,7 @@ When enabled, notifications are sent to the user's login email (from account set
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: var(--z-index-modal);
     }
     
     .ios-modal {

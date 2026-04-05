@@ -265,7 +265,7 @@ let skipButtonText = $derived(
             left: 0; /* Ensure left alignment is consistent */
             right: 0; /* Ensure right alignment is consistent */
             background-color: transparent;
-            z-index: 10;
+            z-index: var(--z-index-dropdown-1);
             padding: var(--spacing-5);
             margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
             margin-top: 0; /* Ensure it sticks to the very top */

@@ -362,7 +362,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
   .gallery-prev { left: 8px; }
   .gallery-next { right: 8px; }
@@ -375,7 +375,7 @@
     font-size: var(--font-size-tiny);
     padding: var(--spacing-1) var(--spacing-4);
     border-radius: var(--radius-4);
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
 
   .price-section { text-align: center; }

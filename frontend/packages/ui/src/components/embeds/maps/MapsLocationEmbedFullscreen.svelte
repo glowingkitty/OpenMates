@@ -171,7 +171,7 @@
   }
 
   .location-address {
-    font-size: 15px;
+    font-size: null;
     color: var(--color-font-primary);
     line-height: 1.5;
     margin: 0;

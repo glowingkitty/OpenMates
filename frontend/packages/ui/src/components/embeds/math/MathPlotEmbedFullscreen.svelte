@@ -382,7 +382,7 @@
   /* Fallback monospace for non-KaTeX lines */
   .formula-line code {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 15px;
+    font-size: null;
     color: var(--color-grey-100);
   }
 

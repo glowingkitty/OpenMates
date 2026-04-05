@@ -266,7 +266,7 @@
     right: 26px;
     padding: 2px 7px;
     border-radius: 100px;
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     color: var(--color-grey-0);
     z-index: var(--z-index-raised);
@@ -305,7 +305,7 @@
   }
 
   .product-price {
-    font-size: 15px;
+    font-size: null;
     font-weight: 700;
     color: var(--color-grey-100);
   }
@@ -345,12 +345,12 @@
   }
 
   .reviews {
-    font-size: 10px;
+    font-size: null;
     color: var(--color-grey-60);
   }
 
   .prime {
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     padding: 1px 5px;
     border-radius: var(--radius-4);
@@ -366,7 +366,7 @@
   }
 
   .tag {
-    font-size: 10px;
+    font-size: null;
     padding: 1px 6px;
     border-radius: var(--radius-4);
     background: rgba(var(--color-primary-rgb), 0.1);

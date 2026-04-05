@@ -834,7 +834,7 @@ ${downloadHtmlContent}
   }
 
   .doc-page-content :global(h3) {
-    font-size: 15px;
+    font-size: null;
     font-weight: 600;
     margin: 24px 0 8px;
     color: #2c2c2c;
@@ -916,7 +916,7 @@ ${downloadHtmlContent}
     border: 1px solid #e0e0e0;
     padding: 1px 5px;
     border-radius: 3px;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     font-family: 'Consolas', 'SF Mono', 'Fira Mono', 'Courier New', monospace;
     color: #c7254e;
     font-style: normal;
@@ -929,7 +929,7 @@ ${downloadHtmlContent}
     overflow-x: auto;
     margin: 14px 0;
     border: 1px solid #e4e4e4;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
   }
 
   .doc-page-content :global(pre code) {
@@ -1002,7 +1002,7 @@ ${downloadHtmlContent}
   .doc-zoom-bar {
     position: sticky;
     bottom: 16px;
-    z-index: 1000;
+    z-index: var(--z-index-modal);
     pointer-events: none;
     display: flex;
     justify-content: center;

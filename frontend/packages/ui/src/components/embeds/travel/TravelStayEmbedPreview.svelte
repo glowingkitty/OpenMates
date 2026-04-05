@@ -236,7 +236,7 @@
   }
   
   .placeholder-icon {
-    font-size: 28px;
+    font-size: var(--font-size-xxl);
     opacity: 0.4;
   }
   
@@ -267,7 +267,7 @@
   }
   
   .stay-stars {
-    font-size: 10px;
+    font-size: null;
     color: #f5a623;
     letter-spacing: 1px;
   }
@@ -297,7 +297,7 @@
   }
   
   .amenity {
-    font-size: 10px;
+    font-size: null;
     padding: 1px 6px;
     border-radius: var(--radius-3);
     background: var(--color-grey-15);

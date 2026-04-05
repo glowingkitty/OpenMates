@@ -281,11 +281,13 @@ A comprehensive audit and rebuild of OpenMates' client-side encryption, key mana
 - External images must use `proxyImage()` / `proxyFavicon()` from `imageProxy.ts`
 ## Pydantic Models (Backend)
 ## Styling (Frontend)
-- All colors use CSS custom properties from `frontend/packages/ui/src/styles/theme.css`
-- NEVER use raw color literals (`white`, `#fff`, `black`, `#000`) — dark mode inverts the grey scale
-- NEVER use `px` for font sizes — use `rem` (respects browser zoom/accessibility settings)
-- Font size variables: `var(--font-size-p)`, `var(--font-size-h1)` through `var(--font-size-h4)`
-- Color variables: `var(--color-grey-0)` through `var(--color-grey-30)`, `var(--color-font-primary)`, `var(--color-error)`, etc.
+- **Design tokens are the source of truth.** Definitions: `frontend/packages/ui/src/tokens/sources/*.yml` — NEVER edit generated files
+- To add/change a token: edit the YAML source, run `pnpm --filter @repo/ui build:tokens`
+- Architecture: `docs/architecture/frontend/design-tokens.md`
+- All colors use CSS custom properties — NEVER use raw color literals (`white`, `#fff`, `black`, `#000`) — dark mode inverts the grey scale
+- NEVER use `px` for font sizes — use `rem` via `var(--font-size-*)` tokens (respects browser zoom/accessibility)
+- All spacing, border-radius, shadows, transitions, and z-index MUST use design tokens via `var(--token-name)`
+- Token categories: `--color-*`, `--spacing-*`, `--radius-*`, `--shadow-*`, `--z-index-*`, `--duration-*`, `--easing-*`, `--font-size-*`, `--icon-size-*`
 - All settings visual elements use canonical components from `settings/elements/` (29 components)
 ## Function Design
 - Python: Return `None` for "not found" cases when documented; raise exceptions for unexpected failures

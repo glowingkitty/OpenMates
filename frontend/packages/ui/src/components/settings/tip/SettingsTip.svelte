@@ -330,7 +330,7 @@
     }
     
     .tip-amount-value {
-        font-size: 32px;
+        font-size: var(--font-size-xxxl);
         font-weight: 700;
         color: var(--color-primary);
     }
@@ -399,7 +399,7 @@
         color: white;
         border: none;
         border-radius: var(--radius-4);
-        font-size: 15px;
+        font-size: null;
         font-weight: 500;
         cursor: pointer;
         transition: all var(--duration-normal) var(--easing-default);

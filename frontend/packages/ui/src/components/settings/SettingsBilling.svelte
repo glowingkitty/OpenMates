@@ -164,7 +164,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     .balance-amount {
         color: var(--color-grey-100);
-        font-size: 28px;
+        font-size: var(--font-size-xxl);
         font-weight: 600;
     }
 
@@ -208,7 +208,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     @media (max-width: 480px) {
         .balance-amount {
-            font-size: 22px;
+            font-size: var(--font-size-xl);
         }
 
         .coin-icon {

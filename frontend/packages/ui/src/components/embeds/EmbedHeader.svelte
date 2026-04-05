@@ -426,7 +426,7 @@
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-2);
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
     padding: var(--spacing-8) var(--spacing-12);
     max-width: 480px;
     width: 100%;
@@ -562,7 +562,7 @@
     justify-content: center;
     gap: var(--spacing-4);
     padding: 0 20px;
-    z-index: 10;
+    z-index: var(--z-index-dropdown-1);
     pointer-events: auto;
     animation: fadeIn 0.4s ease-out 0.2s both;
     /* Center the CTA on the header's bottom edge */
@@ -593,7 +593,7 @@
     justify-content: center;
     cursor: pointer;
     transition: opacity var(--duration-fast) var(--easing-default);
-    z-index: 20;
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }
@@ -750,7 +750,7 @@
     }
 
     .header-title-text {
-      font-size: 17px;
+      font-size: var(--font-size-lg);
     }
 
     .header-subtitle {

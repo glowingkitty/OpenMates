@@ -709,7 +709,7 @@
   }
   
   .cell-transfers {
-    font-size: 9px;
+    font-size: var(--font-size-micro);
     color: var(--color-font-secondary);
     line-height: 1;
     margin-top: 1px;
@@ -728,7 +728,7 @@
     }
     
     .cell-day {
-      font-size: 10px;
+      font-size: null;
     }
     
     .cell-price {
@@ -736,7 +736,7 @@
     }
     
     .cell-transfers {
-      font-size: 8px;
+      font-size: 0.5rem;
     }
     
     .calendar-grid {

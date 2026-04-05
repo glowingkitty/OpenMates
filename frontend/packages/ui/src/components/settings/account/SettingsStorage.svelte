@@ -404,7 +404,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     }
 
     .usage-label {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: var(--color-grey-80);
         margin-bottom: var(--spacing-6);

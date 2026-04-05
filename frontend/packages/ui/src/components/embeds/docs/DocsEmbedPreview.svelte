@@ -336,7 +336,7 @@
   /* Page content - full-size typography matching fullscreen */
   .doc-page-content {
     color: #1a1a1a;
-    font-size: 15px;
+    font-size: null;
     line-height: 1.75;
     word-break: break-word;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -344,7 +344,7 @@
   
   /* Document typography - matches DocsEmbedFullscreen exactly */
   .doc-page-content :global(h1) {
-    font-size: 26px;
+    font-size: 1.625rem;
     font-weight: 700;
     margin: 0 0 16px;
     padding-bottom: var(--spacing-4);
@@ -354,7 +354,7 @@
   }
 
   .doc-page-content :global(h2) {
-    font-size: 21px;
+    font-size: 1.3125rem;
     font-weight: 600;
     margin: 28px 0 12px;
     padding-bottom: var(--spacing-3);

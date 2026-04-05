@@ -206,7 +206,7 @@
         border-radius: var(--radius-5);
         padding: var(--spacing-4);
         box-shadow: var(--shadow-md);
-        z-index: 1000;
+        z-index: var(--z-index-modal);
         opacity: 0;
         pointer-events: none;
         transition: opacity var(--duration-normal) var(--easing-in-out);

@@ -149,7 +149,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .info-title {
-        font-size: 22px;
+        font-size: var(--font-size-xl);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
@@ -194,7 +194,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .feature-text {
-        font-size: 15px;
+        font-size: null;
         color: var(--color-grey-70);
         line-height: 1.5;
         flex: 1;
@@ -237,7 +237,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .warning-text {
-        font-size: 15px;
+        font-size: null;
         color: var(--color-grey-70);
         line-height: 1.5;
         margin: 0;

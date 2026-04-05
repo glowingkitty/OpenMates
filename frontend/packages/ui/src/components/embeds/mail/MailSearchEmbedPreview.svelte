@@ -184,7 +184,7 @@
   .mail-search-details.mobile .line-1,
   .mail-search-details.mobile .line-2,
   .mail-search-details.mobile .line-3 {
-    font-size: 10px;
+    font-size: null;
   }
 
   .empty {

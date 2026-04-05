@@ -699,7 +699,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 10000;
+        z-index: var(--z-index-tooltip);
     }
 
     .auth-modal {

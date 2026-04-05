@@ -31,6 +31,13 @@ font-size:
   xs:    { rem: 0.8125, pt: 13 }
   xxs:   { rem: 0.75,   pt: 12 }
   tiny:  { rem: 0.6875, pt: 11 }
+  micro: { rem: 0.5625, pt: 9 }
+  # Extended sizes for headings and display text
+  lg:    { rem: 1.0625, pt: 17 }
+  xl:    { rem: 1.375,  pt: 22 }
+  xxl:   { rem: 1.75,   pt: 28 }
+  xxxl:  { rem: 2,      pt: 32 }
+  hero:  { rem: 3,      pt: 48 }
 
 # Component-specific font size tokens (all reference the base scale)
 component-font-size:

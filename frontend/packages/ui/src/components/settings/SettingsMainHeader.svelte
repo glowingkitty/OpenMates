@@ -520,7 +520,7 @@
 
     .credits-amount {
         color: var(--color-grey-0);
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         line-height: 1.2;
         text-decoration: none;

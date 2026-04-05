@@ -337,7 +337,7 @@
         position: absolute;
         inset: 0;
         background: var(--color-grey-100);
-        z-index: 1000;
+        z-index: var(--z-index-modal);
         display: flex;
         flex-direction: column;
         border-radius: 24px;
@@ -349,7 +349,7 @@
         position: absolute;
         top: 10px;
         right: 12px;
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         min-width: unset !important;
         width: 32px !important;
         height: 32px !important;

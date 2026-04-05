@@ -265,7 +265,7 @@ changes to the documentation (to keep the documentation up to date).
            regardless of light/dark theme mode */
         color: var(--color-grey-0);
         pointer-events: none;
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 
     /* Ensures proper positioning of the language code over the icon */

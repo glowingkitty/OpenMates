@@ -235,7 +235,7 @@
   /* margin-top is set dynamically via style binding based on isExpanded */
   .embed-preview-large-overlay {
     position: relative;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
 
   .embed-preview-large-overlay--hidden {
@@ -261,7 +261,7 @@
     justify-content: center;
     cursor: pointer;
     transition: background-color var(--duration-fast) var(--easing-default);
-    z-index: 20;
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }

@@ -635,7 +635,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         border-radius: var(--radius-3);
         background: var(--accent-color);
         color: white;
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         cursor: pointer;
         transition: all var(--duration-fast) var(--easing-default);
@@ -684,7 +684,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .results-title {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
@@ -748,7 +748,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
 
     .code-text {
         font-family: 'Courier New', monospace;
-        font-size: 15px;
+        font-size: null;
         font-weight: 700;
         letter-spacing: 1.5px;
         color: var(--color-grey-100);
@@ -887,7 +887,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         right: 0;
         bottom: 0;
         background-color: rgba(0, 0, 0, 0.7);
-        z-index: 10000;
+        z-index: var(--z-index-tooltip);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -919,7 +919,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
 
     .qr-fullscreen-code {
         font-family: 'Courier New', monospace;
-        font-size: 22px;
+        font-size: var(--font-size-xl);
         font-weight: 700;
         letter-spacing: 2px;
         color: #1a1a1a;

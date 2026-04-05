@@ -252,7 +252,7 @@
   }
 
   .image-placeholder {
-    font-size: 52px;
+    font-size: 3.25rem;
     opacity: 0.45;
   }
 
@@ -289,7 +289,7 @@
   }
 
   .price {
-    font-size: 28px;
+    font-size: var(--font-size-xxl);
     font-weight: 800;
     color: var(--color-font-primary);
     line-height: 1.2;

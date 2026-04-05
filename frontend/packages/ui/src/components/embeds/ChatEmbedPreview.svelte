@@ -248,7 +248,7 @@
 
   .card-content {
     position: relative;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
     display: flex;
     flex-direction: column;
     align-items: center;

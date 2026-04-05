@@ -234,7 +234,7 @@
         flex-direction: column;
         align-items: center;
         gap: var(--spacing-3);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         padding: var(--spacing-8) var(--spacing-12);
         max-width: 480px;
         width: 100%;
@@ -274,7 +274,7 @@
         .not-found-banner { height: 190px; }
         .banner-content { padding: var(--spacing-6) var(--spacing-10); max-width: 360px; }
         .banner-icon { width: 32px; height: 32px; }
-        .banner-title { font-size: 17px; }
+        .banner-title { font-size: var(--font-size-lg); }
         .banner-summary { font-size: var(--font-size-xs); }
         .deco-icon { width: 90px; height: 90px; }
         .deco-icon-left { left: calc(50% - 180px - 70px); }

@@ -696,12 +696,19 @@
 
   /* ── Z-index layers ── */
   --z-index-base: 0;
-  --z-index-raised: 1;
+  --z-index-raised-1: 1;
+  --z-index-raised-2: 2;
+  --z-index-raised-3: 3;
+  --z-index-dropdown-1: 10;
+  --z-index-dropdown-2: 20;
   --z-index-dropdown: 100;
   --z-index-sticky: 200;
   --z-index-overlay: 300;
   --z-index-modal: 400;
+  --z-index-modal-above: 401;
   --z-index-popover: 500;
+  --z-index-popover-above: 501;
+  --z-index-popover-above-2: 502;
   --z-index-toast: 600;
   --z-index-tooltip: 700;
   --z-index-skip-link: 100000;
@@ -745,6 +752,12 @@
   --font-size-xs: 0.8125rem;
   --font-size-xxs: 0.75rem;
   --font-size-tiny: 0.6875rem;
+  --font-size-micro: 0.5625rem;
+  --font-size-lg: 1.0625rem;
+  --font-size-xl: 1.375rem;
+  --font-size-xxl: 1.75rem;
+  --font-size-xxxl: 2rem;
+  --font-size-hero: 3rem;
   --font-weight-p: 500;
   --button-font-family: var(--font-primary);
   --button-font-size: 1rem;

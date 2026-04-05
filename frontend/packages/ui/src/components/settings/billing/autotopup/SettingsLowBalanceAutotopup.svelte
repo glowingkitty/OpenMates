@@ -268,7 +268,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
 
     .toggle-label {
         color: var(--color-grey-100);
-        font-size: 15px;
+        font-size: null;
         font-weight: 500;
         flex: 1;
     }

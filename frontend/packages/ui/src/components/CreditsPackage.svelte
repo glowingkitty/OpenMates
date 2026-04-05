@@ -201,7 +201,7 @@
         color: white;
         text-align: center;
         font-weight: 500;
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
     
     .recommended-badge {
@@ -214,7 +214,7 @@
         display: flex;
         align-items: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
     
     .thumbs-up-icon {

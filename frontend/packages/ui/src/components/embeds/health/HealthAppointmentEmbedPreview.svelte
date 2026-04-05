@@ -177,7 +177,7 @@
 
   /* Slot datetime — most prominent element */
   .slot-datetime {
-    font-size: 15px;
+    font-size: null;
     font-weight: 700;
     color: var(--color-primary);
     line-height: 1.25;

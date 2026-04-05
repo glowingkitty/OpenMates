@@ -532,7 +532,7 @@
   }
 
   .model-info-text {
-    font-size: 10px;
+    font-size: null;
     line-height: 1.4;
     color: var(--color-grey-50, #888);
     font-weight: 500;

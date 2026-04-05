@@ -71,12 +71,19 @@ export const Shadow = Object.freeze({
 
 export const ZIndex = Object.freeze({
   base: 0,
-  raised: 1,
+  raised1: 1,
+  raised2: 2,
+  raised3: 3,
+  dropdown1: 10,
+  dropdown2: 20,
   dropdown: 100,
   sticky: 200,
   overlay: 300,
   modal: 400,
+  modalAbove: 401,
   popover: 500,
+  popoverAbove: 501,
+  popoverAbove2: 502,
   toast: 600,
   tooltip: 700,
   skipLink: 100000,
@@ -122,6 +129,12 @@ export const FontSize = Object.freeze({
   xs: { rem: 0.8125, pt: 13 },
   xxs: { rem: 0.75, pt: 12 },
   tiny: { rem: 0.6875, pt: 11 },
+  micro: { rem: 0.5625, pt: 9 },
+  lg: { rem: 1.0625, pt: 17 },
+  xl: { rem: 1.375, pt: 22 },
+  xxl: { rem: 1.75, pt: 28 },
+  xxxl: { rem: 2, pt: 32 },
+  hero: { rem: 3, pt: 48 },
 } as const);
 
 /** @deprecated Use Breakpoint.mobile */

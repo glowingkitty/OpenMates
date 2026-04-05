@@ -248,7 +248,7 @@
   }
 
   .result-value {
-    font-size: 28px;
+    font-size: var(--font-size-xxl);
     font-weight: 700;
     color: var(--color-grey-100);
     font-family: 'Courier New', Courier, monospace;

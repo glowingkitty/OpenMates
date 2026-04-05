@@ -177,7 +177,7 @@
   /* ── Result ─────────────────────────────────────────────────────────────── */
 
   .result-value {
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-grey-100);
     line-height: 1.2;

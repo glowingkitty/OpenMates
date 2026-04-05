@@ -513,7 +513,7 @@
     border-radius: var(--radius-8);
     padding: 12px 30px;
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 15px;
+    font-size: null;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--duration-fast) var(--easing-in-out);
@@ -627,7 +627,7 @@
   }
   
   .markdown-content :global(h1) {
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     margin: 20px 0 12px 0;
     color: var(--color-grey-100);
@@ -744,7 +744,7 @@
     }
     
     .markdown-content {
-      font-size: 15px;
+      font-size: null;
     }
   }
 </style>

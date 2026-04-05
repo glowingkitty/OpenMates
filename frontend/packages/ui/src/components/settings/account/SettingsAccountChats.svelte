@@ -401,7 +401,7 @@ Tests: none yet — new settings sub-page.
     }
 
     .count-number {
-        font-size: 48px;
+        font-size: var(--font-size-hero);
         font-weight: 700;
         color: var(--color-primary-start);
         line-height: 1;

@@ -354,6 +354,6 @@
         justify-content: center;
         line-height: 1;
         box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 </style>

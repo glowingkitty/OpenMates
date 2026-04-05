@@ -278,14 +278,14 @@
 
   .doctor-header { text-align: center; }
   .doctor-name {
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-font-primary);
     line-height: 1.25;
     word-break: break-word;
   }
   .doctor-speciality {
-    font-size: 15px;
+    font-size: null;
     font-weight: 500;
     color: var(--color-font-secondary);
     margin-top: var(--spacing-2);

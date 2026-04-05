@@ -3936,7 +3936,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .top-buttons-container {
         flex-shrink: 0;
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         background-color: var(--color-grey-20);
         padding: var(--spacing-8) var(--spacing-10);
         border-bottom: 1px solid var(--color-grey-30);
@@ -4347,7 +4347,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         position: absolute;
         left: 0;
         right: 0;
-        z-index: 20;
+        z-index: var(--z-index-dropdown-2);
         display: flex;
         align-items: center;
         gap: var(--spacing-5);

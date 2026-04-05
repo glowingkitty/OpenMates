@@ -574,7 +574,7 @@ Matches the design from the signup flow screenshot.
         display: flex;
         align-items: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         margin-top: 5px;
     }
 

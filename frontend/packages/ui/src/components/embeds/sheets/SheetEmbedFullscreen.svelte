@@ -660,7 +660,7 @@
     font-weight: 600;
     color: var(--color-font-primary);
     position: sticky;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
   
   /* Column letter row (A, B, C...) — sits at the very top */
@@ -676,7 +676,7 @@
   
   .col-letter-gutter {
     /* Sticky in both directions (top + left) */
-    z-index: 3 !important;
+    z-index: var(--z-index-raised-3) !important;
   }
   
   .col-letter {
@@ -753,7 +753,7 @@
   }
   
   .row-num-header {
-    z-index: 3; /* Above both sticky header row and sticky gutter column */
+    z-index: var(--z-index-raised-3); /* Above both sticky header row and sticky gutter column */
   }
   
   /* Filter toggle button inside the row-number gutter header */
@@ -863,7 +863,7 @@
       width: 32px;
       min-width: 32px;
       max-width: 32px;
-      font-size: 10px;
+      font-size: null;
     }
     
     .filter-field {

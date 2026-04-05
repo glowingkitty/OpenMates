@@ -118,7 +118,7 @@
         border-radius: 50%;
         background: var(--color-success, #4caf50);
         color: var(--color-grey-0);
-        font-size: 28px;
+        font-size: var(--font-size-xxl);
         line-height: 56px;
         flex-shrink: 0;
     }

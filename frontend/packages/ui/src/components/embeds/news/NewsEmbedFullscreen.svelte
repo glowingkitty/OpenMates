@@ -527,7 +527,7 @@
   
   .news-title {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -577,7 +577,7 @@
   
   .snippets-title {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-grey-100);
     margin: 0 0 4px 0;

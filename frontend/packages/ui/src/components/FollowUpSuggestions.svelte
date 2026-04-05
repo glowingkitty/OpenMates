@@ -629,7 +629,7 @@
     justify-content: center;
     cursor: pointer;
     transition: background-color var(--duration-fast) var(--easing-default);
-    z-index: 20;
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }
@@ -661,7 +661,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
     position: relative;
     /* Shrink to the width of the longest text item, up to 700px max */
     width: fit-content;

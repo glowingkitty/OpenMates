@@ -1360,7 +1360,7 @@
         position: absolute;
         inset: 0;
         background: var(--color-grey-0);
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         display: flex;
         flex-direction: column;
         border-radius: 24px;
@@ -1369,7 +1369,7 @@
 
     /* Maximize/minimize button — top-right corner. Overrides buttons.css global button styles.
        z-index must be above the Leaflet map tiles (z-index: var(--z-index-raised) on .map-container) but below
-       search-results-container (z-index: 100). */
+       search-results-container (z-index: var(--z-index-dropdown)). */
     .overlay-fullscreen-btn {
         position: absolute;
         top: 10px;
@@ -1422,7 +1422,7 @@
         height: 53px;
         background: var(--color-grey-0);
         border-radius: 24px;
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 
     .location-error-banner {
@@ -1494,7 +1494,7 @@
         position: absolute !important;
         bottom: 5px !important;
         right: 5px !important;
-        font-size: 10px !important;
+        font-size: null !important;
         background: var(--color-grey-0) !important;
         color: var(--color-font-secondary) !important;
         padding: 4px 8px !important;
@@ -1516,7 +1516,7 @@
     :global(.leaflet-container .leaflet-control-container .leaflet-bottom.leaflet-right .leaflet-control-attribution a) {
         color: var(--color-font-secondary) !important;
         text-decoration: none !important;
-        font-size: 10px !important;
+        font-size: null !important;
     }
 
     /* Add specific styles for Leaflet tile loading */
@@ -1656,7 +1656,7 @@
         -webkit-mask-position: center;
         mask-position: center;
         pointer-events: none; /* Don't block map interaction */
-        z-index: 500; /* Above map tiles (z-index 400) but below UI controls */
+        z-index: var(--z-index-popover); /* Above map tiles (z-index 400) but below UI controls */
     }
 
     /* Update location indicator styles */
@@ -1712,7 +1712,7 @@
 
     /* Add styles for accuracy circle */
     :global(.accuracy-circle) {
-        z-index: 400 !important; /* Ensure circle appears above tiles but below controls */
+        z-index: var(--z-index-modal) !important; /* Ensure circle appears above tiles but below controls */
     }
 
     .search-container {
@@ -1748,7 +1748,7 @@
         height: calc(100% - 53px);
         background: var(--color-grey-0);
         /* z-index above map (1) and matching bottom-bar (2) */
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         border-right: none;
     }
 

@@ -11,4 +11,10 @@ extension Font {
     static let omXs = Font.custom("Lexend-Deca-Variable", size: 13)
     static let omXxs = Font.custom("Lexend-Deca-Variable", size: 12)
     static let omTiny = Font.custom("Lexend-Deca-Variable", size: 11)
+    static let omMicro = Font.custom("Lexend-Deca-Variable", size: 9)
+    static let omLg = Font.custom("Lexend-Deca-Variable", size: 17)
+    static let omXl = Font.custom("Lexend-Deca-Variable", size: 22)
+    static let omXxl = Font.custom("Lexend-Deca-Variable", size: 28)
+    static let omXxxl = Font.custom("Lexend-Deca-Variable", size: 32)
+    static let omHero = Font.custom("Lexend-Deca-Variable", size: 48)
 }

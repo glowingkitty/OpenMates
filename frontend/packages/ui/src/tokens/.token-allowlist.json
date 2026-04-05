@@ -1,0 +1,3 @@
+{
+  "_comment": "Line numbers of intentionally hardcoded values that should not use tokens. Add entries as: \"relative/path.svelte\": [lineNumber, lineNumber]"
+}

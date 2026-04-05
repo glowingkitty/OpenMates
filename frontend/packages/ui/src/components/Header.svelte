@@ -377,7 +377,7 @@
 
 <style>
     header {
-        z-index: 1000;
+        z-index: var(--z-index-modal);
         padding: var(--spacing-10) var(--spacing-10) var(--spacing-5);
         position: fixed;
         top: 0;
@@ -543,7 +543,7 @@
         background: none;
         border: none;
         cursor: pointer;
-        z-index: 1001;
+        z-index: var(--z-index-modal-above);
     }
 
     .hamburger {
@@ -593,7 +593,7 @@
             align-items: center;
             padding: 2rem;
             gap: 2rem;
-            z-index: 1000;
+            z-index: var(--z-index-modal);
         }
 
         .nav-links.mobile-open {

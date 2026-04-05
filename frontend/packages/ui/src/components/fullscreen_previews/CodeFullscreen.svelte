@@ -109,7 +109,7 @@
         background-color: var(--color-grey-20);
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        z-index: 100;
+        z-index: var(--z-index-dropdown);
         display: flex;
         flex-direction: column;
         transform-origin: center center;
@@ -129,7 +129,7 @@
         position: absolute;
         top: 35px;
         right: 35px;
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         opacity: 0.5;
     }
 
@@ -245,7 +245,7 @@
         align-items: center;
         padding: 0 16px 0 70px;
         min-width: 200px;
-        z-index: 3;
+        z-index: var(--z-index-raised-3);
     }
 
     .icon_rounded {

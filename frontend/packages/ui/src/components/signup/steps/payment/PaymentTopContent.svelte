@@ -323,7 +323,7 @@ step_10_top_content_svelte:
         display: flex;
         align-items: flex-end;
         justify-content: center;
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
     
     /* Success container with purple background */

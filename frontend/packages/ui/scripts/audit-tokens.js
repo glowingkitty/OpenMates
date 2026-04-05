@@ -54,6 +54,12 @@ const FONT_SIZE_MAP = {
   "12px": { token: "var(--font-size-xxs)", rem: 0.75 },
   "11px": { token: "var(--font-size-tiny)", rem: 0.6875 },
   "10px": { token: null, rem: 0.625 },  // no exact token
+  "9px":  { token: "var(--font-size-micro)", rem: 0.5625 },
+  "17px": { token: "var(--font-size-lg)", rem: 1.0625 },
+  "22px": { token: "var(--font-size-xl)", rem: 1.375 },
+  "28px": { token: "var(--font-size-xxl)", rem: 1.75 },
+  "32px": { token: "var(--font-size-xxxl)", rem: 2 },
+  "48px": { token: "var(--font-size-hero)", rem: 3 },
 };
 
 const SHADOW_PRESETS = {
@@ -77,20 +83,20 @@ const EASING_MAP = {
 
 const ZINDEX_MAP = {
   0: "var(--z-index-base)",
-  1: "var(--z-index-raised)",
-  2: "var(--z-index-raised)",
-  3: "var(--z-index-raised)",
-  10: "var(--z-index-dropdown)",
-  20: "var(--z-index-dropdown)",
+  1: "var(--z-index-raised-1)",
+  2: "var(--z-index-raised-2)",
+  3: "var(--z-index-raised-3)",
+  10: "var(--z-index-dropdown-1)",
+  20: "var(--z-index-dropdown-2)",
   100: "var(--z-index-dropdown)",
   200: "var(--z-index-sticky)",
   300: "var(--z-index-overlay)",
   400: "var(--z-index-modal)",
   500: "var(--z-index-popover)",
   1000: "var(--z-index-modal)",
-  1001: "var(--z-index-modal)",
-  1005: "var(--z-index-popover)",
-  1006: "var(--z-index-popover)",
+  1001: "var(--z-index-modal-above)",
+  1005: "var(--z-index-popover-above)",
+  1006: "var(--z-index-popover-above-2)",
   10000: "var(--z-index-tooltip)",
   99999: "var(--z-index-popover)",
   100000: "var(--z-index-skip-link)",

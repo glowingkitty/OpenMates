@@ -370,7 +370,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 10000;
+        z-index: var(--z-index-tooltip);
         animation: fadeIn 0.2s ease-in-out;
     }
 

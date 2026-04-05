@@ -444,7 +444,7 @@
         position: absolute;
         top: 8px;
         right: 8px;
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
     }
 
     .unavailable-dot {

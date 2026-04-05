@@ -554,7 +554,7 @@
   }
 
   .pdf-pages {
-    font-size: 15px;
+    font-size: null;
     color: var(--color-grey-60, #888);
     margin: 0;
   }

@@ -781,7 +781,7 @@ This ensures users can never have a password without 2FA enabled.
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 32px;
+        font-size: var(--font-size-xxxl);
         margin-bottom: var(--spacing-12);
     }
 

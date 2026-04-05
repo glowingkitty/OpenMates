@@ -468,7 +468,7 @@
     }
 
     .empty-icon {
-        font-size: 48px;
+        font-size: var(--font-size-hero);
         margin-bottom: var(--spacing-8);
     }
 
@@ -554,7 +554,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        z-index: 1000;
+        z-index: var(--z-index-modal);
     }
 
     .modal {

@@ -1125,7 +1125,7 @@
     background-color: var(--color-grey-20);
     border-radius: 17px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    z-index: 100;
+    z-index: var(--z-index-dropdown);
     display: flex;
     flex-direction: column;
     overflow: hidden;

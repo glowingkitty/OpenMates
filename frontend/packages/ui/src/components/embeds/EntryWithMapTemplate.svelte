@@ -260,7 +260,7 @@
     background: var(--color-grey-20);
     border-radius: var(--radius-7);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
 
   /* Without map: detail card is full width, centered */

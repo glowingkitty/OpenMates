@@ -426,7 +426,7 @@
   .more-cols-header {
     background: var(--color-grey-10);
     color: var(--color-font-tertiary);
-    font-size: 9px;
+    font-size: var(--font-size-micro);
     font-weight: 600;
     letter-spacing: 0.02em;
     border-left: 2px solid var(--color-grey-30);
@@ -448,7 +448,7 @@
   
   .more-indicator {
     color: var(--color-font-tertiary);
-    font-size: 10px;
+    font-size: null;
     font-style: italic;
   }
   
@@ -465,14 +465,14 @@
   }
   
   .empty-icon {
-    font-size: 32px;
+    font-size: var(--font-size-xxxl);
     opacity: 0.5;
   }
   
   /* ── Mobile ────────────────────────────────────────── */
   
   .mobile .preview-table {
-    font-size: 10px;
+    font-size: null;
   }
   
   .mobile .preview-table th,

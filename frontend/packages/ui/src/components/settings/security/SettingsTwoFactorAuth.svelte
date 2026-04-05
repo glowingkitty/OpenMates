@@ -1089,7 +1089,7 @@ Props:
     }
 
     .success-icon .icon {
-        font-size: 32px;
+        font-size: var(--font-size-xxxl);
         color: var(--color-success);
     }
 

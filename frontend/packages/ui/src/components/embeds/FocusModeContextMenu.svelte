@@ -246,7 +246,7 @@
     border-radius: var(--radius-5);
     padding: var(--spacing-4);
     box-shadow: var(--shadow-md);
-    z-index: 99999;
+    z-index: var(--z-index-popover);
     isolation: isolate;
     opacity: 0;
     pointer-events: none;

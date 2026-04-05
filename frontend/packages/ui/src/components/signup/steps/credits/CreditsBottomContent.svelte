@@ -200,7 +200,7 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         gap: var(--spacing-2);
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
     }
 
     .nav-button:hover {

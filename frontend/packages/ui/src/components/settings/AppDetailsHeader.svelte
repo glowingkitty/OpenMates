@@ -609,7 +609,7 @@
   }
 
   .cap-num {
-    font-size: 15px;
+    font-size: null;
     font-weight: 700;
     color: var(--color-grey-0);
     line-height: 1;
@@ -787,7 +787,7 @@
     justify-content: center;
     cursor: pointer;
     transition: background-color var(--duration-fast) var(--easing-default);
-    z-index: 20;
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto; /* Re-enable interactivity despite banner pointer-events:none */
     flex-shrink: 0;
   }

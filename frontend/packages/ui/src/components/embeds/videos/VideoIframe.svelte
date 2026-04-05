@@ -274,7 +274,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 100; /* Above iframe */
+    z-index: var(--z-index-dropdown); /* Above iframe */
     pointer-events: none;
     opacity: 0;
   }

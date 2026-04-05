@@ -336,7 +336,7 @@
   
   .error-icon,
   .cancelled-icon {
-    font-size: 48px;
+    font-size: var(--font-size-hero);
     margin-bottom: var(--spacing-8);
   }
   
@@ -387,7 +387,7 @@
   }
   
   .trigger-icon {
-    font-size: 32px;
+    font-size: var(--font-size-xxxl);
     flex-shrink: 0;
   }
   
@@ -669,7 +669,7 @@
     }
     
     .trigger-icon {
-      font-size: 28px;
+      font-size: var(--font-size-xxl);
     }
     
     .trigger-time {

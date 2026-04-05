@@ -612,7 +612,7 @@
   }
 
   .ai-badge-label {
-    font-size: 10px;
+    font-size: null;
     font-weight: 600;
     color: var(--color-grey-0);
     line-height: 1;
@@ -676,7 +676,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     flex-shrink: 0;
   }

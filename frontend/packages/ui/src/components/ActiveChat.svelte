@@ -10308,7 +10308,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
        (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
 
        Overlay approach: the ring is painted ON TOP of content via ::after at
-       z-index: 10 with pointer-events: none.  A CSS mask cuts out the interior
+       z-index: var(--z-index-dropdown-1) with pointer-events: none.  A CSS mask cuts out the interior
        so only a 2px ring is visible.  This avoids the old isolation/z-index:-1
        technique where child elements flush to the edges would cover the ring.
        =========================================== */
@@ -10334,7 +10334,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             #30d158, #32ade6, #bf5af2,
             #ff2d55
         );
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         pointer-events: none;
         opacity: 0;
         filter: blur(1.5px);
@@ -10559,7 +10559,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 100;
+        z-index: var(--z-index-dropdown);
     }
     
     /* Side panel mode: Flex child taking remaining space - styled as separate card */
@@ -10984,7 +10984,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.22);
         backdrop-filter: blur(4px);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 
     .resume-card-pin-badge.compact {
@@ -11033,7 +11033,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .resume-chat-credits-preview {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
@@ -11044,7 +11044,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .resume-chat-title {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
@@ -11140,7 +11140,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Centered content overlay */
     .resume-large-content {
         position: relative;
-        z-index: 3;
+        z-index: var(--z-index-raised-3);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -11323,7 +11323,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     .read-only-icon {
-        font-size: 32px;
+        font-size: var(--font-size-xxxl);
         margin-bottom: var(--spacing-6);
         opacity: 0.7;
     }
@@ -11489,7 +11489,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         width: 120px;
         height: 36px;
         min-width: unset;
@@ -11827,7 +11827,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
         max-width: 780px;
         box-sizing: border-box;
-        z-index: 100; /* Below fullscreen buttons but above chat content */
+        z-index: var(--z-index-dropdown); /* Below fullscreen buttons but above chat content */
         pointer-events: auto;
         
         /* Smooth transition for position changes */
@@ -11856,7 +11856,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transform: none;
         width: 320px;
         max-width: 320px;
-        z-index: 1000; /* Above everything in ActiveChat */
+        z-index: var(--z-index-modal); /* Above everything in ActiveChat */
     }
 
     .video-iframe-fullscreen-container.pip-mode.pip-top-left {

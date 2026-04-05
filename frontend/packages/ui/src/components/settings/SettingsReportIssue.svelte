@@ -2349,7 +2349,7 @@
         display: inline-block;
         padding: 1px 5px;
         border-radius: 3px;
-        font-size: 10px;
+        font-size: null;
         font-weight: 600;
         text-transform: uppercase;
         flex-shrink: 0;
@@ -2383,7 +2383,7 @@
     .action-key {
         flex-shrink: 0;
         opacity: 0.7;
-        font-size: 10px;
+        font-size: null;
     }
 
     /* ===================== SCREENSHOT SECTION ===================== */
@@ -2525,7 +2525,7 @@
 
     .picked-element-summary::before {
         content: '▶ ';
-        font-size: 10px;
+        font-size: null;
         opacity: 0.6;
         margin-right: var(--spacing-2);
         transition: transform var(--duration-fast);

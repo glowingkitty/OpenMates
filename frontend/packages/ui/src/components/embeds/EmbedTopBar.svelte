@@ -207,7 +207,7 @@
     /* Pointer-events disabled on the row itself; re-enabled per button group */
     pointer-events: none;
     /* Sits above EmbedHeader (z-index 2) and Leaflet panes (z-index 400+) */
-    z-index: 1000;
+    z-index: var(--z-index-modal);
   }
 
   .debug-mode-active {

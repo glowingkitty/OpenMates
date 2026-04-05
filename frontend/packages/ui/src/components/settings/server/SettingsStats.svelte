@@ -1070,7 +1070,7 @@
         padding: 0.4rem 0.65rem;
         box-shadow: var(--shadow-md);
         pointer-events: none;
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         white-space: nowrap;
     }
 

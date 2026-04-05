@@ -2681,7 +2681,7 @@ changes to the documentation (to keep the documentation up to date).
         inset-inline-end: 10px;
         width: 50px;
         height: 50px;
-        z-index: 1005;
+        z-index: var(--z-index-popover-above);
         transition: opacity var(--duration-slow) var(--easing-default), top var(--duration-slow) var(--easing-default), position var(--duration-slow) var(--easing-default);
     }
 
@@ -2813,7 +2813,7 @@ changes to the documentation (to keep the documentation up to date).
         flex-direction: column;
         overflow: hidden;
         transition: width var(--duration-slow) var(--easing-default);
-        z-index: 1001;
+        z-index: var(--z-index-modal-above);
     }
 
     @media (max-width: 1100px) {
@@ -2824,7 +2824,7 @@ changes to the documentation (to keep the documentation up to date).
             top: 65px;
             bottom: 18px;
             height: auto;
-            z-index: 1000;
+            z-index: var(--z-index-modal);
             /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
             width: 323px;
             transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
@@ -2850,7 +2850,7 @@ changes to the documentation (to keep the documentation up to date).
         /* This class is added dynamically via JavaScript - see lines 636, 669, 682 */
         /* svelte-ignore css_unused_selector */
         .settings-menu.mobile-overlay {
-            z-index: 1006 !important; /* Higher than profile-container-wrapper */
+            z-index: var(--z-index-popover-above-2) !important; /* Higher than profile-container-wrapper */
         }
     }
 
@@ -2894,7 +2894,7 @@ changes to the documentation (to keep the documentation up to date).
         padding-bottom: var(--spacing-6);
         position: sticky;
         top: 0;
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         display: flex;
         flex-direction: column;

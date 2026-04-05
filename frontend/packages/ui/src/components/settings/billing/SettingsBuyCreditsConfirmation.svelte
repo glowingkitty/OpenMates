@@ -170,7 +170,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
     .balance-amount {
         color: var(--color-grey-100);
-        font-size: 28px;
+        font-size: var(--font-size-xxl);
         font-weight: 600;
     }
 
@@ -249,7 +249,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
     @media (max-width: 480px) {
         .balance-amount {
-            font-size: 22px;
+            font-size: var(--font-size-xl);
         }
 
         .coin-icon {
@@ -259,7 +259,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
         .done-button {
             padding: var(--spacing-6) var(--spacing-10);
-            font-size: 15px;
+            font-size: null;
         }
     }
 </style>

@@ -1240,7 +1240,7 @@
         width: 100%;
         height: 100%;
         background: var(--color-grey-20);
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         display: flex;
         align-items: center;
         justify-content: center;

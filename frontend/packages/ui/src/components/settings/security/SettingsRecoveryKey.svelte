@@ -916,7 +916,7 @@ Users should store them securely (offline, in a safe place).
 
     .confirmation-text {
         color: var(--color-grey-70);
-        font-size: 15px;
+        font-size: null;
         cursor: pointer;
     }
 

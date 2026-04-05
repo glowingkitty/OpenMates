@@ -328,13 +328,13 @@
 	.log-timestamp {
 		color: var(--color-grey-70);
 		flex-shrink: 0;
-		font-size: 10px;
+		font-size: null;
 		padding-top: 1px;
 	}
 
 	.log-level-badge {
 		flex-shrink: 0;
-		font-size: 9px;
+		font-size: var(--font-size-micro);
 		font-weight: 700;
 		width: 36px;
 		text-align: center;

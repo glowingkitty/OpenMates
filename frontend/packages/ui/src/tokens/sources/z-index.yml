@@ -7,13 +7,20 @@
 # Swift output: CGFloat.zIndex{Key}
 
 layers:
-  base:      0
-  raised:    1
-  dropdown:  100
-  sticky:    200
-  overlay:   300
-  modal:     400
-  popover:   500
-  toast:     600
-  tooltip:   700
-  skip-link: 100000
+  base:       0
+  raised-1:   1       # slightly above siblings (was z-index: 1)
+  raised-2:   2       # above raised-1 (was z-index: 2)
+  raised-3:   3       # above raised-2 (was z-index: 3)
+  dropdown-1: 10      # local overlays within a section (was z-index: 10)
+  dropdown-2: 20      # above dropdown-1 (was z-index: 20)
+  dropdown:   100     # standard dropdowns, menus
+  sticky:     200     # sticky headers, toolbars
+  overlay:    300     # backdrop overlays
+  modal:      400     # modal dialogs
+  modal-above: 401    # elements above modals (was z-index: 1001)
+  popover:    500     # popovers, context menus
+  popover-above: 501    # elements above popovers (was z-index: 1005)
+  popover-above-2: 502  # above popover-above (was z-index: 1006)
+  toast:      600     # toast notifications
+  tooltip:    700     # tooltips
+  skip-link:  100000  # accessibility skip navigation

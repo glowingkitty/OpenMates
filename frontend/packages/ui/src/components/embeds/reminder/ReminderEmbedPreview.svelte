@@ -398,7 +398,7 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-4);
-    font-size: 15px;
+    font-size: null;
     color: var(--color-grey-80, #333);
     font-weight: 500;
   }
@@ -502,7 +502,7 @@
   }
   
   .mobile .badge {
-    font-size: 10px;
+    font-size: null;
     padding: var(--spacing-1) var(--spacing-3);
   }
   

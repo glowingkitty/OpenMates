@@ -851,7 +851,7 @@ Invoices Settings - View and download past invoices
 
     .invoice-date {
         color: var(--color-grey-100);
-        font-size: 15px;
+        font-size: null;
         font-weight: 500;
     }
 

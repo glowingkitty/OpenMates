@@ -456,7 +456,7 @@
     width: 100%;
     /* Must be above other chat-side elements so the banner is clickable */
     position: relative;
-    z-index: 100;
+    z-index: var(--z-index-dropdown);
   }
 
   @keyframes inspirationFadeIn {
@@ -506,7 +506,7 @@
     min-width: 0;
     /* Sit above the decorative deco-icon elements (z-index: 1) */
     position: relative;
-    z-index: 10;
+    z-index: var(--z-index-dropdown-1);
   }
 
   /* ── Top label ── */
@@ -695,7 +695,7 @@
     justify-content: center;
     cursor: pointer;
     transition: background-color var(--duration-fast) var(--easing-default);
-    z-index: 20;
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }

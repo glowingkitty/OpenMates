@@ -315,7 +315,7 @@ Security Notes:
         text-align: center;
         color: var(--color-grey-70);
         line-height: 1.5;
-        font-size: 15px;
+        font-size: null;
     }
 
     .save-options {

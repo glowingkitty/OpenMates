@@ -540,7 +540,7 @@
 <style>
     .mention-dropdown {
         position: absolute;
-        z-index: 1000;
+        z-index: var(--z-index-modal);
         background: var(--color-grey-blue);
         border-radius: var(--radius-7);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -742,7 +742,7 @@
     }
 
     .entry-name {
-        font-size: 15px;
+        font-size: null;
         font-weight: 400;
     }
 

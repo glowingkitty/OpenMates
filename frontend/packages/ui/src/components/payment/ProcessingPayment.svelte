@@ -131,7 +131,7 @@
     /* Text spacing */
     .processing-text {
         margin-bottom: var(--spacing-3);
-        font-size: 15px;
+        font-size: null;
     }
 
     .processing-subtext {

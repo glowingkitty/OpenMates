@@ -495,7 +495,7 @@
     }
 
     .username {
-        font-size: 22px;
+        font-size: var(--font-size-xl);
         font-weight: 500;
         color: var(--color-grey-100);
         transition: transform var(--duration-slow) var(--easing-default);
