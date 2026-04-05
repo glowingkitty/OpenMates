@@ -390,3 +390,9 @@ directus_users:
       type: boolean
       default: false
       note: "User opted in to detailed debug logging (Tier 3 traces). Controlled via Settings > Privacy & Security."
+
+    # Ephemeral stability log forwarding opt-out
+    console_log_forwarding_opted_out:
+      type: boolean
+      default: false
+      note: "User opted out of anonymized console log forwarding. Default false = forwarding ON (legitimate interest). Controlled via Settings > Privacy > Stability Logs."

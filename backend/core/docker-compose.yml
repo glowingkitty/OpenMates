@@ -187,7 +187,7 @@ services:
       E2E_TEST_PROD_ENABLED: "${E2E_TEST_PROD_ENABLED:-false}"
       E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://openmates.org}"
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data && \
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
@@ -1235,7 +1235,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9102" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data && \
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
@@ -1295,7 +1295,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9103" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data && \
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
@@ -1407,7 +1407,7 @@ services:
       CELERY_AUTOSCALE_MIN: "1"
       CELERY_METRICS_PORT: "9104" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data && \
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
