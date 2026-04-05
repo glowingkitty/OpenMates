@@ -834,6 +834,10 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
 
   if (isAppSkillEmbedType(embedType)) return null;
 
+  // Focus mode activation embeds have their own dedicated renderer
+  // (FocusModeActivationRenderer) — never promote them to large preview cards.
+  if (embedType === "focus-mode-activation") return null;
+
   // Keep static/legal image embeds inline.
   if (baseType === "image") return null;
 

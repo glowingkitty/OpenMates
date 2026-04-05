@@ -19,9 +19,9 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
-# OpenObserve SQL search API endpoint pattern:
-#   POST /api/{org}/{stream}/_search
-# Body: {"query": {"sql": "SELECT ...", "start_time": <µs>, "end_time": <µs>}}
+# OpenObserve SQL search API endpoint pattern (v0.70+):
+#   POST /api/{org}/_search
+# Body: {"query": {"sql": "SELECT ... FROM {stream}", "start_time": <µs>, "end_time": <µs>}}
 OPENOBSERVE_ORG = "default"
 
 
@@ -54,8 +54,8 @@ class OpenObserveLogCollectorService:
         Execute a SQL search against an OpenObserve stream.
 
         Returns a flat list of hit dicts, or None on failure.
-        OpenObserve SQL search docs:
-          POST /api/{org}/{stream}/_search
+        OpenObserve SQL search docs (v0.70+):
+          POST /api/{org}/_search
           Body: {"query": {"sql": "...", "start_time": <µs epoch>, "end_time": <µs epoch>}}
         """
         if start_time is None:
@@ -66,7 +66,9 @@ class OpenObserveLogCollectorService:
         start_us = int(start_time.timestamp() * 1_000_000)
         end_us = int(end_time.timestamp() * 1_000_000)
 
-        url = f"{self.base_url}/api/{self.org}/{stream}/_search"
+        # OpenObserve v0.70+ uses /api/{org}/_search (stream is in SQL FROM clause)
+        # Previously: /api/{org}/{stream}/_search (removed in v0.70)
+        url = f"{self.base_url}/api/{self.org}/_search"
         body = {
             "query": {
                 "sql": sql,
