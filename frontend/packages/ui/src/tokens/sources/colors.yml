@@ -1,0 +1,53 @@
+# frontend/packages/ui/src/tokens/sources/colors.yml
+#
+# Color tokens — grey scale, font colors, semantic colors, button colors.
+# Tokens with light/dark values generate separate :root and [data-theme="dark"] blocks.
+# Tokens with a single `value` are theme-independent.
+#
+# CSS output:  --color-{category}-{name}: {value}
+# Swift output: Color("{category}-{name}") via .xcassets (auto light/dark switching)
+
+grey:
+  0:    { light: "#ffffff", dark: "#171717" }
+  10:   { light: "#f9f9f9", dark: "#1c1c1c" }
+  20:   { light: "#f3f3f3", dark: "#212121" }
+  25:   { light: "#e8e8e8", dark: "#252525" }
+  30:   { light: "#e3e3e3", dark: "#2c2c2c" }
+  40:   { light: "#c4c4c4", dark: "#404040" }
+  50:   { light: "#a6a6a6", dark: "#606060" }
+  60:   { light: "#888888", dark: "#808080" }
+  70:   { light: "#666666", dark: "#a0a0a0" }
+  80:   { light: "#444444", dark: "#c0c0c0" }
+  90:   { light: "#222222", dark: "#e0e0e0" }
+  100:  { light: "#000000", dark: "#ffffff" }
+  blue: { light: "#e6eaff", dark: "#2d2f35" }
+
+font:
+  primary:           { light: "#000000", dark: "#e6e6e6" }
+  secondary:         { value: "#a9a9a9", dark: "#cfcfcf" }
+  tertiary:          { value: "#6b6b6b", dark: "#c0c0c0" }
+  button:            { value: "#ffffff" }
+  field-placeholder: { value: "#9e9e9e" }
+
+# Note: --color-bold-text uses a different naming pattern than --color-font-*
+bold-text: { light: "#503ba0", dark: "#c9bbff" }
+
+semantic:
+  error:        { light: "#e74c3c", dark: "#ff6b6b" }
+  error-light:  { light: "rgba(231, 76, 60, 0.1)", dark: "rgba(255, 107, 107, 0.15)" }
+  warning:      { light: "#e67e22", dark: "#f0a050" }
+  warning-bg:   { light: "rgba(230, 126, 34, 0.1)", dark: "rgba(240, 160, 80, 0.15)" }
+
+button:
+  primary:           { value: "#ff553b" }
+  primary-hover:     { value: "#ff6b54" }
+  primary-pressed:   { value: "#ff4422" }
+  secondary:         { value: "#808080" }
+  secondary-hover:   { value: "#909090" }
+  secondary-pressed: { value: "#606060" }
+
+app-card:
+  background: { ref: "color-grey-20" }
+  h2:         { ref: "color-grey-100" }
+  h3:         { ref: "color-grey-80" }
+  text:       { ref: "color-grey-80" }
