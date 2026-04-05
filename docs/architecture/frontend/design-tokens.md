@@ -1,40 +1,42 @@
 ---
-status: planned
+status: implemented
 created: 2026-04-04
+updated: 2026-04-05
 linear_task: OPE-326
 key_files:
-  - frontend/packages/ui/src/styles/theme.css
-  - frontend/packages/ui/src/styles/fonts.css
-  - frontend/packages/ui/src/styles/constants.ts
-  - frontend/packages/ui/scripts/build-translations.js
-  - frontend/packages/ui/package.json
+  - frontend/packages/ui/src/tokens/sources/          # YAML source of truth
+  - frontend/packages/ui/src/tokens/generated/         # Auto-generated outputs
+  - frontend/packages/ui/scripts/build-tokens.js       # Generator script
+  - frontend/packages/ui/scripts/audit-tokens.js       # Migration audit tool
+  - frontend/packages/ui/scripts/validate-token-usage.js  # Lint guardrail
+  - frontend/packages/ui/package.json                  # Build pipeline
 ---
 
 # Unified Design Token System
 
 > Single YAML source of truth for all visual tokens, generating CSS custom properties (web), TypeScript constants (Svelte logic), and Swift extensions + Xcode asset catalogs (native Apple app). Ensures web and native platforms stay pixel-identical from a shared definition.
 
-Linear task: OPE-326
+Linear task: OPE-326 (Done)
 
 ## Why This Exists
 
-OpenMates is adding a native Swift/SwiftUI Apple ecosystem app (iOS, iPadOS, macOS, watchOS). The current styling system has two problems:
+OpenMates is adding a native Swift/SwiftUI Apple ecosystem app (iOS, iPadOS, macOS, watchOS). The token system provides a single source of truth for all visual tokens across web and native platforms.
 
-1. **No cross-platform source of truth.** The 231 CSS custom properties in `theme.css` only serve the web app. A native app would need to manually duplicate every color, font size, and spacing value into Swift code — then keep them in sync forever.
+**Before (OPE-326):** 231 CSS custom properties in `theme.css` only served the web app, and ~4,300 hardcoded values in Svelte components bypassed the token system entirely.
 
-2. **~1,500+ hardcoded values in Svelte components.** Despite having a token system, most components bypass it with raw `px`, hex colors, and magic numbers in their `<style>` blocks. This makes bulk changes (dark mode tuning, brand refresh, native parity) require touching hundreds of files.
+**After:** 10 YAML source files generate CSS, TypeScript, and Swift outputs. 307+ Svelte components migrated to use design tokens. Z-index rationalized from chaos (1–99999) to a 15-level named layer system. All font sizes converted from px to rem for accessibility. 202 custom SVG icons packaged as xcassets. 31 Lucide icons mapped to SF Symbol equivalents.
 
-### Hardcoded values audit
+### Migration audit (historical reference)
 
-| Category | Most common value | Instances of that value | Total hardcoded instances |
-|----------|-------------------|------------------------|--------------------------|
-| Font sizes | `14px` | 416 | ~1,100 |
-| Spacing (gap) | `8px` | 184 | ~620 |
-| Border radius | `8px` | 230 | ~580 |
-| Colors | `#ffffff` / `#fff` | 50 | ~230 |
-| Transitions | `all 0.2s ease` | 49 | ~130 |
-| Z-index | `1` through `99999` | 42+ | ~120 |
-| Shadows | `0 2px 4px rgba(0,0,0,0.1)` | 13 | ~40 |
+| Category | Instances migrated |
+|----------|--------------------|
+| Spacing (gap, padding, margin) | ~1,824 |
+| Font sizes (px → rem tokens) | ~1,165 |
+| Border radius | ~628 |
+| Transitions | ~405 |
+| Z-index | ~148 |
+| Colors | ~76 |
+| Shadows | ~34 |
 
 ## Architecture
 
@@ -506,168 +508,75 @@ CSS property names are **preserved exactly** for backwards compatibility.
 
 ## Generator Script
 
-New file: `frontend/packages/ui/scripts/build-tokens.js`
+`frontend/packages/ui/scripts/build-tokens.js`
 
-Follows the same pattern as `build-translations.js`:
-- ESM module with `yaml` package (already a dependency)
-- `__dirname` setup via `fileURLToPath`
-- Reads YAML, validates schema, writes output files
-- Every generated file has a `// AUTO-GENERATED` header
+Follows the same pattern as `build-translations.js` (ESM, `yaml` package, `fileURLToPath`).
 
-### Build pipeline integration
+**What it generates from the 11 YAML sources:**
+- `theme.generated.css` — CSS custom properties (`:root` + `[data-theme="dark"]`)
+- `tokens.generated.ts` — TypeScript typed constants + `LucideToSF` + `IconAlias` exports
+- `swift/ColorTokens.generated.swift` — SwiftUI Color extensions
+- `swift/TypographyTokens.generated.swift` — Font extensions
+- `swift/SpacingTokens.generated.swift` — CGFloat extensions (spacing, radii, icons, breakpoints)
+- `swift/GradientTokens.generated.swift` — LinearGradient extensions
+- `swift/IconMapping.generated.swift` — SFSymbol enum + Image extensions + IconAlias enum
+- `swift/Assets.xcassets/` — Color catalog (18 theme-aware color sets)
+- `swift/Icons.xcassets/` — SVG icon catalog (202 image sets from `static/icons/`)
 
-**`package.json`** — add to scripts:
+**Verification:** Run `node scripts/build-tokens.js --verify` to diff generated CSS against current `theme.css` + `fonts.css`.
+
+### Build pipeline
+
 ```json
+// package.json — first step in prepare/prebuild/build chains
 "build:tokens": "node scripts/build-tokens.js"
 ```
 
-Prepend to `prepare`, `prebuild`, `build` chains (before `build:translations`).
-
-**`turbo.json`** — add `**/tokens/generated/**` to build outputs.
-
-## theme.css Split
-
-Current `theme.css` (954 lines) contains both tokens AND global utility styles. Split into:
-
-- `src/tokens/generated/theme.generated.css` — just `:root { ... }` and `[data-theme="dark"] { ... }` with all custom properties
-- `src/styles/theme.css` — retains utility classes (`.color-grey-*`), scrollbar styles, focus-visible system, offline placeholder. Imports the generated file:
-
-```css
-@import '../tokens/generated/theme.generated.css';
-
-/* Utility classes, scrollbar, focus-visible, etc. — not generated */
-```
-
-The import chain in `+layout.svelte` stays unchanged — it still imports `theme.css`.
-
-## Migration Strategy
-
-Incremental, non-breaking. Each batch is a separate commit verified by visual regression tests.
-
-### Batch A — spacing + radii (~650 changes)
-
-Highest frequency, lowest risk. Pure mechanical find-replace within `<style>` blocks.
-
-| Find | Replace with | Count |
-|------|-------------|-------|
-| `gap: 8px` | `gap: var(--spacing-4)` | 184 |
-| `border-radius: 8px` | `border-radius: var(--radius-3)` | 230 |
-| `border-radius: 12px` | `border-radius: var(--radius-5)` | 119 |
-| `gap: 12px` | `gap: var(--spacing-6)` | 113 |
-
-### Batch B — hardcoded colors (~230 changes)
-
-Replace hex literals with existing `var(--color-*)` tokens.
-
-| Find | Replace with | Count |
-|------|-------------|-------|
-| `#ffffff` / `#fff` | `var(--color-grey-0)` | 50 |
-| `#888` | `var(--color-grey-60)` | 38 |
-| `#f5f5f5` | `var(--color-grey-10)` | 38 |
-| `#333` | `var(--color-grey-90)` | 33 |
-| `#1a1a1a` | `var(--color-grey-0)` (dark) or appropriate | 29 |
-| `#666` | `var(--color-grey-70)` | 23 |
-| `#ff4444` | `var(--color-error)` | 21 |
-
-### Batch C — font sizes px to rem (~1,100 changes)
-
-Accessibility fix — `px` font sizes don't respect browser zoom settings.
-
-| Find | Replace with | Count |
-|------|-------------|-------|
-| `font-size: 14px` | `font-size: var(--font-size-small)` | 416 |
-| `font-size: 12px` | `font-size: var(--font-size-xxs)` | 196 |
-| `font-size: 16px` | `font-size: var(--font-size-body)` | 172 |
-| `font-size: 13px` | `font-size: var(--font-size-xs)` | 168 |
-| `font-size: 11px` | `font-size: var(--font-size-tiny)` | 68 |
-
-### Batch D — shadows, transitions, z-index (~300 changes)
-
-| Category | Example find | Example replace | Count |
-|----------|-------------|----------------|-------|
-| Shadow | `0 2px 4px rgba(0,0,0,0.1)` | `var(--shadow-xs)` | ~40 |
-| Transition | `all 0.2s ease` | `all var(--duration-normal) var(--easing-default)` | ~130 |
-| Z-index | `z-index: 1000` | `z-index: var(--z-index-modal)` | ~120 |
-
-### Codemod script
-
-A helper `scripts/migrate-tokens.js` automates the mechanical find-replace within `<style>` blocks. Run per batch, review diff, commit.
-
-## Visual Regression Testing
-
-Piggybacks on the **existing E2E specs** (~81 specs, ~200 screenshots via `createStepScreenshotter()`). No separate visual regression spec needed.
-
-### Approach: extend createStepScreenshotter()
-
-The existing `createStepScreenshotter()` in `signup-flow-helpers.ts` already captures named PNGs at every key UI state. Extend it to optionally assert against baselines:
-
-```typescript
-// When E2E_VISUAL_REGRESSION=1, each screenshot also runs a pixel comparison
-if (process.env.E2E_VISUAL_REGRESSION) {
-  await expect(page).toHaveScreenshot(`${prefix}-${label}.png`, {
-    maxDiffPixelRatio: 0.01,
-    animations: 'disabled',
-  });
-}
-```
-
-This gives ~200 baseline comparisons from existing tests with zero new spec files.
-
-### Existing coverage (already screenshotted)
-
-| UI area | Specs | Screenshots |
-|---------|-------|------------|
-| Auth (login/signup/2FA/recovery) | 8+ specs | ~60 |
-| Chat (messages/AI/sidebar) | 4+ specs | ~40 |
-| Settings (security/billing/API keys) | 6+ specs | ~50 |
-| Files/embeds | 3+ specs | ~30 |
-| Multi-device/encryption | 3+ specs | ~20 |
-
-### Gaps to fill with 1-2 new specs
-
-- **Dark mode** — existing tests all run light mode
-- **Mobile/tablet viewports** — existing tests all run at default 1280px
-
-### Configuration
-
-```typescript
-// playwright.config.ts additions
-expect: {
-  toHaveScreenshot: {
-    maxDiffPixelRatio: 0.01,   // 1% tolerance for antialiasing
-    animations: 'disabled',
-  }
-},
-snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
-```
-
-Baselines stored in `tests/__screenshots__/` and committed to git. PRs that change styles show the baseline diff.
-
-### Workflow
-
-- `E2E_VISUAL_REGRESSION=1` env var enables comparison mode in CI
-- `--update-snapshots` input flag added to `playwright-spec.yml` for intentional baseline updates after migration batches
-- Comparison is a **blocker** — any pixel diff beyond 1% fails the workflow
+`turbo.json` caches `**/tokens/generated/**` as build outputs.
 
 ## Token Validation
 
-New script: `frontend/packages/ui/scripts/validate-token-usage.js`
+`frontend/packages/ui/scripts/validate-token-usage.js`
 
-Runs during build (alongside `validate-icon-refs.js`). Warns on:
+Scans all Svelte component `<style>` blocks for hardcoded values:
+- **ERROR:** `font-size` with `px` units (accessibility violation — must use rem via `var(--font-size-*)`)
+- **WARNING:** Raw hex/rgb colors, z-index, border-radius, spacing, shadow values
 
-- Raw hex/rgb colors in `<style>` blocks not inside `var()`
-- `font-size` with `px` units (accessibility violation)
-- Z-index values not using `var(--z-index-*)`
+Run: `node scripts/validate-token-usage.js` (passes with 0 errors). Use `--strict` to also fail on warnings.
 
-This prevents new hardcoded values from being introduced after migration.
+Allowlist for legitimate exceptions: `src/tokens/.token-allowlist.json`.
 
-## CLAUDE.md Updates
+## Migration Tools (available for future use)
 
-Add to the Styling section:
+- `scripts/audit-tokens.js` — Scans .svelte files, produces `token-audit.json` manifest mapping every hardcoded value to its token replacement
+- `scripts/migrate-tokens.js` — Reads the manifest and performs file-by-file replacements. Supports `--dry-run`, `--exact-only`, `--include-manual`
+
+## How To
+
+### Add a new design token
+
+1. Edit the relevant YAML source in `src/tokens/sources/`
+2. Run `pnpm --filter @repo/ui build:tokens`
+3. CSS, TypeScript, and Swift outputs are regenerated automatically
+
+### Add a new custom icon
+
+1. Drop the SVG file into `frontend/packages/ui/static/icons/`
+2. Run `pnpm --filter @repo/ui build:tokens`
+3. Web: available as `var(--icon-url-{name})` via `generate-icon-urls.js`
+4. iOS: available as `Image("{name}")` via `Icons.xcassets/{name}.imageset/`
+
+### Add a new Lucide → SF Symbol mapping
+
+1. Edit `src/tokens/sources/icons-mapping.yml` — add entry under `lucide:`
+2. Run `pnpm --filter @repo/ui build:tokens`
+3. TypeScript `LucideToSF` and Swift `SFSymbol` enum are updated
+
+### CLAUDE.md rules (enforced)
 
 ```
-- All spacing, radii, shadows, transitions, and z-index values MUST use design tokens via var(--token-name)
-- Token definitions: frontend/packages/ui/src/tokens/sources/*.yml — NEVER edit generated files
-- To add a token: edit YAML source, run pnpm --filter @repo/ui build:tokens
-- Architecture: docs/architecture/frontend/design-tokens.md
+- Design tokens are the source of truth: frontend/packages/ui/src/tokens/sources/*.yml
+- NEVER edit generated files in src/tokens/generated/
+- NEVER use px for font sizes — use rem via var(--font-size-*) tokens
+- All spacing, radii, shadows, transitions, z-index MUST use var(--token-name)
 ```
