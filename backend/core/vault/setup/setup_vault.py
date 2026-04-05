@@ -102,15 +102,37 @@ async def setup_vault():
                     logger.info("Using existing api.token for verification (root token not available — normal after first setup run).")
                     client.update_token(api_token)
 
-                    # Validate the api.token is actually recognized by this Vault instance.
-                    # The token can become invalid if Vault data was reset while vault-setup-data
-                    # (containing the old token) persisted, or if the token was revoked/expired.
+                    # Validate the api.token is actually recognized by this Vault instance
+                    # AND has enough remaining TTL to be useful. A token can become invalid if
+                    # Vault data was reset, or if the token was revoked/expired. Even a valid
+                    # token with < 24h remaining TTL should be replaced — Vault's default max_ttl
+                    # of 768h (32 days) silently caps requested TTLs, so tokens expire sooner
+                    # than the requested 8760h (1 year).
                     lookup = await client.vault_request("get", "auth/token/lookup-self", ignore_errors=True)
+                    needs_recovery = False
                     if not lookup or "data" not in (lookup or {}):
                         logger.warning(
-                            "api.token is invalid or unrecognized by Vault — "
+                            "api.token is invalid or unrecognized by Vault - "
                             "generating temporary root token for recovery..."
                         )
+                        needs_recovery = True
+                    else:
+                        # Token is valid — check remaining TTL
+                        remaining_ttl = lookup["data"].get("ttl", 0)
+                        min_ttl_seconds = 86400  # 24 hours
+                        if remaining_ttl < min_ttl_seconds:
+                            remaining_hours = remaining_ttl / 3600
+                            logger.warning(
+                                f"api.token has only {remaining_hours:.1f}h remaining TTL "
+                                f"(minimum: {min_ttl_seconds / 3600:.0f}h) — "
+                                f"generating temporary root token to create fresh token..."
+                            )
+                            needs_recovery = True
+                        else:
+                            remaining_days = remaining_ttl / 86400
+                            logger.info(f"api.token is valid with {remaining_days:.1f} days remaining TTL.")
+
+                    if needs_recovery:
                         temp_root_token = await initializer.generate_temporary_root_token()
                         if temp_root_token:
                             root_token = temp_root_token
@@ -118,7 +140,7 @@ async def setup_vault():
                             logger.info("Generated temporary root token — will perform full setup and create new api.token.")
                         else:
                             logger.error(
-                                "Cannot recover: api.token is invalid and temporary root token "
+                                "Cannot recover: api.token needs replacement and temporary root token "
                                 "generation failed. Check that the unseal key in vault-setup-data "
                                 "matches this Vault instance."
                             )
@@ -163,6 +185,16 @@ async def setup_vault():
             if not await policy_manager.create_api_encryption_policy():
                 logger.error("Failed to create/ensure API encryption policy")
                 sys.exit(1)
+
+            # Tune token auth max_ttl so our 8760h (1 year) TTL request is actually honored.
+            # Vault's default max_ttl is 768h (32 days) which silently caps token TTLs,
+            # causing tokens to expire far sooner than expected (the root cause of the
+            # April 2026 production outage where all encryption failed after 32 days).
+            logger.info("Tuning token auth method max_lease_ttl to 87600h (10 years)...")
+            await client.vault_request("post", "sys/auth/token/tune", {
+                "max_lease_ttl": "87600h"
+            }, ignore_errors=True)
+            logger.info("Token auth max_lease_ttl tuned successfully.")
 
             client.update_token(root_token)  # Ensure root token is active for token creation
             api_token_policies = ["api-encryption", "api-service"]

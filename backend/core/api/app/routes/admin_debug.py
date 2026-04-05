@@ -1933,6 +1933,152 @@ async def get_server_stats(
 
 
 # ============================================================================
+# OPENOBSERVE PROXY ENDPOINTS
+# ============================================================================
+# These endpoints proxy raw SQL and trace queries to the local OpenObserve
+# instance, allowing remote debug scripts to query O2 without needing direct
+# credentials. This eliminates the need for OPENOBSERVE_PROD_* env vars.
+
+
+class O2SearchResponse(BaseModel):
+    """Response from OpenObserve SQL search proxy."""
+    success: bool
+    hits: List[Dict[str, Any]]
+    total: int
+    took_ms: int
+    generated_at: str
+
+
+@router.get("/o2/search", response_model=O2SearchResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def o2_search(
+    request: Request,
+    sql: str,
+    since_minutes: int = 60,
+    stream_type: str = "logs",
+    admin_user: User = Depends(require_admin_api_key),
+) -> O2SearchResponse:
+    """
+    Proxy SQL queries to the local OpenObserve instance.
+
+    Args:
+        sql: SQL query (must include FROM clause referencing the stream)
+        since_minutes: Time window in minutes (1-10080, default 60)
+        stream_type: "logs" or "traces" (maps to ?type= query param)
+    """
+    import aiohttp
+
+    since_minutes = max(1, min(since_minutes, 10080))
+    if stream_type not in ("logs", "traces"):
+        raise HTTPException(status_code=400, detail="stream_type must be 'logs' or 'traces'")
+
+    # Sanitize: no semicolons, no destructive statements
+    sql_clean = sql.strip().rstrip(";")
+    sql_upper = sql_clean.upper()
+    for forbidden in ("DROP ", "DELETE ", "INSERT ", "UPDATE ", "ALTER ", "CREATE "):
+        if forbidden in sql_upper:
+            raise HTTPException(status_code=400, detail=f"Forbidden SQL operation: {forbidden.strip()}")
+
+    if " LIMIT " not in sql_upper:
+        sql_clean = f"{sql_clean} LIMIT 2000"
+
+    start_time = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    end_time = datetime.now(timezone.utc)
+    start_us = int(start_time.timestamp() * 1_000_000)
+    end_us = int(end_time.timestamp() * 1_000_000)
+
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+    url = "http://openobserve:5080/api/default/_search"
+    if stream_type == "traces":
+        url += "?type=traces"
+
+    body = {"query": {"sql": sql_clean, "start_time": start_us, "end_time": end_us}}
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=body, auth=aiohttp.BasicAuth(email, password)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return O2SearchResponse(
+                        success=True,
+                        hits=data.get("hits", []),
+                        total=data.get("total", 0),
+                        took_ms=data.get("took", 0),
+                        generated_at=datetime.now(timezone.utc).isoformat(),
+                    )
+                error_text = await resp.text()
+                logger.warning(f"O2 search proxy failed ({resp.status}): {error_text[:300]}")
+                raise HTTPException(status_code=502, detail=f"OpenObserve returned {resp.status}: {error_text[:200]}")
+    except aiohttp.ClientError as exc:
+        logger.error(f"O2 search proxy connection error: {exc}")
+        raise HTTPException(status_code=502, detail=f"Cannot connect to OpenObserve: {exc}")
+
+
+class O2TracesLatestResponse(BaseModel):
+    """Response from OpenObserve traces/latest proxy."""
+    success: bool
+    hits: List[Dict[str, Any]]
+    total: int
+    generated_at: str
+
+
+@router.get("/o2/traces/latest", response_model=O2TracesLatestResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def o2_traces_latest(
+    request: Request,
+    since_minutes: int = 60,
+    size: int = 50,
+    filter: str = "",
+    admin_user: User = Depends(require_admin_api_key),
+) -> O2TracesLatestResponse:
+    """
+    Proxy trace summary queries to the local OpenObserve instance.
+
+    Returns trace-level summaries (not individual spans). Use /o2/search
+    with stream_type=traces for detailed span queries.
+    """
+    import aiohttp
+    from urllib.parse import quote
+
+    since_minutes = max(1, min(since_minutes, 10080))
+    size = max(1, min(size, 500))
+
+    start_time = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    end_time = datetime.now(timezone.utc)
+    start_us = int(start_time.timestamp() * 1_000_000)
+    end_us = int(end_time.timestamp() * 1_000_000)
+
+    email = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
+    password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
+    url = (
+        f"http://openobserve:5080/api/default/default/traces/latest"
+        f"?start_time={start_us}&end_time={end_us}"
+        f"&from=0&size={size}&filter={quote(filter)}"
+    )
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, auth=aiohttp.BasicAuth(email, password)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return O2TracesLatestResponse(
+                        success=True,
+                        hits=data.get("hits", []),
+                        total=data.get("total", 0),
+                        generated_at=datetime.now(timezone.utc).isoformat(),
+                    )
+                error_text = await resp.text()
+                logger.warning(f"O2 traces/latest proxy failed ({resp.status}): {error_text[:300]}")
+                raise HTTPException(status_code=502, detail=f"OpenObserve returned {resp.status}: {error_text[:200]}")
+    except aiohttp.ClientError as exc:
+        logger.error(f"O2 traces/latest proxy connection error: {exc}")
+        raise HTTPException(status_code=502, detail=f"Cannot connect to OpenObserve: {exc}")
+
+
+# ============================================================================
 # UTILITY ENDPOINTS
 # ============================================================================
 
