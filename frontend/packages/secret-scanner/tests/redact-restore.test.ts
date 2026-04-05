@@ -137,17 +137,28 @@ describe("getSecretSuffix", () => {
 });
 
 describe("generatePlaceholder", () => {
-  it("creates suffix-based placeholder", () => {
+  it("creates counter + suffix-based placeholder", () => {
     assert.equal(
       generatePlaceholder("OPENAI_KEY", "sk-proj-abc123def456ghi789"),
-      "[OPENAI_KEY_789]",
+      "[OPENAI_KEY_1_789]",
     );
   });
 
   it("creates placeholder with custom suffix length", () => {
     assert.equal(
       generatePlaceholder("AWS_KEY", "AKIAIOSFODNN7EXAMPLE", 4),
-      "[AWS_KEY_MPLE]",
+      "[AWS_KEY_1_MPLE]",
+    );
+  });
+
+  it("includes counter for disambiguation", () => {
+    assert.equal(
+      generatePlaceholder("EMAIL", "alice@example.com", 3, 1),
+      "[EMAIL_1_com]",
+    );
+    assert.equal(
+      generatePlaceholder("EMAIL", "bob@example.com", 3, 2),
+      "[EMAIL_2_com]",
     );
   });
 });

@@ -22,8 +22,8 @@ describe("SecretScanner", () => {
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "OPENAI_KEY");
       assert.equal(mappings[0].original, "sk-proj-abc123def456ghi789");
-      assert.equal(mappings[0].placeholder, "[OPENAI_KEY_789]");
-      assert.equal(redacted, "My key is [OPENAI_KEY_789]");
+      assert.equal(mappings[0].placeholder, "[OPENAI_KEY_1_789]");
+      assert.equal(redacted, "My key is [OPENAI_KEY_1_789]");
     });
 
     it("detects AWS access keys", () => {
@@ -32,8 +32,8 @@ describe("SecretScanner", () => {
 
       assert.equal(mappings.length, 1);
       assert.equal(mappings[0].type, "AWS_ACCESS_KEY");
-      assert.equal(mappings[0].placeholder, "[AWS_KEY_PLE]");
-      assert.equal(redacted, "AWS key: [AWS_KEY_PLE]");
+      assert.equal(mappings[0].placeholder, "[AWS_KEY_1_PLE]");
+      assert.equal(redacted, "AWS key: [AWS_KEY_1_PLE]");
     });
 
     it("detects GitHub PATs", () => {
