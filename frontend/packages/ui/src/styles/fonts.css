@@ -1,35 +1,13 @@
-/* Global font settings */
-/* All font-size custom properties use rem so they scale with the user's
-   browser default font size (accessibility: browser zoom / large-text prefs).
-   Baseline: 1rem = 16px (browser default). */
-:root {
-  --font-primary: "Lexend Deca Variable";
-  --font-weight-bold: 700;
-  --font-weight-extra-bold: 800;
-  --font-style-normal: normal;
-  --line-height-normal: normal;
-  --font-size-h1: 3.75rem;          /* 60px */
-  --font-size-h1-mobile: 2.25rem;   /* 36px */
-  --font-size-h2: 1.875rem;         /* 30px */
-  --font-size-h2-mobile: 1.5rem;    /* 24px */
-  --font-size-h3: 1.25rem;          /* 20px */
-  --font-size-h3-mobile: 1.125rem;  /* 18px */
-  --font-size-h4: 1rem;             /* 16px */
-  --font-size-h4-mobile: 1rem;      /* 16px */
-  --font-size-p: 1rem;              /* 16px */
-  --font-weight-p: 500;
-  --button-font-family: var(--font-primary);
-  --button-font-size: 1rem;         /* 16px */
-  --button-font-weight: 500;
-  --button-text-decoration: none;
-  --input-font-size: 1rem;          /* 16px — must stay ≥1rem to prevent iOS Safari auto-zoom on focus */
-  --input-font-weight: 500;
-  --app-card-font-size: 1rem;       /* 16px */
-  --chat-message-font-size: 1rem;   /* 16px */
-  --processing-details-font-size: 0.875rem; /* 14px */
-}
+/* frontend/packages/ui/src/styles/fonts.css
+ *
+ * Global typography rules — body, headings, paragraphs, buttons, inputs.
+ *
+ * Font token custom properties (--font-primary, --font-size-*, --font-weight-*)
+ * are defined in src/tokens/generated/theme.generated.css — generated from
+ * typography.yml by build-tokens.js. Do NOT add font custom properties here.
+ */
 
-/* Add base body typography */
+/* Base body typography */
 body {
   font-family: var(--font-primary);
   font-size: var(--font-size-p);
