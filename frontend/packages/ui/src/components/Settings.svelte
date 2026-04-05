@@ -2682,7 +2682,7 @@ changes to the documentation (to keep the documentation up to date).
         width: 50px;
         height: 50px;
         z-index: 1005;
-        transition: opacity 0.3s ease, top 0.3s ease, position 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default), top var(--duration-slow) var(--easing-default), position var(--duration-slow) var(--easing-default);
     }
 
     .profile-container-wrapper.signup-footer-mode {
@@ -2703,7 +2703,7 @@ changes to the documentation (to keep the documentation up to date).
         border-radius: 50%;
         cursor: pointer;
         /* Fade out when menu opens, fade in when menu closes */
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         opacity: 1;
     }
 
@@ -2724,7 +2724,7 @@ changes to the documentation (to keep the documentation up to date).
         justify-content: center;
         opacity: 0;
         visibility: hidden;
-        transition: all 0.3s ease;
+        transition: all var(--duration-slow) var(--easing-default);
     }
 
     .close-icon-container.visible {
@@ -2757,7 +2757,7 @@ changes to the documentation (to keep the documentation up to date).
         background-position: center;
         background-repeat: no-repeat;
         background-color: var(--color-grey-20);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2812,7 +2812,7 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        transition: width 0.3s ease;
+        transition: width var(--duration-slow) var(--easing-default);
         z-index: 1001;
     }
 
@@ -2827,7 +2827,7 @@ changes to the documentation (to keep the documentation up to date).
             z-index: 1000;
             /* Override desktop width animation — keep full width, slide with GPU-accelerated transform */
             width: 323px;
-            transition: transform 0.3s ease, visibility 0.3s ease;
+            transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
             transform: translateX(calc(100% + 40px));
             visibility: hidden;
             will-change: transform;
@@ -2879,19 +2879,19 @@ changes to the documentation (to keep the documentation up to date).
     .settings-content-wrapper,
     :global(.app-details-header) {
         opacity: 0;
-        transition: opacity 0.3s ease 0s;
+        transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     .settings-menu.visible .settings-header,
     .settings-menu.visible .settings-content-wrapper,
     .settings-menu.visible :global(.app-details-header) {
         opacity: 1;
-        transition: opacity 0.3s ease 0.15s;
+        transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     .settings-header {
         background-color: var(--color-grey-20);
-        padding-bottom: 12px;
+        padding-bottom: var(--spacing-6);
         position: sticky;
         top: 0;
         z-index: 10;
@@ -2908,7 +2908,7 @@ changes to the documentation (to keep the documentation up to date).
         inset: 0;
         overflow: hidden;
         pointer-events: none;
-        z-index: 0;
+        z-index: var(--z-index-base);
         transition: opacity 0.28s ease;
     }
 
@@ -2950,8 +2950,8 @@ changes to the documentation (to keep the documentation up to date).
     .header-content {
         width: 100%;
         position: relative;
-        z-index: 1;
-        transition: all 0.3s ease;
+        z-index: var(--z-index-raised);
+        transition: all var(--duration-slow) var(--easing-default);
     }
 
     .settings-banner-shell {
@@ -2961,12 +2961,12 @@ changes to the documentation (to keep the documentation up to date).
 
     .settings-banner-shell :global(.app-details-header) {
         position: relative;
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .settings-header.submenu-active {
-        padding-bottom: 20px; /* Space for submenu info */
-        transition: padding-bottom 0.3s ease; /* Smooth padding transition */
+        padding-bottom: var(--spacing-10); /* Space for submenu info */
+        transition: padding-bottom var(--duration-slow) var(--easing-default); /* Smooth padding transition */
     }
 
     /*
@@ -2986,13 +2986,13 @@ changes to the documentation (to keep the documentation up to date).
         border-bottom: none !important;
         box-shadow: none !important;
         overflow: hidden;
-        transition: height 0.2s ease, padding 0.2s ease;
+        transition: height var(--duration-normal) var(--easing-default), padding var(--duration-normal) var(--easing-default);
     }
 
 
     .nav-button {
         all: unset;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         cursor: default;
         display: flex;
@@ -3001,7 +3001,7 @@ changes to the documentation (to keep the documentation up to date).
         left: 110px;
         top: 10px;
         padding: 4px 0;
-        transition: all 0.3s ease;
+        transition: all var(--duration-slow) var(--easing-default);
         pointer-events: none; /* Disable click interactions by default */
         max-width: 290px; /* Set maximum width */
     }
@@ -3029,29 +3029,29 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .submenu-info {
-        padding-top: 40px;
+        padding-top: var(--spacing-20);
         margin-bottom: -10px;
         overflow: hidden;
     }
     
     .submenu-info.reduced-padding {
-        padding-top: 10px;
+        padding-top: var(--spacing-5);
     }
 
     /* Model detail header: provider icon + model name */
     .model-detail-header-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 4px 16px 4px 12px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-2) var(--spacing-8) var(--spacing-2) var(--spacing-6);
     }
 
     /* Mate detail header: circular profile image + mate name */
     .mate-detail-header-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 4px 16px 4px 12px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-2) var(--spacing-8) var(--spacing-2) var(--spacing-6);
     }
 
     /*
@@ -3077,7 +3077,7 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         background: var(--color-grey-10);
         overflow: hidden;
     }
@@ -3103,7 +3103,7 @@ changes to the documentation (to keep the documentation up to date).
         flex-direction: column;
         flex: 1;
         overflow-y: auto;
-        padding-bottom: 16px;
+        padding-bottom: var(--spacing-8);
         position: relative; /* Ensure positioned context for absolutely positioned children */
     }
 
@@ -3124,7 +3124,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     :global(.active-chat-container) {
-        transition: opacity 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     :global(.active-chat-container.dimmed) {

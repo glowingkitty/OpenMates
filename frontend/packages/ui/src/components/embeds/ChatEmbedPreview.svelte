@@ -252,8 +252,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 16px 24px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-8) var(--spacing-12);
     max-width: 260px;
     width: 100%;
   }
@@ -269,9 +269,9 @@
 
   .card-title {
     display: block;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-grey-0);
     text-align: center;
     line-height: 1.3;
     max-width: 100%;
@@ -285,7 +285,7 @@
 
   .card-summary {
     margin: 2px 0 0;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     line-height: 1.4;
@@ -308,7 +308,7 @@
   .chat-preview-orbs {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: var(--z-index-base);
     pointer-events: none;
     overflow: hidden;
     border-radius: 30px; /* match card border-radius so orbs don't bleed */
@@ -387,7 +387,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
+    z-index: var(--z-index-raised);
     pointer-events: none;
     --float-rx: 7px;
     --float-ry: 8px;

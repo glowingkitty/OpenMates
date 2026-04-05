@@ -260,7 +260,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default);
     z-index: 20;
     pointer-events: auto;
     flex-shrink: 0;
@@ -284,6 +284,6 @@
 
   .nav-arrow-right {
     right: 0;
-    border-radius: 10px 0 0 10px !important;
+    border-radius: var(--radius-4) 0 0 10px !important;
   }
 </style>

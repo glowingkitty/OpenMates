@@ -258,7 +258,7 @@
     max-height: calc(100% - 48px);
     overflow-y: auto;
     background: var(--color-grey-20);
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     z-index: 2;
   }
@@ -271,10 +271,10 @@
   }
 
   .detail-content {
-    padding: 20px;
+    padding: var(--spacing-10);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--spacing-8);
   }
 
   /* ── Narrow layout (<=600px container): stacked map + detail ── */
@@ -318,7 +318,7 @@
     }
 
     .detail-content {
-      padding: 20px 16px;
+      padding: var(--spacing-10) var(--spacing-8);
     }
 
   }

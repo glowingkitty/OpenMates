@@ -218,7 +218,7 @@
 		background-color: #1a1a1a;
 		color: #d4d4d4;
 		font-family: 'Menlo', 'Consolas', 'Monaco', 'Courier New', monospace;
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		line-height: 1.45;
 		border-top: 2px solid #333;
 		position: relative;
@@ -232,7 +232,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 4px 8px;
+		padding: var(--spacing-2) var(--spacing-4);
 		background-color: #252526;
 		border-bottom: 1px solid #3c3c3c;
 		flex-shrink: 0;
@@ -240,7 +240,7 @@
 	}
 
 	.console-title {
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		font-weight: 600;
 		color: #cccccc;
 		letter-spacing: 0.04em;
@@ -248,7 +248,7 @@
 
 	.console-actions {
 		display: flex;
-		gap: 4px;
+		gap: var(--spacing-2);
 		align-items: center;
 	}
 
@@ -257,22 +257,22 @@
 		border: 1px solid #555;
 		color: #aaa;
 		cursor: pointer;
-		padding: 2px 8px;
+		padding: var(--spacing-1) var(--spacing-4);
 		border-radius: 3px;
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		font-family: inherit;
 		line-height: 1.4;
-		transition: background-color 0.15s ease;
+		transition: background-color var(--duration-fast) var(--easing-default);
 	}
 
 	.action-btn:hover {
 		background-color: #3c3c3c;
-		color: #fff;
+		color: var(--color-grey-0);
 	}
 
 	.close-btn {
-		font-size: 12px;
-		padding: 2px 6px;
+		font-size: var(--font-size-xxs);
+		padding: var(--spacing-1) var(--spacing-3);
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -304,7 +304,7 @@
 	/* Empty state                                                          */
 	/* ------------------------------------------------------------------ */
 	.empty-state {
-		padding: 12px 10px;
+		padding: var(--spacing-6) var(--spacing-5);
 		color: #555;
 		font-style: italic;
 	}
@@ -315,7 +315,7 @@
 	.log-entry {
 		display: flex;
 		align-items: flex-start;
-		gap: 6px;
+		gap: var(--spacing-3);
 		padding: 1px 8px;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 		min-height: 20px;
@@ -326,7 +326,7 @@
 	}
 
 	.log-timestamp {
-		color: #666;
+		color: var(--color-grey-70);
 		flex-shrink: 0;
 		font-size: 10px;
 		padding-top: 1px;
@@ -363,7 +363,7 @@
 	}
 	.level-log .log-level-badge {
 		background-color: #3a3a3a;
-		color: #888;
+		color: var(--color-grey-60);
 	}
 
 	.level-info {
@@ -375,11 +375,11 @@
 	}
 
 	.level-debug {
-		color: #888;
+		color: var(--color-grey-60);
 	}
 	.level-debug .log-level-badge {
 		background-color: #2a2a2a;
-		color: #666;
+		color: var(--color-grey-70);
 	}
 
 	.level-warn {
@@ -411,16 +411,16 @@
 		background-color: #3c3c3c;
 		border: 1px solid #555;
 		color: #ccc;
-		padding: 4px 12px;
-		border-radius: 12px;
-		font-size: 11px;
+		padding: var(--spacing-2) var(--spacing-6);
+		border-radius: var(--radius-5);
+		font-size: var(--font-size-tiny);
 		font-family: inherit;
 		cursor: pointer;
-		transition: background-color 0.15s ease;
+		transition: background-color var(--duration-fast) var(--easing-default);
 	}
 
 	.scroll-to-bottom:hover {
 		background-color: #505050;
-		color: #fff;
+		color: var(--color-grey-0);
 	}
 </style>

@@ -164,7 +164,7 @@
         font-size: var(--input-font-size, 1rem);
         line-height: 1.25;
         color: var(--color-grey-100);
-        transition: box-shadow 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default);
         box-sizing: border-box;
     }
 
@@ -205,7 +205,7 @@
         mask-repeat: no-repeat;
         mask-position: center;
         background: var(--color-primary);
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .filter-container:hover .filter-icon {
@@ -220,7 +220,7 @@
         height: 1.125rem;
         border-radius: 50%;
         background: var(--color-error, #FF553B);
-        color: #ffffff;
+        color: var(--color-grey-0);
         font-family: 'Lexend Deca Variable', sans-serif;
         font-weight: 700;
         font-size: 0.625rem;
@@ -272,7 +272,7 @@
         mask-repeat: no-repeat;
         mask-position: center;
         background: var(--color-primary);
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .sort-container:hover .sort-icon {
@@ -309,7 +309,7 @@
         justify-content: center;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         /* Red delete icon using mask + background-color */
         -webkit-mask-image: url('@openmates/ui/static/icons/delete.svg');
         -webkit-mask-size: contain;

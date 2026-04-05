@@ -404,24 +404,24 @@
 
 <style>
     .api-keys-container {
-        padding: 20px;
+        padding: var(--spacing-10);
     }
 
     .header {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .title {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
         color: var(--text-primary);
     }
 
     .description {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--text-secondary);
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         line-height: 1.5;
     }
 
@@ -429,11 +429,11 @@
         background: var(--accent-color);
         color: white;
         border: none;
-        border-radius: 6px;
-        padding: 8px 16px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        padding: var(--spacing-4) var(--spacing-8);
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: background-color var(--duration-normal);
     }
 
     .btn-create:hover:not(:disabled) {
@@ -449,44 +449,44 @@
         background: #fef2f2;
         border: 1px solid #fecaca;
         color: #dc2626;
-        padding: 12px;
-        border-radius: 6px;
-        margin-bottom: 16px;
-        font-size: 14px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-2);
+        margin-bottom: var(--spacing-8);
+        font-size: var(--font-size-small);
     }
 
     .loading {
         text-align: center;
-        padding: 40px;
+        padding: var(--spacing-20);
         color: var(--text-secondary);
     }
 
     .empty-state {
         text-align: center;
-        padding: 40px;
+        padding: var(--spacing-20);
         color: var(--text-secondary);
     }
 
     .empty-icon {
         font-size: 48px;
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .empty-state h3 {
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
         color: var(--text-primary);
     }
 
     .api-keys-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .api-key-item {
         border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 16px;
+        border-radius: var(--radius-3);
+        padding: var(--spacing-8);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -498,23 +498,23 @@
     }
 
     .key-name {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
-        margin-bottom: 4px;
+        margin-bottom: var(--spacing-2);
         color: var(--text-primary);
     }
 
     .key-prefix {
         font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--text-secondary);
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .key-meta {
         display: flex;
-        gap: 16px;
-        font-size: 12px;
+        gap: var(--spacing-8);
+        font-size: var(--font-size-xxs);
         color: var(--text-tertiary);
     }
 
@@ -522,11 +522,11 @@
         background: #dc2626;
         color: white;
         border: none;
-        border-radius: 4px;
-        padding: 6px 12px;
-        font-size: 12px;
+        border-radius: var(--radius-1);
+        padding: var(--spacing-3) var(--spacing-6);
+        font-size: var(--font-size-xxs);
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: background-color var(--duration-normal);
     }
 
     .btn-delete:hover {
@@ -537,10 +537,10 @@
         background: #fef3cd;
         border: 1px solid #f59e0b;
         color: #92400e;
-        padding: 12px;
-        border-radius: 6px;
-        margin-top: 16px;
-        font-size: 14px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-2);
+        margin-top: var(--spacing-8);
+        font-size: var(--font-size-small);
     }
 
     /* Modal Styles */
@@ -559,38 +559,38 @@
 
     .modal {
         background: var(--bg-primary);
-        border-radius: 8px;
-        padding: 24px;
+        border-radius: var(--radius-3);
+        padding: var(--spacing-12);
         max-width: 500px;
         width: 90%;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
 
     .modal h3 {
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
         color: var(--text-primary);
     }
 
     .modal p {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         color: var(--text-secondary);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
     }
 
     .modal-actions {
         display: flex;
-        gap: 12px;
+        gap: var(--spacing-6);
         justify-content: flex-end;
     }
 
     .btn-cancel, .btn-create-confirm, .btn-done {
-        padding: 8px 16px;
-        border-radius: 6px;
+        padding: var(--spacing-4) var(--spacing-8);
+        border-radius: var(--radius-2);
         border: none;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: background-color var(--duration-normal);
     }
 
     .btn-cancel {
@@ -619,31 +619,31 @@
 
     .created-key-container {
         display: flex;
-        gap: 8px;
-        margin-bottom: 20px;
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-10);
     }
 
     .created-key {
         flex: 1;
-        padding: 12px;
+        padding: var(--spacing-6);
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         word-break: break-all;
         line-height: 1.4;
     }
 
     .btn-copy {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--accent-color);
         color: white;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.2s;
+        font-size: var(--font-size-small);
+        transition: background-color var(--duration-normal);
     }
 
     .btn-copy:hover {

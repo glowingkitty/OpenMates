@@ -497,7 +497,7 @@
   .suggestions-card {
     position: relative;
     width: 100%;
-    border-radius: 14px;
+    border-radius: var(--radius-6);
     overflow: hidden;
     padding: 1rem 1rem;
     box-sizing: border-box;
@@ -517,7 +517,7 @@
   .card-orbs {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: var(--z-index-base);
     pointer-events: none;
     overflow: hidden;
   }
@@ -579,7 +579,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
+    z-index: var(--z-index-raised);
     pointer-events: none;
     --float-rx: 6px;
     --float-ry: 8px;
@@ -628,7 +628,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default);
     z-index: 20;
     pointer-events: auto;
     flex-shrink: 0;
@@ -652,7 +652,7 @@
 
   .nav-arrow-right {
     right: 0;
-    border-radius: 10px 0 0 10px !important;
+    border-radius: var(--radius-4) 0 0 10px !important;
   }
 
   /* ─── Suggestions list ──────────────────────────────────────────────────── */
@@ -683,11 +683,11 @@
     font-size: 1rem;
     /* Intentionally white on gradient — branded card, not a theme surface.
        Same approach as ChatHeader.svelte loaded-title. */
-    color: #ffffff;
+    color: var(--color-grey-0);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default);
     white-space: normal;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     line-height: 1.35;
     text-align: left;
     height: auto;
@@ -773,21 +773,21 @@
     font-weight: 600;
     /* Intentionally white on gradient — branded card, not a theme surface.
        Same approach as ChatHeader.svelte loaded-title. */
-    color: #ffffff;
+    color: var(--color-grey-0);
   }
 
   .suggestion-text .text-part {
     color: rgba(255, 255, 255, 0.85);
-    transition: color 0.15s ease;
+    transition: color var(--duration-fast) var(--easing-default);
   }
 
   .suggestion-text .text-match {
-    color: #ffffff;
+    color: var(--color-grey-0);
     font-weight: 700;
   }
 
   .suggestion-item:hover .suggestion-text .text-part {
-    color: #ffffff;
+    color: var(--color-grey-0);
   }
 
   /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */

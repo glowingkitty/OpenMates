@@ -160,7 +160,7 @@ changes to the documentation (to keep the documentation up to date).
 
 <style>
     .bottom-content {
-        padding-top: 10px;
+        padding-top: var(--spacing-5);
     }
     
     /* Adjust container height/alignment for gift flow if needed */
@@ -191,7 +191,7 @@ changes to the documentation (to keep the documentation up to date).
         position: absolute;
         bottom: -10px;
         transform: translateY(-50%);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         background: none;
         border: none;
@@ -199,7 +199,7 @@ changes to the documentation (to keep the documentation up to date).
         padding: 0;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
         z-index: 10;
     }
 

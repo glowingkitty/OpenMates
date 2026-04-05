@@ -1246,7 +1246,7 @@
         justify-content: center;
         pointer-events: all;
         box-shadow: 0 0 8px 0 rgba(0,0,0,0.04);
-        padding: 10px;
+        padding: var(--spacing-5);
     }
 
     .consent-overlay :global(*) {
@@ -1262,18 +1262,18 @@
     .provider-switch-container {
         display: flex;
         justify-content: center;
-        margin-top: 12px;
+        margin-top: var(--spacing-6);
     }
 
     .provider-switch-btn {
         background: none;
         border: none;
         padding: 0;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         cursor: pointer;
         text-decoration: underline;
-        transition: color 0.15s;
+        transition: color var(--duration-fast);
     }
 
     .provider-switch-btn:hover:not(:disabled) {
@@ -1293,7 +1293,7 @@
     /* Polar pay button — shown only as retry fallback when auto-trigger fails */
     .polar-pay-button {
         width: 100%;
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     /* Polar loading state — centered spinner shown while create-order is in flight */
@@ -1301,10 +1301,10 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 40px 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .polar-loading-spinner {
@@ -1342,10 +1342,10 @@
     .polar-error-message {
         background-color: var(--color-error-bg, #fee);
         color: var(--color-error-text, #c00);
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        font-size: 14px;
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-8);
+        font-size: var(--font-size-small);
         line-height: 1.5;
         border: 1px solid var(--color-error-border, #fcc);
     }

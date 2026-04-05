@@ -397,17 +397,17 @@
         min-height: 129px;
         max-width: 223px;
         max-height: 129px;
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1rem;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         /* Prevent mobile browsers from misinterpreting taps as scroll gestures
            in horizontally scrollable containers */
         touch-action: manipulation;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
-        color: #ffffff;
+        color: var(--color-grey-0);
         position: relative;
         overflow: hidden;
         box-sizing: border-box; /* Ensure padding is included in width/height */
@@ -421,11 +421,11 @@
     }
     
     .app-store-card:has(.skill-providers) .app-header-row {
-        margin-top: 0px; /* Move up from original 6px to create space below */
+        margin-top: var(--spacing-0); /* Move up from original 6px to create space below */
     }
     
     .app-store-card:has(.skill-providers) .app-card-description {
-        margin-top: 0px; /* Move up to create space below for provider icons */
+        margin-top: var(--spacing-0); /* Move up to create space below for provider icons */
     }
     
     /* Greyed-out state for unavailable apps (unhealthy/unknown health status) */
@@ -473,7 +473,7 @@
         align-items: center;
         gap: 0.75rem;
         margin-bottom: 0.5rem;
-        margin-top: 6px; /* Move down to make room for provider icons above */
+        margin-top: var(--spacing-3); /* Move down to make room for provider icons above */
         flex-shrink: 0;
     }
     
@@ -497,8 +497,8 @@
         display: flex;
         align-items: center;
         justify-content: center; /* Center the icons */
-        gap: 6px;
-        z-index: 1; /* Above the app icon */
+        gap: var(--spacing-3);
+        z-index: var(--z-index-raised); /* Above the app icon */
         pointer-events: none; /* Prevent interaction with background icons */
     }
     
@@ -513,7 +513,7 @@
         position: relative;
         width: 38px;
         height: 38px;
-        z-index: 1; /* Below provider icons */
+        z-index: var(--z-index-raised); /* Below provider icons */
         /* Icon will naturally sit at bottom due to container's align-items: flex-end */
     }
     
@@ -529,20 +529,20 @@
         position: relative;
         width: 38px;
         height: 38px;
-        border: 2px solid #ffffff;
-        border-radius: 8px;
+        border: 2px solid var(--color-grey-0);
+        border-radius: var(--radius-3);
         display: flex;
         align-items: center;
         justify-content: center;
         box-sizing: border-box;
-        z-index: 1; /* Ensure gradient icon is above provider icons */
+        z-index: var(--z-index-raised); /* Ensure gradient icon is above provider icons */
     }
     
     .app-card-name {
         margin: 2px 0 0;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
-        color: #ffffff;
+        color: var(--color-grey-0);
         line-height: 1.2;
         flex: 1;
     }
@@ -550,7 +550,7 @@
     .app-card-description {
         margin: 0;
         color: rgba(255, 255, 255, 0.9);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.4;
         /* Remove text truncation - show full description */
         overflow: visible;
@@ -561,9 +561,9 @@
     .skill-providers {
         display: flex;
         align-items: center;
-        gap: 6px;
-        margin-top: 4px;
-        font-size: 12px;
+        gap: var(--spacing-3);
+        margin-top: var(--spacing-2);
+        font-size: var(--font-size-xxs);
         color: rgba(255, 255, 255, 0.8);
         flex-wrap: wrap;
     }
@@ -583,7 +583,7 @@
     /* Remaining provider count shown after the last visible icon (e.g., "+3") */
     .skill-providers-remaining {
         color: rgba(255, 255, 255, 0.7);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
         white-space: nowrap;
         flex-shrink: 0;

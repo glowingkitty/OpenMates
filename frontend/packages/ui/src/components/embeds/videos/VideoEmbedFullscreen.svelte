@@ -769,9 +769,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: var(--spacing-8);
     width: 100%;
-    margin-top: 20px;
+    margin-top: var(--spacing-10);
   }
   
   /* ===========================================
@@ -783,11 +783,11 @@
     width: 100%;
     max-width: 780px;
     aspect-ratio: 16 / 9;
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     overflow: hidden;
     background-color: var(--color-grey-15);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-top: 16px;
+    box-shadow: var(--shadow-md);
+    margin-top: var(--spacing-8);
   }
   
   .video-thumbnail {
@@ -812,7 +812,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
+    transition: all var(--duration-normal) var(--easing-in-out);
     padding: 0;
     z-index: 10;
   }
@@ -847,7 +847,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     margin: 8px 0;
     max-width: 780px;
     width: 100%;
@@ -864,7 +864,7 @@
   }
   
   .video-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     color: var(--color-font-primary);
     margin: 0;
@@ -886,10 +886,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    font-size: 14px;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-small);
     color: var(--color-grey-60);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
     max-width: 780px;
     width: 100%;
   }
@@ -898,8 +898,8 @@
   .video-meta-line {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 14px;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-small);
     color: var(--color-grey-60);
   }
   
@@ -919,16 +919,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    font-size: 13px;
+    gap: var(--spacing-4);
+    font-size: var(--font-size-xs);
     color: var(--color-grey-60);
-    margin-top: 16px;
+    margin-top: var(--spacing-8);
   }
   
   .stat-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     color: var(--color-grey-60);
   }
   
@@ -955,13 +955,13 @@
   .video-description {
     max-width: 780px;
     width: 100%;
-    margin-top: 16px;
+    margin-top: var(--spacing-8);
     padding: 0 16px;
     box-sizing: border-box;
   }
   
   .description-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.5;
     margin: 0;
@@ -985,7 +985,7 @@
     width: 100%;
     max-width: 780px;
     aspect-ratio: 16 / 9;
-    margin-top: 16px;
+    margin-top: var(--spacing-8);
     /* Transparent - the actual video is shown by VideoIframe */
   }
   
@@ -998,11 +998,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     flex-wrap: wrap;
     width: 100%;
     max-width: 780px;
-    margin-top: 16px;
+    margin-top: var(--spacing-8);
   }
   
   /* Open on YouTube button - styled as button but is an <a> link */
@@ -1010,11 +1010,11 @@
     /* Apply button styles from buttons.css */
     background-color: var(--color-button-primary);
     padding: 6px 25px;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     border: none;
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     cursor: pointer;
-    transition: all 0.15s ease-in-out;
+    transition: all var(--duration-fast) var(--easing-in-out);
     min-width: 112px;
     height: 41px;
     display: inline-flex;
@@ -1043,11 +1043,11 @@
   .tip-creator-button {
     background-color: var(--color-button-secondary, var(--color-grey-20));
     padding: 0;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     border: none;
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     cursor: pointer;
-    transition: all 0.15s ease-in-out;
+    transition: all var(--duration-fast) var(--easing-in-out);
     width: 41px;
     height: 41px;
     display: inline-flex;
@@ -1071,11 +1071,11 @@
   .pip-button {
     background-color: var(--color-button-secondary, var(--color-grey-20));
     padding: 0;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     border: none;
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     cursor: pointer;
-    transition: all 0.15s ease-in-out;
+    transition: all var(--duration-fast) var(--easing-in-out);
     width: 41px;
     height: 41px;
     display: inline-flex;

@@ -281,8 +281,8 @@
   .plot-fullscreen-content {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 24px 16px;
+    gap: var(--spacing-8);
+    padding: var(--spacing-12) var(--spacing-8);
     width: 100%;
     box-sizing: border-box;
     /*
@@ -305,7 +305,7 @@
     flex: 1 1 0;
     min-height: 200px;
     background: var(--color-grey-0);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     overflow: hidden;
     border: 1px solid var(--color-grey-20);
   }
@@ -322,7 +322,7 @@
      Dark mode: light labels/lines on dark background. */
   :global(.plot-fullscreen-content .function-plot text) {
     fill: #333333 !important;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
   }
 
   /* Axis lines and grid (light mode) */
@@ -342,29 +342,29 @@
   :global([data-theme="dark"] .plot-fullscreen-content .function-plot .x.axis line),
   :global([data-theme="dark"] .plot-fullscreen-content .function-plot .y.axis path),
   :global([data-theme="dark"] .plot-fullscreen-content .function-plot .y.axis line) {
-    stroke: #888888 !important;
+    stroke: var(--color-grey-60) !important;
   }
 
   /* ── Function formulas header (above the plot) ───────────────────────────── */
 
   .functions-header {
     background: var(--color-grey-10);
-    border-radius: 12px;
-    padding: 16px 20px;
+    border-radius: var(--radius-5);
+    padding: var(--spacing-8) var(--spacing-10);
     border: 1px solid var(--color-grey-20);
   }
 
   .formula-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
     align-items: center;
   }
 
   .formula-line {
     width: 100%;
     color: var(--color-grey-100);
-    font-size: 16px;
+    font-size: var(--font-size-p);
     text-align: center;
     overflow-x: auto;
   }
@@ -375,7 +375,7 @@
   }
 
   .formula-line :global(.katex) {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     color: var(--color-grey-100);
   }
 
@@ -394,7 +394,7 @@
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
-    font-size: 16px;
+    font-size: var(--font-size-p);
   }
 
   .error-state {
@@ -402,18 +402,18 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 24px 16px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-12) var(--spacing-8);
   }
 
   .error-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     color: var(--color-error);
   }
 
   .error-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.4;
   }

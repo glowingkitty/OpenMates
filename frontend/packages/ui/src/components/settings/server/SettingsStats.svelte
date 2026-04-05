@@ -871,7 +871,7 @@
     .metric-card {
         background: var(--color-background-secondary);
         border: 1px solid var(--color-border);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 0.875rem 1rem;
         display: flex;
         flex-direction: column;
@@ -900,7 +900,7 @@
     .today-summary {
         background: var(--color-background-secondary);
         border: 1px solid var(--color-border);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1rem;
         margin-bottom: 1rem;
     }
@@ -947,7 +947,7 @@
     .chart-section {
         background: var(--color-background-secondary);
         border: 1px solid var(--color-border);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1rem;
         margin-bottom: 1rem;
     }
@@ -1000,7 +1000,7 @@
         gap: 0.25rem;
         background: var(--color-background-tertiary);
         padding: 0.2rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         flex-wrap: wrap;
     }
 
@@ -1012,8 +1012,8 @@
         font-weight: 500;
         color: var(--color-text-secondary);
         cursor: pointer;
-        border-radius: 6px;
-        transition: all 0.15s ease;
+        border-radius: var(--radius-2);
+        transition: all var(--duration-fast) var(--easing-default);
         white-space: nowrap;
     }
 
@@ -1046,7 +1046,7 @@
     }
 
     .bar {
-        transition: fill 0.15s ease;
+        transition: fill var(--duration-fast) var(--easing-default);
     }
 
     .no-data-chart {
@@ -1066,9 +1066,9 @@
         transform: translateX(-50%);
         background: var(--color-background-primary);
         border: 1px solid var(--color-border);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 0.4rem 0.65rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-md);
         pointer-events: none;
         z-index: 10;
         white-space: nowrap;
@@ -1113,7 +1113,7 @@
 
     .ranked-bar-wrap {
         background: var(--color-background-tertiary);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         height: 8px;
         overflow: hidden;
     }
@@ -1121,8 +1121,8 @@
     .ranked-bar {
         height: 100%;
         background: var(--color-primary);
-        border-radius: 4px;
-        transition: width 0.3s ease;
+        border-radius: var(--radius-1);
+        transition: width var(--duration-slow) var(--easing-default);
         min-width: 2px;
     }
 
@@ -1179,11 +1179,11 @@
 
     .btn {
         padding: 0.5rem 1rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-weight: 600;
         cursor: pointer;
         border: none;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         margin-top: 1rem;
     }
 

@@ -85,7 +85,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 20px 0;
     }
 
@@ -111,14 +111,14 @@ Shows both the purchased credits amount (+X) and the new total balance.
     }
 
     .success-title {
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
     }
 
     .success-subtitle {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
     }
@@ -133,22 +133,22 @@ Shows both the purchased credits amount (+X) and the new total balance.
     .purchased-credits-badge {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
+        gap: var(--spacing-3);
+        padding: var(--spacing-4) var(--spacing-8);
         background: rgba(16, 185, 129, 0.1);
         border: 1px solid rgba(16, 185, 129, 0.25);
-        border-radius: 20px;
+        border-radius: var(--radius-8);
     }
 
     .purchased-amount {
         color: #10b981;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 700;
     }
 
     .purchased-label {
         color: #10b981;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
     }
 
@@ -161,11 +161,11 @@ Shows both the purchased credits amount (+X) and the new total balance.
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 20px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-5);
+        box-shadow: var(--shadow-xs);
     }
 
     .balance-amount {
@@ -176,7 +176,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
     .balance-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .coin-icon {
@@ -199,12 +199,12 @@ Shows both the purchased credits amount (+X) and the new total balance.
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 16px;
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all var(--duration-normal) var(--easing-default);
+        box-shadow: var(--shadow-xs);
     }
 
     .done-button:hover {
@@ -215,17 +215,17 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
     .done-button:active {
         transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
     }
 
     /* Responsive Styles */
     @media (max-width: 768px) {
         .balance-display {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .balance-amount {
-            font-size: 24px;
+            font-size: var(--font-size-h2-mobile);
         }
 
         .success-icon-wrapper {
@@ -239,11 +239,11 @@ Shows both the purchased credits amount (+X) and the new total balance.
         }
 
         .success-title {
-            font-size: 18px;
+            font-size: var(--font-size-h3-mobile);
         }
 
         .purchased-amount {
-            font-size: 16px;
+            font-size: var(--font-size-p);
         }
     }
 
@@ -258,7 +258,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
         }
 
         .done-button {
-            padding: 12px 20px;
+            padding: var(--spacing-6) var(--spacing-10);
             font-size: 15px;
         }
     }

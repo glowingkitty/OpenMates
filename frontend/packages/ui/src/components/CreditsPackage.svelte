@@ -189,7 +189,7 @@
     .app-icon-grid-container {
         width: 100%;
         margin-top: -5px; /* To make it appear cut off at the top */
-        padding-bottom: 10px;
+        padding-bottom: var(--spacing-5);
     }
     
     .credits-amount {
@@ -197,7 +197,7 @@
         bottom: 40px;
         left: 0;
         right: 0;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         color: white;
         text-align: center;
         font-weight: 500;
@@ -210,7 +210,7 @@
         transform: translateY(-50%);
         background: var(--color-primary);
         border-radius: 19px;
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         display: flex;
         align-items: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -224,17 +224,17 @@
         background-size: contain;
         background-repeat: no-repeat;
         filter: invert(1);
-        margin-right: 6px;
+        margin-right: var(--spacing-3);
     }
     
     .recommended-badge span {
         color: white;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
     
     .buy-button {
         transform: translateY(-30px);
-        padding: 20px;
+        padding: var(--spacing-10);
     }
 </style>

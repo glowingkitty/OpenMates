@@ -482,21 +482,21 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     padding: 14px 16px;
     box-sizing: border-box;
     overflow: hidden;
   }
 
   .recording-preview.mobile {
-    padding: 10px 12px;
-    gap: 6px;
+    padding: var(--spacing-5) var(--spacing-6);
+    gap: var(--spacing-3);
   }
 
   /* ---- Signup prompt for unauthenticated users ---- */
   .signup-prompt {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     line-height: 1.5;
     color: var(--color-grey-50, #888);
     font-style: italic;
@@ -507,7 +507,7 @@
   .model-info-line {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   /* Circular container for the provider logo SVG */
@@ -542,7 +542,7 @@
   /* ---- Transcript preview text ---- */
   .transcript-preview {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     line-height: 1.5;
     color: var(--color-grey-70, #444);
     display: -webkit-box;
@@ -556,7 +556,7 @@
   /* ---- No transcript message ---- */
   .no-transcript {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     line-height: 1.5;
     color: var(--color-grey-50, #888);
   }
@@ -564,7 +564,7 @@
   /* ---- Audio load error ---- */
   .audio-load-error {
     margin: 0;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-50, #888);
   }
 
@@ -572,7 +572,7 @@
   .shimmer-container {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
     padding: 4px 0;
   }
 
@@ -585,7 +585,7 @@
       var(--color-grey-15, #f0f0f0) 75%
     );
     background-size: 200% 100%;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: shimmerSweep 1.5s ease-in-out infinite;
   }
 
@@ -602,8 +602,8 @@
   .error-state {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
+    gap: var(--spacing-4);
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-50, #888);
   }
 
@@ -616,7 +616,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -633,25 +633,25 @@
   .retry-btn {
     flex-shrink: 0;
     padding: 3px 8px;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 500;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     border: 1px solid var(--color-app-audio, #e05555);
     color: var(--color-app-audio, #e05555);
     background: transparent;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
     white-space: nowrap;
   }
 
   .retry-btn:hover {
     background: var(--color-app-audio, #e05555);
-    color: #fff;
+    color: var(--color-grey-0);
   }
 
   /* ---- Play/Pause button (rendered inside BasicInfosBar via actionButton snippet) ----
      Must override ALL global button styles from buttons.css which applies:
-     background-color, padding: 25px 30px, border-radius: 20px, filter: drop-shadow,
+     background-color, padding: 25px 30px, border-radius: var(--radius-8), filter: drop-shadow,
      min-width: 112px, height: 41px, margin-right: 10px, scale on hover/active.
      Follows the same pattern as .stop-button in BasicInfosBar.svelte. */
   .play-btn {
@@ -696,7 +696,7 @@
     border-top: 7px solid transparent;
     border-bottom: 7px solid transparent;
     border-left: 12px solid white;
-    margin-left: 2px; /* optical centering */
+    margin-left: var(--spacing-1); /* optical centering */
   }
 
   /* Pause icon: two vertical bars */

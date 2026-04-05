@@ -704,8 +704,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
 
     .auth-modal {
         background: var(--color-grey-20);
-        border-radius: 12px;
-        padding: 24px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-12);
         max-width: 400px;
         width: 90%;
     }
@@ -714,12 +714,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .auth-header h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-grey-100);
     }
@@ -727,7 +727,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     .close-btn {
         background: none;
         border: none;
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         cursor: pointer;
         color: var(--color-grey-60);
         padding: 0;
@@ -744,13 +744,13 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
 
     .auth-description {
         color: var(--color-grey-60);
-        font-size: 14px;
-        margin-bottom: 20px;
+        font-size: var(--font-size-small);
+        margin-bottom: var(--spacing-10);
         line-height: 1.5;
     }
 
     .auth-content {
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     .auth-loading,
@@ -770,32 +770,32 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     .auth-passkey p,
     .auth-password p,
     .auth-email-otp p {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         color: var(--color-grey-70);
     }
 
     .error-message {
         color: var(--color-danger);
-        font-size: 13px;
-        margin-top: 8px;
-        margin-bottom: 8px;
+        font-size: var(--font-size-xs);
+        margin-top: var(--spacing-4);
+        margin-bottom: var(--spacing-4);
     }
 
     .auth-btn {
         width: 100%;
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background var(--duration-normal);
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .auth-btn:hover:not(:disabled) {
@@ -808,13 +808,13 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     }
 
     .switch-method-btn {
-        margin-top: 16px;
+        margin-top: var(--spacing-8);
         background: none;
         border: none;
         color: var(--color-primary);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
     }
 
     .switch-method-btn:hover {

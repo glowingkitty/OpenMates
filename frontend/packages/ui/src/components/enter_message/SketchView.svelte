@@ -589,11 +589,11 @@
         width: 32px !important;
         height: 32px !important;
         padding: 4px !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-3) !important;
         background: rgba(255, 255, 255, 0.85) !important;
         border: none !important;
         opacity: 0.7;
-        transition: opacity 0.2s ease-in-out, background 0.15s;
+        transition: opacity var(--duration-normal) var(--easing-in-out), background var(--duration-fast);
         cursor: pointer;
         margin-right: 0 !important;
         filter: none !important;
@@ -613,7 +613,7 @@
         flex: 1;
         position: relative;
         overflow: hidden;
-        background: #FFFFFF;
+        background: var(--color-grey-0);
         cursor: crosshair;
     }
 
@@ -626,7 +626,7 @@
         pointer-events: none;
         background-image: radial-gradient(circle, rgba(0,0,0,0.18) 1px, transparent 1px);
         background-size: 24px 24px;
-        z-index: 0;
+        z-index: var(--z-index-base);
     }
 
     .sketch-canvas {
@@ -634,7 +634,7 @@
         top: 0;
         left: 0;
         /* Sit above the ::before dot-grid overlay */
-        z-index: 1;
+        z-index: var(--z-index-raised);
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         touch-action: none; /* prevent browser scroll/zoom while drawing */
     }
@@ -656,14 +656,14 @@
         display: flex;
         align-items: center;
         padding: 0 12px;
-        gap: 8px;
+        gap: var(--spacing-4);
         flex-shrink: 0;
     }
 
     .toolbar-section {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .toolbar-left {
@@ -676,7 +676,7 @@
         flex-wrap: nowrap;
         overflow-x: auto;
         scrollbar-width: none;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .toolbar-center::-webkit-scrollbar { display: none; }
@@ -698,11 +698,11 @@
     .tool-group, .color-group, .width-group, .zoom-group {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     /* All toolbar buttons: override buttons.css global `button` reset so they stay compact.
-       buttons.css sets: padding:25px 30px, border-radius:20px, min-width:112px, height:41px
+       buttons.css sets: padding:25px 30px, border-radius:var(--radius-8), min-width:112px, height:41px
        which would completely break the toolbar layout. We override each property explicitly. */
     .tool-btn,
     .width-btn,
@@ -719,11 +719,11 @@
         justify-content: center;
         width: 32px !important;
         height: 32px !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-3) !important;
         border: none !important;
         background: transparent !important;
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
         padding: 0 !important;
         flex-shrink: 0;
     }
@@ -757,7 +757,7 @@
     }
 
     /* Colour swatches — explicitly override buttons.css global `button` rules which set
-       padding, border-radius:20px, min-width:112px, height:41px, etc. We need these to
+       padding, border-radius:var(--radius-8), min-width:112px, height:41px, etc. We need these to
        remain small round circles regardless of the global button reset. */
     .color-swatch {
         width: 20px !important;
@@ -766,7 +766,7 @@
         border-radius: 50% !important;
         border: 2px solid transparent !important;
         cursor: pointer;
-        transition: transform 0.15s, border-color 0.15s;
+        transition: transform var(--duration-fast), border-color var(--duration-fast);
         padding: 0 !important;
         flex-shrink: 0;
         /* Neutralise buttons.css filter / scale hover side-effects */
@@ -823,12 +823,12 @@
         justify-content: center;
         width: 30px !important;
         height: 30px !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-3) !important;
         border: none !important;
         background: transparent !important;
         cursor: pointer;
         padding: 0 !important;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
         flex-shrink: 0;
     }
 
@@ -843,7 +843,7 @@
 
     .width-dot {
         border-radius: 50%;
-        background: #000;
+        background: var(--color-grey-100);
         display: block;
     }
 
@@ -855,14 +855,14 @@
     .zoom-btn {
         min-width: 28px !important;
         height: 28px !important;
-        border-radius: 6px !important;
+        border-radius: var(--radius-2) !important;
         border: none !important;
         background: transparent !important;
         cursor: pointer;
         font-size: 0.875rem;
         font-weight: 600;
         padding: 0 4px !important;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
         flex-shrink: 0;
         white-space: nowrap;
     }
@@ -885,12 +885,12 @@
         color: white;
         border: none !important;
         padding: 6px 16px !important;
-        border-radius: 20px !important;
+        border-radius: var(--radius-8) !important;
         cursor: pointer;
         font-weight: 500;
         font-size: 0.875rem;
         height: 36px !important;
-        transition: background 0.15s, opacity 0.15s;
+        transition: background var(--duration-fast), opacity var(--duration-fast);
         white-space: nowrap;
     }
 
@@ -947,7 +947,7 @@
             color: rgba(255,255,255,0.5);
         }
 
-        .width-dot { background: #FFF; }
+        .width-dot { background: var(--color-grey-0); }
         .width-btn.active .width-dot { background: #0A84FF; }
     }
 </style>

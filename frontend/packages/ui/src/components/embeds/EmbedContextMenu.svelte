@@ -425,14 +425,14 @@
     left: var(--menu-x);
     top: var(--menu-y);
     background: var(--color-grey-blue);
-    border-radius: 12px;
-    padding: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-5);
+    padding: var(--spacing-4);
+    box-shadow: var(--shadow-md);
     z-index: 99999; /* Very high z-index to ensure it's above everything */
     isolation: isolate; /* Create new stacking context */
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity var(--duration-normal) var(--easing-in-out);
     min-width: 120px;
   }
 
@@ -479,11 +479,11 @@
   .embed-credits {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    margin-bottom: 4px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-8);
+    margin-bottom: var(--spacing-2);
     color: var(--color-grey-50);
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-variant-numeric: tabular-nums;
     border-bottom: 1px solid var(--color-grey-30);
   }
@@ -498,11 +498,11 @@
     all: unset;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6) var(--spacing-8);
     border-radius: 25px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color var(--duration-normal) var(--easing-default);
     width: 100%;
     box-sizing: border-box;
     /* iOS-specific touch improvements */

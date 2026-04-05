@@ -195,7 +195,7 @@ step_9_top_content_svelte:
         display: flex;
         flex-direction: column;
         text-align: center;
-        padding-bottom: 20px;
+        padding-bottom: var(--spacing-10);
     }
     
     .bottom-container {
@@ -262,7 +262,7 @@ step_9_top_content_svelte:
     .benefit-item {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
     
     .check-icon {
@@ -280,7 +280,7 @@ step_9_top_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .text-button {
@@ -293,15 +293,15 @@ step_9_top_content_svelte:
         background-clip: text;
         -webkit-text-fill-color: transparent;
         cursor: pointer;
-        padding: 4px;
+        padding: var(--spacing-2);
         margin: -4px;
         -webkit-tap-highlight-color: transparent;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
     }
     
     .gift-card-button {
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
     
     .gift-card-container {

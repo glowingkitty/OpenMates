@@ -385,8 +385,8 @@
 
     .hidden-chat-unlock-modal {
         background: var(--color-grey-blue);
-        border-radius: 12px;
-        padding: 24px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-12);
         max-width: 400px;
         width: 90%;
         max-height: 90vh;
@@ -410,12 +410,12 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
 
     .modal-header h3 {
         margin: 0;
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-text-primary);
     }
@@ -423,7 +423,7 @@
     .close-btn {
         all: unset;
         cursor: pointer;
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         color: var(--color-grey-60);
         width: 32px;
         height: 32px;
@@ -431,7 +431,7 @@
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        transition: background-color 0.2s;
+        transition: background-color var(--duration-normal);
     }
 
     .close-btn:hover {
@@ -441,37 +441,37 @@
     .modal-content {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
 
     .description {
         margin: 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
     }
 
     .input-group {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .input-group label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-text-primary);
     }
 
     .input-group input {
         all: unset;
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--color-grey-20);
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-p);
         color: var(--color-text-primary);
         border: 2px solid transparent;
-        transition: border-color 0.2s;
+        transition: border-color var(--duration-normal);
         text-align: left;
     }
 
@@ -489,41 +489,41 @@
     }
 
     .error-message {
-        padding: 12px;
+        padding: var(--spacing-6);
         background: rgba(232, 0, 0, 0.1);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: #E80000;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .lockout-message {
-        padding: 12px;
+        padding: var(--spacing-6);
         background: rgba(255, 193, 7, 0.1);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: #FFC107;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
     }
 
     .button-group {
         display: flex;
-        gap: 12px;
+        gap: var(--spacing-6);
         justify-content: flex-end;
     }
 
     .button-primary,
     .button-secondary {
         all: unset;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-6) var(--spacing-12);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: opacity 0.2s;
+        transition: opacity var(--duration-normal);
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .button-primary {

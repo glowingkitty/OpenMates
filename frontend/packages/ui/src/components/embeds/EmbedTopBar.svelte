@@ -200,7 +200,7 @@
     top: 0;
     left: 0;
     right: 0;
-    padding: 12px 16px;
+    padding: var(--spacing-6) var(--spacing-8);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -217,7 +217,7 @@
   .top-bar-left,
   .top-bar-right {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-4);
     align-items: center;
     pointer-events: auto;
   }
@@ -226,12 +226,12 @@
   .button-wrapper {
     background-color: var(--color-grey-10);
     border-radius: 40px;
-    padding: 8px;
+    padding: var(--spacing-4);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
     cursor: pointer;
   }
 

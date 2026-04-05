@@ -729,15 +729,15 @@ Invoices Settings - View and download past invoices
 <style>
 
     .invoices-header {
-        padding: 10px;
-        margin-bottom: 16px;
+        padding: var(--spacing-5);
+        margin-bottom: var(--spacing-8);
         text-align: center;
     }
 
     .header-description {
         margin: 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.4;
     }
 
@@ -745,8 +745,8 @@ Invoices Settings - View and download past invoices
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        padding: 40px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-20);
         color: var(--color-grey-60);
     }
 
@@ -766,16 +766,16 @@ Invoices Settings - View and download past invoices
     .error-message {
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         border: 1px solid rgba(223, 27, 65, 0.3);
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .empty-state {
         text-align: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
     }
 
     .empty-icon {
@@ -792,42 +792,42 @@ Invoices Settings - View and download past invoices
     .empty-state h4 {
         margin: 0 0 8px 0;
         color: var(--color-grey-100);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
     }
 
     .empty-state p {
         margin: 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.4;
     }
 
     .month-group {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .month-header {
         color: var(--color-grey-80);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         margin: 0 0 12px 0;
         padding: 0 10px;
         border-bottom: 1px solid var(--color-grey-20);
-        padding-bottom: 8px;
+        padding-bottom: var(--spacing-4);
     }
 
     .invoice-item {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
-        margin-bottom: 8px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
+        margin-bottom: var(--spacing-4);
         background: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border: 1px solid var(--color-grey-20);
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .invoice-item:hover {
@@ -838,14 +838,14 @@ Invoices Settings - View and download past invoices
     .invoice-info {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--spacing-3);
         flex: 1;
     }
 
     .invoice-header {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         flex-wrap: wrap;
     }
 
@@ -858,11 +858,11 @@ Invoices Settings - View and download past invoices
     .gift-card-badge {
         display: inline-flex;
         align-items: center;
-        padding: 4px 10px;
+        padding: var(--spacing-2) var(--spacing-5);
         background: var(--color-accent);
         color: white;
-        border-radius: 12px;
-        font-size: 11px;
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-tiny);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -870,41 +870,41 @@ Invoices Settings - View and download past invoices
 
     .invoice-details {
         display: flex;
-        gap: 16px;
+        gap: var(--spacing-8);
         align-items: center;
     }
 
     .invoice-amount {
         color: var(--color-grey-80);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
     }
 
     .invoice-credits {
         color: var(--color-grey-60);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     .invoice-actions {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         width: 100%;
     }
 
     .download-button {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-4) var(--spacing-8);
         background: var(--color-accent);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 13px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .download-button:hover {
@@ -924,16 +924,16 @@ Invoices Settings - View and download past invoices
     .refund-button {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-4) var(--spacing-8);
         background: var(--color-grey-20);
         color: var(--color-grey-100);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 13px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .refund-button:hover:not(:disabled) {
@@ -991,13 +991,13 @@ Invoices Settings - View and download past invoices
 
     @media (max-width: 480px) {
         .invoice-item {
-            padding: 12px;
+            padding: var(--spacing-6);
         }
 
         .invoice-details {
             flex-direction: column;
             align-items: flex-start;
-            gap: 4px;
+            gap: var(--spacing-2);
         }
     }
 </style>

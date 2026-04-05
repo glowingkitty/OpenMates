@@ -378,7 +378,7 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px 20px 10px;
+        padding: var(--spacing-10) var(--spacing-10) var(--spacing-5);
         position: fixed;
         top: 0;
         left: 0;
@@ -427,7 +427,7 @@
         position: relative;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .logo-link {
@@ -497,7 +497,7 @@
         text-decoration: none;
         color: var(--color-font-primary);
         opacity: 0.5;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         cursor: pointer;
     }
 
@@ -512,7 +512,7 @@
 
     .icon-link {
         opacity: 0.5;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .icon-link:hover {
@@ -560,7 +560,7 @@
         height: 2px;
         width: 100%;
         background-color: var(--color-font-primary);
-        transition: all 0.3s ease;
+        transition: all var(--duration-slow) var(--easing-default);
     }
 
     .hamburger.open span:nth-child(1) {
@@ -626,7 +626,7 @@
         display: flex;
         align-items: center;
         gap: 1rem;
-        transition: gap 0.2s ease; /* Smooth transition for gap when menu button is hidden */
+        transition: gap var(--duration-normal) var(--easing-default); /* Smooth transition for gap when menu button is hidden */
     }
 
     /* When menu button is hidden, collapse the gap smoothly */
@@ -642,7 +642,7 @@
         height: 25px; /* Match the button height */
         min-width: 25px; /* Prevent shrinking below button width when visible */
         overflow: hidden; /* Clip button when width collapses */
-        transition: opacity 0.2s ease, visibility 0.2s ease, width 0.2s ease, min-width 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default), visibility var(--duration-normal) var(--easing-default), width var(--duration-normal) var(--easing-default), min-width var(--duration-normal) var(--easing-default);
     }
 
     /* Hide the menu button visually but keep it in layout flow to maintain header height */
@@ -683,7 +683,7 @@
         all: unset;
         cursor: pointer;
         opacity: 0.6;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .menu-button:hover {
@@ -695,7 +695,7 @@
         cursor: pointer;
         padding: 0.5rem;
         border-radius: 50%;
-        transition: background-color 0.2s;
+        transition: background-color var(--duration-normal);
     }
 
     .profile-button:hover {
@@ -710,8 +710,8 @@
         display: flex;
         align-items: center;
         gap: 0.75rem; /* Add gap between sign in button and language icon */
-        transition: opacity 0.2s ease, visibility 0.2s ease;
-        margin-right: 10px;
+        transition: opacity var(--duration-normal) var(--easing-default), visibility var(--duration-normal) var(--easing-default);
+        margin-right: var(--spacing-5);
         /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
     }
 
@@ -724,12 +724,12 @@
 
     .login-signup-button {
         all: unset;
-        padding: 8px 12px;
-        border-radius: 8px;
+        padding: var(--spacing-4) var(--spacing-6);
+        border-radius: var(--radius-3);
         background-color: var(--color-button-primary);
         color: white;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         white-space: nowrap;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
@@ -748,9 +748,9 @@
     .docs-tabs {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
         background-color: var(--color-grey-20);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         padding: 3px;
         /* Center in header using absolute positioning so left/right sections aren't affected */
         position: absolute;
@@ -761,13 +761,13 @@
     .docs-tab {
         display: inline-flex;
         align-items: center;
-        padding: 6px 16px;
-        border-radius: 8px;
+        padding: var(--spacing-3) var(--spacing-8);
+        border-radius: var(--radius-3);
         text-decoration: none;
         color: var(--color-font-secondary);
         font-size: 0.8125rem;
         font-weight: 500;
-        transition: all 0.15s ease;
+        transition: all var(--duration-fast) var(--easing-default);
         white-space: nowrap;
     }
 

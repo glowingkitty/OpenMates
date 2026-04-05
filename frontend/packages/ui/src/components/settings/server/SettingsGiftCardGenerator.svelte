@@ -538,7 +538,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .generator-container {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--spacing-12);
         padding: 0 4px;
     }
 
@@ -546,12 +546,12 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .form-section {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
 
     .section-subtitle {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
         margin-top: -8px;
@@ -561,11 +561,11 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .field-group {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
 
     .field-label {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
         color: var(--color-grey-80);
     }
@@ -573,7 +573,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .optional-label {
         font-weight: 400;
         color: var(--color-grey-50);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
     }
 
     .field-input {
@@ -581,11 +581,11 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         max-width: 350px;
         padding: 10px 14px;
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background: var(--color-grey-10);
         color: var(--color-grey-100);
-        font-size: 14px;
-        transition: border-color 0.15s ease;
+        font-size: var(--font-size-small);
+        transition: border-color var(--duration-fast) var(--easing-default);
         box-sizing: border-box;
     }
 
@@ -605,19 +605,19 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .field-hint {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
     }
 
     .field-error {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: #dc2626;
     }
 
     .preview-hint {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .code-preview {
@@ -630,16 +630,16 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     /* Generate Button */
     .btn-generate {
         max-width: 350px;
-        padding: 12px 20px;
+        padding: var(--spacing-6) var(--spacing-10);
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background: var(--accent-color);
         color: white;
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.15s ease;
-        margin-top: 4px;
+        transition: all var(--duration-fast) var(--easing-default);
+        margin-top: var(--spacing-2);
     }
 
     .btn-generate:hover:not(:disabled) {
@@ -657,11 +657,11 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .error-message {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: #dc2626;
-        padding: 8px 12px;
+        padding: var(--spacing-4) var(--spacing-6);
         background: rgba(220, 38, 38, 0.08);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         max-width: 350px;
     }
 
@@ -670,9 +670,9 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .active-section {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
         border-top: 1px solid var(--color-grey-20);
-        padding-top: 20px;
+        padding-top: var(--spacing-10);
     }
 
     .results-header,
@@ -680,7 +680,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .results-title {
@@ -698,16 +698,16 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .btn-copy-all {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
+        gap: var(--spacing-3);
+        padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-grey-30);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         background: var(--color-grey-10);
         color: var(--color-grey-80);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all var(--duration-fast) var(--easing-default);
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -721,7 +721,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .codes-list {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
 
     .code-item {
@@ -730,9 +730,9 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         justify-content: space-between;
         padding: 10px 14px;
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
-        transition: border-color 0.15s ease;
+        transition: border-color var(--duration-fast) var(--easing-default);
     }
 
     .code-item:hover {
@@ -742,7 +742,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     .code-info {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         min-width: 0;
     }
 
@@ -755,19 +755,19 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .code-credits {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
     }
 
     .code-date {
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         color: var(--color-grey-40);
     }
 
     .code-actions {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
         flex-shrink: 0;
     }
 
@@ -779,10 +779,10 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         width: 32px;
         height: 32px;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         background: transparent;
         cursor: pointer;
-        transition: background 0.15s ease;
+        transition: background var(--duration-fast) var(--easing-default);
         flex-shrink: 0;
     }
 
@@ -798,10 +798,10 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         width: 28px;
         height: 28px;
         border: 1px solid var(--color-grey-30);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         background: var(--color-grey-10);
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all var(--duration-fast) var(--easing-default);
         flex-shrink: 0;
     }
 
@@ -822,7 +822,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2'/%3E%3C/svg%3E");
         background-size: contain;
         background-repeat: no-repeat;
-        transition: transform 0.3s ease;
+        transition: transform var(--duration-slow) var(--easing-default);
     }
 
     .refresh-icon.spinning {
@@ -835,7 +835,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .active-status {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-50);
         margin: 0;
         padding: 8px 0;
@@ -891,19 +891,19 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        padding: var(--spacing-10);
         box-sizing: border-box;
         cursor: pointer;
     }
 
     .qr-fullscreen-card {
         background: white;
-        border-radius: 16px;
-        padding: 32px;
+        border-radius: var(--radius-7);
+        padding: var(--spacing-16);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         max-width: 90vw;
         max-height: 90vh;
         cursor: default;
@@ -914,7 +914,7 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .qr-fullscreen-code {
@@ -926,8 +926,8 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .qr-fullscreen-credits {
-        font-size: 14px;
-        color: #666;
+        font-size: var(--font-size-small);
+        color: var(--color-grey-70);
     }
 
     .qr-fullscreen-svg {
@@ -941,22 +941,22 @@ the 'server/' route prefix in Settings.svelte and the require_admin backend depe
     }
 
     .qr-fullscreen-hint {
-        font-size: 13px;
-        color: #888;
+        font-size: var(--font-size-xs);
+        color: var(--color-grey-60);
         text-align: center;
         margin: 0;
     }
 
     .qr-fullscreen-close {
-        padding: 8px 24px;
+        padding: var(--spacing-4) var(--spacing-12);
         border: 1px solid #ccc;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background: #f5f5f5;
         color: #333;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all var(--duration-fast) var(--easing-default);
     }
 
     .qr-fullscreen-close:hover {

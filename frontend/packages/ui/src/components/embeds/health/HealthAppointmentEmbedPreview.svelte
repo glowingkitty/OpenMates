@@ -184,12 +184,12 @@
   }
 
   .appointment-details.mobile .slot-datetime {
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
 
   /* Doctor name */
   .doctor-name {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.25;
@@ -202,24 +202,24 @@
   }
 
   .appointment-details.mobile .doctor-name {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 
   /* Speciality */
   .doctor-speciality {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-70);
     line-height: 1.3;
     font-weight: 500;
   }
 
   .appointment-details.mobile .doctor-speciality {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   /* Address */
   .doctor-address {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-60);
     line-height: 1.3;
     overflow: hidden;
@@ -231,24 +231,24 @@
   .extras-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     margin-top: 1px;
   }
 
   .rating-compact {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     color: var(--color-warning, #f5a623);
   }
 
   .price-compact {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     color: var(--color-font-secondary);
   }
 
   .provider-compact {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 500;
     color: var(--color-grey-50);
   }
@@ -257,15 +257,15 @@
   .badges-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 2px;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-1);
   }
 
   .badge {
     display: inline-block;
     padding: 2px 7px;
-    border-radius: 20px;
-    font-size: 11px;
+    border-radius: var(--radius-8);
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     line-height: 1.4;
   }

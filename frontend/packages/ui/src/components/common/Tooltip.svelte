@@ -125,9 +125,9 @@
         position: fixed;
         background-color: var(--color-grey-0);
         color: var(--color-grey-100);
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 14px;
+        padding: var(--spacing-4) var(--spacing-6);
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
         z-index: 10000;
         pointer-events: none;
         white-space: nowrap;

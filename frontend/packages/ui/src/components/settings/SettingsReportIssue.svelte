@@ -1970,30 +1970,30 @@
 
 <style>
     .report-issue-settings {
-        margin: 20px;
+        margin: var(--spacing-10);
     }
     
     .report-issue-form {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .input-group {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .input-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-font-primary);
         margin: 0;
     }
     
     .input-hint {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-font-secondary, #666);
         margin: 4px 0 0 0;
         line-height: 1.4;
@@ -2002,19 +2002,19 @@
     .toggle-group {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
     
     .toggle-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 8px 0;
     }
     
     .toggle-row label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-font-primary);
         flex: 1;
@@ -2024,17 +2024,17 @@
     .agent-action-options {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .radio-option {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: 8px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-4) var(--spacing-6);
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
     }
 
     .radio-option:hover {
@@ -2056,15 +2056,15 @@
     }
 
     .signal-reminder {
-        padding: 12px;
+        padding: var(--spacing-6);
         background-color: var(--color-info-light, #e3f2fd);
         border: 1px solid var(--color-info, #2196f3);
-        border-radius: 8px;
-        margin-top: 8px;
+        border-radius: var(--radius-3);
+        margin-top: var(--spacing-4);
     }
     
     .reminder-text {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-info-dark, #1565c0);
         margin: 0;
         line-height: 1.5;
@@ -2074,7 +2074,7 @@
         color: var(--color-info-dark, #1565c0);
         text-decoration: underline;
         font-weight: 500;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
     
     .signal-link:hover {
@@ -2088,20 +2088,20 @@
     }
     
     .button-container {
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
     }
     
     .button-container button {
         width: 100%;
-        padding: 12px;
+        padding: var(--spacing-6);
         background-color: var(--color-button-primary);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
     
     .button-container button:hover:not(:disabled) {
@@ -2120,33 +2120,33 @@
 
     /* Issue ID copyable element within success message */
     .issue-id-container {
-        margin-top: 12px;
-        padding-top: 10px;
+        margin-top: var(--spacing-6);
+        padding-top: var(--spacing-5);
         border-top: 1px solid var(--color-success, #4caf50);
     }
 
     .issue-id-label {
         display: block;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 600;
-        margin-bottom: 6px;
+        margin-bottom: var(--spacing-3);
         opacity: 0.85;
     }
 
     .issue-id-copy-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .issue-id-value {
         flex: 1;
-        padding: 8px 10px;
+        padding: var(--spacing-4) var(--spacing-5);
         background-color: rgba(0, 0, 0, 0.06);
         border: 1px solid var(--color-success, #4caf50);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         font-family: monospace;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         word-break: break-all;
         user-select: all;
         cursor: text;
@@ -2158,11 +2158,11 @@
         background-color: var(--color-success, #4caf50);
         color: white;
         border: none;
-        border-radius: 6px;
-        font-size: 12px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         white-space: nowrap;
     }
 
@@ -2179,23 +2179,23 @@
     }
 
     .device-info-notice {
-        padding: 16px;
+        padding: var(--spacing-8);
         background-color: var(--color-info-light, #e3f2fd);
         border: 1px solid var(--color-info, #2196f3);
-        border-radius: 8px;
-        margin-top: 8px;
-        margin-bottom: 16px;
+        border-radius: var(--radius-3);
+        margin-top: var(--spacing-4);
+        margin-bottom: var(--spacing-8);
     }
 
     .device-info-notice h4 {
         margin: 0 0 12px 0;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-info-dark, #1565c0);
     }
 
     .notice-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-info-dark, #1565c0);
         margin: 0 0 12px 0;
         line-height: 1.4;
@@ -2203,44 +2203,44 @@
 
     .device-info-list {
         margin: 12px 0;
-        padding-left: 20px;
-        font-size: 13px;
+        padding-left: var(--spacing-10);
+        font-size: var(--font-size-xs);
         color: var(--color-info-dark, #1565c0);
         line-height: 1.5;
     }
 
     .device-info-list li {
-        margin-bottom: 6px;
+        margin-bottom: var(--spacing-3);
         word-break: break-all;
     }
 
     .privacy-notice {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-info-dark, #1565c0);
         margin: 12px 0 0 0;
         line-height: 1.4;
         font-style: italic;
-        padding-top: 8px;
+        padding-top: var(--spacing-4);
         border-top: 1px solid var(--color-info, #2196f3);
     }
 
     .copy-debug-info-container {
-        margin-top: 16px;
-        padding-top: 16px;
+        margin-top: var(--spacing-8);
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-info, #2196f3);
     }
 
     .copy-debug-info-button {
         width: 100%;
-        padding: 10px 16px;
+        padding: var(--spacing-5) var(--spacing-8);
         background-color: var(--color-grey-30, #e0e0e0);
         color: var(--color-font-primary);
         border: 1px solid var(--color-grey-40, #bdbdbd);
-        border-radius: 8px;
-        font-size: 13px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .copy-debug-info-button:hover:not(:disabled) {
@@ -2263,7 +2263,7 @@
     }
 
     .copy-debug-info-hint {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-info-dark, #1565c0);
         margin: 8px 0 0 0;
         line-height: 1.4;
@@ -2272,7 +2272,7 @@
 
     /* Inline fallback when both clipboard APIs fail */
     .copy-debug-info-manual-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-font-secondary, #666);
         margin: 12px 0 6px 0;
         line-height: 1.4;
@@ -2282,11 +2282,11 @@
     .copy-debug-info-fallback-textarea {
         width: 100%;
         font-family: monospace;
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         line-height: 1.4;
-        padding: 8px;
+        padding: var(--spacing-4);
         border: 1px solid var(--color-grey-40, #bdbdbd);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         background-color: var(--color-grey-10, #f5f5f5);
         color: var(--color-font-primary);
         resize: vertical;
@@ -2297,19 +2297,19 @@
     /* ---- User action history section ---- */
     .action-history-section {
         margin: 14px 0 0 0;
-        padding-top: 12px;
+        padding-top: var(--spacing-6);
         border-top: 1px solid var(--color-info, #2196f3);
     }
 
     .action-history-heading {
         margin: 0 0 4px 0;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         color: var(--color-info-dark, #1565c0);
     }
 
     .action-history-description {
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         color: var(--color-info-dark, #1565c0);
         margin: 0 0 8px 0;
         line-height: 1.4;
@@ -2318,7 +2318,7 @@
     }
 
     .action-history-empty {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-info-dark, #1565c0);
         margin: 0;
         opacity: 0.6;
@@ -2337,8 +2337,8 @@
     .action-history-entry {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 11px;
+        gap: var(--spacing-3);
+        font-size: var(--font-size-tiny);
         font-family: monospace;
         color: var(--color-info-dark, #1565c0);
         line-height: 1.4;
@@ -2389,19 +2389,19 @@
     /* ===================== SCREENSHOT SECTION ===================== */
 
     .screenshot-section {
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .screenshot-capture-btn {
         align-self: flex-start;
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-border, #ccc);
         border-radius: var(--border-radius-md, 6px);
         background: var(--color-surface-2, #f5f5f5);
         color: var(--color-text, #222);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .screenshot-capture-btn:hover:not(:disabled) {
@@ -2416,7 +2416,7 @@
     .screenshot-preview-wrapper {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
         align-items: flex-start;
     }
 
@@ -2429,14 +2429,14 @@
     }
 
     .screenshot-remove-btn {
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-danger, #e53935);
         border-radius: var(--border-radius-md, 6px);
         background: transparent;
         color: var(--color-danger, #e53935);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .screenshot-remove-btn:hover:not(:disabled) {
@@ -2449,7 +2449,7 @@
     }
 
     .screenshot-error {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-danger, #e53935);
         margin: 0;
     }
@@ -2462,20 +2462,20 @@
     /* ===================== ELEMENT PICKER SECTION ===================== */
 
     .element-picker-section {
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     /* "Pick Element" button — matches screenshot-capture-btn style */
     .element-picker-btn {
         align-self: flex-start;
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-border, #ccc);
         border-radius: var(--border-radius-md, 6px);
         background: var(--color-surface-2, #f5f5f5);
         color: var(--color-text, #222);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background var(--duration-fast), border-color var(--duration-fast);
     }
 
     .element-picker-btn:hover:not(:disabled) {
@@ -2496,7 +2496,7 @@
     .picked-element-preview {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
         align-items: flex-start;
         width: 100%;
     }
@@ -2509,8 +2509,8 @@
     }
 
     .picked-element-summary {
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: var(--spacing-4) var(--spacing-6);
+        font-size: var(--font-size-xs);
         color: var(--color-font-secondary, #555);
         cursor: pointer;
         user-select: none;
@@ -2527,8 +2527,8 @@
         content: '▶ ';
         font-size: 10px;
         opacity: 0.6;
-        margin-right: 4px;
-        transition: transform 0.15s;
+        margin-right: var(--spacing-2);
+        transition: transform var(--duration-fast);
     }
 
     .picked-element-details[open] .picked-element-summary::before {
@@ -2538,8 +2538,8 @@
     /* Scrollable pre block showing the captured outerHTML */
     .picked-element-html {
         margin: 0;
-        padding: 10px 12px;
-        font-size: 11px;
+        padding: var(--spacing-5) var(--spacing-6);
+        font-size: var(--font-size-tiny);
         font-family: monospace;
         line-height: 1.5;
         white-space: pre-wrap;
@@ -2554,21 +2554,21 @@
     /* Row holding Copy HTML + Remove buttons */
     .picked-element-actions {
         display: flex;
-        gap: 8px;
+        gap: var(--spacing-4);
         align-items: center;
         flex-wrap: wrap;
     }
 
     /* Copy HTML button */
     .element-picker-copy-btn {
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-border, #ccc);
         border-radius: var(--border-radius-md, 6px);
         background: var(--color-surface-2, #f5f5f5);
         color: var(--color-font-primary, #222);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         cursor: pointer;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
     }
 
     .element-picker-copy-btn:hover:not(:disabled) {
@@ -2588,14 +2588,14 @@
 
     /* Remove button — matches screenshot-remove-btn style */
     .element-picker-remove-btn {
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-danger, #e53935);
         border-radius: var(--border-radius-md, 6px);
         background: transparent;
         color: var(--color-danger, #e53935);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .element-picker-remove-btn:hover:not(:disabled) {

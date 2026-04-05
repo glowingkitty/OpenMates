@@ -542,7 +542,7 @@
         position: absolute;
         z-index: 1000;
         background: var(--color-grey-blue);
-        border-radius: 16px;
+        border-radius: var(--radius-7);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         min-width: 380px;
         max-width: 450px;
@@ -564,14 +564,14 @@
     .mention-dropdown-header {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
-        padding: 16px 16px 12px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8) var(--spacing-8) var(--spacing-6);
         border-bottom: 1px solid var(--color-grey-20);
     }
 
     .header-text {
         flex: 1;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1.4;
         color: var(--color-font-tertiary);
     }
@@ -585,10 +585,10 @@
         justify-content: center;
         background: transparent;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
         color: var(--color-grey-60);
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
     }
 
     .settings-button:hover {
@@ -603,9 +603,9 @@
     .mention-result {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         width: 100%;
-        padding: 10px 16px;
+        padding: var(--spacing-5) var(--spacing-8);
         background: transparent;
         border: none;
         cursor: pointer;
@@ -620,7 +620,7 @@
 
     /* Indented entry items within expanded categories */
     .mention-result.entry-item {
-        padding-left: 32px;
+        padding-left: var(--spacing-16);
     }
 
     .result-icon {
@@ -640,11 +640,11 @@
     .alias-icon {
         width: 36px;
         height: 36px;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: var(--font-size-h3);
     }
 
     .alias-icon-crown {
@@ -662,10 +662,10 @@
     .provider-logo {
         width: 36px;
         height: 36px;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         object-fit: contain;
         background: var(--color-grey-10);
-        padding: 4px;
+        padding: var(--spacing-2);
     }
 
     .mate-profile.mate-profile-small {
@@ -677,7 +677,7 @@
     .app-icon {
         width: 36px;
         height: 36px;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -687,7 +687,7 @@
     .app-icon.app-icon-small {
         width: 28px;
         height: 28px;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     /* Icon styles for skill/focus/memory icons inside app-icon */
@@ -729,11 +729,11 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
     }
 
     .result-name {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         color: var(--color-primary-start);
         white-space: nowrap;
@@ -747,7 +747,7 @@
     }
 
     .result-subtitle {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-font-tertiary);
         white-space: nowrap;
         overflow: hidden;
@@ -759,16 +759,16 @@
         flex-shrink: 0;
         display: flex;
         align-items: center;
-        gap: 4px;
-        padding: 4px 8px;
+        gap: var(--spacing-2);
+        padding: var(--spacing-2) var(--spacing-4);
         background: var(--color-grey-15);
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
         color: var(--color-grey-60);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-family: var(--font-family-primary);
-        transition: background-color 0.15s ease, color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
     }
 
     .expand-button:hover {
@@ -782,7 +782,7 @@
     }
 
     .expand-icon {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         line-height: 1;
     }
 
@@ -794,13 +794,13 @@
     .expanded-entries {
         border-left: 2px solid var(--color-grey-20);
         margin-left: 34px;
-        margin-bottom: 4px;
+        margin-bottom: var(--spacing-2);
     }
 
     /* Show more button */
     .show-more-button {
-        padding: 8px 16px 8px 32px;
-        font-size: 14px;
+        padding: var(--spacing-4) var(--spacing-8) var(--spacing-4) var(--spacing-16);
+        font-size: var(--font-size-small);
         color: var(--color-primary-start);
         cursor: pointer;
         transition: background-color 0.1s ease;
@@ -820,13 +820,13 @@
         justify-content: center;
         background: transparent;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
         color: var(--color-grey-50);
         opacity: 0;
         padding: 0;
         font: inherit;
-        transition: opacity 0.15s ease, background-color 0.15s ease;
+        transition: opacity var(--duration-fast) var(--easing-default), background-color var(--duration-fast) var(--easing-default);
     }
 
     .mention-result:hover .row-settings-button,
@@ -840,8 +840,8 @@
     }
 
     .mention-dropdown-footer {
-        padding: 10px 16px;
-        font-size: 16px;
+        padding: var(--spacing-5) var(--spacing-8);
+        font-size: var(--font-size-p);
         color: var(--color-font-secondary);
         text-align: center;
         border-top: 1px solid var(--color-grey-15);

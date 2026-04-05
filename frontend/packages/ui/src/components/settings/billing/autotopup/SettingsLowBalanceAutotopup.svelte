@@ -246,24 +246,24 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         padding: 0 10px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     /* Toggle Section */
     .toggle-section {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 12px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .toggle-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .toggle-label {
@@ -277,7 +277,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     .form-group {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     /* Tighten SettingsPageHeader spacing when used as a form-group label */
@@ -289,16 +289,16 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     .fixed-value-display {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-grey-100);
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-6);
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
 
     .help-text {
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         margin: 0;
         line-height: 1.4;
     }
@@ -328,10 +328,10 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     .info-box {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
     }
 
     .info-box.success {
@@ -348,12 +348,12 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
 
     /* Save Button */
     .save-button {
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: none;
         background: var(--color-primary);
         color: white;
@@ -372,9 +372,9 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     .error-message {
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         border: 1px solid rgba(223, 27, 65, 0.3);
     }
 

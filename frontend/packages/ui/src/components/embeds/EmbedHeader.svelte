@@ -269,7 +269,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-xl);
     pointer-events: none;
   }
 
@@ -283,7 +283,7 @@
   .embed-header-orbs {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: var(--z-index-base);
     pointer-events: none;
     overflow: hidden;
   }
@@ -361,7 +361,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
+    z-index: var(--z-index-raised);
     pointer-events: none;
     --float-rx: 10px;
     --float-ry: 12px;
@@ -425,9 +425,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     z-index: 2;
-    padding: 16px 24px;
+    padding: var(--spacing-8) var(--spacing-12);
     max-width: 480px;
     width: 100%;
     animation: fadeIn 0.35s ease-out;
@@ -454,8 +454,8 @@
     border: none;
     background: transparent;
     padding: 0;
-    border-radius: 10px;
-    transition: background-color 0.15s ease;
+    border-radius: var(--radius-4);
+    transition: background-color var(--duration-fast) var(--easing-default);
   }
 
   .header-icon-button:hover {
@@ -499,15 +499,15 @@
   .header-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     max-width: 100%;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
 
   .header-favicon {
     width: 20px;
     height: 20px;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     flex-shrink: 0;
     object-fit: cover;
   }
@@ -519,9 +519,9 @@
   }
 
   .header-title-text {
-    font-size: 20px;
+    font-size: var(--font-size-h3);
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-grey-0);
     text-align: center;
     line-height: 1.3;
     display: -webkit-box;
@@ -533,11 +533,11 @@
 
   /* Subtitle */
   .header-subtitle {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     text-align: center;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     animation: fadeIn 0.4s ease-out 0.15s both;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -560,7 +560,7 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     padding: 0 20px;
     z-index: 10;
     pointer-events: auto;
@@ -592,7 +592,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
     z-index: 20;
     pointer-events: auto;
     flex-shrink: 0;
@@ -629,12 +629,12 @@
 
   .nav-chevron-left {
     transform: rotate(-135deg);
-    margin-left: 4px;
+    margin-left: var(--spacing-2);
   }
 
   .nav-chevron-right {
     transform: rotate(45deg);
-    margin-right: 4px;
+    margin-right: var(--spacing-2);
   }
 
   /* ==========================================================
@@ -735,7 +735,7 @@
     }
 
     .header-center {
-      padding: 12px 20px;
+      padding: var(--spacing-6) var(--spacing-10);
       max-width: 360px;
     }
 
@@ -754,7 +754,7 @@
     }
 
     .header-subtitle {
-      font-size: 13px;
+      font-size: var(--font-size-xs);
     }
 
     .deco-icon {

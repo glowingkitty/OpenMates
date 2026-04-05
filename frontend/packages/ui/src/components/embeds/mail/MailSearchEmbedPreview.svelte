@@ -134,7 +134,7 @@
   .mail-search-details {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
     color: var(--color-grey-100);
     min-height: 80px;
   }
@@ -142,15 +142,15 @@
   .mail-item {
     border: 1px solid var(--color-grey-20);
     background: var(--color-grey-5);
-    border-radius: 8px;
-    padding: 6px 8px;
+    border-radius: var(--radius-3);
+    padding: var(--spacing-3) var(--spacing-4);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--spacing-1);
   }
 
   .line-1 {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     line-height: 1.3;
     color: var(--color-font-primary);
     font-weight: 600;
@@ -160,7 +160,7 @@
   }
 
   .line-2 {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     line-height: 1.3;
     color: var(--color-font-secondary);
     overflow: hidden;
@@ -169,7 +169,7 @@
   }
 
   .line-3 {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     line-height: 1.35;
     color: var(--color-font-secondary);
     display: -webkit-box;
@@ -188,7 +188,7 @@
   }
 
   .empty {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-font-secondary);
     padding: 8px 0;
   }

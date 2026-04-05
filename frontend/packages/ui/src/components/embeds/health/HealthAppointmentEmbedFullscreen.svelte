@@ -264,13 +264,13 @@
 <style>
   .slot-highlight {
     text-align: center;
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: var(--spacing-6) var(--spacing-8);
+    border-radius: var(--radius-5);
     background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
     border: 1px solid rgba(var(--color-primary-rgb, 74, 144, 226), 0.2);
   }
   .slot-highlight-datetime {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 700;
     color: var(--color-primary);
     line-height: 1.3;
@@ -288,26 +288,26 @@
     font-size: 15px;
     font-weight: 500;
     color: var(--color-font-secondary);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
   }
   .doctor-address {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
     line-height: 1.5;
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
   }
 
   .badges-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--spacing-3);
     justify-content: center;
   }
   .badge {
     display: inline-block;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
+    padding: var(--spacing-2) var(--spacing-5);
+    border-radius: var(--radius-8);
+    font-size: var(--font-size-xxs);
     font-weight: 600;
   }
   .telehealth-badge {
@@ -322,7 +322,7 @@
   }
 
   .slots-disclaimer {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-font-secondary);
     text-align: center;
     margin: 0;
@@ -332,15 +332,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   .rating-stars {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 700;
     color: var(--color-warning, #f5a623);
   }
   .rating-count {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
   }
 
@@ -349,16 +349,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     flex-wrap: wrap;
   }
   .service-name {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
     color: var(--color-font-primary);
   }
   .service-price {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 700;
     color: var(--color-font-primary);
   }

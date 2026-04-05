@@ -230,7 +230,7 @@
     .settings-header-orbs {
         position: absolute;
         inset: 0;
-        z-index: 0;
+        z-index: var(--z-index-base);
         pointer-events: none;
         overflow: hidden;
         border-radius: 0 0 14px 14px; /* match banner border-radius */
@@ -300,7 +300,7 @@
         flex: 1;
         align-items: center;
         position: relative;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -309,7 +309,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: width 0.15s, height 0.15s;
+        transition: width var(--duration-fast), height var(--duration-fast);
     }
 
     /* Clickable avatar: reset button styles and add hover highlight ring */
@@ -324,7 +324,7 @@
         border-radius: 50%;
         padding: 3px;
         margin: -3px;
-        transition: width 0.15s, height 0.15s, background-color 0.15s ease;
+        transition: width var(--duration-fast), height var(--duration-fast), background-color var(--duration-fast) var(--easing-default);
     }
 
     .avatar-slot-clickable:hover {
@@ -348,7 +348,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: width 0.15s, height 0.15s;
+        transition: width var(--duration-fast), height var(--duration-fast);
     }
 
     /* Profile image avatar: overflow hidden so the <img> is clipped to the circle */
@@ -406,7 +406,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     /* In row (collapsed) mode, align left */
@@ -417,32 +417,32 @@
 
     .username-label {
         font-weight: 700;
-        color: #ffffff;
+        color: var(--color-grey-0);
         line-height: 1.25;
         text-align: center;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         max-width: 260px;
-        transition: font-size 0.15s;
+        transition: font-size var(--duration-fast);
     }
 
     /* Clickable username: reset button styles and add hover highlight */
     .username-label-clickable {
         all: unset;
         font-weight: 700;
-        color: #ffffff;
+        color: var(--color-grey-0);
         line-height: 1.25;
         text-align: center;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         max-width: 260px;
-        transition: font-size 0.15s, background-color 0.15s ease;
+        transition: font-size var(--duration-fast), background-color var(--duration-fast) var(--easing-default);
         cursor: pointer;
         pointer-events: auto;
-        border-radius: 6px;
-        padding: 2px 8px;
+        border-radius: var(--radius-2);
+        padding: var(--spacing-1) var(--spacing-4);
         margin: -2px -8px;
     }
 
@@ -476,16 +476,16 @@
         all: unset;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--spacing-3);
         cursor: pointer;
         pointer-events: auto;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 3px 6px;
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
     }
 
     .credits-button-collapsed {
-        gap: 4px;
+        gap: var(--spacing-2);
         padding: 2px 5px;
     }
 
@@ -519,7 +519,7 @@
     }
 
     .credits-amount {
-        color: #ffffff;
+        color: var(--color-grey-0);
         font-size: 15px;
         font-weight: 600;
         line-height: 1.2;
@@ -527,7 +527,7 @@
     }
 
     .credits-amount-collapsed {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     /* ─── Mobile adjustments ─────────────────────────────────────────────────── */

@@ -259,11 +259,11 @@ changes to the documentation (to keep the documentation up to date).
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         /* Always white so the text is legible on the blue subsetting_icon background
            regardless of light/dark theme mode */
-        color: #ffffff;
+        color: var(--color-grey-0);
         pointer-events: none;
         z-index: 2;
     }

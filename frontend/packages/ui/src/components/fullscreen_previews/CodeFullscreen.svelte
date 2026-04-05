@@ -121,7 +121,7 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-        padding: 16px;
+        padding: var(--spacing-8);
         position: relative;
     }
 
@@ -147,12 +147,12 @@
         background-color: #181818;
         border-radius: 17px;
         box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-        padding: 20px;
-        padding-left: 0px;
+        padding: var(--spacing-10);
+        padding-left: var(--spacing-0);
         overflow: auto;
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
         display: flex;
         align-items: flex-start;
     }
@@ -172,9 +172,9 @@
 
     .code-content::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid transparent;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .code-content:hover::-webkit-scrollbar-thumb {
@@ -193,9 +193,9 @@
         right: 16px;
         height: 8px;
         background-color: #181818;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         overflow: hidden;
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .scrollbar-content {
@@ -221,8 +221,8 @@
 
     .scrollbar-content::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
+        border-radius: var(--radius-1);
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .scrollbar-content:hover::-webkit-scrollbar-thumb {
@@ -262,12 +262,12 @@
     }
 
     .filename {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-font-primary);
     }
 
     .language {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-font-secondary);
     }
 
@@ -279,11 +279,11 @@
         text-align: right;
         color: rgba(255, 255, 255, 0.4);
         font-family: 'JetBrains Mono', monospace;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
         border-right: 1px solid rgba(128, 128, 128, 0.3);
         margin-right: 1em;
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .line-number {
@@ -294,7 +294,7 @@
     pre {
         margin: 0;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
         height: 100%;
         flex: 1;

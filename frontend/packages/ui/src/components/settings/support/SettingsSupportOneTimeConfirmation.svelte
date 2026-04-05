@@ -63,7 +63,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 20px 0;
     }
 
@@ -89,7 +89,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
     }
 
     .success-title {
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
@@ -100,18 +100,18 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         padding: 0 10px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .amount-display {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 20px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-5);
+        box-shadow: var(--shadow-xs);
     }
 
     .amount-value {
@@ -122,7 +122,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 
     .amount-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .heart-icon {
@@ -135,7 +135,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
     }
 
     .details-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         text-align: center;
         line-height: 1.5;
@@ -146,7 +146,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
     /* Action Section */
     .action-section {
         padding: 0 10px;
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     .done-button {
@@ -155,12 +155,12 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 16px;
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all var(--duration-normal) var(--easing-default);
+        box-shadow: var(--shadow-xs);
     }
 
     .done-button:hover {
@@ -171,17 +171,17 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 
     .done-button:active {
         transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
     }
 
     /* Responsive Styles */
     @media (max-width: 768px) {
         .amount-display {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .amount-value {
-            font-size: 24px;
+            font-size: var(--font-size-h2-mobile);
         }
 
         .success-icon-wrapper {
@@ -195,7 +195,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         }
 
         .success-title {
-            font-size: 18px;
+            font-size: var(--font-size-h3-mobile);
         }
     }
 
@@ -210,7 +210,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         }
 
         .done-button {
-            padding: 12px 20px;
+            padding: var(--spacing-6) var(--spacing-10);
             font-size: 15px;
         }
     }

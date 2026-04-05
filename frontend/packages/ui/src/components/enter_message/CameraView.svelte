@@ -336,7 +336,7 @@
            containerStyle / showCamera logic), so this overlay will be exactly 400px tall. */
         position: absolute;
         inset: 0;
-        background: #000;
+        background: var(--color-grey-100);
         z-index: 1000;
         display: flex;
         flex-direction: column;
@@ -354,11 +354,11 @@
         width: 32px !important;
         height: 32px !important;
         padding: 4px !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-3) !important;
         background: rgba(0, 0, 0, 0.5) !important;
         border: none !important;
         opacity: 0.8;
-        transition: opacity 0.2s ease-in-out;
+        transition: opacity var(--duration-normal) var(--easing-in-out);
         cursor: pointer;
         margin-right: 0 !important;
         filter: none !important;
@@ -374,7 +374,7 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        background: #000;
+        background: var(--color-grey-100);
     }
 
     .bottom-bar {
@@ -383,7 +383,7 @@
         left: 0;
         right: 0;
         height: 53px;
-        background: #000;
+        background: var(--color-grey-100);
         border-radius: 24px;
     }
 
@@ -401,12 +401,12 @@
         padding: 0;
         background: transparent;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all var(--duration-slow) var(--easing-default);
     }
 
     .main-controls {
         display: flex;
-        gap: 20px;
+        gap: var(--spacing-10);
         align-items: center;
         margin-left: auto;
         min-width: fit-content;
@@ -443,7 +443,7 @@
         background: white;
         border-radius: 50%;
         transform: scale(0.93);
-        transition: transform 0.15s ease;
+        transition: transform var(--duration-fast) var(--easing-default);
     }
 
     .video-button-inner {
@@ -456,7 +456,7 @@
     }
 
     .video-button.recording .video-button-inner {
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         transform: scale(0.7);
     }
 
@@ -492,7 +492,7 @@
         border-radius: 15px;
         font-weight: bold;
         font-family: monospace;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -501,7 +501,7 @@
     .photo-button.disabled {
         opacity: 0.5;
         pointer-events: none;
-        transition: opacity 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     .photo-button.disabled::before {

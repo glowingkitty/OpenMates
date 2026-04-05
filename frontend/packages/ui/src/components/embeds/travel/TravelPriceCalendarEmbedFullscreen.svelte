@@ -504,13 +504,13 @@
   
   .fullscreen-header {
     margin-top: 60px;
-    margin-bottom: 24px;
+    margin-bottom: var(--spacing-12);
     padding: 0 16px;
     text-align: center;
   }
   
   .route-title {
-    font-size: 24px;
+    font-size: var(--font-size-h2-mobile);
     font-weight: 600;
     color: var(--color-font-primary);
     line-height: 1.3;
@@ -518,38 +518,38 @@
   }
   
   .route-codes {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
     color: var(--color-font-secondary);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
     letter-spacing: 1px;
   }
   
   .month-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 500;
     color: var(--color-font-primary);
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
   }
   
   .provider-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-font-secondary);
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
   }
   
   @container fullscreen (max-width: 500px) {
     .fullscreen-header {
       margin-top: 70px;
-      margin-bottom: 16px;
+      margin-bottom: var(--spacing-8);
     }
     
     .route-title {
-      font-size: 20px;
+      font-size: var(--font-size-h3);
     }
     
     .month-title {
-      font-size: 16px;
+      font-size: var(--font-size-p);
     }
   }
   
@@ -560,8 +560,8 @@
   .stats-bar {
     display: flex;
     justify-content: center;
-    gap: 24px;
-    padding: 12px 16px;
+    gap: var(--spacing-12);
+    padding: var(--spacing-6) var(--spacing-8);
     margin: 0 auto 16px;
     max-width: 600px;
     flex-wrap: wrap;
@@ -571,18 +571,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: var(--spacing-1);
   }
   
   .stat-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-font-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
   
   .stat-value {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-font-primary);
   }
@@ -597,11 +597,11 @@
   
   @container fullscreen (max-width: 500px) {
     .stats-bar {
-      gap: 16px;
+      gap: var(--spacing-8);
     }
     
     .stat-value {
-      font-size: 14px;
+      font-size: var(--font-size-small);
     }
   }
   
@@ -613,13 +613,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     margin: 0 auto 20px;
     padding: 0 16px;
   }
   
   .legend-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-font-secondary);
     white-space: nowrap;
@@ -628,7 +628,7 @@
   .legend-gradient {
     width: 120px;
     height: 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     background: linear-gradient(to right, hsl(120, 55%, 40%), hsl(60, 60%, 42%), hsl(0, 60%, 42%));
   }
   
@@ -647,13 +647,13 @@
   .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    gap: var(--spacing-2);
   }
   
   /* Weekday headers */
   .weekday-header {
     text-align: center;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     color: var(--color-font-secondary);
     padding: 8px 0;
@@ -668,10 +668,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     position: relative;
     min-height: 56px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform var(--duration-fast) var(--easing-default), box-shadow var(--duration-fast) var(--easing-default);
   }
   
   .calendar-cell.empty {
@@ -686,7 +686,7 @@
   .calendar-cell.has-data:hover {
     transform: scale(1.05);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
   
   .calendar-cell.no-data {
@@ -696,14 +696,14 @@
   
   /* Cell content */
   .cell-day {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 500;
     color: var(--color-font-secondary);
     line-height: 1;
   }
   
   .cell-price {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 700;
     line-height: 1.2;
   }
@@ -716,7 +716,7 @@
   }
   
   .cell-no-price {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-40, rgba(128, 128, 128, 0.3));
     line-height: 1;
   }
@@ -724,7 +724,7 @@
   @container fullscreen (max-width: 500px) {
     .calendar-cell {
       min-height: 48px;
-      border-radius: 6px;
+      border-radius: var(--radius-2);
     }
     
     .cell-day {
@@ -732,7 +732,7 @@
     }
     
     .cell-price {
-      font-size: 12px;
+      font-size: var(--font-size-xxs);
     }
     
     .cell-transfers {
@@ -747,11 +747,11 @@
   @container fullscreen (max-width: 360px) {
     .calendar-cell {
       min-height: 40px;
-      border-radius: 4px;
+      border-radius: var(--radius-1);
     }
     
     .cell-price {
-      font-size: 11px;
+      font-size: var(--font-size-tiny);
     }
     
     .cell-transfers {
@@ -759,7 +759,7 @@
     }
     
     .calendar-grid {
-      gap: 2px;
+      gap: var(--spacing-1);
     }
   }
   
@@ -773,7 +773,7 @@
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
-    font-size: 16px;
+    font-size: var(--font-size-p);
     text-align: center;
     padding: 0 16px;
   }
@@ -783,20 +783,20 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 24px 16px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-12) var(--spacing-8);
     color: var(--color-font-secondary);
     text-align: center;
   }
   
   .error-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     color: var(--color-error);
   }
   
   .error-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     line-height: 1.4;
     max-width: 520px;
     word-break: break-word;
@@ -808,9 +808,9 @@
   
   .freshness-note {
     text-align: center;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-font-secondary);
-    padding: 16px;
+    padding: var(--spacing-8);
     max-width: 500px;
     margin: 0 auto;
     line-height: 1.4;

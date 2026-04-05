@@ -329,7 +329,7 @@ step_10_top_content_svelte:
     /* Success container with purple background */
     .success-container {
         background: var(--color-primary);
-        border-radius: 16px 16px 0 0;
+        border-radius: var(--radius-7) 16px 0 0;
         height: 100px;
         align-items: flex-end;
         padding-bottom: 0;
@@ -339,15 +339,15 @@ step_10_top_content_svelte:
         display: flex;
         flex-direction: column;
         text-align: center;
-        padding-bottom: 20px;
+        padding-bottom: var(--spacing-10);
         align-items: center;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
     
     /* For success container, display icon and text horizontally */
     .success-container .header-content {
         flex-direction: row;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .success-icon {
@@ -376,7 +376,7 @@ step_10_top_content_svelte:
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 500;
     }
 
@@ -424,8 +424,8 @@ step_10_top_content_svelte:
         min-height: 100%;
         height: auto;
         background-color: var(--color-grey-20);
-        border-radius: 16px;
-        padding: 16px;
+        border-radius: var(--radius-7);
+        padding: var(--spacing-8);
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
@@ -436,15 +436,15 @@ step_10_top_content_svelte:
     }
 
     .gift-card-toggle {
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
         align-self: center;
         border: none;
         background: transparent;
         color: var(--color-primary);
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
-        padding: 8px 10px;
+        padding: var(--spacing-4) var(--spacing-5);
     }
     
     /* Target the bottom containers of our payment components */
@@ -487,7 +487,7 @@ step_10_top_content_svelte:
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 20px;
+        gap: var(--spacing-10);
         text-align: center;
     }
     
@@ -503,7 +503,7 @@ step_10_top_content_svelte:
     }
     
     .success-text {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         font-weight: 600;
         color: var(--color-grey-100);
     }

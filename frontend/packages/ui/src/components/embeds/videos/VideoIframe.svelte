@@ -217,10 +217,10 @@
     height: 0;
     
     /* Visual styling */
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     overflow: hidden;
     background-color: var(--color-grey-15);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-md);
     
     /* Smooth transition for visual properties */
     transition: 
@@ -244,7 +244,7 @@
     height: 180px;
     
     /* PiP visual style */
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
   
@@ -298,7 +298,7 @@
     width: 30px;
     height: 30px;
     border-radius: 999px;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     line-height: 1;
     display: flex;
     align-items: center;
@@ -315,7 +315,7 @@
     right: 46px;
     bottom: 46px;
     left: 46px;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     background: transparent;
   }
 
