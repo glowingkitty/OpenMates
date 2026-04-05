@@ -637,7 +637,11 @@ async def _async_charge_storage_fees() -> Dict[str, Any]:
         raise
 
     finally:
-        # Always close the SecretsManager httpx client to avoid event-loop errors
+        # Always close async resources to avoid event-loop errors
+        try:
+            await cache_service.close()
+        except Exception:
+            pass
         try:
             await secrets_manager.aclose()
         except Exception:

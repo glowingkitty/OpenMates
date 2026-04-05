@@ -1,0 +1,145 @@
+# =============================================================================
+# Security Deep Audit — Folder Configuration
+#
+# Defines which folders are audited by security-deep-audit.sh.
+# Each entry is a folder path (relative to project root) with metadata.
+#
+# Fields:
+#   path:       Folder path relative to project root
+#   priority:   critical | high | medium | low (determines audit frequency)
+#   recursive:  false (default) — only files directly in folder, not subfolders
+#   notes:      Why this folder matters for security
+#
+# Schedule:
+#   critical + high: every run (nightly)
+#   medium:          weekly full sweep
+#   low:             monthly full sweep
+#
+# File filters applied globally (see _security_deep_audit_helper.py):
+#   Extensions: .ts, .py, .svelte
+#   Excluded:   __tests__, .test., .spec., .generated., .preview., node_modules
+#   Max per folder: 15 files (alphabetical, capped to avoid context overflow)
+# =============================================================================
+
+folders:
+  # --- Frontend: Encryption & Key Management ---
+  - path: frontend/packages/ui/src/services/encryption
+    priority: critical
+    notes: Client-side E2E encryption core — key management, message/metadata encrypt/decrypt
+
+  # --- Frontend: Services (sync, auth, WebSocket) ---
+  - path: frontend/packages/ui/src/services
+    priority: critical
+    notes: Chat sync, WebSocket handlers, embed store, crypto key storage, auth session
+
+  - path: frontend/packages/ui/src/services/db
+    priority: high
+    notes: IndexedDB access layer — chat key persistence, local data storage
+
+  # --- Frontend: Stores (auth state, sessions) ---
+  - path: frontend/packages/ui/src/stores
+    priority: high
+    notes: Auth state management, login/logout flows, session handling
+
+  # --- Frontend: Routes ---
+  - path: frontend/apps/web_app/src/routes
+    priority: medium
+    notes: SvelteKit page routes — auth guards, SSR data loading
+
+  - path: frontend/apps/web_app/src/lib
+    priority: medium
+    notes: App-level utilities and hooks
+
+  # --- Backend: Auth Routes ---
+  - path: backend/core/api/app/routes/auth_routes
+    priority: critical
+    notes: All authentication endpoints — login, signup, passkey, 2FA, password reset, recovery
+
+  # --- Backend: HTTP Routes ---
+  - path: backend/core/api/app/routes
+    priority: high
+    notes: All HTTP endpoints — admin, apps API, WebSocket upgrade, debug, settings
+
+  # --- Backend: WebSocket Handlers ---
+  - path: backend/core/api/app/routes/handlers/websocket_handlers
+    priority: critical
+    notes: Real-time message handlers — message received, sync, key exchange, chat operations
+
+  # --- Backend: Core Services ---
+  - path: backend/core/api/app/services
+    priority: high
+    notes: Cache service, billing, embed service, encryption, S3, payment
+
+  - path: backend/core/api/app/services/directus
+    priority: high
+    notes: Database access layer — auth, chat, user, embed CRUD operations
+
+  - path: backend/core/api/app/services/directus/user
+    priority: high
+    notes: User-specific DB operations — profile, preferences, deletion
+
+  # --- Backend: Middleware & Utils ---
+  - path: backend/core/api/app/middleware
+    priority: high
+    notes: Request middleware — rate limiting, auth checks, CORS
+
+  - path: backend/core/api/app/utils
+    priority: high
+    notes: Server utilities — secrets manager, token handling, validation
+
+  # --- Backend: Tasks ---
+  - path: backend/core/api/app/tasks
+    priority: medium
+    notes: Celery tasks — persistence, email, push notifications
+
+  # --- Backend: AI Processing Pipeline ---
+  - path: backend/apps/ai/processing
+    priority: high
+    notes: AI request pipeline — preprocessor, rate limiting, skill execution, sanitization
+
+  - path: backend/apps/ai/tasks
+    priority: medium
+    notes: AI task execution — ask skill, stream consumer
+
+  - path: backend/apps/ai/skills
+    priority: medium
+    notes: AI skill implementations
+
+  # --- Backend: App Skills (other apps) ---
+  - path: backend/apps/web/skills
+    priority: medium
+    notes: Web search skill — URL handling, SSRF surface
+
+  - path: backend/apps/images/skills
+    priority: medium
+    notes: Image search/generation — external API calls
+
+  # --- Backend: Shared ---
+  - path: backend/shared/providers
+    priority: high
+    notes: External API wrappers — must not leak credentials or allow SSRF
+
+  - path: backend/shared/python_utils
+    priority: medium
+    notes: Shared utilities — URL normalization, domain filtering, billing
+
+  - path: backend/shared/python_schemas
+    priority: medium
+    notes: Pydantic models — input validation schemas
+
+  # --- Infrastructure ---
+  - path: deployment
+    priority: high
+    extensions: [".example"]
+    notes: Caddyfile reverse proxy config — TLS, headers, rate limits, path exposure
+
+  - path: backend/core/vault/setup
+    priority: high
+    notes: HashiCorp Vault setup — policies, secret paths, access control
+
+  # --- Docker ---
+  - path: backend/core
+    priority: medium
+    extensions: [".yml"]
+    file_patterns: ["docker-compose*"]
+    notes: Docker Compose service definitions — port exposure, volume mounts, env vars

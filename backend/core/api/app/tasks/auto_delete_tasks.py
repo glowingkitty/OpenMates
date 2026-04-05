@@ -949,6 +949,7 @@ async def _async_auto_expire_stale_devices() -> Dict[str, Any]:
         logger.error(f"[DeviceExpiry] Fatal error: {e}", exc_info=True)
         raise
     finally:
+        await cache_service.close()
         await directus_service.close()
 
 

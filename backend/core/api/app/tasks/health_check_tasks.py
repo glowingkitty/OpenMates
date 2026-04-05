@@ -799,8 +799,11 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
         
         return health_data
     finally:
-        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
-        # This prevents "Event loop is closed" errors during cleanup
+        # CRITICAL: Close async resources before the event loop closes
+        try:
+            await cache_service.close()
+        except Exception:
+            pass
         try:
             await secrets_manager.aclose()
         except Exception as cleanup_error:
@@ -902,7 +905,8 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
             logger.warning("Health check: Cache client not available, cannot store health status for 'brave'")
     except Exception as e:
         logger.error(f"Health check: Failed to store health status for 'brave' in cache: {e}", exc_info=True)
-    
+
+    await cache_service.close()
     return health_data
 
 
@@ -966,6 +970,7 @@ async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Di
     except Exception as exc:
         logger.error("Health check: Failed to store health status for 'protonmail': %s", exc, exc_info=True)
 
+    await cache_service.close()
     return health_data
 
 
@@ -1252,7 +1257,8 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             logger.warning(f"Health check: Cache client not available, cannot store health status for app '{app_id}'")
     except Exception as e:
         logger.error(f"Health check: Failed to store health status for app '{app_id}' in cache: {e}", exc_info=True)
-    
+
+    await cache_service.close()
     return health_data
 
 
@@ -1324,6 +1330,7 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
     except Exception as e:
         logger.error(f"Health check: Failed to store Stripe health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1361,6 +1368,7 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
         if not api_user or not api_secret:
             # No credentials = skip this check (not configured)
             logger.info("Health check: Skipping Sightengine health check (not configured)")
+            await cache_service.close()
             return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
 
         # Throttle: return cached result if last live check was less than 2 hours ago.
@@ -1380,6 +1388,7 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
                             f"last check {elapsed}s ago, "
                             f"next in {SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS - elapsed}s"
                         )
+                        await cache_service.close()
                         return cached_data
         except Exception as throttle_err:
             # Cache read failure is non-fatal — fall through to live check
@@ -1457,6 +1466,7 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
     except Exception as e:
         logger.error(f"Health check: Failed to store Sightengine health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1475,6 +1485,7 @@ async def _check_brevo_health(secrets_manager: SecretsManager) -> Dict[str, Any]
         if not api_key:
             # No credentials = skip this check (not configured)
             logger.info("Health check: Skipping Brevo health check (not configured)")
+            await cache_service.close()
             return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
         
         start_time = time.time()
@@ -1543,6 +1554,7 @@ async def _check_brevo_health(secrets_manager: SecretsManager) -> Dict[str, Any]
     except Exception as e:
         logger.error(f"Health check: Failed to store Brevo health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1569,6 +1581,7 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
         if not aws_access_key or not aws_secret_key:
             # No credentials = skip this check (not configured)
             logger.info("Health check: Skipping AWS Bedrock health check (not configured)")
+            await cache_service.close()
             return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
         else:
             start_time = time.time()
@@ -1699,6 +1712,7 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
     except Exception as e:
         logger.error(f"Health check: Failed to store AWS Bedrock health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1710,6 +1724,7 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
     if not domain:
         # No domain = skip this check (not configured)
         logger.info("Health check: Skipping Vercel health check (not configured)")
+        await cache_service.close()
         return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
     else:
         try:
@@ -1768,6 +1783,7 @@ async def _check_vercel_domain_health(domain: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Health check: Failed to store Vercel domain health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1785,6 +1801,7 @@ async def _check_api_server_health() -> Dict[str, Any]:
 
     if not api_domain:
         logger.info("Health check: Skipping API server health check (API_SERVER_DOMAIN not configured)")
+        await cache_service.close()
         return {"status": "skipped", "last_check": int(time.time()), "last_error": None}
 
     try:
@@ -1838,6 +1855,7 @@ async def _check_api_server_health() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Health check: Failed to store API server health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1924,6 +1942,7 @@ async def _check_external_service_http(
     except Exception as e:
         logger.error(f"Health check: Failed to store {display_name} health status in cache: {e}")
 
+    await cache_service.close()
     return health_data
 
 
@@ -1996,16 +2015,16 @@ def check_all_apps_health(self):
             # Run async discovery in a nested function
             async def get_app_ids():
                 app_ids = []
+                from backend.core.api.app.services.cache import CacheService
+                from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+
+                inner_cache_service = CacheService()
                 try:
-                    from backend.core.api.app.services.cache import CacheService
-                    from backend.shared.python_schemas.app_metadata_schemas import AppYAML
-                    
-                    cache_service = CacheService()
                     discovered_metadata_json = None
-                    
+
                     # Try to get from cache
                     try:
-                        client = await cache_service.client
+                        client = await inner_cache_service.client
                         if client:
                             metadata_json = await client.get("discovered_apps_metadata_v1")
                             if metadata_json:
@@ -2070,23 +2089,25 @@ def check_all_apps_health(self):
                     # Fallback: scan filesystem - check all apps (except disabled ones)
                     # Import here to avoid circular imports
                     from backend.core.api.main import scan_filesystem_for_apps
-                    
+
                     APPS_DIR = "/app/backend/apps"
                     if os.path.isdir(APPS_DIR):
                         try:
                             disabled_app_ids = config_manager.get_disabled_apps()
-                            
+
                             # Scan filesystem for all apps
                             all_app_ids = scan_filesystem_for_apps()
-                            
+
                             # Check all apps except disabled ones
                             app_ids = [app_id for app_id in all_app_ids if app_id not in disabled_app_ids]
-                            
+
                             logger.info(f"Health check: Fallback filesystem scan found {len(app_ids)} app(s): {app_ids}")
                         except OSError as scan_error:
                             logger.error(f"Error scanning apps directory {APPS_DIR}: {scan_error}")
-                
-                return app_ids
+
+                    return app_ids
+                finally:
+                    await inner_cache_service.close()
             
             # Get app IDs (run async function)
             app_ids = await get_app_ids()
@@ -2177,104 +2198,107 @@ def check_all_providers_health(self):
     
     async def acquire_lock_and_run():
         cache_service = CacheService()
-        client = await cache_service.client
-        if not client:
-            logger.error("Health check: Cache client not available, cannot acquire lock. Skipping health check.")
-            return
-        
-        # Try to acquire lock using SET with NX (only set if not exists) and EX (expiration)
-        # This is atomic and prevents race conditions
-        lock_acquired = await client.set(lock_key, str(time.time()), ex=lock_ttl, nx=True)
-        
-        if not lock_acquired:
-            logger.warning("Health check: Another health check is already running. Skipping this execution to prevent duplicate requests.")
-            return
-        
         try:
-            logger.info("=" * 80)
-            logger.info("Health check: Starting periodic health check for all providers...")
-            logger.info("=" * 80)
-            
-            # Get all providers from registry
-            providers = list(PROVIDER_CLIENT_REGISTRY.keys())
-            if not providers:
-                logger.warning("Health check: No providers found in registry. Skipping health checks.")
+            client = await cache_service.client
+            if not client:
+                logger.error("Health check: Cache client not available, cannot acquire lock. Skipping health check.")
                 return
-            
-            logger.info(f"Health check: Found {len(providers)} LLM provider(s) to check: {', '.join(providers)}")
-            
-            # Run async health checks
-            async def run_checks():
-                # Initialize SecretsManager outside try block so it's available in finally
-                secrets_manager = SecretsManager()
-                
-                try:
-                    tasks = []
-                    
-                    # Check all LLM providers
-                    for provider_id in providers:
-                        # For now, all providers use test requests (no health endpoints configured yet)
-                        # In the future, we can check if provider has health_endpoint configured
-                        task = _check_provider_health(provider_id, health_endpoint=None)
-                        tasks.append(task)
-                    
-                    # Also check Brave Search + Proton Mail Bridge (not LLM providers)
-                    await secrets_manager.initialize()
-                    brave_task = _check_brave_search_health(secrets_manager)
-                    tasks.append(brave_task)
-                    protonmail_task = _check_protonmail_bridge_health(secrets_manager)
-                    tasks.append(protonmail_task)
-                    
-                    # Run all checks concurrently
-                    logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    
-                    # Log results
-                    healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
-                    unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
-                    error_count = sum(1 for r in results if isinstance(r, Exception))
-                    
-                    logger.info("=" * 80)
-                    logger.info(
-                        f"Health check: Completed. "
-                        f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
-                    )
-                    logger.info("=" * 80)
-                    
-                    # Log details for unhealthy providers
-                    if unhealthy_count > 0:
-                        all_provider_ids = list(providers) + ["brave", "protonmail"]
-                        for i, result in enumerate(results):
-                            if isinstance(result, dict) and result.get("status") == "unhealthy":
-                                provider_id = all_provider_ids[i] if i < len(all_provider_ids) else f"unknown_{i}"
-                                logger.warning(
-                                    f"Health check: Provider '{provider_id}' is unhealthy. "
-                                    f"Last error: {result.get('last_error', 'Unknown')}"
-                                )
-                finally:
-                    # CRITICAL: Close async resources (like httpx clients) before the event loop closes
-                    # This prevents "Event loop is closed" errors during cleanup
+
+            # Try to acquire lock using SET with NX (only set if not exists) and EX (expiration)
+            # This is atomic and prevents race conditions
+            lock_acquired = await client.set(lock_key, str(time.time()), ex=lock_ttl, nx=True)
+
+            if not lock_acquired:
+                logger.warning("Health check: Another health check is already running. Skipping this execution to prevent duplicate requests.")
+                return
+
+            try:
+                logger.info("=" * 80)
+                logger.info("Health check: Starting periodic health check for all providers...")
+                logger.info("=" * 80)
+
+                # Get all providers from registry
+                providers = list(PROVIDER_CLIENT_REGISTRY.keys())
+                if not providers:
+                    logger.warning("Health check: No providers found in registry. Skipping health checks.")
+                    return
+
+                logger.info(f"Health check: Found {len(providers)} LLM provider(s) to check: {', '.join(providers)}")
+
+                # Run async health checks
+                async def run_checks():
+                    # Initialize SecretsManager outside try block so it's available in finally
+                    secrets_manager = SecretsManager()
+
                     try:
-                        await secrets_manager.aclose()
-                    except Exception as cleanup_error:
-                        logger.warning(f"Error closing SecretsManager during provider health checks: {cleanup_error}")
-            
-            # Run async checks
-            try:
-                logger.info("Health check: Executing async health checks...")
-                await run_checks()
-                logger.info("Health check: Async health checks completed successfully")
-            except Exception as e:
-                logger.error(f"Health check: Error running health checks: {e}", exc_info=True)
-                raise  # Re-raise to ensure Celery knows the task failed
+                        tasks = []
+
+                        # Check all LLM providers
+                        for provider_id in providers:
+                            # For now, all providers use test requests (no health endpoints configured yet)
+                            # In the future, we can check if provider has health_endpoint configured
+                            task = _check_provider_health(provider_id, health_endpoint=None)
+                            tasks.append(task)
+
+                        # Also check Brave Search + Proton Mail Bridge (not LLM providers)
+                        await secrets_manager.initialize()
+                        brave_task = _check_brave_search_health(secrets_manager)
+                        tasks.append(brave_task)
+                        protonmail_task = _check_protonmail_bridge_health(secrets_manager)
+                        tasks.append(protonmail_task)
+
+                        # Run all checks concurrently
+                        logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                        # Log results
+                        healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
+                        unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
+                        error_count = sum(1 for r in results if isinstance(r, Exception))
+
+                        logger.info("=" * 80)
+                        logger.info(
+                            f"Health check: Completed. "
+                            f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
+                        )
+                        logger.info("=" * 80)
+
+                        # Log details for unhealthy providers
+                        if unhealthy_count > 0:
+                            all_provider_ids = list(providers) + ["brave", "protonmail"]
+                            for i, result in enumerate(results):
+                                if isinstance(result, dict) and result.get("status") == "unhealthy":
+                                    provider_id = all_provider_ids[i] if i < len(all_provider_ids) else f"unknown_{i}"
+                                    logger.warning(
+                                        f"Health check: Provider '{provider_id}' is unhealthy. "
+                                        f"Last error: {result.get('last_error', 'Unknown')}"
+                                    )
+                    finally:
+                        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+                        # This prevents "Event loop is closed" errors during cleanup
+                        try:
+                            await secrets_manager.aclose()
+                        except Exception as cleanup_error:
+                            logger.warning(f"Error closing SecretsManager during provider health checks: {cleanup_error}")
+
+                # Run async checks
+                try:
+                    logger.info("Health check: Executing async health checks...")
+                    await run_checks()
+                    logger.info("Health check: Async health checks completed successfully")
+                except Exception as e:
+                    logger.error(f"Health check: Error running health checks: {e}", exc_info=True)
+                    raise  # Re-raise to ensure Celery knows the task failed
+            finally:
+                # Release the lock (delete the key)
+                try:
+                    await client.delete(lock_key)
+                    logger.debug("Health check: Released distributed lock")
+                except Exception as lock_error:
+                    logger.warning(f"Health check: Failed to release lock: {lock_error}")
         finally:
-            # Release the lock (delete the key)
-            try:
-                await client.delete(lock_key)
-                logger.debug("Health check: Released distributed lock")
-            except Exception as lock_error:
-                logger.warning(f"Health check: Failed to release lock: {lock_error}")
-    
+            await cache_service.close()
+
     # Run the async function
     try:
         asyncio.run(acquire_lock_and_run())
@@ -2400,17 +2424,19 @@ def cleanup_old_health_events(self, retention_days: int = 90):
     async def run_cleanup():
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
-        
-        directus = DirectusService(cache_service=CacheService())
+
+        cache_service = CacheService()
+        directus = DirectusService(cache_service=cache_service)
         try:
             deleted_count = await directus.health_event.cleanup_old_events(retention_days=retention_days)
-            
+
             if deleted_count >= 0:
                 logger.info(f"Health check: Cleanup completed. Deleted {deleted_count} old health events.")
             else:
                 logger.error("Health check: Cleanup failed.")
         finally:
             await directus.close()
+            await cache_service.close()
 
     # Run async cleanup
     try:
@@ -2446,22 +2472,25 @@ def precompute_status_summary(self):
 
         # Store in Redis with TTL
         cache_service = CacheService()
-        client = await cache_service.client
-        if client:
-            await client.set(
-                PRECOMPUTED_STATUS_KEY,
-                json.dumps(payload),
-                ex=PRECOMPUTED_STATUS_TTL,
-            )
-            svc_count = len(payload.get("services", []))
-            app_count = len(payload.get("apps", []))
-            func_count = len(payload.get("functionalities", []))
-            logger.info(
-                f"[STATUS] Precompute: Cached summary ({svc_count} services, "
-                f"{app_count} apps, {func_count} functionalities)"
-            )
-        else:
-            logger.warning("[STATUS] Precompute: Redis client unavailable, skipping cache write")
+        try:
+            client = await cache_service.client
+            if client:
+                await client.set(
+                    PRECOMPUTED_STATUS_KEY,
+                    json.dumps(payload),
+                    ex=PRECOMPUTED_STATUS_TTL,
+                )
+                svc_count = len(payload.get("services", []))
+                app_count = len(payload.get("apps", []))
+                func_count = len(payload.get("functionalities", []))
+                logger.info(
+                    f"[STATUS] Precompute: Cached summary ({svc_count} services, "
+                    f"{app_count} apps, {func_count} functionalities)"
+                )
+            else:
+                logger.warning("[STATUS] Precompute: Redis client unavailable, skipping cache write")
+        finally:
+            await cache_service.close()
 
     try:
         asyncio.run(run_precompute())

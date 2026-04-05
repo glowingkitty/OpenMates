@@ -363,12 +363,12 @@ async def _async_persist_new_chat_message_task(
         # This ensures new chats/messages are immediately available for other devices
         # Sync cache must contain client-encrypted messages (not vault-encrypted from AI cache)
         if user_id:
+            from backend.core.api.app.services.cache import CacheService
+            import json
+            import base64
+            cache_service = CacheService()
+
             try:
-                from backend.core.api.app.services.cache import CacheService
-                import json
-                import base64
-                cache_service = CacheService()
-                
                 # VALIDATION: Log encrypted content details for debugging sync/encryption issues
                 # This helps identify if content is properly client-encrypted before syncing
                 encrypted_content_valid = False
@@ -387,7 +387,7 @@ async def _async_persist_new_chat_message_task(
                         )
                 else:
                     logger.warning(f"[SYNC_CACHE_VALIDATION] ⚠️ Message {message_id} has no encrypted_content!")
-                
+
                 # Create the new message as a JSON string (matching Directus format)
                 # Use the provided message_status if present (e.g., "waiting_for_user" for
                 # credits-rejection system messages), otherwise default to "delivered".
@@ -414,13 +414,13 @@ async def _async_persist_new_chat_message_task(
                 if user_message_id:
                     new_message_dict["user_message_id"] = user_message_id
                 new_message_json = json.dumps(new_message_dict)
-                
+
                 # ATOMIC CACHE UPDATE: Use append instead of read-modify-write
                 # This prevents race conditions where concurrent tasks overwrite each other
                 await cache_service.append_sync_message_to_history(
-                    user_id=user_id, 
-                    chat_id=chat_id, 
-                    encrypted_message_json=new_message_json, 
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    encrypted_message_json=new_message_json,
                     ttl=3600
                 )
                 logger.info(
@@ -435,6 +435,8 @@ async def _async_persist_new_chat_message_task(
                     f"Failed to update sync cache for chat {chat_id} before Directus persistence "
                     f"(task_id: {task_id}): {sync_cache_error}"
                 )
+            finally:
+                await cache_service.close()
         else:
             logger.debug(f"user_id not provided, skipping sync cache update for chat {chat_id} (task_id: {task_id})")
 
@@ -785,6 +787,9 @@ async def _async_persist_chat_and_draft_on_logout(
         )
         # Consider re-raising for Celery's retry mechanisms if configured
         # raise
+    finally:
+        if cache_service:
+            await cache_service.close()
 
 @app.task(name="app.tasks.persistence_tasks.persist_chat_and_draft_on_logout", bind=True)
 def persist_chat_and_draft_on_logout_task(
@@ -1463,7 +1468,9 @@ async def _async_persist_ai_response_to_directus(
                     f"[SYNC_CACHE_UPDATE] ⚠️ Failed to update sync cache for chat {chat_id} after AI response storage "
                     f"(task_id: {task_id}): {sync_cache_error}"
                 )
-            
+            finally:
+                await cache_service.close()
+
             # Update chat with new messages_v and timestamp if versions provided
             if versions:
                 await _update_chat_versions_if_needed(
@@ -1842,6 +1849,8 @@ async def _async_persist_encrypted_chat_metadata(
                             f"Directus update succeeded, but cache may be stale until next sync.",
                             exc_info=True
                         )
+                    finally:
+                        await cache_service.close()
                 else:
                     logger.warning(
                         f"⚠️ Cannot update cache for chat {chat_id} - user_id not provided (task_id: {task_id})"
@@ -1912,6 +1921,8 @@ async def _async_persist_encrypted_chat_metadata(
                     title_v = encrypted_metadata.get("title_v", 1)
                     last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
                     last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
+                finally:
+                    await cache_service.close()
             else:
                 # No user_id provided - set defaults
                 now_ts = int(datetime.now(timezone.utc).timestamp())
@@ -1976,10 +1987,10 @@ async def _async_persist_encrypted_chat_metadata(
                 )
 
                 if user_id:
+                    cache_service = CacheService()
                     try:
                         fresh_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
                         if fresh_chat_metadata:
-                            cache_service = CacheService()
                             fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
                             fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
                             versions_update_result = await cache_service.set_chat_versions(
@@ -2005,6 +2016,8 @@ async def _async_persist_encrypted_chat_metadata(
                             f"(task_id: {task_id}): {cache_versions_error}",
                             exc_info=True,
                         )
+                    finally:
+                        await cache_service.close()
             elif is_duplicate:
                 # RACE CONDITION FIX: Chat creation failed because another task (persist_new_chat_message_task)
                 # already created a minimal chat record. Update the existing chat with encrypted metadata.
@@ -2025,10 +2038,10 @@ async def _async_persist_encrypted_chat_metadata(
                     )
 
                     if user_id:
+                        cache_service = CacheService()
                         try:
                             fresh_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
                             if fresh_chat_metadata:
-                                cache_service = CacheService()
                                 fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
                                 fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
                                 versions_update_result = await cache_service.set_chat_versions(
@@ -2054,6 +2067,8 @@ async def _async_persist_encrypted_chat_metadata(
                                 f"(task_id: {task_id}): {cache_versions_error}",
                                 exc_info=True,
                             )
+                        finally:
+                            await cache_service.close()
                 else:
                     logger.error(
                         f"❌ Failed to update chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
@@ -2230,8 +2245,8 @@ async def _async_persist_new_chat_suggestions(
         # CRITICAL: Invalidate the Redis cache so the next Phase 1 sync fetches the updated
         # suggestion pool from Directus instead of serving the stale cached snapshot.
         # Without this, newly generated suggestions are invisible for up to 10 minutes.
+        cache_service = CacheService()
         try:
-            cache_service = CacheService()
             await cache_service.delete_new_chat_suggestions(hashed_user_id)
             logger.info(
                 f"Invalidated new_chat_suggestions cache for user {hashed_user_id} (task_id: {task_id})"
@@ -2243,6 +2258,8 @@ async def _async_persist_new_chat_suggestions(
                 f"Failed to invalidate new_chat_suggestions cache for user {hashed_user_id} "
                 f"(task_id: {task_id}): {cache_error}"
             )
+        finally:
+            await cache_service.close()
 
     except Exception as e:
         logger.error(
@@ -2522,6 +2539,7 @@ async def _async_persist_embed_fallback(
             f"[EMBED_FALLBACK] Redis client not available for embed {embed_id}. "
             f"Cannot proceed without cache data. (task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     cache_key = f"embed:{embed_id}"
@@ -2531,6 +2549,7 @@ async def _async_persist_embed_fallback(
             f"[EMBED_FALLBACK] Embed {embed_id} not found in Redis cache (expired or never cached). "
             f"Cannot proceed without cache data. (task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     try:
@@ -2540,6 +2559,7 @@ async def _async_persist_embed_fallback(
             f"[EMBED_FALLBACK] Failed to parse cached embed {embed_id}: {e}. "
             f"(task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     # Step 3: Verify the embed is in "finished" status (don't re-send processing/error embeds)
@@ -2549,6 +2569,7 @@ async def _async_persist_embed_fallback(
             f"[EMBED_FALLBACK] Embed {embed_id} status is '{cached_status}', not 'finished'. "
             f"Skipping fallback re-send. (task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     # Step 4: Validate required fields for decryption and re-send
@@ -2564,6 +2585,7 @@ async def _async_persist_embed_fallback(
             f"This embed may have been cached before vault_key_id tracking was added. "
             f"(task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     if not user_id:
@@ -2572,6 +2594,7 @@ async def _async_persist_embed_fallback(
             f"Cannot re-send to client without user identification. "
             f"(task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     if not hashed_user_id:
@@ -2580,6 +2603,7 @@ async def _async_persist_embed_fallback(
             f"Cannot publish to WebSocket channel without user hash. "
             f"(task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     if not encrypted_content:
@@ -2587,6 +2611,7 @@ async def _async_persist_embed_fallback(
             f"[EMBED_FALLBACK] Embed {embed_id} has no encrypted_content in cache. "
             f"Nothing to decrypt and re-send. (task_id: {task_id})"
         )
+        await cache_service.close()
         return
 
     # Step 5: Decrypt vault-encrypted content to get plaintext TOON
@@ -2601,6 +2626,7 @@ async def _async_persist_embed_fallback(
                 f"(decrypt_with_user_key returned None). vault_key_id={vault_key_id}. "
                 f"(task_id: {task_id})"
             )
+            await cache_service.close()
             return
     except Exception as e:
         logger.error(
@@ -2608,6 +2634,7 @@ async def _async_persist_embed_fallback(
             f"vault_key_id={vault_key_id}. (task_id: {task_id})",
             exc_info=True
         )
+        await cache_service.close()
         return
 
     # Step 6: Build send_embed_data payload (same structure as EmbedService.send_embed_data_to_client)
@@ -2666,6 +2693,8 @@ async def _async_persist_embed_fallback(
             f"(task_id: {task_id})",
             exc_info=True
         )
+    finally:
+        await cache_service.close()
 
 
 @app.task(name="app.tasks.persistence_tasks.persist_embed_fallback", bind=True)

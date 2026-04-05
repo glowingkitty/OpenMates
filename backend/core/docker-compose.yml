@@ -1455,6 +1455,8 @@ services:
       - "${CACHE_THREADS:-8}"
       - "--requirepass"
       - "${DRAGONFLY_PASSWORD}"
+      - "--timeout"
+      - "300"
     deploy:
       resources:
         limits:

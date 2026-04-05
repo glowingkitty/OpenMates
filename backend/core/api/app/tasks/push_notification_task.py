@@ -104,7 +104,10 @@ async def _clear_stale_subscription(user_id: str) -> None:
                 logger.info(f"[PushTask] Cleared stale push subscription for user {user_id[:6]}...")
 
             cache = CacheService()
-            await cache.delete_user_cache(user_id)
+            try:
+                await cache.delete_user_cache(user_id)
+            finally:
+                await cache.close()
         finally:
             await secrets_manager.aclose()
     except Exception as e:

@@ -65,7 +65,8 @@ async def _async_generate_and_send_verification_email(
     """
     # Create services outside try block so they're available in finally
     secrets_manager = SecretsManager()
-    
+    cache_service = None
+
     try:
         # Create standalone services for this task
         cache_service = CacheService()
@@ -116,6 +117,8 @@ async def _async_generate_and_send_verification_email(
         logger.error(f"Error in _async_generate_and_send_verification_email task for {email[:2]}***: {str(e)}", exc_info=True)
         return False
     finally:
-        # CRITICAL: Close the httpx client before asyncio.run() closes the event loop
-        # This prevents "Event loop is closed" errors during httpx cleanup
+        # CRITICAL: Close async resources before asyncio.run() closes the event loop
+        # This prevents "Event loop is closed" errors and Redis connection leaks
+        if cache_service:
+            await cache_service.close()
         await secrets_manager.aclose()

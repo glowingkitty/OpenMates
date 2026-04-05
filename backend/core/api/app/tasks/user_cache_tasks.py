@@ -837,6 +837,7 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
     #     task_id=task_id
     # )
 
+    await cache_service.close()
     logger.info(f"TASK_LOGIC_FINISH: _async_warm_user_cache task finished for user_id: {user_id}, task_id: {task_id}")
 
 @app.task(name="app.tasks.user_cache_tasks.warm_user_cache", bind=True)
@@ -1657,4 +1658,5 @@ async def _async_delete_user_account(
         logger.error(f"[DELETE_ACCOUNT] Fatal error during account deletion for user {user_id}: {e}", exc_info=True)
         return False
     finally:
+        await cache_service.close()
         await directus_service.close()
