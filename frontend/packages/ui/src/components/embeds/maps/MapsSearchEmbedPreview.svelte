@@ -200,7 +200,7 @@
   .maps-search-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -216,7 +216,7 @@
   
   /* Query text */
   .search-query {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -231,43 +231,43 @@
   }
   
   .maps-search-details.mobile .search-query {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
   
   /* Provider subtitle */
   .search-provider {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
   .maps-search-details.mobile .search-provider {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Search results info (results count) */
   .search-results-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-2);
   }
   
   .maps-search-details.mobile .search-results-info {
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
   
   /* Results count */
   .results-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
   .maps-search-details.mobile .results-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* ===========================================

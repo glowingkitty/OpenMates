@@ -452,7 +452,7 @@
   .video-transcript-details {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
     height: 100%;
   }
   
@@ -470,7 +470,7 @@
   .title-row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
   
   /* Circular channel thumbnail (profile picture) - matches VideoEmbedPreview style */
@@ -482,7 +482,7 @@
     background-color: var(--color-grey-30);
     object-fit: cover;
     flex-shrink: 0;
-    margin-top: 2px; /* Align with first line of title */
+    margin-top: var(--spacing-1); /* Align with first line of title */
   }
   
   /* Placeholder while loading channel thumbnail */
@@ -493,7 +493,7 @@
     border-radius: 50%;
     background-color: var(--color-grey-30);
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
   
@@ -504,7 +504,7 @@
   
   /* Video title */
   .transcript-title {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 700;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -519,14 +519,14 @@
   }
   
   .video-transcript-details.mobile .transcript-title {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 3;
     line-clamp: 3;
   }
   
   /* Subtitle: "via YouTube Transcript API:\nX words" */
   .transcript-subtitle {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 700;
     color: var(--color-grey-70);
     line-height: 1.4;
@@ -534,7 +534,7 @@
   }
   
   .video-transcript-details.mobile .transcript-subtitle {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* ===========================================

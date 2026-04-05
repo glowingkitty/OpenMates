@@ -74,8 +74,8 @@
         cursor: pointer;
         width: 100%;
         text-align: left;
-        border-radius: 8px;
-        transition: background 0.15s ease;
+        border-radius: var(--radius-3);
+        transition: background var(--duration-fast) var(--easing-default);
         /* Reset global button rule leakage */
         height: auto;
         min-width: 0;
@@ -104,7 +104,7 @@
     :global(.mate-profile.mate-profile-settings) {
         width: 46px;
         height: 46px;
-        margin: 6px 12px 6px 10px;
+        margin: var(--spacing-3) var(--spacing-6) var(--spacing-3) var(--spacing-5);
         flex-shrink: 0;
     }
 
@@ -118,7 +118,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         min-width: 0;
     }
 
@@ -148,6 +148,6 @@
         border-top: 2px solid var(--color-grey-50, #999);
         transform: rotate(45deg);
         flex-shrink: 0;
-        margin-left: 8px;
+        margin-left: var(--spacing-4);
     }
 </style>

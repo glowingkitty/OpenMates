@@ -407,9 +407,9 @@
     width: calc(100% - 10px);
     background-color: var(--color-grey-15);
     margin-top: 15px;
-    padding-bottom: 16px;
-    margin-left: 10px;
-    margin-right: 10px;
+    padding-bottom: var(--spacing-8);
+    margin-left: var(--spacing-5);
+    margin-right: var(--spacing-5);
   }
 
   /* When preview split is active, container fills available height.
@@ -486,16 +486,16 @@
   .pii-toggle-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     padding: 5px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-2);
     border: none;
     background: var(--color-grey-25);
     color: var(--color-font-secondary);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color var(--duration-fast), color var(--duration-fast);
   }
 
   .pii-toggle-btn:hover {
@@ -513,7 +513,7 @@
   }
 
   .pii-toggle-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   /* Per-line container — vertical stack of .code-line rows.
@@ -522,7 +522,7 @@
   .code-lines-container {
     width: 100%;
     overflow-x: auto;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     line-height: 1.6;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
   }
@@ -546,7 +546,7 @@
   .code-line-gutter {
     flex: 0 0 auto;
     min-width: 40px;
-    padding-right: 12px;
+    padding-right: var(--spacing-6);
     text-align: right;
     color: var(--color-font-tertiary);
     user-select: none;

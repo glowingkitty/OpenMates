@@ -262,7 +262,7 @@
   :global(.embed-leaflet-map .leaflet-top.leaflet-right .leaflet-control-zoom) {
     margin-top: 0 !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     overflow: hidden;
   }
 </style>

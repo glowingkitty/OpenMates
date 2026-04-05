@@ -166,7 +166,7 @@
   .flight-number-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     margin-bottom: 3px;
   }
 
@@ -182,7 +182,7 @@
     font-weight: 600;
     color: var(--color-warning, #f59e0b);
     background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     padding: 1px 6px;
   }
 
@@ -196,14 +196,14 @@
   .date-row {
     font-size: 0.78rem;
     color: var(--color-text-secondary);
-    margin-bottom: 4px;
+    margin-bottom: var(--spacing-2);
   }
 
   .times-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
   }
 
   .time {
@@ -227,8 +227,8 @@
     font-weight: 500;
     color: var(--color-text-secondary);
     background: var(--color-grey-20, rgba(0, 0, 0, 0.06));
-    border-radius: 4px;
-    padding: 2px 6px;
+    border-radius: var(--radius-1);
+    padding: var(--spacing-1) var(--spacing-3);
   }
 
   .track-loading {

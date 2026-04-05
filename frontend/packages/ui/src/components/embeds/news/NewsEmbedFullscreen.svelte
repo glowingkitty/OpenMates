@@ -488,7 +488,7 @@
     max-width: 511px;
     border-radius: 30px;
     overflow: hidden;
-    margin-bottom: 24px;
+    margin-bottom: var(--spacing-12);
     background-color: var(--color-grey-30);
   }
   
@@ -508,7 +508,7 @@
   .title-section {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--spacing-6);
     width: 100%;
     max-width: 500px;
     margin-bottom: 25px;
@@ -522,7 +522,7 @@
     border: 1.5px solid white;
     background-color: white;
     object-fit: cover;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
   
   .news-title {
@@ -545,7 +545,7 @@
     color: #858585;
     width: 100%;
     max-width: 500px;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
     /* Align with title text (accounting for favicon width + gap) */
     padding-left: 40.5px;
   }
@@ -556,7 +556,7 @@
   
   .description {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-100);
     line-height: 1.5;
@@ -587,13 +587,13 @@
     font-family: 'Lexend Deca', sans-serif;
     font-weight: 700;
     color: #858585;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
   }
   
   .snippets-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--spacing-6);
   }
   
   /* ===========================================
@@ -632,7 +632,7 @@
   
   .snippet-text {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-100);
     line-height: 1.5;
@@ -651,31 +651,31 @@
     }
     
     .header-image-container {
-      border-radius: 20px;
+      border-radius: var(--radius-8);
     }
     
     .news-title {
-      font-size: 18px;
+      font-size: var(--font-size-h3-mobile);
     }
     
     .date-info {
-      font-size: 12px;
+      font-size: var(--font-size-xxs);
       padding-left: 36px;
     }
     
     .title-favicon {
       width: 24px;
       height: 24px;
-      border-radius: 12px;
+      border-radius: var(--radius-5);
     }
 
     .snippets-title {
-      font-size: 18px;
+      font-size: var(--font-size-h3-mobile);
     }
     
     .snippet-card {
       padding: 20px 50px;
-      border-radius: 20px;
+      border-radius: var(--radius-8);
     }
   }
   
@@ -691,19 +691,19 @@
     }
     
     .title-section {
-      gap: 8px;
+      gap: var(--spacing-4);
     }
     
     .news-title {
-      font-size: 16px;
+      font-size: var(--font-size-p);
     }
     
     .date-info {
-      padding-left: 32px;
+      padding-left: var(--spacing-16);
     }
     
     .snippet-card {
-      padding: 16px 40px;
+      padding: var(--spacing-8) var(--spacing-20);
     }
     
     .quote-icon {

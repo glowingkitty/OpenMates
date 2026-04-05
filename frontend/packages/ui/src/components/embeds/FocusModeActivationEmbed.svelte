@@ -370,7 +370,7 @@
   .focus-mode-bar {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     height: 61px;
     min-height: 61px;
     background-color: var(--color-grey-30);
@@ -380,7 +380,7 @@
     -webkit-user-select: none;
     position: relative;
     overflow: hidden;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    transition: background-color var(--duration-normal) var(--easing-default), box-shadow var(--duration-normal) var(--easing-default);
     width: 380px;
   }
 
@@ -449,12 +449,12 @@
     justify-content: center;
     flex: 1;
     min-width: 0;
-    gap: 2px;
-    padding-right: 16px;
+    gap: var(--spacing-1);
+    padding-right: var(--spacing-8);
   }
 
   .focus-mode-bar .status-label {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.2;
@@ -464,7 +464,7 @@
   }
 
   .focus-mode-bar .status-value {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
@@ -496,10 +496,10 @@
 
   /* Reject hint text below the bar */
   .reject-hint {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-40, #aaa);
-    margin-top: 4px;
-    padding-left: 2px;
+    margin-top: var(--spacing-2);
+    padding-left: var(--spacing-1);
     line-height: 1.3;
     white-space: pre-line;
   }

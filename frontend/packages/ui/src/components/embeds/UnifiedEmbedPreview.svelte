@@ -1043,8 +1043,8 @@
   
   /* Default padding for text-based content */
   .desktop-layout .details-section:not(.full-width-image) {
-    padding-right: 20px;
-    padding-left: 20px;
+    padding-right: var(--spacing-10);
+    padding-left: var(--spacing-10);
   }
   
   /* Full-width image content: remove padding, extend into BasicInfosBar area, */
@@ -1067,7 +1067,7 @@
     flex-direction: column;
     height: 100%;
     padding: 13px;
-    gap: 8px;
+    gap: var(--spacing-4);
     align-items: center;
   }
   
@@ -1086,9 +1086,9 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    padding: 16px;
+    padding: var(--spacing-8);
     color: var(--color-grey-70);
-    font-size: 14px;
+    font-size: var(--font-size-small);
     text-align: center;
   }
   
@@ -1120,7 +1120,7 @@
       height: 400px !important;
       min-height: 400px !important;
       max-height: 400px !important;
-      margin-top: 10px;
+      margin-top: var(--spacing-5);
       margin-bottom: 30px;
       overflow: visible !important;
     }

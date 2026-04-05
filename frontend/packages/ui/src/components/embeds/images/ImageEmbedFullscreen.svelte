@@ -416,7 +416,7 @@
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 220px);
-    padding: 24px;
+    padding: var(--spacing-12);
     box-sizing: border-box;
   }
 
@@ -443,7 +443,7 @@
     align-items: center;
     gap: 5px;
     padding: 5px 10px 5px 8px;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
     pointer-events: none;
@@ -455,7 +455,7 @@
     flex-shrink: 0;
     width: 14px;
     height: 14px;
-    background: #ffffff;
+    background: var(--color-grey-0);
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
     -webkit-mask-size: contain;
@@ -467,9 +467,9 @@
   }
 
   .ai-badge-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
-    color: #ffffff;
+    color: var(--color-grey-0);
     line-height: 1;
     white-space: nowrap;
     letter-spacing: 0.01em;
@@ -487,7 +487,7 @@
     max-width: 100%;
     max-height: calc(100vh - 280px);
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
   }
 
@@ -501,7 +501,7 @@
 
   .preview-placeholder {
     filter: blur(2px);
-    transition: filter 0.3s ease;
+    transition: filter var(--duration-slow) var(--easing-default);
   }
 
   .progressive-overlay {
@@ -525,7 +525,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px;
+    padding: var(--spacing-20);
   }
 
   .loading-spinner {
@@ -557,8 +557,8 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 32px;
-    gap: 12px;
+    padding: var(--spacing-16);
+    gap: var(--spacing-6);
   }
 
   .error-icon {
@@ -570,12 +570,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: var(--font-size-h2-mobile);
     font-weight: 700;
   }
 
   .error-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60, #666);
     margin: 0;
     max-width: 400px;

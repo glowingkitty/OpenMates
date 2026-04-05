@@ -857,7 +857,7 @@
   .search-results {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     padding: 0;
   }
 
@@ -865,7 +865,7 @@
   .search-section {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--spacing-1);
   }
 
   /* Section header text (e.g., "Settings", "Apps", "Today", "Yesterday") */
@@ -883,14 +883,14 @@
   .search-setting-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     padding: 9px 15px;
     cursor: pointer;
     border: none;
     background: transparent;
     width: 100%;
     text-align: left;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     transition: background-color 0.12s ease;
     color: var(--color-font-primary);
   }
@@ -913,7 +913,7 @@
   }
 
   .item-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
     color: var(--color-font-primary);
     flex: 1;
@@ -925,7 +925,7 @@
   .app-result-icons {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     flex-shrink: 0;
   }
 
@@ -935,7 +935,7 @@
 
   /* Chat result item wrapper */
   .search-chat-item {
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     cursor: pointer;
     transition: background-color 0.12s ease;
   }
@@ -964,14 +964,14 @@
 
   .message-snippet {
     display: block;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
     line-height: 1.45;
     cursor: pointer;
     border: none;
     background: transparent;
     padding: 3px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     text-align: left;
     /* Allow wrapping — snippets are already length-bounded by the search service.
        Using nowrap+ellipsis would cut off the match when it's not near the start. */
@@ -1000,33 +1000,33 @@
    * Uses the same visual style as embed-source-label for consistency. */
   .metadata-source-label {
     display: inline-block;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-font-tertiary, var(--color-font-secondary));
     opacity: 0.75;
-    margin-right: 4px;
+    margin-right: var(--spacing-2);
   }
 
   /* Embed source label (e.g., "Web page ·" or "Code ·") shown before embed-sourced snippets.
    * Styled as a muted badge so it doesn't compete with the match text. */
   .embed-source-label {
     display: inline-block;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-font-tertiary, var(--color-font-secondary));
     opacity: 0.75;
-    margin-right: 2px;
+    margin-right: var(--spacing-1);
   }
 
   .embed-snippet-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-2);
   }
 
   .embed-focus-meta {
@@ -1036,14 +1036,14 @@
   }
 
   .embed-focus-title {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     line-height: 1.2;
     color: var(--color-font-primary);
     font-weight: 600;
   }
 
   .embed-focus-status {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     line-height: 1.2;
     color: var(--color-font-secondary);
     font-weight: 500;
@@ -1095,11 +1095,11 @@
   .no-results {
     display: flex;
     justify-content: center;
-    padding: 40px 20px;
+    padding: var(--spacing-20) var(--spacing-10);
   }
 
   .no-results-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-font-secondary);
     text-align: center;
   }
@@ -1108,13 +1108,13 @@
   .warming-up {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     padding: 12px 15px;
     justify-content: center;
   }
 
   .warming-up-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
   }
 

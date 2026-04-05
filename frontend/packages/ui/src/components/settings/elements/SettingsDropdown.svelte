@@ -91,7 +91,7 @@
         cursor: pointer;
         appearance: none;
         -webkit-appearance: none;
-        transition: box-shadow 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default);
     }
 
     /* Placeholder-like styling for unselected state */

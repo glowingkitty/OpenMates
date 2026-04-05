@@ -535,7 +535,7 @@
   .web-search-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -551,7 +551,7 @@
   
   /* Query text */
   .search-query {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -566,37 +566,37 @@
   }
   
   .web-search-details.mobile .search-query {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
   
   /* Provider subtitle */
   .search-provider {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
   .web-search-details.mobile .search-provider {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Search results info (favicons + remaining count) */
   .search-results-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-2);
   }
   
   .web-search-details.mobile .search-results-info {
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
   
   /* Zero results indicator — muted text to clearly show search returned nothing */
   .no-results-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-grey-60);
     font-style: italic;
@@ -604,22 +604,22 @@
   
   /* Error message styling for debugging (still privacy-safe) */
   .search-error {
-    margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 12px;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-5);
     background-color: rgba(var(--color-error-rgb), 0.08);
     border: 1px solid rgba(var(--color-error-rgb), 0.3);
   }
   
   .search-error-title {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-error);
   }
   
   .search-error-message {
-    margin-top: 2px;
-    font-size: 12px;
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-70);
     line-height: 1.4;
     word-break: break-word;
@@ -652,13 +652,13 @@
   
   /* Remaining count */
   .remaining-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
   .web-search-details.mobile .remaining-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* ===========================================

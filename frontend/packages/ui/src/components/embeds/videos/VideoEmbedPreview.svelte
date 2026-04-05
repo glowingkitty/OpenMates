@@ -404,7 +404,7 @@
   .video-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -438,24 +438,24 @@
   
   /* Video hostname (for processing state) */
   .video-hostname {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
   .video-details.mobile .video-hostname {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Video URL fallback (when no thumbnail) */
   .video-url-fallback {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
   
   .video-path {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-60);
     line-height: 1.3;
     word-break: break-all;
@@ -463,7 +463,7 @@
   
   /* Error state */
   .video-error {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-error);
     line-height: 1.3;
   }

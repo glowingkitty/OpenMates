@@ -449,7 +449,7 @@ Supports both saved payment methods and new payment form
 
 <style>
     .loading-container {
-        padding: 20px;
+        padding: var(--spacing-10);
         text-align: center;
     }
 
@@ -459,27 +459,27 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-methods-container h3 {
-        margin-bottom: 16px;
-        font-size: 16px;
+        margin-bottom: var(--spacing-8);
+        font-size: var(--font-size-p);
         font-weight: 600;
     }
 
     .payment-methods-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: var(--spacing-6);
+        margin-bottom: var(--spacing-8);
     }
 
     .payment-method-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px;
+        padding: var(--spacing-8);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 2px solid transparent;
-        transition: border-color 0.2s;
+        transition: border-color var(--duration-normal);
     }
 
     .payment-method-item:hover {
@@ -489,20 +489,20 @@ Supports both saved payment methods and new payment form
     .payment-method-info {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
         flex: 1;
     }
 
     .card-brand {
         font-weight: 600;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-80);
     }
 
     .card-details {
         display: flex;
-        gap: 12px;
-        font-size: 13px;
+        gap: var(--spacing-6);
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
     }
 
@@ -513,14 +513,14 @@ Supports both saved payment methods and new payment form
     .add-payment-method-btn,
     .buy-now-btn {
         width: 100%;
-        padding: 12px 24px;
-        margin-top: 16px;
+        padding: var(--spacing-6) var(--spacing-12);
+        margin-top: var(--spacing-8);
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
     }
 
     .add-payment-method-btn {
@@ -563,18 +563,18 @@ Supports both saved payment methods and new payment form
     .provider-switch-container {
         display: flex;
         justify-content: center;
-        margin-top: 12px;
+        margin-top: var(--spacing-6);
     }
 
     .provider-switch-btn {
         background: none;
         border: none;
         padding: 0;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         cursor: pointer;
         text-decoration: underline;
-        transition: color 0.15s;
+        transition: color var(--duration-fast);
     }
 
     .provider-switch-btn:hover {

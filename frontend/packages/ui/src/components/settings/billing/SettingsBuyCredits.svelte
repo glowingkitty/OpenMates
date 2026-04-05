@@ -68,7 +68,7 @@ Buy Credits - Credit tier selection
     .credits-explainer {
         font-size: 0.85rem;
         color: var(--color-text-muted);
-        padding: 12px 16px 4px;
+        padding: var(--spacing-6) var(--spacing-8) var(--spacing-2);
         margin: 0;
         line-height: 1.4;
     }

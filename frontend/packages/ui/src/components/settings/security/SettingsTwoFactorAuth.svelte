@@ -813,23 +813,23 @@ Props:
 
 <style>
     .tfa-settings {
-        padding: 16px;
+        padding: var(--spacing-8);
     }
 
     /* Overview State */
     .tfa-overview {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--spacing-12);
     }
 
     .status-card {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 20px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border-left: 4px solid var(--color-grey-40);
     }
 
@@ -848,25 +848,25 @@ Props:
     }
 
     .status-icon .icon {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
     }
 
     .status-info h3 {
         margin: 0 0 4px 0;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-grey-100);
     }
 
     .status-info .app-name {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
     }
 
     .action-buttons {
         display: flex;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     /* Setup State */
@@ -877,11 +877,11 @@ Props:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
     
     .tfa-info {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         text-align: center;
         margin: 0;
@@ -889,7 +889,7 @@ Props:
 
     h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-grey-100);
         text-align: center;
@@ -897,7 +897,7 @@ Props:
 
     .description {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         text-align: center;
         max-width: 400px;
@@ -905,9 +905,9 @@ Props:
 
     /* QR Code */
     .qr-container {
-        padding: 16px;
+        padding: var(--spacing-8);
         background: var(--color-grey-5);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
 
     .qr-code {
@@ -922,7 +922,7 @@ Props:
     }
 
     .secret-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         margin: 0 0 8px 0;
         text-align: center;
@@ -931,16 +931,16 @@ Props:
     .secret-value {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         background: var(--color-grey-10);
-        padding: 12px;
-        border-radius: 8px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
     }
 
     .secret-value code {
         flex: 1;
         font-family: monospace;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-80);
         word-break: break-all;
     }
@@ -948,9 +948,9 @@ Props:
     .copy-btn {
         background: var(--color-grey-20);
         border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: var(--spacing-3) var(--spacing-6);
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-xxs);
         cursor: pointer;
         color: var(--color-grey-80);
     }
@@ -964,7 +964,7 @@ Props:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         width: 100%;
     }
 
@@ -978,7 +978,7 @@ Props:
     .app-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
         width: 100%;
         max-width: 400px;
     }
@@ -986,13 +986,13 @@ Props:
     .app-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
         background: var(--color-grey-10);
         border: 2px solid transparent;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
     }
 
     .app-item:hover {
@@ -1011,43 +1011,43 @@ Props:
 
     .app-item .app-name {
         flex: 1;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-100);
         text-align: left;
     }
 
     .app-item .check-icon {
         color: var(--color-primary);
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
     }
 
     /* Backup Codes */
     .codes-container {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        gap: var(--spacing-4);
         width: 100%;
         max-width: 400px;
         background: var(--color-grey-10);
-        padding: 16px;
-        border-radius: 8px;
+        padding: var(--spacing-8);
+        border-radius: var(--radius-3);
     }
 
     .code-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .code-number {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         min-width: 20px;
     }
 
     .code-item code {
         font-family: monospace;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-100);
     }
 
@@ -1059,14 +1059,14 @@ Props:
     .confirm-checkbox {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .confirm-checkbox label {
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 14px;
+        gap: var(--spacing-4);
+        font-size: var(--font-size-small);
         color: var(--color-grey-80);
         cursor: pointer;
     }
@@ -1096,17 +1096,17 @@ Props:
     /* Buttons */
     .btn-primary,
     .btn-secondary {
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .btn-primary {
@@ -1133,15 +1133,15 @@ Props:
     }
 
     .btn-cancel {
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: transparent;
         border: 1px solid var(--color-grey-40);
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         color: var(--color-grey-70);
         cursor: pointer;
-        transition: all 0.2s;
-        margin-top: 8px;
+        transition: all var(--duration-normal);
+        margin-top: var(--spacing-4);
     }
 
     .btn-cancel:hover {
@@ -1153,17 +1153,17 @@ Props:
     /* Messages */
     .error-message {
         color: var(--color-danger);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         text-align: center;
     }
 
     .success-message {
         color: var(--color-success);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
-        padding: 12px;
+        padding: var(--spacing-6);
         background: var(--color-success-light);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     /* Help Link */
@@ -1171,8 +1171,8 @@ Props:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        font-size: 13px;
+        gap: var(--spacing-2);
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
     }
 
@@ -1190,7 +1190,7 @@ Props:
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 40px;
+        padding: var(--spacing-20);
     }
 
     .loading-spinner {

@@ -318,7 +318,7 @@
     .message {
         margin: 0.75rem 1rem 0;
         padding: 0.75rem 1rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-size: 0.9rem;
     }
 
@@ -345,12 +345,12 @@
         padding: 0.85rem 1rem;
         background: var(--color-primary);
         border: none;
-        border-radius: 8px;
-        color: #fff;
+        border-radius: var(--radius-3);
+        color: var(--color-grey-0);
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.15s ease;
+        transition: opacity var(--duration-fast) var(--easing-default);
     }
 
     .save-btn:hover:not(:disabled) {
@@ -368,7 +368,7 @@
         margin: 0.25rem 1rem 1.5rem;
         padding: 1rem;
         background: var(--color-background-secondary);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-border);
     }
 

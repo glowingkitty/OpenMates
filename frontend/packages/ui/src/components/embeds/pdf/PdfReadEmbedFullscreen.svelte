@@ -274,7 +274,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     width: 100%;
     margin-top: 80px;
   }
@@ -291,10 +291,10 @@
   .content-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     width: 100%;
     max-width: 722px;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-font-primary);
     padding: 0 4px;
@@ -313,9 +313,9 @@
     width: auto;
     max-width: 722px;
     background-color: var(--color-grey-10);
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 20px;
+    border-radius: var(--radius-7);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-10);
   }
 
   /* Plain-text content — selectable, pre-wrap to preserve structure */
@@ -330,7 +330,7 @@
     white-space: pre-wrap;
     word-wrap: break-word;
     color: var(--color-grey-100);
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
 
   /* ===========================================

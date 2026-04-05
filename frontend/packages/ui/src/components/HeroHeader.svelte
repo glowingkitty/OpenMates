@@ -186,7 +186,7 @@
   /* Mobile grid positioning */
   .mobile-grid-fixed {
       width: 100%;
-      margin-bottom: 20px;
+      margin-bottom: var(--spacing-10);
       overflow: hidden;
   }
 

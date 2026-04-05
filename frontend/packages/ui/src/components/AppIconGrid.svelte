@@ -121,7 +121,7 @@
         align-items: center;
         justify-content: center;
         opacity: 0.2;
-        transition: opacity 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default);
         width: auto;
         height: auto;
     }

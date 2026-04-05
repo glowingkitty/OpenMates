@@ -488,7 +488,7 @@
         /* Match settings menu scrollbar style */
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
     }
     
     .settings-apps:hover {
@@ -505,9 +505,9 @@
     
     .settings-apps::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid var(--color-grey-20);
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
     
     .settings-apps:hover::-webkit-scrollbar-thumb {
@@ -525,7 +525,7 @@
     }
     
     .category-section {
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-5);
     }
     
     .show-all-apps-section {
@@ -541,12 +541,12 @@
         overflow-x: auto;
         overflow-y: hidden;
         padding-bottom: 0.5rem;
-        padding-left: 10px;
+        padding-left: var(--spacing-5);
         margin-top: 0.5rem;
         /* Match settings menu scrollbar style */
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
     }
     
     .apps-scroll-container:hover {
@@ -563,9 +563,9 @@
     
     .apps-scroll-container::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid var(--color-grey-20);
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
     
     .apps-scroll-container:hover::-webkit-scrollbar-thumb {

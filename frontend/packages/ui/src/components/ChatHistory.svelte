@@ -1700,7 +1700,7 @@
     bottom: 0;
     overflow-y: auto;
     overflow-x: hidden; /* Prevent horizontal scrollbar from appearing at certain viewport widths */
-    padding: 10px;
+    padding: var(--spacing-5);
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
     /* Disable browser's automatic scroll anchoring.
@@ -1822,7 +1822,7 @@
      stacks on top of it — we only need the extra padding-top offset removed since
      the banner already occupies the top space. */
   .chat-history-content.has-messages.has-header {
-    padding-top: 12px;
+    padding-top: var(--spacing-6);
   }
 
 
@@ -1833,7 +1833,7 @@
     display: flex;
     justify-content: center;
     padding: 20px 0;
-    margin-top: 10px;
+    margin-top: var(--spacing-5);
   }
 
 
@@ -1866,7 +1866,7 @@
     flex-shrink: 0;
     pointer-events: none;
     /* Smooth transition as spacer shrinks while AI response grows */
-    transition: height 0.15s ease-out;
+    transition: height var(--duration-fast);
   }
 
   .message-wrapper {
@@ -1913,16 +1913,16 @@
   .forgotten-messages-btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     padding: 6px 14px;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-60, #888);
     background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
   }
 
   .forgotten-messages-btn:hover {

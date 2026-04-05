@@ -39,7 +39,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         line-height: 1.3;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-font-primary);
         width: 100%;
         word-break: break-word;

@@ -544,7 +544,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     .device-card {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1rem;
         display: flex;
         flex-direction: column;
@@ -589,7 +589,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         flex: 1;
         min-width: 160px;
         padding: 0.4rem 0.6rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-10);
         color: var(--color-font-primary);
@@ -608,7 +608,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         gap: 0.75rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1rem 1.25rem;
     }
 
@@ -633,12 +633,12 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         flex-shrink: 0;
         width: 2.25rem;
         height: 2.25rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-0);
         color: var(--color-font-secondary);
         cursor: pointer;
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
     }
 
     .btn-copy:hover {
@@ -654,7 +654,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     .error-box {
         background: rgba(223, 27, 65, 0.08);
         border: 1px solid rgba(223, 27, 65, 0.25);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 0.75rem 1rem;
         font-size: var(--processing-details-font-size);
         color: var(--color-error);
@@ -663,7 +663,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     .info-box {
         background: rgba(59, 130, 246, 0.07);
         border: 1px solid rgba(59, 130, 246, 0.25);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 0.75rem 1rem;
         font-size: var(--processing-details-font-size);
         color: var(--color-font-primary);
@@ -671,12 +671,12 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
 
     .btn {
         padding: 0.65rem 1.25rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-size: var(--button-font-size);
         font-weight: 500;
         cursor: pointer;
         border: none;
-        transition: opacity 0.15s;
+        transition: opacity var(--duration-fast);
         flex: 1;
     }
 

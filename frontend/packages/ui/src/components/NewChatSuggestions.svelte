@@ -808,13 +808,13 @@
 
   .suggestions-header {
     color: var(--color-grey-60);
-    font-size: 16px;
+    font-size: var(--font-size-p);
     /* Align header left edge with the first card (mirroring recent-chats centering).
        Cards are 300px wide → left edge at 50% - 150px centres the first card. */
     padding: 0 0 0 calc(50% - 150px);
     letter-spacing: 0.5px;
     opacity: 0.9;
-    margin-bottom: 6px;
+    margin-bottom: var(--spacing-3);
     width: 100%;
     box-sizing: border-box;
   }
@@ -836,7 +836,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
@@ -868,18 +868,18 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     width: 300px;
     min-width: 300px;
     min-height: 56px;
     height: auto;
-    padding: 12px 16px;
+    padding: var(--spacing-6) var(--spacing-8);
     border: none;
     border-radius: 15px;
     cursor: pointer;
     flex-shrink: 0;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform var(--duration-fast) var(--easing-default), box-shadow var(--duration-fast) var(--easing-default);
   }
 
   .suggestion-card:hover {
@@ -919,8 +919,8 @@
   /* White bold text — matches Figma: Lexend Deca Bold 14px, line-height ~18px.
      Clamped to 2 lines with ellipsis so cards keep a consistent height. */
   .card-text {
-    color: #FFFFFF;
-    font-size: 14px;
+    color: var(--color-grey-0);
+    font-size: var(--font-size-small);
     font-weight: 700;
     line-height: 1.3;
     text-align: left;
@@ -935,7 +935,7 @@
   .filter-no-match {
     color: var(--color-grey-50);
     font-style: italic;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     opacity: 0.75;
   }
 
@@ -965,14 +965,14 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     flex-shrink: 0;
   }
 
   /* Small date label below the chat result card */
   .card-date {
     color: var(--color-grey-50);
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 400;
     line-height: 1.2;
     white-space: nowrap;
@@ -990,23 +990,23 @@
     .suggestions-header {
       /* Cards are 210px on mobile → left edge at 50% - 105px */
       padding: 0 0 0 calc(50% - 105px);
-      font-size: 14px;
+      font-size: var(--font-size-small);
     }
 
     .suggestions-scroll {
-      gap: 10px;
+      gap: var(--spacing-5);
       padding: 4px 15px 8px calc(50% - 105px);
     }
 
     .suggestion-card {
       width: 210px;
       min-width: 210px;
-      padding: 10px 12px;
-      gap: 8px;
+      padding: var(--spacing-5) var(--spacing-6);
+      gap: var(--spacing-4);
     }
 
     .card-text {
-      font-size: 13px;
+      font-size: var(--font-size-xs);
     }
   }
 </style>

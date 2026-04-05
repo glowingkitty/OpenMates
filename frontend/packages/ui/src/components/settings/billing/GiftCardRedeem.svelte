@@ -191,7 +191,7 @@ Tests: (none yet)
 
 <style>
     .gift-card-redeem-container {
-        padding: 20px 10px;
+        padding: var(--spacing-10) var(--spacing-5);
     }
 
     .gift-card-form {
@@ -201,7 +201,7 @@ Tests: (none yet)
     }
 
     .gift-card-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--text-primary, #333);
         margin-bottom: 5px;
@@ -209,10 +209,10 @@ Tests: (none yet)
 
     .gift-card-input {
         width: 100%;
-        padding: 12px 16px;
-        font-size: 16px;
+        padding: var(--spacing-6) var(--spacing-8);
+        font-size: var(--font-size-p);
         border: 1px solid var(--border-color, #ddd);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background-color: var(--input-background, #fff);
         color: var(--text-primary, #333);
         box-sizing: border-box;
@@ -231,37 +231,37 @@ Tests: (none yet)
     }
 
     .error-message {
-        padding: 10px;
+        padding: var(--spacing-5);
         background-color: var(--error-background, #fee);
         color: var(--error-text, #c33);
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
     }
 
     .success-message {
-        padding: 10px;
+        padding: var(--spacing-5);
         background-color: var(--success-background, #efe);
         color: var(--success-text, #3c3);
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
     }
 
     .button-container {
         display: flex;
-        gap: 10px;
-        margin-top: 10px;
+        gap: var(--spacing-5);
+        margin-top: var(--spacing-5);
     }
 
     .cancel-button,
     .redeem-button {
         flex: 1;
-        padding: 12px 24px;
-        font-size: 16px;
+        padding: var(--spacing-6) var(--spacing-12);
+        font-size: var(--font-size-p);
         font-weight: 500;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .cancel-button {

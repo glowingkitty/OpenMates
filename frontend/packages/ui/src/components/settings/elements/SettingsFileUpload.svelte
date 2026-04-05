@@ -117,7 +117,7 @@
         border-radius: 1.5rem;
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         cursor: pointer;
-        transition: box-shadow 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default);
         box-sizing: border-box;
     }
 

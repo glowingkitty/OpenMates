@@ -360,7 +360,7 @@
   .code-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
     /* Ensure no background shows through during 3D transforms */
     background: transparent;
@@ -408,7 +408,7 @@
   }
   
   .code-details.mobile .code-preview {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     line-height: 1.4;
   }
   
@@ -455,7 +455,7 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    gap: 8px;
+    gap: var(--spacing-4);
     color: var(--color-font-secondary);
   }
   
@@ -468,7 +468,7 @@
   }
   
   .processing-text {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   @keyframes pulse {
@@ -630,7 +630,7 @@
   .preview-line-gutter {
     flex: 0 0 auto;
     min-width: 32px;
-    padding-right: 10px;
+    padding-right: var(--spacing-5);
     text-align: right;
     color: var(--color-font-tertiary);
     user-select: none;

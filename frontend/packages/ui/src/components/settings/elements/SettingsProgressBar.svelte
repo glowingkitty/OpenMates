@@ -86,7 +86,7 @@
     .progress-fill {
         height: 100%;
         border-radius: 0.25rem;
-        transition: width 0.3s ease;
+        transition: width var(--duration-slow) var(--easing-default);
     }
 
     .progress-fill.default {

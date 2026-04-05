@@ -127,7 +127,7 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
-    padding: 12px 16px 8px;
+    padding: var(--spacing-6) var(--spacing-8) var(--spacing-4);
     height: 100%;
     justify-content: center;
   }
@@ -136,12 +136,12 @@
     width: 100%;
     height: 72px;
     object-fit: cover;
-    border-radius: 10px;
-    margin-bottom: 4px;
+    border-radius: var(--radius-4);
+    margin-bottom: var(--spacing-2);
   }
 
   .place-card.mobile {
-    padding: 8px 10px 6px;
+    padding: var(--spacing-4) var(--spacing-5) var(--spacing-3);
     justify-content: flex-start;
   }
 

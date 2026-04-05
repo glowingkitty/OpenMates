@@ -488,58 +488,58 @@ Architecture: docs/architecture/device-sessions.md
 <style>
     .sessions-container {
         width: 100%;
-        padding: 20px;
+        padding: var(--spacing-10);
         max-width: 800px;
         margin: 0 auto;
     }
 
     .page-title {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
         color: var(--color-grey-100);
     }
 
     .page-description {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .error-message {
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         border: 1px solid rgba(223, 27, 65, 0.3);
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .add-device-section {
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
         padding: 14px;
         border: 1px solid var(--color-grey-20);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         background: var(--color-grey-10);
     }
 
     .add-device-title {
         margin: 0;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-grey-100);
     }
 
     .add-device-description {
         margin: 6px 0 12px;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
     }
 
     .add-device-row {
         display: flex;
-        gap: 10px;
+        gap: var(--spacing-5);
         align-items: center;
     }
 
@@ -548,7 +548,7 @@ Architecture: docs/architecture/device-sessions.md
         background: var(--color-grey-15, var(--color-grey-10));
         color: var(--color-font-primary);
         border: 1px solid var(--color-grey-25);
-        padding: 10px 16px;
+        padding: var(--spacing-5) var(--spacing-8);
     }
 
     .btn-connect:hover:not(:disabled) {
@@ -557,28 +557,28 @@ Architecture: docs/architecture/device-sessions.md
 
     .add-device-error {
         margin: 8px 0 0;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-error);
     }
 
     .loading, .empty-state {
         text-align: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
         color: var(--color-grey-60);
     }
 
     .sessions-list {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .session-card {
         background: var(--color-grey-10);
-        border-radius: 12px;
-        padding: 20px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-10);
         border: 1px solid var(--color-grey-20);
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
     }
 
     .session-card.current {
@@ -590,7 +590,7 @@ Architecture: docs/architecture/device-sessions.md
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .session-info {
@@ -598,26 +598,26 @@ Architecture: docs/architecture/device-sessions.md
     }
 
     .session-device-name {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         margin: 0 0 4px 0;
         color: var(--color-grey-100);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         flex-wrap: wrap;
     }
 
     .flag {
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         line-height: 1;
     }
 
     .current-badge {
         display: inline-block;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
+        padding: var(--spacing-1) var(--spacing-5);
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-tiny);
         font-weight: 500;
         background: rgba(59, 130, 246, 0.1);
         color: #3b82f6;
@@ -626,9 +626,9 @@ Architecture: docs/architecture/device-sessions.md
 
     .new-badge {
         display: inline-block;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
+        padding: var(--spacing-1) var(--spacing-5);
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-tiny);
         font-weight: 500;
         background: rgba(40, 167, 69, 0.1);
         color: #28a745;
@@ -636,7 +636,7 @@ Architecture: docs/architecture/device-sessions.md
     }
 
     .session-location {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 4px 0 0 0;
     }
@@ -646,15 +646,15 @@ Architecture: docs/architecture/device-sessions.md
     }
 
     .session-details {
-        padding-top: 12px;
+        padding-top: var(--spacing-6);
         border-top: 1px solid var(--color-grey-20);
     }
 
     .detail-row {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 6px;
-        font-size: 13px;
+        margin-bottom: var(--spacing-3);
+        font-size: var(--font-size-xs);
     }
 
     .detail-label {
@@ -668,20 +668,20 @@ Architecture: docs/architecture/device-sessions.md
 
     .session-actions {
         display: flex;
-        gap: 8px;
-        padding-top: 12px;
+        gap: var(--spacing-4);
+        padding-top: var(--spacing-6);
         border-top: 1px solid var(--color-grey-20);
-        margin-top: 12px;
+        margin-top: var(--spacing-6);
     }
 
     .btn {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-4) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
         border: none;
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
     }
 
     .btn:disabled {
@@ -699,8 +699,8 @@ Architecture: docs/architecture/device-sessions.md
     }
 
     .bulk-actions {
-        margin-top: 24px;
-        padding-top: 20px;
+        margin-top: var(--spacing-12);
+        padding-top: var(--spacing-10);
         border-top: 1px solid var(--color-grey-20);
     }
 
@@ -708,7 +708,7 @@ Architecture: docs/architecture/device-sessions.md
         width: 100%;
         background: rgba(255, 165, 0, 0.1);
         color: #e69500;
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
     }
 
     .btn-logout-others:hover:not(:disabled) {
@@ -719,7 +719,7 @@ Architecture: docs/architecture/device-sessions.md
         width: 100%;
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
     }
 
     .btn-logout-all:hover:not(:disabled) {
@@ -727,15 +727,15 @@ Architecture: docs/architecture/device-sessions.md
     }
 
     .destructive-hint {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
         text-align: center;
     }
 
     @media (max-width: 768px) {
         .sessions-container {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .add-device-row {

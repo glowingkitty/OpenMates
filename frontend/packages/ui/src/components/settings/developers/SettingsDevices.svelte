@@ -338,52 +338,52 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 <style>
     .devices-container {
         width: 100%;
-        padding: 20px;
+        padding: var(--spacing-10);
         max-width: 800px;
         margin: 0 auto;
     }
 
     .page-title {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
         color: var(--color-grey-100);
     }
 
     .page-description {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .error-message {
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         border: 1px solid rgba(223, 27, 65, 0.3);
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .loading, .empty-state {
         text-align: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
         color: var(--color-grey-60);
     }
 
     .devices-list {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .device-card {
         background: var(--color-grey-10);
-        border-radius: 12px;
-        padding: 20px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-10);
         border: 1px solid var(--color-grey-20);
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
     }
 
     .device-card.pending {
@@ -395,7 +395,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .device-info {
@@ -403,39 +403,39 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     }
 
     .device-location {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         margin: 0 0 4px 0;
         color: var(--color-grey-100);
     }
 
     .country-code {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 400;
         color: var(--color-grey-60);
     }
 
     .device-ip {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 4px 0;
     }
 
     .device-type {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         margin: 4px 0 0 0;
     }
 
     .device-status {
-        margin-left: 16px;
+        margin-left: var(--spacing-8);
     }
 
     .status-badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 12px;
+        padding: var(--spacing-2) var(--spacing-6);
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-xxs);
         font-weight: 500;
     }
 
@@ -450,16 +450,16 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     }
 
     .device-details {
-        margin-bottom: 16px;
-        padding-top: 16px;
+        margin-bottom: var(--spacing-8);
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-grey-20);
     }
 
     .detail-row {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 8px;
-        font-size: 13px;
+        margin-bottom: var(--spacing-4);
+        font-size: var(--font-size-xs);
     }
 
     .detail-label {
@@ -473,19 +473,19 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
     .device-actions {
         display: flex;
-        gap: 8px;
-        padding-top: 16px;
+        gap: var(--spacing-4);
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-grey-20);
     }
 
     .btn {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-4) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
         border: none;
-        transition: all 0.2s;
+        transition: all var(--duration-normal);
     }
 
     .btn:disabled {
@@ -540,17 +540,17 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
     .device-name-edit {
         width: 100%;
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .device-name-actions {
         display: flex;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     @media (max-width: 768px) {
         .devices-container {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .device-header {
@@ -559,7 +559,7 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
         .device-status {
             margin-left: 0;
-            margin-top: 12px;
+            margin-top: var(--spacing-6);
         }
 
         .device-actions {

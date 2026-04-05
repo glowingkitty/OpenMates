@@ -238,12 +238,12 @@
     }
 
     .submenu-group {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .submenu-group h3 {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         margin: 6px 0;
     }
@@ -253,8 +253,8 @@
         color: var(--color-grey-50);
         text-decoration: none;
         padding: 6px 0;
-        font-size: 14px;
-        transition: color 0.2s ease;
+        font-size: var(--font-size-small);
+        transition: color var(--duration-normal) var(--easing-default);
     }
 
     .submenu-link:hover {
@@ -263,7 +263,7 @@
 
     .version-text {
         color: var(--color-grey-50);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         padding: 6px 0;
         display: block;
     }

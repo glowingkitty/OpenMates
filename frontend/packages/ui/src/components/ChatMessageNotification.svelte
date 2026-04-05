@@ -500,8 +500,8 @@
         max-width: calc(100vw - 10px);
         
         /* Base styling */
-        padding: 12px 16px;
-        border-radius: 12px;
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-5);
         background-color: var(--color-grey-20);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
@@ -527,8 +527,8 @@
     .notification-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-4);
     }
     
     /* Bell/announcement icon in header - grey color, smaller size */
@@ -542,7 +542,7 @@
     
     .notification-title {
         flex: 1;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-50);
         line-height: 1.4;
@@ -554,12 +554,12 @@
     .notification-dismiss {
         all: unset;
         cursor: pointer;
-        padding: 4px;
+        padding: var(--spacing-2);
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0.7;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         flex-shrink: 0;
     }
     
@@ -577,7 +577,7 @@
     .notification-content {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
         cursor: pointer;
     }
     
@@ -668,12 +668,12 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         min-width: 0;
     }
     
     .notification-message-primary {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         line-height: 1.4;
         color: var(--color-font-primary);
@@ -690,15 +690,15 @@
         cursor: pointer;
         display: block;
         width: 100%;
-        margin-top: 12px;
-        padding: 12px 16px;
+        margin-top: var(--spacing-6);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-0);
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 400;
         color: var(--color-grey-50);
         text-align: center;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
     
     .notification-reply-button:hover {
@@ -707,10 +707,10 @@
     
     /* Reply input section (expanded state) */
     .notification-reply-section {
-        margin-top: 12px;
+        margin-top: var(--spacing-6);
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
         /* Needed for RecordAudio overlay (absolute positioning) */
         position: relative;
         /* Add bottom padding to accommodate the action-buttons bar (40px height + 1rem top/bottom = ~56px) */
@@ -721,12 +721,12 @@
     
     .notification-reply-input {
         background-color: var(--color-grey-0);
-        border-radius: 8px;
-        padding: 12px 16px;
+        border-radius: var(--radius-3);
+        padding: var(--spacing-6) var(--spacing-8);
         min-height: 44px;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
-        transition: box-shadow 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default);
         cursor: text;
     }
     

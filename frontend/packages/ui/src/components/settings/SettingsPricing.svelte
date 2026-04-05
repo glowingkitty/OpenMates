@@ -118,7 +118,7 @@
     .currency-selector {
         display: flex;
         justify-content: flex-end;
-        padding: 10px 16px 4px;
+        padding: var(--spacing-5) var(--spacing-8) var(--spacing-2);
     }
 
     .currency-select {
@@ -127,7 +127,7 @@
         background-color: var(--color-grey-15, var(--color-grey-20));
         color: var(--color-grey-80);
         border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 5px 28px 5px 10px;
         font-size: 0.82rem;
         font-weight: 500;
@@ -136,7 +136,7 @@
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
         background-position: right 9px center;
-        transition: background-color 0.15s ease, border-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default), border-color var(--duration-fast) var(--easing-default);
     }
 
     .currency-select:hover {
@@ -154,7 +154,7 @@
     .pricing-vat-note {
         font-size: 0.78rem;
         color: var(--color-text-muted);
-        padding: 4px 16px 12px;
+        padding: var(--spacing-2) var(--spacing-8) var(--spacing-6);
         margin: 0;
         line-height: 1.4;
         opacity: 0.75;
@@ -163,10 +163,10 @@
     .pricing-tier {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding: 12px 16px;
+        gap: var(--spacing-2);
+        padding: var(--spacing-6) var(--spacing-8);
         border-bottom: 1px solid var(--color-grey-20);
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
     }
 
     .pricing-tier:hover {
@@ -180,7 +180,7 @@
     .tier-main {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .tier-credits {
@@ -195,7 +195,7 @@
         color: var(--color-primary);
         background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
         padding: 2px 7px;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         text-transform: uppercase;
         letter-spacing: 0.03em;
     }
@@ -204,7 +204,7 @@
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .tier-price {
@@ -215,7 +215,7 @@
     .tier-bonus {
         font-size: 0.78rem;
         color: var(--color-primary);
-        margin-left: 6px;
+        margin-left: var(--spacing-3);
         font-weight: 500;
     }
 </style>

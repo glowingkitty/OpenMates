@@ -467,15 +467,15 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
 
 <style>
     .master-toggle-row {
-        margin-bottom: 4px;
+        margin-bottom: var(--spacing-2);
     }
 
     .description-section {
-        padding: 4px 16px 12px;
+        padding: var(--spacing-2) var(--spacing-8) var(--spacing-6);
     }
 
     .description-text {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-grey-100);
         line-height: 1.5;
         margin: 0;
@@ -490,11 +490,11 @@ Based on Figma design: settings/privacy/hide_personal_data (node 4660:42313)
     }
 
     .encryption-note {
-        padding: 10px 16px;
+        padding: var(--spacing-5) var(--spacing-8);
     }
 
     .encryption-note p {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-60);
         line-height: 1.5;

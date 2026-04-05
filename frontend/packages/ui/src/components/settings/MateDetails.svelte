@@ -256,7 +256,7 @@
         margin-top: 0.75rem;
         padding: 1rem 1.25rem 1rem 2.5rem;
         background: var(--color-grey-10, #f5f5f5);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border: 1px solid var(--color-grey-20);
     }
 
@@ -286,14 +286,14 @@
     .instructions-toggle {
         display: block;
         margin-top: 0.75rem;
-        margin-left: 10px;
+        margin-left: var(--spacing-5);
         padding: 0.35rem 0.6rem;
         font-size: 0.875rem;
         color: var(--color-primary, #0066cc);
         background: transparent;
         border: none;
         cursor: pointer;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-weight: 500;
     }
 
@@ -323,14 +323,14 @@
         padding: 0.75rem 1.25rem;
         font-size: 1rem;
         font-weight: 600;
-        color: #ffffff;
+        color: var(--color-grey-0);
         background: linear-gradient(
             135deg,
             var(--color-primary-start, #5856d6),
             var(--color-primary-end, #a78bfa)
         );
         border: none;
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         cursor: pointer;
         text-align: center;
         transition: opacity 0.15s ease, transform 0.1s ease;
@@ -354,13 +354,13 @@
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.5rem 1rem;
         margin-top: 1rem;
         cursor: pointer;
         font-size: 0.9rem;
         color: var(--text-primary, #000000);
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
 
     .back-button:hover {

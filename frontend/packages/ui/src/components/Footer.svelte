@@ -280,13 +280,13 @@
         background: var(--color-footer);
         color: white;
         padding: 4rem 2rem 2rem;
-        margin-top: 40px;
+        margin-top: var(--spacing-20);
     }
 
     @media (max-width: 600px) {
         footer {
             padding: 2rem 1rem 1rem;
-            margin-top: 20px;
+            margin-top: var(--spacing-10);
         }
     }
 
@@ -308,7 +308,7 @@
         justify-content: space-between;
         gap: 2rem;
         padding: 0 2rem;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
 
     .logo {
@@ -370,7 +370,7 @@
     .footer-section ul li a {
         color: rgba(255, 255, 255, 0.7);
         text-decoration: none;
-        transition: color 0.2s ease;
+        transition: color var(--duration-normal) var(--easing-default);
     }
 
     .footer-section ul li a:hover {
@@ -462,8 +462,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 8px;
-        transition: transform 0.2s ease;
+        padding: var(--spacing-4);
+        transition: transform var(--duration-normal) var(--easing-default);
         text-decoration: none;
     }
 
@@ -486,7 +486,7 @@
         align-items: center;
         gap: 0.5rem;
         margin: 0 auto;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .language-selector:hover {

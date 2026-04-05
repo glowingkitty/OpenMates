@@ -283,11 +283,11 @@ visual-only for now.
 
 <style>
     .auto-deletion-description {
-        padding: 10px 16px 16px;
+        padding: var(--spacing-5) var(--spacing-8) var(--spacing-8);
     }
 
     .description-text {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-grey-100);
         line-height: 1.5;
         margin: 0;
@@ -303,15 +303,15 @@ visual-only for now.
         border: none;
         background-color: white;
         cursor: pointer;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-family: inherit;
         color: var(--color-grey-100);
         text-align: left;
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
     }
 
     .period-option:first-of-type {
-        border-radius: 12px 12px 0 0;
+        border-radius: var(--radius-5) 12px 0 0;
     }
 
     .period-option:last-of-type {
@@ -338,8 +338,8 @@ visual-only for now.
 
     .check-mark {
         color: var(--color-cta, #ff553b);
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 700;
-        margin-left: 12px;
+        margin-left: var(--spacing-6);
     }
 </style>

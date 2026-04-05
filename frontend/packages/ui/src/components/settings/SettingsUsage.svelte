@@ -2329,16 +2329,16 @@ Usage Settings - View usage statistics and export usage data
     .export-button {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-4) var(--spacing-8);
         background: var(--color-accent);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 13px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .export-button:hover {
@@ -2351,7 +2351,7 @@ Usage Settings - View usage statistics and export usage data
         margin: 8px 10px 0;
         padding: 4px 0;
         background: var(--color-grey-5, var(--color-grey-10));
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border: 1px solid var(--color-grey-20);
     }
 
@@ -2359,8 +2359,8 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        padding: 40px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-20);
         color: var(--color-grey-60);
     }
 
@@ -2380,16 +2380,16 @@ Usage Settings - View usage statistics and export usage data
     .error-message {
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         border: 1px solid rgba(223, 27, 65, 0.3);
-        margin: 16px 10px;
+        margin: var(--spacing-8) var(--spacing-5);
     }
 
     .empty-state {
         text-align: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
     }
 
     .empty-icon {
@@ -2406,20 +2406,20 @@ Usage Settings - View usage statistics and export usage data
     .empty-state h4 {
         margin: 0 0 8px 0;
         color: var(--color-grey-100);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
     }
 
     .empty-state p {
         margin: 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.4;
     }
 
     .credits-amount {
         color: var(--color-grey-80);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
     }
 
@@ -2457,7 +2457,7 @@ Usage Settings - View usage statistics and export usage data
         justify-content: center;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         border: 2px solid var(--color-background);
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .chat-usage-icon {
@@ -2469,20 +2469,20 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .usage-detail-view {
-        padding: 10px;
+        padding: var(--spacing-5);
     }
 
     .back-button {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding: 8px 0;
         background: none;
         border: none;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .back-button:hover {
@@ -2493,9 +2493,9 @@ Usage Settings - View usage statistics and export usage data
     .detail-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
+        gap: var(--spacing-6);
+        margin-bottom: var(--spacing-12);
+        padding-bottom: var(--spacing-8);
         border-bottom: 1px solid var(--color-grey-20);
     }
 
@@ -2528,22 +2528,22 @@ Usage Settings - View usage statistics and export usage data
     .detail-info h3 {
         margin: 0 0 4px 0;
         color: var(--color-grey-100);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
     }
 
     .detail-info p {
         margin: 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .detail-entries {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .detail-entry {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         background: none;
         border: none;
         padding: 0;
@@ -2564,17 +2564,17 @@ Usage Settings - View usage statistics and export usage data
 
     .entry-time {
         color: var(--color-grey-60);
-        font-size: 12px;
-        margin-bottom: 8px;
+        font-size: var(--font-size-xxs);
+        margin-bottom: var(--spacing-4);
     }
 
     .entry-content {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-6);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .entry-icon {
@@ -2591,27 +2591,27 @@ Usage Settings - View usage statistics and export usage data
 
     .entry-label {
         color: var(--color-grey-100);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
 
     .entry-sublabel {
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
     }
 
     .entry-credits {
         color: var(--color-grey-80);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .detail-export {
         text-align: center;
-        padding-top: 16px;
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-grey-20);
     }
 
@@ -2619,9 +2619,9 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
-        padding: 20px 10px;
-        margin-top: 24px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-10) var(--spacing-5);
+        margin-top: var(--spacing-12);
         border-top: 1px solid var(--color-grey-20);
     }
 
@@ -2633,9 +2633,9 @@ Usage Settings - View usage statistics and export usage data
         height: 36px;
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .pagination-button:hover:not(:disabled) {
@@ -2650,15 +2650,15 @@ Usage Settings - View usage statistics and export usage data
 
     .pagination-info {
         color: var(--color-grey-80);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
 
     .show-more-container {
         display: flex;
         justify-content: center;
-        padding: 20px 10px;
-        margin-top: 24px;
+        padding: var(--spacing-10) var(--spacing-5);
+        margin-top: var(--spacing-12);
         border-top: 1px solid var(--color-grey-20);
     }
 
@@ -2666,15 +2666,15 @@ Usage Settings - View usage statistics and export usage data
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-grey-80);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .show-more-button:hover {
@@ -2683,13 +2683,13 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .overview-empty-day {
-        padding: 16px;
+        padding: var(--spacing-8);
         text-align: center;
     }
 
     .overview-empty-text {
         color: var(--color-grey-50);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     /* Entry detail fields (Level 2 - model, tokens, credits) */
@@ -2714,16 +2714,16 @@ Usage Settings - View usage statistics and export usage data
 
     .entry-detail-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .entry-detail-value {
         color: var(--color-text);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     /* Sub-row for credit breakdown (indented, smaller) */
@@ -2732,17 +2732,17 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .entry-detail-sub .entry-detail-label {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     .entry-detail-breakdown {
         flex-direction: column;
         align-items: flex-end;
-        gap: 2px;
+        gap: var(--spacing-1);
     }
 
     .breakdown-item {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         font-weight: 400;
     }
@@ -2764,7 +2764,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .entry-detail-hint {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 400;
         color: var(--color-grey-50);
         line-height: 1.4;

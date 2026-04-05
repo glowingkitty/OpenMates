@@ -169,7 +169,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    padding: 24px;
+    padding: var(--spacing-12);
     min-width: 0;
     overflow: hidden;
     background: var(--color-grey-5, #fafafa);
@@ -179,7 +179,7 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.15);
     display: block;
   }
@@ -202,7 +202,7 @@
     width: 200px;
     height: 200px;
     background: var(--color-grey-15, #ebebeb);
-    border-radius: 16px;
+    border-radius: var(--radius-7);
   }
 
   .placeholder-icon {
@@ -217,15 +217,15 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 24px;
+    gap: var(--spacing-6);
+    padding: var(--spacing-12);
     overflow-y: auto;
     align-self: center;
   }
 
   .result-title {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-90, #1a1a1a);
     line-height: 1.4;
@@ -237,8 +237,8 @@
   .open-image-link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
+    gap: var(--spacing-3);
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-primary-50, #5b8dd9);
     text-decoration: none;
@@ -299,7 +299,7 @@
     .image-section {
       flex: none;
       width: 100%;
-      padding: 16px;
+      padding: var(--spacing-8);
     }
 
     .meta-section {

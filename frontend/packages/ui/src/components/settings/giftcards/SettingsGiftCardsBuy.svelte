@@ -66,11 +66,11 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
 
 <style>
     .info-message {
-        padding: 12px;
-        margin-bottom: 8px;
+        padding: var(--spacing-6);
+        margin-bottom: var(--spacing-4);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-grey-60);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 </style>

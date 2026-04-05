@@ -33,7 +33,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: space-between;
-        padding: 20px;
+        padding: var(--spacing-10);
         text-align: center;
         box-sizing: border-box;
     }
@@ -48,7 +48,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         min-height: 0; /* Allow shrinking in flex container */
     }
 
@@ -68,7 +68,7 @@
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
@@ -86,7 +86,7 @@
     .text-button {
         position: relative;
         margin-top: auto;
-        padding-top: 20px;
+        padding-top: var(--spacing-10);
         width: 100%;
     }
 

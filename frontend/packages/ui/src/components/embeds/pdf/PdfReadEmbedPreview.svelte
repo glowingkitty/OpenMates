@@ -261,7 +261,7 @@
   .skill-icon-large {
     width: 52px;
     height: 52px;
-    border-radius: 14px;
+    border-radius: var(--radius-6);
     background-size: 26px 26px;
     background-repeat: no-repeat;
     background-position: center;
@@ -279,9 +279,9 @@
   .text-snippet {
     width: 100%;
     height: 100%;
-    padding: 10px 12px;
+    padding: var(--spacing-5) var(--spacing-6);
     box-sizing: border-box;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     line-height: 1.55;
     color: var(--color-grey-80);
     overflow: hidden;
@@ -297,8 +297,8 @@
   }
 
   .pdf-read-details.mobile .text-snippet {
-    font-size: 11px;
-    padding: 8px 10px;
+    font-size: var(--font-size-tiny);
+    padding: var(--spacing-4) var(--spacing-5);
     -webkit-line-clamp: 5;
     line-clamp: 5;
   }

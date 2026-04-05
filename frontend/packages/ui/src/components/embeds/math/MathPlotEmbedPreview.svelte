@@ -224,7 +224,7 @@
   .formula-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
     overflow: hidden;
   }
 
@@ -233,7 +233,7 @@
     /* Allow KaTeX to wrap naturally; clip overflow */
     white-space: nowrap;
     color: var(--color-grey-100);
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
 
   /* KaTeX-rendered lines: let KaTeX control sizing, just clip overflow */
@@ -243,24 +243,24 @@
 
   /* KaTeX global style overrides scoped to this component's formula lines */
   .formula-line :global(.katex) {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-100);
   }
 
   .math-plot-details.mobile .formula-line :global(.katex) {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   /* Fallback monospace for non-KaTeX lines */
   .formula-line code {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-grey-100);
   }
 
   .math-plot-details.mobile .formula-line code {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
   }
 
   /* ── Loading placeholder (axis crosshairs) ───────────────────────────────── */
@@ -296,9 +296,9 @@
   /* ── Error ───────────────────────────────────────────────────────────────── */
 
   .error-indicator {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
   }
 
   /* ── Skill icon ──────────────────────────────────────────────────────────── */

@@ -224,7 +224,7 @@
     font-size: 0.75rem;
     color: var(--color-grey-60);
     line-height: 1.3;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
 
   /* Image on right side */
@@ -248,12 +248,12 @@
     top: 8px;
     right: 28px;
     padding: 3px 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     background-color: rgba(0, 0, 0, 0.6);
     color: var(--color-grey-0);
     font-size: 0.6875rem;
     font-weight: 500;
     white-space: nowrap;
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
 </style>

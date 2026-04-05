@@ -1977,7 +1977,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
         text-align: center;
         color: var(--color-grey-60);
     }
@@ -1985,24 +1985,24 @@
     .no-chat-message .icon {
         width: 48px;
         height: 48px;
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         opacity: 0.5;
     }
     
     .no-chat-message p {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin: 0;
     }
     
     /* Share description */
     .share-description {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
     
     .share-description p {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-80);
         margin: 0;
         line-height: 1.5;
@@ -2012,7 +2012,7 @@
     .share-options-section {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     
@@ -2021,15 +2021,15 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 8px 12px;
+        padding: var(--spacing-4) var(--spacing-6);
         background-color: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
     
     .option-label {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .option-label .icon {
@@ -2038,7 +2038,7 @@
     }
     
     .option-label span {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-100);
     }
     
@@ -2064,13 +2064,13 @@
     
     .password-input {
         width: 100%;
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         background-color: var(--color-grey-5);
         color: var(--color-grey-100);
-        transition: border-color 0.2s ease;
+        transition: border-color var(--duration-normal) var(--easing-default);
     }
     
     .password-input:focus {
@@ -2082,7 +2082,7 @@
     }
     
     .password-info {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
         margin: 8px 0 0 0;
     }
@@ -2091,19 +2091,19 @@
     .duration-options {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding: 0 12px;
     }
     
     .duration-option {
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-grey-30);
-        border-radius: 20px;
+        border-radius: var(--radius-8);
         background-color: var(--color-grey-5);
         color: var(--color-grey-80);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
     
     .duration-option:hover {
@@ -2120,20 +2120,20 @@
     .encryption-info {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 12px 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
     
     .info-icon {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1;
     }
     
     .encryption-info p {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;
@@ -2141,15 +2141,15 @@
     
     /* Chat info display */
     .chat-info-display {
-        margin-bottom: 16px;
-        padding: 16px;
+        margin-bottom: var(--spacing-8);
+        padding: var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
 
     .chat-info-display.link-step {
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .chat-preview {
@@ -2157,11 +2157,11 @@
     }
 
     .chat-preview-header {
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .chat-preview-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
         font-weight: 500;
         text-transform: uppercase;
@@ -2171,29 +2171,29 @@
     /* Share chat button (configuration step) */
     .share-chat-button {
         width: calc(100% - 40px);
-        margin: 20px 20px;
-        margin-bottom: 20px;
+        margin: var(--spacing-10) var(--spacing-10);
+        margin-bottom: var(--spacing-10);
     }
     
     /* Expire time info */
     .expire-time-info {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 12px 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
     }
     
     .expire-time-info .info-icon {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1;
     }
     
     .expire-time-info p {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;
@@ -2203,21 +2203,21 @@
     .community-info {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 12px 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
     }
     
     .community-info .info-icon {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1;
     }
     
     .community-info p {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;
@@ -2231,16 +2231,16 @@
     /* Back to configuration button */
     .back-to-config-button {
         width: 100%;
-        padding: 12px 20px;
+        padding: var(--spacing-6) var(--spacing-10);
         background-color: var(--color-grey-10);
         color: var(--color-grey-100);
         border: 1px solid var(--color-grey-30);
-        border-radius: 10px;
-        font-size: 14px;
+        border-radius: var(--radius-4);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
-        margin-top: 8px;
+        transition: all var(--duration-normal) var(--easing-default);
+        margin-top: var(--spacing-4);
     }
     
     .back-to-config-button:hover {
@@ -2252,8 +2252,8 @@
     .generated-link-section {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        padding-top: 8px;
+        gap: var(--spacing-8);
+        padding-top: var(--spacing-4);
     }
     
     /* Copy link button */
@@ -2261,16 +2261,16 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: var(--spacing-5);
         width: 100%;
         padding: 14px 20px;
         background-color: var(--color-grey-10);
         border: 2px dashed var(--color-grey-40);
-        border-radius: 10px;
-        font-size: 14px;
+        border-radius: var(--radius-4);
+        font-size: var(--font-size-small);
         color: var(--color-grey-100);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
     
     .copy-link-button:hover {
@@ -2309,7 +2309,7 @@
     
     /* Expiration info */
     .expiration-info {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         text-align: center;
         margin: 0;
@@ -2320,13 +2320,13 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 20px;
+        padding: var(--spacing-10);
         background-color: var(--color-grey-5);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
     
     .qr-code-title {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0 0 16px 0;
@@ -2334,8 +2334,8 @@
     
     .qr-code-container {
         background-color: white;
-        padding: 12px;
-        border-radius: 8px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         border: none;
         cursor: default;
@@ -2346,12 +2346,12 @@
 
     .qr-code-container.clickable {
         cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform var(--duration-normal) var(--easing-default), box-shadow var(--duration-normal) var(--easing-default);
     }
 
     .qr-code-container.clickable:hover {
         transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-md);
     }
 
     /* QR code SVG - uses fixed pixel dimensions from SVG attributes */
@@ -2369,11 +2369,11 @@
         align-items: center;
         justify-content: center;
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
     }
     
     .qr-code-instruction {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
         margin: 16px 0 0 0;
         text-align: center;
@@ -2392,7 +2392,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        padding: var(--spacing-10);
         box-sizing: border-box;
         cursor: pointer;
     }
@@ -2419,18 +2419,18 @@
 
     /* Embed Preview Styles */
     .embed-preview {
-        padding: 12px;
+        padding: var(--spacing-6);
         background-color: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
 
     .embed-preview-header {
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .embed-preview-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-80);
         text-transform: uppercase;
@@ -2455,24 +2455,24 @@
         transform-origin: top left;
         height: 186px;                      /* = 200px * 0.93, collapses excess whitespace */
         overflow: hidden;
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
 
     .embed-info {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .embed-title {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-grey-100);
         line-height: 1.3;
     }
 
     .embed-type {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-button-primary);
         text-transform: uppercase;
@@ -2480,7 +2480,7 @@
     }
 
     .embed-url {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-70);
         font-family: monospace;
         word-break: break-all;
@@ -2491,28 +2491,28 @@
     .short-link-section {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         border: 1px solid var(--color-grey-20);
     }
 
     .short-link-header {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .short-link-title {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
     }
 
     .short-link-info {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.4;
@@ -2520,19 +2520,19 @@
 
     .short-link-ttl-options {
         display: flex;
-        gap: 6px;
+        gap: var(--spacing-3);
         flex-wrap: wrap;
     }
 
     .short-link-ttl-option {
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-grey-30);
-        border-radius: 16px;
+        border-radius: var(--radius-7);
         background-color: var(--color-grey-5);
         color: var(--color-grey-80);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .short-link-ttl-option:hover {
@@ -2547,15 +2547,15 @@
 
     .short-link-generate-button {
         width: 100%;
-        padding: 10px 16px;
+        padding: var(--spacing-5) var(--spacing-8);
         background-color: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 13px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
         font-weight: 500;
         color: var(--color-grey-100);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .short-link-generate-button:hover:not(:disabled) {
@@ -2571,14 +2571,14 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
         width: 100%;
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-10);
         border: 2px dashed var(--color-grey-40);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .short-link-copy-button:hover {
@@ -2593,7 +2593,7 @@
     }
 
     .short-link-url {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-primary);
         font-family: monospace;
@@ -2602,26 +2602,26 @@
     }
 
     .short-link-copy-label {
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         color: var(--color-grey-60);
     }
 
     .short-link-countdown {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
         text-align: center;
         margin: 0;
     }
 
     .short-link-regenerate-button {
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         background: none;
         border: none;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
         cursor: pointer;
         text-align: center;
-        transition: color 0.2s;
+        transition: color var(--duration-normal);
     }
 
     .short-link-regenerate-button:hover {
@@ -2629,7 +2629,7 @@
     }
 
     .short-link-encryption-note {
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         color: var(--color-grey-50);
         margin: 0;
         line-height: 1.4;
@@ -2637,7 +2637,7 @@
     }
 
     .short-link-error {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-error, #ef4444);
         margin: 0;
         text-align: center;

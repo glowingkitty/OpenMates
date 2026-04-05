@@ -289,7 +289,7 @@
         min-height: 400px;
         height: 70vh;
         background-color: var(--color-grey-20);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         padding: 20px 20px 0 20px;
         overflow: hidden;
@@ -304,11 +304,11 @@
     }
 
     .highlight-container.left .highlight-visual {
-        padding-right: 40px;
+        padding-right: var(--spacing-20);
     }
 
     .highlight-container.right .highlight-visual {
-        padding-left: 40px;
+        padding-left: var(--spacing-20);
     }
 
     /* Content wrapper styles */
@@ -324,13 +324,13 @@
     .highlight-content-wrapper.content-left {
         margin-right: auto;
         margin-left: 0;
-        padding-right: 40px;
+        padding-right: var(--spacing-20);
     }
 
     .highlight-content-wrapper.content-right {
         margin-left: auto;
         margin-right: 0;
-        padding-left: 40px;
+        padding-left: var(--spacing-20);
     }
 
 
@@ -341,8 +341,8 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        padding: 20px;
+        border-radius: var(--radius-3);
+        padding: var(--spacing-10);
         width: 100%;
     }
 
@@ -375,7 +375,7 @@
         justify-content: center;
         align-items: center;
         width: auto;
-        gap: 20px;
+        gap: var(--spacing-10);
         margin-bottom: -70px;
     }
 
@@ -405,7 +405,7 @@
     }
 
     .description {
-        color: #6B6B6B;
+        color: var(--color-font-tertiary);
     }
 
     /* Icon styles */
@@ -417,7 +417,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
 
     .icons-text {

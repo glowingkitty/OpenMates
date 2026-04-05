@@ -427,7 +427,7 @@
         left: 10px;
         width: 50px;
         height: 50px;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         /* Disable pointer events and cursor to make it non-clickable */
         pointer-events: none;
         cursor: default;
@@ -439,7 +439,7 @@
         width: 100%;
         height: 100%;
         background-color: var(--color-grey-20);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -490,15 +490,15 @@
         margin-inline-start: 85px;
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding-bottom: 10px;
+        gap: var(--spacing-2);
+        padding-bottom: var(--spacing-5);
     }
 
     .username {
         font-size: 22px;
         font-weight: 500;
         color: var(--color-grey-100);
-        transition: transform 0.3s ease;
+        transition: transform var(--duration-slow) var(--easing-default);
     }
 
     /* Move username down when credits are hidden to fill the space */
@@ -510,7 +510,7 @@
     .credits-container {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     /* Hide credits visually when payment is disabled (self-hosted) while maintaining layout space */
@@ -520,12 +520,12 @@
 
     .credits-text {
         color: var(--color-grey-100);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         background: none;
         padding: 0;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .credits-icon {
@@ -546,7 +546,7 @@
         position: relative;
         width: 100%;
         overflow: hidden;
-        padding-top: 0px; /* Removed padding to eliminate top gap */
+        padding-top: var(--spacing-0); /* Removed padding to eliminate top gap */
         /* min-height now set dynamically via style attribute based on content height */
     }
     

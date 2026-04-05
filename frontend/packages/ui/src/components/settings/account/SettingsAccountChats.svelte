@@ -321,10 +321,10 @@ Tests: none yet — new settings sub-page.
 <style>
     /* ── Container ─────────────────────────────────────────────────────────── */
     .chats-container {
-        padding: 20px;
+        padding: var(--spacing-10);
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
         max-width: 560px;
     }
 
@@ -332,7 +332,7 @@ Tests: none yet — new settings sub-page.
     .loading-state {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         color: var(--color-grey-60);
         padding: 32px 0;
     }
@@ -355,11 +355,11 @@ Tests: none yet — new settings sub-page.
     .error-state {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 20px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-10);
         background: var(--color-error-light);
         border: 1px solid var(--color-error);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
 
     .error-text {
@@ -369,7 +369,7 @@ Tests: none yet — new settings sub-page.
     }
 
     .error-detail {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-error);
         margin: 0;
         word-break: break-word;
@@ -377,12 +377,12 @@ Tests: none yet — new settings sub-page.
 
     .btn-retry {
         align-self: flex-start;
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         background: var(--color-error);
         color: var(--color-grey-0);
         border: none;
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
     }
@@ -392,12 +392,12 @@ Tests: none yet — new settings sub-page.
     /* ── Count card — uses grey vars so it works in both light and dark mode ── */
     .count-card {
         background: var(--color-grey-20);
-        border-radius: 14px;
-        padding: 24px;
+        border-radius: var(--radius-6);
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .count-number {
@@ -408,7 +408,7 @@ Tests: none yet — new settings sub-page.
     }
 
     .count-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-60);
         text-transform: uppercase;
@@ -418,8 +418,8 @@ Tests: none yet — new settings sub-page.
     /* ── Section card ──────────────────────────────────────────────────────── */
     .section-card {
         background: var(--color-grey-20);
-        border-radius: 14px;
-        padding: 20px;
+        border-radius: var(--radius-6);
+        padding: var(--spacing-10);
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -427,7 +427,7 @@ Tests: none yet — new settings sub-page.
 
 
     .section-desc {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.5;
@@ -442,12 +442,12 @@ Tests: none yet — new settings sub-page.
     .delete-row {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--spacing-5);
         flex-wrap: wrap;
     }
 
     .select-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-70);
         white-space: nowrap;
         flex-shrink: 0;
@@ -456,12 +456,12 @@ Tests: none yet — new settings sub-page.
     .period-select {
         flex: 1;
         min-width: 100px;
-        padding: 8px 12px;
+        padding: var(--spacing-4) var(--spacing-6);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background: var(--color-grey-10);
         color: var(--color-grey-90);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
         appearance: auto;
     }
@@ -476,13 +476,13 @@ Tests: none yet — new settings sub-page.
         background: var(--color-grey-30);
         color: var(--color-grey-90);
         border: 1px solid var(--color-grey-40);
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;
-        transition: opacity 0.15s;
+        transition: opacity var(--duration-fast);
     }
 
     .btn-preview:hover:not(:disabled) { opacity: 0.75; }
@@ -490,12 +490,12 @@ Tests: none yet — new settings sub-page.
 
     /* ── Preview result ────────────────────────────────────────────────────── */
     .preview-result {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-grey-90);
         padding: 10px 14px;
         background: var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     /* ── Delete button ─────────────────────────────────────────────────────── */
@@ -505,12 +505,12 @@ Tests: none yet — new settings sub-page.
         background: var(--color-error);
         color: var(--color-grey-0);
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
-        transition: opacity 0.15s;
+        transition: opacity var(--duration-fast);
     }
 
     .btn-delete:hover:not(:disabled) { opacity: 0.85; }
@@ -519,8 +519,8 @@ Tests: none yet — new settings sub-page.
     /* ── Feedback ──────────────────────────────────────────────────────────── */
     .feedback {
         padding: 10px 14px;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
 

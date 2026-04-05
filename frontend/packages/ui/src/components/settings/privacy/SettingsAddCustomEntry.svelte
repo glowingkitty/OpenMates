@@ -127,9 +127,9 @@ All values are client-side encrypted before storage.
     .placeholder-preview {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding: 0 16px 16px;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .placeholder-label {
@@ -140,8 +140,8 @@ All values are client-side encrypted before storage.
         color: var(--color-grey-80);
         font-family: monospace;
         background-color: var(--color-grey-15, #f0f0f0);
-        padding: 2px 8px;
-        border-radius: 4px;
+        padding: var(--spacing-1) var(--spacing-4);
+        border-radius: var(--radius-1);
     }
 
     .error-message {
@@ -150,14 +150,14 @@ All values are client-side encrypted before storage.
 
     .error-message p {
         color: var(--color-error, #ff4444);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin: 0;
     }
 
     .save-button-container {
         display: flex;
         justify-content: center;
-        padding: 16px;
+        padding: var(--spacing-8);
     }
 
     .save-button {
@@ -167,11 +167,11 @@ All values are client-side encrypted before storage.
         border-radius: 15px;
         background-color: var(--color-cta, #ff553b);
         color: white;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         font-family: inherit;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .save-button:hover:not(.disabled) {

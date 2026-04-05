@@ -270,7 +270,7 @@
 
     .items-scroll {
         display: flex;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 4px 0;
     }
 

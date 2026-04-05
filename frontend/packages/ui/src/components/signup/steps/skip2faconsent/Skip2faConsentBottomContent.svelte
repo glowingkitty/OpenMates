@@ -36,7 +36,7 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
         gap: 18px;
@@ -45,12 +45,12 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
     .confirmation-row {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .confirmation-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1.4;
         cursor: pointer;
     }

@@ -569,7 +569,7 @@ This ensures users can never have a password without 2FA enabled.
 
 <style>
     .password-settings-container {
-        padding: 24px;
+        padding: var(--spacing-12);
         max-width: 500px;
     }
 
@@ -589,7 +589,7 @@ This ensures users can never have a password without 2FA enabled.
         border-top-color: var(--color-primary);
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 
     .loading-spinner-small {
@@ -608,14 +608,14 @@ This ensures users can never have a password without 2FA enabled.
     }
 
     .step-header {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .step-header h2 {
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-grey-100);
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .description {
@@ -626,21 +626,21 @@ This ensures users can never have a password without 2FA enabled.
     .auth-info {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
         background: var(--color-grey-10);
-        border-radius: 8px;
-        margin-bottom: 24px;
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-12);
     }
 
     .info-icon {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         line-height: 1;
     }
 
     .auth-info p {
         color: var(--color-grey-70);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
         margin: 0;
     }
@@ -648,42 +648,42 @@ This ensures users can never have a password without 2FA enabled.
     .password-form {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
 
     .form-group {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .form-group label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-80);
     }
 
     .field-error {
         color: var(--color-danger);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     .field-warning {
         color: var(--color-warning);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     .password-requirements {
-        padding: 16px;
+        padding: var(--spacing-8);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .requirements-title {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         color: var(--color-grey-70);
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .password-requirements ul {
@@ -693,10 +693,10 @@ This ensures users can never have a password without 2FA enabled.
     }
 
     .password-requirements li {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         padding: 4px 0;
-        padding-left: 24px;
+        padding-left: var(--spacing-12);
         position: relative;
     }
 
@@ -719,11 +719,11 @@ This ensures users can never have a password without 2FA enabled.
     .error-message {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
         background: var(--color-danger-light);
         border: 1px solid var(--color-danger);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .error-message .icon {
@@ -735,7 +735,7 @@ This ensures users can never have a password without 2FA enabled.
 
     .error-message span {
         color: var(--color-danger);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .submit-btn {
@@ -744,15 +744,15 @@ This ensures users can never have a password without 2FA enabled.
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background var(--duration-normal);
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .submit-btn:hover:not(:disabled) {
@@ -769,7 +769,7 @@ This ensures users can never have a password without 2FA enabled.
         flex-direction: column;
         align-items: center;
         text-align: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
     }
 
     .success-icon {
@@ -782,31 +782,31 @@ This ensures users can never have a password without 2FA enabled.
         align-items: center;
         justify-content: center;
         font-size: 32px;
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .success-step h2 {
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-grey-100);
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .success-step p {
         color: var(--color-grey-60);
-        margin-bottom: 32px;
+        margin-bottom: var(--spacing-16);
     }
 
     .done-btn {
-        padding: 12px 32px;
+        padding: var(--spacing-6) var(--spacing-16);
         background: var(--color-grey-20);
         color: var(--color-grey-80);
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background var(--duration-normal);
     }
 
     .done-btn:hover {
@@ -817,27 +817,27 @@ This ensures users can never have a password without 2FA enabled.
     .tfa-setup-step {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--spacing-12);
     }
 
     .tfa-info-banner {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
         background: var(--color-primary-light);
         border: 1px solid var(--color-primary);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .tfa-info-banner .info-icon {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         line-height: 1;
     }
 
     .tfa-info-banner p {
         color: var(--color-grey-90);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
         margin: 0;
     }

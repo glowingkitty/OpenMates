@@ -198,7 +198,7 @@
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
-    font-size: 16px;
+    font-size: var(--font-size-p);
   }
 
   .error-state {
@@ -206,12 +206,12 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 24px 16px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-12) var(--spacing-8);
   }
 
   .error-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     color: var(--color-error);
   }
@@ -221,8 +221,8 @@
   .results-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 24px 16px;
+    gap: var(--spacing-8);
+    padding: var(--spacing-12) var(--spacing-8);
     padding-bottom: 120px;
     max-width: 800px;
     margin: 0 auto;
@@ -232,15 +232,15 @@
 
   .result-card {
     background: var(--color-grey-10, #f5f5f5);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: var(--radius-5);
+    padding: var(--spacing-10);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
 
   .result-expression {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 400;
     color: var(--color-grey-70);
     font-family: 'Courier New', Courier, monospace;
@@ -257,13 +257,13 @@
   }
 
   .result-meta {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-70);
     font-weight: 400;
   }
 
   .result-error {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-error);
     font-weight: 500;
   }
@@ -271,8 +271,8 @@
   /* ── Steps ───────────────────────────────────────────────────────────────── */
 
   .result-steps {
-    margin-top: 8px;
-    font-size: 14px;
+    margin-top: var(--spacing-4);
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
   }
 
@@ -280,16 +280,16 @@
     cursor: pointer;
     font-weight: 500;
     color: var(--color-grey-100);
-    margin-bottom: 6px;
+    margin-bottom: var(--spacing-3);
   }
 
   .result-steps ol {
-    padding-left: 20px;
+    padding-left: var(--spacing-10);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 
   /* ── Skill icon ──────────────────────────────────────────────────────────── */

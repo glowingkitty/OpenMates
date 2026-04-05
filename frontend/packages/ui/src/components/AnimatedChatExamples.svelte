@@ -617,7 +617,7 @@
         will-change: transform;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: var(--spacing-10);
         transform: translateY(calc(-1 * var(--container-margin-top)));
         transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }

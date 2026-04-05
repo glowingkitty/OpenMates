@@ -93,7 +93,7 @@ step_6_top_content_svelte:
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -104,7 +104,7 @@ step_6_top_content_svelte:
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .text-block {
@@ -114,8 +114,8 @@ step_6_top_content_svelte:
 
     .preview-container {
         background: var(--color-grey-10);
-        padding: 10px;
-        border-radius: 20px 20px 0 0;
+        padding: var(--spacing-5);
+        border-radius: var(--radius-8) 20px 0 0;
         width: 80%;
         display: flex;
         justify-content: center;
@@ -132,7 +132,7 @@ step_6_top_content_svelte:
     .preview-wrapper {
         transform: scale(0.8);
         transform-origin: top center;
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     @media (max-width: 600px) {

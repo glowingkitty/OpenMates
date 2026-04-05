@@ -270,11 +270,11 @@
   .embed-reference-preview-placeholder,
   .embed-reference-preview-error {
     margin: 6px 0;
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: var(--spacing-5) var(--spacing-6);
+    border-radius: var(--radius-4);
     background: var(--color-grey-25);
     color: var(--color-font-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 
   .embed-reference-preview-error {

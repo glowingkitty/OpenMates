@@ -422,14 +422,14 @@ changes to the documentation (to keep the documentation up to date).
 
 <style>
     .newsletter-settings {
-        margin: 20px;
+        margin: var(--spacing-10);
     }
     
     
     .newsletter-form {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .input-group {
@@ -438,15 +438,15 @@ changes to the documentation (to keep the documentation up to date).
 
     .button-container button {
         width: 100%;
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-5);
     }
     
     .newsletter-info {
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
     }
     
     .info-text {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         margin: 0;
         line-height: 1.4;

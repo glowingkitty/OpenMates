@@ -517,20 +517,20 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-        margin-left: 10px;
+        margin-left: var(--spacing-5);
     }
 
     .provider-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        border-radius: 8px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-3);
     }
 
     .provider-item--clickable {
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .provider-item--clickable:hover {
@@ -549,10 +549,10 @@
     .provider-logo {
         width: 36px;
         height: 36px;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         object-fit: contain;
         background: var(--color-grey-10);
-        padding: 4px;
+        padding: var(--spacing-2);
     }
 
     .provider-info {
@@ -641,7 +641,7 @@
         margin-top: 0.75rem;
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
     }
     
     .how-to-use-scroll-container:hover {
@@ -658,9 +658,9 @@
     
     .how-to-use-scroll-container::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid var(--color-grey-20);
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
     
     .how-to-use-scroll-container:hover::-webkit-scrollbar-thumb {
@@ -684,7 +684,7 @@
         padding: 1rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-20);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         /* Opening quote top-left, text spans middle, closing quote bottom-right */
         display: grid;
         grid-template-areas:
@@ -737,17 +737,17 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-        margin-left: 10px;
+        margin-left: var(--spacing-5);
     }
     
     .model-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        border-radius: 8px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
     
     .model-item:hover {
@@ -766,10 +766,10 @@
     .provider-logo {
         width: 36px;
         height: 36px;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         object-fit: contain;
         background: var(--color-grey-10);
-        padding: 4px;
+        padding: var(--spacing-2);
     }
     
     .model-info {
@@ -777,7 +777,7 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
     }
     
     .model-name {
@@ -813,13 +813,13 @@
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.5rem 1rem;
         margin-top: 1rem;
         cursor: pointer;
         font-size: 0.9rem;
         color: var(--text-primary, #000000);
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
     
     .back-button:hover {

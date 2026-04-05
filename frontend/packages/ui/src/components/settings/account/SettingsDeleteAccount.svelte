@@ -446,14 +446,14 @@ Uses SecurityAuth component for passkey/2FA verification.
 <style>
     .loading-message {
         text-align: center;
-        padding: 40px;
+        padding: var(--spacing-20);
         color: var(--color-grey-60);
     }
 
     .warning-box, .info-box {
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: var(--spacing-10);
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-10);
     }
 
     .warning-box {
@@ -467,29 +467,29 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 
     .warning-box h3, .info-box h3 {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
         color: var(--color-grey-80);
     }
 
     .warning-box p, .info-box p {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         color: var(--color-grey-70);
         line-height: 1.5;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .toggle-label {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .toggle-label span {
         flex: 1;
         color: var(--color-grey-80);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .refund-details {
@@ -501,7 +501,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     .refund-details li {
         padding: 8px 0;
         border-bottom: 1px solid var(--color-grey-20);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .refund-details li:last-child {
@@ -509,26 +509,26 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 
     .error-message {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--color-danger-light);
         border: 1px solid var(--color-danger);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-danger);
-        margin-bottom: 16px;
-        font-size: 14px;
+        margin-bottom: var(--spacing-8);
+        font-size: var(--font-size-small);
     }
 
     .success-message {
-        padding: 16px;
+        padding: var(--spacing-8);
         background: var(--color-success-light);
         border: 1px solid var(--color-success);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-success);
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
 
     .action-buttons {
-        margin-top: 24px;
+        margin-top: var(--spacing-12);
     }
 
     .delete-button {
@@ -537,8 +537,8 @@ Uses SecurityAuth component for passkey/2FA verification.
         background: var(--color-danger);
         color: var(--color-grey-100);
         border: none;
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
     }
@@ -554,14 +554,14 @@ Uses SecurityAuth component for passkey/2FA verification.
     }
 
     .retry-button {
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-primary);
         color: var(--color-grey-100);
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        margin-top: 16px;
+        margin-top: var(--spacing-8);
     }
 </style>

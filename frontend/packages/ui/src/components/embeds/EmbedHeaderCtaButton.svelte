@@ -53,12 +53,12 @@
     color: white;
     border: none;
     border-radius: 15px;
-    padding: 12px 24px;
+    padding: var(--spacing-6) var(--spacing-12);
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.15s;
+    transition: background-color var(--duration-normal), transform var(--duration-fast);
     min-width: 200px;
     display: inline-flex;
     align-items: center;
@@ -113,7 +113,7 @@
 
   @container fullscreen (max-width: 600px) {
     .embed-header-cta {
-      padding: 10px 20px;
+      padding: var(--spacing-5) var(--spacing-10);
       min-width: 160px;
     }
   }

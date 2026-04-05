@@ -379,11 +379,11 @@
         gap: 0.5rem;
         padding: 0.75rem 1rem;
         border: 1.5px dashed var(--color-grey-35);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         cursor: pointer;
         color: var(--color-font-secondary);
         font-size: var(--font-size-p);
-        transition: border-color 0.15s, background 0.15s;
+        transition: border-color var(--duration-fast), background var(--duration-fast);
     }
 
     .file-label:hover {
@@ -399,7 +399,7 @@
     .select-section {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1.25rem;
         margin-bottom: 1.25rem;
     }
@@ -448,7 +448,7 @@
     }
 
     .chat-item {
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         overflow: hidden;
     }
 
@@ -458,7 +458,7 @@
         gap: 0.75rem;
         padding: 0.6rem 0.75rem;
         cursor: pointer;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         transition: background 0.1s;
     }
 
@@ -498,7 +498,7 @@
         padding: 0.9rem 1rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         margin-bottom: 1.25rem;
     }
 
@@ -570,7 +570,7 @@
         padding: 0.75rem 1rem;
         background: var(--color-success-bg, #ecfdf5);
         border: 1px solid var(--color-success-border, #a7f3d0);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         color: var(--color-success-text, #065f46);
         margin-bottom: 1rem;
         font-size: var(--font-size-p);
@@ -589,7 +589,7 @@
         padding: 0.6rem 0.75rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .result-title {
@@ -624,7 +624,7 @@
         padding: 0.75rem 1rem;
         background: var(--color-error-bg, #fef2f2);
         border: 1px solid var(--color-error-border, #fecaca);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         color: var(--color-error-text, #991b1b);
         font-size: var(--font-size-p);
         margin-bottom: 1rem;
@@ -637,7 +637,7 @@
         padding: 0.75rem 1rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         margin-bottom: 1.25rem;
     }
 
@@ -667,12 +667,12 @@
         align-items: center;
         gap: 0.4rem;
         padding: 0.6rem 1.2rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-size: var(--font-size-p);
         font-weight: 500;
         cursor: pointer;
         border: 1.5px solid transparent;
-        transition: opacity 0.15s, background 0.15s;
+        transition: opacity var(--duration-fast), background var(--duration-fast);
     }
 
     .btn:disabled {
@@ -714,7 +714,7 @@
     .file-type-badge {
         margin-left: auto;
         padding: 0.1rem 0.45rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.04em;

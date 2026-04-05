@@ -456,27 +456,27 @@
     width: 100%;
     height: 190px;
     object-fit: cover;
-    border-radius: 12px;
+    border-radius: var(--radius-5);
   }
 
   .event-meta-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
 
   .event-type-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: #fff; /* intentional: always white on brand colour */
+    color: var(--color-grey-0); /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {
@@ -486,7 +486,7 @@
   .event-fee-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 600;
@@ -497,7 +497,7 @@
   .event-free-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 600;
@@ -513,7 +513,7 @@
   .event-source-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 500;
@@ -525,7 +525,7 @@
   .event-section {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
 
   .section-label {

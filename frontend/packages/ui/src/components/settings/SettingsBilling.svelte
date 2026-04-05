@@ -147,19 +147,19 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 <style>
     /* Balance Info Section */
     .balance-info {
-        padding: 10px;
-        margin-bottom: 8px;
+        padding: var(--spacing-5);
+        margin-bottom: var(--spacing-4);
     }
 
     .balance-display {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 20px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-5);
+        box-shadow: var(--shadow-xs);
     }
 
     .balance-amount {
@@ -170,7 +170,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     .balance-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     /* Icons - restored original styling */
@@ -190,7 +190,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     .section-divider {
         height: 1px;
         background: var(--color-grey-25);
-        margin: 12px 10px;
+        margin: var(--spacing-6) var(--spacing-5);
     }
 
     /* Error uses global .settings-error from settings.css */
@@ -198,11 +198,11 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     /* Responsive Styles */
     @media (max-width: 768px) {
         .balance-display {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .balance-amount {
-            font-size: 24px;
+            font-size: var(--font-size-h2-mobile);
         }
     }
 

@@ -181,7 +181,7 @@
     cursor: pointer;
     text-decoration: none;
     /* Slight lift on hover to indicate interactivity */
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
     user-select: none;
   }
 

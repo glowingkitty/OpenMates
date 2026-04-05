@@ -174,7 +174,7 @@ step_8_top_content_svelte:
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -185,7 +185,7 @@ step_8_top_content_svelte:
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .text-block {
@@ -196,8 +196,8 @@ step_8_top_content_svelte:
     .settings-block {
         width: 80%;
         background-color: var(--color-grey-20);
-        border-radius: 16px 16px 0 0;
-        padding: 16px;
+        border-radius: var(--radius-7) 16px 0 0;
+        padding: var(--spacing-8);
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
 
@@ -206,11 +206,11 @@ step_8_top_content_svelte:
     .settings-header {
         display: flex;
         justify-content: flex-end;
-        padding-right: 10px;
+        padding-right: var(--spacing-5);
     }
     
     .default-settings-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-80);
     }
 
@@ -225,7 +225,7 @@ step_8_top_content_svelte:
         }
         
         .content {
-            padding: 12px;
+            padding: var(--spacing-6);
         }
 
         .settings-block {

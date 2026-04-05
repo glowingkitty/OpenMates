@@ -74,7 +74,7 @@
         font-size: var(--input-font-size, 1rem);
         line-height: 1.25;
         color: var(--color-grey-100);
-        transition: box-shadow 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default);
         resize: vertical;
         box-sizing: border-box;
     }

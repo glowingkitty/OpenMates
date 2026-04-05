@@ -124,14 +124,14 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 
     .error-message p {
         color: var(--color-error, #ff4444);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin: 0;
     }
 
     .save-button-container {
         display: flex;
         justify-content: center;
-        padding: 16px;
+        padding: var(--spacing-8);
     }
 
     .save-button {
@@ -141,11 +141,11 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         border-radius: 15px;
         background-color: var(--color-cta, #ff553b);
         color: white;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         font-family: inherit;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .save-button:hover:not(.disabled) {

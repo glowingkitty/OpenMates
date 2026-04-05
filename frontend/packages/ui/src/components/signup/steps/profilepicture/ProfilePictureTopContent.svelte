@@ -61,12 +61,12 @@
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 24px;
+        gap: var(--spacing-12);
     }
 
     .image-container {
@@ -101,7 +101,7 @@
         height: 100%;
         background-size: cover;
         background-position: center;
-        transition: opacity 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     .preview-image.dimmed {

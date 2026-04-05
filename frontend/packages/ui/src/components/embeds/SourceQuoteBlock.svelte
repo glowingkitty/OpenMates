@@ -132,14 +132,14 @@
     /* Re-apply the styles we actually want */
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6) var(--spacing-8);
     margin: 8px 0;
     border-left: 3px solid var(--color-border-accent, #d0d7de);
     border-radius: 0 8px 8px 0;
     background-color: var(--color-background-tertiary, #f8f9fa);
     cursor: pointer;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default), box-shadow var(--duration-fast) var(--easing-default);
     user-select: none;
     /* Ensure the button is full-width block-level */
     width: 100%;
@@ -166,7 +166,7 @@
   /* ── Quoted text ─────────────────────────────────────────────────────── */
 
   .source-quote-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-style: italic;
     line-height: 1.5;
     color: var(--color-font-primary, #000);
@@ -184,7 +184,7 @@
     font-style: normal;
     font-weight: 600;
     color: var(--color-grey-40);
-    font-size: 16px;
+    font-size: var(--font-size-p);
   }
 
   /* ── Source badge ────────────────────────────────────────────────────── */
@@ -192,7 +192,7 @@
   .source-quote-badge {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .source-quote-badge-icon {
@@ -226,7 +226,7 @@
   }
 
   .source-quote-badge-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-60);
     white-space: nowrap;

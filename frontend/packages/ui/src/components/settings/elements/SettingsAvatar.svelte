@@ -156,7 +156,7 @@
         justify-content: center;
         background: rgba(0, 0, 0, 0.4);
         opacity: 0;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         border-radius: 50%;
     }
 
@@ -173,6 +173,6 @@
     .edit-icon {
         width: 1.5rem;
         height: 1.5rem;
-        background-color: #ffffff;
+        background-color: var(--color-grey-0);
     }
 </style>

@@ -235,20 +235,20 @@
     }
 
     .back-button-container {
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
 
     .back-button {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         background: none;
         border: none;
         color: var(--color-grey-60);
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         padding: 8px 0;
-        transition: color 0.2s;
+        transition: color var(--duration-normal);
     }
 
     .back-button:hover {
@@ -261,42 +261,42 @@
     }
 
     .selected-tier-info {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
         text-align: center;
     }
 
     .selected-tier-info h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-grey-80);
     }
 
     .email-field-container {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .email-field-label {
-        margin-bottom: 8px;
-        font-size: 14px;
+        margin-bottom: var(--spacing-4);
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-70);
     }
 
     .button-group {
         display: flex;
-        gap: 8px;
-        margin-top: 8px;
+        gap: var(--spacing-4);
+        margin-top: var(--spacing-4);
         justify-content: center;
     }
 
     .primary-button {
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: none;
         background: var(--color-primary);
         color: white;
@@ -313,12 +313,12 @@
     }
 
     .secondary-button {
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: 1px solid var(--color-grey-30);
         background: transparent;
         color: var(--color-grey-100);
@@ -329,7 +329,7 @@
     }
 
     .payment-component-container {
-        margin-top: 24px;
+        margin-top: var(--spacing-12);
     }
 
     @media (max-width: 480px) {

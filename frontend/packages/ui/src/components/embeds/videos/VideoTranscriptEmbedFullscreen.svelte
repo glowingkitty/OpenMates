@@ -542,7 +542,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: var(--spacing-8);
     width: 100%;
     margin-top: 80px;
   }
@@ -552,14 +552,14 @@
   .video-preview-wrapper {
     display: flex;
     justify-content: center;
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-4);
   }
   
   /* Remove the 3D tilt effect from the video preview in fullscreen context */
   /* The tilt effect looks odd when clicking opens another fullscreen layer */
   .video-preview-wrapper :global(.unified-embed-preview) {
     /* Keep the hover scale effect but reduce the tilt */
-    transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
+    transition: transform var(--duration-fast), box-shadow var(--duration-normal);
   }
   
   .video-preview-wrapper :global(.unified-embed-preview:hover) {
@@ -580,9 +580,9 @@
     width: auto;
     max-width: 722px;
     background-color: var(--color-grey-10);
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 20px;
+    border-radius: var(--radius-7);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-10);
   }
   
   /* Transcript content - selectable text with preserved whitespace */
@@ -603,15 +603,15 @@
   .transcript-content :global(.timestamp) {
     color: var(--color-grey-80);
     font-family: monospace;
-    margin-right: 10px;
+    margin-right: var(--spacing-5);
   }
   
   /* Error section */
   .error-section {
-    padding: 16px;
+    padding: var(--spacing-8);
     background-color: rgba(var(--color-error-rgb), 0.1);
     border: 1px solid var(--color-error);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     width: 100%;
   }
   

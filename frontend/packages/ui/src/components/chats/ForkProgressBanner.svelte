@@ -34,11 +34,11 @@
     .fork-banner {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-4) var(--spacing-8);
         background: var(--color-primary-muted, rgba(79, 142, 247, 0.12));
         border-bottom: 1px solid var(--color-primary-border, rgba(79, 142, 247, 0.2));
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-text-secondary, #8a9bb0);
         position: relative;
         overflow: hidden;

@@ -378,11 +378,11 @@
     }
 
     .backup-code-options {
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     .back-to-email {
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
         text-align: center;
     }
 

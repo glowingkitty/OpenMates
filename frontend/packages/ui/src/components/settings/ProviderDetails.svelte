@@ -277,17 +277,17 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-        margin-left: 10px;
+        margin-left: var(--spacing-5);
     }
 
     .skill-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        border-radius: 8px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .skill-item:hover {
@@ -308,7 +308,7 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
     }
 
     .skill-name {
@@ -345,13 +345,13 @@
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.5rem 1rem;
         margin-top: 1rem;
         cursor: pointer;
         font-size: 0.9rem;
         color: var(--text-primary, #000000);
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
 
     .back-button:hover {

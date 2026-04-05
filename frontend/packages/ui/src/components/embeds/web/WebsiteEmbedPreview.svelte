@@ -437,7 +437,7 @@
   .website-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
     width: 100%; /* Ensure full width of parent */
   }
@@ -470,7 +470,7 @@
      =========================================== */
   
   .website-description {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.4;
     flex: 0 1 40%;
@@ -486,11 +486,11 @@
     word-break: break-word;
     /* Vertically align text to top */
     align-self: flex-start;
-    padding-top: 10px;
+    padding-top: var(--spacing-5);
   }
   
   .website-details.mobile .website-description {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     -webkit-line-clamp: 6;
     line-clamp: 6;
   }
@@ -548,13 +548,13 @@
      =========================================== */
   
   .website-hostname {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
   .website-details.mobile .website-hostname {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* ===========================================
@@ -562,7 +562,7 @@
      =========================================== */
   
   .website-error {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-error);
     line-height: 1.3;
   }

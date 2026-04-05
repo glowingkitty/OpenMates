@@ -107,7 +107,7 @@
         cursor: pointer;
         padding: 0.625rem 0.75rem;
         border-radius: 0.5rem;
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
 
     .checkbox-item:hover {

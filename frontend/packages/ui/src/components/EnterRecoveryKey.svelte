@@ -357,7 +357,7 @@
 
     .email-display {
         text-align: center;
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-5);
     }
 
     .recovery-key-text {
@@ -368,7 +368,7 @@
     }
 
     .login-button {
-        margin: 20px 0px 10px 0px;
+        margin: var(--spacing-10) var(--spacing-0) var(--spacing-5) var(--spacing-0);
     }
 
     .login-options-container {
@@ -382,7 +382,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0px 0px;
+        padding: var(--spacing-0) var(--spacing-0);
         background: none;
         border: none;
         cursor: pointer;
@@ -390,7 +390,7 @@
     }
 
     .login-option-button .clickable-icon {
-        margin-right: 8px;
+        margin-right: var(--spacing-4);
     }
 
     .loading-spinner {

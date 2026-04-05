@@ -69,7 +69,7 @@
         -webkit-text-fill-color: transparent;
         text-decoration: none;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .settings-gradient-link:hover {
@@ -93,7 +93,7 @@
         -webkit-text-fill-color: transparent;
         text-decoration: none;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .settings-gradient-link-button:hover {

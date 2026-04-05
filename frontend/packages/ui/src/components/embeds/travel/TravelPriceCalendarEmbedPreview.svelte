@@ -292,7 +292,7 @@
   .price-calendar-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -308,7 +308,7 @@
   
   /* Route summary text */
   .route-summary {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -322,98 +322,98 @@
   }
   
   .price-calendar-details.mobile .route-summary {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
   
   /* Month display */
   .month-display {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-80);
     font-weight: 500;
     line-height: 1.3;
   }
   
   .price-calendar-details.mobile .month-display {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Provider subtitle */
   .provider-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
   .price-calendar-details.mobile .provider-text {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Calendar results info (price range + days) */
   .calendar-results-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-2);
     flex-wrap: wrap;
   }
   
   .price-calendar-details.mobile .calendar-results-info {
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
   
   /* Price range */
   .price-range {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-primary);
     font-weight: 600;
   }
   
   .price-calendar-details.mobile .price-range {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Days info */
   .days-info {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
   .price-calendar-details.mobile .days-info {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* No data text */
   .no-data-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60);
     font-style: italic;
   }
   
   .price-calendar-details.mobile .no-data-text {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Error styling */
   .calendar-error {
-    margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 12px;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-5);
     background-color: rgba(var(--color-error-rgb), 0.08);
     border: 1px solid rgba(var(--color-error-rgb), 0.3);
   }
   
   .calendar-error-title {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-error);
   }
   
   .calendar-error-message {
-    margin-top: 2px;
-    font-size: 12px;
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-70);
     line-height: 1.4;
     word-break: break-word;

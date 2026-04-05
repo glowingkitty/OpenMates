@@ -1215,7 +1215,7 @@
         color: var(--color-grey-60);
         margin: 0;
         text-align: center;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .newsletter-form {
@@ -1223,7 +1223,7 @@
         max-width: 400px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .newsletter-form .input-group {
@@ -1241,7 +1241,7 @@
         position: absolute;
         left: 1rem;
         color: var(--color-grey-60);
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .newsletter-form .input-wrapper input.error {
@@ -1257,9 +1257,9 @@
     }
 
     .newsletter-message {
-        padding: 10px 12px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         line-height: 1.4;
         text-align: center;
     }

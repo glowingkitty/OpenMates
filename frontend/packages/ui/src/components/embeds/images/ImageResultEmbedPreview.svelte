@@ -137,7 +137,7 @@
     object-fit: contain;
     display: block;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--duration-normal) var(--easing-default);
     background: var(--color-grey-15, #ebebeb);
   }
 
@@ -173,7 +173,7 @@
   }
 
   .result-title {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.95);
     line-height: 1.3;

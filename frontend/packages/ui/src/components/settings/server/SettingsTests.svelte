@@ -402,7 +402,7 @@
         padding: 1rem;
         background: var(--color-red-10, #fef2f2);
         border: 1px solid var(--color-red-30, #fca5a5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         text-align: center;
     }
 
@@ -416,7 +416,7 @@
         background: var(--color-red-50, #ef4444);
         color: white;
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.4rem 1rem;
         cursor: pointer;
         font-size: 0.8rem;
@@ -433,7 +433,7 @@
         padding: 0.75rem 1rem;
         margin: 0.5rem 1rem;
         background: var(--color-grey-10, #f9fafb);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         flex-wrap: wrap;
     }
 
@@ -474,7 +474,7 @@
         align-items: center;
         gap: 0.25rem;
         padding: 0.75rem 0.5rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background: var(--color-grey-10, #f9fafb);
         border: 1px solid var(--color-grey-20, #e5e7eb);
     }
@@ -526,7 +526,7 @@
         display: inline-block;
         padding: 0.15rem 0.5rem;
         background: var(--color-grey-20, #e5e7eb);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-size: 0.75rem;
         font-weight: 500;
         color: var(--color-grey-70, #374151);
@@ -547,7 +547,7 @@
 
     .suite-block {
         margin-bottom: 0.25rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         overflow: hidden;
         border: 1px solid var(--color-grey-20, #e5e7eb);
     }
@@ -564,7 +564,7 @@
         font-size: 0.85rem;
         color: var(--color-grey-80, #1f2937);
         text-align: left;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .suite-header:hover {
@@ -612,7 +612,7 @@
         border-left: 4px solid transparent;
         border-right: 4px solid transparent;
         border-top: 5px solid var(--color-grey-40);
-        transition: transform 0.2s;
+        transition: transform var(--duration-normal);
         flex-shrink: 0;
     }
 
@@ -665,7 +665,7 @@
         color: var(--color-red-50, #ef4444);
         background: none;
         border: 1px solid var(--color-red-30, #fca5a5);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         padding: 0.15rem 0.4rem;
         cursor: pointer;
         flex-shrink: 0;

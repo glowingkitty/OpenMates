@@ -27,7 +27,7 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -36,7 +36,7 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
     .signup-header {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         margin-bottom: 14px;
     }
 
@@ -57,7 +57,7 @@ Tests: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
     }
 
     .warning-list li {
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-5);
     }
 
     .warning-list li:last-child {

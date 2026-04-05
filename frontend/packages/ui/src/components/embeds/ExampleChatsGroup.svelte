@@ -144,7 +144,7 @@
      - Same gap, padding, and scrollbar styling as group-scroll-container */
   .example-chats-group {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-4);
     align-items: flex-start;
     overflow-x: auto;
     overflow-y: hidden;

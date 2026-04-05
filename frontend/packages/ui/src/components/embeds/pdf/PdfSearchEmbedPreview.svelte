@@ -147,7 +147,7 @@
   .pdf-search-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
     justify-content: center;
   }
@@ -157,7 +157,7 @@
   }
 
   .pdf-name {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -171,11 +171,11 @@
   }
 
   .pdf-search-details.mobile .pdf-name {
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
 
   .pdf-status-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
     white-space: nowrap;
@@ -184,7 +184,7 @@
   }
 
   .pdf-search-details.mobile .pdf-status-text {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   /* Skill icon: search.svg for pdf.search (registered here per WebSearch pattern) */

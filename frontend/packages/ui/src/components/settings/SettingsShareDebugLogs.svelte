@@ -298,7 +298,7 @@
     border: 1px solid var(--color-grey-25);
     border-radius: 0.375rem;
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: background-color var(--duration-fast);
   }
 
   .copy-button:hover {
@@ -348,7 +348,7 @@
     border: none;
     border-radius: 0.375rem;
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: background-color var(--duration-fast);
   }
 
   .activate-button {

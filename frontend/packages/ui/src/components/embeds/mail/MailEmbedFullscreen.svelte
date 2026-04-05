@@ -171,8 +171,8 @@
 <style>
   .mail-fullscreen-content {
     margin: 72px 12px 100px;
-    padding: 16px;
-    border-radius: 14px;
+    padding: var(--spacing-8);
+    border-radius: var(--radius-6);
     background: var(--color-grey-10);
     border: 1px solid var(--color-grey-25);
     display: flex;
@@ -183,11 +183,11 @@
   .mail-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .label {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-font-secondary);
@@ -196,7 +196,7 @@
 
   .value,
   .body {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-font-primary);
     line-height: 1.45;
     white-space: pre-wrap;
@@ -204,8 +204,8 @@
   }
 
   .body {
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: var(--spacing-5) var(--spacing-6);
+    border-radius: var(--radius-4);
     background: var(--color-grey-5);
     border: 1px solid var(--color-grey-20);
     min-height: 44px;

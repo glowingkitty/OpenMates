@@ -148,7 +148,7 @@
   .math-calculate-details {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
     height: 100%;
     justify-content: center;
   }
@@ -160,7 +160,7 @@
   /* ── Expression ─────────────────────────────────────────────────────────── */
 
   .expression-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 400;
     color: var(--color-grey-70);
     line-height: 1.3;
@@ -192,15 +192,15 @@
   }
 
   .math-calculate-details.mobile .result-value {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
   }
 
   /* ── Error ───────────────────────────────────────────────────────────────── */
 
   .error-indicator {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
   }
 
   /* ── Skill icon ──────────────────────────────────────────────────────────── */
