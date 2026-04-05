@@ -411,6 +411,26 @@
 				quoteText: '850 EUR/month — 55 m², 2 rooms, Bergmannstr., Berlin-Kreuzberg'
 			}
 		],
+		nutrition: [
+			{
+				skillLabel: 'Search',
+				appId: 'nutrition',
+				previewPath: 'embeds/nutrition/NutritionSearchEmbedPreview',
+				fullscreenPath: 'embeds/nutrition/NutritionSearchEmbedFullscreen',
+				inlineLinkText: 'Vegetarische Pasta Rezepte',
+				quoteText:
+					'3 Rezepte gefunden: Spaghetti Aglio e Olio, Penne Arrabiata, Tagliatelle mit Pilzrahmsauce.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Recipe',
+				appId: 'nutrition',
+				previewPath: 'embeds/nutrition/NutritionRecipeEmbedPreview',
+				fullscreenPath: 'embeds/nutrition/NutritionRecipeEmbedFullscreen',
+				inlineLinkText: 'Spaghetti Aglio e Olio',
+				quoteText: 'Spaghetti Aglio e Olio — 25 min, einfach, 4 Portionen.'
+			}
+		],
 		shopping: [
 			{
 				skillLabel: 'Search',
@@ -452,7 +472,8 @@
 		mail: 'mail',
 		pdf: 'pdf',
 		shopping: 'shopping',
-		home: 'home'
+		home: 'home',
+		nutrition: 'nutrition'
 	};
 
 	const ALL_APPS = [
@@ -473,7 +494,8 @@
 		'mail',
 		'pdf',
 		'shopping',
-		'home'
+		'home',
+		'nutrition'
 	];
 
 	// ─── Glob maps ────────────────────────────────────────────────────
