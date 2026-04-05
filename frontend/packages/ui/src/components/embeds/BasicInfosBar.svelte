@@ -388,6 +388,11 @@
     mask-image: url('@openmates/ui/static/icons/math.svg');
   }
 
+  .basic-infos-bar .skill-icon[data-skill-icon="nutrition"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+    mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
+
   /* Status text container */
   .basic-infos-bar.desktop .status-text {
     display: flex;

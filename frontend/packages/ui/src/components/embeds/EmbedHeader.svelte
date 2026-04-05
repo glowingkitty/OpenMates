@@ -723,6 +723,10 @@
     -webkit-mask-image: url('@openmates/ui/static/icons/home.svg');
     mask-image: url('@openmates/ui/static/icons/home.svg');
   }
+  :global([data-skill-icon="nutrition"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+    mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
 
   /* ==========================================================
      Mobile adjustments (≤730px) — matches ChatHeader.svelte
