@@ -978,6 +978,7 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Daily defaults selection from pool (replaces old admin-curated pipeline)
     "daily_inspiration.select_defaults": "persistence",
+    "daily_inspiration.audit_pool": "persistence",
 
     # Web analytics tasks (privacy-preserving first-party analytics)
     "web_analytics.flush_to_directus": "server_stats",
@@ -1228,6 +1229,15 @@ app.conf.beat_schedule = {
     'generate-daily-inspirations': {
         'task': 'daily_inspiration.generate_daily',
         'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    # Daily Inspiration pool audit - scans pool for content policy violations
+    # (religious, product reviews, political, corporate PR) using keyword matching
+    # and auto-deletes violating entries. Runs at 06:15 UTC — after generation
+    # (06:00) adds new entries and before defaults selection (06:30) picks them.
+    'audit-daily-inspiration-pool': {
+        'task': 'daily_inspiration.audit_pool',
+        'schedule': crontab(hour=6, minute=15),  # Daily at 06:15 UTC
         'options': {'queue': 'persistence'},
     },
     # Daily Inspiration defaults selection - picks top 3 pool entries per language

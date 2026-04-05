@@ -20,11 +20,9 @@
 
 import logging
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import httpx
-import yaml
 
 from backend.apps.ai.daily_inspiration.content_filter import check_video_metadata
 from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, call_preprocessing_llm
@@ -46,73 +44,10 @@ YOUTUBE_API_KEY_NAME = "api_key"
 # LLM model for lightweight channel classification (cheap, fast)
 CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-2506"
 
-# Path to the corporate channel seed blocklist YAML
-_CORPORATE_PATTERNS_PATH = (
-    Path(__file__).parent.parent.parent.parent
-    / "shared" / "config" / "corporate_channel_patterns.yml"
-)
-
-# Cache the loaded seed patterns so we don't re-parse the YAML on every request
-_corporate_seed_patterns: Optional[List[str]] = None
-
-
-def _load_corporate_seed_patterns() -> List[str]:
-    """
-    Load and cache the flat list of corporate channel name patterns from YAML.
-
-    Returns a list of lowercase patterns for case-insensitive substring matching.
-    On failure, logs a warning and returns an empty list (degraded but non-breaking).
-    """
-    global _corporate_seed_patterns
-    if _corporate_seed_patterns is not None:
-        return _corporate_seed_patterns
-
-    try:
-        with open(_CORPORATE_PATTERNS_PATH, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        patterns: List[str] = []
-        # Flatten all category lists into a single list of lowercase patterns
-        for category_patterns in data.values():
-            if isinstance(category_patterns, list):
-                for pattern in category_patterns:
-                    if isinstance(pattern, str):
-                        patterns.append(pattern.lower())
-
-        _corporate_seed_patterns = patterns
-        logger.info(
-            f"[DailyInspiration] Loaded {len(patterns)} corporate channel seed patterns from YAML"
-        )
-        return patterns
-    except Exception as e:
-        logger.warning(
-            f"[DailyInspiration] Failed to load corporate channel patterns from "
-            f"{_CORPORATE_PATTERNS_PATH}: {e} — fast-path filter disabled"
-        )
-        _corporate_seed_patterns = []
-        return []
-
-
-def _is_corporate_channel_fast_path(channel_name: Optional[str]) -> bool:
-    """
-    Fast-path check: return True if the channel name matches a known corporate pattern.
-
-    Uses case-insensitive substring matching against the seed blocklist. This catches
-    the most obvious corporate channels (e.g. 'BMW', 'Shell', 'Pfizer') without needing
-    an LLM call.
-
-    Args:
-        channel_name: The YouTube channel name, or None if not available.
-
-    Returns:
-        True if the channel is likely corporate, False otherwise (including when
-        channel_name is None — unknown channels are passed to LLM classification).
-    """
-    if not channel_name:
-        return False
-    lower = channel_name.lower()
-    patterns = _load_corporate_seed_patterns()
-    return any(pattern in lower for pattern in patterns)
+# The old corporate_channel_patterns.yml fast-path check has been replaced by
+# Layer 3 (content_filter.check_video_metadata) which checks all text fields
+# against the canonical blocked_content_keywords.yml — including company names.
+# See: backend/apps/ai/daily_inspiration/content_filter.py
 
 
 async def _classify_channels_with_llm(
@@ -592,37 +527,10 @@ async def find_video_candidates(
         )
         return []
 
-    # ── Anti-corporate channel filtering (two layers) ────────────────────────
-    # Principle: inspirations must come from independent humans (educators,
-    # journalists, documentary makers, universities) — never from corporate
-    # PR channels of any company or brand. This filtering happens BEFORE YouTube
-    # enrichment to avoid wasting API quota on videos we'll reject anyway.
-
-    # Layer 1: Fast-path seed blocklist — reject channels matching known corporate patterns
-    # without needing an LLM call. Catches obvious cases like BMW, Shell, Pfizer, etc.
-    fast_path_rejected: List[str] = []
-    after_fast_path: List[Dict[str, Any]] = []
-    for candidate in candidates:
-        if _is_corporate_channel_fast_path(candidate.get("channel_name")):
-            fast_path_rejected.append(
-                f"{candidate.get('channel_name')} ({candidate['youtube_id']})"
-            )
-        else:
-            after_fast_path.append(candidate)
-
-    if fast_path_rejected:
-        logger.info(
-            f"[DailyInspiration][{task_id}] Fast-path blocked {len(fast_path_rejected)} "
-            f"corporate channel(s) for '{topic_phrase}': {fast_path_rejected}"
-        )
-    candidates = after_fast_path
-
-    if not candidates:
-        logger.warning(
-            f"[DailyInspiration][{task_id}] All candidates rejected by fast-path corporate filter "
-            f"for '{topic_phrase}' — no independent creators found"
-        )
-        return []
+    # ── Channel classification (LLM-based) ─────────────────────────────────
+    # Company names are already caught by Layer 3 keyword filter above.
+    # This LLM layer catches channels that keywords miss: religious organizations,
+    # review-focused channels, and corporate channels with non-obvious names.
 
     # Layer 4: LLM-based channel classification — classify remaining candidates as
     # corporate, religious_org, review_channel, or independent. Also generates English
