@@ -24,6 +24,7 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultConfig
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
+from backend.shared.python_utils.provider_health import is_provider_healthy, map_provider_name_to_id
 
 # Import UserOverrides for @ mentioning syntax support
 from backend.core.api.app.utils.override_parser import UserOverrides
@@ -1253,6 +1254,18 @@ async def handle_preprocessing(
                     if app_id == "ai" and skill.id == "ask":
                         logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
                         continue
+
+                    # Skip skills whose providers are all unhealthy (fail-open if no health data)
+                    if skill.providers:
+                        any_healthy = False
+                        for provider_ref in skill.providers:
+                            provider_id = map_provider_name_to_id(provider_ref.name, app_id)
+                            if await is_provider_healthy(provider_id, cache_service):
+                                any_healthy = True
+                                break
+                        if not any_healthy:
+                            logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - all providers unhealthy")
+                            continue
 
                     # No stage filtering needed - discovered_apps_metadata already contains only apps
                     # with valid stages (filtered during server startup via should_include_app_by_stage)

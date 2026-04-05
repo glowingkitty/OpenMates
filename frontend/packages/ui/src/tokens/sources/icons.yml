@@ -1,0 +1,15 @@
+# frontend/packages/ui/src/tokens/sources/icons.yml
+#
+# Icon size scale — used for width/height of icon elements.
+# Values in px for CSS, points for Swift.
+#
+# CSS output:  --icon-size-{key}: {value}px
+# Swift output: CGFloat.iconSize{Key}
+
+size:
+  xs:  16      # 38 uses — inline icons
+  sm:  20      # 62 uses — small buttons
+  md:  24      # 37 uses — standard icons
+  lg:  32      # 36 uses — card icons
+  xl:  40      # 39 uses — feature icons
+  xxl: 48      # 15 uses — hero icons

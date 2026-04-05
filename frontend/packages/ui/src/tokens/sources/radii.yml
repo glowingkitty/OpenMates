@@ -1,0 +1,18 @@
+# frontend/packages/ui/src/tokens/sources/radii.yml
+#
+# Border radius scale — used for border-radius values.
+# Values in px for CSS, points for Swift.
+#
+# CSS output:  --radius-{key}: {value}px
+# Swift output: CGFloat.radius{Key}
+
+scale:
+  1:    4       # 70 uses (small UI elements)
+  2:    6       # 72 uses (code blocks, blockquotes)
+  3:    8       # 230 uses (cards, buttons — most common)
+  4:    10      # 48 uses (medium components)
+  5:    12      # 119 uses (notifications, modals)
+  6:    14      # chat headers, banners
+  7:    16
+  8:    20      # primary buttons
+  full: 9999    # pill shapes

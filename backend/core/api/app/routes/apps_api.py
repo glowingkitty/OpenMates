@@ -25,6 +25,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.shared.python_utils.provider_health import map_provider_name_to_id
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
@@ -349,28 +350,6 @@ def resolve_translation(translation_service, translation_key: str, namespace: st
     except Exception as e:
         logger.warning(f"Error resolving translation key '{full_key}': {e}", exc_info=True)
         return fallback or translation_key
-
-
-def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
-    """
-    Map provider name from app.yml to provider ID (provider YAML filename).
-    
-    Args:
-        provider_name: Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl")
-        app_id: App ID for context (e.g., "maps" for Google Maps)
-        
-    Returns:
-        Provider ID (lowercase, matches provider YAML filename)
-    """
-    # Handle special cases
-    if provider_name == "Google" and app_id == "maps":
-        return "google_maps"
-    elif provider_name == "YouTube":
-        return "youtube"
-    elif provider_name == "Brave" or provider_name == "Brave Search":
-        return "brave"
-    # Most providers just need to be lowercased
-    return provider_name.lower().strip()
 
 
 def get_provider_api_key_env_vars(provider_id: str) -> List[str]:

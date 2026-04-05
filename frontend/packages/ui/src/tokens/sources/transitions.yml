@@ -1,0 +1,15 @@
+# frontend/packages/ui/src/tokens/sources/transitions.yml
+#
+# Timing presets — durations and easing functions for transitions/animations.
+#
+# CSS output:  --duration-{key}: {value}, --easing-{key}: {value}
+# Swift output: Animation.duration{Key}, Animation.easing{Key}
+
+duration:
+  fast:   "0.15s"     # 21 uses — hover states, micro-interactions
+  normal: "0.2s"      # 49 uses (most common) — general transitions
+  slow:   "0.3s"      # slide-ins, modals
+
+easing:
+  default: "ease"
+  in-out:  "ease-in-out"

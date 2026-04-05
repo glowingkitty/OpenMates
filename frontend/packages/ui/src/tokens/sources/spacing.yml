@@ -1,0 +1,24 @@
+# frontend/packages/ui/src/tokens/sources/spacing.yml
+#
+# Spacing scale — used for gap, padding, margin values.
+# Values in px for CSS, points for Swift.
+# Scale derived from audit of actual usage across 352+ components.
+#
+# CSS output:  --spacing-{key}: {value}px
+# Swift output: CGFloat.spacing{Key}
+
+scale:
+  0:  0       # zero spacing
+  1:  2       # 101 uses as gap
+  2:  4       # 101 uses
+  3:  6       # 91 uses
+  4:  8       # 184 uses (most common)
+  5:  10      # 61 uses
+  6:  12      # 113 uses
+  8:  16      # 69 uses
+  10: 20      # 48 uses
+  12: 24      # 45 uses
+  16: 32
+  20: 40
+  24: 48
+  32: 64

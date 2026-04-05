@@ -1,0 +1,19 @@
+# frontend/packages/ui/src/tokens/sources/z-index.yml
+#
+# Named layer system — replaces the current z-index chaos (1 to 99999).
+# Components MUST use var(--z-index-{key}) instead of magic numbers.
+#
+# CSS output:  --z-index-{key}: {value}
+# Swift output: CGFloat.zIndex{Key}
+
+layers:
+  base:      0
+  raised:    1
+  dropdown:  100
+  sticky:    200
+  overlay:   300
+  modal:     400
+  popover:   500
+  toast:     600
+  tooltip:   700
+  skip-link: 100000

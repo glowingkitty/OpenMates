@@ -24,32 +24,11 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_current_user_optional,
     get_encryption_service,
 )
+from backend.shared.python_utils.provider_health import map_provider_name_to_id, is_provider_healthy
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/apps", tags=["Apps"])
-
-
-def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
-    """
-    Map provider name from app.yml to provider ID (provider YAML filename).
-    
-    Args:
-        provider_name: Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl")
-        app_id: App ID for context (e.g., "maps" for Google Maps)
-        
-    Returns:
-        Provider ID (lowercase, matches provider YAML filename)
-    """
-    # Handle special cases
-    if provider_name == "Google" and app_id == "maps":
-        return "google_maps"
-    elif provider_name == "YouTube":
-        return "youtube"
-    elif provider_name == "Brave" or provider_name == "Brave Search":
-        return "brave"
-    # Most providers just need to be lowercased
-    return provider_name.lower().strip()
 
 
 def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
@@ -130,42 +109,58 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     return False
 
 
-async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_manager: SecretsManager) -> bool:
+async def is_skill_available(
+    skill: AppSkillDefinition,
+    app_id: str,
+    secrets_manager: SecretsManager,
+    cache_service: Optional[CacheService] = None,
+) -> bool:
     """
-    Check if a skill is available based on API key availability for its providers.
+    Check if a skill is available based on API key availability AND provider health.
 
-    A skill is considered available if at least one of its providers has a configured API key
-    OR is marked with no_api_key=True (e.g., web scrapers that don't need credentials).
+    A skill is considered available if at least one of its providers:
+    1. Has a configured API key OR is marked with no_api_key=True, AND
+    2. Is healthy according to the cached health check (fail-open if no data).
+
     If a skill has no providers, it's considered available (no API key required).
 
     Args:
         skill: The skill definition
         app_id: The app ID for provider name mapping
         secrets_manager: SecretsManager instance for checking API keys
+        cache_service: Optional CacheService for checking provider health status
 
     Returns:
-        True if the skill is available (at least one provider has API key or no_api_key), False otherwise
+        True if the skill is available (at least one provider is configured and healthy), False otherwise
     """
     # If skill has no providers, it's available (no API key required)
     if not skill.providers or len(skill.providers) == 0:
         logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
         return True
 
-    # Check if at least one provider has an available API key or doesn't need one
+    # Check if at least one provider is configured AND healthy
     for provider_ref in skill.providers:
-        # Providers marked with no_api_key=True (e.g., web scrapers) are always available
-        if provider_ref.no_api_key:
-            logger.debug(f"Skill '{skill.id}' is available - provider '{provider_ref.name}' does not require an API key")
-            return True
-
         provider_id = map_provider_name_to_id(provider_ref.name, app_id)
-        is_available = await check_provider_api_key_available(provider_id, secrets_manager)
-        if is_available:
-            logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' has API key configured")
-            return True
 
-    # No providers have API keys configured
-    logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
+        # Check configuration: API key available or no_api_key flag
+        if provider_ref.no_api_key:
+            is_configured = True
+        else:
+            is_configured = await check_provider_api_key_available(provider_id, secrets_manager)
+
+        if not is_configured:
+            continue
+
+        # Check health: provider must also be healthy (fail-open if no health data)
+        if not await is_provider_healthy(provider_id, cache_service):
+            logger.debug(f"Skill '{skill.id}' - provider '{provider_id}' is configured but unhealthy, skipping")
+            continue
+
+        logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' is configured and healthy")
+        return True
+
+    # No providers are both configured and healthy
+    logger.debug(f"Skill '{skill.id}' is not available - no providers are configured and healthy")
     return False
 
 
@@ -485,7 +480,7 @@ async def get_apps_metadata(
             # build-time static metadata), skip provider availability checks so
             # all production-stage skills are returned regardless of API keys.
             if not include_unavailable:
-                skill_available = await is_skill_available(skill, app_id, secrets_manager)
+                skill_available = await is_skill_available(skill, app_id, secrets_manager, cache_service)
                 if not skill_available:
                     logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
                     continue
