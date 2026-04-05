@@ -162,6 +162,146 @@ class OpenObservePushService:
             return False
 
 
+    async def push_ephemeral_client_logs(
+        self,
+        entries: List[Dict[str, Any]],
+        session_pseudonym: str,
+        metadata: Dict[str, str],
+    ) -> bool:
+        """
+        Push anonymized client console logs to the ephemeral stream (48h retention).
+
+        Unlike push_client_logs(), this method does NOT include user_email or
+        user_id in the OpenObserve labels. The only identifier is the random
+        per-session session_pseudonym which cannot be linked to a user unless
+        they voluntarily include it in an issue report.
+
+        Args:
+            entries: Log entries with 'timestamp' (ms), 'level', 'message'
+            session_pseudonym: Random UUIDv4 per browser page load
+            metadata: Client metadata (userAgent, pageUrl, tabId)
+        """
+        if not entries:
+            return True
+
+        try:
+            streams_by_level: Dict[str, List[List[str]]] = {}
+
+            for entry in entries:
+                level = entry.get("level", "log")
+                if level == "log":
+                    level = "info"
+
+                timestamp_ms = entry.get("timestamp", 0)
+                message = entry.get("message", "")
+                timestamp_ns = str(int(timestamp_ms * 1_000_000))
+
+                page_url = metadata.get("pageUrl", "")
+                tab_id = metadata.get("tabId", "")
+                formatted_message = f"[tab={tab_id}] [{page_url}] {message}"
+
+                streams_by_level.setdefault(level, []).append([timestamp_ns, formatted_message])
+
+            user_agent = metadata.get("userAgent", "")[:200]
+            device_type = derive_device_type(user_agent)
+
+            streams = []
+            for level, values in streams_by_level.items():
+                streams.append({
+                    "stream": {
+                        "job": "client-console-ephemeral",
+                        "level": level,
+                        "session_pseudonym": session_pseudonym,
+                        "device_type": device_type,
+                        "server_env": self.server_env,
+                        "source": "browser",
+                    },
+                    "values": values,
+                })
+
+            payload = {"streams": streams}
+            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
+            timeout = aiohttp.ClientTimeout(total=10)
+
+            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                ) as response:
+                    if response.status == 204:
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.error(
+                            f"OpenObserve ephemeral push failed (status={response.status}): {error_text[:300]}"
+                        )
+                        return False
+
+        except Exception as e:
+            logger.error(f"Error pushing ephemeral client logs to OpenObserve: {e}", exc_info=True)
+            return False
+
+    async def push_error_context_logs(
+        self,
+        entries: List[Dict[str, Any]],
+        session_pseudonym: str,
+    ) -> bool:
+        """
+        Push promoted error-context logs to the long-retention stream (14d).
+
+        Called by the ephemeral log promotion Celery task when a session has
+        error-level logs. Copies the full session context (all log levels)
+        from the ephemeral stream to the error-context stream for debugging.
+
+        Args:
+            entries: Log entries with 'timestamp_ns' and 'message' (from OpenObserve query)
+            session_pseudonym: The session whose logs are being promoted
+        """
+        if not entries:
+            return True
+
+        try:
+            values = []
+            for entry in entries:
+                timestamp_ns = str(entry.get("timestamp_ns", int(time.time() * 1_000_000_000)))
+                message = str(entry.get("message", ""))
+                values.append([timestamp_ns, message])
+
+            payload = {
+                "streams": [{
+                    "stream": {
+                        "job": "client-console-error-context",
+                        "session_pseudonym": session_pseudonym,
+                        "server_env": self.server_env,
+                        "source": "promoted",
+                    },
+                    "values": values,
+                }]
+            }
+
+            url = f"{self.base_url}/api/{self.org}/loki/api/v1/push"
+            timeout = aiohttp.ClientTimeout(total=30)
+
+            async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                ) as response:
+                    if response.status == 204:
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.error(
+                            f"OpenObserve error-context push failed (status={response.status}): {error_text[:300]}"
+                        )
+                        return False
+
+        except Exception as e:
+            logger.error(f"Error pushing error context logs to OpenObserve: {e}", exc_info=True)
+            return False
+
     async def push_issue_logs(
         self,
         logs_text: str,

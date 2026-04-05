@@ -94,6 +94,11 @@ export interface UserProfile {
   // Encrypted message content is never collected regardless of this setting.
   // Managed via Settings > Privacy & Security. Synced to Directus via updateProfile().
   debug_logging_opted_in?: boolean;
+  // Opt-out for ephemeral anonymized console log forwarding.
+  // When true, the client does NOT send anonymized console logs to the server.
+  // Default: false (forwarding is ON by default under legitimate interest).
+  // Managed via Settings > Privacy > "Help improve stability".
+  console_log_forwarding_opted_out?: boolean;
 }
 
 // Default currency is now EUR

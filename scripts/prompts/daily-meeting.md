@@ -48,6 +48,14 @@ All data has been gathered automatically. Review each section below — this is 
 
 {{OPENOBSERVE_PROD}}
 
+### Browser Error Context (All Users, last 24h)
+
+{{EPHEMERAL_ERROR_CONTEXT}}
+
+### PII Leak Audit (Ephemeral + Error Context Streams)
+
+{{PII_LEAK_AUDIT}}
+
 ### Large File Check
 
 {{LARGE_FILES}}
@@ -127,6 +135,9 @@ Using the gathered health data:
   - Group failures by root cause with counts
 - ⚠️ Flag data sources that were unavailable or stale
 - If "no errors" is reported but seems unlikely, flag it as potentially unreliable (OTel gap)
+- **Browser error context**: Review the ephemeral error-context data — are there error patterns across multiple anonymous sessions? This shows errors happening to real users, not just admins.
+- **🔴 PII LEAK AUDIT IS CRITICAL**: If the PII leak audit found ANY matches, this is the #1 priority. Create a HIGH priority Linear task immediately. Investigate which log statement is leaking PII and fix the sanitization.
+- **Warning log review**: WARNING-level server logs are now included in the OpenObserve data. Flag any new warnings (deprecations, retries, near-failures) that appeared for the first time.
 - If a broken item has no Linear task, create one with HIGH priority
 
 Wait for user input (they may know about issues the data missed).

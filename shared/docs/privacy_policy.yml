@@ -120,6 +120,36 @@ providers:
     data_shared:
       - IATA flight numbers (e.g. "LH2472") and departure dates used to look up flight tracks
       - Note: All data is shared without user identifiers - Flightradar24 does not know which specific user requested each flight track
+data_processing:
+  ephemeral_stability_logs:
+    purpose: >
+      To diagnose and fix technical errors that affect service reliability. Browser console logs
+      (technical error messages, component lifecycle events, connection status) are collected
+      from all authenticated users and stored for up to 48 hours. If an error occurs, the
+      surrounding log context is retained for up to 14 days to support debugging.
+    legal_basis: Legitimate interest (GDPR Art. 6(1)(f)) — ensuring service reliability and quality.
+    data_collected:
+      - Browser console log messages (sanitized to remove personal data)
+      - Log level (info, warn, error)
+      - Device type (derived from User-Agent, e.g. "iphone", "mac")
+      - Page URL paths (with UUIDs removed)
+    data_not_collected:
+      - Chat message content, titles, or metadata
+      - User identity (email, username, user ID) — a random per-session identifier is used instead
+      - Email addresses, IP addresses, or any personally identifiable information
+      - Base64-encoded encrypted content
+    anonymization: >
+      Each browser session generates a random UUID that cannot be linked to a user account.
+      This identifier is stored only in the browser's sessionStorage and is discarded when the tab is closed.
+      Email addresses, long strings, UUIDs in chat/message contexts, and base64 blobs are automatically
+      stripped by both client-side and server-side sanitization before storage. A daily PII audit
+      scans stored logs for any patterns that may have slipped through sanitization.
+    retention:
+      ephemeral_stream: 48 hours (automatically deleted by the storage system)
+      error_context_stream: 14 days (only for sessions where an error occurred)
+    opt_out: >
+      Users can disable stability log forwarding at any time via Settings > Privacy > Stability Logs.
+      When disabled, no console logs are forwarded from the browser to the server.
 security_measures:
   device_fingerprinting:
     purpose: >

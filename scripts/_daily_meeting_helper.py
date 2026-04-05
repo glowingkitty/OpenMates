@@ -282,9 +282,9 @@ def gather_openobserve_errors(production: bool = False) -> str:
         "--sql", (
             'SELECT message, service, level, COUNT(*) as count FROM "default" '
             "WHERE compose_project = 'openmates-core' "
-            "AND (level = 'ERROR' OR level = 'CRITICAL' "
+            "AND (level = 'ERROR' OR level = 'CRITICAL' OR level = 'WARNING' "
             "OR LOWER(message) LIKE '%traceback%') "
-            "GROUP BY message, service, level ORDER BY count DESC LIMIT 15"
+            "GROUP BY message, service, level ORDER BY count DESC LIMIT 25"
         ),
         "--json", "--quiet-health",
     ]
@@ -486,6 +486,75 @@ def gather_milestone_state() -> str:
     return "(No milestone state found in .planning/ directory.)"
 
 
+def gather_ephemeral_error_context() -> str:
+    """Source L: browser error context from all users (ephemeral error-context stream)."""
+    cmd = [
+        "docker", "exec", "api", "python",
+        "/app/backend/scripts/debug.py", "logs",
+        "--o2",
+        "--since", "1440",
+        "--sql", (
+            'SELECT session_pseudonym, log, COUNT(*) as count '
+            'FROM "client-logs-error-context" '
+            "WHERE compose_project = 'openmates-core' "
+            "GROUP BY session_pseudonym, log "
+            "ORDER BY count DESC LIMIT 30"
+        ),
+        "--json", "--quiet-health",
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        output = result.stdout.strip()
+        if result.returncode != 0:
+            stderr = result.stderr.strip()[:500]
+            return f"[DATA UNAVAILABLE: ephemeral error context — exit code {result.returncode}: {stderr}]"
+        return output if output else "(No browser error context found in the last 24h.)"
+    except subprocess.TimeoutExpired:
+        return "[DATA UNAVAILABLE: ephemeral error context — query timed out after 60s]"
+    except Exception as e:
+        return f"[DATA UNAVAILABLE: ephemeral error context — {e}]"
+
+
+def gather_pii_leak_audit() -> str:
+    """Source M: PII leak detection scan across ephemeral log streams."""
+    # Scan both streams for patterns that should have been sanitized
+    streams = ["client-logs-ephemeral", "client-logs-error-context"]
+    results = []
+
+    for stream in streams:
+        cmd = [
+            "docker", "exec", "api", "python",
+            "/app/backend/scripts/debug.py", "logs",
+            "--o2",
+            "--since", "1440",
+            "--sql", (
+                f'SELECT log, _timestamp FROM "{stream}" '
+                "WHERE compose_project = 'openmates-core' "
+                "AND ("
+                "LOWER(log) LIKE '%@%.%' "
+                "OR log LIKE '%Bearer %' "
+                "OR LOWER(log) LIKE '%password%' "
+                "OR log LIKE '%[REDACTED]%' "
+                ") "
+                "LIMIT 20"
+            ),
+            "--json", "--quiet-health",
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            output = result.stdout.strip()
+            if result.returncode != 0:
+                continue  # Stream may not exist yet, not an error
+            if output and output != "[]" and "No results" not in output:
+                results.append(f"### {stream}\n{output}")
+        except (subprocess.TimeoutExpired, Exception):
+            continue
+
+    if results:
+        return "⚠️ POTENTIAL PII DETECTED — investigate immediately:\n\n" + "\n\n".join(results)
+    return "✅ No PII patterns detected in ephemeral log streams (last 24h)."
+
+
 def gather_all_data(project_root: str, yesterday: str) -> dict:
     """Gather all data sources in parallel where possible.
 
@@ -494,9 +563,9 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     data = {}
     failures = []
 
-    print(f"{LOG_PREFIX} Gathering data from 11 sources...")
+    print(f"{LOG_PREFIX} Gathering data from 13 sources...")
 
-    with ThreadPoolExecutor(max_workers=7) as pool:
+    with ThreadPoolExecutor(max_workers=9) as pool:
         futures = {
             pool.submit(gather_git_log, project_root): "git_log",
             pool.submit(gather_test_results): "test_results",
@@ -507,6 +576,8 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
             pool.submit(gather_user_issues, project_root): "user_issues",
             pool.submit(gather_session_quality, yesterday): "session_quality",
             pool.submit(gather_server_stats): "server_stats",
+            pool.submit(gather_ephemeral_error_context): "ephemeral_error_context",
+            pool.submit(gather_pii_leak_audit): "pii_leak_audit",
         }
 
         for future in as_completed(futures):
@@ -595,6 +666,8 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
         .replace("{{PROVIDER_HEALTH}}", data.get("provider_health", "N/A"))
         .replace("{{OPENOBSERVE_DEV}}", data.get("openobserve_dev", "N/A"))
         .replace("{{OPENOBSERVE_PROD}}", data.get("openobserve_prod", "N/A"))
+        .replace("{{EPHEMERAL_ERROR_CONTEXT}}", data.get("ephemeral_error_context", "N/A"))
+        .replace("{{PII_LEAK_AUDIT}}", data.get("pii_leak_audit", "N/A"))
         .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
         .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
         .replace("{{MILESTONE_STATE}}", data.get("milestone_state", "N/A"))

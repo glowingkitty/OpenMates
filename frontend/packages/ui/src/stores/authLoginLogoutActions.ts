@@ -388,6 +388,11 @@ export async function login(
           }
         }
 
+        // Start ephemeral log forwarding (login path)
+        if (!data.user?.console_log_forwarding_opted_out) {
+          clientLogForwarder.startEphemeral();
+        }
+
         return {
           success: true,
           tfa_required: false,
