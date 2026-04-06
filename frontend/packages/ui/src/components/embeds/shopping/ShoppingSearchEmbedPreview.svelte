@@ -247,10 +247,10 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="shopping-search-details" class:mobile={isMobileLayout}>
       <!-- Search query (e.g., "bio joghurt") -->
-      <div class="search-query">{query || $text('common.search')}</div>
+      <div class="ds-search-query">{query || $text('common.search')}</div>
 
       <!-- Provider subtitle (e.g., "via REWE") -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
 
       <!-- Error state -->
       {#if status === 'error'}
@@ -260,7 +260,7 @@
         </div>
       {:else if status === 'finished'}
         <!-- Finished state: product count + lowest price -->
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if productCount > 0}
             <span class="product-count">
               {productCount}{totalResultCount > productCount ? `/${totalResultCount}` : ''} {productCount === 1 ? $text('embeds.shopping.product') : $text('embeds.shopping.products')}
@@ -296,48 +296,21 @@
     justify-content: flex-start;
   }
 
-  /* Query text */
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
 
-  .shopping-search-details.mobile .search-query {
+  .shopping-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
 
-  /* Provider subtitle */
-  .search-provider {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-
-  .shopping-search-details.mobile .search-provider {
+  .shopping-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
   }
 
-  /* Results info row */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-    flex-wrap: wrap;
-  }
-
-  .shopping-search-details.mobile .search-results-info {
+  .shopping-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
 
