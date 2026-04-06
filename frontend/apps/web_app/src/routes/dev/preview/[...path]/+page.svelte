@@ -120,6 +120,96 @@
 	let hasManualEdits = $state(false);
 
 	/**
+	 * Top-level prop names that fullscreen components receive directly (NOT wrapped in `data`).
+	 * These match EmbedFullscreenCommonProps in @repo/ui/src/types/embedFullscreen.ts.
+	 */
+	const FULLSCREEN_TOP_LEVEL_PROPS = new Set([
+		'onClose',
+		'embedId',
+		'hasPreviousEmbed',
+		'hasNextEmbed',
+		'onNavigatePrevious',
+		'onNavigateNext',
+		'navigateDirection',
+		'showChatButton',
+		'onShowChat',
+		'data'
+	]);
+
+	/**
+	 * Direct-prop names used by child-detail fullscreens that DON'T use the data-driven shape.
+	 * E.g., ShoppingResultEmbedFullscreen takes `product`, NutritionRecipeEmbedFullscreen takes `recipe`.
+	 */
+	const DIRECT_PROP_NAMES = new Set([
+		'product',
+		'recipe',
+		'event',
+		'listing',
+		'connection',
+		'stay',
+		'place',
+		'appointment',
+		'image',
+		'video',
+		'recording',
+		'sheet',
+		'plot',
+		'flight',
+		'transcript',
+		'docs'
+	]);
+
+	/**
+	 * Wrap legacy preview-file fullscreen props into the data-driven shape required
+	 * by post-OPE-276 fullscreen components. Only applies to Fullscreen components
+	 * (detected via the component path ending in "Fullscreen").
+	 *
+	 * Detection rules:
+	 * - Component name does not end in "Fullscreen" → pass through (Preview components)
+	 * - Already has `data` key → pass through (already in new shape)
+	 * - Has any DIRECT_PROP_NAMES key → pass through (child-detail fullscreens)
+	 * - Otherwise → wrap into { data: { decodedContent, embedData } } shape
+	 */
+	function wrapFullscreenPropsIfNeeded(
+		rawProps: Record<string, unknown>,
+		path: string
+	): Record<string, unknown> {
+		// Only wrap Fullscreen components
+		if (!path.endsWith('Fullscreen')) return rawProps;
+
+		// Already in new shape
+		if ('data' in rawProps) return rawProps;
+
+		// Direct-prop fullscreen
+		for (const key of Object.keys(rawProps)) {
+			if (DIRECT_PROP_NAMES.has(key)) return rawProps;
+		}
+
+		// Wrap legacy flat props
+		const decodedContent: Record<string, unknown> = {};
+		const topLevel: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(rawProps)) {
+			if (FULLSCREEN_TOP_LEVEL_PROPS.has(k)) {
+				topLevel[k] = v;
+			} else {
+				decodedContent[k] = v;
+			}
+		}
+		const status = decodedContent.status as string | undefined;
+		// Extract appId from the path (e.g., "embeds/shopping/ShoppingSearchEmbedFullscreen" → "shopping")
+		const pathParts = path.split('/');
+		const appId = pathParts.length >= 2 && pathParts[0] === 'embeds' ? pathParts[1] : '';
+		return {
+			...topLevel,
+			data: {
+				decodedContent,
+				embedData: { status: status || 'finished' },
+				attrs: { app_id: appId }
+			}
+		};
+	}
+
+	/**
 	 * Computed props: merges mock props, variant overrides, and manual edits.
 	 * Priority: default props < variant overrides < manual JSON edits
 	 */
@@ -138,6 +228,13 @@
 
 		return base;
 	});
+
+	/**
+	 * Props actually passed to the mounted component.
+	 * For Fullscreen components, wraps legacy flat props into the data-driven shape.
+	 * For everything else, identical to effectiveProps.
+	 */
+	let mountProps = $derived(wrapFullscreenPropsIfNeeded(effectiveProps, componentPath));
 
 	/**
 	 * Editable JSON string for the props editor textarea.
@@ -214,7 +311,7 @@
 	$effect(() => {
 		// Read reactive deps to trigger re-runs on variant/prop changes.
 		const component = loadedComponent;
-		const props = effectiveProps;
+		const props = mountProps;
 		const target = mountTarget;
 		const hasError = renderError;
 

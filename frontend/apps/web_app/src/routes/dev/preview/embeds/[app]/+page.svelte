@@ -710,6 +710,94 @@
 		return getDataVariants(s);
 	}
 
+	/**
+	 * Top-level prop names that fullscreen components receive directly (NOT wrapped in `data`).
+	 * These are common to ALL fullscreen components per EmbedFullscreenCommonProps.
+	 */
+	const FULLSCREEN_TOP_LEVEL_PROPS = new Set([
+		'onClose',
+		'embedId',
+		'hasPreviousEmbed',
+		'hasNextEmbed',
+		'onNavigatePrevious',
+		'onNavigateNext',
+		'navigateDirection',
+		'showChatButton',
+		'onShowChat',
+		'data'
+	]);
+
+	/**
+	 * Direct-prop names used by child-detail fullscreens that DON'T use the data-driven shape.
+	 * E.g., ShoppingResultEmbedFullscreen takes `product`, NutritionRecipeEmbedFullscreen takes `recipe`.
+	 * If any of these keys is present in raw props, the fullscreen is treated as a direct-props
+	 * component and no wrapping is applied.
+	 */
+	const DIRECT_PROP_NAMES = new Set([
+		'product',
+		'recipe',
+		'event',
+		'listing',
+		'connection',
+		'stay',
+		'place',
+		'appointment',
+		'image',
+		'video',
+		'recording',
+		'sheet',
+		'plot',
+		'flight',
+		'transcript',
+		'docs'
+	]);
+
+	/**
+	 * Wrap legacy preview-file fullscreen props into the data-driven shape required
+	 * by post-OPE-276 fullscreen components.
+	 *
+	 * Legacy preview files export flat content props like { query, provider, results }.
+	 * Post-OPE-276 fullscreens require { data: { decodedContent: {...}, embedData: {...} } }.
+	 *
+	 * Detection rules:
+	 * - If `data` already exists → component already uses new shape, pass through
+	 * - If any DIRECT_PROP_NAMES key exists → child-detail fullscreen, pass through
+	 * - Otherwise → wrap content fields into `data.decodedContent` and pass through
+	 *   common navigation props at top level
+	 */
+	function wrapFullscreenProps(
+		rawProps: Record<string, unknown>,
+		section: EmbedSection
+	): Record<string, unknown> {
+		// Already in new shape — pass through
+		if ('data' in rawProps) return rawProps;
+
+		// Direct-prop fullscreen (e.g., ShoppingResultEmbedFullscreen takes `product`)
+		for (const key of Object.keys(rawProps)) {
+			if (DIRECT_PROP_NAMES.has(key)) return rawProps;
+		}
+
+		// Legacy flat props — wrap into data-driven shape
+		const decodedContent: Record<string, unknown> = {};
+		const topLevel: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(rawProps)) {
+			if (FULLSCREEN_TOP_LEVEL_PROPS.has(k)) {
+				topLevel[k] = v;
+			} else {
+				decodedContent[k] = v;
+			}
+		}
+		const status = decodedContent.status as string | undefined;
+		return {
+			...topLevel,
+			data: {
+				decodedContent,
+				embedData: { status: status || 'finished' },
+				attrs: { app_id: section.appId }
+			}
+		};
+	}
+
 	function getEffectiveProps(s: LoadedSection): Record<string, unknown> {
 		const base = { ...s.mockProps };
 		if (s.activeVariant !== 'default' && s.variants[s.activeVariant]) {
@@ -985,7 +1073,8 @@
 							{@const Fullscreen = s.FullscreenComponent}
 							{@const dataVars2 = getFullscreenDataVariants(s)}
 							{@const fsIdx = s.fullscreenVariantIndex}
-							{@const [_fsVname, fsProps] = dataVars2[fsIdx]}
+							{@const [_fsVname, fsRawProps] = dataVars2[fsIdx]}
+							{@const fsProps = wrapFullscreenProps(fsRawProps, section)}
 							{@const fsTotal = dataVars2.length}
 							<div class="dt">
 								<h3 class="dt-heading" data-testid="dt-heading">

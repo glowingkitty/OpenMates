@@ -314,7 +314,7 @@
 
       {#if status === 'error'}
         <div class="search-error">
-          <div class="search-error-title">{$text('common.search')} failed</div>
+          <div class="ds-search-error-title">{$text('common.search')} failed</div>
         </div>
       {:else if status === 'finished'}
         <div class="ds-search-results-info">
@@ -405,11 +405,8 @@
     border: 1px solid rgba(var(--color-error-rgb), 0.3);
   }
 
-  .search-error-title {
-    font-size: var(--font-size-small);
-    font-weight: 600;
-    color: var(--color-error);
-  }
+  /* .ds-search-error-title base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/status-feedback.yml */
 
   /* Listing thumbnail row: overlapping rounded squares */
   .thumbnail-row {
