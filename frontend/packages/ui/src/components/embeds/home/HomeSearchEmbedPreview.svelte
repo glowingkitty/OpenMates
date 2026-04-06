@@ -307,17 +307,17 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="home-search-details" class:mobile={isMobileLayout}>
       <!-- Query text (city name) -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
 
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
 
       {#if status === 'error'}
         <div class="search-error">
           <div class="search-error-title">{$text('common.search')} failed</div>
         </div>
       {:else if status === 'finished'}
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if flatResults.length === 0}
             {#if isLoadingChildren}
               <span class="no-results-text">{$text('common.loading')}</span>
@@ -372,44 +372,21 @@
     justify-content: flex-start;
   }
 
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
 
-  .home-search-details.mobile .search-query {
+  .home-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
 
-  .search-provider {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-
-  .home-search-details.mobile .search-provider {
+  .home-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
   }
 
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-  }
-
-  .home-search-details.mobile .search-results-info {
+  .home-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
 
