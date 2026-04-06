@@ -49,6 +49,7 @@ import re
 import secrets
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -3214,6 +3215,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     skip_tests_reason = getattr(args, "skip_tests_reason", None)
     _run_test_enforcement_gate(to_commit, skip_tests_reason)
 
+    # 1d. Pytest gate — hard-block on failing related pytest unit tests
+    _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
+
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
     staged_files = _get_staged_files()
@@ -3989,6 +3993,175 @@ def _run_test_enforcement_gate(
     print("  To suppress: deploy --skip-tests \"reason\"")
     print("── END TEST GATE ──")
     print()
+
+
+# Pytest test files that must be excluded from the deploy gate — these match
+# the ignore list used by run_tests.py:run_pytest() so the deploy gate stays
+# consistent with the daily pytest suite.
+_PYTEST_GATE_IGNORE_EXACT: set[str] = {
+    "backend/tests/test_encryption_service.py",
+    "backend/tests/test_integration_encryption.py",
+}
+_PYTEST_GATE_IGNORE_PREFIX: tuple[str, ...] = (
+    "backend/tests/fixtures/",
+)
+_PYTEST_GATE_IGNORE_NAME_PREFIX: tuple[str, ...] = (
+    "test_model_comparison_",
+)
+# Hard timeout for the pytest gate — deploys should stay fast; if a targeted
+# test run exceeds this, the fix is to scope the tests better, not to wait.
+_PYTEST_GATE_TIMEOUT_SECONDS: int = 180
+
+
+def _is_backend_py(path: str) -> bool:
+    return path.startswith("backend/") and path.endswith(".py")
+
+
+def _is_pytest_gate_ignored(path: str) -> bool:
+    if path in _PYTEST_GATE_IGNORE_EXACT:
+        return True
+    if any(path.startswith(p) for p in _PYTEST_GATE_IGNORE_PREFIX):
+        return True
+    name = Path(path).name
+    return any(name.startswith(g) for g in _PYTEST_GATE_IGNORE_NAME_PREFIX)
+
+
+def _is_pytest_test_file(path: str) -> bool:
+    """True if the file is itself a pytest test module under backend/."""
+    if not _is_backend_py(path):
+        return False
+    name = Path(path).name
+    if not name.startswith("test_"):
+        return False
+    # Must live under a tests/ directory (backend/tests/ or backend/apps/*/tests/)
+    return "/tests/" in path
+
+
+def _resolve_pytest_venv() -> Path | None:
+    """Return a usable python interpreter for pytest, matching run_tests.py."""
+    candidates = [
+        PROJECT_ROOT / "backend" / ".venv" / "bin" / "python3",
+        Path("/OpenMates/.venv/bin/python3"),
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _collect_pytest_targets(files_to_commit: list[str]) -> list[str]:
+    """Return a deduplicated, filtered list of pytest test files related to
+    the backend Python files in the current commit.
+    """
+    targets: list[str] = []
+    seen: set[str] = set()
+
+    for filepath in files_to_commit:
+        if not _is_backend_py(filepath):
+            continue
+
+        candidates: list[str] = []
+
+        if _is_pytest_test_file(filepath):
+            candidates.append(filepath)
+        else:
+            result = _find_tests_for_file(filepath)
+            for unit_test in result.get("unit_tests", []):
+                if _is_backend_py(unit_test) and _is_pytest_test_file(unit_test):
+                    candidates.append(unit_test)
+
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            if _is_pytest_gate_ignored(candidate):
+                continue
+            if not (PROJECT_ROOT / candidate).is_file():
+                continue
+            seen.add(candidate)
+            targets.append(candidate)
+
+    return targets
+
+
+def _run_pytest_gate(
+    files_to_commit: list[str],
+    *,
+    skip_reason: str | None = None,
+    no_verify: bool = False,
+) -> None:
+    """Hard-block deploy if related pytest unit tests fail.
+
+    Only runs when the commit touches backend/**/*.py files. Uses the local
+    backend venv and runs only the test files related to the changed sources
+    (resolved via _find_tests_for_file). On failure, prints pytest output and
+    aborts the deploy. Honors --skip-tests "reason" and --no-verify.
+    """
+    if no_verify:
+        print("Pytest gate: SKIPPED (--no-verify)")
+        return
+    if skip_reason:
+        print(f"Pytest gate: SKIPPED ({skip_reason})")
+        return
+
+    backend_py = [f for f in files_to_commit if _is_backend_py(f)]
+    if not backend_py:
+        print("Pytest gate: SKIPPED (no backend python files changed)")
+        return
+
+    targets = _collect_pytest_targets(files_to_commit)
+    if not targets:
+        print("Pytest gate: SKIPPED (no related pytest tests found)")
+        return
+
+    venv_python = _resolve_pytest_venv()
+    if venv_python is None:
+        print("Pytest gate: SKIPPED (backend venv not found)", file=sys.stderr)
+        return
+
+    print(f"Running pytest gate ({len(targets)} test file(s))...")
+    for t in targets:
+        print(f"  • {t}")
+
+    cmd = [
+        str(venv_python), "-m", "pytest",
+        *targets,
+        "-m", "not integration and not benchmark",
+        "--tb=short", "--color=no", "-q",
+    ]
+
+    start = time.time()
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=_PYTEST_GATE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        print(
+            f"PYTEST GATE FAILED — timed out after {_PYTEST_GATE_TIMEOUT_SECONDS}s",
+            file=sys.stderr,
+        )
+        print("  Bypass with: deploy --skip-tests \"reason\"", file=sys.stderr)
+        sys.exit(1)
+
+    elapsed = time.time() - start
+
+    if result.returncode == 0:
+        print(f"Pytest gate: PASSED ({len(targets)} file(s) in {elapsed:.1f}s)")
+        return
+
+    print("PYTEST GATE FAILED — aborting deploy:", file=sys.stderr)
+    if result.stdout:
+        print(result.stdout, file=sys.stderr)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+    print(
+        "  Bypass with: deploy --skip-tests \"reason\"  (requires explicit justification)",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def cmd_check_tests(args: argparse.Namespace) -> None:
