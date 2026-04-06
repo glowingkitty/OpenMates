@@ -470,10 +470,10 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="web-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
       
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
       
       <!-- Error state: show simplified error for debugging -->
       {#if status === 'error'}
@@ -483,7 +483,7 @@
         </div>
       {:else if status === 'finished'}
         <!-- Finished state: show favicons and remaining count, or "0 results found" -->
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if flatResults.length === 0}
             {#if isLoadingChildren}
               <!-- Child embeds are being fetched — show loading instead of confusing "0 results" -->
@@ -549,48 +549,21 @@
     justify-content: flex-start;
   }
   
-  /* Query text */
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .web-search-details.mobile .search-query {
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
+  .web-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
-  
-  /* Provider subtitle */
-  .search-provider {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-  
-  .web-search-details.mobile .search-provider {
+
+  .web-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
   }
-  
-  /* Search results info (favicons + remaining count) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-  }
-  
-  .web-search-details.mobile .search-results-info {
+
+  .web-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
   
