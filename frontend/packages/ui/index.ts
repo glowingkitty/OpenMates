@@ -160,6 +160,7 @@ export { performCleanUpdate } from "./src/utils/cacheManager";
 // Styles — design tokens (single source of truth)
 export * from "./src/tokens/generated/tokens.generated";
 import "./src/tokens/generated/theme.generated.css";
+import "./src/tokens/generated/component-classes.generated.css";
 import "./src/styles/buttons.css";
 import "./src/styles/fields.css";
 import "./src/styles/cards.css";

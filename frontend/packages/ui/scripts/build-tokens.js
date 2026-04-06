@@ -31,6 +31,9 @@ const CSS_OUTPUT = resolve(GENERATED_DIR, "theme.generated.css");
 const TS_OUTPUT = resolve(GENERATED_DIR, "tokens.generated.ts");
 const ICONS_DIR = resolve(__dirname, "../static/icons");
 const ICONS_XCASSETS_DIR = resolve(SWIFT_DIR, "Icons.xcassets");
+const COMPONENTS_DIR = resolve(SOURCES_DIR, "components");
+const COMPONENT_CSS_OUTPUT = resolve(GENERATED_DIR, "component-classes.generated.css");
+const COMPONENT_SWIFT_OUTPUT = resolve(SWIFT_DIR, "ComponentTokens.generated.swift");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -645,8 +648,173 @@ function generateSwiftUmbrella() {
     "//   SpacingTokens.generated.swift",
     "//   GradientTokens.generated.swift",
     "//   IconMapping.generated.swift",
+    "//   ComponentTokens.generated.swift",
     "",
   ].join("\n");
+}
+
+// ── Component Classes Generation (Phase E) ─────────────────────────────────
+// Reads src/tokens/sources/components/*.yml and emits:
+//   - src/tokens/generated/component-classes.generated.css (.ds-* classes)
+//   - src/tokens/generated/swift/ComponentTokens.generated.swift (DS.* enums)
+//
+// Each YAML file declares one or more "primitives" keyed by name. A primitive
+// is a map of CSS-ish properties. Values are either:
+//   - a number  → treated as px for dimensional props, bare number otherwise
+//   - a string  → emitted verbatim
+//   - { ref }   → emitted as var(--<ref>) pointing at an existing token
+//
+// Architecture: docs/architecture/frontend/design-tokens.md
+
+// Properties whose raw numeric values should be emitted with a px suffix.
+const COMPONENT_DIMENSIONAL_PROPS = new Set([
+  "width", "min-width", "max-width",
+  "height", "min-height", "max-height",
+  "border-radius", "radius",
+  "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+  "padding-x", "padding-y",
+  "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+  "gap", "top", "right", "bottom", "left",
+]);
+
+/** Resolve a raw YAML value to a CSS expression. */
+function resolveComponentValue(value, propKey) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "object" && value !== null && "ref" in value) {
+    return `var(--${value.ref})`;
+  }
+  if (typeof value === "number") {
+    return COMPONENT_DIMENSIONAL_PROPS.has(propKey) ? `${value}px` : String(value);
+  }
+  return String(value);
+}
+
+/** Emit CSS declarations for one primitive. Handles composite props. */
+function emitPrimitiveDeclarations(primitive) {
+  const decls = [];
+  let paddingX = null;
+  let paddingY = null;
+
+  for (const [key, rawValue] of Object.entries(primitive)) {
+    const value = resolveComponentValue(rawValue, key);
+    if (value === null) continue;
+
+    if (key === "padding-x") { paddingX = value; continue; }
+    if (key === "padding-y") { paddingY = value; continue; }
+    if (key === "radius") { decls.push(`  border-radius: ${value};`); continue; }
+    if (key === "webkit-box-orient") { decls.push(`  -webkit-box-orient: ${value};`); continue; }
+    if (key === "line-clamp") {
+      decls.push(`  display: -webkit-box;`);
+      decls.push(`  -webkit-line-clamp: ${value};`);
+      decls.push(`  line-clamp: ${value};`);
+      decls.push(`  -webkit-box-orient: vertical;`);
+      decls.push(`  overflow: hidden;`);
+      continue;
+    }
+    decls.push(`  ${key}: ${value};`);
+  }
+
+  if (paddingY !== null && paddingX !== null) {
+    decls.push(`  padding: ${paddingY} ${paddingX};`);
+  } else if (paddingY !== null) {
+    decls.push(`  padding-top: ${paddingY};`);
+    decls.push(`  padding-bottom: ${paddingY};`);
+  } else if (paddingX !== null) {
+    decls.push(`  padding-left: ${paddingX};`);
+    decls.push(`  padding-right: ${paddingX};`);
+  }
+
+  return decls;
+}
+
+/** Read every components/*.yml as { filename, primitives } pairs. */
+function readComponentSources() {
+  if (!existsSync(COMPONENTS_DIR)) return [];
+  return readdirSync(COMPONENTS_DIR)
+    .filter(f => f.endsWith(".yml"))
+    .sort()
+    .map(filename => {
+      const raw = readFileSync(resolve(COMPONENTS_DIR, filename), "utf-8");
+      const parsed = YAML.parse(raw) || {};
+      return { filename, primitives: parsed };
+    });
+}
+
+function generateComponentClasses() {
+  const sources = readComponentSources();
+  const sections = [];
+
+  for (const { filename, primitives } of sources) {
+    const entries = Object.entries(primitives).filter(([, v]) => v && typeof v === "object");
+    if (entries.length === 0) continue;
+
+    const groupName = basename(filename, ".yml");
+    sections.push(`/* ── ${groupName} ── */`);
+    for (const [name, spec] of entries) {
+      const decls = emitPrimitiveDeclarations(spec);
+      if (decls.length === 0) continue;
+      sections.push(`.ds-${name} {`);
+      sections.push(...decls);
+      sections.push(`}`);
+      sections.push("");
+    }
+  }
+
+  const body = sections.length > 0 ? sections.join("\n") : "/* (no primitives lifted yet) */\n";
+  return `/* AUTO-GENERATED by build-tokens.js — DO NOT EDIT
+ * Source: frontend/packages/ui/src/tokens/sources/components/
+ * ${new Date().toISOString().split("T")[0]}
+ *
+ * Design-system component primitive classes (Phase E).
+ * Opt in by using class="ds-<name>" and deleting the legacy local rule in
+ * the same atomic commit. See docs/architecture/frontend/design-tokens.md.
+ */
+
+${body}`;
+}
+
+function generateComponentSwift() {
+  const sources = readComponentSources();
+  const lines = [
+    "// AUTO-GENERATED by build-tokens.js — DO NOT EDIT",
+    "// Source: frontend/packages/ui/src/tokens/sources/components/",
+    "//",
+    "// Cross-platform counterparts to the .ds-* CSS classes — consumed by the",
+    "// iOS SwiftUI app to share component primitive values with the web.",
+    "",
+    "import SwiftUI",
+    "",
+    "public enum DS {",
+  ];
+
+  let emitted = 0;
+  for (const { primitives } of sources) {
+    for (const [name, spec] of Object.entries(primitives)) {
+      if (!spec || typeof spec !== "object") continue;
+      lines.push(`  public enum ${pascalCase(name)} {`);
+      for (const [key, rawValue] of Object.entries(spec)) {
+        const propName = camelCase(key);
+        if (typeof rawValue === "object" && rawValue !== null && "ref" in rawValue) {
+          lines.push(`    // ${propName}: references --${rawValue.ref} (see generated token extensions)`);
+        } else if (typeof rawValue === "number") {
+          lines.push(`    public static let ${propName}: CGFloat = ${rawValue}`);
+        } else {
+          lines.push(`    public static let ${propName}: String = ${JSON.stringify(String(rawValue))}`);
+        }
+      }
+      lines.push(`  }`);
+      lines.push("");
+      emitted++;
+    }
+  }
+
+  if (emitted === 0) {
+    lines.push("  // (no primitives lifted yet)");
+  }
+
+  lines.push("}");
+  lines.push("");
+  return lines.join("\n");
 }
 
 function generateXcassets() {
@@ -967,6 +1135,12 @@ function main() {
   // Generate Swift icon mapping
   writeFileSync(resolve(SWIFT_DIR, "IconMapping.generated.swift"), generateSwiftIconMapping(), "utf-8");
   console.log(`[build-tokens] Generated Swift icon mapping → ${SWIFT_DIR}/IconMapping.generated.swift`);
+
+  // Generate component primitive classes + Swift structs (Phase E)
+  writeFileSync(COMPONENT_CSS_OUTPUT, generateComponentClasses(), "utf-8");
+  console.log(`[build-tokens] Generated component classes → ${COMPONENT_CSS_OUTPUT}`);
+  writeFileSync(COMPONENT_SWIFT_OUTPUT, generateComponentSwift(), "utf-8");
+  console.log(`[build-tokens] Generated component Swift → ${COMPONENT_SWIFT_OUTPUT}`);
 
   // Verify mode
   if (isVerify) {
