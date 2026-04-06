@@ -143,42 +143,13 @@ fi
 rm -f "$LAST_RUN.bak"
 cp "$LAST_RUN" "$LAST_RUN.bak"
 
-# --- Production smoke test (optional, runs from dev server against prod URL) ---
-# Triggered when E2E_PROD_TEST_ENABLED=true. Runs chat-flow.spec.ts against
-# E2E_PROD_TEST_BASE_URL using the dedicated prod test account credentials.
-# Results are written to test-results/last-run-prod-smoke.json and merged into
-# the summary email payload by _daily_runner_helper.py.
-PROD_SMOKE_EXIT_CODE=0
-if [[ "${E2E_PROD_TEST_ENABLED:-}" == "true" ]]; then
-  PROD_URL="${E2E_PROD_TEST_BASE_URL:-}"
-  if [[ -z "$PROD_URL" ]]; then
-    echo "[daily-runner] WARNING: E2E_PROD_TEST_ENABLED=true but E2E_PROD_TEST_BASE_URL is not set — skipping prod smoke test."
-  else
-    echo "[daily-runner] Starting prod smoke test against $PROD_URL..."
-    set +e
-    "$SCRIPT_DIR/run-tests.sh" \
-      --suite playwright \
-      --workers 1 \
-      --environment production \
-      --base-url "$PROD_URL" \
-      --prod-account
-    PROD_SMOKE_EXIT_CODE=$?
-    set -e
+# --- Production smoke test (REMOVED — superseded by GitHub Actions workflow) ---
+# The legacy E2E_PROD_TEST_ENABLED branch that ran chat-flow.spec.ts against
+# prod from the dev server was removed in OPE-76. Prod smoke tests now run
+# hourly via .github/workflows/prod-smoke.yml, which is independent of dev
+# server uptime and fires dual-channel Discord + email notifications on
+# failure.
 
-    PROD_SMOKE_RUN="$RESULTS_DIR/last-run.json"
-    if [[ -f "$PROD_SMOKE_RUN" ]]; then
-      rm -f "$RESULTS_DIR/last-run-prod-smoke.json"
-      cp "$PROD_SMOKE_RUN" "$RESULTS_DIR/last-run-prod-smoke.json"
-      echo "[daily-runner] Prod smoke test complete (exit=$PROD_SMOKE_EXIT_CODE)"
-    else
-      echo "[daily-runner] WARNING: prod smoke test did not produce last-run.json"
-    fi
-
-    # Restore the dev last-run.json (it was overwritten by the prod smoke run)
-    rm -f "$LAST_RUN"
-    cp "$LAST_RUN.bak" "$LAST_RUN" 2>/dev/null || true
-  fi
-fi
 
 # --- Collect coverage metrics (informational, non-blocking) ---
 echo "[daily-runner] Collecting coverage metrics..."

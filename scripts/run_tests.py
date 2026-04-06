@@ -845,7 +845,14 @@ class ResultAggregator:
 # ---------------------------------------------------------------------------
 
 class NotificationService:
-    """Sends email notifications and pushes to OpenObserve."""
+    """Sends email and Discord notifications and pushes to OpenObserve.
+
+    Discord is a fallback notification channel added in OPE-76 to guarantee
+    test run failures surface even when the email path (Brevo / internal API)
+    silently breaks — which is exactly what happened with the 2026-04-06 nightly
+    summary that never arrived. Email and Discord sends are independent: a
+    failure in one must never block the other.
+    """
 
     def __init__(self) -> None:
         self.dot_env = _read_env_file()
@@ -855,6 +862,12 @@ class NotificationService:
         self.internal_api_url = _get_env(
             "INTERNAL_API_URL", self.dot_env, "http://localhost:8000"
         ).rstrip("/")
+        # Discord webhook for dev nightly run failures. Optional — unset means
+        # "skip Discord entirely" (preserves the existing no-Discord behavior
+        # on machines that have not been configured yet).
+        self.discord_webhook_url = _get_env(
+            "DISCORD_WEBHOOK_DEV_NIGHTLY", self.dot_env
+        )
 
     def send_start_email(self, git_sha: str, git_branch: str, environment: str) -> None:
         """Notify admin that a test run has started."""
@@ -886,27 +899,37 @@ class NotificationService:
             _log("No email credentials available — skipping start email", "WARN")
 
     def send_summary_email(self, result: RunResult) -> None:
-        """Send test summary email after run completes."""
-        if not self.admin_email:
-            _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
-            return
+        """Send test summary email after run completes, plus Discord fallback.
 
+        The email and Discord sends are INDEPENDENT: neither awaits the other
+        and neither's failure aborts the other. This is the whole point of the
+        dual-channel notification pattern.
+        """
         s = result.summary
         status = "All tests passed" if s["failed"] == 0 else f"{s['failed']} of {s['total']} tests failed"
         subject = f"[OpenMates] {status} ({result.environment})"
 
-        # Build HTML email body
-        html = self._build_summary_html(result)
-        text = self._build_summary_text(result)
-
-        if self.brevo_api_key:
-            self._send_via_brevo(subject, text, html)
-        elif self.internal_token:
-            # Fall back to internal API
-            payload = self._build_internal_api_payload(result)
-            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        # --- Email path (existing) ---
+        if not self.admin_email:
+            _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
         else:
-            _log("No email credentials available — skipping summary email", "WARN")
+            # Build HTML email body
+            html = self._build_summary_html(result)
+            text = self._build_summary_text(result)
+
+            if self.brevo_api_key:
+                self._send_via_brevo(subject, text, html)
+            elif self.internal_token:
+                # Fall back to internal API
+                payload = self._build_internal_api_payload(result)
+                self._send_via_internal_api("dispatch-test-summary-email", payload)
+            else:
+                _log("No email credentials available — skipping summary email", "WARN")
+
+        # --- Discord fallback (OPE-76) ---
+        # Fires for EVERY run — nightly success gives a visible heartbeat so we
+        # notice if the whole pipeline goes quiet. Failures get a louder ping.
+        self._send_summary_to_discord(result)
 
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
@@ -970,6 +993,89 @@ class NotificationService:
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
+
+    def _send_summary_to_discord(self, result: RunResult) -> None:
+        """Post a test run summary to the Discord webhook.
+
+        Independent of the email path — catches and logs all errors rather than
+        raising, so a dead webhook URL or network hiccup never blocks the
+        nightly runner. Uses stdlib urllib to avoid introducing an httpx
+        dependency in the script.
+        """
+        if not self.discord_webhook_url:
+            _log("DISCORD_WEBHOOK_DEV_NIGHTLY not set — skipping Discord summary", "DEBUG")
+            return
+
+        s = result.summary
+        all_passed = s["failed"] == 0
+        # Red for failures, green for all-passed — matches the email HTML.
+        color = 0x22C55E if all_passed else 0xEF4444
+        title_emoji = "✅" if all_passed else "❌"
+        status_suffix = "all passed" if all_passed else f"{s['failed']} failed"
+        title = f"{title_emoji} {result.environment} nightly — {status_suffix}"
+
+        # Build a compact description listing up to the first 10 failed tests
+        # so readers see what actually broke without having to open the email.
+        failed_lines: list[str] = []
+        for suite_name, suite_data in result.suites.items():
+            for t in suite_data.get("tests", []):
+                if t.get("status") == "failed":
+                    name = t.get("file", t.get("name", "?"))
+                    failed_lines.append(f"• `{suite_name}` — {name}")
+                    if len(failed_lines) >= 10:
+                        break
+            if len(failed_lines) >= 10:
+                break
+
+        remaining = max(0, s["failed"] - len(failed_lines))
+        if remaining > 0:
+            failed_lines.append(f"…and {remaining} more")
+
+        dur_min = int(result.duration_seconds // 60)
+        dur_sec = int(result.duration_seconds % 60)
+
+        description_parts = [
+            f"**Total:** {s['total']}   **Passed:** {s['passed']}   "
+            f"**Failed:** {s['failed']}   **Skipped:** {s['skipped']}",
+            f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
+        ]
+        if failed_lines:
+            description_parts.append("")
+            description_parts.append("**Failures:**")
+            description_parts.extend(failed_lines)
+
+        description = "\n".join(description_parts)
+        # Discord caps description at 4096 chars
+        if len(description) > 4000:
+            description = description[:3997] + "..."
+
+        payload = {
+            "username": "OpenMates Test Runner",
+            "embeds": [
+                {
+                    "title": title,
+                    "description": description,
+                    "color": color,
+                }
+            ],
+        }
+
+        try:
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                self.discord_webhook_url,
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp.read()
+            _log("Discord summary posted")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+        except Exception as e:
+            _log(f"Discord summary POST failed: {e}", "ERROR")
 
     def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
         """Send via internal API as fallback."""

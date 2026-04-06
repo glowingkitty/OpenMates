@@ -13,6 +13,7 @@ Tests: (none yet)
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import { updateProfile } from '../../../stores/userProfile';
+    import * as cryptoService from '../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -61,6 +62,21 @@ Tests: (none yet)
         try {
             const normalizedCode = giftCardCode.trim().toUpperCase();
 
+            // Include the client-held email encryption key when available.
+            // The backend only reads it when the gift card has
+            // `allowed_email_domain` set (OPE-76 reusable prod smoke test card).
+            // Standard single-use user cards ignore this field, so it's a
+            // strictly additive change that keeps existing redemption flows
+            // byte-for-byte compatible.
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+
+            const requestBody: { code: string; email_encryption_key?: string } = {
+                code: normalizedCode
+            };
+            if (emailEncryptionKey) {
+                requestBody.email_encryption_key = emailEncryptionKey;
+            }
+
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.redeemGiftCard), {
                 method: 'POST',
                 headers: {
@@ -68,7 +84,7 @@ Tests: (none yet)
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ code: normalizedCode }),
+                body: JSON.stringify(requestBody),
                 credentials: 'include' // Important for sending auth cookies
             });
 

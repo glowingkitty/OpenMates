@@ -1,0 +1,168 @@
+# .github/actions/notify-test-failure/action.yml
+#
+# Reusable composite action for dual-channel test failure notifications.
+# Posts to a Discord webhook AND sends an email via Brevo's HTTP API.
+# Both sends are INDEPENDENT — a failure in one must never block the other.
+# This is the whole point of the fallback design: email has silently failed
+# on us before (see OPE-76 context), so Discord is the guaranteed second
+# channel. Neither step fails the calling workflow on its own.
+#
+# Inputs:
+#   run_label        Required. Human-readable label like "prod-smoke 14:00 CEST".
+#   run_url          Required. URL of the GitHub Actions run for deep-linking.
+#   failure_summary  Required. Plain-text summary of what failed (<= 1500 chars).
+#   discord_webhook  Optional. When set, posts a red embed to Discord.
+#   email_to         Optional. When set + brevo_api_key, sends an HTML email.
+#   brevo_api_key    Optional. Paired with email_to.
+
+name: "Notify test failure (email + Discord)"
+description: "Dual-channel failure notification for test suites"
+
+inputs:
+  run_label:
+    description: "Human-readable label for the run (e.g. 'prod-smoke 14:00 CEST')"
+    required: true
+  run_url:
+    description: "URL of the GitHub Actions run"
+    required: true
+  failure_summary:
+    description: "Plain-text failure summary (<= 1500 chars)"
+    required: true
+  discord_webhook:
+    description: "Discord webhook URL (optional — skipped if empty)"
+    required: false
+    default: ""
+  email_to:
+    description: "Recipient email address for the Brevo send (optional)"
+    required: false
+    default: ""
+  brevo_api_key:
+    description: "Brevo API key (optional — paired with email_to)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Post to Discord
+      if: inputs.discord_webhook != ''
+      shell: bash
+      # Continue on error so a dead webhook cannot block the email step.
+      continue-on-error: true
+      run: |
+        python3 - <<'PY'
+        import json, os, sys, urllib.request, urllib.error
+
+        webhook = os.environ["DISCORD_WEBHOOK"]
+        label   = os.environ["RUN_LABEL"]
+        url     = os.environ["RUN_URL"]
+        summary = os.environ["FAILURE_SUMMARY"]
+
+        # Discord caps embed description at 4096; leave headroom for prefix.
+        max_desc = 3900
+        if len(summary) > max_desc:
+            summary = summary[:max_desc - 3] + "..."
+
+        payload = {
+            "username": "OpenMates Test Runner",
+            "embeds": [{
+                "title": f"❌ {label} FAILED",
+                "description": summary,
+                "color": 0xEF4444,
+                "url": url,
+                "footer": {"text": "GitHub Actions"},
+            }],
+        }
+
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            webhook,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp.read()
+            print(f"::notice::Discord webhook POST succeeded")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            print(f"::error::Discord webhook HTTP {e.code}: {body[:300]}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"::error::Discord webhook failed: {e}")
+            sys.exit(1)
+        PY
+      env:
+        DISCORD_WEBHOOK: ${{ inputs.discord_webhook }}
+        RUN_LABEL: ${{ inputs.run_label }}
+        RUN_URL: ${{ inputs.run_url }}
+        FAILURE_SUMMARY: ${{ inputs.failure_summary }}
+
+    - name: Send Brevo email
+      if: inputs.email_to != '' && inputs.brevo_api_key != ''
+      shell: bash
+      # Continue on error so a dead Brevo key cannot affect the Discord step.
+      continue-on-error: true
+      run: |
+        python3 - <<'PY'
+        import html, json, os, sys, urllib.request, urllib.error
+
+        api_key = os.environ["BREVO_API_KEY"]
+        to_addr = os.environ["EMAIL_TO"]
+        label   = os.environ["RUN_LABEL"]
+        url     = os.environ["RUN_URL"]
+        summary = os.environ["FAILURE_SUMMARY"]
+
+        subject = f"[OpenMates] {label} FAILED"
+        # Simple plain HTML — intentionally NOT using the MJML pipeline,
+        # because the whole point of this fallback is that the regular email
+        # path may be broken.
+        body_html = (
+            f'<html><body style="font-family:monospace;background:#1a1a2e;'
+            f'color:#e0e0e0;padding:20px">'
+            f'<h2 style="color:#ef4444">❌ {html.escape(label)} FAILED</h2>'
+            f'<pre style="white-space:pre-wrap">{html.escape(summary)}</pre>'
+            f'<p><a href="{html.escape(url)}" '
+            f'style="color:#60a5fa">View GitHub Actions run</a></p>'
+            f'</body></html>'
+        )
+        body_text = f"{label} FAILED\n\n{summary}\n\nRun: {url}\n"
+
+        payload = {
+            "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
+            "to": [{"email": to_addr}],
+            "subject": subject,
+            "textContent": body_text,
+            "htmlContent": body_html,
+            "headers": {"Precedence": "bulk", "Auto-Submitted": "auto-generated"},
+        }
+
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "accept": "application/json",
+                "api-key": api_key,
+                "content-type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp.read()
+            print(f"::notice::Brevo email sent to {to_addr}")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            print(f"::error::Brevo HTTP {e.code}: {body[:300]}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"::error::Brevo email failed: {e}")
+            sys.exit(1)
+        PY
+      env:
+        BREVO_API_KEY: ${{ inputs.brevo_api_key }}
+        EMAIL_TO: ${{ inputs.email_to }}
+        RUN_LABEL: ${{ inputs.run_label }}
+        RUN_URL: ${{ inputs.run_url }}
+        FAILURE_SUMMARY: ${{ inputs.failure_summary }}
