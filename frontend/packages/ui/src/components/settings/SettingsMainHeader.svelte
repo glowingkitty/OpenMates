@@ -519,7 +519,7 @@
     }
 
     .credits-amount {
-        color: var(--color-grey-0);
+        color: var(--color-font-button);
         font-size: null;
         font-weight: 600;
         line-height: 1.2;

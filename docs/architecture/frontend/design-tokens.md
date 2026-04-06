@@ -551,6 +551,56 @@ Allowlist for legitimate exceptions: `src/tokens/.token-allowlist.json`.
 - `scripts/audit-tokens.js` — Scans .svelte files, produces `token-audit.json` manifest mapping every hardcoded value to its token replacement
 - `scripts/migrate-tokens.js` — Reads the manifest and performs file-by-file replacements. Supports `--dry-run`, `--exact-only`, `--include-manual`
 
+## Component Primitives (Phase E — Sub-phase α)
+
+Phases A–D lifted every primitive *value* (colors, spacing, radii, etc.) into YAML. Sub-phase E-α lifts a small set of reusable *component primitives* — multi-property class definitions used across many Svelte files — into YAML so web (CSS classes) and iOS (SwiftUI structs) share a single shape.
+
+### Why a separate layer
+
+Design-token primitives describe a single value (`--spacing-4: 8px`). Component primitives describe a *combination* of values that recurs in identical form across many components — e.g. the green success-icon badge used by every confirmation screen, or the search-result row layout used by every embed search preview. Without a shared definition these would have to be hand-rewritten on iOS and stay in sync by hand.
+
+### Source files
+
+```
+src/tokens/sources/components/
+  status-feedback.yml      # success-icon-wrapper, success-title, error-title, search-error-title
+  search-results.yml       # search-query, search-provider, search-results-info
+  loading.yml              # loading-text  (skeleton-line deferred — see notes)
+  snippet-card.yml         # snippet-card  (quote container in news/website fullscreens)
+  forms.yml                # save-button-container
+```
+
+### Generated outputs
+
+- **Web:** `src/tokens/generated/component-classes.generated.css` — emits one `.ds-{name}` class per primitive plus `--ds-{name}-{property}` CSS variables. Imported via `frontend/packages/ui/index.ts`.
+- **iOS:** `src/tokens/generated/swift/ComponentTokens.generated.swift` — one nested struct per primitive under `enum DS { ... }`, e.g. `DS.SuccessIconWrapper.size`.
+
+### Migration pattern
+
+Components opt in per-file: rename `class="success-icon-wrapper"` to `class="ds-success-icon-wrapper"` AND delete the local base rule from `<style>` in the same atomic commit. Mobile descendant selectors are renamed to target the `.ds-*` class. Local extras (extra padding, layout-specific properties) stay in the file.
+
+### Lifted primitives (Sub-phase α — complete)
+
+| Class | Files migrated | Group |
+|-------|----------------|-------|
+| `.ds-snippet-card` | 2 | snippet-card |
+| `.ds-search-query` | 11 | search-results |
+| `.ds-search-provider` | 11 | search-results |
+| `.ds-search-results-info` | 11 | search-results |
+| `.ds-success-icon-wrapper` | 4 | status-feedback |
+| `.ds-success-title` | 4 | status-feedback |
+| `.ds-error-title` | 3 | status-feedback |
+| `.ds-search-error-title` | 7 | status-feedback |
+| `.ds-loading-text` | 5 | status-feedback / loading |
+| `.ds-save-button-container` | 8 | forms |
+
+### Deferred (audit revealed collisions or entanglement — separate tickets)
+
+- `.error-icon`, `.warning-icon`, `.warning-text` — same name used for visually different roles across files
+- `.skeleton-line` — entangled with per-file `@keyframes pulse` shared by other classes
+- All PARTIAL classes (`.error-state`, `.success-message`, `.error-text`, `.action-buttons`, `.loading`, `.loading-state`, `.confirmation-row`) — outliers must be renamed first (sub-phase E-β)
+- All COLLISION classes (`.error-message`, `.loading-spinner`, `.empty-state`, `.no-results`, `.success-icon`, `.copy-icon`, `.confirmation-text`, `.btn` family) — sub-phase E-γ
+
 ## How To
 
 ### Add a new design token
@@ -565,6 +615,14 @@ Allowlist for legitimate exceptions: `src/tokens/.token-allowlist.json`.
 2. Run `pnpm --filter @repo/ui build:tokens`
 3. Web: available as `var(--icon-url-{name})` via `generate-icon-urls.js`
 4. iOS: available as `Image("{name}")` via `Icons.xcassets/{name}.imageset/`
+
+### Add a new component primitive
+
+1. Identify a CSS class definition that recurs in identical form across 3+ Svelte files (run an audit first — same name used for different roles is a COLLISION, not a primitive)
+2. Add a YAML entry under `src/tokens/sources/components/{group}.yml` using `ref:` for any primitive token references
+3. Run `pnpm --filter @repo/ui build:tokens`
+4. Per file: rename `class="foo"` to `class="ds-foo"` and delete the local base rule. One file per commit. Verify pixel-identical render on the dev preview route. Repeat for every file.
+5. Optional: temporarily add the legacy class name to `validate-token-usage.js` warnings during the migration window
 
 ### Add a new Lucide → SF Symbol mapping
 

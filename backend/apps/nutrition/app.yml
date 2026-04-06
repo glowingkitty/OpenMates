@@ -16,11 +16,17 @@ icon_image: |
 category: personal
 last_updated: '2026-04-05'
 settings_and_memories:
-  - id: |
-      saved_recipes
+  - id: saved_recipes
+    name_translation_key: nutrition.saved_recipes
+    description_translation_key: nutrition.saved_recipes.description
+    icon_image: bookmark.svg
+    type: list
     stage: planning
-  - id: |
-      meal_plan
+  - id: meal_plan
+    name_translation_key: nutrition.meal_plan
+    description_translation_key: nutrition.meal_plan.description
+    icon_image: calendar.svg
+    type: list
     stage: planning
 embed_types:
   - id: search_recipes
