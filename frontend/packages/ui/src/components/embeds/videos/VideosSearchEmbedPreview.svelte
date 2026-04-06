@@ -341,7 +341,7 @@
         <div class="ds-search-results-info">
           {#if channelThumbnailResults.length === 0 && remainingCount === 0 && isLoadingChildren}
             <!-- Child embeds are being fetched — show loading instead of empty state -->
-            <span class="loading-text">{$text('common.loading')}</span>
+            <span class="ds-loading-text">{$text('common.loading')}</span>
           {:else if channelThumbnailResults.length > 0}
             <div class="channel-thumbnail-row">
               {#each channelThumbnailResults as result, index}
@@ -440,12 +440,8 @@
     margin-left: 0;
   }
   
-  /* Loading text (shown while child embeds are being fetched) */
-  .loading-text {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    font-weight: 500;
-  }
+  /* .ds-loading-text base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/loading.yml */
 
   /* Remaining count */
   .remaining-count {

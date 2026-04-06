@@ -341,7 +341,7 @@
               {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
             </span>
           {:else if isLoadingChildren}
-            <span class="loading-text">{$text('common.loading')}</span>
+            <span class="ds-loading-text">{$text('common.loading')}</span>
           {/if}
 
           {#if priceInfo}
@@ -405,12 +405,8 @@
     margin-top: var(--spacing-1);
   }
   
-  /* Loading text (shown while child embeds are being fetched) */
-  .loading-text {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    font-weight: 500;
-  }
+  /* .ds-loading-text base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/loading.yml */
 
   /* Connection count */
   .connection-count {

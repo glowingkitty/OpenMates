@@ -11169,7 +11169,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: hidden;
         font-size: var(--font-size-p);
         font-weight: 700;
-        color: var(--color-grey-0);
+        /* Always white regardless of theme — sits on the branded gradient resume card. */
+        color: var(--color-font-button);
         text-align: center;
         line-height: 1.3;
         max-width: 100%;
