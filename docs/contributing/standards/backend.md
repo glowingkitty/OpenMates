@@ -23,34 +23,30 @@ Standards for modifying Python code in `backend/` - FastAPI routes, Pydantic mod
 
 Rebuild only the containers whose code you actually changed. Do NOT rebuild the entire stack unless you have a specific reason to.
 
-**Common container-to-path mappings:**
+**Common container-to-path mappings (in-process model since OPE-342):**
 
-| Path changed            | Containers to rebuild                      |
-| ----------------------- | ------------------------------------------ |
-| `backend/core/api/`     | `api`                                      |
-| `backend/core/workers/` | `task-worker`, `task-scheduler`            |
-| `backend/apps/ai/`      | `app-ai`, `app-ai-worker`                  |
-| `backend/apps/web/`     | `app-web`, `app-web-worker`                |
-| `backend/apps/videos/`  | `app-videos`                               |
-| `backend/apps/news/`    | `app-news`                                 |
-| `backend/apps/maps/`    | `app-maps`                                 |
-| `backend/apps/code/`    | `app-code`                                 |
-| `backend/apps/health/`  | `app-health`                               |
-| `backend/shared/`       | All app containers that import shared code |
+| Path changed            | Containers to rebuild                                       |
+| ----------------------- | ----------------------------------------------------------- |
+| `backend/core/api/`     | `api`                                                       |
+| `backend/core/workers/` | `task-worker`, `task-scheduler`                             |
+| `backend/apps/ai/`      | `api`, `app-ai-worker`                                      |
+| `backend/apps/images/`  | `api`, `app-images-worker`                                  |
+| `backend/apps/pdf/`     | `api`, `app-pdf-worker`                                     |
+| `backend/apps/<other>/` | `api` (and any worker that consumes the app's queue)        |
+| `backend/shared/`       | `api` and every Celery worker that imports the shared code  |
 
-### Adding a new app container (CRITICAL)
+Since OPE-342 there are no per-app sync containers — every skill runs in-process inside `api` (and inside the Celery workers via the same `SkillRegistry`). The `api` container loads `backend/apps/*/app.yml` at startup and resolves each skill `class_path` via `importlib`.
 
-When you add a new `app-<id>` service to `docker-compose.yml` and start it for the first time, the `api` container will **not** automatically discover it. The `api` discovers app containers at startup by calling `http://app-<id>:8000/metadata`. If the new container starts after the `api`, it is silently skipped.
+### Adding a new app
 
-**After starting a new `app-<id>` container, always restart `api`:**
+1. Create `backend/apps/{name}/` with `app.yml`, `skills/`, and any providers.
+2. Restart `api` (and any worker that needs the app):
+   ```bash
+   docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
+   ```
+3. That's it. No `docker-compose.yml` edit. No new container.
 
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
-```
-
-This triggers re-discovery so the new app appears in `/v1/health` and the settings app store.
-
-Note: The periodic health check task (runs every ~1 min) will eventually update the Redis discovery cache, and `/v1/health` now reads from that cache as a fallback. But the `api`'s in-memory `app.state.discovered_apps_metadata` (used for skill routing) won't update until restart, so a restart is still required for full functionality.
+The api startup logs will show `[SkillRegistry] Registered app '<name>' with N resolved skill(s)`. If a skill's `class_path` import fails, you'll see an `ERROR` log from `BaseApp._resolve_skill_classes` and the skill returns 404 — but the rest of the app and the api itself stay up.
 
 **Rebuild and restart only the relevant containers:**
 

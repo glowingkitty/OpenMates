@@ -848,7 +848,44 @@ def init_worker_process(*args, **kwargs):
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
-    
+
+    # OPE-342: Build the in-process SkillRegistry for this worker process.
+    # Workers used to HTTP-POST to app-{id}:8000 containers; now they import
+    # skill classes via importlib and dispatch in-process via the registry.
+    # This must run AFTER initialize_services() (some skills depend on shared
+    # services being importable) and BEFORE the worker accepts any tasks.
+    try:
+        from backend.core.api.app.services.skill_registry import (
+            build_skill_registry,
+            set_global_registry,
+        )
+        from backend.core.api.app.utils.config_manager import ConfigManager
+
+        worker_disabled_apps: list = []
+        try:
+            worker_disabled_apps = ConfigManager().get_disabled_apps() or []
+        except Exception as cfg_e:
+            logger.warning(
+                f"[SkillRegistry] Could not read disabled_apps from ConfigManager: {cfg_e}. "
+                f"Continuing with empty disabled list."
+            )
+
+        worker_registry, worker_metadata = build_skill_registry(
+            disabled_app_ids=worker_disabled_apps,
+            server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
+        )
+        set_global_registry(worker_registry)
+        logger.info(
+            f"[SkillRegistry] Worker registry initialized with {len(worker_metadata)} app(s): "
+            f"{sorted(worker_metadata.keys())}"
+        )
+    except Exception as reg_e:
+        logger.error(
+            f"[SkillRegistry] FAILED to build worker skill registry: {reg_e}. "
+            f"All in-process skill dispatches in this worker will return 404.",
+            exc_info=True,
+        )
+
     # PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients for app-ai-worker
     # This eliminates the cold-start delay on the first AI request after restart
     asyncio.run(prewarm_ai_services())

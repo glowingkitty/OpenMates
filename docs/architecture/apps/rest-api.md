@@ -36,6 +36,19 @@ POST /v1/apps/{app_id}/skills/{skill_id}
 
 Examples: `POST /v1/apps/web/skills/search`, `POST /v1/apps/videos/skills/get_transcript`, `POST /v1/apps/images/skills/generate`
 
+### Auto-Registration
+
+REST routes are **auto-registered per discovered app** at `api` startup by `register_app_and_skill_routes()` in [apps_api.py](../../backend/core/api/app/routes/apps_api.py). There is no manual registration step and no hardcoded app/hostname map.
+
+Discovery flow (in-process since OPE-342):
+1. `discover_apps()` in [main.py](../../backend/core/api/main.py) delegates to `build_skill_registry()` in [skill_registry.py](../../backend/core/api/app/services/skill_registry.py).
+2. `build_skill_registry()` filesystem-scans `backend/apps/*/app.yml`, applies stage filtering, and instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves every skill `class_path` via `importlib`.
+3. The result is published as `app.state.skill_registry` (and as a process-global singleton for code paths without FastAPI app context).
+4. `register_app_and_skill_routes()` registers `GET /v1/apps/{id}`, `GET /v1/apps/{id}/skills/{skill_id}`, and `POST /v1/apps/{id}/skills/{skill_id}` for every loaded app.
+5. `call_app_skill()` dispatches via `SkillRegistry.dispatch_skill()` — directly in-process, no HTTP to sibling containers.
+
+**To add a new app:** drop a folder under `backend/apps/`, restart api. There is no `docker-compose.yml` edit step. If a skill's `class_path` import fails at startup, `BaseApp._resolve_skill_classes` logs an ERROR and the skill returns 404 — the rest of the app and the api itself stay up.
+
 ### Request Format
 
 ```json

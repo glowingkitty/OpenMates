@@ -19,8 +19,6 @@ import json
 import uuid
 import time
 
-import httpx
-
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.apps.reminder.utils import (
@@ -641,23 +639,19 @@ async def _dispatch_reminder_ai_request(
         "app_settings_memories_metadata": None,
     }
 
-    ai_app_url = "http://app-ai:8000/skills/ask"
+    # OPE-342: dispatch via in-process SkillRegistry (no HTTP to app-ai container,
+    # which no longer exists). The reminder task runs inside task-worker, which
+    # builds its own registry in init_worker_process().
+    from backend.core.api.app.services.skill_registry import get_global_registry
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            ai_app_url,
-            json=ask_request,
-            headers={"Content-Type": "application/json"}
-        )
-        response.raise_for_status()
-        response_data = response.json()
-        ai_task_id = response_data.get("task_id")
+    response_data = await get_global_registry().dispatch_skill("ai", "ask", ask_request)
+    ai_task_id = response_data.get("task_id") if isinstance(response_data, dict) else None
 
     if ai_task_id:
         await cache_service.set_active_ai_task(chat_id, ai_task_id)
         logger.info(f"Dispatched AI ask request for reminder in chat {chat_id}, task_id={ai_task_id}")
     else:
-        logger.warning(f"AI app returned no task_id for reminder chat {chat_id}")
+        logger.warning(f"ai.ask returned no task_id for reminder chat {chat_id}")
 
 
 # =========================================================================

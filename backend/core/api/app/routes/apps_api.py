@@ -697,87 +697,46 @@ async def call_app_skill(
     user_info: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Call an app skill via internal service communication.
-    
-    SECURITY: Input data is sanitized for ASCII smuggling attacks before processing.
-    ASCII smuggling uses invisible Unicode characters to embed hidden instructions
-    that bypass prompt injection detection but are processed by LLMs.
-    See: docs/architecture/prompt_injection_protection.md
-    
-    Args:
-        app_id: The ID of the app
-        skill_id: The ID of the skill to execute
-        input_data: Input data for the skill
-        parameters: Parameters for the skill
-        user_info: User information from API key authentication
-        
-    Returns:
-        Dict containing the skill execution result
+    Dispatch a REST-API skill call via the in-process SkillRegistry.
+
+    Pre-OPE-342 this used to httpx.post to a sibling app-{id}:8000 container.
+    Now both api and the workers run skill code in-process, so we look up the
+    BaseApp + skill class in the registry and call dispatch_skill() directly.
+
+    SECURITY: Input data is sanitized for ASCII smuggling attacks before
+    processing. ASCII smuggling uses invisible Unicode characters to embed
+    hidden instructions that bypass prompt injection detection but are
+    processed by LLMs. See: docs/architecture/prompt_injection_protection.md
     """
+    from backend.core.api.app.services.skill_registry import get_global_registry
+
+    # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
+    user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
+    log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
+    sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
+
+    # Build the request body the same way the old HTTP path did: tool_schema
+    # structure (e.g. {"requests": [...]}) plus underscore-prefixed metadata.
+    request_payload = sanitized_input_data.copy() if isinstance(sanitized_input_data, dict) else {}
+    if not isinstance(request_payload, dict):
+        request_payload = {}
+    request_payload['_user_id'] = user_info['user_id']
+    request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
+    request_payload['_external_request'] = True
+
+    registry = get_global_registry()
     try:
-        # Construct hostname by prepending "app-" to the app_id (standard pattern)
-        hostname = f"app-{app_id}"
-        
-        # Prepare request to internal app service
-        skill_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/skills/{skill_id}"
-
-        headers = {
-            'Content-Type': 'application/json',
-            'X-External-User-ID': user_info['user_id'],
-            'X-API-Key-Name': user_info.get('api_key_encrypted_name', ''),  # Encrypted name (for logging, client decrypts)
-        }
-        
-        # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
-        # This removes invisible Unicode characters that could embed hidden instructions
-        user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
-        log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
-        sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
-        # Note: parameters are also sanitized but currently not passed separately to skills
-        # They're merged into the payload via context fields. If parameters are added as
-        # separate payload in the future, use _sanitize_dict_recursively(parameters, log_prefix)
-
-        # Send sanitized input_data directly as the request body to the skill
-        # The skill expects the tool_schema structure directly (e.g., {"requests": [...]})
-        # Context is added as metadata fields prefixed with _ so they don't interfere with the skill's schema
-        request_payload = sanitized_input_data.copy() if isinstance(sanitized_input_data, dict) else sanitized_input_data
-        if not isinstance(request_payload, dict):
-            request_payload = {}
-        
-        # Add context as metadata fields (prefixed with _)
-        request_payload['_user_id'] = user_info['user_id']
-        request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
-        request_payload['_external_request'] = True
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                skill_url,
-                json=request_payload,
-                headers=headers
-            )
-
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 404:
-                raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found in app '{app_id}'")
-            elif response.status_code == 402:
-                # Billing rejection (e.g. insufficient credits) — propagate the original
-                # detail from the app service so the frontend can detect 402 and show the
-                # appropriate "buy credits" UI instead of a generic error message.
-                try:
-                    detail = response.json().get("detail", "Insufficient credits")
-                except Exception:
-                    detail = "Insufficient credits"
-                raise HTTPException(status_code=402, detail=detail)
-            else:
-                logger.error(f"App service error: {response.status_code} - {response.text}")
-                raise HTTPException(status_code=500, detail="Internal service error")
-
-    except httpx.TimeoutException:
-        logger.error(f"Timeout calling skill {app_id}/{skill_id}")
-        raise HTTPException(status_code=504, detail="Skill execution timeout")
-    except httpx.RequestError as e:
-        logger.error(f"Request error calling skill {app_id}/{skill_id}: {e}")
-        raise HTTPException(status_code=503, detail="Service unavailable")
+        return await registry.dispatch_skill(app_id, skill_id, request_payload)
+    except HTTPException:
+        # 4xx/5xx from inside the skill (validation, billing, missing skill, ...) —
+        # propagate as-is so the REST handler returns the original status/detail.
+        raise
+    except Exception as e:
+        logger.error(
+            f"In-process dispatch failed for {app_id}/{skill_id}: {type(e).__name__}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Internal service error")
 
 
 def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
@@ -2449,10 +2408,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     is_ai_ask_skill = (captured_app_id == "ai" and captured_skill.id == "ask")
                     
                     if is_ai_ask_skill:
-                        # Special handler for AI ask skill that supports streaming and non-streaming modes
-                        # Import StreamingResponse for SSE streaming
-                        from fastapi.responses import StreamingResponse as FastAPIStreamingResponse
-                        
+                        # Special handler for AI ask skill that supports streaming and non-streaming modes.
+                        # OPE-342: AskSkill returns a StreamingResponse directly when stream=True;
+                        # we no longer need to import or instantiate it ourselves.
                         async def ai_ask_skill_handler(
                             request_body: SkillRequestModel,
                             request: Request = None,
@@ -2472,28 +2430,15 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             try:
                                 # Convert Pydantic model to dict
                                 request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
-                                
-                                # Determine if streaming is requested
                                 is_streaming = request_dict.get('stream', False)
-                                
+
                                 logger.info(f"External API: User {user_info['user_id']} executing ai/ask (streaming={is_streaming})")
-                                
-                                # Construct skill URL
-                                hostname = f"app-{captured_app_id}"
-                                skill_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/skills/{captured_skill.id}"
-                                
-                                # Prepare headers
-                                headers = {
-                                    'Content-Type': 'application/json',
-                                    'X-External-User-ID': user_info['user_id'],
-                                    'X-API-Key-Name': user_info.get('api_key_encrypted_name', ''),
-                                }
-                                
+
                                 # Sanitize input data
                                 user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
                                 log_prefix = f"[API ai/ask][User {user_id_short}...] "
                                 sanitized_input = _sanitize_dict_recursively(request_dict, log_prefix=log_prefix)
-                                
+
                                 # Add context metadata
                                 request_payload = sanitized_input.copy() if isinstance(sanitized_input, dict) else {}
                                 request_payload['_user_id'] = user_info['user_id']
@@ -2501,90 +2446,32 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 request_payload['_api_key_hash'] = user_info.get('api_key_hash')
                                 request_payload['_device_hash'] = user_info.get('device_hash')
                                 request_payload['_external_request'] = True
-                                
-                                if is_streaming:
-                                    # STREAMING MODE: Proxy SSE stream from app-ai service
-                                    async def stream_generator():
-                                        """Generator that proxies the SSE stream from the AI service."""
-                                        try:
-                                            # Use a longer timeout for streaming (5 minutes)
-                                            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
-                                                async with client.stream(
-                                                    'POST',
-                                                    skill_url,
-                                                    json=request_payload,
-                                                    headers=headers
-                                                ) as response:
-                                                    if response.status_code != 200:
-                                                        error_text = await response.aread()
-                                                        logger.error(f"AI skill streaming error: {response.status_code} - {error_text}")
-                                                        yield f'data: {{"error": "Service error: {response.status_code}"}}\n\n'
-                                                        yield 'data: [DONE]\n\n'
-                                                        return
-                                                    
-                                                    # Stream the response chunks as-is (they're already in SSE format)
-                                                    async for line in response.aiter_lines():
-                                                        if line:
-                                                            yield f"{line}\n"
-                                                        else:
-                                                            yield "\n"
-                                        except httpx.TimeoutException:
-                                            logger.error("AI skill streaming timeout")
-                                            yield 'data: {"error": "Request timeout"}\n\n'
-                                            yield 'data: [DONE]\n\n'
-                                        except Exception as e:
-                                            logger.error(f"AI skill streaming error: {e}", exc_info=True)
-                                            yield f'data: {{"error": "{str(e)}"}}\n\n'
-                                            yield 'data: [DONE]\n\n'
 
-                                    return FastAPIStreamingResponse(
-                                        stream_generator(),
-                                        media_type="text/event-stream",
-                                        headers={
-                                            "Cache-Control": "no-cache",
-                                            "Connection": "keep-alive",
-                                            "X-Accel-Buffering": "no"  # Disable nginx buffering
-                                        }
-                                    )
-                                else:
-                                    # NON-STREAMING MODE: Wait for complete response
-                                    # Use a longer timeout (5 minutes) for AI processing
-                                    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
-                                        response = await client.post(
-                                            skill_url,
-                                            json=request_payload,
-                                            headers=headers
-                                        )
-                                        
-                                        if response.status_code != 200:
-                                            logger.error(f"AI skill error: {response.status_code} - {response.text}")
-                                            raise HTTPException(
-                                                status_code=response.status_code,
-                                                detail=f"AI skill error: {response.text}"
-                                            )
-                                        
-                                        # Parse the OpenAI-compatible response
-                                        result = response.json()
-                                        
-                                        # Return the result directly (it's already in OpenAI format)
-                                        # Clean up None fields if it's a dict
-                                        if isinstance(result, dict):
-                                            # Recursively remove None values to be fully compliant with OpenAI standard
-                                            def remove_none(obj):
-                                                if isinstance(obj, list):
-                                                    return [remove_none(x) for x in obj if x is not None]
-                                                elif isinstance(obj, dict):
-                                                    return {k: remove_none(v) for k, v in obj.items() if v is not None}
-                                                return obj
-                                            return remove_none(result)
-                                        
-                                        return result
-                                        
+                                # OPE-342: dispatch in-process via the SkillRegistry. AskSkill.execute()
+                                # returns either an OpenAI-compatible dict (non-streaming) or a
+                                # FastAPI StreamingResponse (streaming) — we return whichever directly.
+                                from backend.core.api.app.services.skill_registry import get_global_registry
+                                result = await get_global_registry().dispatch_skill(
+                                    captured_app_id, captured_skill.id, request_payload
+                                )
+
+                                # Streaming mode: AskSkill returns a StreamingResponse directly
+                                if is_streaming:
+                                    return result
+
+                                # Non-streaming: return the OpenAI-compatible dict, stripping None fields
+                                if isinstance(result, dict):
+                                    def remove_none(obj):
+                                        if isinstance(obj, list):
+                                            return [remove_none(x) for x in obj if x is not None]
+                                        elif isinstance(obj, dict):
+                                            return {k: remove_none(v) for k, v in obj.items() if v is not None}
+                                        return obj
+                                    return remove_none(result)
+                                return result
+
                             except HTTPException:
                                 raise
-                            except httpx.TimeoutException:
-                                logger.error("AI skill timeout")
-                                raise HTTPException(status_code=504, detail="AI processing timeout. Please try again.")
                             except Exception as e:
                                 logger.error(f"Error executing AI ask skill: {e}", exc_info=True)
                                 raise HTTPException(status_code=500, detail=f"AI skill error: {str(e)}")

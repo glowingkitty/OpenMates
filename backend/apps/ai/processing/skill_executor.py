@@ -21,11 +21,9 @@
 # external services like YouTube may route through a different proxy IP.
 
 import logging
-import json
 import uuid
 import asyncio
 from typing import Dict, Any, List, Optional
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -178,153 +176,148 @@ async def execute_skill(
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES
 ) -> Dict[str, Any]:
     """
-    Executes a skill by routing to the correct app service with retry logic.
-    
-    Retry logic helps handle transient failures like:
-    - Network timeouts (external APIs being slow)
-    - Proxy IP issues (YouTube may block certain IPs)
-    - SSL/TLS handshake failures
-    
-    On retry, external services may route through a different proxy IP,
-    increasing the chance of success.
-    
+    Execute a skill in-process via the SkillRegistry, with retry logic for
+    transient skill-side failures (external API timeouts, proxy IP issues,
+    network errors raised from inside the skill).
+
+    Pre-OPE-342 this used to HTTP-POST to ``http://app-{id}:8000/skills/{skill_id}``.
+    Now the worker process loads its own SkillRegistry at worker_process_init
+    and dispatches directly via Python method calls — no inter-container HTTP,
+    no JSON serialization overhead, one coherent OTel trace per AI request.
+
+    The ``timeout`` parameter is honored via ``asyncio.wait_for`` around the
+    in-process call so a runaway skill cannot block the worker indefinitely.
+
+    Retries still help because most "skill failure" cases are external (the
+    skill itself opens HTTP/SSL connections to YouTube, REWE, etc.). On retry,
+    those external services may route through a different proxy IP.
+
     Args:
         app_id: The ID of the app that owns the skill
         skill_id: The ID of the skill to execute
         arguments: The arguments to pass to the skill (from function call)
-        timeout: Request timeout in seconds (default: 20s)
+        timeout: Per-attempt timeout in seconds (default: 20s)
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
-        user_id: Optional user ID for skills that require user context (e.g., reminders)
-        skill_task_id: Optional unique ID for this skill invocation (for cancellation)
+        user_id: Optional user ID for skills that require user context
+        skill_task_id: Optional unique ID for this skill invocation (cancellation)
         cache_service: Optional cache service for checking cancellation status
-        max_retries: Maximum number of retry attempts (default: 1, meaning 2 total attempts)
-    
+        max_retries: Maximum number of retry attempts (default: 1 = 2 total attempts)
+
     Returns:
-        Dict containing the skill execution result
-    
+        Dict containing the skill execution result.
+
     Raises:
-        SkillCancelledException: If the skill was cancelled by the user
-        httpx.HTTPStatusError: If the skill execution fails with an HTTP error (after all retries)
-        httpx.RequestError: If there's a network error (after all retries)
-        Exception: For other errors (after all retries)
+        SkillCancelledException: If the skill was cancelled by the user.
+        HTTPException: 4xx errors from the skill (validation, missing skill,
+            billing 402) are NOT retried — re-raised immediately.
+        Exception: For other errors after all retries exhausted.
     """
-    # Check if skill was cancelled BEFORE starting execution
+    from fastapi import HTTPException
+    from backend.core.api.app.services.skill_registry import get_global_registry
+
+    # Check cancellation before starting
     if skill_task_id and cache_service:
         if await is_skill_cancelled(cache_service, skill_task_id):
             logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled before execution")
             raise SkillCancelledException(skill_task_id, app_id, skill_id)
-    
-    # Construct the skill endpoint URL
-    # BaseApp registers routes as /skills/{skill_id}
-    skill_url = f"http://app-{app_id}:{DEFAULT_APP_INTERNAL_PORT}/skills/{skill_id}"
-    
-    # Include chat_id, message_id, and user_id in the request body as metadata
-    # Skills can extract these to use when recording usage or for user-specific operations
+
+    # Build the request body — same shape the old HTTP path used
     request_body = arguments.copy()
     if chat_id:
-        request_body["_chat_id"] = chat_id  # Prefix with _ to indicate metadata
+        request_body["_chat_id"] = chat_id
     if message_id:
-        request_body["_message_id"] = message_id  # Prefix with _ to indicate metadata
+        request_body["_message_id"] = message_id
     if user_id:
-        request_body["_user_id"] = user_id  # Prefix with _ to indicate metadata
-    
-    logger.debug(f"Executing skill '{app_id}.{skill_id}' at {skill_url} with arguments: {list(arguments.keys())}")
-    
+        request_body["_user_id"] = user_id
+
+    registry = get_global_registry()
+    if not registry.has_app(app_id):
+        # Worker registry didn't load this app — almost certainly an init bug.
+        # Don't retry; raise loudly so the caller surfaces the misconfiguration.
+        logger.error(
+            f"In-process skill registry has no app '{app_id}'. "
+            f"Worker init may have failed — check celery worker_process_init logs."
+        )
+        raise HTTPException(status_code=404, detail=f"App '{app_id}' not registered in worker skill registry")
+
+    logger.debug(f"Executing skill '{app_id}.{skill_id}' in-process with arguments: {list(arguments.keys())}")
+
     last_exception: Optional[Exception] = None
-    total_attempts = max_retries + 1  # Initial attempt + retries
-    
+    total_attempts = max_retries + 1
+
     for attempt in range(total_attempts):
-        # Check cancellation before each attempt
+        # Check cancellation before each retry
         if attempt > 0 and skill_task_id and cache_service:
             if await is_skill_cancelled(cache_service, skill_task_id):
                 logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled before retry attempt {attempt + 1}")
                 raise SkillCancelledException(skill_task_id, app_id, skill_id)
-        
+
         try:
-            # Log retry attempts
             if attempt > 0:
                 logger.info(
                     f"[SkillRetry] Retrying skill '{app_id}.{skill_id}' (attempt {attempt + 1}/{total_attempts}) "
-                    f"after {type(last_exception).__name__}. Previous request was cancelled, trying with fresh connection..."
+                    f"after {type(last_exception).__name__}"
                 )
-                # Small delay before retry to allow proxy rotation
                 await asyncio.sleep(RETRY_DELAY_SECONDS)
-            
-            # Create a fresh client for each attempt to ensure clean connection state
-            # This helps with proxy IP rotation on retry
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(
-                    skill_url,
-                    json=request_body,
-                    headers={"Content-Type": "application/json"}
-                )
-                response.raise_for_status()
-                
-                # Check if skill was cancelled AFTER getting response
-                # This handles cases where cancellation happened during HTTP request
-                if skill_task_id and cache_service:
-                    if await is_skill_cancelled(cache_service, skill_task_id):
-                        logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled after execution")
-                        raise SkillCancelledException(skill_task_id, app_id, skill_id)
-                
-                # Try to parse as JSON, fallback to text
-                try:
-                    result = response.json()
-                except json.JSONDecodeError:
-                    result = {"content": response.text}
-                
-                if attempt > 0:
-                    logger.info(f"[SkillRetry] Skill '{app_id}.{skill_id}' succeeded on retry attempt {attempt + 1}/{total_attempts}")
-                else:
-                    logger.debug(f"Skill '{app_id}.{skill_id}' executed successfully")
-                return result
-                
+
+            # In-process dispatch with a hard per-attempt timeout so a hung
+            # skill (e.g. external API not responding) can't block forever.
+            result = await asyncio.wait_for(
+                registry.dispatch_skill(app_id, skill_id, request_body),
+                timeout=timeout,
+            )
+
+            # Check cancellation post-execution
+            if skill_task_id and cache_service:
+                if await is_skill_cancelled(cache_service, skill_task_id):
+                    logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled after execution")
+                    raise SkillCancelledException(skill_task_id, app_id, skill_id)
+
+            if not isinstance(result, dict):
+                # Defensive: skills should always return a dict (or Pydantic model
+                # converted to one by BaseApp._dispatch_skill_with_class). Wrap
+                # anything else so downstream JSON serialization doesn't crash.
+                result = {"content": result}
+
+            if attempt > 0:
+                logger.info(f"[SkillRetry] Skill '{app_id}.{skill_id}' succeeded on retry attempt {attempt + 1}/{total_attempts}")
+            else:
+                logger.debug(f"Skill '{app_id}.{skill_id}' executed successfully")
+            return result
+
         except SkillCancelledException:
-            # Re-raise cancellation exceptions immediately (no retry)
             raise
-        except httpx.HTTPStatusError as e:
-            # HTTP errors (4xx, 5xx) - don't retry on client errors (4xx)
-            if e.response.status_code < 500:
-                logger.error(f"HTTP error executing skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}")
+        except HTTPException as e:
+            # 4xx errors are deterministic — don't retry. 5xx might be transient.
+            if e.status_code < 500:
+                logger.error(f"Skill '{app_id}.{skill_id}' raised HTTPException {e.status_code}: {e.detail}")
                 raise
-            # Server errors (5xx) - retry
             last_exception = e
             logger.warning(
-                f"[SkillRetry] Skill '{app_id}.{skill_id}' failed with HTTP {e.response.status_code} "
-                f"(attempt {attempt + 1}/{total_attempts})"
+                f"[SkillRetry] Skill '{app_id}.{skill_id}' raised HTTP {e.status_code} "
+                f"(attempt {attempt + 1}/{total_attempts}): {e.detail}"
             )
-        except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout) as e:
-            # Timeout errors - retry (likely external API being slow)
+        except asyncio.TimeoutError as e:
             last_exception = e
             logger.warning(
                 f"[SkillRetry] Skill '{app_id}.{skill_id}' timed out after {timeout}s "
-                f"(attempt {attempt + 1}/{total_attempts}): {type(e).__name__}"
-            )
-        except httpx.RequestError as e:
-            # Network errors - retry (connection issues, SSL errors, etc.)
-            last_exception = e
-            logger.warning(
-                f"[SkillRetry] Skill '{app_id}.{skill_id}' network error "
-                f"(attempt {attempt + 1}/{total_attempts}): {type(e).__name__} - {e}"
+                f"(attempt {attempt + 1}/{total_attempts})"
             )
         except Exception as e:
-            # Unexpected errors - log and retry
             last_exception = e
             logger.warning(
-                f"[SkillRetry] Skill '{app_id}.{skill_id}' unexpected error "
-                f"(attempt {attempt + 1}/{total_attempts}): {type(e).__name__} - {e}"
+                f"[SkillRetry] Skill '{app_id}.{skill_id}' raised {type(e).__name__} "
+                f"(attempt {attempt + 1}/{total_attempts}): {e}"
             )
-    
-    # All attempts exhausted - raise the last exception
+
     logger.error(
         f"Skill '{app_id}.{skill_id}' failed after {total_attempts} attempts. "
         f"Last error: {type(last_exception).__name__}"
     )
     if last_exception:
         raise last_exception
-    else:
-        raise RuntimeError(f"Skill '{app_id}.{skill_id}' failed after {total_attempts} attempts")
+    raise RuntimeError(f"Skill '{app_id}.{skill_id}' failed after {total_attempts} attempts")
 
 
 async def execute_skill_with_multiple_requests(

@@ -3,15 +3,25 @@
 # Unit tests for all app skills.
 # Tests both single and multi-request scenarios for each skill.
 #
-# These tests use docker exec to call the API endpoints since the application
-# runs in Docker. Test results are saved as JSON files for manual inspection.
+# OPE-342: These tests previously HTTP-curled into per-app `app-{id}` containers
+# (e.g. http://app-web:8000/skills/search). Those containers no longer exist —
+# every skill now runs in-process inside `api`. The whole module is skipped
+# until it is rewritten to either:
+#   (a) hit the public REST endpoint POST /v1/apps/{id}/skills/{name} with an
+#       API key (proper integration shape), or
+#   (b) call get_global_registry().dispatch_skill(...) directly inside a
+#       running `api` container via docker exec.
+# Pick whichever fits the existing test infrastructure better.
 
 import json
 import subprocess
-import os
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="OPE-342: per-app containers removed; needs rewrite to use REST API or in-process registry"
+)
 
 # Test results directory (gitignored)
 TEST_RESULTS_DIR = Path(__file__).parent.parent.parent / "test_results"

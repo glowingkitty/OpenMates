@@ -2,84 +2,56 @@
 
 This directory contains the individual, self-contained applications that form part of the OpenMates backend. Each subdirectory represents a distinct application (e.g., `ai`, `travel`, `health`).
 
-The framework is designed for a streamlined, convention-over-configuration approach. To create a new application, developers will:
-1.  Create a new directory (e.g., `backend/apps/travel/`).
-2.  Define the application's capabilities in an `app.yml` file within that directory (e.g., `backend/apps/travel/app.yml`).
-3.  Implement the Python classes for any skills defined in the `app.yml` (e.g., in `backend/apps/travel/skills/`).
-4.  Add a service definition to `backend/core/docker-compose.yml` using the unified `Dockerfile.base`.
+## How to add a new app
 
-The combination of `app.yml`, skill implementation files, and the Docker setup (using `Dockerfile.base` and `base_main.py`) is sufficient to run an application.
+The framework uses convention-over-configuration. To add a new app:
+
+1.  Create a directory: `backend/apps/<name>/` (e.g. `backend/apps/travel/`).
+2.  Define the app manifest in `backend/apps/<name>/app.yml`.
+3.  Implement skill classes in `backend/apps/<name>/skills/`.
+4.  Restart the `api` container (and any worker containers that need the app).
+
+That's it. **No `docker-compose.yml` edits.** The api gateway filesystem-scans `backend/apps/*/app.yml` at startup, parses each, and registers the app + its skill classes via `importlib` in an in-process `SkillRegistry`. REST routes (`POST /v1/apps/<id>/skills/<skill_id>`) are auto-registered. Celery workers do the same at `worker_process_init` time and dispatch to the same registry.
+
+## Architecture (OPE-342 — in-process plugins)
+
+Until OPE-342, every app folder had a corresponding `app-<name>` Uvicorn container in `docker-compose.yml`. They burned ~2.6 GiB of idle RAM, added ~10 ms per skill call (HTTP serialization), and silently broke whenever the compose entry was forgotten. They provided none of their claimed benefits — every container shipped the same `requirements.txt`, had no per-app state, and a skill exception was already caught per-request regardless of process boundary.
+
+The current model:
+
+- **Discovery:** `backend/core/api/main.py:discover_apps()` → `backend/core/api/app/services/skill_registry.py:build_skill_registry()` filesystem-scans, applies stage filtering, instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves skill `class_path` strings via `importlib` at construction time.
+- **REST dispatch:** `backend/core/api/app/routes/apps_api.py:call_app_skill()` calls `SkillRegistry.dispatch_skill()` directly — no HTTP, no JSON serialization.
+- **Worker dispatch:** `backend/apps/ai/processing/skill_executor.py:execute_skill()` calls the same registry. Workers build their own `SkillRegistry` instance in `init_worker_process()` (`backend/core/api/app/tasks/celery_config.py`).
+- **Failure mode:** A skill whose `class_path` import fails is logged ERROR (in `BaseApp._resolve_skill_classes`) and becomes unavailable (REST returns 404, AI preprocessor doesn't see it as a tool). The rest of the app — and the rest of the api — keeps working.
+
+The only containers in `backend/core/docker-compose.yml` that still run app code are the Celery workers, which earn their RAM with real queue workloads:
+
+- `app-ai-worker` — runs the AI processing pipeline (`apps.ai.tasks.*`)
+- `app-images-worker` — image generation queue
+- `app-pdf-worker` — PDF rendering queue
+- `task-worker` — infrastructure tasks (email, persistence, push)
+- `task-scheduler` — Celery beat
 
 ## Core Components for Each App
 
 1.  **`app.yml` (Required):**
-    *   The manifest file for the application, located in the app's root directory (e.g., `backend/apps/travel/app.yml`).
-    *   Defines metadata (name, description, icon), skills, focuses, and memory fields.
-    *   This file is crucial for service discovery and dynamic route generation by `BaseApp`.
+    - The manifest file at `backend/apps/<name>/app.yml`.
+    - Defines metadata (name, description, icon), skills, focuses, and memory fields.
+    - Validated as `AppYAML` (`backend/shared/python_schemas/app_metadata_schemas.py`).
+    - Read by `BaseApp` at startup.
 
 2.  **Skill Implementations (Required for apps with skills):**
-    *   Python files containing the logic for each skill defined in `app.yml`.
-    *   Example: `backend/apps/ai/skills/ask_skill.py` implements the `AskSkill` class.
-    *   Skills should inherit from `BaseSkill` (defined in `backend/apps/base_skill.py`).
+    - Python modules under `backend/apps/<name>/skills/`.
+    - Each skill class subclasses `BaseSkill` (`backend/apps/base_skill.py`) and implements `async def execute(...)`.
+    - Referenced from `app.yml` via `class_path` (e.g. `backend.apps.travel.skills.search.SearchSkill`).
+    - Skills must NOT import from other skills. Shared logic goes in `BaseSkill` or `backend/shared/`.
 
 3.  **App-Specific Code (Optional):**
-    *   Any other Python modules specific to the app's functionality (e.g., utilities, processing logic for skills), placed within the app's directory (e.g., `backend/apps/travel/utils.py`).
-
-## Running Applications: Unified Approach
-
-Applications are run as Docker containers using a **unified base Dockerfile** and a **generic application runner**.
-
-### 1. Unified Base Dockerfile (`backend/apps/Dockerfile.base`)
-
-A single, common Dockerfile is used to build all applications.
-*   It handles setting up the Python environment, installing common dependencies, and copying shared framework code (`base_app.py`, `base_skill.py`, shared schemas).
-*   It uses a build argument (`APP_NAME`) to identify and copy the specific application's code (e.g., from `backend/apps/travel/` into `/app/travel/` in the container).
-*   It is configured to use `base_main.py` as the entry point for Uvicorn.
-
-### 2. Generic Application Runner (`backend/apps/base_main.py`)
-
-This script is the standard entry point for all applications built with `Dockerfile.base`.
-*   It reads environment variables (`APP_NAME`, `APP_INTERNAL_PORT`) to determine the application's specific directory (e.g., `/app/travel` for `APP_NAME=travel`) and the port it should listen on.
-*   It directly instantiates `BaseApp` from `backend/apps/base_app.py`, configuring it with the determined `app_dir` and `app_port`.
-*   The `BaseApp` instance then loads the app's `app.yml`, registers default routes (like `/metadata`, `/health`), and dynamically creates API endpoints for all skills defined in the `app.yml`.
-
-### 3. Docker Compose Configuration
-
-To add a new app (e.g., "travel") using this unified approach:
-
-In `backend/core/docker-compose.yml`:
-```yaml
-services:
-  app-travel:
-    container_name: app-travel
-    build:
-      context: ../../  # Relative to docker-compose.yml, points to project root
-      dockerfile: backend/apps/Dockerfile.base # Path to the base Dockerfile
-      args:
-        APP_NAME: travel # Critical: This tells the base Dockerfile which app to build
-    env_file: ../../.env
-    environment:
-      APP_NAME: "travel" # Used by base_main.py
-      # Define a unique port for your app, e.g., TRAVEL_APP_INTERNAL_PORT
-      # The base_main.py will look for <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT
-      TRAVEL_APP_INTERNAL_PORT: "800X" 
-      # Add other necessary environment variables for your app
-    volumes:
-      # Mount app-specific code for hot-reloading during development
-      - ../../backend/apps/travel:/app/travel
-      # Common mounts (already included by Dockerfile.base COPY, but good for dev hot-reload)
-      - ../../backend/apps:/app/apps 
-      - ../../backend/shared/python_schemas:/app/backend_shared/python_schemas
-    restart: unless-stopped
-    networks:
-      - openmates
-    # depends_on: [...] # Add dependencies as needed
-```
+    - Any utility modules, providers, processing logic specific to the app.
+    - Live under `backend/apps/<name>/`.
 
 ## Shared Framework Components
 
-*   **`base_app.py`:** Provides `BaseApp`, handling `app.yml` loading, validation, dynamic skill route registration, Celery producer, default API endpoints (`/metadata`, `/health`), and the FastAPI instance.
-*   **`base_skill.py`:** Provides `BaseSkill` for all skill implementations.
-*   **`base_main.py`:** The standard Uvicorn entry point for all apps.
-*   **`Dockerfile.base`:** The unified Dockerfile for building all app images.
-*   **`backend_shared/python_schemas/`:** Contains shared Pydantic models.
+- **`base_app.py`** — `BaseApp` class. Loads `app.yml`, resolves skill `class_path` references via `importlib`, holds the per-app Celery producer, and provides the `dispatch_skill(skill_id, request_body)` entry point used by the in-process registry. Also retains a legacy FastAPI route registration path (`register_http_routes=True`) which is no longer used by any container after OPE-342.
+- **`base_skill.py`** — `BaseSkill` base class for all skill implementations.
+- **`backend/shared/python_schemas/`** — shared Pydantic models including `AppYAML`.

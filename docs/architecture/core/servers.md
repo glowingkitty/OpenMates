@@ -9,11 +9,12 @@ key_files:
 
 # Server Architecture
 
-> Docker Compose stack with a core API, Directus CMS, per-app API containers, Celery workers, and a separate preview server for image/metadata proxying.
+> Docker Compose stack with a single FastAPI gateway hosting all app skills in-process, dedicated Celery workers for queue-driven workloads, Directus CMS, and a separate preview server for image/metadata proxying.
 
 ## Why This Exists
 
-- Each app gets its own container pair (API + worker) for independent scaling and fault isolation
+- One `api` container hosts all app skills in-process (OPE-342) — every `backend/apps/{name}/` folder is loaded via `importlib` at startup, no per-app containers
+- Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
 
@@ -36,34 +37,23 @@ Defined in [docker-compose.yml](../../backend/core/docker-compose.yml):
 | `vault-setup` | Custom | Vault initialization (runs once) |
 | `core-admin-sidecar` | Custom | Admin utilities (health checks, scripts) |
 
-### App Containers (Two-Container Pattern)
+### App Containers (Workers Only — In-Process Skills since OPE-342)
 
-Each app follows API + Worker separation:
+There are **no per-app sync API containers**. The 20 `app-{name}` Uvicorn containers that used to host one skill class each were removed in OPE-342: they burned ~2.6 GiB of idle RAM, added ~10 ms per skill call (HTTP serialization), required a 60-line `docker-compose.yml` entry per new app, and provided none of their claimed scaling/isolation benefits.
 
-| App | API Container | Worker Container |
-|-----|--------------|-----------------|
-| AI | `app-ai` | `app-ai-worker` |
-| Web | `app-web` | -- |
-| Videos | `app-videos` | -- |
-| Audio | `app-audio` | -- |
-| News | `app-news` | -- |
-| Events | `app-events` | -- |
-| Maps | `app-maps` | -- |
-| Travel | `app-travel` | -- |
-| Health | `app-health` | -- |
-| Shopping | `app-shopping` | -- |
-| Code | `app-code` | -- |
-| Docs | `app-docs` | -- |
-| Mail | `app-mail` | -- |
-| Images | `app-images` | `app-images-worker` |
-| PDF | `app-pdf` | `app-pdf-worker` |
-| Reminder | `app-reminder` | -- |
-| Jobs | `app-jobs` | -- |
-| Math | `app-math` | -- |
+The `api` container now loads every `backend/apps/{name}/app.yml` via filesystem scan at startup and resolves each skill `class_path` via `importlib`. Skills are dispatched in-process via the `SkillRegistry` (`backend/core/api/app/services/skill_registry.py`) — see [app-skills.md](../apps/app-skills.md).
 
-Currently only AI, Images, and PDF have dedicated worker containers. Other apps handle tasks via the core `task-worker` or process synchronously.
+Only the Celery worker containers remain — they have real, queue-driven workloads:
 
-Each API container exposes internal FastAPI endpoints on the Docker network (e.g., `/skill/ask`). Service discovery is automatic via Docker networking.
+| Worker | Queues | Why containerized |
+|--------|--------|-------------------|
+| `app-ai-worker` | `app_ai` | LLM streaming pipeline, distinct memory profile |
+| `app-images-worker` | `app_images` | GPU/CPU-heavy image generation |
+| `app-pdf-worker` | `app_pdf` | PDF rendering with `pymupdf`/`reportlab` |
+| `task-worker` | `email`, `persistence`, `user_init`, … | Infrastructure tasks |
+| `task-scheduler` | (Celery beat) | Periodic task dispatch |
+
+Workers also build their own `SkillRegistry` instance in `init_worker_process()` so they can dispatch skills without HTTPing back to `api`.
 
 ### Monitoring Stack
 

@@ -327,13 +327,13 @@ A comprehensive audit and rebuild of OpenMates' client-side encryption, key mana
 - **Contains:** FastAPI app, route handlers, services (DirectusService, CacheService, PaymentService, S3, etc.), Celery task definitions, middleware.
 - **Depends on:** Directus CMS, Dragonfly cache, HashiCorp Vault, app microservices (via internal HTTP).
 - **Used by:** SvelteKit frontend (WebSocket + REST), app microservices (internal API), Celery workers.
-### App Microservices
-- **Purpose:** Each domain app (AI, web search, news, maps, images, etc.) runs as an isolated FastAPI service. They expose `/skills/{skill_id}/execute` endpoints and receive execution requests from `app-ai-worker`.
+### App Plugins (in-process since OPE-342)
+- **Purpose:** Each domain app (AI, web search, news, maps, images, etc.) is a folder under `backend/apps/` loaded in-process by the `api` container and the Celery workers. There are no per-app sync containers.
 - **Location:** `backend/apps/{app_name}/` (e.g., `backend/apps/ai/`, `backend/apps/web/`, `backend/apps/news/`)
-- **Entry point:** `backend/apps/base_main.py` (shared), instantiates `BaseApp` from `backend/apps/base_app.py`
-- **Contains:** `app.yml` (metadata), `skills/` (skill implementations), optional `providers/`, `tasks/`, `utils/`.
-- **Depends on:** `backend/shared/`, `backend/core/api/` services (via internal HTTP), Dragonfly cache, Directus.
-- **Used by:** `app-ai-worker` Celery tasks via internal HTTP; the API gateway for skill dispatch.
+- **Loading:** `backend/core/api/main.py:discover_apps()` -> `backend/core/api/app/services/skill_registry.py:build_skill_registry()` filesystem-scans, applies stage filtering, and instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves skill `class_path` strings via `importlib`. The result lives on `app.state.skill_registry` (and as a process-global singleton).
+- **Contains:** `app.yml` (metadata), `skills/` (skill implementations subclassing `BaseSkill`), optional `providers/`, `tasks/`, `utils/`.
+- **Depends on:** `backend/shared/`, `backend/core/api/` services (in-process), Dragonfly cache, Directus.
+- **Used by:** REST handler `apps_api.call_app_skill()` and worker dispatcher `skill_executor.execute_skill()` — both call `SkillRegistry.dispatch_skill()` directly, no inter-container HTTP.
 ### Shared Backend (`backend/shared/`)
 - **Purpose:** Code shared across the API gateway and all app microservices. No skill-specific logic here.
 - **Location:** `backend/shared/`
@@ -361,9 +361,9 @@ A comprehensive audit and rebuild of OpenMates' client-side encryption, key mana
 - Server-side cache: `CacheService` wraps Dragonfly (Redis) — split into mixins: `cache_chat_mixin.py`, `cache_user_mixin.py`, `cache_inspiration_mixin.py`, etc. (`backend/core/api/app/services/`).
 ## Key Abstractions
 ### `BaseApp` and `app.yml`
-- **Purpose:** Every app microservice is an instance of `BaseApp` (`backend/apps/base_app.py`). Metadata (name, skills, focus modes, settings/memories schema, pricing) is declared in `app.yml` (parsed into `AppYAML` from `backend/shared/python_schemas/app_metadata_schemas.py`). `BaseApp` auto-registers skill routes from the YAML on startup.
+- **Purpose:** Every app is loaded as an in-process `BaseApp` instance (`backend/apps/base_app.py`). Metadata (name, skills, focus modes, settings/memories schema, pricing) is declared in `app.yml` (parsed into `AppYAML` from `backend/shared/python_schemas/app_metadata_schemas.py`). `BaseApp.__init__` loads the YAML, instantiates the translation service + Celery producer, then calls `_resolve_skill_classes()` to importlib-resolve every skill `class_path`.
 - **Examples:** `backend/apps/ai/app.yml`, `backend/apps/web/`, `backend/apps/news/`, etc.
-- **Pattern:** `BaseApp.__init__` loads `app.yml`, initializes `FastAPI`, registers `/health`, `/metadata`, and `/skills/{skill_id}/execute` routes dynamically.
+- **Dispatch:** `BaseApp.dispatch_skill(skill_id, request_body)` is the entry point used by both the REST handler and the Celery workers via `SkillRegistry`.
 ### WebSocket Handlers
 - **Purpose:** All real-time client-server interaction is handled by per-message-type handler functions registered in `websockets.py`.
 - **Examples:** `backend/core/api/app/routes/handlers/websocket_handlers/` — one file per message type (`message_received_handler.py`, `initial_sync_handler.py`, `draft_update_handler.py`, etc.).
@@ -394,10 +394,6 @@ A comprehensive audit and rebuild of OpenMates' client-side encryption, key mana
 - **Location:** `backend/core/api/main.py`
 - **Triggers:** Docker container start (Uvicorn); waits for Vault via `wait-for-vault.sh`.
 - **Responsibilities:** Registers all route routers, initializes services (Directus, Cache, Payment, S3, etc.) in the lifespan context, starts Redis Pub/Sub background listeners for WebSocket relay.
-### App Microservice
-- **Location:** `backend/apps/base_main.py`
-- **Triggers:** Docker container start for each `app-*` service.
-- **Responsibilities:** Instantiates `BaseApp` for the given `APP_NAME` env var, registers routes from `app.yml`, starts Uvicorn.
 ### Celery AI Task
 - **Location:** `backend/apps/ai/tasks/ask_skill_task.py`
 - **Triggers:** Enqueued by `message_received_handler.py` when user sends a chat message.
