@@ -98,9 +98,11 @@ def _acquire_celery_task_dedup_lock(task_id: str) -> bool:
     import redis  # sync client; already a transitive dep via redis>=5.2
     from urllib.parse import urlparse, unquote
 
-    broker_url = os.getenv("CELERY_BROKER_URL")
+    # Reuse the broker URL that celery_config already resolved (it builds the
+    # default URL from DRAGONFLY_PASSWORD when CELERY_BROKER_URL env is unset).
+    broker_url = getattr(celery_config, "broker_url", None) or os.getenv("CELERY_BROKER_URL")
     if not broker_url:
-        raise RuntimeError("CELERY_BROKER_URL not set; cannot acquire dedup lock")
+        raise RuntimeError("Celery broker URL unavailable; cannot acquire dedup lock")
 
     parsed = urlparse(broker_url)
     host = parsed.hostname or "cache"
