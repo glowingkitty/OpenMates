@@ -242,7 +242,7 @@
     <div class="plot-fullscreen-content">
       {#if renderError}
         <div class="error-state">
-          <p class="error-title">Plot render failed</p>
+          <p class="ds-error-title">Plot render failed</p>
           <p class="error-message">{renderError}</p>
         </div>
       {:else if !plotSpec}
@@ -406,11 +406,8 @@
     padding: var(--spacing-12) var(--spacing-8);
   }
 
-  .error-title {
-    font-size: var(--font-size-h3-mobile);
-    font-weight: 600;
-    color: var(--color-error);
-  }
+  /* .ds-error-title base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/status-feedback.yml */
 
   .error-message {
     font-size: var(--font-size-small);
