@@ -11,6 +11,7 @@
 // Checks:
 //   ERROR:   font-size with px units (accessibility violation)
 //   WARNING: Raw hex/rgb colors, z-index, border-radius, spacing, shadow, transition
+//   WARNING: Local CSS rules redefining a Phase E component primitive (use .ds-* class instead)
 
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { dirname, resolve, relative, join } from "path";
@@ -28,6 +29,24 @@ let allowlist = {};
 if (existsSync(ALLOWLIST_PATH)) {
   allowlist = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf-8"));
 }
+
+// Phase E (OPE-326) — names of component primitives lifted into
+// src/tokens/sources/components/*.yml. Local <style> blocks should NOT
+// redefine these classes; use class="ds-{name}" in markup instead.
+// Outlier files (different visual role under the same name) live in
+// .token-allowlist.json with the matching line number.
+const LIFTED_PRIMITIVES = new Set([
+  "snippet-card",
+  "search-query",
+  "search-provider",
+  "search-results-info",
+  "success-icon-wrapper",
+  "success-title",
+  "error-title",
+  "search-error-title",
+  "loading-text",
+  "save-button-container",
+]);
 
 function extractStyleBlocks(content) {
   const blocks = [];
@@ -85,6 +104,15 @@ function validateFile(filePath, relPath) {
       if (/box-shadow:\s*0\s+\d+px\s+\d+px\s+rgba/.test(line) && !line.includes("var(") && !line.includes("none")) {
         violations.push({ line: lineNum, severity: "warning", rule: "raw-shadow",
           message: `Hardcoded box-shadow — use var(--shadow-*) token` });
+      }
+
+      // WARNING: local rule redefining a Phase E component primitive
+      // Matches a base class selector at start of rule (`.foo {` or `.foo,`),
+      // not descendant/compound selectors (`.parent .foo {`, `.foo.active {`).
+      const primitiveMatch = line.match(/^\s*\.([a-z][a-z0-9-]*)\s*[\{,]/);
+      if (primitiveMatch && LIFTED_PRIMITIVES.has(primitiveMatch[1])) {
+        violations.push({ line: lineNum, severity: "warning", rule: "lifted-primitive",
+          message: `.${primitiveMatch[1]} is now a design system primitive — use class="ds-${primitiveMatch[1]}" and remove this local rule (see docs/architecture/frontend/design-tokens.md#component-primitives)` });
       }
     }
   }
