@@ -1,0 +1,3 @@
+# Form primitives (save button container wrapper).
+# Consumed by build-tokens.js → emits .ds-* CSS classes + DS.* Swift structs.
+# Populated incrementally per E-α.6 in plan cheeky-snuggling-zebra.md.
