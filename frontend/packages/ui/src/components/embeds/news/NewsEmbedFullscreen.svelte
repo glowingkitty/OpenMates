@@ -446,7 +446,7 @@
           
           <div class="snippets-list">
             {#each cleanedSnippets as snippet}
-              <div class="snippet-card">
+              <div class="ds-snippet-card">
                 <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
                 <div class="quote-icon quote-open clickable-icon icon_quote"></div>
                 
@@ -600,14 +600,10 @@
      Snippet Card
      =========================================== */
   
-  .snippet-card {
-    position: relative;
-    background-color: var(--color-grey-0);
-    border-radius: 30px;
-    padding: 24px 50px;
-    min-height: 60px;
-  }
-  
+  /* Base .ds-snippet-card styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/snippet-card.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
   /* Quote icons positioning - uses CSS mask with quote.svg from icons system */
   .quote-icon {
     position: absolute;
@@ -673,7 +669,7 @@
       font-size: var(--font-size-h3-mobile);
     }
     
-    .snippet-card {
+    .ds-snippet-card {
       padding: 20px 50px;
       border-radius: var(--radius-8);
     }
@@ -702,7 +698,7 @@
       padding-left: var(--spacing-16);
     }
     
-    .snippet-card {
+    .ds-snippet-card {
       padding: var(--spacing-8) var(--spacing-20);
     }
     
