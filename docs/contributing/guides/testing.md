@@ -68,10 +68,45 @@ python3 scripts/run_tests.py --spec chat-flow.spec.ts  # Single Playwright spec
 python3 scripts/run_tests.py --suite playwright        # All E2E specs via GitHub Actions
 python3 scripts/run_tests.py --daily                   # Cron mode (commit gate, emails)
 python3 scripts/run_tests.py --daily --force           # Skip commit check
+python3 scripts/run_tests.py --hourly-dev              # Hourly dev smoke (4 specs)
+python3 scripts/run_tests.py --hourly-prod             # Hourly prod smoke
+python3 scripts/run_tests.py --hourly-dev --dry-run-notify  # Test Discord wiring only
 python3 scripts/run_tests.py --max-concurrent 10       # Override batch size (default: 20)
 python3 scripts/run_tests.py --no-fail-fast            # Run all batches even on failure
 python3 scripts/run_tests.py --dry-run                 # Show what would run
 ```
+
+### Hourly smoke modes (OPE-349)
+
+Two thin "is the core flow alive?" runners triggered hourly by the dev server's
+local crontab. They are intentionally separate from `--daily` because the goal
+is "catch urgent breakage within an hour", not full coverage.
+
+| Mode | What it runs | Discord webhook | Schedule |
+| --- | --- | --- | --- |
+| `--hourly-dev` | reachability + Stripe + Polar + chat (see `frontend/apps/web_app/tests/dev-smoke/README.md`) | `DISCORD_WEBHOOK_DEV_SMOKE` | local cron, 08–18 UTC |
+| `--hourly-prod` | dispatches `prod-smoke.yml` (3 specs) | `DISCORD_WEBHOOK_PROD_SMOKE` | local cron, 08–18 UTC |
+| `--daily` | full pytest + vitest + all E2E | `DISCORD_WEBHOOK_DEV_NIGHTLY` | local cron, 03 UTC weekdays |
+
+**Why local cron, not GitHub Actions `schedule:`** — the GH-Actions cron silently
+skips runs under load, which lost us prod outage alerts. The local crontab on
+the dev server triggers `gh workflow run` so the actual specs still execute on
+GH Actions runners; only the trigger moves. See OPE-349 for the full rationale.
+
+**Discord noise control** — the hourly modes post on FAILURE only, plus a single
+"all good" heartbeat once per UTC day so the channel proves the pipeline is
+still alive. The nightly mode posts every run. Each webhook lives in its own
+Discord channel so noise from one cron never drowns out alerts from another.
+
+To verify a webhook without dispatching specs:
+
+```bash
+python3 scripts/run_tests.py --hourly-dev --dry-run-notify
+python3 scripts/run_tests.py --hourly-prod --dry-run-notify
+python3 scripts/run_tests.py --daily --dry-run-notify
+```
+
+Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-prod/run-*.json` (rotated to last 7 days).
 
 Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of 20 concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
 

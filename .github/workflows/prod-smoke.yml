@@ -1,6 +1,6 @@
 # .github/workflows/prod-smoke.yml
 #
-# Hourly production smoke test (OPE-76).
+# Hourly production smoke test (OPE-76, OPE-349).
 #
 # Runs three Playwright specs against the LIVE production server:
 #   1. prod-smoke-reachability.spec.ts    — cheap page-load pre-flight
@@ -8,10 +8,15 @@
 #      using the reusable domain-bound gift card so zero real money is burned
 #   3. prod-smoke-login-chat.spec.ts      — persistent-account login+chat flow
 #
-# Schedule: 08:00–18:00 UTC, every hour on the hour. This lines up with
-# 10:00–20:00 Europe/Berlin in CEST (summer). During CET (winter) the window
-# is 09:00–19:00 Berlin, which is acceptable — we prefer the simpler fixed
-# UTC schedule over a DST-aware workaround.
+# SCHEDULING NOTE (OPE-349):
+# This workflow is dispatched HOURLY by the dev server's local crontab via
+# `python3 scripts/run_tests.py --hourly-prod`, NOT by the GitHub Actions
+# `schedule:` cron. We removed the schedule trigger because GH Actions silently
+# skipped runs under load — losing prod-outage alerts. Local cron + the
+# `workflow_dispatch:` trigger below is reliable.
+#
+# To run manually: `gh workflow run prod-smoke.yml --repo glowingkitty/OpenMates`
+# To re-enable a GH-Actions-side cron: re-add a `schedule:` block here. (Don't.)
 #
 # On any failure, the `notify-test-failure` composite action posts to both
 # Discord and email. Either sender's failure never blocks the other: the
@@ -22,9 +27,6 @@
 name: "Prod smoke tests"
 
 on:
-  schedule:
-    # At minute 0, hours 8–18 UTC (= 10–20 Europe/Berlin in CEST).
-    - cron: "0 8-18 * * *"
   workflow_dispatch:
     inputs:
       spec:
