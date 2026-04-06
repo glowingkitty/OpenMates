@@ -910,13 +910,39 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
     return health_data
 
 
-async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
-    """Check Proton Mail Bridge provider health using configured bridge credentials."""
+async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Optional[Dict[str, Any]]:
+    """Check Proton Mail Bridge provider health using configured bridge credentials.
+
+    Returns ``None`` (and removes any stale cache entry) when the bridge is not
+    configured at all — protonmail is opt-in self-hosting, so an absent setup is
+    not an "unhealthy" state and should not pollute the public status page.
+    """
     logger.info("Health check: Checking provider 'protonmail' (Proton Mail Bridge)...")
 
     cache_service = CacheService()
 
-    from backend.shared.providers.protonmail.protonmail_bridge import check_protonmail_bridge_health
+    from backend.shared.providers.protonmail.protonmail_bridge import (
+        check_protonmail_bridge_health,
+        get_protonmail_bridge_config,
+        is_bridge_configured,
+    )
+
+    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}protonmail"
+
+    # Short-circuit when ProtonMail Bridge is not configured: drop any stale
+    # cache entry and skip reporting it as a provider entirely.
+    config = await get_protonmail_bridge_config(secrets_manager)
+    if not config.enabled or not is_bridge_configured(config):
+        try:
+            client = await cache_service.client
+            if client:
+                await client.delete(cache_key)
+        except Exception as exc:
+            logger.debug("Health check: Failed to delete stale protonmail cache entry: %s", exc)
+        finally:
+            await cache_service.close()
+        logger.info("Health check: Skipping provider 'protonmail' — bridge not configured")
+        return None
 
     start_time = time.time()
     success, error = await check_protonmail_bridge_health(secrets_manager)
@@ -929,7 +955,6 @@ async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Di
         status = "unhealthy"
         last_error = _sanitize_error_message(error)
 
-    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}protonmail"
     existing_health_data = {}
     try:
         client = await cache_service.client
@@ -2204,15 +2229,18 @@ def check_all_providers_health(self):
                         logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
                         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                        # Log results
+                        # Log results — None results indicate "skipped, not configured"
+                        # (e.g. opt-in providers like ProtonMail Bridge) and are not failures.
                         healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
                         unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
                         error_count = sum(1 for r in results if isinstance(r, Exception))
+                        skipped_count = sum(1 for r in results if r is None)
 
                         logger.info("=" * 80)
                         logger.info(
                             f"Health check: Completed. "
-                            f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
+                            f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, "
+                            f"Errors: {error_count}, Skipped: {skipped_count}"
                         )
                         logger.info("=" * 80)
 
