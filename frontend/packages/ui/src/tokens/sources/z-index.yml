@@ -13,6 +13,7 @@
 
 layers:
   base:            0
+  raised:          1       # alias for raised-1 (most common "above siblings")
   raised-1:        1       # slightly above siblings (was z-index: 1)
   raised-2:        2       # above raised-1 (was z-index: 2)
   raised-3:        3       # above raised-2 (was z-index: 3)
