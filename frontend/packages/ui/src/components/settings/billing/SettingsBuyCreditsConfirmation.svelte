@@ -44,10 +44,10 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
 <!-- Success Icon and Message -->
 <div class="success-section">
-    <div class="success-icon-wrapper">
+    <div class="ds-success-icon-wrapper">
         <div class="success-icon"></div>
     </div>
-    <h2 class="success-title">{$text('settings.billing.purchase_successful')}</h2>
+    <h2 class="ds-success-title">{$text('settings.billing.purchase_successful')}</h2>
     <p class="success-subtitle">{$text('settings.billing.credits_added')}</p>
 </div>
 
@@ -89,16 +89,9 @@ Shows both the purchased credits amount (+X) and the new total balance.
         padding: 20px 0;
     }
 
-    .success-icon-wrapper {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
+    /* Base styles for .ds-success-icon-wrapper / .ds-success-title are generated
+       from frontend/packages/ui/src/tokens/sources/components/status-feedback.yml
+       See docs/architecture/frontend/design-tokens.md (Phase E). */
 
     .success-icon {
         width: 40px;
@@ -108,13 +101,6 @@ Shows both the purchased credits amount (+X) and the new total balance.
         background-repeat: no-repeat;
         background-position: center;
         filter: invert(1);
-    }
-
-    .success-title {
-        font-size: var(--font-size-h3);
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0;
     }
 
     .success-subtitle {
@@ -228,7 +214,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
             font-size: var(--font-size-h2-mobile);
         }
 
-        .success-icon-wrapper {
+        .ds-success-icon-wrapper {
             width: 70px;
             height: 70px;
         }
@@ -238,7 +224,7 @@ Shows both the purchased credits amount (+X) and the new total balance.
             height: 35px;
         }
 
-        .success-title {
+        .ds-success-title {
             font-size: var(--font-size-h3-mobile);
         }
 
