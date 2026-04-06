@@ -172,7 +172,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
 {/if}
 
 <!-- Save button -->
-<div class="save-button-container">
+<div class="ds-save-button-container">
     <button
         class="save-button"
         class:disabled={!isValid || isSaving || isDeleting}
@@ -206,9 +206,10 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
         margin: 0;
     }
 
-    .save-button-container {
-        display: flex;
-        justify-content: center;
+    /* Base .ds-save-button-container (display:flex, justify-content:center)
+       generated from tokens/sources/components/forms.yml. Padding stays local
+       because it varies between Add (uniform 8) and Edit (8/8/4 reduced bottom). */
+    .ds-save-button-container {
         padding: var(--spacing-8) var(--spacing-8) var(--spacing-4);
     }
 

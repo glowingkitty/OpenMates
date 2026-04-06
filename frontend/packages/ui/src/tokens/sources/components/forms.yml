@@ -1,3 +1,12 @@
 # Form primitives (save button container wrapper).
 # Consumed by build-tokens.js → emits .ds-* CSS classes + DS.* Swift structs.
-# Populated incrementally per E-α.6 in plan cheeky-snuggling-zebra.md.
+#
+# Lifted: .ds-save-button-container — the flex wrapper that centers a
+# save/submit button below a form in settings dialogs. Only display +
+# justify-content are shared across all 8 consumers; padding varies
+# between the "Add" variant (uniform spacing-8) and the "Edit" variant
+# (spacing-8 top/right, spacing-4 bottom), so padding stays per-file.
+
+save-button-container:
+  display:         flex
+  justify-content: center

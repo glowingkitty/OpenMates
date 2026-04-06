@@ -106,7 +106,7 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
 {/if}
 
 <!-- Save button -->
-<div class="save-button-container">
+<div class="ds-save-button-container">
     <button
         class="save-button"
         class:disabled={!isValid || isSaving}
@@ -128,9 +128,9 @@ Based on Figma design: settings/privacy/add_name (node 4669:43890)
         margin: 0;
     }
 
-    .save-button-container {
-        display: flex;
-        justify-content: center;
+    /* Base .ds-save-button-container (display:flex, justify-content:center)
+       generated from tokens/sources/components/forms.yml. Padding stays local. */
+    .ds-save-button-container {
         padding: var(--spacing-8);
     }
 

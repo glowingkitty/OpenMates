@@ -174,7 +174,7 @@ Related to: SettingsAddName.svelte, SettingsHidePersonalData.svelte
 {/if}
 
 <!-- Save button -->
-<div class="save-button-container">
+<div class="ds-save-button-container">
     <button
         class="save-button"
         class:disabled={!isValid || isSaving || isDeleting}
@@ -208,9 +208,9 @@ Related to: SettingsAddName.svelte, SettingsHidePersonalData.svelte
         margin: 0;
     }
 
-    .save-button-container {
-        display: flex;
-        justify-content: center;
+    /* Base .ds-save-button-container (display:flex, justify-content:center)
+       generated from tokens/sources/components/forms.yml. Padding stays local. */
+    .ds-save-button-container {
         padding: var(--spacing-8) var(--spacing-8) var(--spacing-4);
     }
 
