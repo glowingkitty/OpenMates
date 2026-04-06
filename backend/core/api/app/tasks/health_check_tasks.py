@@ -2086,6 +2086,8 @@ def check_all_apps_health(self):
                     return app_ids
                 finally:
                     await inner_cache_service.close()
+
+                return app_ids
             
             # Get app IDs (run async function)
             app_ids = await get_app_ids()
