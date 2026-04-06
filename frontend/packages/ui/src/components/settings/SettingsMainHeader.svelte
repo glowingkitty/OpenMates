@@ -417,7 +417,7 @@
 
     .username-label {
         font-weight: 700;
-        color: var(--color-grey-0);
+        color: var(--color-grey-100);
         line-height: 1.25;
         text-align: center;
         overflow: hidden;
@@ -431,7 +431,7 @@
     .username-label-clickable {
         all: unset;
         font-weight: 700;
-        color: var(--color-grey-0);
+        color: var(--color-grey-100);
         line-height: 1.25;
         text-align: center;
         overflow: hidden;
