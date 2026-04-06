@@ -272,10 +272,10 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="health-search-details" class:mobile={isMobileLayout}>
       <!-- Search summary: "Augenarzt in Berlin" -->
-      <div class="search-query">{searchSummary}</div>
+      <div class="ds-search-query">{searchSummary}</div>
 
       <!-- Provider label: "via Doctolib & Jameda" -->
-      <div class="search-provider">
+      <div class="ds-search-provider">
         <span>{$text('embeds.via')}</span>
         <img
           src={getProviderIconUrl('icons/doctolib.svg')}
@@ -295,7 +295,7 @@
 
       {:else if status === 'finished'}
         <!-- Finished state: appointment count + earliest slot -->
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if totalAppointments > 0}
             <span class="doctor-count">
               {totalAppointments}
@@ -336,65 +336,44 @@
     justify-content: flex-start;
   }
 
-  /* Main search summary text */
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
 
-  .health-search-details.mobile .search-query {
+  .health-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
 
-  /* "via Doctolib" label with provider logo */
-  .search-provider {
+  /* Local augmentation: the "via Doctolib" label hosts a logo + name as flex
+     children, so .ds-search-provider needs flex layout on top of the primitive
+     typography. Kept here rather than polluting the shared primitive. */
+  .ds-search-provider {
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
   }
 
-  .search-provider .provider-logo {
+  .ds-search-provider .provider-logo {
     height: 14px;
     width: auto;
     flex-shrink: 0;
   }
 
-  .health-search-details.mobile .search-provider {
-    font-size: var(--font-size-xxs);
-  }
-
-  .health-search-details.mobile .search-provider .provider-logo {
-    height: 12px;
-  }
-
-  .search-provider .provider-name {
+  .ds-search-provider .provider-name {
     font-weight: 600;
   }
 
-  /* Results summary row */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-    flex-wrap: wrap;
+  .health-search-details.mobile .ds-search-provider {
+    font-size: var(--font-size-xxs);
   }
 
-  .health-search-details.mobile .search-results-info {
+  .health-search-details.mobile .ds-search-provider .provider-logo {
+    height: 12px;
+  }
+
+  .health-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
 
