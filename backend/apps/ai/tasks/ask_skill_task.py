@@ -66,6 +66,78 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 logger = logging.getLogger(__name__)
 
 
+# --- Sync-redis idempotency lock ---------------------------------------------------
+# Celery broker (Dragonfly/Redis) can redeliver the same task message because we
+# enable task_acks_late=True + task_reject_on_worker_lost=True. Both copies carry
+# the same task_id. We acquire a SET NX lock per task_id BEFORE the asyncio loop
+# starts so the dedup never depends on the per-task event loop.
+#
+# Why sync redis (not the pooled async CacheService): the worker-level
+# CacheService caches a redis.asyncio client bound to the loop that first awaited
+# its `client` property. On the next Celery task a fresh asyncio loop is created
+# (`asyncio.new_event_loop()`), and any direct `await client.set(...)` raises
+# "Event loop is closed" — which is exactly how the previous async dedup guard
+# (commit 04d3994cf) silently failed in production. A fresh sync `redis.Redis`
+# connection has no loop affinity, runs immediately, and is closed in finally.
+_DEDUP_KEY_PREFIX = "celery_task_dedup:"
+_DEDUP_TTL_SECONDS = 600  # > task time_limit (360s) with margin
+
+
+def _acquire_celery_task_dedup_lock(task_id: str) -> bool:
+    """
+    Try to acquire the per-task_id dedup lock using a fresh synchronous redis
+    connection. Returns True if this is the first execution (proceed), False if
+    a duplicate was detected (skip).
+
+    Raises RuntimeError if the underlying redis call fails — callers should
+    fail-closed (do NOT proceed with execution) so we never silently double-process.
+    The previous async guard "logged a warning and proceeded" which is what allowed
+    chat 7929b948 to be processed twice on 2026-04-06.
+    """
+    # Local imports to avoid touching module-level imports for unrelated code paths.
+    import redis  # sync client; already a transitive dep via redis>=5.2
+    from urllib.parse import urlparse, unquote
+
+    broker_url = os.getenv("CELERY_BROKER_URL")
+    if not broker_url:
+        raise RuntimeError("CELERY_BROKER_URL not set; cannot acquire dedup lock")
+
+    parsed = urlparse(broker_url)
+    host = parsed.hostname or "cache"
+    port = parsed.port or 6379
+    password = unquote(parsed.password) if parsed.password else None
+    # Path is "/<db>" — default 0 if missing
+    try:
+        db = int((parsed.path or "/0").lstrip("/") or "0")
+    except ValueError:
+        db = 0
+
+    client = None
+    try:
+        client = redis.Redis(
+            host=host,
+            port=port,
+            password=password,
+            db=db,
+            socket_timeout=2,
+            socket_connect_timeout=2,
+            decode_responses=False,
+        )
+        was_set = client.set(
+            f"{_DEDUP_KEY_PREFIX}{task_id}", b"1", ex=_DEDUP_TTL_SECONDS, nx=True
+        )
+        return bool(was_set)
+    except Exception as e:
+        # Re-raise as RuntimeError so the wrapper can fail-closed via Ignore().
+        raise RuntimeError(f"sync redis dedup lock failed: {e}") from e
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+
 async def _cleanup_processing_embeds_on_task_failure(
     task_id: str,
     chat_id: str,
@@ -502,34 +574,12 @@ async def _async_process_ai_skill_ask_task(
                 
         raise RuntimeError(f"Service initialization failed: {e}")
 
-    # --- Idempotency Guard: Prevent duplicate task execution ---
-    # Celery broker (Dragonfly/Redis) can redeliver the same task message due to
-    # retry_on_timeout or acks_late race conditions. Both copies carry the same task_id.
-    # Use SET NX (set-if-not-exists) to ensure only the first execution proceeds.
-    # TTL of 600s (10 min) covers the max task time_limit (360s) with margin.
-    if cache_service_instance:
-        try:
-            dedup_key = f"celery_task_dedup:{task_id}"
-            client = await cache_service_instance.client
-            was_set = await client.set(dedup_key, "1", ex=600, nx=True)
-            if not was_set:
-                logger.warning(
-                    f"[Task ID: {task_id}] DEDUP: Duplicate task execution detected for "
-                    f"chat_id={request_data.chat_id}, message_id={request_data.message_id}. "
-                    f"Skipping to prevent double processing and double charging."
-                )
-                return {
-                    "status": "deduplicated_skip",
-                    "task_id": task_id,
-                    "chat_id": request_data.chat_id,
-                    "message_id": request_data.message_id,
-                    "_celery_task_state": "SUCCESS"
-                }
-            logger.info(f"[Task ID: {task_id}] DEDUP: Acquired processing lock (key={dedup_key}, ttl=600s)")
-        except Exception as dedup_err:
-            # Don't fail the task if dedup check fails — proceed with processing
-            # This is a safety net, not a hard requirement
-            logger.warning(f"[Task ID: {task_id}] DEDUP: Could not check/set dedup key: {dedup_err}. Proceeding with execution.")
+    # NOTE: Idempotency dedup is now performed by `_acquire_celery_task_dedup_lock`
+    # in the synchronous Celery wrapper (`process_ai_skill_ask_task`) BEFORE the
+    # asyncio loop is created. The previous async guard at this location silently
+    # failed with "Event loop is closed" because the worker-level CacheService's
+    # redis.asyncio client is bound to a stale loop on task redelivery — see
+    # commit history for details. Do not re-add an async dedup here.
 
     # --- Load configurations from cache (preloaded by main API server at startup) ---
     # The main API server preloads these into the shared Dragonfly cache during startup.
@@ -2231,6 +2281,46 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
         raise Ignore()
+
+    # --- Idempotency dedup (sync, fail-closed) ----------------------------------
+    # Acquire a SET NX lock keyed on task_id BEFORE creating the asyncio loop.
+    # This protects against Celery broker redelivery (task_acks_late=True +
+    # task_reject_on_worker_lost=True). See `_acquire_celery_task_dedup_lock`
+    # at module level for the rationale (must be sync to avoid the stale-loop
+    # bug that defeated the previous async guard from commit 04d3994cf).
+    try:
+        first_execution = _acquire_celery_task_dedup_lock(task_id)
+    except RuntimeError as dedup_err:
+        # Fail-closed: a cache outage means we cannot guarantee single execution.
+        # Logging double-processing and double-charging is worse than dropping
+        # one task — the user explicitly prioritized correctness over availability.
+        logger.error(
+            f"[Task ID: {task_id}] DEDUP: lock acquisition failed ({dedup_err}). "
+            f"Refusing to proceed; task will be dropped. Investigate cache health."
+        )
+        self.update_state(state='FAILURE', meta={
+            'exc_type': 'DedupLockUnavailable',
+            'exc_message': str(dedup_err),
+        })
+        raise Ignore()
+
+    if not first_execution:
+        logger.warning(
+            f"[Task ID: {task_id}] DEDUP: Duplicate task execution detected for "
+            f"chat_id={request_data.chat_id}, message_id={request_data.message_id}. "
+            f"Skipping to prevent double processing and double charging."
+        )
+        return {
+            "status": "deduplicated_skip",
+            "task_id": task_id,
+            "chat_id": request_data.chat_id,
+            "message_id": request_data.message_id,
+            "_celery_task_state": "SUCCESS",
+        }
+    logger.info(
+        f"[Task ID: {task_id}] DEDUP: Acquired processing lock "
+        f"(key={_DEDUP_KEY_PREFIX}{task_id}, ttl={_DEDUP_TTL_SECONDS}s)"
+    )
 
     # Focus mode continuation now creates its own assistant message (this task_id).
     # Client merges "focus activation" + "continuation" into one bubble for display.
