@@ -1,3 +1,0 @@
-# Snippet card primitive — white rounded quote container used in embed fullscreens.
-# Consumed by build-tokens.js → emits .ds-* CSS classes + DS.* Swift structs.
-# Populated incrementally per E-α.2 in plan cheeky-snuggling-zebra.md (pilot).
