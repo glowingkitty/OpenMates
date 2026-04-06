@@ -1819,7 +1819,7 @@ def _linear_start_integration(
         if _scripts_dir not in sys.path:
             sys.path.insert(0, _scripts_dir)
         from _linear_client import (
-            get_api_key, get_issue, create_issue,
+            get_api_key, get_issue,
             update_issue_status, add_label, post_comment,
         )
     except ImportError:
