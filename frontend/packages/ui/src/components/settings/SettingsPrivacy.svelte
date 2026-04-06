@@ -185,14 +185,12 @@ Based on Figma design: settings/privacy (node 1895:20576)
     onModifyClick={() => navigateToAutoDeletion('files')}
 />
 
-<!-- Usage data — editable, has modify button -->
+<!-- Usage data — NOT editable, retention enforced by S3 lifecycle policy (3 years) -->
 <SettingsItem
     type="subsubmenu"
     icon="usage"
     subtitleTop={$text('settings.privacy.auto_deletion.usage_data')}
     title={$text('settings.privacy.auto_deletion.usage_data.value')}
-    hasModifyButton={true}
-    onModifyClick={() => navigateToAutoDeletion('usage_data')}
 />
 
 <!-- Compliance logs — NOT editable, no modify button -->

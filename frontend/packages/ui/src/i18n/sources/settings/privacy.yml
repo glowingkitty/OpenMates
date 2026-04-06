@@ -455,28 +455,28 @@ auto_deletion.usage_data:
   he: נתוני שימוש
   verified_by_human: []
 auto_deletion.usage_data.value:
-  context: Default value for usage data auto deletion
-  en: 1 year & older
-  de: 1 Jahr & älter
-  zh: 1 年及以上
-  es: 1 año y más
-  fr: 1 an et plus
-  pt: 1 ano e mais
-  ru: 1 год и старше
-  ja: 1年以上
-  ko: 1년 이상
-  it: 1 anno e oltre
-  tr: 1 yıl ve üzeri
-  vi: 1 năm trở lên
-  id: 1 tahun ke atas
-  pl: 1 rok i starsze
-  nl: 1 jaar & ouder
-  ar: سنة واحدة فأكثر
-  hi: 1 वर्ष और पुराना
-  th: 1 ปีขึ้นไป
-  cs: 1 rok a starší
-  sv: 1 år & äldre
-  he: שנה ומעלה
+  context: Fixed retention value for usage data (3 years, enforced by S3 lifecycle policy — not user-configurable)
+  en: 3 years & older
+  de: 3 Jahre & älter
+  zh: 3 年及以上
+  es: 3 años y más
+  fr: 3 ans et plus
+  pt: 3 anos e mais
+  ru: 3 года и старше
+  ja: 3年以上
+  ko: 3년 이상
+  it: 3 anni e oltre
+  tr: 3 yıl ve üzeri
+  vi: 3 năm trở lên
+  id: 3 tahun ke atas
+  pl: 3 lata i starsze
+  nl: 3 jaar & ouder
+  ar: 3 سنوات فأكثر
+  hi: 3 वर्ष और पुराना
+  th: 3 ปีขึ้นไป
+  cs: 3 roky a starší
+  sv: 3 år & äldre
+  he: 3 שנים ומעלה
   verified_by_human: []
 auto_deletion.compliance_logs:
   context: Label for compliance logs auto deletion setting
@@ -645,30 +645,6 @@ auto_deletion.files.description:
   cs: Zvolte, jak dlouho mají být vaše nahrané soubory uchovávány na OpenMates před automatickým smazáním.
   sv: Välj hur länge dina uppladdade filer ska sparas på OpenMates innan de raderas automatiskt.
   he: יש לבחור כמה זמן לשמור את הקבצים שהעלית ב-OpenMates לפני שיימחקו אוטומטית.
-  verified_by_human: []
-auto_deletion.usage_data.description:
-  context: Description text on the usage data auto-deletion editing page
-  en: Choose how long your usage data (statistics, activity logs) should be kept before being automatically deleted.
-  de: Wähle, wie lange deine Nutzungsdaten (Statistiken, Aktivitätsprotokolle) aufbewahrt werden sollen, bevor sie automatisch gelöscht werden.
-  zh: 选择使用数据（统计数据、活动日志）在自动删除之前应保留多长时间。
-  es: Elige cuánto tiempo deben conservarse tus datos de uso (estadísticas, registros de actividad) antes de eliminarse automáticamente.
-  fr: Choisissez combien de temps vos données d'utilisation (statistiques, journaux d'activité) doivent être conservées avant d'être automatiquement supprimées.
-  pt: Escolha por quanto tempo seus dados de uso (estatísticas, registros de atividade) devem ser mantidos antes de serem excluídos automaticamente.
-  ru: Выберите, как долго ваши данные использования (статистика, журналы активности) должны храниться перед автоматическим удалением.
-  ja: 使用データ（統計、アクティビティログ）が自動削除される前に保持する期間を選択してください。
-  ko: 사용 데이터(통계, 활동 로그)가 자동으로 삭제되기 전에 보관할 기간을 선택하세요.
-  it: Scegli per quanto tempo i tuoi dati di utilizzo (statistiche, registri attività) devono essere conservati prima di essere eliminati automaticamente.
-  tr: Kullanım verilerinizin (istatistikler, etkinlik günlükleri) otomatik olarak silinmeden önce ne kadar süre saklanacağını seçin.
-  vi: Chọn thời gian lưu trữ dữ liệu sử dụng (thống kê, nhật ký hoạt động) trước khi bị tự động xóa.
-  id: Pilih berapa lama data penggunaan Anda (statistik, log aktivitas) harus disimpan sebelum dihapus secara otomatis.
-  pl: Wybierz, jak długo Twoje dane użytkowania (statystyki, dzienniki aktywności) powinny być przechowywane przed automatycznym usunięciem.
-  nl: Kies hoe lang uw gebruiksgegevens (statistieken, activiteitslogboeken) bewaard moeten worden voordat ze automatisch worden verwijderd.
-  ar: اختر المدة التي يجب الاحتفاظ ببيانات استخدامك (الإحصائيات، سجلات النشاط) خلالها قبل حذفها تلقائيًا.
-  hi: चुनें कि आपका उपयोग डेटा (आंकड़े, गतिविधि लॉग) स्वचालित रूप से हटाए जाने से पहले कितने समय तक रखा जाए।
-  th: เลือกระยะเวลาที่ต้องการเก็บข้อมูลการใช้งาน (สถิติ บันทึกกิจกรรม) ก่อนที่จะถูกลบอัตโนมัติ
-  cs: Zvolte, jak dlouho mají být vaše data o používání (statistiky, protokoly aktivit) uchovávána před automatickým smazáním.
-  sv: Välj hur länge dina användningsdata (statistik, aktivitetsloggar) ska sparas innan de raderas automatiskt.
-  he: יש לבחור כמה זמן לשמור את נתוני השימוש שלך (סטטיסטיקה, יומני פעילות) לפני שיימחקו אוטומטית.
   verified_by_human: []
 auto_deletion.period.30_days:
   context: Auto-deletion period option - 30 days

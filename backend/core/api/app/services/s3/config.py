@@ -116,7 +116,10 @@ BUCKETS = {
         'allowed_types': ['application/gzip', 'application/json'],
         'max_size': 500 * 1024 * 1024,  # 500MB per archive
         'access': 'private',
-        'lifecycle_policy': 2555,  # 7 years auto-delete (in days)
+        # 3-year platform retention for usage data. This is the sole source of truth
+        # for usage archive deletion — there is no per-user application-level cleanup
+        # task (see celery_config.py and auto_delete_tasks.py).
+        'lifecycle_policy': 1095,  # 3 years auto-delete (in days)
     },
     # Temporary public images bucket for reverse image search (Google Lens via SerpAPI).
     # Plaintext (decrypted) images are uploaded here with a very short TTL.

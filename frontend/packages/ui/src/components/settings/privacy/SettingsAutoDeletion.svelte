@@ -1,19 +1,19 @@
 <!--
 Auto Deletion Period Editor - Allows users to change the auto-deletion period
-for a specific data category (chats, files, usage_data).
+for a specific data category (chats, files).
 
 The category is determined from the activeSettingsView prop:
-  "privacy/auto-deletion/chats"      → chats
-  "privacy/auto-deletion/files"      → files
-  "privacy/auto-deletion/usage_data" → usage_data
+  "privacy/auto-deletion/chats" → chats
+  "privacy/auto-deletion/files" → files
 
 For "chats": persisted via POST /v1/settings/auto-delete-chats.
-For "usage_data": persisted via POST /v1/settings/auto-delete-usage.
-  Default is 3 years (1095 days) when the user has not configured a period.
-  "never" stores null, which applies the platform default on the server.
 
 "files" category is not yet backed by a server endpoint; its selection is
 visual-only for now.
+
+Note: usage data retention is no longer user-configurable. It is enforced by
+the S3 bucket lifecycle policy on `usage_archives` (3 years). See
+backend/core/api/app/services/s3/config.py.
 -->
 
 <script lang="ts">
@@ -57,7 +57,7 @@ visual-only for now.
         translationKey: string;
     }
 
-    const PERIOD_OPTIONS_SHORT: PeriodOption[] = [
+    const PERIOD_OPTIONS: PeriodOption[] = [
         { key: '30d', translationKey: 'privacy.auto_deletion.period.30_days' },
         { key: '60d', translationKey: 'privacy.auto_deletion.period.60_days' },
         { key: '90d', translationKey: 'privacy.auto_deletion.period.90_days' },
@@ -68,23 +68,7 @@ visual-only for now.
         { key: 'never', translationKey: 'privacy.auto_deletion.period.never' },
     ];
 
-    // Usage data has an additional "3 years" option (the platform default).
-    // This is longer than the chat options because usage records are lower-value
-    // privacy data and the server applies a 3-year default if the user sets "never".
-    const PERIOD_OPTIONS_LONG: PeriodOption[] = [
-        { key: '90d', translationKey: 'privacy.auto_deletion.period.90_days' },
-        { key: '6m', translationKey: 'privacy.auto_deletion.period.6_months' },
-        { key: '1y', translationKey: 'privacy.auto_deletion.period.1_year' },
-        { key: '2y', translationKey: 'privacy.auto_deletion.period.2_years' },
-        { key: '3y', translationKey: 'privacy.auto_deletion.period.3_years' },
-        { key: '5y', translationKey: 'privacy.auto_deletion.period.5_years' },
-        { key: 'never', translationKey: 'privacy.auto_deletion.period.never' },
-    ];
-
-    /** Get the period options for the current category */
-    let periodOptions = $derived(
-        category === 'usage_data' ? PERIOD_OPTIONS_LONG : PERIOD_OPTIONS_SHORT
-    );
+    let periodOptions = $derived(PERIOD_OPTIONS);
 
     /**
      * Maps the server-stored integer day count back to a UI period key.
@@ -100,39 +84,10 @@ visual-only for now.
         1825: '5y',
     };
 
-    /**
-     * Maps server-stored integer day count to UI period key for usage data.
-     * Mirrors _USAGE_PERIOD_TO_DAYS in backend/core/api/app/schemas/settings.py.
-     */
-    const USAGE_DAYS_TO_PERIOD: Record<number, string> = {
-        90:   '90d',
-        180:  '6m',
-        365:  '1y',
-        730:  '2y',
-        1095: '3y',
-        1825: '5y',
-    };
-
-    /**
-     * PERIOD_TO_DAYS map for usage data (mirrors _USAGE_PERIOD_TO_DAYS backend constant).
-     */
-    const USAGE_PERIOD_TO_DAYS: Record<string, number | null> = {
-        '90d':  90,
-        '6m':   180,
-        '1y':   365,
-        '2y':   730,
-        '3y':   1095,
-        '5y':   1825,
-        'never': null,
-    };
-
     /** Default periods per category (shown when the user has not configured a period yet) */
     const DEFAULT_PERIODS: Record<string, string> = {
-        chats:      '90d',
-        files:      '90d',
-        // 3y = 1095 days — matches USAGE_DEFAULT_RETENTION_DAYS on the server.
-        // "never" maps to null on the server, which also applies the 3y default.
-        usage_data: '3y',
+        chats: '90d',
+        files: '90d',
     };
 
     // ─── Selected Period State ───────────────────────────────────────────────
@@ -154,16 +109,6 @@ visual-only for now.
             } else {
                 selectedPeriod = DEFAULT_PERIODS.chats;
             }
-        } else if (category === 'usage_data') {
-            const days = $userProfile?.auto_delete_usage_after_days;
-            if (days == null) {
-                // null = platform default (3 years) — show as '3y' to the user
-                selectedPeriod = DEFAULT_PERIODS.usage_data;
-            } else if (days in USAGE_DAYS_TO_PERIOD) {
-                selectedPeriod = USAGE_DAYS_TO_PERIOD[days];
-            } else {
-                selectedPeriod = DEFAULT_PERIODS.usage_data;
-            }
         } else {
             selectedPeriod = DEFAULT_PERIODS[category] || '90d';
         }
@@ -172,9 +117,8 @@ visual-only for now.
     // ─── Icon per Category ───────────────────────────────────────────────────
 
     const CATEGORY_ICONS: Record<string, string> = {
-        chats:      'chat',
-        files:      'files',
-        usage_data: 'usage',
+        chats: 'chat',
+        files: 'files',
     };
 
     let categoryIcon = $derived(CATEGORY_ICONS[category] || 'delete');
@@ -210,30 +154,6 @@ visual-only for now.
                 }
             } catch (err) {
                 console.error('[SettingsAutoDeletion] Network error while saving period:', err);
-            } finally {
-                isSaving = false;
-            }
-        } else if (category === 'usage_data') {
-            isSaving = true;
-            try {
-                const response = await fetch(getApiUrl() + apiEndpoints.settings.autoDeleteUsage, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({ period: periodKey }),
-                    credentials: 'include',
-                });
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error(
-                        `[SettingsAutoDeletion] Failed to save period for usage_data: ` +
-                        `${response.status} – ${errorData?.detail ?? 'unknown error'}`
-                    );
-                } else {
-                    // null = platform default (3 years); the server applies USAGE_DEFAULT_RETENTION_DAYS
-                    updateProfile({ auto_delete_usage_after_days: USAGE_PERIOD_TO_DAYS[periodKey] });
-                }
-            } catch (err) {
-                console.error('[SettingsAutoDeletion] Network error while saving usage period:', err);
             } finally {
                 isSaving = false;
             }

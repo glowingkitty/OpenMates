@@ -4096,7 +4096,6 @@ ${h("Billing")}
     \x1b[2mGift cards (buy/manage): ${s("billing/gift-cards")}\x1b[0m
 ${h("Privacy")}
     openmates settings post auto-delete-chats --data '{"period":"90d"}'
-    openmates settings post auto-delete-usage --data '{"period":"1y"}'
     \x1b[2mHide personal data / anonymization: ${s("privacy/hide-personal-data")}\x1b[0m
 ${h("Notifications")}
     openmates settings get reminders [--json]           Active reminders
