@@ -241,6 +241,11 @@ frontend/packages/ui/src/data/appsMetadata.ts
 frontend/packages/ui/src/data/embedRegistry.generated.ts
 frontend/packages/ui/src/data/modelsMetadata.ts
 frontend/packages/ui/src/data/providersMetadata.ts
+
+# Generated design tokens (built from YAML sources in src/tokens/sources/)
+frontend/packages/ui/src/tokens/generated/
+frontend/packages/ui/src/styles/icon-urls.generated.css
+
 backend/core/api/logs/*.log.*
 
 # Test results (JSON files for manual inspection)
