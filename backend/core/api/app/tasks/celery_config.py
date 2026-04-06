@@ -273,18 +273,19 @@ else:
 
 # Create Celery app.
 #
-# `task_cls` makes every task that does NOT specify an explicit `base=` inherit
-# from `DedupedTask`. This is the second half of the OPE-338 follow-up: ensure
-# every Celery task — not just `apps.ai.tasks.skill_ask` — is protected from
-# broker redelivery causing double execution. Tasks that specify `base=...`
-# (e.g. `BaseServiceTask`, `E2ETestTask`) inherit dedup via the class hierarchy
-# (`BaseServiceTask` extends `DedupedTask`). See base_task.py for rationale.
+# NOTE: `task_cls=DedupedTask` was reverted here (see hotfix session e53c)
+# because it conflicted with the inline sync-redis dedup still present in
+# `backend/apps/ai/tasks/ask_skill_task.py`. Both tried to claim the same
+# `celery_task_dedup:{task_id}` key, so every AI task saw its own earlier
+# lock, treated itself as a duplicate, and skipped its body. Until the
+# refactor in `ask_skill_task.py` is finished (remove the inline helper and
+# rely solely on `DedupedTask.__call__`), tasks use the stock Celery Task
+# base class and dedup is handled per-task.
 app = Celery(
     'openmates',
     broker=broker_url,
     backend=result_backend,
     include=include_modules, # Dynamically include task modules
-    task_cls='backend.core.api.app.tasks.base_task:DedupedTask',
 )
 
 # Explicitly import task modules to ensure tasks are registered
