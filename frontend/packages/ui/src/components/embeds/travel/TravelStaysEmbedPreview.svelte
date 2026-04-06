@@ -240,10 +240,10 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="travel-stays-details" class:mobile={isMobileLayout}>
       <!-- Search query (e.g., "Hotels in Barcelona") -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
       
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
       
       <!-- Error state -->
       {#if status === 'error'}
@@ -253,7 +253,7 @@
         </div>
       {:else if status === 'finished'}
         <!-- Finished state: show property count and price -->
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if propertyCount > 0}
             <span class="property-count">
               {propertyCount} {propertyCount === 1 ? $text('embeds.stay') : $text('embeds.stays')}
@@ -291,48 +291,21 @@
     justify-content: flex-start;
   }
   
-  /* Query text */
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .travel-stays-details.mobile .search-query {
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
+  .travel-stays-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
-  
-  /* Provider subtitle */
-  .search-provider {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-  
-  .travel-stays-details.mobile .search-provider {
+
+  .travel-stays-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
   }
-  
-  /* Search results info (count + price) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-    flex-wrap: wrap;
-  }
-  
-  .travel-stays-details.mobile .search-results-info {
+
+  .travel-stays-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
   
