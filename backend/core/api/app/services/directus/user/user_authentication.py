@@ -421,7 +421,15 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
                     "data": response_data
                 }, "Token refreshed"
                 
-            logger.error(f"Token refresh failed: {response.status_code}")
+            # 401 = expired/revoked refresh token. This is an expected user
+            # state (session aged out, user signed out from another device,
+            # browser cookie cleared, etc.) — not a code bug. Both callers
+            # already convert this into an HTTP 401 response and the frontend
+            # redirects to login. Log at INFO so the error stream stays clean.
+            if response.status_code == 401:
+                logger.info("Token refresh rejected by Directus (401) — refresh token expired or revoked")
+            else:
+                logger.error(f"Token refresh failed: {response.status_code}")
             return False, None, "Token refresh failed"
             
     except Exception as e:
