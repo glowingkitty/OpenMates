@@ -273,19 +273,27 @@ else:
 
 # Create Celery app.
 #
-# NOTE: `task_cls=DedupedTask` was reverted here (see hotfix session e53c)
-# because it conflicted with the inline sync-redis dedup still present in
-# `backend/apps/ai/tasks/ask_skill_task.py`. Both tried to claim the same
-# `celery_task_dedup:{task_id}` key, so every AI task saw its own earlier
-# lock, treated itself as a duplicate, and skipped its body. Until the
-# refactor in `ask_skill_task.py` is finished (remove the inline helper and
-# rely solely on `DedupedTask.__call__`), tasks use the stock Celery Task
-# base class and dedup is handled per-task.
+# `task_cls=DedupedTask` makes every task that does not specify an explicit
+# `base=` inherit from DedupedTask, which acquires a sync-redis SET-NX lock
+# keyed on `task_id` BEFORE the task body runs. This is the global compensator
+# for `task_acks_late=True` + `task_reject_on_worker_lost=True` (set further
+# down): the broker is allowed to redeliver an unacked message on connection
+# cycles, autoreload restarts, or kombu's `restore_unacked_once`, and consumer-
+# side idempotency is the only correct way to prevent double execution.
+#
+# History: this line was previously reverted by hotfix e7b56 because the inline
+# `_acquire_celery_task_dedup_lock` in `apps/ai/tasks/ask_skill_task.py` and
+# `DedupedTask.__call__` were both claiming the same `celery_task_dedup:{task_id}`
+# key, causing every AI task to skip its own body. The inline helper has now
+# been removed (commit e245f1c), so the conflict cannot recur — DedupedTask is
+# the single source of truth for per-task_id dedup. Do NOT re-add the inline
+# helper to ask_skill_task.py.
 app = Celery(
     'openmates',
     broker=broker_url,
     backend=result_backend,
     include=include_modules, # Dynamically include task modules
+    task_cls='backend.core.api.app.tasks.base_task:DedupedTask',
 )
 
 # Explicitly import task modules to ensure tasks are registered
