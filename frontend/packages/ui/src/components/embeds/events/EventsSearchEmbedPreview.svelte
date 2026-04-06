@@ -290,14 +290,14 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="events-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
 
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
 
       <!-- Finished state: show event count or loading -->
       {#if status === 'finished'}
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if eventCount > 0}
             <span class="event-count">
               {$text('embeds.more_results').replace('{count}', String(eventCount))}
@@ -333,47 +333,21 @@
     justify-content: flex-start;
   }
 
-  /* Query text */
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
 
-  .events-search-details.mobile .search-query {
+  .events-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
 
-  /* Provider subtitle */
-  .search-provider {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-
-  .events-search-details.mobile .search-provider {
+  .events-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
   }
 
-  /* Search results info (event count) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-  }
-
-  .events-search-details.mobile .search-results-info {
+  .events-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
 
