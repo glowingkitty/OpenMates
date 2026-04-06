@@ -597,13 +597,22 @@ services:
           memory: 64M
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager
+    env_file:
+      - ../../.env
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        sed "s|\${INTERNAL_API_SHARED_TOKEN}|${INTERNAL_API_SHARED_TOKEN}|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        if [ -z "$$INTERNAL_API_SHARED_TOKEN" ]; then
+          echo "FATAL: INTERNAL_API_SHARED_TOKEN is empty — alertmanager cannot authenticate to the internal webhook. Set it in .env." >&2
+          exit 1
+        fi
+        sed "s|\$${INTERNAL_API_SHARED_TOKEN}|$$INTERNAL_API_SHARED_TOKEN|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.runtime.yml
+        if grep -q '\$${' /tmp/alertmanager.runtime.yml; then
+          echo "FATAL: unresolved \$${...} placeholder remains in /tmp/alertmanager.runtime.yml after substitution." >&2
+          grep -n '\$${' /tmp/alertmanager.runtime.yml >&2
+          exit 1
+        fi
         exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
-    environment:
-      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
     networks:
       - openmates
     healthcheck:
