@@ -331,14 +331,14 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="videos-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
       
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
       
       <!-- Finished state: show channel thumbnails (circular) and remaining count -->
       {#if status === 'finished'}
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if channelThumbnailResults.length === 0 && remainingCount === 0 && isLoadingChildren}
             <!-- Child embeds are being fetched — show loading instead of empty state -->
             <span class="loading-text">{$text('common.loading')}</span>
@@ -396,48 +396,21 @@
     justify-content: flex-start;
   }
   
-  /* Query text */
-  .search-query {
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .videos-search-details.mobile .search-query {
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
+  .videos-search-details.mobile .ds-search-query {
     font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
-  
-  /* Provider subtitle */
-  .search-provider {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-  
-  .videos-search-details.mobile .search-provider {
+
+  .videos-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
   }
-  
-  /* Search results info (channel thumbnails + remaining count) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-top: var(--spacing-2);
-  }
-  
-  .videos-search-details.mobile .search-results-info {
+
+  .videos-search-details.mobile .ds-search-results-info {
     margin-top: var(--spacing-1);
   }
   
