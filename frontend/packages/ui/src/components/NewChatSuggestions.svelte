@@ -385,7 +385,7 @@
    * Transition from current suggestions to new ones with a fade-out / fade-in animation.
    * Used when user's real suggestions arrive to replace the default placeholder suggestions.
    */
-  function transitionToSuggestions(newSuggestions: Array<{ text: string; encrypted: string; id: string }>) {
+  function _transitionToSuggestions(newSuggestions: Array<{ text: string; encrypted: string; id: string }>) {
     if (showingDefaults && newSuggestions.length > 0) {
       fadeState = 'fading-out';
       setTimeout(() => {
@@ -917,9 +917,10 @@
   }
 
   /* White bold text — matches Figma: Lexend Deca Bold 14px, line-height ~18px.
-     Clamped to 2 lines with ellipsis so cards keep a consistent height. */
+     Clamped to 2 lines with ellipsis so cards keep a consistent height.
+     Always white regardless of dark mode — sits on the branded gradient card. */
   .card-text {
-    color: var(--color-grey-0);
+    color: var(--color-font-button);
     font-size: var(--font-size-small);
     font-weight: 700;
     line-height: 1.3;

@@ -552,12 +552,13 @@
     flex-shrink: 0;
   }
 
-  /* Title: 20px, white, bold, centered, truncated to 2 lines */
+  /* Title: 20px, white, bold, centered, truncated to 2 lines.
+     Always white regardless of theme — sits on the branded gradient header. */
   .loaded-title {
     display: block;
     font-size: var(--font-size-h3);
     font-weight: 700;
-    color: var(--color-grey-100);
+    color: var(--color-font-button);
     text-align: center;
     line-height: 1.3;
     max-width: 100%;
@@ -569,12 +570,13 @@
     overflow: hidden;
   }
 
-  /* Summary: 14px, white, centered. Animates height from 0. */
+  /* Summary: 14px, white, centered. Animates height from 0.
+     Always white regardless of theme — sits on the branded gradient header. */
   .loaded-summary {
     margin: 2px 0 0;
     font-size: var(--font-size-small);
     font-weight: 500;
-    color: var(--color-grey-0);
+    color: var(--color-font-button);
     line-height: 1.45;
     text-align: center;
     /* Clamp to 3 lines */

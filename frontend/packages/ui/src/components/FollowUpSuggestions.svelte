@@ -772,8 +772,8 @@
     flex: 1;
     font-weight: 600;
     /* Intentionally white on gradient — branded card, not a theme surface.
-       Same approach as ChatHeader.svelte loaded-title. */
-    color: var(--color-grey-0);
+       Always white regardless of dark mode. */
+    color: var(--color-font-button);
   }
 
   .suggestion-text .text-part {
@@ -782,12 +782,12 @@
   }
 
   .suggestion-text .text-match {
-    color: var(--color-grey-0);
+    color: var(--color-font-button);
     font-weight: 700;
   }
 
   .suggestion-item:hover .suggestion-text .text-part {
-    color: var(--color-grey-0);
+    color: var(--color-font-button);
   }
 
   /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */
