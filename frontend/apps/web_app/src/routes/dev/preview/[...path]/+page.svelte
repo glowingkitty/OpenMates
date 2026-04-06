@@ -160,6 +160,16 @@
 	]);
 
 	/**
+	 * Fullscreen component paths that NEVER use the data-driven shape.
+	 * These were not migrated in OPE-276 and still take flat props directly.
+	 */
+	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
+		'embeds/news/NewsEmbedFullscreen',
+		'embeds/pdf/PdfReadEmbedFullscreen',
+		'embeds/pdf/PdfSearchEmbedFullscreen'
+	]);
+
+	/**
 	 * Wrap legacy preview-file fullscreen props into the data-driven shape required
 	 * by post-OPE-276 fullscreen components. Only applies to Fullscreen components
 	 * (detected via the component path ending in "Fullscreen").
@@ -179,6 +189,9 @@
 
 		// Already in new shape
 		if ('data' in rawProps) return rawProps;
+
+		// Explicit opt-out: fullscreen not migrated to data-driven shape
+		if (NEVER_WRAP_FULLSCREEN_PATHS.has(path)) return rawProps;
 
 		// Direct-prop fullscreen
 		for (const key of Object.keys(rawProps)) {
