@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 import asyncio # Keep asyncio import if initialize_services uses it
 
 from celery import Task # Import Task for context
+from celery.exceptions import Ignore
 
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService # Added for CacheService
@@ -17,12 +18,116 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
+from backend.shared.python_utils.celery_dedup import (
+    DEDUP_KEY_PREFIX,
+    DEFAULT_DEDUP_TTL_SECONDS,
+    acquire_celery_task_dedup_lock,
+)
 
 logger = logging.getLogger(__name__)
 
+
+# --- Deduplicated Task Base ---------------------------------------------------
+#
+# All Celery tasks in this codebase inherit from `DedupedTask` either directly
+# (via `task_cls=` on the Celery app) or indirectly (via `BaseServiceTask`,
+# `E2ETestTask`, etc.). It guarantees that the broker delivering the same
+# `task_id` twice — which DOES happen with `task_acks_late=True` +
+# `task_reject_on_worker_lost=True` whenever the worker connection cycles —
+# only runs the task body once.
+#
+# Why a base class instead of `task_prerun` signal:
+# - `task_prerun` runs *inside* the task body context; raising `Ignore` from
+#   it does not cleanly skip execution. Overriding `__call__` is the only
+#   place where we can early-return BEFORE `self.run(...)` is invoked.
+# - One subclass for the whole app is easier to audit than 30+ decorators.
+#
+# Per-task opt-out: set `dedup_enabled = False` on a task class if its body is
+# truly idempotent and the dedup overhead is unwanted. Default is ON.
+class DedupedTask(Task):
+    """
+    Celery base task that fail-closes on duplicate broker deliveries.
+
+    Subclasses can override `dedup_enabled` and `dedup_ttl_seconds`.
+    See `backend/shared/python_utils/celery_dedup.py` for the rationale.
+    """
+
+    # Opt-out flag. Override to False on a per-task basis if the body is
+    # provably idempotent (UPSERT-only writes, no external API calls, no
+    # credit/charge side-effects). Default ON.
+    dedup_enabled: bool = True
+
+    # Lock TTL. Must be larger than the task's `time_limit` so a long-running
+    # task does not get its lock evicted before completion.
+    dedup_ttl_seconds: int = DEFAULT_DEDUP_TTL_SECONDS
+
+    def __call__(self, *args, **kwargs):
+        # Skip dedup entirely for opted-out tasks.
+        if not self.dedup_enabled:
+            return super().__call__(*args, **kwargs)
+
+        task_id = getattr(self.request, "id", None)
+        # No task_id → direct/eager invocation, not real broker delivery.
+        if not task_id:
+            return super().__call__(*args, **kwargs)
+
+        # Resolve broker URL via celery_config so we hit the same Dragonfly
+        # the broker uses (env CELERY_BROKER_URL is typically unset; the URL
+        # is built from DRAGONFLY_PASSWORD inside celery_config).
+        broker_url = None
+        try:
+            from backend.core.api.app.tasks import celery_config as _cfg
+            broker_url = getattr(_cfg, "broker_url", None)
+        except Exception:
+            broker_url = None
+
+        try:
+            first_execution = acquire_celery_task_dedup_lock(
+                task_id,
+                broker_url=broker_url,
+                ttl_seconds=self.dedup_ttl_seconds,
+            )
+        except RuntimeError as dedup_err:
+            # Fail-closed: never silently double-process. Logging double-
+            # processing and double-charging is worse than dropping one task.
+            logger.error(
+                f"[Task {self.name} ID:{task_id}] DEDUP: lock acquisition "
+                f"failed ({dedup_err}). Refusing to proceed; task will be "
+                f"dropped. Investigate cache health."
+            )
+            try:
+                self.update_state(state="FAILURE", meta={
+                    "exc_type": "DedupLockUnavailable",
+                    "exc_message": str(dedup_err),
+                })
+            except Exception:
+                pass
+            raise Ignore()
+
+        if not first_execution:
+            logger.warning(
+                f"[Task {self.name} ID:{task_id}] DEDUP: Duplicate task "
+                f"execution detected. Skipping to prevent double processing "
+                f"and double charging."
+            )
+            return {
+                "status": "deduplicated_skip",
+                "task_id": task_id,
+                "task_name": self.name,
+                "_celery_task_state": "SUCCESS",
+            }
+
+        logger.debug(
+            f"[Task {self.name} ID:{task_id}] DEDUP: Acquired processing "
+            f"lock (key={DEDUP_KEY_PREFIX}{task_id}, "
+            f"ttl={self.dedup_ttl_seconds}s)"
+        )
+        return super().__call__(*args, **kwargs)
+
+
 # --- Base Task Class for Service Initialization ---
 # This helps avoid initializing services multiple times if the task retries
-class BaseServiceTask(Task):
+class BaseServiceTask(DedupedTask):
     _directus_service: Optional[DirectusService] = None
     _encryption_service: Optional[EncryptionService] = None
     _s3_service: Optional[S3UploadService] = None

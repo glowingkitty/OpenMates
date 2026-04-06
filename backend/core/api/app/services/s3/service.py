@@ -359,9 +359,12 @@ class S3UploadService:
                     if combined_metadata:
                         put_params['Metadata'] = combined_metadata
                     
-                    # Upload the file using the current upload client
-                    current_upload_client.put_object(**put_params)
-                    
+                    # Upload the file using the current upload client.
+                    # put_object is synchronous; run on the default executor so
+                    # the event loop stays responsive under S3 backpressure.
+                    # (Same rationale as delete_file / get_file — see commit d64b91773.)
+                    await asyncio.to_thread(current_upload_client.put_object, **put_params)
+
                     # If successful, break out of the retry loop
                     logger.info(f"Upload successful on attempt {attempt + 1}")
                     break
@@ -456,9 +459,16 @@ class S3UploadService:
         try:
             # Get the appropriate bucket name based on environment
             bucket_name = get_bucket_name(bucket_key, self.environment)
-            
-            # Delete the file
-            self.client.delete_object(Bucket=bucket_name, Key=file_key)
+
+            # Delete the file.
+            # boto3's delete_object is synchronous; calling it directly from an
+            # async context blocks the event loop (which stalled the API during
+            # the auto_delete_old_usage storm — see commit d64b91773). Run it on
+            # the default executor so the event loop stays responsive even when
+            # S3 throttles (SlowDown) and boto3 internally retries with backoff.
+            await asyncio.to_thread(
+                self.client.delete_object, Bucket=bucket_name, Key=file_key
+            )
             logger.info(f"Successfully deleted file from S3: bucket={bucket_name}, key={file_key}")
         except HTTPException:
             # Re-raise HTTP exceptions
@@ -488,13 +498,18 @@ class S3UploadService:
         
         try:
             logger.info(f"Downloading file from S3: bucket={bucket_name}, key={object_key}")
-            
-            # Use get_object to download the file
-            response = self.client.get_object(Bucket=bucket_name, Key=object_key)
-            
-            # Read the file content
-            file_content = response['Body'].read()
-            
+
+            # boto3 get_object + Body.read() are both synchronous network calls.
+            # Run them on the default executor so the event loop is not blocked
+            # while waiting for S3 (critical: get_file is in hot paths like
+            # profile-image serving). See commit d64b91773 for the incident
+            # that exposed sync-boto3-in-async as an event-loop killer.
+            def _download() -> bytes:
+                response = self.client.get_object(Bucket=bucket_name, Key=object_key)
+                return response['Body'].read()
+
+            file_content = await asyncio.to_thread(_download)
+
             logger.info(f"Successfully downloaded file from S3: bucket={bucket_name}, key={object_key}, size={len(file_content)} bytes")
             return file_content
             
