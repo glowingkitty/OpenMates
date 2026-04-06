@@ -773,6 +773,69 @@ function generateComponentClasses() {
 ${body}`;
 }
 
+// CSS-only layout/paint properties that should NOT appear in Swift output.
+// SwiftUI expresses these via layout containers (HStack/VStack) and view
+// modifiers (.lineLimit, .shadow, .clipShape) — not as constants.
+const COMPONENT_SWIFT_SKIP_PROPS = new Set([
+  "display",
+  "align-items", "justify-content",
+  "flex-wrap", "flex-direction", "flex-shrink", "flex-grow",
+  "webkit-box-orient", "line-clamp", "-webkit-line-clamp",
+  "overflow", "overflow-x", "overflow-y",
+  "text-overflow", "word-break", "white-space",
+  "position",
+  "box-shadow",
+  "background", "background-image",
+  "margin",
+  "transform", "cursor", "user-select", "pointer-events",
+  "transition", "animation",
+]);
+
+// CSS font-weight numbers → SwiftUI Font.Weight symbols.
+const FONT_WEIGHT_TO_SWIFT = {
+  100: ".ultraLight",
+  200: ".thin",
+  300: ".light",
+  400: ".regular",
+  500: ".medium",
+  600: ".semibold",
+  700: ".bold",
+  800: ".heavy",
+  900: ".black",
+};
+
+/**
+ * Resolve a component-primitive `{ ref: "..." }` value to a SwiftUI symbol.
+ * Returns { symbol, type } or null if the ref points at a token without a
+ * generated Swift counterpart (consumer falls back to a comment).
+ *
+ * Mapping rules:
+ *   font-size-{key}        → Font.om{Key}            (Font)
+ *   font-size-{key}-mobile → Font.om{Key}            (Font, Dynamic Type handles scaling)
+ *   color-{name}           → Color.{camelCase name}  (Color)
+ *   spacing-{N}            → CGFloat.spacing{N}      (CGFloat)
+ *   radius-{key}           → CGFloat.radius{Key}     (CGFloat)
+ *   icon-size-{key}        → CGFloat.iconSize{Key}   (CGFloat)
+ */
+function resolveSwiftRef(ref) {
+  let m = ref.match(/^font-size-([a-z0-9]+)(?:-mobile)?$/);
+  if (m) return { symbol: `Font.om${pascalCase(m[1])}`, type: "Font" };
+
+  m = ref.match(/^color-(.+)$/);
+  if (m) return { symbol: `Color.${camelCase(m[1])}`, type: "Color" };
+
+  m = ref.match(/^spacing-(\d+)$/);
+  if (m) return { symbol: `CGFloat.spacing${m[1]}`, type: "CGFloat" };
+
+  m = ref.match(/^radius-(.+)$/);
+  if (m) return { symbol: `CGFloat.radius${pascalCase(m[1])}`, type: "CGFloat" };
+
+  m = ref.match(/^icon-size-(.+)$/);
+  if (m) return { symbol: `CGFloat.iconSize${pascalCase(m[1])}`, type: "CGFloat" };
+
+  return null;
+}
+
 function generateComponentSwift() {
   const sources = readComponentSources();
   const lines = [
@@ -781,6 +844,11 @@ function generateComponentSwift() {
     "//",
     "// Cross-platform counterparts to the .ds-* CSS classes — consumed by the",
     "// iOS SwiftUI app to share component primitive values with the web.",
+    "//",
+    "// CSS-only layout/paint props (display, align-items, flex-*, overflow,",
+    "// box-shadow, background gradients, etc.) are intentionally omitted —",
+    "// SwiftUI expresses those via layout containers and view modifiers.",
+    "// Token references (ref:) are resolved to their SwiftUI symbol counterparts.",
     "",
     "import SwiftUI",
     "",
@@ -791,17 +859,50 @@ function generateComponentSwift() {
   for (const { primitives } of sources) {
     for (const [name, spec] of Object.entries(primitives)) {
       if (!spec || typeof spec !== "object") continue;
-      lines.push(`  public enum ${pascalCase(name)} {`);
+
+      const memberLines = [];
       for (const [key, rawValue] of Object.entries(spec)) {
+        if (COMPONENT_SWIFT_SKIP_PROPS.has(key)) continue;
         const propName = camelCase(key);
+
+        // Token reference → resolved Swift symbol (or comment fallback).
         if (typeof rawValue === "object" && rawValue !== null && "ref" in rawValue) {
-          lines.push(`    // ${propName}: references --${rawValue.ref} (see generated token extensions)`);
-        } else if (typeof rawValue === "number") {
-          lines.push(`    public static let ${propName}: CGFloat = ${rawValue}`);
-        } else {
-          lines.push(`    public static let ${propName}: String = ${JSON.stringify(String(rawValue))}`);
+          const resolved = resolveSwiftRef(rawValue.ref);
+          if (resolved) {
+            memberLines.push(`    public static let ${propName}: ${resolved.type} = ${resolved.symbol}`);
+          } else {
+            memberLines.push(`    // ${propName}: unresolved ref --${rawValue.ref}`);
+          }
+          continue;
         }
+
+        // font-weight numeric → SwiftUI Font.Weight symbol.
+        if (key === "font-weight" && typeof rawValue === "number" && FONT_WEIGHT_TO_SWIFT[rawValue]) {
+          memberLines.push(`    public static let ${propName}: Font.Weight = ${FONT_WEIGHT_TO_SWIFT[rawValue]}`);
+          continue;
+        }
+
+        // Plain numeric → CGFloat.
+        if (typeof rawValue === "number") {
+          memberLines.push(`    public static let ${propName}: CGFloat = ${rawValue}`);
+          continue;
+        }
+
+        // String values: skip anything that's a CSS function call, percentage,
+        // or a CSS-keyword value that isn't useful as a Swift constant.
+        const stringVal = String(rawValue);
+        if (/^(linear-gradient|radial-gradient|rgba?|hsla?|var|url|calc|cubic-bezier)\(/.test(stringVal)) continue;
+        if (/%$/.test(stringVal)) continue;
+        if (["0", "auto", "none", "inherit", "initial", "unset"].includes(stringVal)) continue;
+
+        memberLines.push(`    public static let ${propName}: String = ${JSON.stringify(stringVal)}`);
       }
+
+      // Skip primitives whose entire member set is CSS-only (e.g. flex wrappers).
+      if (memberLines.length === 0) continue;
+
+      lines.push(`  public enum ${pascalCase(name)} {`);
+      lines.push(...memberLines);
       lines.push(`  }`);
       lines.push("");
       emitted++;
