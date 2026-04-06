@@ -534,7 +534,7 @@
 
   .app-name {
     font-weight: 700;
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
     line-height: 1.25;
     text-align: center; /* centered in expanded (column) mode */
     overflow: hidden;
@@ -583,7 +583,7 @@
     margin: 0;
     font-size: var(--font-size-small);
     font-weight: 600;
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
     text-align: center;
     line-height: 1.45;
     display: -webkit-box;
@@ -611,7 +611,7 @@
   .cap-num {
     font-size: null;
     font-weight: 700;
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
     line-height: 1;
   }
 

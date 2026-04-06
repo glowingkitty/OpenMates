@@ -557,7 +557,7 @@
     display: block;
     font-size: var(--font-size-h3);
     font-weight: 700;
-    color: var(--color-grey-0);
+    color: var(--color-grey-100);
     text-align: center;
     line-height: 1.3;
     max-width: 100%;

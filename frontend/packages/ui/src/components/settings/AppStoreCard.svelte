@@ -542,7 +542,7 @@
         margin: 2px 0 0;
         font-size: var(--font-size-p);
         font-weight: 600;
-        color: var(--color-grey-0);
+        color: var(--color-grey-100);
         line-height: 1.2;
         flex: 1;
     }
