@@ -418,7 +418,7 @@
     <!-- Error state -->
     {#if status === 'error'}
       <div class="error-state">
-        <div class="error-title">{$text('embeds.search_failed')}</div>
+        <div class="ds-error-title">{$text('embeds.search_failed')}</div>
         <div class="error-message">{errorMessage}</div>
       </div>
     {:else if entries.length === 0}
@@ -789,12 +789,9 @@
     text-align: center;
   }
   
-  .error-title {
-    font-size: var(--font-size-h3-mobile);
-    font-weight: 600;
-    color: var(--color-error);
-  }
-  
+  /* .ds-error-title base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/status-feedback.yml */
+
   .error-message {
     font-size: var(--font-size-small);
     line-height: 1.4;
