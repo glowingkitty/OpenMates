@@ -205,9 +205,64 @@ rm -f "$DAILY_ARCHIVE"
 cp "$LAST_RUN" "$DAILY_ARCHIVE"
 echo "[daily-runner] Archived result to $DAILY_ARCHIVE"
 
-# --- Prune old daily archives: keep only the most recent 30 ---
-ls -1t "$RESULTS_DIR"/daily-run-*.json 2>/dev/null | tail -n +31 | xargs -r rm -f
-echo "[daily-runner] Pruned old daily archives (keeping last 30)"
+# --- Prune test-results data older than 7 days ---
+# Deletes JSON archives, per-run JSON files, screenshots, reports, and hourly run
+# data whose filename date (or mtime as fallback) is older than the cutoff.
+# Preserves: last-*.json, current/, coverage/, progress.txt.
+CUTOFF_DATE="$(date -u -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -u -v-7d '+%Y-%m-%d')"
+CUTOFF_EPOCH="$(date -u -d "$CUTOFF_DATE" '+%s' 2>/dev/null || date -u -jf '%Y-%m-%d' "$CUTOFF_DATE" '+%s')"
+DELETED_COUNT=0
+
+prune_by_filename_date() {
+  # Deletes any matching entry whose basename contains a date older than CUTOFF_DATE.
+  # Usage: prune_by_filename_date <find-args...>
+  while IFS= read -r -d '' entry; do
+    base="$(basename "$entry")"
+    if [[ "$base" =~ ([0-9]{4})-?([0-9]{2})-?([0-9]{2}) ]]; then
+      entry_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]}"
+      if [[ "$entry_date" < "$CUTOFF_DATE" ]]; then
+        rm -rf "$entry"
+        DELETED_COUNT=$((DELETED_COUNT + 1))
+      fi
+    fi
+  done < <(find "$@" -print0 2>/dev/null)
+}
+
+prune_by_mtime() {
+  # Deletes files older than CUTOFF_EPOCH by mtime.
+  while IFS= read -r -d '' entry; do
+    file_epoch="$(stat -c '%Y' "$entry" 2>/dev/null || stat -f '%m' "$entry" 2>/dev/null || echo 0)"
+    if [[ "$file_epoch" -lt "$CUTOFF_EPOCH" ]]; then
+      rm -f "$entry"
+      DELETED_COUNT=$((DELETED_COUNT + 1))
+    fi
+  done < <(find "$@" -print0 2>/dev/null)
+}
+
+# Dated JSON archives and per-run files in the root
+prune_by_filename_date "$RESULTS_DIR" -maxdepth 1 -type f \
+  \( -name 'daily-run-*.json' -o -name 'run-*.json' \)
+
+# Dated report folders
+if [[ -d "$RESULTS_DIR/reports" ]]; then
+  prune_by_filename_date "$RESULTS_DIR/reports" -mindepth 1 -maxdepth 1 -type d
+fi
+
+# Dated screenshot folders
+if [[ -d "$RESULTS_DIR/screenshots" ]]; then
+  prune_by_filename_date "$RESULTS_DIR/screenshots" -mindepth 1 -maxdepth 1 -type d
+fi
+
+# Hourly dev/prod: dated folders + per-run files (fallback to mtime)
+for HOURLY_DIR in "$RESULTS_DIR/hourly-dev" "$RESULTS_DIR/hourly-prod"; do
+  if [[ -d "$HOURLY_DIR" ]]; then
+    prune_by_filename_date "$HOURLY_DIR" -mindepth 1 -maxdepth 1 -type d \
+      ! -name 'current'
+    prune_by_mtime "$HOURLY_DIR" -maxdepth 1 -type f -name 'run-*.json'
+  fi
+done
+
+echo "[daily-runner] Pruned $DELETED_COUNT test-results entries older than 7 days (cutoff: $CUTOFF_DATE)"
 
 # --- Dispatch summary email via internal API ---
 ADMIN_EMAIL="${ADMIN_NOTIFY_EMAIL:-}"
