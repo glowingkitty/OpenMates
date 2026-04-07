@@ -234,6 +234,70 @@ def _safe_write_json(path: Path, data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
+# Discord multipart constants — used by _send_summary_to_discord when
+# screenshots are attached. Discord webhooks accept up to 10 files; the
+# free-tier per-file cap is 25 MB but each guild has a 25 MB combined cap
+# unless boosted. Be conservative: cap to 5 files at 2 MB each.
+DISCORD_MAX_ATTACHMENTS = 5
+DISCORD_MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
+
+
+def _build_multipart_body(
+    payload_json: dict,
+    files: list[tuple[str, bytes, str]],
+) -> tuple[bytes, str]:
+    """Build a multipart/form-data body for a Discord webhook with attachments.
+
+    Discord requires the JSON payload under the field name `payload_json`
+    and each attached file under `files[N]` with a `filename`. Returns
+    `(body_bytes, content_type)` ready to feed into urllib.request.
+
+    Stdlib-only because run_tests.py intentionally avoids extra deps so it
+    can run on a vanilla Python install on the dev server cron.
+
+    Args:
+        payload_json: The JSON-serialisable Discord webhook payload.
+        files: List of `(field_name, content_bytes, filename)` tuples. Use
+               `field_name = "files[N]"` to follow Discord's convention.
+    """
+    # A boundary is any token that doesn't appear in the body. uuid-like is fine.
+    boundary = f"----openmates-{int(time.time())}-{os.getpid()}"
+    crlf = b"\r\n"
+    parts: list[bytes] = []
+
+    # payload_json field
+    parts.append(f"--{boundary}".encode())
+    parts.append(b'Content-Disposition: form-data; name="payload_json"')
+    parts.append(b"Content-Type: application/json")
+    parts.append(b"")
+    parts.append(json.dumps(payload_json).encode("utf-8"))
+
+    # File fields
+    for field_name, content_bytes, filename in files:
+        parts.append(f"--{boundary}".encode())
+        parts.append(
+            f'Content-Disposition: form-data; name="{field_name}"; '
+            f'filename="{filename}"'.encode()
+        )
+        # Sniff content-type from extension (PNG for *.png, default octet-stream).
+        ct = "image/png" if filename.lower().endswith(".png") else (
+            "image/webp" if filename.lower().endswith(".webp") else (
+                "image/jpeg" if filename.lower().endswith((".jpg", ".jpeg"))
+                else "application/octet-stream"
+            )
+        )
+        parts.append(f"Content-Type: {ct}".encode())
+        parts.append(b"")
+        parts.append(content_bytes)
+
+    parts.append(f"--{boundary}--".encode())
+    parts.append(b"")
+
+    body = crlf.join(parts)
+    content_type = f"multipart/form-data; boundary={boundary}"
+    return body, content_type
+
+
 # ---------------------------------------------------------------------------
 # GitHubActionsClient
 # ---------------------------------------------------------------------------
@@ -1030,6 +1094,8 @@ class NotificationService:
         mode_label: str = "nightly",
         post_on_success: bool = True,
         env_var_name: str = "DISCORD_WEBHOOK_DEV_NIGHTLY",
+        run_url: Optional[str] = None,
+        screenshots: Optional[list[Path]] = None,
     ) -> None:
         """Post a test run summary to a Discord webhook.
 
@@ -1074,21 +1140,41 @@ class NotificationService:
         title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
 
         # Build a compact description listing up to the first 10 failed tests
-        # so readers see what actually broke without having to open the email.
-        failed_lines: list[str] = []
+        # AND their error snippets so readers can act on the alert without
+        # leaving Discord. Each entry: name + per-test GH Actions run link
+        # (when present) + a fenced code block with the truncated error.
+        failed_blocks: list[str] = []
+        max_failures_shown = 5  # keep description well under 4096 chars
+        max_error_chars = 500   # per failure
         for suite_name, suite_data in result.suites.items():
             for t in suite_data.get("tests", []):
-                if t.get("status") == "failed":
-                    name = t.get("file", t.get("name", "?"))
-                    failed_lines.append(f"• `{suite_name}` — {name}")
-                    if len(failed_lines) >= 10:
-                        break
-            if len(failed_lines) >= 10:
+                if t.get("status") != "failed":
+                    continue
+                name = t.get("file", t.get("name", "?"))
+                err = (t.get("error") or "").strip()
+                rid = t.get("run_id")
+                # Header line: suite/test name + optional [logs] link.
+                if rid:
+                    rid_url = f"https://github.com/{GH_REPO}/actions/runs/{rid}"
+                    header = f"• `{suite_name}` — **{name}** — [logs]({rid_url})"
+                else:
+                    header = f"• `{suite_name}` — **{name}**"
+                if err:
+                    if len(err) > max_error_chars:
+                        err = err[:max_error_chars - 3].rstrip() + "..."
+                    # Strip backticks so they don't break the fenced block.
+                    err_safe = err.replace("```", "ʼʼʼ")
+                    failed_blocks.append(f"{header}\n```\n{err_safe}\n```")
+                else:
+                    failed_blocks.append(header)
+                if len(failed_blocks) >= max_failures_shown:
+                    break
+            if len(failed_blocks) >= max_failures_shown:
                 break
 
-        remaining = max(0, s["failed"] - len(failed_lines))
+        remaining = max(0, s["failed"] - len(failed_blocks))
         if remaining > 0:
-            failed_lines.append(f"…and {remaining} more")
+            failed_blocks.append(f"…and {remaining} more failure(s)")
 
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
@@ -1098,46 +1184,89 @@ class NotificationService:
             f"**Failed:** {s['failed']}   **Skipped:** {s['skipped']}",
             f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
         ]
-        if failed_lines:
+        if run_url:
+            description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
+        if failed_blocks:
             description_parts.append("")
             description_parts.append("**Failures:**")
-            description_parts.extend(failed_lines)
+            description_parts.extend(failed_blocks)
 
         description = "\n".join(description_parts)
         # Discord caps description at 4096 chars
         if len(description) > 4000:
             description = description[:3997] + "..."
 
+        embed: dict = {
+            "title": title,
+            "description": description,
+            "color": color,
+        }
+        if run_url:
+            embed["url"] = run_url
+
         payload = {
             "username": "OpenMates Server",
             "avatar_url": "https://openmates.org/favicon.png",
-            "embeds": [
-                {
-                    "title": title,
-                    "description": description,
-                    "color": color,
-                }
-            ],
+            "embeds": [embed],
         }
 
+        # Collect attachments. Each path on disk is read into memory once,
+        # capped at DISCORD_MAX_ATTACHMENT_BYTES per file and DISCORD_MAX_ATTACHMENTS
+        # total. Files that don't exist or are oversized are silently skipped
+        # so a single bad path can't break the whole notification path.
+        attachments: list[tuple[str, bytes, str]] = []
+        if screenshots:
+            for idx, src in enumerate(screenshots):
+                if len(attachments) >= DISCORD_MAX_ATTACHMENTS:
+                    break
+                try:
+                    src_path = Path(src)
+                    if not src_path.is_file():
+                        continue
+                    size = src_path.stat().st_size
+                    if size > DISCORD_MAX_ATTACHMENT_BYTES:
+                        _log(
+                            f"Discord: skipping {src_path.name} "
+                            f"({size // 1024} KB > {DISCORD_MAX_ATTACHMENT_BYTES // 1024} KB cap)",
+                            "WARN",
+                        )
+                        continue
+                    with open(src_path, "rb") as fh:
+                        content = fh.read()
+                    # filename must be unique across the multipart so prefix
+                    # with the spec-folder name (the parent dir holds the spec name).
+                    parent = src_path.parent.name or "screenshot"
+                    safe_name = f"{parent}-{src_path.name}".replace("/", "-")
+                    attachments.append((f"files[{idx}]", content, safe_name))
+                except Exception as e:
+                    _log(f"Discord: failed to read screenshot {src}: {e}", "WARN")
+                    continue
+
+        # Build the request body — JSON when no attachments, multipart otherwise.
+        # Identify ourselves with a non-default User-Agent: Cloudflare (Discord's
+        # edge) blocks the default `Python-urllib/*` UA with error 1010. See OPE-349.
+        ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
         try:
-            body = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                webhook_url,
-                data=body,
-                headers={
-                    "Content-Type": "application/json",
-                    # Cloudflare (Discord's edge) blocks the default
-                    # `Python-urllib/*` User-Agent with error 1010 — see
-                    # OPE-349. Any non-default UA passes; identify ourselves
-                    # explicitly so abuse logs are useful if we ever misbehave.
-                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            if attachments:
+                body, content_type = _build_multipart_body(payload, attachments)
+                req = urllib.request.Request(
+                    webhook_url,
+                    data=body,
+                    headers={"Content-Type": content_type, "User-Agent": ua},
+                    method="POST",
+                )
+            else:
+                body = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    webhook_url,
+                    data=body,
+                    headers={"Content-Type": "application/json", "User-Agent": ua},
+                    method="POST",
+                )
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
-            _log(f"Discord summary posted ({mode_label})")
+            attached_note = f" (+{len(attachments)} screenshot(s))" if attachments else ""
+            _log(f"Discord summary posted ({mode_label}){attached_note}")
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
@@ -1488,6 +1617,20 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     print("=" * 60)
     print()
 
+    # Collect the last screenshot from each failed spec (usually the
+    # failure-state shot Playwright captures right before the test exits).
+    # BatchRunner has already persisted them to test-results/screenshots/current/.
+    screenshots: list[Path] = []
+    for t in result.suites.get("playwright", {}).get("tests", []):
+        if t.get("status") != "failed":
+            continue
+        for ss_rel in (t.get("screenshot_paths") or [])[-1:]:
+            full = RESULTS_DIR / ss_rel
+            if full.is_file():
+                screenshots.append(full)
+        if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
+            break
+
     # Decide whether to ping Discord. On forced runs we always post (so the
     # operator gets confirmation). Otherwise: post on failure, plus one daily
     # heartbeat for green runs.
@@ -1498,9 +1641,54 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
         mode_label="dev hourly",
         post_on_success=post_on_success,
         env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+        screenshots=screenshots,
     )
 
     return 1 if s["failed"] > 0 else 0
+
+
+def _parse_prod_smoke_steps(run_id: int) -> list[dict]:
+    """Parse step-level results from a prod-smoke.yml workflow run.
+
+    Returns one dict per "Run … spec" step in the order they ran. Each dict:
+        {"name": <step name>, "status": "passed"|"failed"|"skipped",
+         "conclusion": <raw>}
+
+    The prod-smoke job runs three sequential `Run <name> spec` steps, each
+    with `continue-on-error: true` so the JSON conclusion will be `failure`
+    on the failing step(s) but `success` on the steps that passed. We use
+    this to break the workflow conclusion down into per-spec status so the
+    Discord embed can say *which* spec failed instead of just "prod-smoke".
+    """
+    rc = subprocess.run(
+        ["gh", "run", "view", str(run_id),
+         "--repo", GH_REPO,
+         "--json", "jobs"],
+        capture_output=True, text=True,
+    )
+    if rc.returncode != 0:
+        return []
+    try:
+        data = json.loads(rc.stdout)
+    except json.JSONDecodeError:
+        return []
+
+    out: list[dict] = []
+    for job in data.get("jobs", []):
+        for step in job.get("steps", []):
+            name = step.get("name", "") or ""
+            # Only collect the spec-running steps (defined in prod-smoke.yml).
+            if not name.startswith("Run ") or "spec" not in name.lower():
+                continue
+            conclusion = (step.get("conclusion") or "").lower()
+            if conclusion == "success":
+                status = "passed"
+            elif conclusion in ("failure", "cancelled"):
+                status = "failed"
+            else:
+                status = "skipped"
+            out.append({"name": name, "status": status, "conclusion": conclusion})
+    return out
 
 
 def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
@@ -1521,6 +1709,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     client = GitHubActionsClient()
     pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
 
+    new_run_id: Optional[int] = None
     rc = subprocess.run(
         ["gh", "workflow", "run", PROD_SMOKE_WORKFLOW,
          "--repo", GH_REPO, "--ref", GH_BRANCH],
@@ -1538,7 +1727,6 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     else:
         # Find the new run ID
         time.sleep(5)
-        new_run_id: Optional[int] = None
         for _ in range(10):
             post_ids = client._recent_run_ids(limit=10, workflow=PROD_SMOKE_WORKFLOW)
             fresh = [rid for rid in post_ids if rid not in pre_ids]
@@ -1566,25 +1754,53 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             conclusion = status_data.get("conclusion", "unknown")
             _log(f"prod-smoke run {new_run_id} → {conclusion}")
 
-            if conclusion == "success":
-                suite_result = SuiteResult(
-                    status="passed",
-                    tests=[{"name": "prod-smoke", "status": "passed",
-                            "duration_seconds": 0,
-                            "file": "prod-smoke.yml",
-                            "run_id": new_run_id}],
-                )
+            # Parse per-step results so the Discord embed can say "signup
+            # spec failed" instead of just "prod-smoke". Each step result
+            # becomes its own pseudo-test, with the full job log snippet
+            # attached as the error so the embed shows the actual cause.
+            steps = _parse_prod_smoke_steps(new_run_id)
+            log_snippet = client.get_failed_job_error(new_run_id) or ""
+
+            if not steps:
+                # Fallback when step parsing fails — preserves the prior
+                # behaviour so we never silently lose a notification.
+                if conclusion == "success":
+                    suite_result = SuiteResult(
+                        status="passed",
+                        tests=[{"name": "prod-smoke", "status": "passed",
+                                "duration_seconds": 0,
+                                "file": "prod-smoke.yml",
+                                "run_id": new_run_id}],
+                    )
+                else:
+                    suite_result = SuiteResult(
+                        status="failed",
+                        tests=[{"name": "prod-smoke", "status": "failed",
+                                "duration_seconds": 0,
+                                "file": "prod-smoke.yml",
+                                "run_id": new_run_id,
+                                "error": log_snippet
+                                or f"prod-smoke conclusion: {conclusion}"}],
+                    )
             else:
-                error_snippet = client.get_failed_job_error(new_run_id) or (
-                    f"prod-smoke conclusion: {conclusion}"
-                )
+                tests: list[dict] = []
+                for step in steps:
+                    t: dict = {
+                        "name": step["name"],
+                        "status": step["status"],
+                        "duration_seconds": 0,
+                        "file": "prod-smoke.yml",
+                        "run_id": new_run_id,
+                    }
+                    if step["status"] == "failed":
+                        # Attach the full log snippet to every failed step —
+                        # the snippet covers the whole job so this is fine.
+                        t["error"] = log_snippet or f"step conclusion: {step['conclusion']}"
+                    tests.append(t)
+                has_fail = any(t["status"] == "failed" for t in tests)
                 suite_result = SuiteResult(
-                    status="failed",
-                    tests=[{"name": "prod-smoke", "status": "failed",
-                            "duration_seconds": 0,
-                            "file": "prod-smoke.yml",
-                            "run_id": new_run_id,
-                            "error": error_snippet}],
+                    status="failed" if has_fail else "passed",
+                    tests=tests,
                 )
 
     result = ResultAggregator.build_run_result(
@@ -1609,14 +1825,48 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     print("=" * 60)
     print()
 
-    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
-    notification._send_summary_to_discord(
-        result,
-        webhook_url=notification.discord_webhook_prod_smoke,
-        mode_label="prod hourly",
-        post_on_success=post_on_success,
-        env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+    # Try to download the workflow artifact and pull a few PNG screenshots
+    # for the Discord embed. Best-effort only: if the artifact is missing
+    # or the download fails we still send the text summary.
+    screenshots: list[Path] = []
+    artifact_dir: Optional[Path] = None
+    if new_run_id and s["failed"] > 0:
+        artifact_dir = Path(tempfile.mkdtemp(prefix="prod-smoke-artifact-"))
+        art_path = client.download_artifact(
+            new_run_id, f"prod-smoke-results-{new_run_id}", artifact_dir
+        )
+        if art_path:
+            for png in sorted(art_path.rglob("*.png")):
+                if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
+                    break
+                screenshots.append(png)
+            if not screenshots:
+                # Some Playwright runs save .webp; pick those up too.
+                for img in sorted(art_path.rglob("*.webp")):
+                    if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
+                        break
+                    screenshots.append(img)
+
+    run_url = (
+        f"https://github.com/{GH_REPO}/actions/runs/{new_run_id}"
+        if new_run_id
+        else None
     )
+
+    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
+    try:
+        notification._send_summary_to_discord(
+            result,
+            webhook_url=notification.discord_webhook_prod_smoke,
+            mode_label="prod hourly",
+            post_on_success=post_on_success,
+            env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+            run_url=run_url,
+            screenshots=screenshots,
+        )
+    finally:
+        if artifact_dir:
+            shutil.rmtree(artifact_dir, ignore_errors=True)
 
     return 1 if s["failed"] > 0 else 0
 
