@@ -455,6 +455,12 @@ export async function saveMessage(
 ): Promise<void> {
   await dbInstance.init();
 
+  // Normalize the input to a plain object — Svelte 5 $state() proxies and
+  // their nested arrays/objects cannot be cloned by IndexedDB's structured
+  // clone algorithm and throw DataCloneError on store.put(). JSON round-trip
+  // strips proxy traps and yields a serializable plain object. (OPE-354)
+  message = JSON.parse(JSON.stringify(message)) as Message;
+
   const usesExternalTransaction = !!transaction;
   console.debug(
     `[ChatDatabase] saveMessage called for ${message.message_id} (chat: ${message.chat_id}, role: ${message.role}, status: ${message.status}, external tx: ${usesExternalTransaction})`,
