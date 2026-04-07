@@ -155,11 +155,19 @@ async function getEmbedFullText(page: any, messageIndex: number): Promise<string
 		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
 		.first();
 
-	// 15s tolerates slow embed hydration but still fails fast if the embed
-	// genuinely never appears. The caller already waited for finishedEmbeds
-	// count >= 1 via waitForCodeEmbedsInMessage. (OPE-354)
-	const text = await embed.textContent({ timeout: 15000 }).catch(() => '');
-	return text || '';
+	// Use evaluate so we walk the DOM directly — Playwright's textContent()
+	// occasionally returned '' for hydrated embeds in turn 2, even though the
+	// element matched and was finished. innerText is more reliable here. (OPE-354)
+	try {
+		// Wait until the element is attached, then evaluate.
+		await embed.waitFor({ state: 'attached', timeout: 15000 });
+		const text = await embed.evaluate(
+			(el: HTMLElement) => el.innerText || el.textContent || ''
+		);
+		return text || '';
+	} catch {
+		return '';
+	}
 }
 
 /**
