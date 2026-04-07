@@ -18,6 +18,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from backend.apps.pdf.utils.instruction_loader import get_pdf_instruction
+
 logger = logging.getLogger(__name__)
 
 # Groq API endpoint and model
@@ -247,12 +249,7 @@ async def detect_toc(
     accumulated_source_pages: List[int] = []
     toc_detected = False
 
-    system_prompt = (
-        "You are a document analyst. You will be given text extracted from PDF pages. "
-        "Your task is to identify if a table of contents (TOC) is present. "
-        "Extract all chapter and section titles with their page numbers. "
-        "Call report_toc_status with your findings."
-    )
+    system_prompt = get_pdf_instruction("toc_detection_system_prompt")
 
     for batch_start in range(1, pages_to_check + 1, TOC_BATCH_SIZE):
         batch_end = min(batch_start + TOC_BATCH_SIZE - 1, pages_to_check)
@@ -352,11 +349,7 @@ async def detect_legend(
     if not text_block.strip():
         return {"detected": False, "source_pages": [], "content": ""}
 
-    system_prompt = (
-        "You are a document analyst. You will be given text extracted from the last pages "
-        "of a PDF. Identify if a legend, glossary, or list of abbreviations/symbols is "
-        "present. Call report_legend_status with your findings."
-    )
+    system_prompt = get_pdf_instruction("legend_detection_system_prompt")
 
     user_message = (
         f"Analyse these PDF pages (pages {last_page_nums[0]}–{last_page_nums[-1]}) "

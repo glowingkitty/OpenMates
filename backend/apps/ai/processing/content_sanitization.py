@@ -216,33 +216,61 @@ def _load_content_sanitization_model() -> Optional[str]:
 
 def _load_prompt_injection_detection_config() -> Optional[Dict[str, Any]]:
     """
-    Load the prompt injection detection configuration from YAML file.
-    
+    Load the prompt injection detection configuration.
+
+    The tool schema, thresholds, and text-chunking config live in
+    `prompt_injection_detection.yml`. The `prompt_injection_detection_system_prompt`
+    lives in `instructions/prompt_injection_detection_system_prompt.md` (prose
+    is edited as markdown, not YAML — see plan: prompt-to-md migration).
+    Both sources are merged into the returned dict so existing callers can keep
+    using `config.get("prompt_injection_detection_system_prompt")`.
+
     Returns:
         Dict containing the detection configuration, or None if loading fails
     """
-    # Determine the AI app's directory
-    # This file is at backend/apps/ai/processing/content_sanitization.py
-    # So we need to go up to backend/apps/ai/
     current_file_dir = os.path.dirname(os.path.abspath(__file__))
     ai_app_dir = os.path.dirname(current_file_dir)
     config_path = os.path.join(ai_app_dir, "prompt_injection_detection.yml")
-    
+    system_prompt_md_path = os.path.join(
+        ai_app_dir, "instructions", "prompt_injection_detection_system_prompt.md"
+    )
+
     if not os.path.exists(config_path):
         logger.error(f"Prompt injection detection config not found at {config_path}")
         return None
-    
+
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         if not config:
             logger.error("Prompt injection detection config is empty or malformed")
             return None
-        logger.debug(f"Successfully loaded prompt injection detection config from {config_path}")
-        return config
     except Exception as e:
         logger.error(f"Error loading prompt injection detection config: {e}", exc_info=True)
         return None
+
+    # Merge the system prompt from its dedicated markdown file.
+    if not os.path.exists(system_prompt_md_path):
+        logger.error(
+            f"Prompt injection detection system prompt not found at {system_prompt_md_path}"
+        )
+        return None
+    try:
+        with open(system_prompt_md_path, 'r', encoding='utf-8') as f:
+            config["prompt_injection_detection_system_prompt"] = f.read()
+    except Exception as e:
+        logger.error(
+            f"Error loading prompt injection detection system prompt from "
+            f"{system_prompt_md_path}: {e}",
+            exc_info=True,
+        )
+        return None
+
+    logger.debug(
+        f"Successfully loaded prompt injection detection config from {config_path} "
+        f"(+ system prompt from instructions/)"
+    )
+    return config
 
 
 async def _sanitize_text_chunk(
