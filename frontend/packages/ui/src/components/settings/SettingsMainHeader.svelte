@@ -188,7 +188,7 @@
             <!-- Credits: always visible when authenticated AND payment is enabled.
                  Expanded: centered below username. Collapsed: inline next to username. -->
             {#if isAuthenticated && paymentEnabled}
-                <div class="credits-row credits-container" class:credits-row-collapsed={isCollapsed}>
+                <div data-testid="credits-row" class="credits-row credits-container" class:credits-row-collapsed={isCollapsed}>
                     <button
                         class="credits-button"
                         class:credits-button-collapsed={isCollapsed}
