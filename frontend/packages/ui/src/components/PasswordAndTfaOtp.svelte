@@ -908,7 +908,7 @@
                     <span class="app-name-inline">{@html $text('login.check_your_2fa_app').replace('{tfa_app}', '')}</span>
                     <span class="app-name-inline">
                         {#if tfaAppIconClass}
-                            <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
+                            <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}" style="--icon-url: var(--icon-url-{tfaAppIconClass});"></span>
                         {/if}
                         <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
                     </span>

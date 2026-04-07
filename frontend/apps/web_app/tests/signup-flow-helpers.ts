@@ -253,6 +253,21 @@ async function fillStripeCardDetails(page: any, cardNumber: string): Promise<voi
 		);
 		await cvcInput.click();
 		await cvcInput.pressSequentially('123', { delay: 30 });
+
+		// Stripe Payment Element shows a postal/ZIP field when the detected country
+		// (browser locale → US in our Docker test container) requires it. Without
+		// filling it the "Buy for X EUR" submit button stays disabled. Try the
+		// common name/autocomplete combinations and silently skip when not present
+		// (e.g. EU geo where Stripe omits the field).
+		const postalInput = paymentFrame
+			.locator(
+				'input[name="postalCode"], input[name="postal_code"], input[autocomplete="postal-code"]'
+			)
+			.first();
+		if (await postalInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await postalInput.click();
+			await postalInput.pressSequentially('12345', { delay: 30 });
+		}
 		return;
 	} catch {
 		// Fallback to the split Stripe iframe layout (card number/expiry/CVC separate).
