@@ -21,6 +21,7 @@ title:
   cs: Zásady ochrany osobních údajů
   sv: Integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות
 last_updated:
   context: Last update date label
   en: Last Updated
@@ -44,6 +45,7 @@ last_updated:
   cs: Naposledy aktualizováno
   sv: Senast uppdaterad
   verified_by_human: []
+  he: עודכן לאחרונה
 data_protection.heading:
   context: Section heading for data protection overview
   en: 1. Data Protection Overview
@@ -67,6 +69,7 @@ data_protection.heading:
   cs: 1. Přehled ochrany údajů
   sv: 1. Översikt över dataskydd
   verified_by_human: []
+  he: 1. סקירה כללית של הגנת מידע
 data_protection.overview:
   context: Overview of privacy policy purpose
   en: This privacy policy explains what happens to your data when you use our website and web application. We are committed to transparency regarding data handling and work with various service providers to deliver our services.
@@ -90,6 +93,7 @@ data_protection.overview:
   cs: Tato zásada ochrany osobních údajů vysvětluje, co se stane s vašimi údaji, když používáte náš web a webovou aplikaci. Jsme odhodláni k transparentnosti v oblasti zpracování údajů a spolupracujeme s různými poskytovateli služeb, abychom poskytli naše služby.
   sv: Denna integritetspolicy förklarar vad som händer med dina uppgifter när du använder vår webbplats och webbapplikation. Vi är engagerade i transparens när det gäller datahantering och arbetar med olika tjänsteleverantörer för att leverera våra tjänster.
   verified_by_human: []
+  he: מדיניות פרטיות זו מסבירה מה קורה לנתונים שלך כאשר אתה משתמש באתר ובאפליקציית האינטרנט שלנו.
 data_protection.website_vs_webapp:
   context: Clarification about visitor vs signed-up user data handling
   en: "OpenMates (https://openmates.org) serves as both our informational website and web application. All visitors access OpenMates through Vercel. When you sign up and use our AI features, your data is also processed by our backend services (hosted on Hetzner) and various AI providers as described below."
@@ -113,6 +117,7 @@ data_protection.website_vs_webapp:
   cs: "OpenMates (https://openmates.org) slouží jako náš informační web i webová aplikace. Všichni návštěvníci přistupují k OpenMates přes Vercel. Když se zaregistrujete a používáte naše AI funkce, vaše data jsou také zpracovávána našimi backend službami (hostovanými na Hetzner) a různými poskytovateli AI, jak je popsáno níže."
   sv: "OpenMates (https://openmates.org) fungerar som både vår informativa webbplats och webbapplikation. Alla besökare får tillgång till OpenMates via Vercel. När du registrerar dig och använder våra AI-funktioner behandlas dina uppgifter även av våra backend-tjänster (värd på Hetzner) och olika AI-leverantörer enligt beskrivningen nedan."
   verified_by_human: []
+  he: OpenMates (https://openmates.org) משמשת גם כאתר מידע וגם כאפליקציית אינטרנט. כל הנתונים הנוגעים לאתר האינפורמטיבי מטופלים בנפרד מנתוני אפליקציית האינטרנט.
 vercel.heading:
   context: Section heading for Vercel hosting information
   en: 2. Vercel (Website & Web App Hosting)
@@ -136,6 +141,7 @@ vercel.heading:
   cs: 2. Vercel (Hosting webových stránek a webové aplikace)
   sv: 2. Vercel (Webbplats- och webbapphosting)
   verified_by_human: []
+  he: 2. Vercel (אירוח אתר ואפליקציית אינטרנט)
 vercel.description:
   context: Description of Vercel hosting and data collection
   en: Our website and web app (static content) is hosted using Vercel's platform (US company). When you visit our website or web app, your request is processed by Vercel's servers. Vercel may collect technical information including IP addresses, browser type and version, basic access logs, performance data, and other standard server logs.
@@ -159,6 +165,7 @@ vercel.description:
   cs: Náš web a webová aplikace (statický obsah) jsou hostovány na platformě Vercel (americká společnost). Když navštívíte náš web nebo webovou aplikaci, váš požadavek je zpracován servery Vercel. Vercel může shromažďovat technické informace včetně IP adres, typu a verze prohlížeče, základních přístupových protokolů, výkonnostních dat a dalších standardních serverových protokolů.
   sv: Vår webbplats och webbapp (statiskt innehåll) är värd på Vercels plattform (amerikanskt företag). När du besöker vår webbplats eller webbapp behandlas din begäran av Vercels servrar. Vercel kan samla in teknisk information inklusive IP-adresser, webbläsartyp och version, grundläggande åtkomstloggar, prestandadata och andra standard serverloggar.
   verified_by_human: []
+  he: האתר ואפליקציית האינטרנט שלנו (תוכן סטטי) מתארחים באמצעות פלטפורמת Vercel (חברה אמריקאית). כאשר אתה מבקר באתר שלנו, Vercel עשויה לאסוף נתונים מסוימים כגון כתובות IP, מידע על הדפדפן ונתוני ביצועים. לפרטים, עיין במדיניות הפרטיות של Vercel.
 vercel.privacy_policy_link:
   context: Link text for Vercel's privacy policy
   en: Vercel Privacy Policy
@@ -182,6 +189,7 @@ vercel.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Vercel
   sv: Vercels integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Vercel
 webapp_services.heading:
   context: Section heading for web application services
   en: 3. Web Application Services
@@ -205,6 +213,7 @@ webapp_services.heading:
   cs: 3. Služby webové aplikace
   sv: 3. Webbapplikationstjänster
   verified_by_human: []
+  he: 3. שירותי אפליקציית אינטרנט
 webapp_services.intro:
   context: Introduction to backend and AI services used for signed-up users
   en: "The following services are used when you sign up and use OpenMates AI features:"
@@ -228,6 +237,7 @@ webapp_services.intro:
   cs: "Následující služby se používají výhradně pro naši webovou aplikaci (https://openmates.org):"
   sv: "Följande tjänster används uteslutande för vår webbapplikation (https://openmates.org):"
   verified_by_human: []
+  he: 'השירותים הבאים נמצאים בשימוש כאשר אתה נרשם ומשתמש בתכונות AI של OpenMates:'
 hetzner.heading:
   context: Section heading for Hetzner hosting information
   en: 3.1 Hetzner (Backend Infrastructure)
@@ -251,6 +261,7 @@ hetzner.heading:
   cs: 3.1 Hetzner (Backend infrastruktura)
   sv: 3.1 Hetzner (Backend-infrastruktur)
   verified_by_human: []
+  he: 3.1 Hetzner (תשתית Backend)
 hetzner.description:
   context: Description of Hetzner hosting services
   en: Our web application's backend services, databases, and file storage are hosted on Hetzner's infrastructure (EU company, EU servers). This includes web app backend hosting, all backend processing, database hosting, and S3 file hosting.
@@ -274,6 +285,7 @@ hetzner.description:
   cs: Backendové služby, databáze a úložiště souborů naší webové aplikace jsou hostovány na infrastruktuře Hetzner (společnost EU, servery EU). To zahrnuje hosting backendu webové aplikace, veškeré backendové zpracování, hosting databáze a hosting souborů S3.
   sv: Vår webbapplikations backendtjänster, databaser och fillagring är värd på Hetzners infrastruktur (EU-företag, EU-servrar). Detta inkluderar webbapp backend-hosting, all backend-bearbetning, databashosting och S3-fillagring.
   verified_by_human: []
+  he: שירותי ה-backend, מסדי הנתונים ואחסון הקבצים של אפליקציית האינטרנט שלנו מתארחים על תשתית Hetzner (חברה גרמנית, שרתים אירופאיים). Hetzner מקבלת גישה לנתונים האגורים בשרתים שלנו כולל נתוני חשבונות, תוכן מוצפן, יומני מערכת ומטא-נתונים של תשלום. מידע נוסף בתנאי השירות ובמדיניות הפרטיות של Hetzner.
 hetzner.privacy_policy_link:
   context: Link text for Hetzner's privacy policy
   en: Hetzner Privacy Policy
@@ -297,6 +309,7 @@ hetzner.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Hetzner
   sv: Hetzners integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Hetzner
 ip_api.heading:
   context: Section heading for IP-API service
   en: 3.2 IP-API (Geolocation)
@@ -320,6 +333,7 @@ ip_api.heading:
   cs: 3.2 IP-API (Geolokace)
   sv: 3.2 IP-API (Geolokalisering)
   verified_by_human: []
+  he: 3.2 IP-API (גיאולוקציה)
 ip_api.description:
   context: Description of IP-API service
   en: We use IP-API (EU company) for IP address geolocation to determine approximate geographic location for security and localization purposes in the web application.
@@ -343,6 +357,7 @@ ip_api.description:
   cs: Používáme IP-API (společnost EU) pro geolokaci IP adres, abychom určili přibližnou geografickou polohu pro účely zabezpečení a lokalizace v webové aplikaci.
   sv: Vi använder IP-API (EU-företag) för IP-adressgeolokalisering för att bestämma ungefärlig geografisk plats för säkerhets- och lokaliseringsändamål i webbapplikationen.
   verified_by_human: []
+  he: אנו משתמשים ב-IP-API (חברה אירופאית) לגיאולוקציה של כתובות IP לצורך קביעת מיקום גיאוגרפי משוער למטרות אבטחה ושיפור שירות. כאשר אתה מתחבר, כתובת ה-IP שלך נשלחת ל-IP-API.
 ip_api.privacy_policy_link:
   context: Link text for IP-API's privacy policy
   en: IP-API Privacy Policy
@@ -366,6 +381,7 @@ ip_api.privacy_policy_link:
   cs: Zásady ochrany osobních údajů IP-API
   sv: IP-API:s integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של IP-API
 brevo.heading:
   context: Section heading for Brevo service
   en: 3.3 Brevo (Email Services)
@@ -389,6 +405,7 @@ brevo.heading:
   cs: 3.3 Brevo (E-mailové služby)
   sv: 3.3 Brevo (E-posttjänster)
   verified_by_human: []
+  he: 3.3 Brevo (שירותי דוא"ל)
 brevo.description:
   context: Description of Brevo service
   en: We use Brevo (EU company) to send emails. This includes account-related transactional emails (e.g., account verification, security alerts) and, if you subscribe, newsletter emails. Your email address and the email content are shared with Brevo for delivery.
@@ -412,6 +429,7 @@ brevo.description:
   cs: Používáme Brevo (společnost v EU) k odesílání e-mailů. To zahrnuje transakční e-maily související s účtem (např. ověření účtu, bezpečnostní upozornění) a také newsletterové e-maily, pokud se přihlásíte k odběru. Vaše e-mailová adresa a obsah e-mailu jsou pro doručení sdíleny se službou Brevo.
   sv: Vi använder Brevo (EU-företag) för att skicka e-post. Detta inkluderar transaktionsmejl kopplade till kontot (t.ex. kontoverifiering, säkerhetsvarningar) och, om du prenumerar, nyhetsbrevsmejl. Din e-postadress och e-postens innehåll delas med Brevo för leverans.
   verified_by_human: []
+  he: אנו משתמשים ב-Brevo (חברה אירופאית) לשליחת דוא"ל. זה כולל דוא"לים עסקאיים הקשורים לחשבון (למשל, אימות, עדכוני אבטחה) ותקשורת שיווקית אופציונלית אם בחרת להירשם. כתובת הדוא"ל שלך ותוכן ההודעה משותפים עם Brevo.
 brevo.privacy_policy_link:
   context: Link text for Brevo's privacy policy
   en: Brevo Privacy Policy
@@ -435,6 +453,7 @@ brevo.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Brevo
   sv: Brevos integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Brevo
 sightengine.heading:
   context: Section heading for Sightengine service
   en: 3.4 Sightengine (Content Moderation)
@@ -458,6 +477,7 @@ sightengine.heading:
   cs: 3.4 Sightengine (Moderace obsahu)
   sv: 3.4 Sightengine (Innehållsmoderering)
   verified_by_human: []
+  he: 3.4 Sightengine (מיון תוכן)
 sightengine.description:
   context: Description of Sightengine service
   en: We use Sightengine (EU company) for moderation of uploaded images and videos in the web application to ensure content compliance with our terms of service.
@@ -481,6 +501,7 @@ sightengine.description:
   cs: Používáme Sightengine (společnost EU) pro moderaci nahraných obrázků a videí v webové aplikaci, abychom zajistili soulad obsahu s našimi podmínkami služby.
   sv: Vi använder Sightengine (EU-företag) för moderering av uppladdade bilder och videor i webbapplikationen för att säkerställa att innehållet följer våra användarvillkor.
   verified_by_human: []
+  he: אנו משתמשים ב-Sightengine (חברה אירופאית) למיון תמונות וסרטונים שהועלו באפליקציית האינטרנט כדי למנוע תוכן לא הולם. תמונות וסרטונים שהועלו נשלחים ל-Sightengine לניתוח.
 sightengine.privacy_policy_link:
   context: Link text for Sightengine's privacy policy
   en: Sightengine Privacy Policy
@@ -504,6 +525,7 @@ sightengine.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Sightengine
   sv: Sightengines integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Sightengine
 stripe.heading:
   context: Section heading for Stripe service
   en: 3.5 Stripe (Payment Processing)
@@ -527,6 +549,7 @@ stripe.heading:
   cs: 3.5 Stripe (Zpracování plateb)
   sv: 3.5 Stripe (Betalningshantering)
   verified_by_human: []
+  he: 3.5 Stripe (עיבוד תשלומים)
 stripe.description:
   context: Description of Stripe service
   en: We use Stripe (US company) for payment processing for purchases made in the web application, ensuring secure handling of payment information.
@@ -550,6 +573,7 @@ stripe.description:
   cs: Používáme Stripe (americká společnost) pro zpracování plateb za nákupy provedené v webové aplikaci, což zajišťuje bezpečné zpracování platebních informací.
   sv: Vi använder Stripe (amerikanskt företag) för betalningshantering för köp som görs i webbapplikationen, vilket säkerställer säker hantering av betalningsinformation.
   verified_by_human: []
+  he: אנו משתמשים ב-Stripe (חברה אמריקאית) לעיבוד תשלומים עבור רכישות שבוצעו באפליקציית האינטרנט, תוך הבטחת עיבוד תשלומים מאובטח ועמידה בתקנות מס. פרטי תשלום ומידע חיוב נשלחים ל-Stripe.
 stripe.privacy_policy_link:
   context: Link text for Stripe's privacy policy
   en: Stripe Privacy Policy
@@ -573,6 +597,7 @@ stripe.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Stripe
   sv: Stripes integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Stripe
 mistral.heading:
   context: Section heading for Mistral AI service
   en: 3.6 Mistral AI (Language Model)
@@ -596,6 +621,7 @@ mistral.heading:
   cs: 3.6 Mistral AI (Jazykový model)
   sv: 3.6 Mistral AI (Språkmodell)
   verified_by_human: []
+  he: 3.6 Mistral AI (מודל שפה)
 mistral.description:
   context: Description of Mistral AI service
   en: We use Mistral AI (EU company) for LLM requests processing in the web application to process some of your chat requests and provide AI-powered responses.
@@ -619,6 +645,7 @@ mistral.description:
   cs: Používáme Mistral AI (společnost EU) pro zpracování požadavků LLM v webové aplikaci, abychom zpracovali některé z vašich chatových požadavků a poskytli odpovědi poháněné AI.
   sv: Vi använder Mistral AI (EU-företag) för bearbetning av LLM-begäranden i webbapplikationen för att bearbeta några av dina chattförfrågningar och ge AI-drivna svar.
   verified_by_human: []
+  he: אנו משתמשים ב-Mistral AI (חברה אירופאית) לעיבוד בקשות LLM באפליקציית האינטרנט לעיבוד חלק מהבקשות. ההנחיות והנתונים שלך נשלחים ל-Mistral AI לעיבוד.
 mistral.privacy_policy_link:
   context: Link text for Mistral AI's privacy policy
   en: Mistral AI Privacy Policy
@@ -642,6 +669,7 @@ mistral.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Mistral AI
   sv: Mistral AIs integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Mistral AI
 aws.heading:
   context: Section heading for AWS/Anthropic service
   en: 3.7 AWS/Anthropic (Language Model)
@@ -665,6 +693,7 @@ aws.heading:
   cs: 3.7 AWS/Anthropic (Jazykový model)
   sv: 3.7 AWS/Anthropic (Språkmodell)
   verified_by_human: []
+  he: 3.7 AWS/Anthropic (מודל שפה)
 aws.description:
   context: Description of AWS/Anthropic service
   en: We use AWS Bedrock (US company, EU servers) to access Anthropic's Claude models for LLM requests processing in the web application, handling some of your chat requests and providing AI-powered responses.
@@ -688,6 +717,7 @@ aws.description:
   cs: Používáme AWS Bedrock (americká společnost, servery EU) pro přístup k modelům Claude od Anthropic pro zpracování požadavků LLM v webové aplikaci, zpracování některých z vašich chatových požadavků a poskytování odpovědí poháněných AI.
   sv: Vi använder AWS Bedrock (amerikanskt företag, EU-servrar) för att komma åt Anthropics Claude-modeller för bearbetning av LLM-begäranden i webbapplikationen, hantera några av dina chattförfrågningar och ge AI-drivna svar.
   verified_by_human: []
+  he: אנו משתמשים ב-AWS Bedrock (חברה אמריקאית, שרתים אירופאיים) לגישה למודלי Claude של Anthropic לעיבוד בקשות LLM. ההנחיות והנתונים שלך נשלחים דרך AWS לעיבוד.
 aws.privacy_policy_link:
   context: Link text for AWS's privacy policy
   en: AWS Privacy Policy
@@ -711,6 +741,7 @@ aws.privacy_policy_link:
   cs: Zásady ochrany osobních údajů AWS
   sv: AWS:s integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של AWS
 openrouter.heading:
   context: Section heading for OpenRouter service
   en: 3.8 OpenRouter (LLM Gateway)
@@ -734,6 +765,7 @@ openrouter.heading:
   cs: 3.8 OpenRouter (LLM brána)
   sv: 3.8 OpenRouter (LLM Gateway)
   verified_by_human: []
+  he: 3.8 OpenRouter (שער LLM)
 openrouter.description:
   context: Description of OpenRouter usage
   en: We use OpenRouter (US company, US servers) as a gateway to access multiple large-language-model providers. When your chat request is routed via OpenRouter, it may process your prompts and responses to deliver the requested AI output.
@@ -757,6 +789,7 @@ openrouter.description:
   cs: Používáme OpenRouter (americká společnost, americké servery) jako bránu pro přístup k více poskytovatelům velkých jazykových modelů. Když je váš chatový požadavek směrován přes OpenRouter, může zpracovat vaše výzvy a odpovědi, aby poskytl požadovaný výstup AI.
   sv: Vi använder OpenRouter (amerikanskt företag, amerikanska servrar) som en gateway för att komma åt flera leverantörer av stora språkmodeller. När din chattförfrågan dirigeras via OpenRouter kan den bearbeta dina uppmaningar och svar för att leverera den begärda AI-utdata.
   verified_by_human: []
+  he: אנו משתמשים ב-OpenRouter (חברה אמריקאית, שרתים אמריקאיים) כשער לגישה למספר ספקי מודלי שפה גדולים. ההנחיות והנתונים שלך עשויים לעבור דרך OpenRouter לספקים שונים.
 openrouter.privacy_policy_link:
   context: Link text for OpenRouter's privacy policy
   en: OpenRouter Privacy Policy
@@ -780,6 +813,7 @@ openrouter.privacy_policy_link:
   cs: Zásady ochrany osobních údajů OpenRouter
   sv: OpenRouters integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של OpenRouter
 cerebras.heading:
   context: Section heading for Cerebras provider
   en: 3.9 Cerebras (Language Model via OpenRouter)
@@ -803,6 +837,7 @@ cerebras.heading:
   cs: 3.9 Cerebras (Jazykový model přes OpenRouter)
   sv: 3.9 Cerebras (Språkmodell via OpenRouter)
   verified_by_human: []
+  he: 3.9 Cerebras (מודל שפה דרך OpenRouter)
 cerebras.description:
   context: Description of Cerebras usage
   en: We may use Cerebras (US company, US servers) as a language model provider through OpenRouter to process some of your chat requests and provide AI-generated responses.
@@ -826,6 +861,7 @@ cerebras.description:
   cs: Můžeme použít Cerebras (americká společnost, americké servery) jako poskytovatele jazykového modelu prostřednictvím OpenRouter ke zpracování některých z vašich chatových požadavků a poskytnutí odpovědí generovaných AI.
   sv: Vi kan använda Cerebras (amerikanskt företag, amerikanska servrar) som leverantör av språkmodell via OpenRouter för att bearbeta några av dina chattförfrågningar och ge AI-genererade svar.
   verified_by_human: []
+  he: אנו עשויים להשתמש ב-Cerebras (חברה אמריקאית, שרתים אמריקאיים) כספק מודל שפה דרך OpenRouter לעיבוד בקשות מסוימות. ההנחיות והנתונים שלך עשויים להישלח ל-Cerebras לעיבוד.
 cerebras.privacy_policy_link:
   context: Link text for Cerebras' privacy policy
   en: Cerebras Privacy Policy
@@ -849,6 +885,7 @@ cerebras.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Cerebras
   sv: Cerebras integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Cerebras
 brave.heading:
   context: Section heading for Brave Search service
   en: 3.10 Brave Search (Web, Videos, and News Search)
@@ -872,6 +909,7 @@ brave.heading:
   cs: 3.10 Brave Search (Vyhledávání na webu, ve videích a zprávách)
   sv: 3.10 Brave Search (Web-, Video- och Nyhetssökning)
   verified_by_human: []
+  he: 3.10 Brave Search (חיפוש אינטרנט, סרטונים וחדשות)
 brave.description:
   context: Description of Brave Search service
   en: "We use Brave Search (US company) for web search, video search, and news search in the web application. When you use these search skills, your search queries and preferences (such as country and language settings) are sent to Brave Search to provide you with search results. Brave sees the content of what you search for (your search queries), but all data is shared without user identifiers - Brave does not know which specific user made each search. This data sharing only occurs when you actively use the web search, videos search, or news search skills."
@@ -895,6 +933,7 @@ brave.description:
   cs: "Používáme Brave Search (americká společnost) pro vyhledávání na webu, vyhledávání videí a vyhledávání zpráv v webové aplikaci. Když používáte tyto vyhledávací funkce, vaše vyhledávací dotazy a preference (jako jsou nastavení země a jazyka) jsou odesílány do Brave Search, aby vám poskytly výsledky vyhledávání. Brave vidí obsah toho, co hledáte (vaše vyhledávací dotazy), ale všechna data jsou sdílena bez identifikátorů uživatelů - Brave neví, který konkrétní uživatel provedl každé vyhledávání. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkce vyhledávání na webu, vyhledávání videí nebo vyhledávání zpráv."
   sv: "Vi använder Brave Search (amerikanskt företag) för webbsökning, videosökning och nyhetssökning i webbapplikationen. När du använder dessa sökfunktioner skickas dina sökfrågor och preferenser (som land- och språkinställningar) till Brave Search för att ge dig sökresultat. Brave ser innehållet i vad du söker efter (dina sökfrågor), men all data delas utan användaridentifierare - Brave vet inte vilken specifik användare som gjorde varje sökning. Denna datadelning sker endast när du aktivt använder funktionerna för webbsökning, videosökning eller nyhetssökning."
   verified_by_human: []
+  he: אנו משתמשים ב-Brave Search (חברה אמריקאית) לחיפוש אינטרנט, חיפוש סרטונים וחיפוש חדשות באפליקציית האינטרנט. שאילתות החיפוש שלך נשלחות ל-Brave Search.
 brave.privacy_policy_link:
   context: Link text for Brave Search's privacy policy
   en: Brave Search Privacy Policy
@@ -918,6 +957,7 @@ brave.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Brave Search
   sv: Brave Searchs integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Brave Search
 webshare.heading:
   context: Section heading for Webshare service
   en: 3.11 Webshare
@@ -941,6 +981,7 @@ webshare.heading:
   cs: 3.11 Webshare
   sv: 3.11 Webshare
   verified_by_human: []
+  he: 3.11 Webshare
 webshare.description:
   context: Description of Webshare service
   en: "We use Webshare as a third-party service for making network requests to external services in the web application. When you use the videos get transcript, health get appointments, or events search skills, the relevant request URLs are routed through Webshare to the respective services. Webshare sees which URLs are requested, but all data is shared without user identifiers — Webshare does not know which specific user made each request. This data sharing only occurs when you actively use these skills."
@@ -964,6 +1005,7 @@ webshare.description:
   cs: "Používáme Webshare jako službu třetí strany pro síťové požadavky na externí služby v webové aplikaci. Když používáte funkce získání přepisu videa, získání zdravotních schůzek nebo vyhledávání událostí, příslušné adresy URL požadavků jsou směrovány přes Webshare k příslušným službám. Webshare vidí, které adresy URL jsou požadovány, ale všechna data jsou sdílena bez identifikátorů uživatelů — Webshare neví, který konkrétní uživatel podal každý požadavek. Toto sdílení dat nastává pouze tehdy, když aktivně používáte tyto funkce."
   sv: "Vi använder Webshare som en tredjepartstjänst för att göra nätverksförfrågningar till externa tjänster i webbapplikationen. När du använder funktionerna för att hämta videoavskrifter, hämta hälsomöten eller söka efter evenemang dirigeras de relevanta förfrågnings-URL:erna via Webshare till respektive tjänster. Webshare ser vilka URL:er som begärs, men all data delas utan användaridentifierare — Webshare vet inte vilken specifik användare som gjorde varje begäran. Denna datadelning sker endast när du aktivt använder dessa funktioner."
   verified_by_human: []
+  he: אנו משתמשים ב-Webshare כשירות צד שלישי לביצוע בקשות רשת לשירותים חיצוניים באפליקציית האינטרנט. בקשות רשת מסוימות עשויות לעבור דרך Webshare.
 webshare.privacy_policy_link:
   context: Link text for Webshare's privacy policy
   en: Webshare Privacy Policy
@@ -987,6 +1029,7 @@ webshare.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Webshare
   sv: Webshare integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Webshare
 google.heading:
   context: Section heading for Google service
   en: 3.12 Google (Maps Search and LLM)
@@ -1010,6 +1053,7 @@ google.heading:
   cs: 3.12 Google (Vyhledávání map a LLM)
   sv: 3.12 Google (Kartsökning och LLM)
   verified_by_human: []
+  he: 3.12 Google (חיפוש מפות ו-LLM)
 google.description:
   context: Description of Google service
   en: "We use Google (US company) for maps search and LLM requests processing in the web application. When you use the maps search skill, your place search queries are sent to Google Maps Platform to provide you with place information - Google sees the content of what places you search for. We also use Google GenAI for LLM requests processing, which processes your chat messages and prompts - Google GenAI sees the content of your chat messages and prompts. All data is shared without user identifiers - Google does not know which specific user made each search or sent each message. This data sharing only occurs when you actively use the maps search skill or when your chat requests are processed via Google GenAI."
@@ -1033,6 +1077,7 @@ google.description:
   cs: "Používáme Google (americká společnost) pro vyhledávání map a zpracování požadavků LLM v webové aplikaci. Když používáte funkci vyhledávání map, vaše dotazy na vyhledávání míst jsou odesílány na platformu Google Maps, aby vám poskytly informace o místech - Google vidí obsah míst, která hledáte. Používáme také Google GenAI pro zpracování požadavků LLM, které zpracovává vaše chatové zprávy a výzvy - Google GenAI vidí obsah vašich chatových zpráv a výzev. Všechna data jsou sdílena bez identifikátorů uživatelů - Google neví, který konkrétní uživatel provedl každé vyhledávání nebo odeslal každou zprávu. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci vyhledávání map nebo když jsou vaše chatové požadavky zpracovány prostřednictvím Google GenAI."
   sv: "Vi använder Google (amerikanskt företag) för kartsökning och bearbetning av LLM-begäranden i webbapplikationen. När du använder funktionen för kartsökning skickas dina platsökningsfrågor till Google Maps Platform för att ge dig platsinformation - Google ser innehållet i de platser du söker efter. Vi använder också Google GenAI för bearbetning av LLM-begäranden, som bearbetar dina chattmeddelanden och uppmaningar - Google GenAI ser innehållet i dina chattmeddelanden och uppmaningar. All data delas utan användaridentifierare - Google vet inte vilken specifik användare som gjorde varje sökning eller skickade varje meddelande. Denna datadelning sker endast när du aktivt använder funktionen för kartsökning eller när dina chattförfrågningar bearbetas via Google GenAI."
   verified_by_human: []
+  he: אנו משתמשים ב-Google (חברה אמריקאית) לחיפוש מפות ועיבוד בקשות LLM באפליקציית האינטרנט. כאשר אתה משתמש בתכונות אלה, שאילתות ונתונים רלוונטיים נשלחים ל-Google.
 google.privacy_policy_link:
   context: Link text for Google's privacy policy
   en: Google Privacy Policy
@@ -1056,6 +1101,7 @@ google.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Google
   sv: Googles integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Google
 firecrawl.heading:
   context: Section heading for Firecrawl service
   en: 3.13 Firecrawl (Web Scraping)
@@ -1079,6 +1125,7 @@ firecrawl.heading:
   cs: 3.13 Firecrawl (Webové stahování)
   sv: 3.13 Firecrawl (Webskrapning)
   verified_by_human: []
+  he: 3.13 Firecrawl (גרידת אינטרנט)
 firecrawl.description:
   context: Description of Firecrawl service
   en: "We use Firecrawl (US company) for web scraping in the web application. When you use the web read skill, the URLs of web pages you request to be scraped are sent to Firecrawl, which scrapes and returns the content of these web pages. Firecrawl sees and processes the full content of websites you request to read, but all data is shared without user identifiers - Firecrawl does not know which specific user requested each web page. This data sharing only occurs when you actively use the web read skill."
@@ -1102,6 +1149,7 @@ firecrawl.description:
   cs: "Používáme Firecrawl (americká společnost) pro webové stahování v webové aplikaci. Když používáte funkci čtení webu, URL webových stránek, které požadujete ke stažení, jsou odesílány do Firecrawl, který stahuje a vrací obsah těchto webových stránek. Firecrawl vidí a zpracovává celý obsah webových stránek, které požadujete ke čtení, ale všechna data jsou sdílena bez identifikátorů uživatelů - Firecrawl neví, který konkrétní uživatel požádal o každou webovou stránku. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci čtení webu."
   sv: "Vi använder Firecrawl (amerikanskt företag) för webskrapning i webbapplikationen. När du använder funktionen för webläsning skickas URL:erna för webbsidor som du begär att skrapas till Firecrawl, som skrapar och returnerar innehållet i dessa webbsidor. Firecrawl ser och bearbetar det fullständiga innehållet i webbplatser som du begär att läsa, men all data delas utan användaridentifierare - Firecrawl vet inte vilken specifik användare som begärde varje webbsida. Denna datadelning sker endast när du aktivt använder funktionen för webläsning."
   verified_by_human: []
+  he: אנו משתמשים ב-Firecrawl (חברה אמריקאית) לגרידת אינטרנט באפליקציית האינטרנט. כאשר אתה משתמש בכישרון קריאת אינטרנט, כתובות ה-URL נשלחות ל-Firecrawl לגרידה.
 firecrawl.privacy_policy_link:
   context: Link text for Firecrawl's privacy policy
   en: Firecrawl Privacy Policy
@@ -1125,6 +1173,7 @@ firecrawl.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Firecrawl
   sv: Firecrawls integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Firecrawl
 groq.heading:
   context: Section heading for Groq service
   en: 3.14 Groq (External Data Processing)
@@ -1148,6 +1197,7 @@ groq.heading:
   cs: 3.14 Groq (Zpracování externích dat)
   sv: 3.14 Groq (Extern datahantering)
   verified_by_human: []
+  he: 3.14 Groq (עיבוד נתונים חיצוני)
 groq.description:
   context: Description of Groq service
   en: "We use Groq (US company) for LLM requests processing when you use skills that retrieve external data, such as search results from Brave or website content from Firecrawl. Groq sees and processes the actual content of search results and scraped web pages to sanitize them before they are included in your chat responses. All data is shared without user identifiers - Groq does not know which specific user requested the processing of each piece of content. This data sharing only occurs when you use skills that retrieve external data and that content needs to be processed."
@@ -1171,6 +1221,7 @@ groq.description:
   cs: "Používáme Groq (americká společnost) pro zpracování požadavků LLM, když používáte funkce, které načítají externí data, jako jsou výsledky vyhledávání z Brave nebo obsah webových stránek z Firecrawl. Groq vidí a zpracovává skutečný obsah výsledků vyhledávání a stažených webových stránek, aby je vyčistil před jejich zahrnutím do vašich chatových odpovědí. Všechna data jsou sdílena bez identifikátorů uživatelů - Groq neví, který konkrétní uživatel požádal o zpracování každého kusu obsahu. Toto sdílení dat nastává pouze tehdy, když používáte funkce, které načítají externí data a tento obsah musí být zpracován."
   sv: "Vi använder Groq (amerikanskt företag) för bearbetning av LLM-begäranden när du använder funktioner som hämtar externa data, såsom sökresultat från Brave eller webbplatsinnehåll från Firecrawl. Groq ser och bearbetar det faktiska innehållet i sökresultat och skrapade webbsidor för att rensa dem innan de inkluderas i dina chattmeddelanden. All data delas utan användaridentifierare - Groq vet inte vilken specifik användare som begärde bearbetningen av varje innehållsbit. Denna datadelning sker endast när du använder funktioner som hämtar externa data och det innehållet behöver bearbetas."
   verified_by_human: []
+  he: אנו משתמשים ב-Groq (חברה אמריקאית) לעיבוד בקשות LLM כאשר אתה משתמש בכישרונות המאחזרים נתונים חיצוניים. ההנחיות והנתונים הרלוונטיים נשלחים ל-Groq לעיבוד.
 groq.privacy_policy_link:
   context: Link text for Groq's privacy policy
   en: Groq Privacy Policy
@@ -1194,6 +1245,7 @@ groq.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Groq
   sv: Groqs integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Groq
 polar.heading:
   context: Section heading for Polar payment processing service
   en: 3.15 Polar (Payment Processing)
@@ -1217,6 +1269,7 @@ polar.heading:
   cs: 3.15 Polar (Zpracování plateb)
   sv: 3.15 Polar (Betalningshantering)
   verified_by_human: []
+  he: 3.15 Polar (עיבוד תשלומים)
 polar.description:
   context: Description of Polar payment processing service
   en: We use Polar (US company) for payment processing for purchases made through the Polar Storefront in the web application. When you make a purchase, your payment card type, last 4 digits of your payment card, billing address, phone number, and email address are processed by Polar to complete the transaction securely.
@@ -1240,6 +1293,7 @@ polar.description:
   cs: Používáme Polar (americká společnost) pro zpracování plateb za nákupy provedené prostřednictvím Polar Storefront v webové aplikaci. Při nákupu Polar zpracovává typ platební karty, poslední 4 číslice vaší karty, fakturační adresu, telefonní číslo a e-mailovou adresu pro bezpečné dokončení transakce.
   sv: Vi använder Polar (amerikanskt företag) för betalningshantering för köp som görs via Polar Storefront i webbapplikationen. När du gör ett köp bearbetar Polar betalkortstyp, de sista 4 siffrorna på ditt kort, faktureringsadress, telefonnummer och e-postadress för att slutföra transaktionen på ett säkert sätt.
   verified_by_human: []
+  he: אנו משתמשים ב-Polar (חברה אמריקאית) לעיבוד תשלומים עבור רכישות שבוצעו דרך חנות Polar. פרטי תשלום ומידע חיוב נשלחים ל-Polar.
 polar.privacy_policy_link:
   context: Link text for Polar's privacy policy
   en: Polar Privacy Policy
@@ -1263,6 +1317,7 @@ polar.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Polar
   sv: Polars integritetspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Polar
 flightradar24.heading:
   context: Section heading for Flightradar24 as a data provider in the privacy policy
   en: 3.16 Flightradar24
@@ -1358,6 +1413,7 @@ security_measures.heading:
   cs: 4. Bezpečnostní opatření
   sv: 4. Säkerhetsåtgärder
   verified_by_human: []
+  he: 4. אמצעי אבטחה
 security_measures.intro:
   context: Introduction to security measures
   en: "We implement various security measures to protect your account and data in the web application:"
@@ -1381,6 +1437,7 @@ security_measures.intro:
   cs: "Implementujeme různá bezpečnostní opatření k ochraně vašeho účtu a dat v webové aplikaci:"
   sv: "Vi implementerar olika säkerhetsåtgärder för att skydda ditt konto och dina data i webbapplikationen:"
   verified_by_human: []
+  he: 'אנו מיישמים אמצעי אבטחה שונים להגנה על חשבונך ונתוניך באפליקציית האינטרנט:'
 security_measures.device_fingerprinting.subheading:
   context: Subheading for device fingerprinting
   en: Device Fingerprinting
@@ -1404,6 +1461,7 @@ security_measures.device_fingerprinting.subheading:
   cs: Otisk zařízení
   sv: Enhetsfingeravtryck
   verified_by_human: []
+  he: טביעת אצבע של מכשיר
 security_measures.device_fingerprinting.purpose:
   context: Purpose and data collection for device fingerprinting
   en: To enhance account security, prevent fraudulent access, and distinguish between new and recognized devices during login and session validation, we collect User-Agent strings (browser, OS, device type information) and IP addresses (used temporarily to derive approximate geo-location like country/city, then discarded from the device record).
@@ -1427,6 +1485,7 @@ security_measures.device_fingerprinting.purpose:
   cs: Pro zvýšení bezpečnosti účtu, prevenci podvodného přístupu a rozlišení mezi novými a rozpoznanými zařízeními během přihlášení a ověření relace shromažďujeme řetězce User-Agent (prohlížeč, OS, informace o typu zařízení) a IP adresy (používají se dočasně k odvození přibližné geolokace jako země/město, poté jsou záznam zařízení zahozeny).
   sv: För att förbättra kontosäkerheten, förhindra bedräglig åtkomst och skilja mellan nya och igenkända enheter under inloggning och sessionsvalidering samlar vi in User-Agent-strängar (webbläsare, operativsystem, enhetstypinformation) och IP-adresser (används tillfälligt för att härleda ungefärlig geolokalisering som land/stad, sedan kasseras från enhetsposten).
   verified_by_human: []
+  he: לשיפור אבטחת החשבון, מניעת גישה מרמה, ואבחנה בין מכשירים חדשים ומוכרים, אנו אוספים אותות טכניים מהדפדפן כגון מחרוזת ה-User Agent, הגדרות מסך, איזור זמן וכדומה.
 security_measures.device_fingerprinting.storage:
   context: How device fingerprinting data is stored
   en: A unique, stable hash is generated based on a combination of the collected signals. This hash is the only value stored in the device record. Browser/OS type and derived country code may be used transiently for risk assessment and notifications but are not stored with the device record. Raw IP addresses are NOT stored as part of the device record itself.
@@ -1450,6 +1509,7 @@ security_measures.device_fingerprinting.storage:
   cs: Na základě kombinace shromážděných signálů je generován jedinečný, stabilní hash. Tento hash je jedinou hodnotou uloženou v záznamu zařízení. Typ prohlížeče/OS a odvozený kód země mohou být použity přechodně pro hodnocení rizik a oznámení, ale nejsou uloženy spolu se záznamem zařízení. Surové IP adresy NENÍ uloženy jako součást samotného záznamu zařízení.
   sv: En unik, stabil hash genereras baserat på en kombination av de insamlade signalerna. Denna hash är det enda värdet som lagras i enhetsposten. Webbläsare/OS-typ och härlett landskod kan användas tillfälligt för riskbedömning och meddelanden men lagras inte med enhetsposten. Råa IP-adresser lagras INTE som en del av enhetsposten själv.
   verified_by_human: []
+  he: גיבוב ייחודי ויציב נוצר על בסיס שילוב של האותות שנאספו. גיבוב זה מאוחסן בחשבונך לצורך זיהוי מכשיר בביקורים עתידיים.
 security_measures.device_fingerprinting.ip_logging:
   context: IP logging for security purposes
   en: For security monitoring and abuse prevention, IP addresses associated with failed login attempts (invalid password or 2FA code) may be logged with limited retention. In addition, certain security/compliance events (e.g., successful backup-code logins) may be logged with IP for audit purposes. IP addresses are also used for rate limiting login attempts.
@@ -1473,6 +1533,7 @@ security_measures.device_fingerprinting.ip_logging:
   cs: Pro bezpečnostní monitoring a prevenci zneužití mohou být IP adresy spojené s neúspěšnými pokusy o přihlášení (neplatné heslo nebo 2FA kód) zaznamenány s omezeným uchováním. Kromě toho mohou být určité bezpečnostní/kompliance události (např. úspěšná přihlášení pomocí záložního kódu) zaznamenány s IP pro účely auditu. IP adresy se také používají pro omezení rychlosti pokusů o přihlášení.
   sv: För säkerhetsövervakning och missbruksförebyggande kan IP-adresser associerade med misslyckade inloggningsförsök (ogiltigt lösenord eller 2FA-kod) loggas med begränsad kvarhållning. Dessutom kan vissa säkerhets-/efterlevnadshändelser (t.ex. framgångsrika inloggningar med reservkod) loggas med IP för revisionsändamål. IP-adresser används också för att begränsa hastigheten på inloggningsförsök.
   verified_by_human: []
+  he: לניטור אבטחה ומניעת ניצול לרעה, כתובות IP המשויכות לניסיונות התחברות כושלים (כולל ניסיונות מסיסמה שגויה) נשמרות זמנית.
 data_categories.heading:
   context: Heading for data categories section
   en: 5. Data Categories We Collect and Process
@@ -1496,6 +1557,7 @@ data_categories.heading:
   cs: 5. Kategorie údajů, které shromažďujeme a zpracováváme
   sv: 5. Datakategorier som vi samlar in och bearbetar
   verified_by_human: []
+  he: 5. קטגוריות נתונים שאנו אוספים ומעבדים
 data_categories.intro:
   context: Intro for data categories
   en: "We collect and process the following categories of data to operate and secure our services:"
@@ -1519,6 +1581,7 @@ data_categories.intro:
   cs: "Shromažďujeme a zpracováváme následující kategorie údajů za účelem provozu a zabezpečení našich služeb:"
   sv: "Vi samlar in och bearbetar följande datakategorier för att driva och säkra våra tjänster:"
   verified_by_human: []
+  he: 'אנו אוספים ומעבדים את קטגוריות הנתונים הבאות להפעלה ואבטחה של שירותינו:'
 data_categories.account:
   context: Account data category
   en: "Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as salted hashes."
@@ -1542,6 +1605,7 @@ data_categories.account:
   cs: "Účet: E-mailová adresa, uživatelské jméno/zobrazované jméno, obrázek profilu, místní nastavení a bezpečnostní nastavení (např. 2FA povoleno). Hesla jsou uložena jako solené hash."
   sv: "Konto: E-postadress, användarnamn/visningsnamn, profilbild, språkinställningar och säkerhetsinställningar (t.ex. 2FA aktiverat). Lösenord lagras som saltade hash-värden."
   verified_by_human: []
+  he: 'חשבון: כתובת דוא"ל, שם משתמש/שם תצוגה, תמונת פרופיל, שפה, והגדרות אבטחה (למשל, אימות דו-שלבי, מפתחות גישה).'
 data_categories.usage:
   context: Usage data category
   en: "Usage: Server logs, event timestamps, feature usage, error logs, and device recognition identifiers (hashed). IP addresses may be temporarily processed for security and rate limiting."
@@ -1565,6 +1629,7 @@ data_categories.usage:
   cs: "Použití: Protokoly serveru, časové značky událostí, použití funkcí, protokoly chyb a identifikátory rozpoznávání zařízení (hash). IP adresy mohou být dočasně zpracovány pro zabezpečení a omezení rychlosti."
   sv: "Användning: Serverloggar, händelsetidsstämplar, funktionsanvändning, felloggar och enhetsigenkänningsidentifierare (hashade). IP-adresser kan tillfälligt bearbetas för säkerhet och hastighetsbegränsning."
   verified_by_human: []
+  he: 'שימוש: יומני שרת, חותמות זמן אירועים, שימוש בתכונות, יומני שגיאות ומזהי זיהוי מכשיר לאבטחה.'
 data_categories.content:
   context: Content data category
   en: "Content: Chat messages, prompts, attachments, and uploaded images/videos necessary to deliver the service (subject to moderation where applicable)."
@@ -1588,6 +1653,7 @@ data_categories.content:
   cs: "Obsah: Chatové zprávy, výzvy, přílohy a nahrané obrázky/videa nezbytné pro poskytování služby (podléhají moderaci, pokud je to vhodné)."
   sv: "Innehåll: Chattmeddelanden, uppmaningar, bilagor och uppladdade bilder/videor som behövs för att leverera tjänsten (underkastade moderering där tillämpligt)."
   verified_by_human: []
+  he: "תוכן: הודעות צ'אט, הנחיות, קבצים מצורפים ותמונות/סרטונים שהועלו הנחוצים לאספקת השירות."
 data_categories.payments:
   context: Payments data category
   en: "Payments: Payment method tokens, transaction IDs, billing address and VAT information as required for invoicing (processed primarily by Stripe). We do not store full card numbers."
@@ -1610,6 +1676,7 @@ data_categories.payments:
   th: "การชำระเงิน: โทเค็นวิธีชำระเงิน รหัสธุรกรรม ที่อยู่สำหรับการเรียกเก็บเงิน และข้อมูล VAT ตามที่จำเป็นสำหรับการออกใบแจ้งหนี้ (ประมวลผลโดย Stripe เป็นหลัก) เราไม่จัดเก็บหมายเลขบัตรเต็ม"
   cs: "Platby: Tokeny platebních metod, identifikátory transakcí, fakturační adresa a informace o DPH podle potřeby pro fakturaci (zpracovávány převážně přes Stripe). Neukládáme úplná čísla karet."
   sv: "Betalningar: Betalningstokens, transaktions-ID, faktureringsadress och momsinformation som krävs för fakturering (behandlas huvudsakligen av Stripe). Vi lagrar inte fullständiga kortnummer."
+  he: 'תשלומים: טוקנים של אמצעי תשלום, מזהי עסקאות, כתובת חיוב ומידע מע"מ כנדרש לחיוב (מעובד בעיקר על ידי Stripe). איננו מאחסנים מספרי כרטיס מלאים.'
 data_categories.newsletter:
   context: Newsletter subscription data category
   en: "Newsletter: If you choose to subscribe to our newsletter, we store your email address in encrypted form. Newsletter subscription is optional and separate from account creation. Creating an account does not automatically subscribe you to the newsletter."
@@ -1633,6 +1700,7 @@ data_categories.newsletter:
   cs: "Zpravodaj: Pokud se rozhodnete přihlásit k odběru našeho zpravodaje, ukládáme vaši e-mailovou adresu v zašifrované podobě. Přihlášení k odběru zpravodaje je volitelné a oddělené od vytvoření účtu. Vytvoření účtu vás automaticky nepřihlásí k odběru zpravodaje."
   sv: "Nyhetsbrev: Om du väljer att prenumerera på vårt nyhetsbrev lagrar vi din e-postadress i krypterad form. Nyhetsbrevsprenumeration är valfri och separat från kontoskapande. Att skapa ett konto prenumererar inte automatiskt dig på nyhetsbrevet."
   verified_by_human: []
+  he: 'תשלומים: טוקנים של אמצעי תשלום, מזהי עסקאות, כתובת חיוב ומידע מע"מ כנדרש לעיבוד תשלומים ועמידה במס.'
 data_categories.stability_logs:
   context: Stability logs data category — anonymized console logs for error diagnosis
   en: "Stability Logs: To diagnose technical errors, anonymized browser console logs (error messages, component status, connection events) are collected from authenticated users and stored for up to 48 hours. If an error occurs, surrounding context is retained for up to 14 days. No message content, chat titles, names, email addresses, or other personally identifiable information is included. A random session identifier (generated per browser tab, not linked to your account) is used for log correlation. You can disable this at any time in Settings > Privacy > Stability Logs."
@@ -1680,6 +1748,7 @@ data_retention.heading:
   cs: 6. Uchovávání údajů
   sv: 6. Datakvarhållning
   verified_by_human: []
+  he: 6. שמירת נתונים
 data_retention.account:
   context: Retention for account data
   en: "Account data: Retained until account deletion and completion of related legal obligations."
@@ -1703,6 +1772,7 @@ data_retention.account:
   cs: "Údaje účtu: Uchovávány do smazání účtu a dokončení souvisejících právních povinností."
   sv: "Kontodata: Bevaras tills kontot raderas och relaterade juridiska förpliktelser är slutförda."
   verified_by_human: []
+  he: 'נתוני חשבון: נשמרים עד למחיקת החשבון וסיום ההתחייבויות המשפטיות הקשורות.'
 data_retention.usage_and_logs:
   context: Retention for usage/log data
   en: "Usage and logs: Operational logs retained up to 12 months; IPs tied to failed logins up to 30 days for security."
@@ -1726,6 +1796,7 @@ data_retention.usage_and_logs:
   cs: "Použití a protokoly: Provozní protokoly se uchovávají až 12 měsíců; IP adresy spojené s neúspěšnými přihlášeními až 30 dní pro zabezpečení."
   sv: "Användning och loggar: Driftsloggar bevaras upp till 12 månader; IP-adresser kopplade till misslyckade inloggningar upp till 30 dagar för säkerhet."
   verified_by_human: []
+  he: 'שימוש ויומנים: יומני תפעול נשמרים עד 12 חודשים; כתובות IP הקשורות להתחברויות כושלות עד 30 יום.'
 data_retention.device_fingerprints:
   context: Retention for device fingerprints
   en: "Device fingerprints: Retained until account deletion or manual removal from account settings (when available)."
@@ -1749,6 +1820,7 @@ data_retention.device_fingerprints:
   cs: "Otisk zařízení: Uchovávány do smazání účtu nebo ručního odstranění z nastavení účtu (pokud je k dispozici)."
   sv: "Enhetsfingeravtryck: Bevaras tills kontot raderas eller manuell borttagning från kontoinställningar (när tillgängligt)."
   verified_by_human: []
+  he: 'טביעות אצבע של מכשיר: נשמרות עד למחיקת החשבון או הסרה ידנית מהגדרות החשבון (כאשר זמין).'
 data_retention.content:
   context: Retention for content data
   en: "Content: Retained until the user deletes the content or closes the account, subject to backup cycles."
@@ -1772,6 +1844,7 @@ data_retention.content:
   cs: "Obsah: Uchováván do doby, kdy uživatel smaže obsah nebo uzavře účet, s ohledem na zálohovací cykly."
   sv: "Innehåll: Bevaras tills användaren raderar innehållet eller stänger kontot, med hänsyn till säkerhetskopieringscykler."
   verified_by_human: []
+  he: 'תוכן: נשמר עד שהמשתמש מוחק את התוכן או סוגר את החשבון, בכפוף למחזורי גיבוי.'
 data_retention.payments_and_invoices:
   context: Retention for payment/invoice data
   en: "Payments and invoices: Retained up to 10 years where required by tax/commercial law."
@@ -1795,6 +1868,7 @@ data_retention.payments_and_invoices:
   cs: "Platby a faktury: Uchovávány až 10 let, pokud to vyžaduje daňové/obchodní právo."
   sv: "Betalningar och fakturor: Bevaras upp till 10 år när det krävs av skatte-/handelslagstiftning."
   verified_by_human: []
+  he: 'תשלומים וחשבוניות: נשמרים עד 10 שנים כנדרש בחוק מס/מסחרי.'
 legal_basis.heading:
   context: Heading for legal basis section
   en: 7. Legal Basis for Processing (GDPR)
@@ -1818,6 +1892,7 @@ legal_basis.heading:
   cs: 7. Právní základ zpracování (GDPR)
   sv: 7. Rättslig grund för behandling (GDPR)
   verified_by_human: []
+  he: 7. בסיס משפטי לעיבוד (GDPR)
 legal_basis.contract:
   context: Contract legal basis
   en: "Contract: Processing necessary to perform our contract with you or to take steps at your request prior to entering into a contract (e.g., account creation, delivering web app features)."
@@ -1841,6 +1916,7 @@ legal_basis.contract:
   cs: "Smlouva: Zpracování nezbytné ke splnění naší smlouvy s vámi nebo k přijetí kroků na váš požadavek před uzavřením smlouvy (např. vytvoření účtu, poskytování funkcí webové aplikace)."
   sv: "Avtal: Behandling som är nödvändig för att fullgöra vårt avtal med dig eller för att vidta åtgärder på din begäran innan ett avtal ingås (t.ex. kontoskapande, leverans av webbappfunktioner)."
   verified_by_human: []
+  he: 'חוזה: עיבוד הנחוץ לביצוע החוזה שלנו איתך או לנקיטת צעדים לפי בקשתך לפני כריתת חוזה.'
 legal_basis.consent:
   context: Consent legal basis
   en: "Consent: Processing based on your consent, where applicable (e.g., optional communications, certain analytics or marketing where used). You can withdraw consent at any time."
@@ -1864,6 +1940,7 @@ legal_basis.consent:
   cs: "Souhlas: Zpracování na základě vašeho souhlasu, pokud je to relevantní (např. volitelná komunikace, určitá analytika nebo marketing). Souhlas můžete kdykoli odvolat."
   sv: "Samtycke: Behandling baserad på ditt samtycke, där tillämpligt (t.ex. valfri kommunikation, viss analys eller marknadsföring där det används). Du kan återkalla samtycket när som helst."
   verified_by_human: []
+  he: 'הסכמה: עיבוד המבוסס על הסכמתך, כאשר רלוונטי (למשל, תקשורת אופציונלית, שימושים מסוימים בנתונים).'
 legal_basis.legitimate_interests:
   context: Legitimate interests legal basis
   en: "Legitimate interests: Processing necessary for our legitimate interests, such as service security, fraud prevention, abuse detection, and improving the service, provided these interests are not overridden by your rights and interests."
@@ -1887,6 +1964,7 @@ legal_basis.legitimate_interests:
   cs: "Oprávněné zájmy: Zpracování nezbytné pro naše oprávněné zájmy, jako je bezpečnost služby, prevence podvodů, detekce zneužití a zlepšování služby, za předpokladu, že tyto zájmy nepřevažují nad vašimi právy a zájmy."
   sv: "Berättigade intressen: Behandling som är nödvändig för våra berättigade intressen, såsom tjänstesäkerhet, bedrägeriförebyggande, missbruks­detektion och förbättring av tjänsten, förutsatt att dessa intressen inte åsidosätts av dina rättigheter och intressen."
   verified_by_human: []
+  he: 'אינטרסים לגיטימיים: עיבוד הנחוץ לאינטרסים הלגיטימיים שלנו, כגון אבטחת שירות, מניעת הונאה ושיפור המוצר.'
 legal_basis.legal_obligation:
   context: Legal obligation basis
   en: "Legal obligation: Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records)."
@@ -1910,6 +1988,7 @@ legal_basis.legal_obligation:
   cs: "Právní povinnost: Zpracování nezbytné ke splnění zákonných povinností (např. daňové a účetní požadavky pro faktury a záznamy o transakcích)."
   sv: "Rättslig förpliktelse: Behandling som är nödvändig för att uppfylla rättsliga förpliktelser (t.ex. skatte- och redovisningskrav för fakturor och transaktionsregister)."
   verified_by_human: []
+  he: 'התחייבות משפטית: עיבוד הנחוץ לציות להתחייבויות משפטיות (למשל, דרישות מס וחשבונאות).'
 legal_rights.heading:
   context: Heading for rights section
   en: 8. Your Privacy Rights
@@ -1933,6 +2012,7 @@ legal_rights.heading:
   cs: 8. Vaše práva na ochranu soukromí
   sv: 8. Dina integritetsrättigheter
   verified_by_human: []
+  he: 8. זכויות הפרטיות שלך
 legal_rights.intro:
   context: Intro for rights section
   en: "Depending on your jurisdiction, you may have certain rights over your personal data. The following summarizes key rights under GDPR and CCPA/CPRA and how to exercise them:"
@@ -1956,6 +2036,7 @@ legal_rights.intro:
   cs: "V závislosti na vaší jurisdikci můžete mít určitá práva ohledně svých osobních údajů. Níže jsou shrnuty klíčová práva podle GDPR a CCPA/CPRA a způsob jejich uplatnění:"
   sv: "Beroende på din jurisdiktion kan du ha vissa rättigheter beträffande dina personuppgifter. Följande sammanfattar viktiga rättigheter enligt GDPR och CCPA/CPRA och hur du utövar dem:"
   verified_by_human: []
+  he: 'בהתאם לסמכות השיפוט שלך, ייתכן שיש לך זכויות מסוימות על הנתונים האישיים שלך. הסעיף הבא מסכם את הזכויות הרלוונטיות:'
 legal_rights.gdpr.subheading:
   context: Subheading for GDPR rights
   en: GDPR (EU/EEA)
@@ -1979,6 +2060,7 @@ legal_rights.gdpr.subheading:
   cs: GDPR (EU/EHP)
   sv: GDPR (EU/EES)
   verified_by_human: []
+  he: GDPR (האיחוד האירופי/אזור הכלכלי האירופי)
 legal_rights.gdpr.access:
   context: GDPR right of access
   en: Right of access
@@ -2002,6 +2084,7 @@ legal_rights.gdpr.access:
   cs: Právo na přístup
   sv: Rätt till tillgång
   verified_by_human: []
+  he: זכות גישה
 legal_rights.gdpr.rectification:
   context: GDPR right to rectification
   en: Right to rectification
@@ -2025,6 +2108,7 @@ legal_rights.gdpr.rectification:
   cs: Právo na opravu
   sv: Rätt till rättelse
   verified_by_human: []
+  he: זכות לתיקון
 legal_rights.gdpr.erasure:
   context: GDPR right to erasure
   en: Right to erasure ('right to be forgotten')
@@ -2048,6 +2132,7 @@ legal_rights.gdpr.erasure:
   cs: Právo na výmaz („právo být zapomenut")
   sv: Rätt till radering ('rätten att bli glömd')
   verified_by_human: []
+  he: זכות למחיקה ('זכות להישכח')
 legal_rights.gdpr.restriction:
   context: GDPR right to restriction
   en: Right to restriction of processing
@@ -2071,6 +2156,7 @@ legal_rights.gdpr.restriction:
   cs: Právo na omezení zpracování
   sv: Rätt till begränsning av behandling
   verified_by_human: []
+  he: זכות להגבלת עיבוד
 legal_rights.gdpr.portability:
   context: GDPR right to portability
   en: Right to data portability
@@ -2094,6 +2180,7 @@ legal_rights.gdpr.portability:
   cs: Právo na přenositelnost údajů
   sv: Rätt till dataportabilitet
   verified_by_human: []
+  he: זכות לניידות נתונים
 legal_rights.gdpr.objection:
   context: GDPR right to object
   en: Right to object
@@ -2117,6 +2204,7 @@ legal_rights.gdpr.objection:
   cs: Právo vznést námitku
   sv: Rätt att invända
   verified_by_human: []
+  he: זכות להתנגד
 legal_rights.gdpr.withdraw_consent:
   context: GDPR right to withdraw consent
   en: Right to withdraw consent
@@ -2140,6 +2228,7 @@ legal_rights.gdpr.withdraw_consent:
   cs: Právo odvolat souhlas
   sv: Rätt att återkalla samtycke
   verified_by_human: []
+  he: זכות לשלילת הסכמה
 legal_rights.gdpr.exercise:
   context: How to exercise GDPR rights
   en: To exercise your GDPR rights, contact us at contact@openmates.org or via the Imprint. We may need to verify your identity before fulfilling your request.
@@ -2163,6 +2252,7 @@ legal_rights.gdpr.exercise:
   cs: Chcete-li uplatnit svá práva podle GDPR, kontaktujte nás na contact@openmates.org nebo prostřednictvím stránky Impressum. Před splněním vašeho požadavku možná budeme muset ověřit vaši totožnost.
   sv: För att utöva dina GDPR-rättigheter, kontakta oss på contact@openmates.org eller via Impressum. Vi kan behöva verifiera din identitet innan vi uppfyller din begäran.
   verified_by_human: []
+  he: לממש את זכויות ה-GDPR שלך, צור קשר עם contact@openmates.org או דרך האימפרינט. ייתכן שנצטרך לאמת את זהותך.
 legal_rights.ccpa_cpra.subheading:
   context: Subheading for CCPA/CPRA rights
   en: CCPA/CPRA (California)
@@ -2186,6 +2276,7 @@ legal_rights.ccpa_cpra.subheading:
   cs: CCPA/CPRA (Kalifornie)
   sv: CCPA/CPRA (Kalifornien)
   verified_by_human: []
+  he: CCPA/CPRA (קליפורניה)
 legal_rights.ccpa_cpra.right_to_know:
   context: CCPA right to know
   en: Right to know/access
@@ -2209,6 +2300,7 @@ legal_rights.ccpa_cpra.right_to_know:
   cs: Právo vědět/přistupovat
   sv: Rätt att veta/få tillgång
   verified_by_human: []
+  he: זכות לדעת/גישה
 legal_rights.ccpa_cpra.right_to_delete:
   context: CCPA right to delete
   en: Right to delete
@@ -2232,6 +2324,7 @@ legal_rights.ccpa_cpra.right_to_delete:
   cs: Právo na výmaz
   sv: Rätt att radera
   verified_by_human: []
+  he: זכות למחיקה
 legal_rights.ccpa_cpra.right_to_correct:
   context: CCPA right to correct
   en: Right to correct
@@ -2255,6 +2348,7 @@ legal_rights.ccpa_cpra.right_to_correct:
   cs: Právo na opravu
   sv: Rätt till korrigering
   verified_by_human: []
+  he: זכות לתיקון
 legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing:
   context: CCPA right to opt-out
   en: Right to opt-out of sale or sharing
@@ -2278,6 +2372,7 @@ legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing:
   cs: Právo odhlásit se z prodeje nebo sdílení
   sv: Rätt att avsäga sig försäljning eller delning
   verified_by_human: []
+  he: זכות לביטול מכירה או שיתוף
 legal_rights.ccpa_cpra.right_to_non_discrimination:
   context: CCPA right to non-discrimination
   en: Right to non-discrimination
@@ -2301,6 +2396,7 @@ legal_rights.ccpa_cpra.right_to_non_discrimination:
   cs: Právo na nediskriminaci
   sv: Rätt till icke-diskriminering
   verified_by_human: []
+  he: זכות לאי-אפלייה
 legal_rights.ccpa_cpra.exercise:
   context: How to exercise CCPA rights
   en: California residents can exercise CCPA/CPRA rights by contacting us at contact@openmates.org. We do not sell personal information.
@@ -2324,6 +2420,7 @@ legal_rights.ccpa_cpra.exercise:
   cs: Obyvatelé Kalifornie mohou uplatnit práva CCPA/CPRA kontaktováním na contact@openmates.org. Neprodáváme osobní údaje.
   sv: Invånare i Kalifornien kan utöva CCPA/CPRA-rättigheter genom att kontakta oss på contact@openmates.org. Vi säljer inte personuppgifter.
   verified_by_human: []
+  he: תושבי קליפורניה יכולים לממש את זכויות CCPA/CPRA שלהם על ידי יצירת קשר עם contact@openmates.org. איננו מוכרים נתונים אישיים.
 discord_integration.heading:
   context: Section heading for Discord integration
   en: 9. Discord Integration
@@ -2347,6 +2444,7 @@ discord_integration.heading:
   cs: 9. Integrace Discord
   sv: 9. Discord-integration
   verified_by_human: []
+  he: 9. אינטגרציית Discord
 discord_integration.description:
   context: Description of Discord data collection
   en: If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes account information, usage data, communication content, and other information as outlined in Discord's privacy policy.
@@ -2370,6 +2468,7 @@ discord_integration.description:
   cs: Pokud se rozhodnete připojit k naší komunitě Discord prostřednictvím odkazů na tomto webu, vezměte prosím na vědomí, že Discord bude shromažďovat a zpracovávat vaše údaje v souladu se svými zásadami ochrany osobních údajů. To zahrnuje informace o účtu, data o používání, obsah komunikace a další informace uvedené v zásadách ochrany osobních údajů Discord.
   sv: Om du väljer att gå med i vår Discord-community via länkar på den här webbplatsen, observera att Discord kommer att samla in och bearbeta dina uppgifter enligt sin sekretesspolicy. Detta inkluderar kontoinformation, användningsdata, kommunikationsinnehåll och annan information som beskrivs i Discords sekretesspolicy.
   verified_by_human: []
+  he: אם תבחר להצטרף לקהילת Discord שלנו דרך קישורים המסופקים באתר זה, שים לב שהשימוש שלך ב-Discord כפוף למדיניות הפרטיות ולתנאי השירות של Discord.
 discord_integration.admin_access:
   context: Description of admin access to Discord data
   en: As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.
@@ -2393,6 +2492,7 @@ discord_integration.admin_access:
   cs: Jako administrátoři Discord serveru máme přístup ke všem veřejným komunikacím, seznamům členů a dalším informacím sdíleným v naší komunitě Discord. Tyto informace jsou však hostovány a primárně zpracovávány společností Discord. Tato data nevytěžujeme, neukládáme ani nezpracováváme mimo platformu Discord. Další informace o tom, jak Discord nakládá s vašimi daty, naleznete v Zásadách ochrany osobních údajů Discord.
   sv: Som Discord-serveradministratörer har vi tillgång till all offentlig kommunikation, medlemslistor och annan information som delas inom vår Discord-community. Denna information är dock hostad och behandlas huvudsakligen av Discord. Vi extraherar, lagrar eller behandlar inte dessa uppgifter utanför Discords plattform. För mer information om hur Discord hanterar dina uppgifter, läs igenom Discords sekretesspolicy.
   verified_by_human: []
+  he: כמנהלי שרת Discord, יש לנו גישה לכל התקשורת הציבורית, רשימות החברים ומידע אחר הזמין לנהלי שרת.
 discord_integration.privacy_policy_link:
   context: Link text for Discord's privacy policy
   en: Discord Privacy Policy
@@ -2416,6 +2516,7 @@ discord_integration.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Discord
   sv: Discords sekretesspolicy
   verified_by_human: []
+  he: מדיניות פרטיות של Discord
 contact.heading:
   context: Section heading for contact information
   en: 10. Contact Information
@@ -2439,6 +2540,7 @@ contact.heading:
   cs: 4. Kontaktní informace
   sv: 4. Kontaktinformation
   verified_by_human: []
+  he: 10. פרטי יצירת קשר
 contact.questions:
   context: Prompt for data protection questions
   en: "For questions about data protection:"
@@ -2462,6 +2564,7 @@ contact.questions:
   cs: "Pro dotazy týkající se ochrany osobních údajů:"
   sv: "För frågor om dataskydd:"
   verified_by_human: []
+  he: 'לשאלות בנוגע להגנת מידע:'
 contact.email:
   context: Email contact label
   en: Email
@@ -2485,6 +2588,7 @@ contact.email:
   cs: E-mail
   sv: E-post
   verified_by_human: []
+  he: דוא״ל
 contact.postal:
   context: Postal contact information
   en: "Postal address: See Legal Notice (Imprint) for the current registered address."
@@ -2508,6 +2612,7 @@ contact.postal:
   cs: "Poštovní adresa: Viz Právní upozornění (Impressum) pro aktuální registrovanou adresu."
   sv: "Postadress: Se Juridisk meddelande (Impressum) för den aktuella registrerade adressen."
   verified_by_human: []
+  he: 'כתובת דואר: ראה הודעה משפטית (אימפרינט) לכתובת הרשומה הנוכחית.'
 contact.controller:
   context: Controller information
   en: "Controller: OpenMates (see Imprint for legal representative details)."
@@ -2531,6 +2636,7 @@ contact.controller:
   cs: "Správce: OpenMates (viz Impressum pro podrobnosti o zákonném zástupci)."
   sv: "Personuppgiftsansvarig: OpenMates (se Impressum för uppgifter om rättslig företrädare)."
   verified_by_human: []
+  he: 'בקר נתונים: OpenMates (ראה אימפרינט לפרטי הנציג המשפטי).'
 aggregate_analytics.heading:
   context: Section heading for the anonymous aggregate analytics section
   en: 11. Anonymous Aggregate Analytics
@@ -2554,6 +2660,7 @@ aggregate_analytics.heading:
   cs: 11. Anonymní agregovaná analytika
   sv: 11. Anonym aggregerad analys
   verified_by_human: []
+  he: 11. אנליטיקה מצטברת אנונימית
 aggregate_analytics.overview:
   context: Explanation of what is collected and why it is privacy-safe
   en: We collect anonymous, aggregate statistics about how our website and web application are used. This data is genuinely anonymous — it cannot be linked to any individual user, and no cookies or tracking identifiers are set. No consent banner is required because no personal data is collected.
@@ -2577,6 +2684,7 @@ aggregate_analytics.overview:
   cs: Shromažďujeme anonymní agregovanou statistiku o tom, jak jsou využívány naše webové stránky a webová aplikace. Tato data jsou skutečně anonymní — nelze je spojit s žádným konkrétním uživatelem a nejsou nastaveny žádné cookies ani sledovací identifikátory. Souhlas není vyžadován, protože nejsou shromažďována žádná osobní data.
   sv: Vi samlar in anonym, aggregerad statistik om hur vår webbplats och webbapplikation används. Dessa uppgifter är genuint anonyma — de kan inte kopplas till någon enskild användare och inga cookies eller spårningsidentifierare ställs in. Inget samtyckesmeddelande krävs eftersom inga personuppgifter samlas in.
   verified_by_human: []
+  he: אנו אוספים סטטיסטיקות אנונימיות ומצטברות על אופן השימוש באתר ובאפליקציית האינטרנט שלנו. זה עוזר לנו לשפר את השירות ולהבין דפוסי שימוש כלליים מבלי לזהות משתמשים בודדים.
 aggregate_analytics.what_we_collect:
   context: Bullet list header for what is collected
   en: "What we collect (all aggregate, never individual):"
@@ -2584,22 +2692,23 @@ aggregate_analytics.what_we_collect:
   zh: "我们收集的内容（全部聚合，绝不单独记录）："
   es: "Qué recopilamos (todo agregado, nunca individual):"
   fr: "Ce que nous collectons (tout agrégé, jamais individuel) :"
-  pt: ""
-  ru: ""
+  pt: "O que coletamos (tudo agregado, nunca individual):"
+  ru: "Что мы собираем (всё агрегировано, никогда индивидуально):"
   ja: "収集する情報（すべて集計、個人データなし）："
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "우리가 수집하는 것 (모두 집계, 개별 없음):"
+  it: "Cosa raccogliamo (tutto aggregato, mai individuale):"
+  tr: "Topladıklarımız (hepsi toplu, hiçbir zaman bireysel):"
+  vi: "Những gì chúng tôi thu thập (tất cả tổng hợp, không bao giờ cá nhân):"
+  id: "Apa yang kami kumpulkan (semua agregat, tidak pernah individual):"
+  pl: "Co zbieramy (wszystko zagregowane, nigdy indywidualnie):"
+  nl: "Wat we verzamelen (alles geaggregeerd, nooit individueel):"
+  ar: "ما نجمعه (كل شيء مجمّع، لا أفراد):"
+  hi: "हम क्या एकत्र करते हैं (सभी समेकित, कभी व्यक्तिगत नहीं):"
+  th: "สิ่งที่เราเก็บรวบรวม (ทั้งหมดรวม ไม่เคยเป็นรายบุคคล):"
+  cs: "Co sbíráme (vše agregované, nikdy individuální):"
+  sv: "Vad vi samlar in (allt aggregerat, aldrig individuellt):"
   verified_by_human: []
+  he: 'מה שאנו אוספים (הכל מצטבר, לעולם לא פרטני):'
 aggregate_analytics.items:
   context: Comma-separated list of collected analytics data points
   en: "Daily page load counts; approximate unique visit counts (probabilistic HyperLogLog, ~0.81% error); country distribution (GeoIP lookup — IP discarded immediately, never stored); device class (mobile/tablet/desktop); browser family and major version; OS family; referrer domain (domain only, never full URL); screen size class; session duration distribution (bucketed)"
@@ -2607,22 +2716,23 @@ aggregate_analytics.items:
   zh: "每日页面加载次数；近似唯一访问次数（概率性HyperLogLog，约0.81%误差）；国家分布（GeoIP查询——IP立即丢弃，从不存储）；设备类型；浏览器系列及主版本；操作系统系列；来源域名；屏幕尺寸类别；会话时长分布"
   es: "Recuentos diarios de cargas de página; recuentos aproximados de visitas únicas (HyperLogLog probabilístico, ~0,81 % de error); distribución por países (consulta GeoIP — IP descartada inmediatamente, nunca almacenada); clase de dispositivo; familia de navegador y versión principal; familia de SO; dominio referente; clase de tamaño de pantalla; distribución de duración de sesión"
   fr: "Comptages journaliers de chargements de page ; comptages approximatifs de visites uniques (HyperLogLog probabiliste, ~0,81 % d'erreur) ; répartition géographique (requête GeoIP — IP immédiatement supprimée, jamais stockée) ; classe d'appareil ; famille de navigateur et version majeure ; famille de système d'exploitation ; domaine référent ; classe de taille d'écran ; distribution de la durée de session"
-  pt: ""
-  ru: ""
+  pt: "Contagens diárias de carregamento de página; contagens aproximadas de visitas únicas (HyperLogLog probabilístico, ~0,81% de erro); distribuição por país (pesquisa GeoIP — IP descartado imediatamente, nunca armazenado); classe do dispositivo (móvel/tablet/desktop); família do navegador e versão principal; família do SO; domínio de referência (apenas domínio, nunca URL completa); classe de tamanho de tela; distribuição de duração de sessão (por intervalos)"
+  ru: "Ежедневные счётчики загрузок страниц; приближённое количество уникальных посетителей (вероятностный HyperLogLog, ~0,81% погрешности); распределение по странам (GeoIP — IP удаляется немедленно, никогда не сохраняется); класс устройства (мобильный/планшет/ПК); семейство браузера и основная версия; семейство ОС; домен реферера (только домен, никогда полный URL); класс размера экрана; распределение длительности сессий (по интервалам)"
   ja: "1日あたりのページ読み込み回数；近似ユニーク訪問数（確率的HyperLogLog、誤差約0.81%）；国別分布（GeoIP参照 — IPは即座に廃棄、保存しない）；デバイスクラス；ブラウザファミリーとメジャーバージョン；OSファミリー；リファラードメイン；画面サイズクラス；セッション時間分布"
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "일일 페이지 로드 수; 근사 고유 방문 수 (확률적 HyperLogLog, ~0.81% 오류); 국가 분포 (GeoIP 조회 — IP 즉시 폐기, 저장되지 않음); 기기 클래스 (모바일/태블릿/데스크톱); 브라우저 계열 및 주요 버전; OS 계열; 참조 도메인 (도메인만, 전체 URL 없음); 화면 크기 클래스; 세션 지속 시간 분포 (버킷화)"
+  it: "Conteggi giornalieri di caricamento pagina; conteggi approssimativi di visite uniche (HyperLogLog probabilistico, ~0,81% di errore); distribuzione per paese (ricerca GeoIP — IP eliminato immediatamente, mai memorizzato); classe del dispositivo (mobile/tablet/desktop); famiglia del browser e versione principale; famiglia del SO; dominio referrer (solo dominio, mai URL completo); classe dimensione schermo; distribuzione durata sessione (per intervalli)"
+  tr: "Günlük sayfa yükleme sayıları; yaklaşık benzersiz ziyaret sayıları (olasılıksal HyperLogLog, ~%0,81 hata); ülke dağılımı (GeoIP araması — IP anında atılır, hiçbir zaman saklanmaz); cihaz sınıfı (mobil/tablet/masaüstü); tarayıcı ailesi ve ana sürüm; işletim sistemi ailesi; referrer alanı (yalnızca alan adı, tam URL yok); ekran boyutu sınıfı; oturum süresi dağılımı (gruplandırılmış)"
+  vi: "Số lượt tải trang hàng ngày; số lượt truy cập duy nhất gần đúng (HyperLogLog xác suất, ~0,81% sai số); phân bổ theo quốc gia (tra cứu GeoIP — IP bị loại bỏ ngay lập tức, không bao giờ được lưu trữ); loại thiết bị (di động/máy tính bảng/máy tính để bàn); họ trình duyệt và phiên bản chính; họ hệ điều hành; tên miền giới thiệu (chỉ tên miền, không bao giờ URL đầy đủ); lớp kích thước màn hình; phân bổ thời lượng phiên (phân nhóm)"
+  id: "Jumlah pemuatan halaman harian; jumlah kunjungan unik perkiraan (HyperLogLog probabilistik, ~0,81% kesalahan); distribusi negara (pencarian GeoIP — IP langsung dibuang, tidak pernah disimpan); kelas perangkat (mobile/tablet/desktop); keluarga browser dan versi utama; keluarga OS; domain referrer (domain saja, tidak pernah URL lengkap); kelas ukuran layar; distribusi durasi sesi (dikelompokkan)"
+  pl: "Dzienne liczniki ładowania stron; przybliżone liczniki unikalnych wizyt (probabilistyczny HyperLogLog, ~0,81% błędu); rozkład krajów (wyszukiwanie GeoIP — IP odrzucane natychmiast, nigdy nie przechowywane); klasa urządzenia (mobile/tablet/desktop); rodzina przeglądarki i główna wersja; rodzina systemu OS; domena odsyłacza (tylko domena, nigdy pełny URL); klasa rozmiaru ekranu; rozkład czasu trwania sesji (przedziałowy)"
+  nl: "Dagelijkse paginalaadtelling; benaderde unieke bezoekerstellingen (probabilistische HyperLogLog, ~0,81% fout); landverdeling (GeoIP-zoekopdracht — IP direct weggegooid, nooit opgeslagen); apparaatklasse (mobiel/tablet/desktop); browserfamilie en hoofdversie; OS-familie; verwijzingsdomein (alleen domein, nooit volledige URL); schermsgrootteklasse; verdeling sessieduur (in groepen)"
+  ar: "أعداد تحميلات الصفحة اليومية؛ أعداد الزيارات الفريدة التقريبية (HyperLogLog الاحتمالي، خطأ ~0.81%)؛ توزيع الدول (بحث GeoIP — يُتخلص من عنوان IP فورًا، لا يُخزَّن أبدًا)؛ فئة الجهاز (جوال/لوحي/سطح مكتب)؛ عائلة المتصفح والإصدار الرئيسي؛ عائلة نظام التشغيل؛ نطاق المُحيل (النطاق فقط، لا URL كامل)؛ فئة حجم الشاشة؛ توزيع مدة الجلسة (مُجمَّع)"
+  hi: "दैनिक पेज लोड गिनती; अनुमानित अद्वितीय विज़िट गिनती (प्रायिकता HyperLogLog, ~0.81% त्रुटि); देश वितरण (GeoIP लुकअप — IP तुरंत त्याग, कभी संग्रहीत नहीं); डिवाइस वर्ग (मोबाइल/टैबलेट/डेस्कटॉप); ब्राउज़र परिवार और प्रमुख संस्करण; OS परिवार; रेफरर डोमेन (केवल डोमेन, कभी पूर्ण URL नहीं); स्क्रीन आकार वर्ग; सत्र अवधि वितरण (बकेटेड)"
+  th: "จำนวนการโหลดหน้าต่อวัน; จำนวนการเข้าชมที่ไม่ซ้ำกันโดยประมาณ (HyperLogLog เชิงความน่าจะเป็น ข้อผิดพลาด ~0.81%); การกระจายตามประเทศ (การค้นหา GeoIP — IP ถูกทิ้งทันที ไม่เคยจัดเก็บ); ระดับอุปกรณ์ (มือถือ/แท็บเล็ต/เดสก์ท็อป); ตระกูลเบราว์เซอร์และเวอร์ชันหลัก; ตระกูล OS; โดเมน referrer (เฉพาะโดเมน ไม่เคยเป็น URL เต็ม); ระดับขนาดหน้าจอ; การกระจายระยะเวลาเซสชัน (แบบจัดกลุ่ม)"
+  cs: "Denní počty načtení stránek; přibližné počty jedinečných návštěv (pravděpodobnostní HyperLogLog, ~0,81% chyba); rozložení zemí (vyhledávání GeoIP — IP okamžitě zahozena, nikdy neuložena); třída zařízení (mobilní/tablet/desktop); rodina prohlížeče a hlavní verze; rodina OS; doména odkazující stránky (pouze doména, nikdy celá URL); třída velikosti obrazovky; rozložení délky relace (rozdělené do skupin)"
+  sv: "Dagliga sidladdningsräkningar; ungefärliga räkningar för unika besök (probabilistisk HyperLogLog, ~0,81% fel); landsfördelning (GeoIP-sökning — IP kasseras omedelbart, lagras aldrig); enhetsklass (mobil/surfplatta/dator); webbläsarfamilj och huvudversion; OS-familj; referrerdomän (enbart domän, aldrig fullständig URL); skärmstorleksklass; sessionslängdsfördelning (grupperad)"
   verified_by_human: []
+  he: ספירות טעינת עמוד יומיות; ספירות ביקור ייחודיות משוערות (HyperLogLog הסתברותי, שגיאה ~0.81%); אירועי שימוש בתכונות ונתונים טכניים אחרים על ביצועי השירות.
 aggregate_analytics.no_pii:
   context: Statement that no PII is stored
   en: IP addresses are used transiently for GeoIP lookup only and are never written to disk or any database. User-Agent strings are parsed to metadata only (browser name, OS) — the raw string is never stored. All data is stored as daily aggregate counters, not as individual records.
@@ -2630,22 +2740,23 @@ aggregate_analytics.no_pii:
   zh: IP地址仅短暂用于GeoIP查询，从不写入磁盘或任何数据库。User-Agent字符串仅解析为元数据（浏览器名称、操作系统）——原始字符串从不存储。所有数据存储为每日聚合计数器，而非个人记录。
   es: Las direcciones IP se usan transitoriamente solo para la consulta GeoIP y nunca se escriben en disco o en ninguna base de datos. Las cadenas User-Agent se procesan únicamente como metadatos (nombre del navegador, SO) — la cadena en bruto nunca se almacena. Todos los datos se almacenan como contadores diarios agregados, no como registros individuales.
   fr: Les adresses IP sont utilisées de manière transitoire uniquement pour la recherche GeoIP et ne sont jamais écrites sur disque ou dans une base de données. Les chaînes User-Agent sont traitées uniquement en métadonnées (nom du navigateur, système d'exploitation) — la chaîne brute n'est jamais stockée. Toutes les données sont stockées comme compteurs agrégés quotidiens, pas comme enregistrements individuels.
-  pt: ""
-  ru: ""
+  pt: "Endereços IP são usados transitoriamente apenas para pesquisa de GeoIP e nunca são gravados em disco ou em qualquer banco de dados. Strings User-Agent são analisadas apenas como metadados (nome do navegador, SO) — a string bruta nunca é armazenada. Todos os dados são armazenados como contadores agregados diários, não como registros individuais."
+  ru: "IP-адреса используются только временно для GeoIP-запроса и никогда не записываются на диск или в базу данных. Строки User-Agent преобразуются только в метаданные (название браузера, ОС) — исходная строка никогда не сохраняется. Все данные хранятся как ежедневные агрегированные счётчики, а не индивидуальные записи."
   ja: IPアドレスはGeoIP参照のためのみに一時的に使用され、ディスクやデータベースには一切書き込まれません。User-Agentはメタデータ（ブラウザ名、OS）のみに変換されます。すべてのデータは日次の集計カウンターとして保存され、個人レコードとしては保存されません。
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "IP 주소는 GeoIP 조회에만 일시적으로 사용되며 디스크나 데이터베이스에 절대 기록되지 않습니다. User-Agent 문자열은 메타데이터로만 파싱됩니다(브라우저 이름, OS) — 원시 문자열은 저장되지 않습니다. 모든 데이터는 개별 기록이 아닌 일일 집계 카운터로 저장됩니다."
+  it: "Gli indirizzi IP vengono utilizzati transitoriamente solo per la ricerca GeoIP e non vengono mai scritti su disco o in alcun database. Le stringhe User-Agent vengono analizzate solo come metadati (nome del browser, OS) — la stringa grezza non viene mai memorizzata. Tutti i dati sono memorizzati come contatori aggregati giornalieri, non come record individuali."
+  tr: "IP adresleri yalnızca GeoIP araması için geçici olarak kullanılır ve hiçbir zaman diske veya herhangi bir veritabanına yazılmaz. User-Agent dizeleri yalnızca meta veriye (tarayıcı adı, işletim sistemi) dönüştürülür — ham dize hiçbir zaman saklanmaz. Tüm veriler bireysel kayıtlar olarak değil, günlük toplam sayaçlar olarak depolanır."
+  vi: "Địa chỉ IP chỉ được sử dụng tạm thời cho tra cứu GeoIP và không bao giờ được ghi vào đĩa hoặc bất kỳ cơ sở dữ liệu nào. Chuỗi User-Agent chỉ được phân tích thành siêu dữ liệu (tên trình duyệt, hệ điều hành) — chuỗi thô không bao giờ được lưu trữ. Tất cả dữ liệu được lưu trữ dưới dạng bộ đếm tổng hợp hàng ngày, không phải bản ghi cá nhân."
+  id: "Alamat IP hanya digunakan sementara untuk pencarian GeoIP dan tidak pernah ditulis ke disk atau database mana pun. String User-Agent hanya diurai menjadi metadata (nama browser, OS) — string mentah tidak pernah disimpan. Semua data disimpan sebagai penghitung agregat harian, bukan sebagai catatan individual."
+  pl: "Adresy IP są używane wyłącznie przejściowo do wyszukiwania GeoIP i nigdy nie są zapisywane na dysku ani w żadnej bazie danych. Ciągi User-Agent są analizowane tylko do metadanych (nazwa przeglądarki, OS) — surowy ciąg nigdy nie jest przechowywany. Wszystkie dane są przechowywane jako dzienne liczniki zagregowane, a nie jako rekordy indywidualne."
+  nl: "IP-adressen worden alleen tijdelijk gebruikt voor GeoIP-zoekopdrachten en worden nooit naar schijf of een database geschreven. User-Agent-strings worden alleen verwerkt tot metadata (browsernaam, OS) — de ruwe string wordt nooit opgeslagen. Alle gegevens worden opgeslagen als dagelijkse geaggregeerde tellers, niet als individuele records."
+  ar: "تُستخدم عناوين IP بشكل عابر فقط لبحث GeoIP ولا تُكتب أبدًا على القرص أو في أي قاعدة بيانات. يتم تحليل سلاسل User-Agent إلى بيانات وصفية فقط (اسم المتصفح، نظام التشغيل) — لا تُخزَّن السلسلة الخام أبدًا. تُخزَّن جميع البيانات كعدادات يومية مجمّعة، وليس كسجلات فردية."
+  hi: "IP पते केवल GeoIP लुकअप के लिए क्षणिक रूप से उपयोग किए जाते हैं और कभी डिस्क या किसी डेटाबेस में नहीं लिखे जाते। User-Agent स्ट्रिंग्स केवल मेटाडेटा (ब्राउज़र नाम, OS) में पार्स की जाती हैं — कच्ची स्ट्रिंग कभी संग्रहीत नहीं होती। सभी डेटा व्यक्तिगत रिकॉर्ड के रूप में नहीं बल्कि दैनिक समेकित काउंटर के रूप में संग्रहीत होता है।"
+  th: "ที่อยู่ IP ถูกใช้ชั่วคราวเฉพาะสำหรับการค้นหา GeoIP เท่านั้น และไม่เคยถูกเขียนลงดิสก์หรือฐานข้อมูลใดๆ สตริง User-Agent ถูกแยกวิเคราะห์เป็นเมตาดาต้าเท่านั้น (ชื่อเบราว์เซอร์, OS) — สตริงดิบไม่เคยถูกจัดเก็บ ข้อมูลทั้งหมดถูกจัดเก็บเป็นตัวนับรวมรายวัน ไม่ใช่บันทึกรายบุคคล"
+  cs: "IP adresy jsou používány přechodně pouze pro vyhledávání GeoIP a nikdy nejsou zapisovány na disk nebo do jakékoli databáze. Řetězce User-Agent jsou analyzovány pouze do metadat (název prohlížeče, OS) — surový řetězec není nikdy uložen. Všechna data jsou uložena jako denní agregované čítače, nikoli jako jednotlivé záznamy."
+  sv: "IP-adresser används övergående enbart för GeoIP-sökning och skrivs aldrig till disk eller någon databas. User-Agent-strängar tolkas endast till metadata (webbläsarnamn, OS) — den råa strängen lagras aldrig. All data lagras som dagliga aggregerade räknare, inte som individuella poster."
   verified_by_human: []
+  he: כתובות IP משמשות באופן חולף לחיפוש GeoIP בלבד ואינן נכתבות לדיסק או לכל מסד נתונים. לא נאסף מידע מזהה אישי.
 follow_up_1:
   context: Follow-up suggestion for privacy policy
   en: Can you really not read my messages?
@@ -2653,22 +2764,23 @@ follow_up_1:
   zh: 您真的无法阅读我的消息吗？
   es: ¿Realmente no pueden leer mis mensajes?
   fr: Ne pouvez-vous vraiment pas lire mes messages ?
-  pt: ""
-  ru: ""
+  pt: "Você realmente não pode ler minhas mensagens?"
+  ru: "Вы действительно не можете читать мои сообщения?"
   ja: 本当にメッセージを読むことはできないのですか？
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "정말로 내 메시지를 읽을 수 없나요?"
+  it: "Non puoi davvero leggere i miei messaggi?"
+  tr: "Gerçekten mesajlarımı okuyamıyor musunuz?"
+  vi: "Bạn có thực sự không thể đọc tin nhắn của tôi không?"
+  id: "Apakah Anda benar-benar tidak bisa membaca pesan saya?"
+  pl: "Naprawdę nie możesz czytać moich wiadomości?"
+  nl: "Kunt u echt mijn berichten niet lezen?"
+  ar: "هل لا يمكنكم فعلاً قراءة رسائلي؟"
+  hi: "क्या आप वास्तव में मेरे संदेश नहीं पढ़ सकते?"
+  th: "คุณอ่านข้อความของฉันไม่ได้จริงๆ หรือ?"
+  cs: "Opravdu nemůžete číst moje zprávy?"
+  sv: "Kan ni verkligen inte läsa mina meddelanden?"
   verified_by_human: []
+  he: האם באמת לא ניתן לקרוא את ההודעות שלי?
 follow_up_2:
   context: Follow-up suggestion for privacy policy
   en: How does zero-knowledge encryption work?
@@ -2676,22 +2788,23 @@ follow_up_2:
   zh: 零知识加密是如何工作的？
   es: ¿Cómo funciona el cifrado de conocimiento cero?
   fr: Comment fonctionne le chiffrement zero-knowledge ?
-  pt: ""
-  ru: ""
+  pt: "Como funciona a criptografia de conhecimento zero?"
+  ru: "Как работает шифрование с нулевым разглашением?"
   ja: ゼロ知識暗号化はどのように機能しますか？
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "제로 지식 암호화는 어떻게 작동하나요?"
+  it: "Come funziona la crittografia a conoscenza zero?"
+  tr: "Sıfır bilgi şifreleme nasıl çalışır?"
+  vi: "Mã hóa không kiến thức hoạt động như thế nào?"
+  id: "Bagaimana cara kerja enkripsi tanpa pengetahuan?"
+  pl: "Jak działa szyfrowanie zero-knowledge?"
+  nl: "Hoe werkt zero-knowledge-versleuteling?"
+  ar: "كيف يعمل التشفير بدون معرفة (zero-knowledge)?"
+  hi: "जीरो-नॉलेज एन्क्रिप्शन कैसे काम करता है?"
+  th: "การเข้ารหัสแบบ zero-knowledge ทำงานอย่างไร?"
+  cs: "Jak funguje šifrování s nulovou znalostí?"
+  sv: "Hur fungerar zero-knowledge-kryptering?"
   verified_by_human: []
+  he: כיצד עובדת הצפנה ללא ידיעה?
 follow_up_3:
   context: Follow-up suggestion for privacy policy
   en: What if I lose my encryption key?
@@ -2699,22 +2812,23 @@ follow_up_3:
   zh: 如果我丢失了加密密钥会怎样？
   es: ¿Qué pasa si pierdo mi clave de cifrado?
   fr: Que se passe-t-il si je perds ma clé de chiffrement ?
-  pt: ""
-  ru: ""
+  pt: "E se eu perder minha chave de criptografia?"
+  ru: "Что будет, если я потеряю ключ шифрования?"
   ja: 暗号化キーを失くした場合はどうなりますか？
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "암호화 키를 잃어버리면 어떻게 되나요?"
+  it: "Cosa succede se perdo la mia chiave di crittografia?"
+  tr: "Şifreleme anahtarımı kaybedersem ne olur?"
+  vi: "Điều gì xảy ra nếu tôi mất khóa mã hóa?"
+  id: "Bagaimana jika saya kehilangan kunci enkripsi?"
+  pl: "Co się stanie, jeśli stracę klucz szyfrowania?"
+  nl: "Wat als ik mijn versleutelingssleutel verlies?"
+  ar: "ماذا يحدث إذا فقدت مفتاح التشفير الخاص بي؟"
+  hi: "यदि मैं अपनी एन्क्रिप्शन कुंजी खो दूं तो क्या होगा?"
+  th: "จะเกิดอะไรขึ้นถ้าฉันทำกุญแจเข้ารหัสหาย?"
+  cs: "Co se stane, když ztratím svůj šifrovací klíč?"
+  sv: "Vad händer om jag förlorar min krypteringsnyckel?"
   verified_by_human: []
+  he: מה קורה אם אאבד את מפתח ההצפנה שלי?
 follow_up_4:
   context: Follow-up suggestion for privacy policy
   en: Do AI providers see my messages?
@@ -2722,22 +2836,23 @@ follow_up_4:
   zh: AI提供商能看到我的消息吗？
   es: ¿Los proveedores de IA ven mis mensajes?
   fr: Les fournisseurs d'IA voient-ils mes messages ?
-  pt: ""
-  ru: ""
+  pt: "Os provedores de IA podem ver minhas mensagens?"
+  ru: "Видят ли провайдеры ИИ мои сообщения?"
   ja: AIプロバイダーは私のメッセージを見ますか？
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "AI 제공업체가 내 메시지를 볼 수 있나요?"
+  it: "I provider AI vedono i miei messaggi?"
+  tr: "AI sağlayıcıları mesajlarımı görebiliyor mu?"
+  vi: "Các nhà cung cấp AI có thể xem tin nhắn của tôi không?"
+  id: "Apakah penyedia AI bisa melihat pesan saya?"
+  pl: "Czy dostawcy AI widzą moje wiadomości?"
+  nl: "Kunnen AI-providers mijn berichten zien?"
+  ar: "هل يمكن لمزودي الذكاء الاصطناعي رؤية رسائلي؟"
+  hi: "क्या AI प्रदाता मेरे संदेश देख सकते हैं?"
+  th: "ผู้ให้บริการ AI สามารถเห็นข้อความของฉันได้หรือไม่?"
+  cs: "Mohou poskytovatelé AI vidět moje zprávy?"
+  sv: "Kan AI-leverantörer se mina meddelanden?"
   verified_by_human: []
+  he: האם ספקי AI רואים את ההודעות שלי?
 follow_up_5:
   context: Follow-up suggestion for privacy policy
   en: How do I delete my account?
@@ -2745,22 +2860,23 @@ follow_up_5:
   zh: 如何删除我的账户？
   es: ¿Cómo elimino mi cuenta?
   fr: Comment supprimer mon compte ?
-  pt: ""
-  ru: ""
+  pt: "Como excluo minha conta?"
+  ru: "Как удалить мой аккаунт?"
   ja: アカウントを削除する方法は？
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "계정을 어떻게 삭제하나요?"
+  it: "Come elimino il mio account?"
+  tr: "Hesabımı nasıl silebilirim?"
+  vi: "Làm thế nào để xóa tài khoản của tôi?"
+  id: "Bagaimana cara menghapus akun saya?"
+  pl: "Jak usunąć moje konto?"
+  nl: "Hoe verwijder ik mijn account?"
+  ar: "كيف أحذف حسابي؟"
+  hi: "मैं अपना खाता कैसे हटाऊं?"
+  th: "ฉันจะลบบัญชีของฉันได้อย่างไร?"
+  cs: "Jak smaži svůj účet?"
+  sv: "Hur tar jag bort mitt konto?"
   verified_by_human: []
+  he: כיצד אני מוחק את חשבוני?
 follow_up_6:
   context: Follow-up suggestion for privacy policy
   en: What data do you share with third parties?
@@ -2768,19 +2884,20 @@ follow_up_6:
   zh: 您与第三方共享哪些数据？
   es: ¿Qué datos comparten con terceros?
   fr: Quelles données partagez-vous avec des tiers ?
-  pt: ""
-  ru: ""
+  pt: "Quais dados você compartilha com terceiros?"
+  ru: "Какие данные вы передаёте третьим лицам?"
   ja: 第三者とどのようなデータを共有しますか？
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
+  ko: "어떤 데이터를 제3자와 공유하나요?"
+  it: "Quali dati condividete con terze parti?"
+  tr: "Üçüncü taraflarla hangi verileri paylaşıyorsunuz?"
+  vi: "Dữ liệu nào bạn chia sẻ với các bên thứ ba?"
+  id: "Data apa yang Anda bagikan dengan pihak ketiga?"
+  pl: "Jakie dane udostępniasz stronom trzecim?"
+  nl: "Welke gegevens deelt u met derden?"
+  ar: "ما البيانات التي تشاركونها مع أطراف ثالثة؟"
+  hi: "आप तृतीय पक्षों के साथ कौन से डेटा साझा करते हैं?"
+  th: "คุณแบ่งปันข้อมูลใดกับบุคคลที่สาม?"
+  cs: "Jaká data sdílíte s třetími stranami?"
+  sv: "Vilka data delar ni med tredje parter?"
   verified_by_human: []
+  he: אילו נתונים אתם משתפים עם צדדים שלישיים?

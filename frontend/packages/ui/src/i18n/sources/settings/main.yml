@@ -4455,140 +4455,26 @@ install:
   verified_by_human: []
 server_will_be_restarted:
   context: Message shown under the install button to inform the user that the server will be restarted
-  en: "The server will be restarted and
-
-    therefore briefly offline once
-
-    the update has been installed.
-
-    "
-  de: "Der Server wird neu gestartet und
-
-    daher kurz offline sein, sobald
-
-    das Update installiert wurde.
-
-    "
-  zh: "服务器将在
-
-    更新安装完成后
-
-    重启并短暂离线。
-
-    "
-  es: "El servidor se reiniciará y
-
-    por lo tanto estará brevemente fuera de línea una vez
-
-    que se haya instalado la actualización.
-
-    "
-  fr: "Le serveur sera redémarré et
-
-    donc brièvement hors ligne une fois
-
-    la mise à jour installée.
-
-    "
-  pt: "O servidor será reiniciado e
-
-    portanto ficará brevemente offline assim que
-
-    a atualização for instalada.
-
-    "
-  ru: "Сервер будет перезапущен и
-
-    поэтому ненадолго уйдёт в офлайн после
-
-    установки обновления.
-
-    "
-  ja: "アップデートがインストールされると、
-
-    サーバーが再起動され、
-
-    一時的にオフラインになります。
-
-    "
-  ko: "업데이트가 설치되면
-
-    서버가 재시작되어
-
-    잠시 오프라인 상태가 됩니다.
-
-    "
-  it: "Il server verrà riavviato e
-
-    quindi sarà brevemente offline dopo
-
-    l'installazione dell'aggiornamento.
-
-    "
-  tr: "Sunucu yeniden başlatılacak ve
-
-    bu nedenle güncelleme yüklendiğinde
-
-    kısa süreliğine çevrimdışı olacaktır.
-
-    "
-  vi: "Máy chủ sẽ được khởi động lại và
-
-    do đó sẽ ngoại tuyến trong thời gian ngắn
-
-    sau khi cài đặt xong bản cập nhật.
-
-    "
-  id: "Server akan di-restart dan
-
-    oleh karena itu akan offline sebentar setelah
-
-    pembaruan dipasang.
-
-    "
-  pl: "Serwer zostanie zrestartowany i
-
-    dlatego będzie krótko niedostępny po
-
-    zainstalowaniu aktualizacji.
-
-    "
-  nl: "De server wordt opnieuw gestart en
-
-    is daarna kort offline nadat
-
-    de update is geïnstalleerd.
-
-    "
+  en: "The server will be restarted and\ntherefore briefly offline once\nthe update has been installed.\n"
+  de: "Der Server wird neu gestartet und\ndaher kurz offline sein, sobald\ndas Update installiert wurde.\n"
+  zh: "服务器将在\n更新安装完成后\n重启并短暂离线。\n"
+  es: "El servidor se reiniciará y\npor lo tanto estará brevemente fuera de línea una vez\nque se haya instalado la actualización.\n"
+  fr: "Le serveur sera redémarré et\ndonc brièvement hors ligne une fois\nla mise à jour installée.\n"
+  pt: "O servidor será reiniciado e\nportanto ficará brevemente offline assim que\na atualização for instalada.\n"
+  ru: "Сервер будет перезапущен и\nпоэтому ненадолго уйдёт в офлайн после\nустановки обновления.\n"
+  ja: "アップデートがインストールされると、\nサーバーが再起動され、\n一時的にオフラインになります。\n"
+  ko: "업데이트가 설치되면\n서버가 재시작되어\n잠시 오프라인 상태가 됩니다.\n"
+  it: "Il server verrà riavviato e\nquindi sarà brevemente offline dopo\nl'installazione dell'aggiornamento.\n"
+  tr: "Sunucu yeniden başlatılacak ve\nbu nedenle güncelleme yüklendiğinde\nkısa süreliğine çevrimdışı olacaktır.\n"
+  vi: "Máy chủ sẽ được khởi động lại và\ndo đó sẽ ngoại tuyến trong thời gian ngắn\nsau khi cài đặt xong bản cập nhật.\n"
+  id: "Server akan di-restart dan\noleh karena itu akan offline sebentar setelah\npembaruan dipasang.\n"
+  pl: "Serwer zostanie zrestartowany i\ndlatego będzie krótko niedostępny po\nzainstalowaniu aktualizacji.\n"
+  nl: "De server wordt opnieuw gestart en\nis daarna kort offline nadat\nde update is geïnstalleerd.\n"
   ar: سيتم إعادة تشغيل الخادم وبالتالي سيكون غير متصل لفترة وجيزة بمجرد تثبيت التحديث.
-  hi: "अपडेट इंस्टॉल होने के बाद
-
-    सर्वर पुनः प्रारंभ होगा और
-
-    कुछ समय के लिए ऑफलाइन रहेगा।
-
-    "
-  th: "เซิร์ฟเวอร์จะถูกรีสตาร์ทและ
-
-    จะออฟไลน์ชั่วคราว
-
-    หลังจากติดตั้งการอัปเดตเสร็จแล้ว
-
-    "
-  cs: "Server bude restartován a
-
-    proto bude krátce offline poté, co
-
-    bude aktualizace nainstalována.
-
-    "
-  sv: "Servern startas om och
-
-    kommer därför att vara kort offline när
-
-    uppdateringen är installerad.
-
-    "
+  hi: "अपडेट इंस्टॉल होने के बाद\nसर्वर पुनः प्रारंभ होगा और\nकुछ समय के लिए ऑफलाइन रहेगा।\n"
+  th: "เซิร์ฟเวอร์จะถูกรีสตาร์ทและ\nจะออฟไลน์ชั่วคราว\nหลังจากติดตั้งการอัปเดตเสร็จแล้ว\n"
+  cs: "Server bude restartován a\nproto bude krátce offline poté, co\nbude aktualizace nainstalována.\n"
+  sv: "Servern startas om och\nkommer därför att vara kort offline när\nuppdateringen är installerad.\n"
   he: |
     השרת יופעל מחדש ולכן
     יהיה לא זמין לזמן קצר לאחר
@@ -4644,102 +4530,26 @@ restarting_server:
   verified_by_human: []
 update_failed:
   context: Error message shown when software update fails
-  en: "Update failed.
-
-    Check the server logs.
-
-    "
-  de: "Update fehlgeschlagen.
-
-    Überprüfe die Server-Logs.
-
-    "
-  zh: "更新失败。
-
-    请检查服务器日志。
-
-    "
-  es: "Actualización fallida.
-
-    Revisa los registros del servidor.
-
-    "
-  fr: "Mise à jour échouée.
-
-    Vérifiez les journaux du serveur.
-
-    "
-  pt: "Atualização falhou.
-
-    Verifique os logs do servidor.
-
-    "
-  ru: "Обновление не удалось.
-
-    Проверьте журналы сервера.
-
-    "
-  ja: "アップデートに失敗しました。
-
-    サーバーログを確認してください。
-
-    "
-  ko: "업데이트 실패.
-
-    서버 로그를 확인하세요.
-
-    "
-  it: "Aggiornamento non riuscito.
-
-    Controlla i log del server.
-
-    "
-  tr: "Güncelleme başarısız.
-
-    Sunucu günlüklerini kontrol edin.
-
-    "
-  vi: "Cập nhật thất bại.
-
-    Kiểm tra nhật ký máy chủ.
-
-    "
-  id: "Pembaruan gagal.
-
-    Periksa log server.
-
-    "
-  pl: "Aktualizacja nie powiodła się.
-
-    Sprawdź logi serwera.
-
-    "
-  nl: "Update mislukt.
-
-    Controleer de serverlogs.
-
-    "
+  en: "Update failed.\nCheck the server logs.\n"
+  de: "Update fehlgeschlagen.\nÜberprüfe die Server-Logs.\n"
+  zh: "更新失败。\n请检查服务器日志。\n"
+  es: "Actualización fallida.\nRevisa los registros del servidor.\n"
+  fr: "Mise à jour échouée.\nVérifiez les journaux du serveur.\n"
+  pt: "Atualização falhou.\nVerifique os logs do servidor.\n"
+  ru: "Обновление не удалось.\nПроверьте журналы сервера.\n"
+  ja: "アップデートに失敗しました。\nサーバーログを確認してください。\n"
+  ko: "업데이트 실패.\n서버 로그를 확인하세요.\n"
+  it: "Aggiornamento non riuscito.\nControlla i log del server.\n"
+  tr: "Güncelleme başarısız.\nSunucu günlüklerini kontrol edin.\n"
+  vi: "Cập nhật thất bại.\nKiểm tra nhật ký máy chủ.\n"
+  id: "Pembaruan gagal.\nPeriksa log server.\n"
+  pl: "Aktualizacja nie powiodła się.\nSprawdź logi serwera.\n"
+  nl: "Update mislukt.\nControleer de serverlogs.\n"
   ar: فشل التحديث. تحقق من سجلات الخادم.
-  hi: "अपडेट विफल।
-
-    सर्वर लॉग जांचें।
-
-    "
-  th: "อัปเดตล้มเหลว
-
-    กรุณาตรวจสอบบันทึกเซิร์ฟเวอร์
-
-    "
-  cs: "Aktualizace se nezdařila.
-
-    Zkontrolujte protokoly serveru.
-
-    "
-  sv: "Uppdatering misslyckades.
-
-    Kontrollera serverloggarna.
-
-    "
+  hi: "अपडेट विफल।\nसर्वर लॉग जांचें।\n"
+  th: "อัปเดตล้มเหลว\nกรุณาตรวจสอบบันทึกเซิร์ฟเวอร์\n"
+  cs: "Aktualizace se nezdařila.\nZkontrolujte protokoly serveru.\n"
+  sv: "Uppdatering misslyckades.\nKontrollera serverloggarna.\n"
   he: |
     העדכון נכשל.
     בדוק את יומני השרת (logs).
@@ -5130,236 +4940,52 @@ unreachable:
   verified_by_human: []
 profile_image_not_allowed:
   context: Error message shown when profile image contains nudity or violence or gore
-  en: "No nudity, violence or gore
-
-    in profile images.
-
-    "
-  de: "Keine Nacktheit, Gewalt oder Blut
-
-    in Profilbildern.
-
-    "
-  zh: "在个人资料图片中
-
-    不允许裸露、暴力或血腥。
-
-    "
-  es: "No se permiten desnudos, violencia o sangre
-
-    en las imágenes de perfil.
-
-    "
-  fr: "Pas de nudité, de violence ou de sang
-
-    dans les images de profil.
-
-    "
-  pt: "Sem nudez, violência ou gore
-
-    em fotos de perfil.
-
-    "
-  ru: "Никакой наготы, насилия или жестокости
-
-    на фотографиях профиля.
-
-    "
+  en: "No nudity, violence or gore\nin profile images.\n"
+  de: "Keine Nacktheit, Gewalt oder Blut\nin Profilbildern.\n"
+  zh: "在个人资料图片中\n不允许裸露、暴力或血腥。\n"
+  es: "No se permiten desnudos, violencia o sangre\nen las imágenes de perfil.\n"
+  fr: "Pas de nudité, de violence ou de sang\ndans les images de profil.\n"
+  pt: "Sem nudez, violência ou gore\nem fotos de perfil.\n"
+  ru: "Никакой наготы, насилия или жестокости\nна фотографиях профиля.\n"
   ja: プロフィール画像にはヌード、暴力、またはグロテスクなものを含めないでください。
-  ko: "프로필 이미지에는 노출, 폭력 또는
-
-    잔인한 콘텐츠를 사용할 수 없습니다.
-
-    "
-  it: "Vietate nudità, violenza o contenuti
-
-    cruenti nelle immagini del profilo.
-
-    "
-  tr: "Profil resimlerinde çıplaklık, şiddet
-
-    veya kan içeriklerine izin verilmez.
-
-    "
-  vi: "Không có khỏa thân, bạo lực hoặc nội dung rùng rợn
-
-    trong ảnh hồ sơ.
-
-    "
-  id: "Tidak ada ketelanjangan, kekerasan, atau konten mengerikan
-
-    di foto profil.
-
-    "
-  pl: "Brak nagości, przemocy lub makabrycznych treści
-
-    w zdjęciach profilowych.
-
-    "
-  nl: "Geen naaktheid, geweld of gore
-
-    in profielfoto's.
-
-    "
+  ko: "프로필 이미지에는 노출, 폭력 또는\n잔인한 콘텐츠를 사용할 수 없습니다.\n"
+  it: "Vietate nudità, violenza o contenuti\ncruenti nelle immagini del profilo.\n"
+  tr: "Profil resimlerinde çıplaklık, şiddet\nveya kan içeriklerine izin verilmez.\n"
+  vi: "Không có khỏa thân, bạo lực hoặc nội dung rùng rợn\ntrong ảnh hồ sơ.\n"
+  id: "Tidak ada ketelanjangan, kekerasan, atau konten mengerikan\ndi foto profil.\n"
+  pl: "Brak nagości, przemocy lub makabrycznych treści\nw zdjęciach profilowych.\n"
+  nl: "Geen naaktheid, geweld of gore\nin profielfoto's.\n"
   ar: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي.
-  hi: "प्रोफ़ाइल छवियों में
-
-    नग्नता, हिंसा या रक्तरंजित सामग्री नहीं।
-
-    "
-  th: "ห้ามมีภาพเปลือย ความรุนแรง
-
-    หรือเนื้อหาสยดสยองในรูปโปรไฟล์
-
-    "
-  cs: "Žádná nahota, násilí ani krvavé scény
-
-    na profilových obrázcích.
-
-    "
-  sv: "Ingen nakenhet, våld eller blodbad
-
-    i profilbilder.
-
-    "
+  hi: "प्रोफ़ाइल छवियों में\nनग्नता, हिंसा या रक्तरंजित सामग्री नहीं।\n"
+  th: "ห้ามมีภาพเปลือย ความรุนแรง\nหรือเนื้อหาสยดสยองในรูปโปรไฟล์\n"
+  cs: "Žádná nahota, násilí ani krvavé scény\nna profilových obrázcích.\n"
+  sv: "Ingen nakenhet, våld eller blodbad\ni profilbilder.\n"
   he: |
     אין להשתמש בעירום, אלימות או תכנים קשים
     בתמונות פרופיל.
   verified_by_human: []
 last_warning_image_not_allowed:
   context: Last warning error message shown when profile image contains nudity or violence or gore
-  en: "Last warning:
-
-    No nudity, violence or gore in profile images.
-
-    One more violation and your account will be deleted.
-
-    "
+  en: "Last warning:\nNo nudity, violence or gore in profile images.\nOne more violation and your account will be deleted.\n"
   ar: "تحذير أخير: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي. انتهاك آخر وسيتم حذف حسابك."
-  de: "Letzte Warnung:
-
-    Keine Nacktheit, Gewalt oder Blut in Profilbildern.
-
-    Noch eine Verletzung und dein Konto wird gelöscht.
-
-    "
-  zh: "最后警告：
-
-    个人资料图片中不允许裸露、暴力或血腥。
-
-    再次违规，您的帐户将被删除。
-
-    "
-  es: "Última advertencia:
-
-    No se permiten desnudos, violencia o sangre en las imágenes
-
-    "
-  fr: "Dernier avertissement :
-
-    Pas de nudité, de violence ou de sang dans les images de profil.
-
-    Une violation supplémentaire et votre compte sera supprimé.
-
-    "
-  pt: "Último aviso:
-
-    Sem nudez, violência ou gore em fotos de perfil.
-
-    Mais uma violação e sua conta será excluída.
-
-    "
-  ru: "Последнее предупреждение:
-
-    Никакой наготы, насилия или жестокости в фотографиях профиля.
-
-    Ещё одно нарушение — и ваш аккаунт будет удалён.
-
-    "
-  ja: "最後の警告：
-
-    プロフィール画像にヌード、暴力、またはグロテスクなものを含めないでください。
-
-    もう1回違反するとアカウントが削除されます。
-
-    "
-  ko: "최후 경고:
-
-    프로필 이미지에 노출, 폭력 또는 잔인한 콘텐츠를 사용할 수 없습니다.
-
-    한 번 더 위반하면 계정이 삭제됩니다.
-
-    "
-  it: "Ultimo avviso:
-
-    Vietate nudità, violenza o contenuti cruenti nelle immagini del profilo.
-
-    Un'altra violazione e il tuo account verrà eliminato.
-
-    "
-  tr: "Son uyarı:
-
-    Profil resimlerinde çıplaklık, şiddet veya kan içeriklerine izin verilmez.
-
-    Bir ihlal daha ve hesabınız silinecek.
-
-    "
-  vi: "Cảnh báo cuối cùng:
-
-    Không có khỏa thân, bạo lực hoặc nội dung rùng rợn trong ảnh hồ sơ.
-
-    Thêm một vi phạm nữa và tài khoản của bạn sẽ bị xóa.
-
-    "
-  id: "Peringatan terakhir:
-
-    Tidak ada ketelanjangan, kekerasan, atau konten mengerikan di foto profil.
-
-    Satu pelanggaran lagi dan akun Anda akan dihapus.
-
-    "
-  pl: "Ostatnie ostrzeżenie:
-
-    Brak nagości, przemocy lub makabrycznych treści w zdjęciach profilowych.
-
-    Jeszcze jedno naruszenie i Twoje konto zostanie usunięte.
-
-    "
-  nl: "Laatste waarschuwing:
-
-    Geen naaktheid, geweld of gore in profielfoto's.
-
-    Nog één overtreding en uw account wordt verwijderd.
-
-    "
-  hi: "अंतिम चेतावनी:
-
-    प्रोफ़ाइल छवियों में नग्नता, हिंसा या रक्तरंजित सामग्री नहीं।
-
-    एक और उल्लंघन और आपका खाता हटा दिया जाएगा।
-
-    "
-  th: "คำเตือนครั้งสุดท้าย:
-
-    ห้ามมีภาพเปลือย ความรุนแรง หรือเนื้อหาสยดสยองในรูปโปรไฟล์
-
-    อีกหนึ่งการละเมิดและบัญชีของคุณจะถูกลบ
-
-    "
-  cs: "Poslední varování:
-
-    Žádná nahota, násilí ani krvavé scény na profilových obrázcích.
-
-    Ještě jedno porušení a váš účet bude smazán.
-
-    "
-  sv: "Sista varningen:
-
-    Ingen nakenhet, våld eller blodbad i profilbilder.
-
-    Ytterligare en överträdelse och ditt konto raderas.
-
-    "
+  de: "Letzte Warnung:\nKeine Nacktheit, Gewalt oder Blut in Profilbildern.\nNoch eine Verletzung und dein Konto wird gelöscht.\n"
+  zh: "最后警告：\n个人资料图片中不允许裸露、暴力或血腥。\n再次违规，您的帐户将被删除。\n"
+  es: "Última advertencia:\nNo se permiten desnudos, violencia o sangre en las imágenes\n"
+  fr: "Dernier avertissement :\nPas de nudité, de violence ou de sang dans les images de profil.\nUne violation supplémentaire et votre compte sera supprimé.\n"
+  pt: "Último aviso:\nSem nudez, violência ou gore em fotos de perfil.\nMais uma violação e sua conta será excluída.\n"
+  ru: "Последнее предупреждение:\nНикакой наготы, насилия или жестокости в фотографиях профиля.\nЕщё одно нарушение — и ваш аккаунт будет удалён.\n"
+  ja: "最後の警告：\nプロフィール画像にヌード、暴力、またはグロテスクなものを含めないでください。\nもう1回違反するとアカウントが削除されます。\n"
+  ko: "최후 경고:\n프로필 이미지에 노출, 폭력 또는 잔인한 콘텐츠를 사용할 수 없습니다.\n한 번 더 위반하면 계정이 삭제됩니다.\n"
+  it: "Ultimo avviso:\nVietate nudità, violenza o contenuti cruenti nelle immagini del profilo.\nUn'altra violazione e il tuo account verrà eliminato.\n"
+  tr: "Son uyarı:\nProfil resimlerinde çıplaklık, şiddet veya kan içeriklerine izin verilmez.\nBir ihlal daha ve hesabınız silinecek.\n"
+  vi: "Cảnh báo cuối cùng:\nKhông có khỏa thân, bạo lực hoặc nội dung rùng rợn trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị xóa.\n"
+  id: "Peringatan terakhir:\nTidak ada ketelanjangan, kekerasan, atau konten mengerikan di foto profil.\nSatu pelanggaran lagi dan akun Anda akan dihapus.\n"
+  pl: "Ostatnie ostrzeżenie:\nBrak nagości, przemocy lub makabrycznych treści w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie usunięte.\n"
+  nl: "Laatste waarschuwing:\nGeen naaktheid, geweld of gore in profielfoto's.\nNog één overtreding en uw account wordt verwijderd.\n"
+  hi: "अंतिम चेतावनी:\nप्रोफ़ाइल छवियों में नग्नता, हिंसा या रक्तरंजित सामग्री नहीं।\nएक और उल्लंघन और आपका खाता हटा दिया जाएगा।\n"
+  th: "คำเตือนครั้งสุดท้าย:\nห้ามมีภาพเปลือย ความรุนแรง หรือเนื้อหาสยดสยองในรูปโปรไฟล์\nอีกหนึ่งการละเมิดและบัญชีของคุณจะถูกลบ\n"
+  cs: "Poslední varování:\nŽádná nahota, násilí ani krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude smazán.\n"
+  sv: "Sista varningen:\nIngen nakenhet, våld eller blodbad i profilbilder.\nYtterligare en överträdelse och ditt konto raderas.\n"
   he: |
     אזהרה אחרונה:
     אין להשתמש בעירום, אלימות או תכנים קשים בתמונות פרופיל.
@@ -9134,6 +8760,8 @@ report_issue.add_to_linear_label:
   sv: Lägg till i Linear
   he: הוסף ל-Linear
   verified_by_human: []
+  id: Tambahkan ke Linear
+  vi: Thêm vào Linear
 report_issue.add_to_linear_hint:
   context: Hint text for the admin-only Linear toggle — explains it controls whether a tracking issue is created
   en: Create a Linear issue to track this report on the project board.
@@ -9157,6 +8785,8 @@ report_issue.add_to_linear_hint:
   sv: Skapa ett Linear-ärende för att spåra denna rapport på projektbrädet.
   he: צור issue ב-Linear כדי לעקוב אחרי דיווח זה בלוח הפרויקט.
   verified_by_human: []
+  id: Buat masalah Linear untuk melacak laporan ini di papan proyek.
+  vi: Tạo một vấn đề Linear để theo dõi báo cáo này trên bảng dự án.
 report_issue.send_email_notification_label:
   context: Admin-only toggle label — whether to send email notifications for this report
   en: Send email notification
@@ -9180,6 +8810,8 @@ report_issue.send_email_notification_label:
   sv: Skicka e-postavisering
   he: שלח התראה באימייל
   verified_by_human: []
+  id: Kirim notifikasi email
+  vi: Gửi thông báo qua email
 report_issue.send_email_notification_hint:
   context: Hint text for the admin-only email toggle — explains it controls admin notification and reporter confirmation emails
   en: Send an email notification to admin and a confirmation to the reporter.
@@ -9203,6 +8835,8 @@ report_issue.send_email_notification_hint:
   sv: Skicka e-postavisering till admin och bekräftelse till rapportören.
   he: שלח התראה באימייל למנהל ואישור למדווח.
   verified_by_human: []
+  id: Kirim notifikasi email ke admin dan konfirmasi ke pelapor.
+  vi: Gửi thông báo qua email cho quản trị viên và xác nhận cho người báo cáo.
 report_issue.agent_action_label:
   context: Admin-only label for the agent action radio group in the issue report form
   en: Agent action
