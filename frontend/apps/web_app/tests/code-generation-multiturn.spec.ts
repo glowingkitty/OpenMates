@@ -155,7 +155,10 @@ async function getEmbedFullText(page: any, messageIndex: number): Promise<string
 		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
 		.first();
 
-	const text = await embed.textContent({ timeout: 3000 }).catch(() => '');
+	// 15s tolerates slow embed hydration but still fails fast if the embed
+	// genuinely never appears. The caller already waited for finishedEmbeds
+	// count >= 1 via waitForCodeEmbedsInMessage. (OPE-354)
+	const text = await embed.textContent({ timeout: 15000 }).catch(() => '');
 	return text || '';
 }
 
