@@ -134,7 +134,11 @@ async function getCodePreviewText(page: any, messageIndex: number): Promise<stri
 		.first()
 		.locator('pre.code-preview code');
 
-	const text = await codeElement.textContent().catch(() => '');
+	// Short timeout — this is a soft read, callers tolerate empty results.
+	// Default Playwright timeout (30s+) caused multi-minute hangs when the
+	// first code embed was a non-Python preview (e.g. shell install commands)
+	// without the expected `pre.code-preview` markup. (OPE-354)
+	const text = await codeElement.textContent({ timeout: 3000 }).catch(() => '');
 	return text || '';
 }
 
@@ -149,7 +153,7 @@ async function getEmbedFullText(page: any, messageIndex: number): Promise<string
 		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
 		.first();
 
-	const text = await embed.textContent().catch(() => '');
+	const text = await embed.textContent({ timeout: 3000 }).catch(() => '');
 	return text || '';
 }
 
