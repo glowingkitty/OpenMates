@@ -21,7 +21,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -306,7 +306,19 @@ def audit_inspiration_pool(self):
 
 
 async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
-    """Async implementation of audit_inspiration_pool."""
+    """Async implementation of audit_inspiration_pool.
+
+    Two-layer audit:
+      1. Keyword filter (Layer 7) — rejects entries matching the content
+         blocklist (religious promotion, product reviews, political, etc.).
+      2. Category-based video age policy (OPE-350) — rejects entries whose
+         video is older than its category's max age. Evergreen categories
+         are uncapped. Missing/unparseable dates fail open.
+
+    Both `daily_inspiration_pool` and `daily_inspiration_defaults` are
+    audited. If any defaults are deleted, the public Redis cache is
+    invalidated so users don't see stale entries until the next beat run.
+    """
     task_id = "daily_pool_audit"
     logger.info(f"[PoolAudit][{task_id}] Starting scheduled pool audit")
 
@@ -320,60 +332,132 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
     directus = task._directus_service
+    cache_service = task._cache_service
     if not directus:
         logger.error(f"[PoolAudit][{task_id}] DirectusService unavailable")
         return {"success": False, "error": "DirectusService not initialized"}
 
     try:
+        from backend.apps.ai.daily_inspiration.category_age_policy import (
+            get_max_age_years,
+            is_within_category_policy,
+            policy_bucket_for_category,
+            video_age_years,
+        )
         from backend.apps.ai.daily_inspiration.content_filter import check_entry
 
-        # Fetch all pool entries
-        items = await directus.get_items(
+        def _age_violation_reason(entry: Dict[str, Any]) -> Optional[str]:
+            """Return a human-readable reason if the entry violates age policy, else None."""
+            category = entry.get("category")
+            published_at = entry.get("video_published_at")
+            if is_within_category_policy(category, published_at):
+                return None
+            cap = get_max_age_years(category)
+            age = video_age_years(published_at)
+            age_str = f"{age:.1f}y" if age is not None else "?"
+            return (
+                f"bucket={policy_bucket_for_category(category)} "
+                f"cap={cap}y age={age_str}"
+            )
+
+        async def _audit_collection(
+            collection: str,
+            items: List[Dict[str, Any]],
+        ) -> Dict[str, int]:
+            keyword_violations = 0
+            age_violations = 0
+            deleted = 0
+            for item in items:
+                entry_id = str(item.get("id", "") or "")
+                if not entry_id:
+                    continue
+                reasons: List[str] = []
+
+                keyword_result = check_entry(item)
+                if keyword_result["verdict"] == "REJECT":
+                    matched_cats = list(keyword_result.get("violations", {}).keys())
+                    reasons.append(f"keyword({','.join(matched_cats)})")
+                    keyword_violations += 1
+
+                age_reason = _age_violation_reason(item)
+                if age_reason is not None:
+                    reasons.append(f"age_policy({age_reason})")
+                    age_violations += 1
+
+                if not reasons:
+                    continue
+
+                try:
+                    success = await directus.delete_item(collection, entry_id)
+                    if success:
+                        deleted += 1
+                        logger.warning(
+                            f"[PoolAudit][{task_id}] Deleted {collection} entry {entry_id}: "
+                            f"'{item.get('title', '')}' "
+                            f"(video: '{(item.get('video_title') or '')[:50]}') "
+                            f"— reasons: {reasons}"
+                        )
+                except Exception as exc:
+                    logger.error(
+                        f"[PoolAudit][{task_id}] Failed to delete {collection} "
+                        f"entry {entry_id}: {exc}"
+                    )
+
+            return {
+                "scanned": len(items),
+                "keyword_violations": keyword_violations,
+                "age_violations": age_violations,
+                "deleted": deleted,
+            }
+
+        # ── Pass 1: daily_inspiration_pool ────────────────────────────────
+        pool_items = await directus.get_items(
             "daily_inspiration_pool",
             {"sort": ["-generated_at"], "limit": 200},
             admin_required=True,
         )
+        pool_stats = await _audit_collection("daily_inspiration_pool", pool_items or [])
 
-        if not items:
-            logger.info(f"[PoolAudit][{task_id}] Pool is empty — nothing to audit")
-            return {"success": True, "total": 0, "violations": 0, "deleted": 0}
+        # ── Pass 2: daily_inspiration_defaults ────────────────────────────
+        # Defaults are denormalized snapshots, so stale rows must be purged
+        # separately — they won't be rebuilt until the 06:30 selection runs.
+        defaults_items = await directus.get_items(
+            "daily_inspiration_defaults",
+            {"sort": ["-date"], "limit": 200},
+            admin_required=True,
+        )
+        defaults_stats = await _audit_collection(
+            "daily_inspiration_defaults", defaults_items or []
+        )
 
-        # Check each entry
-        violations = []
-        for item in items:
-            result = check_entry(item)
-            if result["verdict"] == "REJECT":
-                violations.append(result)
+        if defaults_stats["deleted"] > 0:
+            await _invalidate_public_cache(cache_service)
 
-        # Delete violations
-        deleted = 0
-        for v in violations:
-            entry_id = v["entry_id"]
-            entry = v.get("entry", {})
-            matched_cats = list(v.get("violations", {}).keys())
-            try:
-                success = await directus.delete_item("daily_inspiration_pool", entry_id)
-                if success:
-                    deleted += 1
-                    logger.warning(
-                        f"[PoolAudit][{task_id}] Deleted pool entry {entry_id}: "
-                        f"'{entry.get('title', '')}' (video: '{entry.get('video_title', '')[:50]}') "
-                        f"— violations: {matched_cats}"
-                    )
-            except Exception as e:
-                logger.error(
-                    f"[PoolAudit][{task_id}] Failed to delete {entry_id}: {e}"
-                )
+        total_violations = (
+            pool_stats["keyword_violations"]
+            + pool_stats["age_violations"]
+            + defaults_stats["keyword_violations"]
+            + defaults_stats["age_violations"]
+        )
+        total_deleted = pool_stats["deleted"] + defaults_stats["deleted"]
 
         result = {
             "success": True,
-            "total": len(items),
-            "violations": len(violations),
-            "deleted": deleted,
+            "pool": pool_stats,
+            "defaults": defaults_stats,
+            # Legacy top-level keys retained for backward compatibility with
+            # monitoring that reads the raw dict.
+            "total": pool_stats["scanned"] + defaults_stats["scanned"],
+            "violations": total_violations,
+            "deleted": total_deleted,
         }
         logger.info(
-            f"[PoolAudit][{task_id}] Completed: {len(items)} scanned, "
-            f"{len(violations)} violations found, {deleted} deleted"
+            f"[PoolAudit][{task_id}] Completed: "
+            f"pool(scanned={pool_stats['scanned']} kw={pool_stats['keyword_violations']} "
+            f"age={pool_stats['age_violations']} del={pool_stats['deleted']}) "
+            f"defaults(scanned={defaults_stats['scanned']} "
+            f"kw={defaults_stats['keyword_violations']} "
+            f"age={defaults_stats['age_violations']} del={defaults_stats['deleted']})"
         )
         return result
 
