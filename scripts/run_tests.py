@@ -1109,7 +1109,8 @@ class NotificationService:
             description = description[:3997] + "..."
 
         payload = {
-            "username": "OpenMates Test Runner",
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
             "embeds": [
                 {
                     "title": title,
@@ -1124,7 +1125,14 @@ class NotificationService:
             req = urllib.request.Request(
                 webhook_url,
                 data=body,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    # Cloudflare (Discord's edge) blocks the default
+                    # `Python-urllib/*` User-Agent with error 1010 — see
+                    # OPE-349. Any non-default UA passes; identify ourselves
+                    # explicitly so abuse logs are useful if we ever misbehave.
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
@@ -1153,7 +1161,8 @@ class NotificationService:
 
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         payload = {
-            "username": "OpenMates Test Runner",
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
             "embeds": [
                 {
                     "title": f"✅ {mode_label} — webhook test",
@@ -1172,7 +1181,12 @@ class NotificationService:
             req = urllib.request.Request(
                 webhook_url,
                 data=body,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    # See _send_summary_to_discord — Cloudflare blocks the
+                    # default Python-urllib UA with error 1010 (OPE-349).
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=15) as resp:

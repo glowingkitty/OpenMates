@@ -64,7 +64,8 @@ runs:
             summary = summary[:max_desc - 3] + "..."
 
         payload = {
-            "username": "OpenMates Test Runner",
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
             "embeds": [{
                 "title": f"❌ {label} FAILED",
                 "description": summary,
@@ -78,7 +79,14 @@ runs:
         req = urllib.request.Request(
             webhook,
             data=data,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                # Cloudflare (Discord's edge) blocks the default
+                # `Python-urllib/*` User-Agent with error 1010 — without
+                # this header every prod-smoke failure ping would silently
+                # 403 and we'd miss outages. See OPE-349.
+                "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+            },
             method="POST",
         )
         try:
