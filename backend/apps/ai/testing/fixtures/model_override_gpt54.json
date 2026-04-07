@@ -1,8 +1,8 @@
 {
-  "fixture_id": "model_override_switch_qwen",
-  "recorded_at": "2026-04-07T15:53:14.273494+00:00",
+  "fixture_id": "model_override_gpt54",
+  "recorded_at": "2026-04-07T15:52:45.916688+00:00",
   "speed_profile": "instant",
-  "user_message_snippet": "What is 3 + 3? Answer with just the number.",
+  "user_message_snippet": "What is 7 + 7? Answer with just the number.",
   "preprocessing": {
     "can_proceed": true,
     "category": "general_knowledge",
@@ -10,10 +10,10 @@
     "icon_names": [
       "calculator"
     ],
-    "selected_model_id": "alibaba/qwen3-235b-a22b-2507",
-    "selected_model_name": "Qwen 3 256b",
+    "selected_model_id": "openai/gpt-5.4",
+    "selected_model_name": "GPT-5.4",
     "mate_id": "george",
-    "chat_summary": "User asks a simple math question.",
+    "chat_summary": "User asks for a simple math calculation.",
     "chat_tags": [
       "math",
       "calculation"
@@ -27,20 +27,20 @@
   },
   "typing_started": {
     "category": "general_knowledge",
-    "model_name": "Qwen 3 256b",
-    "provider_name": "Cerebras",
+    "model_name": "GPT-5.4",
+    "provider_name": "OpenAI API",
     "server_region": "US",
     "icon_names": [
       "calculator"
     ]
   },
-  "response": "6",
+  "response": "14",
   "skill_executions": [],
   "thinking_content": null,
   "usage": {
     "prompt_tokens": null,
     "completion_tokens": null,
     "total_credits": null,
-    "model_name": "Qwen 3 256b"
+    "model_name": "GPT-5.4"
   }
 }

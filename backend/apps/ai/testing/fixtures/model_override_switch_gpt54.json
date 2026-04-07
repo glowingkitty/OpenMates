@@ -1,12 +1,12 @@
 {
   "fixture_id": "model_override_switch_gpt54",
-  "recorded_at": "2026-04-07T15:49:10.100780+00:00",
+  "recorded_at": "2026-04-07T15:53:31.737510+00:00",
   "speed_profile": "instant",
   "user_message_snippet": "What is 5 + 5? Answer with just the number.",
   "preprocessing": {
     "can_proceed": true,
     "category": "general_knowledge",
-    "title": "Simple Arithmetic Question",
+    "title": "What is 5 + 5?",
     "icon_names": [
       "calculator"
     ],
@@ -21,7 +21,7 @@
     "relevant_app_skills": [
       "math-calculate"
     ],
-    "llm_response_temp": 0.3,
+    "llm_response_temp": 0.4,
     "complexity": "simple",
     "steps": []
   },
