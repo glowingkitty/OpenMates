@@ -139,7 +139,7 @@
             />
         </div>
         
-        <div class="credits-amount" data-testid="credits-amount">
+        <div class="credits-amount" data-testid=". ">
             {@html $text('signup.amount_currency')
                 .replace('{currency}', '<span class="coin-icon-inline"></span>')
                 .replace('{amount}', formatNumber(displayAmount))}
@@ -198,7 +198,7 @@
         left: 0;
         right: 0;
         font-size: var(--font-size-h3-mobile);
-        color: white;
+        color: var(--color-font-button);;
         text-align: center;
         font-weight: 500;
         z-index: var(--z-index-raised-2);

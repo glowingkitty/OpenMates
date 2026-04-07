@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-04-06T23:30:02Z",
+  "last_run": "2026-04-07T06:30:02Z",
   "processed": [
     {
       "ghsa_id": "GHSA-c427-h43c-vf67",
@@ -147,7 +147,7 @@
       "first_seen_at": "2026-04-06T23:30:02Z",
       "last_dispatched_at": "2026-04-06T23:30:02Z",
       "re_dispatch_count": 0,
-      "resolved_via_commit": "e284441c3"
+      "resolved_via_commit": "9808dc7a4"
     },
     {
       "ghsa_id": "GHSA-4w7w-66w2-5vf9",
@@ -162,7 +162,7 @@
       "first_seen_at": "2026-04-06T23:30:02Z",
       "last_dispatched_at": "2026-04-06T23:30:02Z",
       "re_dispatch_count": 0,
-      "resolved_via_commit": "e284441c3"
+      "resolved_via_commit": "9808dc7a4"
     }
   ]
 }

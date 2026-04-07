@@ -2418,7 +2418,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .credits-amount {
-        color: var(--color-grey-80);
+        color: var(--color-font-button);
         font-size: var(--font-size-small);
         font-weight: 600;
     }

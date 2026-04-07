@@ -52,6 +52,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -2018,6 +2019,15 @@ def cmd_start(args: argparse.Namespace) -> None:
     task_id_arg = getattr(args, "task_id", None)
 
     # Register session
+    #
+    # `zellij_session`: captured from $ZELLIJ_SESSION_NAME so the auto-track
+    # hook can deterministically identify which Claude Code instance fired
+    # it (each parallel instance lives in its own Zellij tab named claude1,
+    # claude2, ...). See cmd_track for the resolution logic. None when the
+    # session is started outside Zellij (CI runners, bare ssh shells), in
+    # which case auto-tracking gracefully degrades to silent no-op rather
+    # than the previous race-prone max(last_active) fallback that caused
+    # ghost ownership across unrelated sessions.
     session_record: dict = {
         "task": args.task or "(pending)",
         "mode": mode,
@@ -2028,6 +2038,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         "writing": None,
         "task_id": task_id_arg,
         "linear_issue_id": None,
+        "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
     }
     data["sessions"][sid] = session_record
 
@@ -2692,10 +2703,43 @@ def cmd_release(args: argparse.Namespace) -> None:
         _save_sessions(data)
 
 
+def _resolve_session_from_zellij(sessions: dict) -> Optional[str]:
+    """Resolve the current session id from $ZELLIJ_SESSION_NAME.
+
+    Returns:
+        The single session id whose `zellij_session` matches the env var.
+        None if the env var is unset, no session matches, or more than one
+        session matches (caller decides whether to warn or skip).
+
+    Why this exists: the auto-track and pre-edit-guard hooks have no way to
+    know *which* Claude Code instance fired them. The previous fallback
+    `max(last_active)` was racy across concurrent sessions and caused
+    permanent ghost ownership of files in unrelated sessions (chat 7929b948
+    incident, OPE-338 follow-up). Each parallel Claude Code instance lives
+    in its own Zellij tab (claude1, claude2, ...), and `ZELLIJ_SESSION_NAME`
+    is exposed to every child process — including hook scripts. We capture
+    it on `cmd_start` and look it up here. Deterministic, no races.
+    """
+    zellij = os.environ.get("ZELLIJ_SESSION_NAME")
+    if not zellij:
+        return None
+    matches = [
+        sid for sid, info in sessions.items()
+        if info.get("zellij_session") == zellij
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return None  # 0 matches (no session in this tab) or >1 (ambiguous)
+
+
 def cmd_track(args: argparse.Namespace) -> None:
     """Track one or more files as modified by this session (without write lock).
 
-    If --session is omitted, falls back to the most-recently-active session.
+    If --session is omitted, resolves identity from $ZELLIJ_SESSION_NAME via
+    `_resolve_session_from_zellij`. If no match (env unset, no session in
+    this tab, or ambiguous), exits silently — better to under-track than to
+    ghost-attach a file to the wrong session.
+
     Accepts multiple file paths: --file f1 f2 f3.
     """
     data = _load_sessions()
@@ -2703,13 +2747,27 @@ def cmd_track(args: argparse.Namespace) -> None:
     sid = args.session
 
     if not sid:
-        # Fall back to most-recently-active session
         if not sessions:
             return  # No active session — silently ignore
-        sid = max(
-            sessions.keys(),
-            key=lambda s: sessions[s].get("last_active", ""),
-        )
+        sid = _resolve_session_from_zellij(sessions)
+        if sid is None:
+            # Identity unresolved: env var unset, no matching session in this
+            # Zellij tab, or ambiguous (multiple sessions sharing one tab).
+            # Silently exit. The user can still track explicitly with
+            # `track --session <id> --file <path>` if they want to.
+            zellij = os.environ.get("ZELLIJ_SESSION_NAME") or "(unset)"
+            ambiguous = sum(
+                1 for info in sessions.values()
+                if info.get("zellij_session") == os.environ.get("ZELLIJ_SESSION_NAME")
+            )
+            if ambiguous > 1:
+                print(
+                    f"WARNING: ambiguous Zellij tab '{zellij}' has {ambiguous} "
+                    f"sessions.py sessions; refusing to auto-track. "
+                    f"Run `sessions.py end <old_id>` to disambiguate.",
+                    file=sys.stderr,
+                )
+            return
 
     if sid not in sessions:
         print(f"Error: Session {sid} not found.", file=sys.stderr)
@@ -2754,23 +2812,25 @@ def cmd_track(args: argparse.Namespace) -> None:
 
 
 def cmd_track_stdin(args: argparse.Namespace) -> None:
-    """Track a file from PostToolUse hook (reads JSON from stdin)."""
+    """Track a file from PostToolUse hook (reads JSON from stdin).
+
+    Identity resolution: prefers `--session` if given, otherwise resolves
+    via `_resolve_session_from_zellij` (matches the calling Claude Code
+    instance's $ZELLIJ_SESSION_NAME against the session record's
+    `zellij_session` field). Silent exit on no match — better to under-track
+    than to attribute the edit to the wrong session.
+    """
     data = _load_sessions()
 
-    # Find the most recently active session (hooks don't know session ID)
     sessions = data.get("sessions", {})
     if not sessions:
         return  # No active session, silently exit
 
-    # Use the session specified, or find the most recent one
     sid = args.session
     if not sid:
-        # Find most recently active session
-        latest_sid = max(
-            sessions.keys(),
-            key=lambda s: sessions[s].get("last_active", ""),
-        )
-        sid = latest_sid
+        sid = _resolve_session_from_zellij(sessions)
+        if sid is None:
+            return  # Identity unresolvable; silent exit
 
     if sid not in sessions:
         return
@@ -2799,6 +2859,94 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
         sessions[sid].setdefault("modified_files", []).append(filepath)
         sessions[sid]["last_active"] = _now_iso()
         _save_sessions(data)
+
+
+def cmd_untrack(args: argparse.Namespace) -> None:
+    """Remove file(s) from a session's modified_files list.
+
+    Two modes:
+      --file <path> [<path> ...]
+          Remove the listed paths from the named session's modified_files.
+
+      --all-ghosts
+          Sweep the named session for files that were almost certainly
+          ghost-attached by the legacy `max(last_active)` heuristic — i.e.
+          files also tracked by another session whose `zellij_session` we
+          recognize. Used as a one-time cleanup after upgrading to the
+          Zellij-aware identity resolver. Conservative: only removes paths
+          that have a clear "real owner" elsewhere.
+
+    Note: this is the opposite of `track`. The existing `release` command
+    operates on the single-file write claim (`writing` field), not on the
+    `modified_files` list — different semantics, so we use a different name.
+    """
+    data = _load_sessions()
+    sessions = data.get("sessions", {})
+    sid = args.session
+
+    if sid not in sessions:
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    session = sessions[sid]
+    modified = session.get("modified_files", [])
+
+    to_remove: list[str] = []
+
+    if getattr(args, "all_ghosts", False):
+        # Build the set of "recognized" sessions: any other session that has
+        # a non-None zellij_session. Sessions started before the identity
+        # fix have zellij_session=None and are NOT considered authoritative.
+        recognized_other_files: dict[str, str] = {}
+        for other_sid, other_info in sessions.items():
+            if other_sid == sid:
+                continue
+            if not other_info.get("zellij_session"):
+                continue
+            for f in other_info.get("modified_files", []):
+                # First-write-wins: if multiple sessions own it, just pick one
+                # for the report. We only need to know SOME other session
+                # recognizes it.
+                recognized_other_files.setdefault(f, other_sid)
+        for f in list(modified):
+            owner = recognized_other_files.get(f)
+            if owner:
+                to_remove.append(f)
+                print(
+                    f"Ghost candidate: '{f}' is also tracked by session "
+                    f"{owner}; removing from {sid}."
+                )
+    else:
+        if not args.file:
+            print(
+                "Error: untrack requires --file <path> [<path> ...] or "
+                "--all-ghosts.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        # Normalise like cmd_track does, so user-supplied absolute paths and
+        # relative paths both work consistently.
+        for raw in args.file:
+            try:
+                filepath = str(Path(raw).resolve().relative_to(PROJECT_ROOT))
+            except ValueError:
+                filepath = raw
+            if filepath in modified:
+                to_remove.append(filepath)
+            else:
+                print(
+                    f"File '{filepath}' is not tracked by session {sid}; "
+                    f"nothing to remove."
+                )
+
+    if not to_remove:
+        print(f"No files removed from session {sid}.")
+        return
+
+    session["modified_files"] = [f for f in modified if f not in to_remove]
+    session["last_active"] = _now_iso()
+    _save_sessions(data)
+    print(f"Removed {len(to_remove)} file(s) from session {sid}.")
 
 
 def cmd_check_write(args: argparse.Namespace) -> None:
@@ -5461,7 +5609,8 @@ def main() -> None:
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
     p_track.add_argument(
-        "--session", "-s", help="Session ID (omit to use most-recently-active session)"
+        "--session", "-s",
+        help="Session ID (omit to resolve from $ZELLIJ_SESSION_NAME)",
     )
     p_track.add_argument("--file", "-f", required=True, nargs="+", help="File path(s)")
 
@@ -5470,6 +5619,26 @@ def main() -> None:
         "track-stdin", help="Track file from hook stdin"
     )
     p_track_stdin.add_argument("--session", "-s", help="Session ID")
+
+    # untrack — remove files from a session's modified_files list
+    p_untrack = sub.add_parser(
+        "untrack",
+        help="Remove file(s) from a session's modified_files list "
+             "(opposite of track; cleans up ghost ownership)",
+    )
+    p_untrack.add_argument(
+        "--session", "-s", required=True, help="Session ID to remove from"
+    )
+    p_untrack.add_argument(
+        "--file", "-f", nargs="+",
+        help="One or more file paths to untrack",
+    )
+    p_untrack.add_argument(
+        "--all-ghosts", action="store_true",
+        help="Remove every file currently in this session that is also "
+             "tracked by another session whose zellij_session is recognized "
+             "(one-time scrub for pre-fix ghost ownership)",
+    )
 
     # check-write (for PreToolUse hook)
     p_check_write = sub.add_parser(
@@ -5846,6 +6015,7 @@ def main() -> None:
         "release": cmd_release,
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
+        "untrack": cmd_untrack,
         "check-write": cmd_check_write,
         "lock": cmd_lock,
         "unlock": cmd_unlock,

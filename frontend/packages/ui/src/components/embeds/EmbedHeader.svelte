@@ -521,7 +521,7 @@
   .header-title-text {
     font-size: var(--font-size-h3);
     font-weight: 700;
-    color: var(--color-grey-0);
+    color: var(--color-font-button);
     text-align: center;
     line-height: 1.3;
     display: -webkit-box;
