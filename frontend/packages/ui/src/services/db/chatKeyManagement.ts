@@ -245,6 +245,16 @@ export async function loadChatKeysFromDatabase(
           // This happens after the transaction completes, which is fine
           (async () => {
             try {
+              // Cold-load fast path: when there are no keys to decrypt (new account,
+              // empty IDB, or all keys already cached), skip the entire master-key
+              // fetch + retry loop. Without this, cold loads spuriously emit
+              // "[ChatDatabase] Master key still unavailable after 6 retries.
+              // 0 chat keys remain undecrypted." which fails app-load-no-error-logs.
+              if (keysToDecrypt.length === 0) {
+                resolve();
+                return;
+              }
+
               // Pre-fetch master key ONCE before the batch loop to avoid
               // N concurrent IndexedDB reads of the crypto database.
               // Without this, each decryptChatKeyWithMasterKey call opens its own
@@ -422,6 +432,34 @@ export async function encryptMessageFields(
   }
 
   const encryptedMessage = { ...message };
+
+  // Fast path: if the message has no plaintext fields to encrypt, we don't need
+  // the chat key at all. This is the common case for messages flowing in from
+  // background sync — they arrive already-encrypted from the server (only
+  // encrypted_* fields populated) and would otherwise crash the entire batch
+  // when the chat key isn't loaded yet (e.g. for chats whose key hasn't been
+  // hydrated from IDB on a fresh tab). See OPE-353.
+  const hasAnyPlaintext =
+    message.content != null ||
+    message.sender_name != null ||
+    message.category != null ||
+    message.model_name != null ||
+    message.thinking_content != null ||
+    message.thinking_signature != null ||
+    (message.pii_mappings && message.pii_mappings.length > 0);
+
+  if (!hasAnyPlaintext) {
+    // Nothing to encrypt — but still strip any stale plaintext placeholders
+    // (defense-in-depth for the zero-knowledge invariant).
+    delete encryptedMessage.content;
+    delete encryptedMessage.sender_name;
+    delete encryptedMessage.category;
+    delete encryptedMessage.model_name;
+    delete encryptedMessage.thinking_content;
+    delete encryptedMessage.thinking_signature;
+    delete encryptedMessage.pii_mappings;
+    return encryptedMessage;
+  }
 
   // Use ChatKeyManager: try sync cache first, then async load from IDB.
   // NEVER generate a random key — if key is unavailable, throw instead of silently corrupting data.
