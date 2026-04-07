@@ -1647,47 +1647,131 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     return 1 if s["failed"] > 0 else 0
 
 
-def _parse_prod_smoke_steps(run_id: int) -> list[dict]:
-    """Parse step-level results from a prod-smoke.yml workflow run.
+# prod-smoke.yml writes one playwright JSON file per spec into the artifact:
+# test-results/{reachability,signup,login}.json. We use these as the source
+# of truth for per-spec status. Step `conclusion` is unreliable here because
+# every step uses `continue-on-error: true && exit 0`, so all step
+# conclusions are `success` even when the underlying spec failed.
+PROD_SMOKE_SPECS: list[tuple[str, str]] = [
+    ("reachability", "reachability spec"),
+    ("signup", "signup + gift card + chat spec"),
+    ("login", "login + chat spec"),
+]
 
-    Returns one dict per "Run … spec" step in the order they ran. Each dict:
-        {"name": <step name>, "status": "passed"|"failed"|"skipped",
-         "conclusion": <raw>}
 
-    The prod-smoke job runs three sequential `Run <name> spec` steps, each
-    with `continue-on-error: true` so the JSON conclusion will be `failure`
-    on the failing step(s) but `success` on the steps that passed. We use
-    this to break the workflow conclusion down into per-spec status so the
-    Discord embed can say *which* spec failed instead of just "prod-smoke".
+def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
+    """Parse per-spec results from a downloaded prod-smoke artifact.
+
+    Returns one dict per spec in the order they ran:
+        {"name": <human label>, "status": "passed"|"failed",
+         "error": <error snippet or empty>, "passed": int, "failed": int}
+
+    Empty/missing/unparseable JSON files mean playwright crashed before
+    producing any test output (e.g. config load error) — treated as
+    `failed` with an empty error so the caller falls back to the job-level
+    log snippet for the actual cause.
+
+    Returns an empty list when the artifact is missing entirely so the
+    caller can fall back to the conclusion-based single-test path.
     """
-    rc = subprocess.run(
-        ["gh", "run", "view", str(run_id),
-         "--repo", GH_REPO,
-         "--json", "jobs"],
-        capture_output=True, text=True,
-    )
-    if rc.returncode != 0:
+    if not art_path or not art_path.is_dir():
         return []
-    try:
-        data = json.loads(rc.stdout)
-    except json.JSONDecodeError:
+
+    # The JSON files live under one of these locations depending on how the
+    # artifact was unpacked. Try both.
+    candidates = [
+        art_path / "test-results",
+        art_path / f"prod-smoke-results-{art_path.name}" / "test-results",
+    ]
+    # Also walk one level down in case the artifact name is unknown.
+    if not any(c.is_dir() for c in candidates):
+        for child in art_path.iterdir():
+            if child.is_dir():
+                inner = child / "test-results"
+                if inner.is_dir():
+                    candidates.append(inner)
+                    break
+
+    base: Optional[Path] = next((c for c in candidates if c.is_dir()), None)
+    if base is None:
         return []
 
     out: list[dict] = []
-    for job in data.get("jobs", []):
-        for step in job.get("steps", []):
-            name = step.get("name", "") or ""
-            # Only collect the spec-running steps (defined in prod-smoke.yml).
-            if not name.startswith("Run ") or "spec" not in name.lower():
-                continue
-            conclusion = (step.get("conclusion") or "").lower()
-            if conclusion == "success":
-                status = "passed"
-            elif conclusion in ("failure", "cancelled"):
-                status = "failed"
-            else:
-                status = "skipped"
-            out.append({"name": name, "status": status, "conclusion": conclusion})
+    for spec_key, spec_label in PROD_SMOKE_SPECS:
+        json_path = base / f"{spec_key}.json"
+        if not json_path.is_file() or json_path.stat().st_size == 0:
+            out.append({
+                "name": spec_label,
+                "status": "failed",
+                "error": "",  # caller will substitute the job log snippet
+                "passed": 0,
+                "failed": 1,
+            })
+            continue
+
+        # The file may have non-JSON prefix from the `list` reporter — find
+        # the first `{` and try to parse from there.
+        try:
+            raw = json_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            out.append({
+                "name": spec_label, "status": "failed",
+                "error": "", "passed": 0, "failed": 1,
+            })
+            continue
+
+        data = None
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            brace = raw.find("{")
+            if brace >= 0:
+                try:
+                    data = json.loads(raw[brace:])
+                except json.JSONDecodeError:
+                    data = None
+
+        if not isinstance(data, dict):
+            out.append({
+                "name": spec_label, "status": "failed",
+                "error": (raw.strip().splitlines()[-1][:300] if raw.strip() else ""),
+                "passed": 0, "failed": 1,
+            })
+            continue
+
+        # Playwright JSON: stats.expected = passed, stats.unexpected = failed
+        stats = data.get("stats", {}) or {}
+        expected = int(stats.get("expected", 0) or 0)
+        unexpected = int(stats.get("unexpected", 0) or 0)
+
+        # Pull the first failure message if available.
+        first_error = ""
+        if unexpected > 0:
+            for suite in data.get("suites", []) or []:
+                for spec in suite.get("specs", []) or []:
+                    for t in spec.get("tests", []) or []:
+                        for r in (t.get("results") or []):
+                            if r.get("status") in ("failed", "timedOut"):
+                                err = (r.get("error", {}) or {}).get("message", "")
+                                if err:
+                                    first_error = err.strip()
+                                    break
+                        if first_error:
+                            break
+                    if first_error:
+                        break
+                if first_error:
+                    break
+
+        status = "passed" if unexpected == 0 and expected > 0 else "failed"
+        out.append({
+            "name": spec_label,
+            "status": status,
+            "error": first_error,
+            "passed": expected,
+            "failed": unexpected,
+        })
+
     return out
 
 
@@ -1710,6 +1794,9 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
 
     new_run_id: Optional[int] = None
+    suite_result: Optional[SuiteResult] = None  # set by failure paths OR by artifact parser
+    conclusion: str = "unknown"
+
     rc = subprocess.run(
         ["gh", "workflow", "run", PROD_SMOKE_WORKFLOW,
          "--repo", GH_REPO, "--ref", GH_BRANCH],
@@ -1754,53 +1841,67 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             conclusion = status_data.get("conclusion", "unknown")
             _log(f"prod-smoke run {new_run_id} → {conclusion}")
 
-            # Parse per-step results so the Discord embed can say "signup
-            # spec failed" instead of just "prod-smoke". Each step result
-            # becomes its own pseudo-test, with the full job log snippet
-            # attached as the error so the embed shows the actual cause.
-            steps = _parse_prod_smoke_steps(new_run_id)
+    # ─── Result building (artifact-driven) ──────────────────────────────────
+    # Download the prod-smoke artifact so we can read the per-spec playwright
+    # JSON files AND pull failure screenshots in a single round trip. This
+    # block runs unconditionally when we have a run ID and no early failure
+    # path already produced a synthetic suite_result.
+    artifact_dir: Optional[Path] = None
+    art_path: Optional[Path] = None
+    spec_results: list[dict] = []
+    log_snippet = ""
+
+    if new_run_id is not None and suite_result is None:
+        artifact_dir = Path(tempfile.mkdtemp(prefix="prod-smoke-artifact-"))
+        art_path = client.download_artifact(
+            new_run_id, f"prod-smoke-results-{new_run_id}", artifact_dir
+        )
+        spec_results = _parse_prod_smoke_artifact(art_path) if art_path else []
+        # Job-level log snippet — used when an individual spec's JSON is
+        # empty/missing (the spec crashed before producing structured output).
+        if conclusion != "success":
             log_snippet = client.get_failed_job_error(new_run_id) or ""
 
-            if not steps:
-                # Fallback when step parsing fails — preserves the prior
-                # behaviour so we never silently lose a notification.
-                if conclusion == "success":
-                    suite_result = SuiteResult(
-                        status="passed",
-                        tests=[{"name": "prod-smoke", "status": "passed",
-                                "duration_seconds": 0,
-                                "file": "prod-smoke.yml",
-                                "run_id": new_run_id}],
+        if spec_results:
+            tests: list[dict] = []
+            for sr in spec_results:
+                t: dict = {
+                    "name": sr["name"],
+                    "status": sr["status"],
+                    "duration_seconds": 0,
+                    "file": "prod-smoke.yml",
+                    "run_id": new_run_id,
+                }
+                if sr["status"] == "failed":
+                    # Prefer the per-spec error from the playwright JSON;
+                    # fall back to the job-level log snippet when the JSON
+                    # was empty (e.g. config-load crash).
+                    t["error"] = sr.get("error") or log_snippet or (
+                        f"prod-smoke conclusion: {conclusion}"
                     )
-                else:
-                    suite_result = SuiteResult(
-                        status="failed",
-                        tests=[{"name": "prod-smoke", "status": "failed",
-                                "duration_seconds": 0,
-                                "file": "prod-smoke.yml",
-                                "run_id": new_run_id,
-                                "error": log_snippet
-                                or f"prod-smoke conclusion: {conclusion}"}],
-                    )
-            else:
-                tests: list[dict] = []
-                for step in steps:
-                    t: dict = {
-                        "name": step["name"],
-                        "status": step["status"],
-                        "duration_seconds": 0,
-                        "file": "prod-smoke.yml",
-                        "run_id": new_run_id,
-                    }
-                    if step["status"] == "failed":
-                        # Attach the full log snippet to every failed step —
-                        # the snippet covers the whole job so this is fine.
-                        t["error"] = log_snippet or f"step conclusion: {step['conclusion']}"
-                    tests.append(t)
-                has_fail = any(t["status"] == "failed" for t in tests)
+                tests.append(t)
+            has_fail = any(t["status"] == "failed" for t in tests)
+            suite_result = SuiteResult(
+                status="failed" if has_fail else "passed",
+                tests=tests,
+            )
+        else:
+            # Artifact missing entirely — preserve the conclusion-based
+            # single-test fallback so we never silently drop a notification.
+            if conclusion == "success":
                 suite_result = SuiteResult(
-                    status="failed" if has_fail else "passed",
-                    tests=tests,
+                    status="passed",
+                    tests=[{"name": "prod-smoke", "status": "passed",
+                            "duration_seconds": 0, "file": "prod-smoke.yml",
+                            "run_id": new_run_id}],
+                )
+            else:
+                suite_result = SuiteResult(
+                    status="failed",
+                    tests=[{"name": "prod-smoke", "status": "failed",
+                            "duration_seconds": 0, "file": "prod-smoke.yml",
+                            "run_id": new_run_id,
+                            "error": log_snippet or f"prod-smoke conclusion: {conclusion}"}],
                 )
 
     result = ResultAggregator.build_run_result(
@@ -1825,27 +1926,20 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     print("=" * 60)
     print()
 
-    # Try to download the workflow artifact and pull a few PNG screenshots
-    # for the Discord embed. Best-effort only: if the artifact is missing
-    # or the download fails we still send the text summary.
+    # Pull screenshots from the already-downloaded artifact (best effort).
+    # The artifact contains both the test-results/*.json playwright reports
+    # AND any failure screenshots the spec wrote to the workspace.
     screenshots: list[Path] = []
-    artifact_dir: Optional[Path] = None
-    if new_run_id and s["failed"] > 0:
-        artifact_dir = Path(tempfile.mkdtemp(prefix="prod-smoke-artifact-"))
-        art_path = client.download_artifact(
-            new_run_id, f"prod-smoke-results-{new_run_id}", artifact_dir
-        )
-        if art_path:
-            for png in sorted(art_path.rglob("*.png")):
+    if art_path and s["failed"] > 0:
+        for png in sorted(art_path.rglob("*.png")):
+            if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
+                break
+            screenshots.append(png)
+        if not screenshots:
+            for img in sorted(art_path.rglob("*.webp")):
                 if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
                     break
-                screenshots.append(png)
-            if not screenshots:
-                # Some Playwright runs save .webp; pick those up too.
-                for img in sorted(art_path.rglob("*.webp")):
-                    if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
-                        break
-                    screenshots.append(img)
+                screenshots.append(img)
 
     run_url = (
         f"https://github.com/{GH_REPO}/actions/runs/{new_run_id}"
