@@ -1,0 +1,46 @@
+{
+  "fixture_id": "model_override_switch_qwen",
+  "recorded_at": "2026-04-07T15:48:49.607167+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is 3 + 3? Answer with just the number.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "What is 3 + 3?",
+    "icon_names": [
+      "calculator"
+    ],
+    "selected_model_id": "alibaba/qwen3-235b-a22b-2507",
+    "selected_model_name": "Qwen 3 256b",
+    "mate_id": "george",
+    "chat_summary": "User asks a simple math question.",
+    "chat_tags": [
+      "math",
+      "simple calculation"
+    ],
+    "relevant_app_skills": [
+      "math-calculate"
+    ],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Qwen 3 256b",
+    "provider_name": "Cerebras",
+    "server_region": "US",
+    "icon_names": [
+      "calculator"
+    ]
+  },
+  "response": "6",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Qwen 3 256b"
+  }
+}

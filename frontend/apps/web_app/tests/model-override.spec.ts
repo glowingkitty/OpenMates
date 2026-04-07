@@ -422,10 +422,12 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 		'gpt'
 	);
 
-	// Type the question and send
+	// Type the question and send. Math question instead of geography because the
+	// gpt-5.4 provider repeatedly errors on the "Capital city of Germany" prompt
+	// during recording (chat.an_error_occured). (OPE-354)
 	await typeQuestionAndSend(
 		page,
-		'Capital city of Germany? short answer please.',
+		'What is 7 + 7? Answer with just the number.',
 		logCheckpoint,
 		takeStepScreenshot,
 		'gpt',
@@ -443,8 +445,8 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 	);
 
 	// Verify the response contains the expected answer
-	expect(response.toLowerCase()).toContain('berlin');
-	logCheckpoint('Verified response contains "Berlin".');
+	expect(response).toContain('14');
+	logCheckpoint('Verified response contains "14".');
 
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'gpt-cleanup');
