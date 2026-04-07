@@ -28,9 +28,9 @@ changes to the documentation (to keep the documentation up to date).
         background: var(--color-primary);
         cursor: pointer;
         position: relative;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--shadow-sm);
 
-        transition: transform 0.2s ease;
+        transition: transform var(--duration-normal) var(--easing-default);
 
         &:hover {
             transform: scale(1.1);

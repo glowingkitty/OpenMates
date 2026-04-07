@@ -446,7 +446,7 @@
           
           <div class="snippets-list">
             {#each cleanedSnippets as snippet}
-              <div class="snippet-card">
+              <div class="ds-snippet-card">
                 <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
                 <div class="quote-icon quote-open clickable-icon icon_quote"></div>
                 
@@ -488,7 +488,7 @@
     max-width: 511px;
     border-radius: 30px;
     overflow: hidden;
-    margin-bottom: 24px;
+    margin-bottom: var(--spacing-12);
     background-color: var(--color-grey-30);
   }
   
@@ -508,7 +508,7 @@
   .title-section {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--spacing-6);
     width: 100%;
     max-width: 500px;
     margin-bottom: 25px;
@@ -522,12 +522,12 @@
     border: 1.5px solid white;
     background-color: white;
     object-fit: cover;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
   
   .news-title {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -545,7 +545,7 @@
     color: #858585;
     width: 100%;
     max-width: 500px;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
     /* Align with title text (accounting for favicon width + gap) */
     padding-left: 40.5px;
   }
@@ -556,7 +556,7 @@
   
   .description {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-100);
     line-height: 1.5;
@@ -577,7 +577,7 @@
   
   .snippets-title {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-grey-100);
     margin: 0 0 4px 0;
@@ -587,27 +587,23 @@
     font-family: 'Lexend Deca', sans-serif;
     font-weight: 700;
     color: #858585;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
   }
   
   .snippets-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--spacing-6);
   }
   
   /* ===========================================
      Snippet Card
      =========================================== */
   
-  .snippet-card {
-    position: relative;
-    background-color: var(--color-grey-0);
-    border-radius: 30px;
-    padding: 24px 50px;
-    min-height: 60px;
-  }
-  
+  /* Base .ds-snippet-card styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/snippet-card.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
   /* Quote icons positioning - uses CSS mask with quote.svg from icons system */
   .quote-icon {
     position: absolute;
@@ -632,7 +628,7 @@
   
   .snippet-text {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-100);
     line-height: 1.5;
@@ -651,31 +647,31 @@
     }
     
     .header-image-container {
-      border-radius: 20px;
+      border-radius: var(--radius-8);
     }
     
     .news-title {
-      font-size: 18px;
+      font-size: var(--font-size-h3-mobile);
     }
     
     .date-info {
-      font-size: 12px;
+      font-size: var(--font-size-xxs);
       padding-left: 36px;
     }
     
     .title-favicon {
       width: 24px;
       height: 24px;
-      border-radius: 12px;
+      border-radius: var(--radius-5);
     }
 
     .snippets-title {
-      font-size: 18px;
+      font-size: var(--font-size-h3-mobile);
     }
     
-    .snippet-card {
+    .ds-snippet-card {
       padding: 20px 50px;
-      border-radius: 20px;
+      border-radius: var(--radius-8);
     }
   }
   
@@ -691,19 +687,19 @@
     }
     
     .title-section {
-      gap: 8px;
+      gap: var(--spacing-4);
     }
     
     .news-title {
-      font-size: 16px;
+      font-size: var(--font-size-p);
     }
     
     .date-info {
-      padding-left: 32px;
+      padding-left: var(--spacing-16);
     }
     
-    .snippet-card {
-      padding: 16px 40px;
+    .ds-snippet-card {
+      padding: var(--spacing-8) var(--spacing-20);
     }
     
     .quote-icon {

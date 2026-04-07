@@ -107,8 +107,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-        padding: 32px 24px 24px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-16) var(--spacing-12) var(--spacing-12);
         text-align: center;
     }
 
@@ -117,21 +117,21 @@
         height: 56px;
         border-radius: 50%;
         background: var(--color-success, #4caf50);
-        color: #fff;
-        font-size: 28px;
+        color: var(--color-grey-0);
+        font-size: var(--font-size-xxl);
         line-height: 56px;
         flex-shrink: 0;
     }
 
     .confirmation-heading {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-font-primary);
         margin: 0;
     }
 
     .confirmation-body {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-font-secondary);
         margin: 0;
         max-width: 320px;
@@ -142,16 +142,16 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         width: 100%;
         max-width: 360px;
         border-radius: var(--border-radius-md, 6px);
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--color-grey-10);
     }
 
     .issue-id-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-100);
         text-transform: uppercase;
@@ -161,29 +161,29 @@
     .issue-id-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         flex-wrap: wrap;
         justify-content: center;
     }
 
     .issue-id-value {
         font-family: monospace;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-100);
         word-break: break-all;
     }
 
     /* Submit another button */
     .another-btn {
-        margin-top: 8px;
-        padding: 10px 20px;
+        margin-top: var(--spacing-4);
+        padding: var(--spacing-5) var(--spacing-10);
         border: 1px solid var(--color-border, #ccc);
         border-radius: var(--border-radius-md, 6px);
         background: transparent;
         color: var(--color-font-primary);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background var(--duration-fast);
     }
 
     .another-btn:hover {

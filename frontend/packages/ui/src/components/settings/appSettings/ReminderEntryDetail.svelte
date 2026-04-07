@@ -326,7 +326,7 @@
 		color: var(--color-grey-100);
 		appearance: none;
 		-webkit-appearance: none;
-		transition: box-shadow 0.2s ease;
+		transition: box-shadow var(--duration-normal) var(--easing-default);
 		box-sizing: border-box;
 	}
 
@@ -352,7 +352,7 @@
 		font-size: var(--font-size-p, 0.875rem);
 		font-weight: 600;
 		cursor: pointer;
-		transition: opacity 0.15s ease;
+		transition: opacity var(--duration-fast) var(--easing-default);
 	}
 
 	.btn-edit:hover, .btn-save:hover { opacity: 0.88; }
@@ -368,7 +368,7 @@
 		font-size: var(--font-size-p, 0.875rem);
 		font-weight: 600;
 		cursor: pointer;
-		transition: background 0.15s ease;
+		transition: background var(--duration-fast) var(--easing-default);
 	}
 
 	.btn-delete:hover { background: var(--color-error-5, #fff5f5); }
@@ -384,7 +384,7 @@
 		font-size: var(--font-size-p, 0.875rem);
 		font-weight: 500;
 		cursor: pointer;
-		transition: background 0.15s ease;
+		transition: background var(--duration-fast) var(--easing-default);
 	}
 
 	.btn-cancel:hover { background: var(--color-grey-10); }

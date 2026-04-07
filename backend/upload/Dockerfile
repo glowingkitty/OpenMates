@@ -36,10 +36,12 @@ RUN apt-get update && \
 COPY backend/upload/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy shared backend framework code (same as Dockerfile.base)
+# Copy shared backend framework code. base_main.py and Dockerfile.base were
+# deleted in OPE-342 (per-app FastAPI containers were collapsed into in-process
+# plugins). The upload service has its own main.py entry point and never
+# imported base_main.py — the COPY was vestigial.
 COPY backend/apps/base_app.py /app/apps/base_app.py
 COPY backend/apps/base_skill.py /app/apps/base_skill.py
-COPY backend/apps/base_main.py /app/base_main.py
 RUN mkdir -p /app/apps && touch /app/apps/__init__.py
 
 # Copy shared Python schemas and utilities

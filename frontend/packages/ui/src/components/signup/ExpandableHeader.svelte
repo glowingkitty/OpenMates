@@ -72,7 +72,7 @@
         background: var(--color-primary);
         overflow: hidden;
         transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-        z-index: 1; /* Make sure it's above other content but below navigation */
+        z-index: var(--z-index-raised); /* Make sure it's above other content but below navigation */
     }
 
     .expandable-header.visible {

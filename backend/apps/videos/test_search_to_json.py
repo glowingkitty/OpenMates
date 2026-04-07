@@ -1,18 +1,30 @@
 #!/usr/bin/env python3
 """
-Test script for video search API.
-Makes a request to the video search skill and displays the video data including thumbnail and profile image links.
+Manual debug script for video search.
 
-Usage:
-    docker exec api python /app/backend/apps/videos/test_search_to_json.py "search query"
+OPE-342: previously HTTP-curled into the app-videos container. That container
+no longer exists. The script is left in place for reference but disabled until
+it is rewritten to dispatch via the in-process SkillRegistry, e.g.:
+
+    docker exec api python -c "
+    import asyncio
+    from backend.core.api.app.services.skill_registry import get_global_registry
+    print(asyncio.run(get_global_registry().dispatch_skill(
+        'videos', 'search', {'requests': [{'query': 'cats'}]}
+    )))
+    "
 """
 
-import json
 import sys
-import urllib.request
+
+print("DISABLED (OPE-342): rewrite to use the in-process SkillRegistry — see module docstring.")
+sys.exit(1)
+
+import json  # noqa: E402  (unreachable, kept for reference)
+import urllib.request  # noqa: E402
 
 # Configuration
-API_URL = "http://app-videos:8000/skills/search"
+API_URL = "http://app-videos:8000/skills/search"  # legacy, no longer reachable
 
 
 def search_video(query: str) -> dict:
@@ -124,7 +136,7 @@ def search_video(query: str) -> dict:
         try:
             error_json = json.loads(error_body)
             print(f"Error details: {json.dumps(error_json, indent=2)}", file=sys.stderr)
-        except:
+        except Exception:
             pass
         sys.exit(1)
     except Exception as e:

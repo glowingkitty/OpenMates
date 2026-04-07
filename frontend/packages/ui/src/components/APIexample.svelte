@@ -80,7 +80,7 @@
         height: 267px;
         border-radius: 18px;
         font-family: 'Fira Code', monospace;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         background-color: #313131;
         overflow: hidden;
     }
@@ -91,8 +91,8 @@
         bottom: 0;
         background: #242424;
         transition: all 0.5s ease;
-        padding: 10px 20px 10px 20px;
-        border-radius: 12px;
+        padding: var(--spacing-5) var(--spacing-10) var(--spacing-5) var(--spacing-10);
+        border-radius: var(--radius-5);
     }
     .request.smaller {
         bottom: 175px;
@@ -102,7 +102,7 @@
         top: 0;
         left: 0;
         bottom: 0;
-        padding: 20px;
+        padding: var(--spacing-10);
         padding-top: 110px;
     }
     .endpoint {
@@ -119,7 +119,7 @@
     }
     pre {
         font-family: 'Fira Code', monospace;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 600;
     }
     .key {
@@ -130,6 +130,6 @@
         color: #4CA47F;
     }
     .syntax {
-        color: #FFFFFF;
+        color: var(--color-grey-0);
     }
 </style>

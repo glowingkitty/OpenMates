@@ -105,7 +105,7 @@
   /* Horizontal scrollable container matching the standard embed group scroll pattern */
   .ai-models-group {
     display: flex;
-    gap: 10px;
+    gap: var(--spacing-5);
     align-items: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
@@ -132,16 +132,16 @@
   .model-card {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px 10px 12px;
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) var(--spacing-8) var(--spacing-5) var(--spacing-6);
     min-width: 180px;
     max-width: 240px;
     background-color: var(--color-grey-20);
     border: 1px solid var(--color-grey-30);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    transition: background-color var(--duration-normal) var(--easing-default), transform var(--duration-normal) var(--easing-default), border-color var(--duration-normal) var(--easing-default);
   }
   
   .model-card:hover {
@@ -167,7 +167,7 @@
   .provider-icon {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     object-fit: contain;
     background: var(--color-grey-10);
     padding: 3px;

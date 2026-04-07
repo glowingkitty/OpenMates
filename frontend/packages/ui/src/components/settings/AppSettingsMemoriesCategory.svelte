@@ -505,13 +505,13 @@
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.5rem 1rem;
         margin-top: 1rem;
         cursor: pointer;
         font-size: 0.9rem;
         color: var(--text-primary, #000000);
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
 
     .back-button:hover {

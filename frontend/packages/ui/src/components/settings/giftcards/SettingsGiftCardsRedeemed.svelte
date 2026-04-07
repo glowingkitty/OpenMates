@@ -97,7 +97,7 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
     .loading-message,
     .error-message,
     .empty-state {
-        padding: 20px;
+        padding: var(--spacing-10);
         text-align: center;
         color: var(--color-grey-60);
     }
@@ -105,20 +105,20 @@ Gift Cards Redeemed - View all gift cards redeemed by the user
     .error-message {
         color: #df1b41;
         background: rgba(223, 27, 65, 0.1);
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 12px;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-6);
     }
 
     .retry-button {
         width: 100%;
-        padding: 12px;
+        padding: var(--spacing-6);
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .retry-button:hover {

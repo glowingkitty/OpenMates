@@ -463,8 +463,8 @@ Matches the design from the signup flow screenshot.
         max-width: 400px;
         height: 100%;
         background-color: var(--color-grey-20);
-        border-radius: 16px;
-        padding: 16px;
+        border-radius: var(--radius-7);
+        padding: var(--spacing-8);
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
@@ -477,14 +477,14 @@ Matches the design from the signup flow screenshot.
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .icon-wrapper {
         width: 40px;
         height: 40px;
         background-color: #1E3A8A; /* Dark blue background */
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -501,14 +501,14 @@ Matches the design from the signup flow screenshot.
     }
 
     .header-text {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-grey-100);
     }
 
     .intro-text {
         color: var(--color-grey-100);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1.5;
         margin-bottom: 15px;
         margin-top: 15px;
@@ -517,14 +517,14 @@ Matches the design from the signup flow screenshot.
     .toggle-option {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-bottom: 10px;
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-5);
     }
 
     .toggle-row {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--spacing-5);
         cursor: pointer;
     }
 
@@ -551,7 +551,7 @@ Matches the design from the signup flow screenshot.
 
     .option-label {
         color: var(--color-primary-end); /* Blue color */
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
         flex: 1;
@@ -560,7 +560,7 @@ Matches the design from the signup flow screenshot.
 
     .option-description {
         color: var(--color-grey-70);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
         padding-left: 60px; /* Align with toggle + icon + label */
         text-align: left;
@@ -570,17 +570,17 @@ Matches the design from the signup flow screenshot.
     .recommended-badge {
         background: var(--color-primary);
         border-radius: 19px;
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         display: flex;
         align-items: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         margin-top: 5px;
     }
 
     .recommended-badge strong {
         color: white;
-        margin-left: 10px;
+        margin-left: var(--spacing-5);
     }
 
     .gift-icon {
@@ -595,7 +595,7 @@ Matches the design from the signup flow screenshot.
 
     .help-text {
         color: var(--color-grey-70);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
         margin-bottom: 15px;
     }
@@ -603,11 +603,11 @@ Matches the design from the signup flow screenshot.
     .error-message {
         background-color: var(--color-grey-10);
         color: #ff6b6b;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-4) var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         line-height: 1.4;
-        margin-top: 6px;
+        margin-top: var(--spacing-3);
         border: 1px solid var(--color-grey-30);
     }
 </style>

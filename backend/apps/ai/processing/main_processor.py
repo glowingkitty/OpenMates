@@ -3411,7 +3411,9 @@ async def handle_main_processing(
                 if not is_async_skill and not is_multimodal_result:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _EmbedSvc
-                        _child_type = _EmbedSvc.get_child_embed_type(app_id, skill_id)
+                        _child_type = await _EmbedSvc.get_child_embed_type(
+                            app_id, skill_id, cache_service=cache_service
+                        )
                         _seen_refs: Dict[str, int] = {}
                         results_with_refs = []
                         for _r in results:

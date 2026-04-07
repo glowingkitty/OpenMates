@@ -105,6 +105,23 @@ Availability check: `is_skill_available()` in [apps.py](../../backend/core/api/a
 
 <!-- TODO: screenshot (1000x400) — embed preview in processing state with cancel button visible -->
 
+## In-Process Loading (OPE-342)
+
+Apps run **in-process** inside the `api` container and the Celery workers. There is no per-app `app-{name}` Uvicorn container.
+
+At startup, `discover_apps()` in [main.py](../../backend/core/api/main.py) calls `build_skill_registry()` in [skill_registry.py](../../backend/core/api/app/services/skill_registry.py) which:
+
+1. Filesystem-scans `backend/apps/*/app.yml`.
+2. Applies stage filtering (development/production).
+3. Instantiates a `BaseApp(register_http_routes=False)` per app — each `BaseApp` resolves every skill `class_path` via `importlib`.
+4. Stores the resulting `SkillRegistry` on `app.state.skill_registry` and as a process-global singleton.
+
+Celery workers do the same in `init_worker_process()` ([celery_config.py](../../backend/core/api/app/tasks/celery_config.py)) so they can dispatch skills via the registry instead of HTTPing to a sibling container.
+
+**To add a new app:** drop a folder under `backend/apps/`, restart api. Zero `docker-compose.yml` edits.
+
+**Failure mode:** if a skill's `class_path` fails to import, `BaseApp._resolve_skill_classes` logs an `ERROR` and skips that one skill — the rest of the app keeps working, and the failing skill returns 404 from REST and is invisible to the AI preprocessor. The api process itself stays up.
+
 ## Edge Cases
 
 - **Uninstalled app skills:** pre-processing excludes them — checked during validation in [skill_executor.py](../../backend/apps/ai/processing/skill_executor.py)

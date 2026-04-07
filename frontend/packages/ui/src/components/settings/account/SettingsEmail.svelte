@@ -95,7 +95,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 5px 10px;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         min-height: 40px;
     }
 
@@ -109,7 +109,7 @@
     .icon-container {
         width: 44px;
         height: 44px;
-        margin-right: 12px;
+        margin-right: var(--spacing-6);
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -119,18 +119,18 @@
     .email-text {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         min-width: 0;
     }
 
     .email-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         text-align: left;
     }
 
     .email-address {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         color: var(--color-grey-100);
         text-align: left;
@@ -142,13 +142,13 @@
         background: none;
         border: none;
         cursor: pointer;
-        padding: 8px;
-        border-radius: 6px;
+        padding: var(--spacing-4);
+        border-radius: var(--radius-2);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .copy-button:hover {
@@ -163,7 +163,7 @@
         margin: 1.5rem;
         padding: 1rem;
         background: var(--color-background-secondary);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-border);
     }
 

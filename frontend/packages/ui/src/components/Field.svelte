@@ -175,10 +175,10 @@
     right: 5px;
     top: 50%;
     transform: translateY(-50%);
-    padding: 12px 24px;
+    padding: var(--spacing-6) var(--spacing-12);
     height: auto;
     margin: 0;
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
 
   .icon-field {
@@ -190,11 +190,11 @@
     bottom: -20px;
     left: 0;
     font-size: 0.8rem;
-    color: #e74c3c;
+    color: var(--color-error);
     margin: 0;
   }
 
   input.error {
-    border-color: #e74c3c;
+    border-color: var(--color-error);
   }
 </style>

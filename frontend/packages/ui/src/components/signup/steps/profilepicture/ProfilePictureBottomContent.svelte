@@ -199,16 +199,16 @@
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
         align-items: center;  /* Add this line */
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .file-upload-field {
         padding: 12px 16px 12px 45px;
-        padding-left: 0px;
+        padding-left: var(--spacing-0);
         display: block;  /* Add this line */
         margin: 0 auto;  /* Add this line */
         cursor: pointer;
@@ -228,13 +228,13 @@
     .file-upload-button {
         display: flex;
         align-items: center;
-        padding: 12px 16px 12px 48px;
+        padding: var(--spacing-6) var(--spacing-8) var(--spacing-6) var(--spacing-24);
         border-radius: 24px;
         border: 2px solid var(--color-grey-0);
         background-color: var(--color-grey-0);
         color: var(--color-grey-100);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        transition: all 0.2s ease-in-out;
+        box-shadow: var(--shadow-sm);
+        transition: all var(--duration-normal) var(--easing-in-out);
         position: relative;
     }
 
@@ -260,7 +260,7 @@
     }
 
     .upload-text {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: transparent;
         background: var(--color-primary);
         -webkit-background-clip: text;
@@ -270,11 +270,11 @@
 
 
     .warning-message {
-        padding: 16px;
+        padding: var(--spacing-8);
         background-color: var(--color-error-light);
         color: var(--color-error-dark);
         border: 1px solid var(--color-error);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         text-align: center;
         font-weight: 500;
         max-width: 350px;

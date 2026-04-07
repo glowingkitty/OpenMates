@@ -376,47 +376,47 @@
         padding: 0 10px;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--spacing-12);
     }
     
     .not-authenticated-message,
     .loading-message,
     .empty-state {
-        padding: 20px;
+        padding: var(--spacing-10);
         text-align: center;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
     
     .shared-section,
     .shared-with-me-section {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .chat-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .chat-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .unshare-button {
         background: none;
         border: none;
         cursor: pointer;
-        padding: 8px;
+        padding: var(--spacing-4);
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0.6;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
     
     .unshare-button:hover {

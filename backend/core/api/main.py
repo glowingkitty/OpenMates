@@ -28,8 +28,9 @@ from slowapi import _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
-import httpx  # noqa: E402 # For service discovery
-from typing import Dict, List, Any, Optional  # noqa: E402 # For type hinting
+# httpx import removed in OPE-342 — service discovery is now in-process,
+# no HTTP /metadata probes are made.
+from typing import Dict, List, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets  # noqa: E402
@@ -122,239 +123,40 @@ app = None
 
 # Define lifespan context manager for startup/shutdown events
 
-def scan_filesystem_for_apps() -> List[str]:
-    """
-    Scans the backend/apps directory for all subdirectories containing app.yml files.
-    Returns a list of app IDs (directory names).
-    
-    This enables auto-discovery of all apps without manual configuration.
-    """
-    APPS_DIR = "/app/backend/apps"  # Path inside Docker container
-    app_ids = []
-    
-    if not os.path.isdir(APPS_DIR):
-        logger.warning(f"Apps directory not found: {APPS_DIR}. Cannot auto-discover apps.")
-        return app_ids
-    
-    try:
-        for item in os.listdir(APPS_DIR):
-            item_path = os.path.join(APPS_DIR, item)
-            # Check if it's a directory and contains app.yml
-            if os.path.isdir(item_path):
-                app_yml_path = os.path.join(item_path, "app.yml")
-                if os.path.isfile(app_yml_path):
-                    app_ids.append(item)
-                    logger.debug(f"Found app directory with app.yml: {item}")
-    except OSError as e:
-        logger.error(f"Error scanning apps directory {APPS_DIR}: {e}")
-    
-    logger.info(f"Filesystem scan found {len(app_ids)} app(s): {app_ids}")
-    return app_ids
+# scan_filesystem_for_apps() and filter_app_components_by_stage() were moved
+# to backend/core/api/app/services/skill_registry.py in OPE-342, so the api,
+# Celery workers, and health check tasks can all use the same implementation.
 
 
-def filter_app_components_by_stage(app_metadata_json: Dict[str, Any], server_environment: str) -> Dict[str, Any]:
+async def discover_apps(app_state: any) -> Dict[str, AppYAML]:
     """
-    Filters app components (skills, focuses, memory_fields) by stage and returns
-    a filtered copy of the metadata.
-    
-    Rules:
-    - Development server: Include components with stage='development' OR stage='production'
-    - Production server: Include components with stage='production' only
-    - Components without stage or with invalid stage are excluded
-    
-    Args:
-        app_metadata_json: The raw JSON metadata from the app service
-        server_environment: 'development' or 'production'
-    
-    Returns:
-        Filtered metadata dictionary with only valid components, or None if no valid components
-    """
-    # Determine required stages based on server environment
-    if server_environment.lower() == "production":
-        required_stages = ["production"]
-    else:  # development (default)
-        required_stages = ["development", "production"]
-    
-    # Create a copy of the metadata to filter
-    filtered_metadata = app_metadata_json.copy()
-    
-    # Filter skills by stage (stage field is in schema)
-    skills_data = filtered_metadata.get("skills", [])
-    if isinstance(skills_data, list):
-        filtered_skills = [
-            skill for skill in skills_data
-            if isinstance(skill, dict) and skill.get("stage", "").lower() in required_stages
-        ]
-        filtered_metadata["skills"] = filtered_skills
-    else:
-        filtered_metadata["skills"] = []
-    
-    # Filter focuses by stage - access raw JSON to check stage field
-    # Focuses may have stage in YAML but not in schema
-    # The actual JSON uses "focuses" (not "focus_modes")
-    focuses_data = []
-    if "focuses" in filtered_metadata and isinstance(filtered_metadata["focuses"], list):
-        focuses_data = filtered_metadata["focuses"]
-    elif "focus_modes" in filtered_metadata and isinstance(filtered_metadata["focus_modes"], list):
-        # Fallback to alias if "focuses" doesn't exist
-        focuses_data = filtered_metadata["focus_modes"]
-    
-    # Filter by stage
-    filtered_focuses = [
-        focus for focus in focuses_data
-        if isinstance(focus, dict) and focus.get("stage", "").lower() in required_stages
-    ]
-    
-    # Set the field name (use "focuses" as that's what the JSON uses)
-    filtered_metadata["focuses"] = filtered_focuses
-    
-    # Filter memory fields by stage - access raw JSON to check stage field
-    # Memory fields may have stage in YAML but not in schema
-    # The actual JSON uses "settings_and_memories" (not "memory_fields" or "memory")
-    memory_data = []
-    if "settings_and_memories" in filtered_metadata and isinstance(filtered_metadata["settings_and_memories"], list):
-        memory_data = filtered_metadata["settings_and_memories"]
-    elif "memory_fields" in filtered_metadata and isinstance(filtered_metadata["memory_fields"], list):
-        # Fallback to other field names if "settings_and_memories" doesn't exist
-        memory_data = filtered_metadata["memory_fields"]
-    elif "memory" in filtered_metadata and isinstance(filtered_metadata["memory"], list):
-        memory_data = filtered_metadata["memory"]
-    
-    # Filter by stage
-    filtered_memory = [
-        memory for memory in memory_data
-        if isinstance(memory, dict) and memory.get("stage", "").lower() in required_stages
-    ]
-    
-    # Set the field name (use "settings_and_memories" as that's what the JSON uses)
-    filtered_metadata["settings_and_memories"] = filtered_memory
-    
-    # Check if app has at least one valid component
-    has_valid_skill = len(filtered_metadata.get("skills", [])) > 0
-    has_valid_focus = len(filtered_metadata.get("focuses", [])) > 0
-    has_valid_memory = len(filtered_metadata.get("settings_and_memories", [])) > 0
-    has_instructions = len(filtered_metadata.get("instructions", [])) > 0
-    
-    # Return filtered metadata if app has at least one valid component or instructions, otherwise None
-    # Apps with only instructions (e.g., docs) are valid - they inject behavior into the AI system prompt
-    if has_valid_skill or has_valid_focus or has_valid_memory or has_instructions:
-        return filtered_metadata
-    else:
-        return None
+    In-process app discovery (OPE-342). Delegates to ``build_skill_registry()``
+    in skill_registry.py, then publishes the registry on ``app.state`` AND as
+    the process-global singleton.
 
+    Returns a {app_id: AppYAML} dict for backward compatibility with downstream
+    consumers (CacheService, register_app_and_skill_routes, etc.). The
+    authoritative skill dispatch state lives in ``app_state.skill_registry``.
+    """
+    from backend.core.api.app.services.skill_registry import build_skill_registry, set_global_registry
 
-async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for app_state for now if Request.state causes issues
-    """
-    Auto-discovers all apps by scanning the filesystem and fetching their metadata.
-    Apps are filtered by component stages based on SERVER_ENVIRONMENT:
-    - Development: Apps with 'development' or 'production' stage components
-    - Production: Apps with 'production' stage components only
-    - Apps in disabled_apps list are excluded
-    
-    No manual configuration needed - new apps are automatically available by default.
-    """
-    DEFAULT_APP_INTERNAL_PORT = 8000 # Standard internal port for our apps
-    discovered_metadata: Dict[str, AppYAML] = {}
-    
-    # Ensure config_manager is accessed correctly from app_state
     if not hasattr(app_state, 'config_manager'):
         logger.error("Service Discovery: config_manager not found in app.state.")
-        return discovered_metadata
-    
-    # Get server environment for stage-based filtering
-    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-    logger.info(f"Service Discovery: Server environment is '{server_environment}'")
-    
-    # Get disabled apps list (opt-out)
+        return {}
+
     disabled_app_ids: List[str] = app_state.config_manager.get_disabled_apps()
-    if disabled_app_ids:
-        logger.info(f"Service Discovery: {len(disabled_app_ids)} app(s) explicitly disabled: {disabled_app_ids}")
-    
-    # Auto-discover all apps by scanning filesystem
-    all_app_ids = scan_filesystem_for_apps()
-    
-    if not all_app_ids:
-        logger.warning("Service Discovery: No apps found in filesystem scan. Check that backend/apps directory exists and contains app subdirectories.")
-        return discovered_metadata
-    
-    logger.info(f"Service Discovery: Starting discovery for {len(all_app_ids)} app(s) found in filesystem: {all_app_ids}")
-    
-    # Check all apps (except disabled ones) - filtering happens at component level
-    apps_to_check = []
-    for app_id in all_app_ids:
-        # Skip disabled apps
-        if app_id in disabled_app_ids:
-            logger.info(f"Service Discovery: Skipping app '{app_id}' (explicitly disabled in config)")
-            continue
-        
-        # Check all apps - component-level filtering happens later
-        apps_to_check.append(app_id)
-    
-    logger.info(f"Service Discovery: Will check {len(apps_to_check)} app(s): {apps_to_check}")
-    
-    # PERFORMANCE OPTIMIZATION: Fetch all app metadata in parallel instead of sequentially
-    # This reduces discovery time from N*timeout to max(timeout) for N apps
-    async def fetch_app_metadata(client: httpx.AsyncClient, app_id: str) -> tuple[str, Optional[AppYAML], Optional[str]]:
-        """Fetch metadata for a single app. Returns (app_id, metadata, error_message)."""
-        hostname = f"app-{app_id}"
-        metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-        logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
-        
-        try:
-            response = await client.get(metadata_url)
-            response.raise_for_status()
-            app_metadata_json = response.json()
-            
-            # Filter components by stage before parsing
-            filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
-            
-            # If no valid components after filtering, skip this app
-            if filtered_metadata_json is None:
-                return (app_id, None, f"App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
-            
-            # Parse the filtered metadata
-            app_yaml_data = AppYAML(**filtered_metadata_json)
-            # Ensure the app_id matches the service name
-            if app_yaml_data.id and app_yaml_data.id != app_id:
-                logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
-                               f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
-            app_yaml_data.id = app_id
-            
-            return (app_id, app_yaml_data, None)
-            
-        except httpx.HTTPStatusError as e:
-            return (app_id, None, f"HTTP error {e.response.status_code}. App service may not be running.")
-        except httpx.RequestError as e:
-            return (app_id, None, f"Request error: {e}. App service may not be running.")
-        except Exception as e:
-            logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
-            return (app_id, None, f"Unexpected error: {e}")
-    
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        # Fetch all app metadata in parallel
-        import asyncio
-        tasks = [fetch_app_metadata(client, app_id) for app_id in apps_to_check]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Process results
-        for result in results:
-            if isinstance(result, Exception):
-                logger.error(f"Service Discovery: Unexpected exception during parallel fetch: {result}")
-                continue
-            
-            app_id, app_yaml_data, error_msg = result
-            
-            if app_yaml_data is not None:
-                discovered_metadata[app_id] = app_yaml_data
-                logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
-            elif error_msg:
-                # Log at appropriate level based on error type
-                if "excluded" in error_msg:
-                    logger.info(f"Service Discovery: {error_msg}")
-                else:
-                    logger.warning(f"Service Discovery: App '{app_id}': {error_msg}")
-    
-    logger.info(f"Service Discovery: Completed. Discovered and included {len(discovered_metadata)} app(s) successfully.")
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    logger.info(
+        f"Service Discovery: env='{server_environment}', "
+        f"disabled={disabled_app_ids if disabled_app_ids else '[]'}"
+    )
+
+    registry, discovered_metadata = build_skill_registry(
+        disabled_app_ids=disabled_app_ids,
+        server_environment=server_environment,
+    )
+    app_state.skill_registry = registry
+    set_global_registry(registry)
     return discovered_metadata
 
 

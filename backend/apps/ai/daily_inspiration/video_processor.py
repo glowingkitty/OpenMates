@@ -24,6 +24,11 @@ from typing import Any, Dict, List, Optional, Set
 
 import httpx
 
+from backend.apps.ai.daily_inspiration.category_age_policy import (
+    HARD_CUTOFF_YEARS,
+    is_within_hard_cutoff,
+    video_age_years,
+)
 from backend.apps.ai.daily_inspiration.content_filter import check_video_metadata
 from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, call_preprocessing_llm
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -360,6 +365,50 @@ async def _enrich_with_youtube(
     return candidates
 
 
+def _filter_by_hard_age_cutoff(
+    candidates: List[Dict[str, Any]],
+    task_id: str,
+    topic_phrase: str,
+) -> List[Dict[str, Any]]:
+    """
+    Drop candidates older than the global `HARD_CUTOFF_YEARS` limit.
+
+    Applied after YouTube Data API enrichment (so `published_at` is populated
+    where possible) and before view-count sorting. Candidates with a missing
+    or unparseable date are kept (fail-open) — this covers Brave-only
+    candidates when the YouTube API key is unavailable.
+
+    Rationale: category-specific caps can't run here because the LLM picks
+    the category, but the 10-year blanket cut is safe for every topic and
+    prevents the LLM from smuggling stale content in under an "evergreen"
+    label (post-OPE-350 regression guard).
+
+    See: backend/apps/ai/daily_inspiration/category_age_policy.py
+    """
+    kept: List[Dict[str, Any]] = []
+    dropped: List[str] = []
+    for candidate in candidates:
+        published_at = candidate.get("published_at")
+        if is_within_hard_cutoff(published_at):
+            kept.append(candidate)
+            continue
+        age = video_age_years(published_at)
+        dropped.append(
+            f"{candidate.get('title', '')[:60]} "
+            f"(age={age:.1f}y)" if age is not None else candidate.get("title", "")
+        )
+
+    if dropped:
+        logger.info(
+            f"[DailyInspiration][{task_id}] Hard age cutoff (>{HARD_CUTOFF_YEARS}y) "
+            f"dropped {len(dropped)}/{len(candidates)} candidates for '{topic_phrase}'"
+        )
+        logger.debug(
+            f"[DailyInspiration][{task_id}] Dropped by age cutoff: {dropped}"
+        )
+    return kept
+
+
 async def find_video_candidates(
     topic_phrase: str,
     secrets_manager: SecretsManager,
@@ -566,6 +615,16 @@ async def find_video_candidates(
 
     # Enrich with YouTube Data API (view counts, duration)
     candidates = await _enrich_with_youtube(candidates, secrets_manager)
+
+    # Apply blanket hard-age cutoff (>10y) before sorting/selection.
+    # Category-specific caps are enforced post-LLM in generator.py.
+    candidates = _filter_by_hard_age_cutoff(candidates, task_id, topic_phrase)
+    if not candidates:
+        logger.warning(
+            f"[DailyInspiration][{task_id}] All candidates rejected by hard age "
+            f"cutoff for '{topic_phrase}'"
+        )
+        return []
 
     # Sort by view count descending (None = 0 for sorting purposes)
     candidates.sort(

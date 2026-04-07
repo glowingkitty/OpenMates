@@ -638,7 +638,7 @@
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -649,9 +649,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
-        margin-bottom: 20px;
-        margin-top: 20px;
+        gap: var(--spacing-8);
+        margin-bottom: var(--spacing-10);
+        margin-top: var(--spacing-10);
     }
     
     .options-container {
@@ -659,22 +659,22 @@
         max-width: 400px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
         height: 100%;
         position: relative;
     }
     
     .instruction-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         text-align: center;
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
     
     .option-wrapper {
         position: relative;
         width: 100%;
-        margin-top: 10px; /* Space for badge */
+        margin-top: var(--spacing-5); /* Space for badge */
     }
 
     .recommended-badge {
@@ -684,11 +684,11 @@
         transform: translate(-50%, -50%);
         background: var(--color-primary);
         border-radius: 19px;
-        padding: 4px 10px;
+        padding: var(--spacing-2) var(--spacing-5);
         display: flex;
         align-items: center;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         white-space: nowrap;
     }
 
@@ -704,7 +704,7 @@
     
     .recommended-badge span {
         color: white;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 600;
     }
 
@@ -714,9 +714,9 @@
         gap: 5px;
         padding: 15px;
         background: var(--color-grey-20);
-        border-radius: 16px;
+        border-radius: var(--radius-7);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         text-align: center;
         width: 100%;
         height: auto;
@@ -743,7 +743,7 @@
     .option-header {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
     
     .option-icon {
@@ -754,7 +754,7 @@
         width: 48px;
         height: 48px;
         background: var(--color-grey-15);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
     
     .option-button.selected .option-icon {
@@ -766,18 +766,18 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
     
     .option-title {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-grey-80);
         margin: 0;
     }
     
     .option-description {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.4;

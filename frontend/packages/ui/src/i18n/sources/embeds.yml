@@ -4393,3 +4393,305 @@ home.search.results_count:
   sv: "{count} annonser hittades"
   he: "נמצאו {count} מודעות"
   verified_by_human: [en, de]
+
+# ── Nutrition ──────────────────────────────────────────────────────────
+
+nutrition.search_recipes:
+  context: Nutrition recipe search skill label shown in embed preview
+  en: Recipe Search
+  de: Rezeptsuche
+  zh: 食谱搜索
+  es: Búsqueda de recetas
+  fr: Recherche de recettes
+  pt: Pesquisa de receitas
+  ru: Поиск рецептов
+  ja: レシピ検索
+  ko: 레시피 검색
+  it: Ricerca ricette
+  tr: Tarif Arama
+  vi: Tìm kiếm công thức
+  id: Pencarian Resep
+  pl: Szukaj przepisów
+  nl: Recepten zoeken
+  ar: بحث الوصفات
+  hi: रेसिपी खोजें
+  th: ค้นหาสูตรอาหาร
+  cs: Hledání receptů
+  sv: Receptsökning
+  he: חיפוש מתכונים
+  verified_by_human: [en, de]
+
+nutrition.recipe:
+  context: Singular label for a recipe result
+  en: recipe
+  de: Rezept
+  zh: 食谱
+  es: receta
+  fr: recette
+  pt: receita
+  ru: рецепт
+  ja: レシピ
+  ko: 레시피
+  it: ricetta
+  tr: tarif
+  vi: công thức
+  id: resep
+  pl: przepis
+  nl: recept
+  ar: وصفة
+  hi: रेसिपी
+  th: สูตรอาหาร
+  cs: recept
+  sv: recept
+  he: מתכון
+  verified_by_human: [en, de]
+
+nutrition.recipes:
+  context: Plural label for recipe results
+  en: recipes
+  de: Rezepte
+  zh: 食谱
+  es: recetas
+  fr: recettes
+  pt: receitas
+  ru: рецепты
+  ja: レシピ
+  ko: 레시피
+  it: ricette
+  tr: tarifler
+  vi: công thức
+  id: resep
+  pl: przepisy
+  nl: recepten
+  ar: وصفات
+  hi: रेसिपी
+  th: สูตรอาหาร
+  cs: recepty
+  sv: recept
+  he: מתכונים
+  verified_by_human: [en, de]
+
+nutrition.servings:
+  context: Label for recipe serving count (e.g. "4 servings")
+  en: servings
+  de: Portionen
+  zh: 份
+  es: porciones
+  fr: portions
+  pt: porções
+  ru: порций
+  ja: 人前
+  ko: 인분
+  it: porzioni
+  tr: porsiyon
+  vi: phần
+  id: porsi
+  pl: porcji
+  nl: porties
+  ar: حصص
+  hi: सर्विंग्स
+  th: เสิร์ฟ
+  cs: porcí
+  sv: portioner
+  he: מנות
+  verified_by_human: [en, de]
+
+nutrition.ingredients:
+  context: Section heading for recipe ingredients list
+  en: Ingredients
+  de: Zutaten
+  zh: 食材
+  es: Ingredientes
+  fr: Ingrédients
+  pt: Ingredientes
+  ru: Ингредиенты
+  ja: 材料
+  ko: 재료
+  it: Ingredienti
+  tr: Malzemeler
+  vi: Nguyên liệu
+  id: Bahan
+  pl: Składniki
+  nl: Ingrediënten
+  ar: المكونات
+  hi: सामग्री
+  th: ส่วนผสม
+  cs: Ingredience
+  sv: Ingredienser
+  he: מרכיבים
+  verified_by_human: [en, de]
+
+nutrition.instructions:
+  context: Section heading for recipe cooking instructions
+  en: Instructions
+  de: Zubereitung
+  zh: 做法
+  es: Instrucciones
+  fr: Préparation
+  pt: Modo de preparo
+  ru: Приготовление
+  ja: 作り方
+  ko: 조리법
+  it: Preparazione
+  tr: Hazırlanışı
+  vi: Cách làm
+  id: Cara membuat
+  pl: Przygotowanie
+  nl: Bereidingswijze
+  ar: التحضير
+  hi: विधि
+  th: วิธีทำ
+  cs: Postup
+  sv: Tillagning
+  he: הוראות הכנה
+  verified_by_human: [en, de]
+
+nutrition.nutrition_info:
+  context: Section heading for nutritional information (calories, macros)
+  en: Nutrition
+  de: Nährwerte
+  zh: 营养信息
+  es: Información nutricional
+  fr: Valeurs nutritionnelles
+  pt: Informações nutricionais
+  ru: Пищевая ценность
+  ja: 栄養情報
+  ko: 영양 정보
+  it: Valori nutrizionali
+  tr: Besin değerleri
+  vi: Thông tin dinh dưỡng
+  id: Informasi gizi
+  pl: Wartości odżywcze
+  nl: Voedingswaarden
+  ar: القيم الغذائية
+  hi: पोषण संबं���ी जानकारी
+  th: ข้อมูลโภชนาการ
+  cs: Nutriční hodnoty
+  sv: Näringsvärden
+  he: ערכים תזונתיים
+  verified_by_human: [en, de]
+
+nutrition.protein:
+  context: Label for protein macro in nutrition info
+  en: Protein
+  de: Eiweiß
+  zh: 蛋白质
+  es: Proteína
+  fr: Protéines
+  pt: Proteína
+  ru: Белок
+  ja: たんぱく質
+  ko: 단백질
+  it: Proteine
+  tr: Protein
+  vi: Protein
+  id: Protein
+  pl: Białko
+  nl: Eiwit
+  ar: بروتين
+  hi: प्रोटीन
+  th: โปรตีน
+  cs: Bílkoviny
+  sv: Protein
+  he: חלבון
+  verified_by_human: [en, de]
+
+nutrition.fat:
+  context: Label for fat macro in nutrition info
+  en: Fat
+  de: Fett
+  zh: 脂肪
+  es: Grasa
+  fr: Lipides
+  pt: Gordura
+  ru: Жиры
+  ja: 脂質
+  ko: 지방
+  it: Grassi
+  tr: Yağ
+  vi: Chất béo
+  id: Lemak
+  pl: Tłuszcz
+  nl: Vet
+  ar: دهون
+  hi: वसा
+  th: ไขมัน
+  cs: Tuky
+  sv: Fett
+  he: שומן
+  verified_by_human: [en, de]
+
+nutrition.carbs:
+  context: Label for carbs macro in nutrition info
+  en: Carbs
+  de: Kohlenhydrate
+  zh: 碳水化合物
+  es: Carbohidratos
+  fr: Glucides
+  pt: Carboidratos
+  ru: Углеводы
+  ja: 炭水化物
+  ko: 탄수화물
+  it: Carboidrati
+  tr: Karbonhidrat
+  vi: Carbs
+  id: Karbohidrat
+  pl: Węglowodany
+  nl: Koolhydraten
+  ar: كربوهيدرات
+  hi: कार्ब्स
+  th: คาร์โบไฮเดรต
+  cs: Sacharidy
+  sv: Kolhydrater
+  he: פחמימות
+  verified_by_human: [en, de]
+
+nutrition.health_score:
+  context: Label for the Ernährwert health score (1-10)
+  en: Health Score
+  de: Gesundheitswert
+  zh: 健康评分
+  es: Puntuación de salud
+  fr: Score santé
+  pt: Pontuação de saúde
+  ru: Оценка здоровья
+  ja: ヘルススコア
+  ko: 건강 점수
+  it: Punteggio salute
+  tr: Sağlık puanı
+  vi: Điểm sức khỏe
+  id: Skor kesehatan
+  pl: Ocena zdrowotna
+  nl: Gezondheidsscore
+  ar: درجة الصحة
+  hi: स्वास्थ्य स्कोर
+  th: คะแนนสุขภาพ
+  cs: Zdravotní skóre
+  sv: Hälsopoäng
+  he: ציון בריאות
+  verified_by_human: [en, de]
+
+nutrition.view_on_rewe:
+  context: CTA button label to view recipe on REWE website
+  en: View on REWE
+  de: Auf REWE ansehen
+  zh: 在REWE上查看
+  es: Ver en REWE
+  fr: Voir sur REWE
+  pt: Ver no REWE
+  ru: Смотреть на REWE
+  ja: REWEで見る
+  ko: REWE에서 보기
+  it: Vedi su REWE
+  tr: REWE'de görüntüle
+  vi: Xem trên REWE
+  id: Lihat di REWE
+  pl: Zobacz na REWE
+  nl: Bekijk op REWE
+  ar: عرض على REWE
+  hi: REWE पर देखें
+  th: ดูบน REWE
+  cs: Zobrazit na REWE
+  sv: Visa på REWE
+  he: צפה ב-REWE
+  verified_by_human: [en, de]

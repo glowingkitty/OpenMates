@@ -128,14 +128,14 @@
   .mail-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     justify-content: center;
     height: 100%;
     color: var(--color-grey-100);
   }
 
   .mail-body-preview {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     line-height: 1.4;
     color: var(--color-font-secondary);
     display: -webkit-box;
@@ -149,7 +149,7 @@
   }
 
   .mail-details.mobile .mail-body-preview {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     -webkit-line-clamp: 6;
     line-clamp: 6;
   }

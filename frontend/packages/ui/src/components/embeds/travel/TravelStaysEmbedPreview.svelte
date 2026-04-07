@@ -240,20 +240,20 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="travel-stays-details" class:mobile={isMobileLayout}>
       <!-- Search query (e.g., "Hotels in Barcelona") -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
       
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
       
       <!-- Error state -->
       {#if status === 'error'}
         <div class="search-error">
-          <div class="search-error-title">{$text('embeds.search_failed')}</div>
+          <div class="ds-search-error-title">{$text('embeds.search_failed')}</div>
           <div class="search-error-message">{errorMessage}</div>
         </div>
       {:else if status === 'finished'}
         <!-- Finished state: show property count and price -->
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if propertyCount > 0}
             <span class="property-count">
               {propertyCount} {propertyCount === 1 ? $text('embeds.stay') : $text('embeds.stays')}
@@ -277,7 +277,7 @@
   .travel-stays-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -291,91 +291,61 @@
     justify-content: flex-start;
   }
   
-  /* Query text */
-  .search-query {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .travel-stays-details.mobile .search-query {
-    font-size: 14px;
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
+  .travel-stays-details.mobile .ds-search-query {
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
-  
-  /* Provider subtitle */
-  .search-provider {
-    font-size: 14px;
-    color: var(--color-grey-70);
-    line-height: 1.3;
+
+  .travel-stays-details.mobile .ds-search-provider {
+    font-size: var(--font-size-xxs);
   }
-  
-  .travel-stays-details.mobile .search-provider {
-    font-size: 12px;
-  }
-  
-  /* Search results info (count + price) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-    flex-wrap: wrap;
-  }
-  
-  .travel-stays-details.mobile .search-results-info {
-    margin-top: 2px;
+
+  .travel-stays-details.mobile .ds-search-results-info {
+    margin-top: var(--spacing-1);
   }
   
   /* Property count */
   .property-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
   .travel-stays-details.mobile .property-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Price info */
   .price-info {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-primary);
     font-weight: 600;
   }
   
   .travel-stays-details.mobile .price-info {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Error styling */
   .search-error {
-    margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 12px;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-5);
     background-color: rgba(var(--color-error-rgb), 0.08);
     border: 1px solid rgba(var(--color-error-rgb), 0.3);
   }
   
-  .search-error-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-error);
-  }
-  
+  /* .ds-search-error-title base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/status-feedback.yml */
+
   .search-error-message {
-    margin-top: 2px;
-    font-size: 12px;
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-70);
     line-height: 1.4;
     word-break: break-word;

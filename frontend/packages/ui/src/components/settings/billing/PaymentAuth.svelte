@@ -319,13 +319,13 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: var(--z-index-modal);
     }
 
     .auth-modal {
         background: var(--color-grey-10);
-        border-radius: 12px;
-        padding: 24px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-12);
         max-width: 400px;
         width: 90%;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -335,19 +335,19 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
 
     .auth-header h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
     }
 
     .close-btn {
         background: none;
         border: none;
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         cursor: pointer;
         color: var(--color-grey-60);
         padding: 0;
@@ -363,7 +363,7 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
     }
 
     .auth-content {
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     .auth-loading,
@@ -374,18 +374,18 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
 
     .auth-2fa p,
     .auth-passkey p {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
         color: var(--color-grey-70);
     }
 
     .tfa-input {
         width: 100%;
-        padding: 12px;
-        font-size: 24px;
+        padding: var(--spacing-6);
+        font-size: var(--font-size-h2-mobile);
         text-align: center;
         letter-spacing: 8px;
         border: 2px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background: var(--color-grey-10);
         color: var(--color-grey-80);
         font-family: monospace;
@@ -397,21 +397,21 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
 
     .error-message {
         color: var(--color-danger);
-        font-size: 13px;
-        margin-top: 8px;
+        font-size: var(--font-size-xs);
+        margin-top: var(--spacing-4);
     }
 
     .auth-btn {
         width: 100%;
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background var(--duration-normal);
     }
 
     .auth-btn:hover:not(:disabled) {

@@ -148,7 +148,7 @@
 
 <style>
   .location-title {
-    font-size: 24px;
+    font-size: var(--font-size-h2-mobile);
     font-weight: 700;
     color: var(--color-font-primary);
     line-height: 1.3;
@@ -159,11 +159,11 @@
   .location-address-row {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
 
   .nearby-label {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     color: var(--color-font-secondary);
     text-transform: uppercase;
@@ -171,7 +171,7 @@
   }
 
   .location-address {
-    font-size: 15px;
+    font-size: null;
     color: var(--color-font-primary);
     line-height: 1.5;
     margin: 0;

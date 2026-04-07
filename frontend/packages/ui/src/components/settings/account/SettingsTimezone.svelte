@@ -270,11 +270,11 @@
         padding: 0.75rem 1rem;
         background: var(--color-background-secondary);
         border: 1px solid var(--color-border);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-primary);
         font-size: 0.9rem;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .use-browser-btn:hover:not(:disabled) {
@@ -289,7 +289,7 @@
     .message {
         margin: 0.5rem 1rem;
         padding: 0.75rem 1rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-size: 0.9rem;
     }
 
@@ -322,14 +322,14 @@
     .timezone-list {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
     }
 
     .info-box {
         margin: 1.5rem 1rem;
         padding: 1rem;
         background: var(--color-background-secondary);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-border);
     }
 

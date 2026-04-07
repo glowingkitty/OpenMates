@@ -681,14 +681,14 @@ Passkey Management - View, rename, delete, and add passkeys
 
 <style>
     .passkeys-container {
-        padding: 10px;
+        padding: var(--spacing-5);
     }
 
     .message {
-        padding: 10px;
+        padding: var(--spacing-5);
         margin-bottom: 15px;
-        border-radius: 4px;
-        font-size: 14px;
+        border-radius: var(--radius-1);
+        font-size: var(--font-size-small);
     }
 
     .message.error {
@@ -704,29 +704,29 @@ Passkey Management - View, rename, delete, and add passkeys
     }
 
     .untrusted-device-message {
-        padding: 20px;
-        margin-bottom: 20px;
-        border-radius: 8px;
+        padding: var(--spacing-10);
+        margin-bottom: var(--spacing-10);
+        border-radius: var(--radius-3);
         background-color: rgba(255, 165, 0, 0.1);
         border: 2px solid #ffa500;
     }
 
     .untrusted-device-message .title {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: #ff8c00;
         margin: 0 0 12px 0;
     }
 
     .untrusted-device-message .description {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-100);
         margin: 0 0 12px 0;
         line-height: 1.5;
     }
 
     .untrusted-device-message .instruction {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: #ff8c00;
         font-weight: 500;
         margin: 0;
@@ -734,20 +734,20 @@ Passkey Management - View, rename, delete, and add passkeys
     }
 
     .loading {
-        padding: 20px;
+        padding: var(--spacing-10);
         text-align: center;
         color: var(--color-grey-100);
     }
 
     .empty-state {
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
         text-align: center;
         color: var(--color-grey-100);
     }
 
     .empty-state .hint {
-        font-size: 12px;
-        margin-top: 10px;
+        font-size: var(--font-size-xxs);
+        margin-top: var(--spacing-5);
         color: var(--color-grey-100);
     }
 
@@ -755,14 +755,14 @@ Passkey Management - View, rename, delete, and add passkeys
         margin-bottom: 15px;
         padding: 15px;
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background-color: var(--color-grey-10);
     }
 
     .passkey-info {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .passkey-header {
@@ -773,11 +773,11 @@ Passkey Management - View, rename, delete, and add passkeys
 
     .device-name {
         font-weight: bold;
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .sign-count {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-100);
     }
 
@@ -785,12 +785,12 @@ Passkey Management - View, rename, delete, and add passkeys
         display: flex;
         flex-direction: column;
         gap: 5px;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .detail-item {
         display: flex;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .detail-item .label {
@@ -804,30 +804,30 @@ Passkey Management - View, rename, delete, and add passkeys
 
     .passkey-actions {
         display: flex;
-        gap: 10px;
-        margin-top: 10px;
+        gap: var(--spacing-5);
+        margin-top: var(--spacing-5);
     }
 
     .edit-form {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .edit-actions,
     .delete-actions {
         display: flex;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .delete-confirmation {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .delete-confirmation .warning {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: #ff6600;
         font-weight: 500;
     }
@@ -861,7 +861,7 @@ Passkey Management - View, rename, delete, and add passkeys
     }
 
     .btn-cancel {
-        background-color: #666;
+        background-color: var(--color-grey-70);
         color: white;
     }
 
@@ -870,8 +870,8 @@ Passkey Management - View, rename, delete, and add passkeys
     }
 
     .add-passkey-section {
-        margin-top: 20px;
-        padding-top: 20px;
+        margin-top: var(--spacing-10);
+        padding-top: var(--spacing-10);
         border-top: 1px solid #ddd;
     }
 
@@ -882,7 +882,7 @@ Passkey Management - View, rename, delete, and add passkeys
         }
 
         .passkey-item {
-            padding: 10px;
+            padding: var(--spacing-5);
         }
 
         .passkey-header {

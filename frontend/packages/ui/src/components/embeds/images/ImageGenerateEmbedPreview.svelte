@@ -455,8 +455,8 @@
   .input-images-strip {
     display: flex;
     flex-direction: row;
-    gap: 4px;
-    padding: 4px 8px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
@@ -501,14 +501,14 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    padding: 16px 20px;
+    padding: var(--spacing-8) var(--spacing-10);
     box-sizing: border-box;
     overflow: hidden;
   }
   
   /* "Generating via {Model}:" label shown above the prompt during processing */
   .prompt-content .generating-via {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     color: var(--color-grey-50, #888);
     line-height: 1.4;
@@ -517,8 +517,8 @@
   .model-info-line {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-2);
   }
   
   .model-icon {
@@ -528,7 +528,7 @@
   }
   
   .prompt-content .prompt-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70, #555);
     line-height: 1.5;
     display: -webkit-box;
@@ -543,13 +543,13 @@
   .skeleton-lines {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   
   .skeleton-line {
     height: 12px;
     background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
   
@@ -600,14 +600,14 @@
     left: 8px;
     background: rgba(0, 0, 0, 0.6);
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-1);
+    font-size: var(--font-size-tiny);
     font-weight: 500;
     backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   
   .image-model-badge .model-icon {
@@ -626,9 +626,9 @@
   .image-error-small {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 12px;
-    font-size: 11px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-6);
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-50, #888);
   }
   
@@ -641,7 +641,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -650,11 +650,11 @@
   .error-state {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6);
     background: var(--color-error-5, #fff5f5);
-    border-radius: 6px;
-    margin: 12px;
+    border-radius: var(--radius-2);
+    margin: var(--spacing-6);
   }
   
   .error-icon {
@@ -666,13 +666,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 700;
     flex-shrink: 0;
   }
   
   .error-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error-70, #b04a4a);
     line-height: 1.4;
   }

@@ -310,11 +310,11 @@
   /* Results grid -- responsive auto-fill columns */
   .search-template-grid {
     display: grid;
-    gap: 16px;
+    gap: var(--spacing-8);
     width: calc(100% - 20px);
     max-width: var(--max-grid-width, 1000px);
     margin: 0 auto;
-    padding: 24px 10px;
+    padding: var(--spacing-12) var(--spacing-5);
     padding-bottom: 120px;
     grid-template-columns: repeat(auto-fill, minmax(var(--min-card-width, 280px), 1fr));
   }
@@ -344,7 +344,7 @@
 
   /* Skeleton loading cards */
   .search-template-skeleton {
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     overflow: hidden;
     background: var(--color-grey-10, #f5f5f5);
   }
@@ -368,7 +368,7 @@
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
-    font-size: 16px;
+    font-size: var(--font-size-p);
   }
 
   .search-template-error {
@@ -376,20 +376,20 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 24px 16px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-12) var(--spacing-8);
     color: var(--color-font-secondary);
     text-align: center;
   }
 
   .search-template-error .error-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     color: var(--color-error);
   }
 
   .search-template-error .error-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     line-height: 1.4;
     max-width: 520px;
     word-break: break-word;

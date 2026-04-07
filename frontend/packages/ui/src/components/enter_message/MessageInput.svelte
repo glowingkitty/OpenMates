@@ -4497,17 +4497,17 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 6px 12px;
+        padding: var(--spacing-3) var(--spacing-6);
         background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
-        border-radius: 8px 8px 0 0;
+        border-radius: var(--radius-3) 8px 0 0;
         margin: 0 8px;
     }
 
     .edit-banner-text {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 13px;
+        gap: var(--spacing-3);
+        font-size: var(--font-size-xs);
         color: var(--color-font-secondary);
     }
 
@@ -4522,8 +4522,8 @@
         cursor: pointer;
         display: flex;
         align-items: center;
-        padding: 4px;
-        border-radius: 4px;
+        padding: var(--spacing-2);
+        border-radius: var(--radius-1);
     }
 
     .edit-banner-cancel:hover {

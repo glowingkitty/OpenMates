@@ -1,0 +1,54 @@
+# frontend/packages/ui/src/tokens/sources/typography.yml
+#
+# Typography tokens — font families, weights, sizes.
+# Font sizes use rem for CSS (accessibility) and pt for Swift.
+# Baseline: 1rem = 16px (browser default).
+#
+# CSS output:  --font-size-{key}: {rem}rem, --font-size-{key}-mobile: {mobile_rem}rem
+# Swift output: Font.custom("LexendDeca-Variable", size: {pt})
+
+font-family:
+  primary: "Lexend Deca Variable"
+
+font-weight:
+  medium:     500
+  bold:       700
+  extra-bold: 800
+
+font-style:
+  normal: normal
+
+line-height:
+  normal: normal
+
+font-size:
+  h1:    { rem: 3.75,   pt: 60, mobile_rem: 2.25,  mobile_pt: 36 }
+  h2:    { rem: 1.875,  pt: 30, mobile_rem: 1.5,   mobile_pt: 24 }
+  h3:    { rem: 1.25,   pt: 20, mobile_rem: 1.125, mobile_pt: 18 }
+  h4:    { rem: 1,      pt: 16, mobile_rem: 1,     mobile_pt: 16 }
+  p:     { rem: 1,      pt: 16 }
+  small: { rem: 0.875,  pt: 14 }
+  xs:    { rem: 0.8125, pt: 13 }
+  xxs:   { rem: 0.75,   pt: 12 }
+  tiny:  { rem: 0.6875, pt: 11 }
+  micro: { rem: 0.5625, pt: 9 }
+  # Extended sizes for headings and display text
+  lg:    { rem: 1.0625, pt: 17 }
+  xl:    { rem: 1.375,  pt: 22 }
+  xxl:   { rem: 1.75,   pt: 28 }
+  xxxl:  { rem: 2,      pt: 32 }
+  hero:  { rem: 3,      pt: 48 }
+
+# Component-specific font size tokens (all reference the base scale)
+component-font-size:
+  button:             { ref: "font-size-p" }
+  input:              { ref: "font-size-p" }
+  app-card:           { ref: "font-size-p" }
+  chat-message:       { ref: "font-size-p" }
+  processing-details: { ref: "font-size-small" }
+
+# Component-specific weight tokens
+component-font-weight:
+  p:      500
+  button: 500
+  input:  500

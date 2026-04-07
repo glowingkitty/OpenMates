@@ -1,0 +1,44 @@
+# Status feedback primitives (error/success/warning icons + titles).
+# Consumed by build-tokens.js → emits .ds-* CSS classes + DS.* Swift structs.
+#
+# Lifted incrementally per E-α.4. The color values for the green success
+# gradient and shadow are hardcoded here (not token refs) because the
+# existing theme does not yet define semantic success gradient/shadow
+# tokens — a separate ticket can lift them to semantic tokens later.
+
+success-icon-wrapper:
+  width:           80
+  height:          80
+  radius:          "50%"
+  background:      "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+  display:         flex
+  align-items:     center
+  justify-content: center
+  box-shadow:      "0 4px 12px rgba(16, 185, 129, 0.3)"
+
+success-title:
+  font-size:   { ref: "font-size-h3" }
+  font-weight: 600
+  color:       { ref: "color-grey-100" }
+  margin:      "0"
+
+# Inline error heading used inside embed fullscreens when a skill errors out.
+# Canonical: font-size h3-mobile, weight 600, --color-error.
+# Used by: MathPlot/MathCalculate/TravelPriceCalendar fullscreen embeds.
+# NOT covered (intentionally different roles):
+#   - ImageGenerateEmbedFullscreen: uses grey-90 + margin 0 0 8px 0
+#   - ImagesSearchEmbedPreview: uses small font + error-70 (acts as a
+#     search-error-title, handled separately)
+error-title:
+  font-size:   { ref: "font-size-h3-mobile" }
+  font-weight: 600
+  color:       { ref: "color-error" }
+
+# Small error heading shown inside search-result error states
+# (one level down from the main .error-title — fits inside a search row).
+# Used by all 7 canonical *SearchEmbedPreview files: events, health, home,
+# news, nutrition, shopping, travel (search + stays), web.
+search-error-title:
+  font-size:   { ref: "font-size-small" }
+  font-weight: 600
+  color:       { ref: "color-error" }

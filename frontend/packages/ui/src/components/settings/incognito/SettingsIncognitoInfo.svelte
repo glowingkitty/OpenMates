@@ -127,15 +127,15 @@ changes to the documentation (to keep the documentation up to date).
     .incognito-info-container {
         display: flex;
         flex-direction: column;
-        padding: 20px;
-        gap: 24px;
+        padding: var(--spacing-10);
+        gap: var(--spacing-12);
     }
 
     .info-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding-bottom: 16px;
+        gap: var(--spacing-6);
+        padding-bottom: var(--spacing-8);
         border-bottom: 1px solid var(--color-grey-30);
     }
 
@@ -149,7 +149,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .info-title {
-        font-size: 22px;
+        font-size: var(--font-size-xl);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
@@ -158,11 +158,11 @@ changes to the documentation (to keep the documentation up to date).
     .info-content {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: var(--spacing-12);
     }
 
     .info-description {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-grey-80);
         line-height: 1.6;
         margin: 0;
@@ -171,13 +171,13 @@ changes to the documentation (to keep the documentation up to date).
     .info-features {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .info-feature {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .feature-icon {
@@ -186,15 +186,15 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-primary);
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
 
     .feature-text {
-        font-size: 15px;
+        font-size: null;
         color: var(--color-grey-70);
         line-height: 1.5;
         flex: 1;
@@ -202,10 +202,10 @@ changes to the documentation (to keep the documentation up to date).
 
     .info-warning {
         display: flex;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
         background-color: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border-left: 4px solid var(--color-warning);
     }
 
@@ -215,36 +215,36 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-warning);
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
 
     .warning-content {
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .warning-title {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
     }
 
     .warning-text {
-        font-size: 15px;
+        font-size: null;
         color: var(--color-grey-70);
         line-height: 1.5;
         margin: 0;
     }
 
     .info-footer {
-        padding-top: 16px;
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-grey-30);
         display: flex;
         justify-content: flex-end;

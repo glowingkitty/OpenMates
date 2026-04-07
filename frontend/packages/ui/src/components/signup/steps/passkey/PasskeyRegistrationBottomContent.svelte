@@ -427,8 +427,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
-        padding-top: 0px;
+        gap: var(--spacing-5);
+        padding-top: var(--spacing-0);
     }
     
     .action-button-container {
@@ -442,12 +442,12 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         text-align: center;
     }
     
     .passkey-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.5;

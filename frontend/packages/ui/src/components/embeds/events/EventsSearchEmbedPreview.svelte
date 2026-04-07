@@ -290,20 +290,20 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="events-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
 
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
 
       <!-- Finished state: show event count or loading -->
       {#if status === 'finished'}
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if eventCount > 0}
             <span class="event-count">
               {$text('embeds.more_results').replace('{count}', String(eventCount))}
             </span>
           {:else if isLoadingChildren}
-            <span class="loading-text">{$text('common.loading')}</span>
+            <span class="ds-loading-text">{$text('common.loading')}</span>
           {/if}
         </div>
       {/if}
@@ -319,7 +319,7 @@
   .events-search-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
 
@@ -333,66 +333,36 @@
     justify-content: flex-start;
   }
 
-  /* Query text */
-  .search-query {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
 
-  .events-search-details.mobile .search-query {
-    font-size: 14px;
+  .events-search-details.mobile .ds-search-query {
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
 
-  /* Provider subtitle */
-  .search-provider {
-    font-size: 14px;
-    color: var(--color-grey-70);
-    line-height: 1.3;
+  .events-search-details.mobile .ds-search-provider {
+    font-size: var(--font-size-xxs);
   }
 
-  .events-search-details.mobile .search-provider {
-    font-size: 12px;
+  .events-search-details.mobile .ds-search-results-info {
+    margin-top: var(--spacing-1);
   }
 
-  /* Search results info (event count) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  .events-search-details.mobile .search-results-info {
-    margin-top: 2px;
-  }
-
-  /* Loading text (shown while child embeds are being fetched) */
-  .loading-text {
-    font-size: 14px;
-    color: var(--color-grey-70);
-    font-weight: 500;
-  }
+  /* .ds-loading-text base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/loading.yml */
 
   /* Event count badge */
   .event-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
 
   .events-search-details.mobile .event-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   /* ===========================================

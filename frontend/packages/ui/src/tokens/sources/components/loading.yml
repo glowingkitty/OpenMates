@@ -1,0 +1,17 @@
+# Loading state primitives (loading-text label).
+# Consumed by build-tokens.js → emits .ds-* CSS classes + DS.* Swift structs.
+#
+# Lifted: .ds-loading-text — the small secondary label shown alongside
+# loading spinners in *SearchEmbedPreview error/loading states.
+#
+# Deferred (separate ticket):
+#   - .skeleton-line: depends on per-file @keyframes pulse definitions that
+#     are also used by other classes in the same file, so lifting the
+#     primitive would require either inlining keyframes into the generated
+#     CSS and renaming usages (too invasive for this wave) or dropping the
+#     animation from the primitive (too thin to be worth it).
+
+loading-text:
+  font-size:   { ref: "font-size-small" }
+  color:       { ref: "color-grey-70" }
+  font-weight: 500

@@ -562,7 +562,7 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   /*
@@ -586,9 +586,9 @@
     right: 8px;
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px 4px 6px;
-    border-radius: 20px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4) var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-8);
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
     pointer-events: none;
@@ -600,7 +600,7 @@
     flex-shrink: 0;
     width: 12px;
     height: 12px;
-    background: #ffffff;
+    background: var(--color-grey-0);
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
     -webkit-mask-size: contain;
@@ -612,9 +612,9 @@
   }
 
   .ai-badge-label {
-    font-size: 10px;
+    font-size: null;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--color-grey-0);
     line-height: 1;
     white-space: nowrap;
     letter-spacing: 0.01em;
@@ -624,8 +624,8 @@
   .skeleton-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 16px 20px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-8) var(--spacing-10);
     width: 100%;
     height: 100%;
     box-sizing: border-box;
@@ -634,13 +634,13 @@
   .skeleton-lines {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .skeleton-line {
     height: 12px;
     background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -661,9 +661,9 @@
   .image-error-small {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 12px;
-    font-size: 11px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-6);
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-50, #888);
   }
 
@@ -676,7 +676,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     flex-shrink: 0;
   }

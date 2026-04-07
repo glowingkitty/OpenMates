@@ -574,7 +574,7 @@
     justify-content: center;
     min-height: 0;
     min-width: 0;
-    padding: 24px;
+    padding: var(--spacing-12);
   }
   
   .image-wrapper {
@@ -599,7 +599,7 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
   }
   
@@ -610,7 +610,7 @@
   
   .preview-placeholder {
     filter: blur(2px);
-    transition: filter 0.3s ease;
+    transition: filter var(--duration-slow) var(--easing-default);
   }
   
   .progressive-overlay {
@@ -641,7 +641,7 @@
   .prompt-area {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--spacing-6);
     padding: 24px 24px 24px 0;
     align-self: center;
     max-width: 380px;
@@ -655,7 +655,7 @@
   .input-images-row {
     display: flex;
     flex-direction: row;
-    gap: 6px;
+    gap: var(--spacing-3);
     flex-wrap: wrap;
   }
 
@@ -664,12 +664,12 @@
     height: 48px;
     padding: 0;
     border: 2px solid var(--color-grey-20, #e0e0e0);
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     overflow: hidden;
     cursor: pointer;
     flex-shrink: 0;
     background: var(--color-grey-10, #f5f5f5);
-    transition: border-color 0.15s ease, transform 0.15s ease;
+    transition: border-color var(--duration-fast) var(--easing-default), transform var(--duration-fast) var(--easing-default);
   }
 
   .input-thumb-btn:hover {
@@ -701,7 +701,7 @@
   .generated-by-line {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     padding: 0;
     background: none;
     border: none;
@@ -721,7 +721,7 @@
   
   .generated-by-text {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
     line-height: 1.25;
     color: var(--color-grey-60, #666);
@@ -764,7 +764,7 @@
   /* Prompt text - darker color (#3A3A3A) for better visibility */
   .prompt-text {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     line-height: 1.25;
     color: var(--color-grey-80, #3A3A3A);
@@ -786,7 +786,7 @@
     align-items: center;
     justify-content: center;
     opacity: 0.5;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--duration-normal) var(--easing-default);
   }
   
   .copy-prompt-btn:hover {
@@ -807,8 +807,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding: 40px;
+    gap: var(--spacing-6);
+    padding: var(--spacing-20);
   }
   
   .loading-spinner {
@@ -821,7 +821,7 @@
   }
   
   .loading-text {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-50, #888);
   }
   
@@ -841,7 +841,7 @@
     height: 100%;
     min-height: 200px;
     text-align: center;
-    padding: 32px;
+    padding: var(--spacing-16);
   }
   
   .error-icon {
@@ -853,20 +853,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: var(--font-size-h2-mobile);
     font-weight: 700;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
   }
   
   .error-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     margin: 0 0 8px 0;
     color: var(--color-grey-90, #1a1a1a);
   }
   
   .error-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60, #666);
     margin: 0;
     max-width: 400px;
@@ -949,7 +949,7 @@
     .image-section {
       order: 1;
       flex: none;
-      padding: 16px;
+      padding: var(--spacing-8);
       width: 100%;
     }
     

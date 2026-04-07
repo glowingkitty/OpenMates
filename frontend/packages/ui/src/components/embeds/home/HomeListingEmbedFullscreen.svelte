@@ -245,20 +245,20 @@
     width: 100%;
     height: 190px;
     object-fit: cover;
-    border-radius: 12px;
+    border-radius: var(--radius-5);
   }
 
   .listing-meta-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
 
   .listing-meta-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 600;
@@ -269,20 +269,20 @@
   .listing-type-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-home-start, #6b4c9a);
-    color: #fff; /* intentional: always white on brand colour */
+    color: var(--color-grey-0); /* intentional: always white on brand colour */
   }
 
   .listing-source-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 12px;
+    padding: var(--spacing-2) var(--spacing-6);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 500;
@@ -294,7 +294,7 @@
   .listing-section {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
 
   .section-label {

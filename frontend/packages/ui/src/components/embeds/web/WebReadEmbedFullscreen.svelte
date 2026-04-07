@@ -498,8 +498,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 24px;
-    padding-bottom: 40px;
+    padding-top: var(--spacing-12);
+    padding-bottom: var(--spacing-20);
   }
   
   /* ===========================================
@@ -510,13 +510,13 @@
     background-color: var(--color-button-primary);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     padding: 12px 30px;
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 15px;
+    font-size: null;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease-in-out;
+    transition: all var(--duration-fast) var(--easing-in-out);
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     min-width: 200px;
     height: 46px;
@@ -540,14 +540,14 @@
      =========================================== */
   
   .text-preview-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 700;
     color: var(--color-grey-70);
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--spacing-1);
     margin-top: 15px;
   }
   
@@ -561,7 +561,7 @@
     justify-content: center;
     height: 200px;
     color: var(--color-grey-70);
-    font-size: 16px;
+    font-size: var(--font-size-p);
     text-align: center;
   }
   
@@ -570,18 +570,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
   }
   
   .pending-url {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-80);
     word-break: break-all;
     max-width: 400px;
   }
   
   .pending-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60);
     font-style: italic;
   }
@@ -589,7 +589,7 @@
   .content-card {
     background-color: var(--color-grey-0);
     border-radius: 30px;
-    padding: 24px;
+    padding: var(--spacing-12);
     width: calc(100% - 40px);
     max-width: 722px;
     margin: 0 auto;
@@ -598,7 +598,7 @@
   }
   
   .result-content {
-    margin-bottom: 24px;
+    margin-bottom: var(--spacing-12);
   }
   
   .result-content:last-child {
@@ -612,7 +612,7 @@
     justify-content: center;
     min-height: 100px;
     color: var(--color-grey-70);
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
   
   /* ===========================================
@@ -620,28 +620,28 @@
      =========================================== */
   
   .markdown-content {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     line-height: 1.7;
     color: var(--color-grey-100);
     word-wrap: break-word;
   }
   
   .markdown-content :global(h1) {
-    font-size: 22px;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     margin: 20px 0 12px 0;
     color: var(--color-grey-100);
   }
   
   .markdown-content :global(h2) {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 700;
     margin: 16px 0 10px 0;
     color: var(--color-grey-100);
   }
   
   .markdown-content :global(h3) {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 700;
     margin: 14px 0 8px 0;
     color: var(--color-grey-100);
@@ -677,7 +677,7 @@
   .markdown-content :global(ul),
   .markdown-content :global(ol) {
     margin: 12px 0;
-    padding-left: 24px;
+    padding-left: var(--spacing-12);
   }
   
   .markdown-content :global(li) {
@@ -686,16 +686,16 @@
   
   .markdown-content :global(code) {
     background-color: var(--color-grey-20);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-1);
     font-family: 'Courier New', monospace;
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
   
   .markdown-content :global(pre) {
     background-color: var(--color-grey-20);
-    padding: 16px;
-    border-radius: 8px;
+    padding: var(--spacing-8);
+    border-radius: var(--radius-3);
     overflow-x: auto;
     margin: 16px 0;
   }
@@ -707,7 +707,7 @@
   
   .markdown-content :global(blockquote) {
     border-left: 3px solid var(--color-grey-40);
-    padding-left: 16px;
+    padding-left: var(--spacing-8);
     margin: 16px 0;
     color: var(--color-grey-80);
     font-style: italic;
@@ -716,7 +716,7 @@
   /* Images - constrain large images, keep small ones at natural size */
   .markdown-content :global(img) {
     max-width: 100%;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     height: auto;
     display: block;
     margin: 16px 0;
@@ -735,16 +735,16 @@
   
   @container fullscreen (max-width: 500px) {
     .web-read-fullscreen-content {
-      padding-top: 16px;
+      padding-top: var(--spacing-8);
     }
     
     .content-card {
       width: calc(100% - 20px);
-      padding: 16px;
+      padding: var(--spacing-8);
     }
     
     .markdown-content {
-      font-size: 15px;
+      font-size: null;
     }
   }
 </style>

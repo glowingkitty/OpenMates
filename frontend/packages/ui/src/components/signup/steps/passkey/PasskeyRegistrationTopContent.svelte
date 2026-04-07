@@ -20,7 +20,7 @@
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -31,19 +31,19 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         margin-bottom: 30px;
     }
     
     .advice-title {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-grey-80);
         margin: 0;
     }
     
     .advice-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.5;

@@ -32,7 +32,7 @@
     top: 18px;
     /* Positioned to the left of the avatar (avatar: inset-inline-end 10px, width 50px) */
     inset-inline-end: 68px;
-    z-index: 1005;
+    z-index: var(--z-index-popover-above);
     display: flex;
     align-items: center;
     justify-content: center;

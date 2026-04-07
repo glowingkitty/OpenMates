@@ -1,0 +1,12 @@
+# frontend/packages/ui/src/tokens/sources/shadows.yml
+#
+# Shadow presets — used for box-shadow values.
+# CSS output:  --shadow-{key}: {value}
+# Swift output: not directly applicable (SwiftUI uses .shadow() modifier)
+
+presets:
+  xs: "0 2px 4px rgba(0, 0, 0, 0.1)"       # 13 uses — subtle elevation
+  sm: "0 2px 8px rgba(0, 0, 0, 0.05)"       # 8 uses — soft elevation
+  md: "0 4px 12px rgba(0, 0, 0, 0.15)"      # 12 uses — cards, context menus
+  lg: "0 4px 16px rgba(0, 0, 0, 0.15)"      # 8 uses — modals, overlays
+  xl: "0 4px 16px rgba(0, 0, 0, 0.25)"      # card hover, dialogs

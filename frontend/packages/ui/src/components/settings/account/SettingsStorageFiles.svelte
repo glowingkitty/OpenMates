@@ -484,9 +484,9 @@ API endpoints:
     .loading-state {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         color: var(--color-grey-60);
-        padding: 32px 24px;
+        padding: var(--spacing-16) var(--spacing-12);
     }
 
     .spinner {
@@ -506,15 +506,15 @@ API endpoints:
     /* ── Error / Empty ─────────────────────────────────────────────────────── */
     .error-state,
     .empty-state {
-        padding: 32px 24px;
+        padding: var(--spacing-16) var(--spacing-12);
         color: var(--color-grey-50);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .error-text {
         margin: 0;
         color: var(--color-danger);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     /* ── File list ─────────────────────────────────────────────────────────── */
@@ -527,8 +527,8 @@ API endpoints:
     .file-row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 20px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6) var(--spacing-10);
         border-bottom: 1px solid var(--color-grey-15);
     }
 
@@ -549,7 +549,7 @@ API endpoints:
         text-align: left;
         cursor: pointer;
         min-width: 0;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         transition: opacity 0.12s;
     }
 
@@ -559,7 +559,7 @@ API endpoints:
     }
 
     .file-name {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-80);
         white-space: nowrap;
@@ -569,7 +569,7 @@ API endpoints:
     }
 
     .file-meta {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         white-space: nowrap;
     }
@@ -585,10 +585,10 @@ API endpoints:
         padding: 0 6px;
         background: none;
         border: 1px solid transparent;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
         opacity: 0.45;
-        transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
+        transition: opacity var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
         color: var(--color-grey-60);
     }
 
@@ -625,15 +625,15 @@ API endpoints:
     }
 
     .confirm-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 600;
         white-space: nowrap;
     }
 
     /* ── Footer summary ────────────────────────────────────────────────────── */
     .list-footer {
-        padding: 10px 20px;
-        font-size: 12px;
+        padding: var(--spacing-5) var(--spacing-10);
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         border-top: 1px solid var(--color-grey-15);
     }
@@ -642,22 +642,22 @@ API endpoints:
     .bulk-actions {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 20px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-10);
         border-top: 1px solid var(--color-grey-15);
     }
 
     .btn-bulk {
         width: 100%;
         padding: 11px 16px;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         border: 1px solid var(--color-grey-25);
         background: transparent;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-grey-70);
         cursor: pointer;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
         text-align: center;
     }
 
@@ -698,14 +698,14 @@ API endpoints:
         bottom: 24px;
         left: 50%;
         transform: translateX(-50%);
-        padding: 12px 20px;
-        border-radius: 10px;
-        font-size: 14px;
+        padding: var(--spacing-6) var(--spacing-10);
+        border-radius: var(--radius-4);
+        font-size: var(--font-size-small);
         font-weight: 500;
         max-width: 420px;
         text-align: center;
         z-index: 1100;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-lg);
         animation: toast-in 0.2s ease;
     }
 

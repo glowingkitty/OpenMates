@@ -123,11 +123,11 @@ step_5_bottom_content_svelte:
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding: var(--spacing-12);
     }
 
     .content-wrapper {
-        transition: opacity 0.3s ease, filter 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default), filter var(--duration-slow) var(--easing-default);
     }
 
     .content-wrapper.disabled {
@@ -139,20 +139,20 @@ step_5_bottom_content_svelte:
     .confirmation-row {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-top: 20px;
+        gap: var(--spacing-6);
+        margin-top: var(--spacing-10);
     }
 
     .confirmation-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         text-align: left;
         cursor: pointer;
     }
     
     .click-toggle-text {
         color: var(--color-grey-50);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin-top: 28px;
     }
 </style>

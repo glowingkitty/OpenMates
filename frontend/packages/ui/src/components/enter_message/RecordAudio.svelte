@@ -423,7 +423,7 @@
         inset: 0;
         border-radius: 24px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        z-index: 200;
+        z-index: var(--z-index-sticky);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -445,7 +445,7 @@
     }
 
     .release-text {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 700;
         color: white;
         letter-spacing: 0.01em;
@@ -457,7 +457,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     /* Red timer pill */
@@ -465,9 +465,9 @@
         background-color: #ff4444;
         color: white;
         padding: 6px 14px;
-        border-radius: 20px;
+        border-radius: var(--radius-8);
         font-weight: 700;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         min-width: 60px;
         text-align: center;
         flex-shrink: 0;
@@ -478,9 +478,9 @@
     .cancel-hint {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
         color: rgba(255, 255, 255, 0.7);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 400;
         flex: 1;
         justify-content: center;
@@ -489,7 +489,7 @@
     }
 
     .cancel-arrow {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         line-height: 1;
         color: rgba(255, 255, 255, 0.5);
     }

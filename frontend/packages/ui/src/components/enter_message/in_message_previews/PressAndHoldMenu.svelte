@@ -203,13 +203,13 @@
         top: var(--menu-y);
         transform: translate(-50%, -100%);
         background: var(--color-grey-blue);
-        border-radius: 12px;
-        padding: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-4);
+        box-shadow: var(--shadow-md);
+        z-index: var(--z-index-modal);
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.2s ease-in-out;
+        transition: opacity var(--duration-normal) var(--easing-in-out);
     }
 
     .menu-container.show {
@@ -233,11 +233,11 @@
         all: unset;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6) var(--spacing-8);
         border-radius: 25px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
         width: 100%;
         box-sizing: border-box;
     }

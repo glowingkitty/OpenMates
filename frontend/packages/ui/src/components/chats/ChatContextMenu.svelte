@@ -641,14 +641,14 @@
         left: var(--menu-x);
         top: var(--menu-y);
         background: var(--color-grey-blue);
-        border-radius: 12px;
-        padding: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 99999; /* Very high z-index to ensure it's above everything */
+        border-radius: var(--radius-5);
+        padding: var(--spacing-4);
+        box-shadow: var(--shadow-md);
+        z-index: var(--z-index-popover); /* Very high z-index to ensure it's above everything */
         isolation: isolate; /* Create new stacking context */
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.2s ease-in-out;
+        transition: opacity var(--duration-normal) var(--easing-in-out);
         min-width: 120px;
         max-width: min(280px, calc(100vw - 32px)); /* Constrain width for readability and mobile */
     }
@@ -657,10 +657,10 @@
     .focus-mode-indicator {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 16px 8px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-5) var(--spacing-8) var(--spacing-4);
         border-bottom: 1px solid var(--color-grey-30);
-        margin-bottom: 4px;
+        margin-bottom: var(--spacing-2);
     }
     
     .focus-mode-icon {
@@ -672,7 +672,7 @@
     }
     
     .focus-mode-label {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         color: var(--color-grey-80);
         white-space: nowrap;
@@ -683,14 +683,14 @@
     /* Info section containing summary and/or credits */
     .chat-info-section {
         border-bottom: 1px solid var(--color-grey-30);
-        margin-bottom: 4px;
+        margin-bottom: var(--spacing-2);
     }
     
     /* Chat summary displayed above the action buttons */
     .chat-summary {
-        padding: 12px 16px 0px;
+        padding: var(--spacing-6) var(--spacing-8) var(--spacing-0);
         color: var(--color-grey-70);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         line-height: 1.4;
         word-wrap: break-word;
         overflow-wrap: break-word;
@@ -706,10 +706,10 @@
     .chat-credits {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 16px 10px;
+        gap: var(--spacing-3);
+        padding: var(--spacing-3) var(--spacing-8) var(--spacing-5);
         color: var(--color-grey-50);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-variant-numeric: tabular-nums;
     }
     
@@ -762,11 +762,11 @@
         all: unset;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6) var(--spacing-8);
         border-radius: 25px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
         width: 100%;
         box-sizing: border-box;
         /* iOS-specific touch improvements */

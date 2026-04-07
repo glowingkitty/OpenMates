@@ -1,6 +1,11 @@
 """
 Gift card methods for DirectusService.
 Handles fetching, caching, and redeeming gift cards.
+
+Most gift cards are single-use and deleted on redemption. A narrow exception
+exists for infrastructure/test cards flagged `is_reusable=true` (see OPE-76 prod
+smoke test): those persist across redemptions and are typically also restricted
+to a specific email domain via `allowed_email_domain`.
 """
 import logging
 from typing import Optional, Dict, Any, List
@@ -8,10 +13,58 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+
+class GiftCardDomainMismatchError(Exception):
+    """Raised when a domain-restricted gift card is redeemed by a user whose
+    email domain does not exactly match `allowed_email_domain`."""
+    pass
+
+
+class GiftCardEmailRequiredError(Exception):
+    """Raised when a domain-restricted gift card is redeemed without the client
+    supplying the `email_encryption_key` needed to verify the user's domain."""
+    pass
+
+
+def _enforce_gift_card_domain(
+    allowed_email_domain: Optional[str],
+    user_email: Optional[str],
+) -> None:
+    """
+    Verify the redeemer's email domain matches the card's `allowed_email_domain`.
+
+    The comparison is an **exact** full-domain match (case-insensitive).
+    A suffix match would be a security hole: `mailosaur.net` as the allowed
+    domain would otherwise let ANY Mailosaur customer redeem the card, since
+    every Mailosaur server issues addresses under `{server_id}.mailosaur.net`.
+    Only the full subdomain counts.
+
+    Raises:
+        GiftCardEmailRequiredError: Card is restricted but no email was provided.
+        GiftCardDomainMismatchError: Email domain does not match exactly.
+    """
+    if not allowed_email_domain:
+        return  # no restriction, nothing to check
+
+    if not user_email or "@" not in user_email:
+        raise GiftCardEmailRequiredError(
+            "This gift card is restricted to specific email addresses. "
+            "Email verification is required to redeem it."
+        )
+
+    user_domain = user_email.rsplit("@", 1)[1].strip().lower()
+    expected_domain = allowed_email_domain.strip().lower()
+
+    if user_domain != expected_domain:
+        raise GiftCardDomainMismatchError(
+            "This gift card cannot be redeemed with this email address."
+        )
+
+
 async def get_gift_card_by_code(self, code: str) -> Optional[Dict[str, Any]]:
     """
     Fetches a gift card by code from cache first, then Directus if not found.
-    Gift cards are deleted after redemption, so if found, it's available.
+    Single-use cards are deleted after redemption; reusable cards persist.
     
     Args:
         code: The gift card code to look up
@@ -97,45 +150,81 @@ async def get_all_gift_cards(self) -> list:
         logger.error(f"Error fetching all gift cards: {str(e)}", exc_info=True)
         return []
 
-async def redeem_gift_card(self, code: str, user_id: str) -> bool:
+async def redeem_gift_card(
+    self,
+    code: str,
+    user_id: str,
+    user_email: Optional[str] = None,
+) -> bool:
     """
-    Redeems a gift card by deleting it from Directus and cache.
-    Gift cards are single-use only, so we delete them upon redemption.
-    
+    Redeems a gift card.
+
+    For a standard single-use card (`is_reusable=false`, the default), the card
+    is deleted from Directus and the cache. For a card flagged `is_reusable=true`
+    the row is left in place so it can be redeemed again, but the per-code cache
+    entry is still invalidated so any updated metadata is re-fetched next time.
+
+    If the fetched card has `allowed_email_domain` set, the caller MUST provide
+    `user_email`. The redeemer's email domain is compared exactly (not a suffix
+    match) against `allowed_email_domain` before anything is mutated. A mismatch
+    raises `GiftCardDomainMismatchError`; a missing email raises
+    `GiftCardEmailRequiredError`. Both are propagated to the HTTP layer.
+
     Args:
         code: The gift card code to redeem
         user_id: The ID of the user redeeming the card
-        
+        user_email: Decrypted email of the redeemer (required for domain-bound cards)
+
     Returns:
-        True if successfully redeemed and deleted, False otherwise
+        True on successful redemption, False otherwise
     """
     # First, get the gift card to verify it exists and get its ID
     gift_card = await self.get_gift_card_by_code(code)
-    
+
     if not gift_card or 'id' not in gift_card:
         logger.error(f"Cannot redeem gift card {code}: Gift card not found or invalid.")
         return False
-    
+
+    # Enforce domain restriction BEFORE any credit mutation. Raising here means
+    # the caller (payments route) catches the exception before committing any
+    # user state changes, so a rejected restricted card is a clean no-op.
+    _enforce_gift_card_domain(
+        allowed_email_domain=gift_card.get("allowed_email_domain"),
+        user_email=user_email,
+    )
+
     gift_card_id = gift_card.get('id')
+    is_reusable = bool(gift_card.get("is_reusable"))
+    cache_key = f"gift_card:{code}"
+
+    # Reusable cards are never deleted. They only need their cache invalidated
+    # so the next fetch re-reads any admin-side changes (credit value, etc).
+    if is_reusable:
+        logger.info(
+            f"Gift card {code} (ID: {gift_card_id}) is reusable — skipping deletion, "
+            f"redeemed by user {user_id}."
+        )
+        await self.cache.delete(cache_key)
+        return True
+
     collection_name = "gift_cards"
     url = f"{self.base_url}/items/{collection_name}/{gift_card_id}"
-    
+
     try:
         # Delete the gift card (single-use, so we delete it)
         logger.info(f"Deleting gift card {code} (ID: {gift_card_id}) after redemption by user {user_id}.")
         response = await self._make_api_request("DELETE", url)
-        
+
         # DELETE often returns 204 No Content on success
         if response.status_code == 204 or response.status_code == 200:
             logger.info(f"Successfully deleted gift card {code} after redemption")
             # Clear cache for this specific code
-            cache_key = f"gift_card:{code}"
             await self.cache.delete(cache_key)
             return True
         else:
             logger.error(f"Failed to delete gift card {code}. Status: {response.status_code} - {response.text}")
             return False
-                
+
     except Exception as e:
         logger.error(f"Error redeeming gift card {code}: {str(e)}", exc_info=True)
         return False
@@ -144,38 +233,54 @@ async def create_gift_card(
     self,
     code: str,
     credits_value: int,
-    purchaser_user_id_hash: Optional[str] = None
+    purchaser_user_id_hash: Optional[str] = None,
+    is_reusable: bool = False,
+    allowed_email_domain: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Creates a new gift card in Directus.
-    
+
     Args:
         code: Unique gift card code
         credits_value: Number of credits the gift card provides
         purchaser_user_id_hash: Optional hash of the user ID who purchased this card
-        
+        is_reusable: When true, the card is NOT deleted on redemption. Reserved
+            for infrastructure/test cards (e.g. the prod smoke test card).
+            Default false preserves existing user-purchase + admin-UI behavior.
+        allowed_email_domain: Optional exact full-domain restriction (e.g.
+            "xyz9abc1.mailosaur.net"). Only users whose email domain matches
+            exactly (case-insensitive) can redeem the card. Default None = any
+            user can redeem (current behavior).
+
     Returns:
         Created gift card data dict if successful, None otherwise
     """
     try:
         logger.info(f"Creating gift card with code: {code}, credits: {credits_value}")
         collection_name = "gift_cards"
-        
+
         # Prepare gift card data
         gift_card_data = {
             "code": code.upper(),  # Store codes in uppercase
             "credits_value": credits_value,
         }
-        
+
         # Add purchaser info if provided
         if purchaser_user_id_hash:
             gift_card_data["purchaser_user_id_hash"] = purchaser_user_id_hash
             # Use ISO 8601 format for datetime fields (Directus/PostgreSQL requirement)
             gift_card_data["purchased_at"] = datetime.now(timezone.utc).isoformat()
-        
+
+        # Only include the new columns when non-default, to minimize the diff
+        # in Directus writes for the common case.
+        if is_reusable:
+            gift_card_data["is_reusable"] = True
+        if allowed_email_domain:
+            gift_card_data["allowed_email_domain"] = allowed_email_domain.strip().lower()
+
         # Create the gift card using create_item (returns tuple: success, data)
         success, created_item = await self.create_item(collection_name, gift_card_data)
-        
+
         if success and created_item:
             logger.info(f"Successfully created gift card with code: {code}")
             # Cache the newly created gift card
@@ -185,7 +290,7 @@ async def create_gift_card(
         else:
             logger.error(f"Failed to create gift card with code: {code}. Response: {created_item}")
             return None
-            
+
     except Exception as e:
         logger.error(f"Error creating gift card with code {code}: {str(e)}", exc_info=True)
         return None

@@ -1,0 +1,15 @@
+# Snippet card primitive — white rounded quote container used in embed fullscreens.
+# Consumed by build-tokens.js → emits .ds-* CSS classes + DS.* Swift structs.
+#
+# Used by: NewsEmbedFullscreen.svelte, WebsiteEmbedFullscreen.svelte
+# Each component still defines its own responsive overrides (padding/radius at
+# small viewports) against the .ds-snippet-card selector in its local <style>
+# block — only the base rule is lifted here.
+
+snippet-card:
+  position:         relative
+  background-color: { ref: "color-grey-0" }
+  radius:           30
+  padding-y:        24
+  padding-x:        50
+  min-height:       60

@@ -307,17 +307,17 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="home-search-details" class:mobile={isMobileLayout}>
       <!-- Query text (city name) -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
 
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
 
       {#if status === 'error'}
         <div class="search-error">
-          <div class="search-error-title">{$text('common.search')} failed</div>
+          <div class="ds-search-error-title">{$text('common.search')} failed</div>
         </div>
       {:else if status === 'finished'}
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           {#if flatResults.length === 0}
             {#if isLoadingChildren}
               <span class="no-results-text">{$text('common.loading')}</span>
@@ -360,7 +360,7 @@
   .home-search-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
 
@@ -372,67 +372,41 @@
     justify-content: flex-start;
   }
 
-  .search-query {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
 
-  .home-search-details.mobile .search-query {
-    font-size: 14px;
+  .home-search-details.mobile .ds-search-query {
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
 
-  .search-provider {
-    font-size: 14px;
-    color: var(--color-grey-70);
-    line-height: 1.3;
+  .home-search-details.mobile .ds-search-provider {
+    font-size: var(--font-size-xxs);
   }
 
-  .home-search-details.mobile .search-provider {
-    font-size: 12px;
-  }
-
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  .home-search-details.mobile .search-results-info {
-    margin-top: 2px;
+  .home-search-details.mobile .ds-search-results-info {
+    margin-top: var(--spacing-1);
   }
 
   .no-results-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-grey-60);
     font-style: italic;
   }
 
   .search-error {
-    margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 12px;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-5);
     background-color: rgba(var(--color-error-rgb), 0.08);
     border: 1px solid rgba(var(--color-error-rgb), 0.3);
   }
 
-  .search-error-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-error);
-  }
+  /* .ds-search-error-title base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/status-feedback.yml */
 
   /* Listing thumbnail row: overlapping rounded squares */
   .thumbnail-row {
@@ -446,7 +420,7 @@
   .listing-thumbnail {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     border: 2px solid var(--color-grey-0);
     background-color: var(--color-grey-30);
     object-fit: cover;
@@ -459,13 +433,13 @@
   }
 
   .remaining-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
 
   .home-search-details.mobile .remaining-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   /* Skill icon styling for home */

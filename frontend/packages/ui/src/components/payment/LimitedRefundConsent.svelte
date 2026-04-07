@@ -56,7 +56,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
     
     .consent-container {
@@ -65,21 +65,21 @@
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 24px;
+        gap: var(--spacing-12);
         padding-top: 30px;
     }
     
     .confirmation-row {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
         cursor: pointer;
         width: 100%;
     }
     
     .confirmation-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         text-align: left;
         flex: 1;
     }

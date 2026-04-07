@@ -316,18 +316,18 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
 <style>
     /* ── Container ─────────────────────────────────────────────────────────── */
     .storage-container {
-        padding: 24px;
+        padding: var(--spacing-12);
         max-width: 560px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
 
     /* ── Loading ───────────────────────────────────────────────────────────── */
     .loading-state {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         color: var(--color-grey-60);
         padding: 32px 0;
     }
@@ -351,11 +351,11 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 8px;
-        padding: 20px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-10);
         background: var(--color-danger-light);
         border: 1px solid var(--color-danger);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
 
     .error-state .icon {
@@ -373,23 +373,23 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     }
 
     .error-detail {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-danger);
         margin: 0;
         word-break: break-word;
     }
 
     .btn-retry {
-        margin-top: 8px;
-        padding: 8px 16px;
+        margin-top: var(--spacing-4);
+        padding: var(--spacing-4) var(--spacing-8);
         background: var(--color-danger);
         color: white;
         border: none;
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.15s;
+        transition: opacity var(--duration-fast);
     }
 
     .btn-retry:hover {
@@ -399,29 +399,29 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     /* ── Usage card ────────────────────────────────────────────────────────── */
     .usage-card {
         background: var(--color-grey-10);
-        border-radius: 12px;
-        padding: 20px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-10);
     }
 
     .usage-label {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: var(--color-grey-80);
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .progress-bar {
         height: 8px;
         background: var(--color-grey-20);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         overflow: hidden;
-        margin-bottom: 8px;
+        margin-bottom: var(--spacing-4);
     }
 
     .progress-fill {
         height: 100%;
         background: var(--color-primary);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         transition: width 0.4s ease;
     }
 
@@ -436,12 +436,12 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     }
 
     .free-tier-label {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
     }
 
     .used-percent {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         color: var(--color-grey-70);
     }
@@ -449,17 +449,17 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     /* ── Billing card ──────────────────────────────────────────────────────── */
     .billing-card {
         background: var(--color-grey-10);
-        border-radius: 12px;
-        padding: 20px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-10);
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .free-tier-notice {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .free-tier-notice .icon {
@@ -467,13 +467,13 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
         height: 20px;
         background: var(--color-success);
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
 
     .free-tier-notice p {
         margin: 0;
         color: var(--color-grey-70);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
     }
 
@@ -481,7 +481,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .billing-row.muted {
@@ -489,12 +489,12 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     }
 
     .billing-key {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
     }
 
     .billing-value {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-grey-80);
     }
@@ -506,7 +506,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     /* ── Breakdown section ─────────────────────────────────────────────────── */
     .breakdown-section {
         background: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 4px 0;
         overflow: hidden;
     }
@@ -516,10 +516,10 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     .invoice-notice {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
+        gap: var(--spacing-5);
         padding: 14px 16px;
         background: var(--color-grey-10);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         border: 1px solid var(--color-grey-20);
     }
 
@@ -535,7 +535,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
 
     .invoice-notice-text {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         line-height: 1.5;
     }

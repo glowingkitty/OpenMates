@@ -271,12 +271,29 @@ else:
     )
     logger.info(f"[WORKER_QUEUE_FILTER] API/scheduler mode - all queues available for routing: {[q.name for q in task_queues]}")
 
-# Create Celery app
+# Create Celery app.
+#
+# `task_cls=DedupedTask` makes every task that does not specify an explicit
+# `base=` inherit from DedupedTask, which acquires a sync-redis SET-NX lock
+# keyed on `task_id` BEFORE the task body runs. This is the global compensator
+# for `task_acks_late=True` + `task_reject_on_worker_lost=True` (set further
+# down): the broker is allowed to redeliver an unacked message on connection
+# cycles, autoreload restarts, or kombu's `restore_unacked_once`, and consumer-
+# side idempotency is the only correct way to prevent double execution.
+#
+# History: this line was previously reverted by hotfix e7b56 because the inline
+# `_acquire_celery_task_dedup_lock` in `apps/ai/tasks/ask_skill_task.py` and
+# `DedupedTask.__call__` were both claiming the same `celery_task_dedup:{task_id}`
+# key, causing every AI task to skip its own body. The inline helper has now
+# been removed (commit e245f1c), so the conflict cannot recur — DedupedTask is
+# the single source of truth for per-task_id dedup. Do NOT re-add the inline
+# helper to ask_skill_task.py.
 app = Celery(
     'openmates',
     broker=broker_url,
     backend=result_backend,
-    include=include_modules # Dynamically include task modules
+    include=include_modules, # Dynamically include task modules
+    task_cls='backend.core.api.app.tasks.base_task:DedupedTask',
 )
 
 # Explicitly import task modules to ensure tasks are registered
@@ -848,7 +865,44 @@ def init_worker_process(*args, **kwargs):
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
-    
+
+    # OPE-342: Build the in-process SkillRegistry for this worker process.
+    # Workers used to HTTP-POST to app-{id}:8000 containers; now they import
+    # skill classes via importlib and dispatch in-process via the registry.
+    # This must run AFTER initialize_services() (some skills depend on shared
+    # services being importable) and BEFORE the worker accepts any tasks.
+    try:
+        from backend.core.api.app.services.skill_registry import (
+            build_skill_registry,
+            set_global_registry,
+        )
+        from backend.core.api.app.utils.config_manager import ConfigManager
+
+        worker_disabled_apps: list = []
+        try:
+            worker_disabled_apps = ConfigManager().get_disabled_apps() or []
+        except Exception as cfg_e:
+            logger.warning(
+                f"[SkillRegistry] Could not read disabled_apps from ConfigManager: {cfg_e}. "
+                f"Continuing with empty disabled list."
+            )
+
+        worker_registry, worker_metadata = build_skill_registry(
+            disabled_app_ids=worker_disabled_apps,
+            server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
+        )
+        set_global_registry(worker_registry)
+        logger.info(
+            f"[SkillRegistry] Worker registry initialized with {len(worker_metadata)} app(s): "
+            f"{sorted(worker_metadata.keys())}"
+        )
+    except Exception as reg_e:
+        logger.error(
+            f"[SkillRegistry] FAILED to build worker skill registry: {reg_e}. "
+            f"All in-process skill dispatches in this worker will return 404.",
+            exc_info=True,
+        )
+
     # PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients for app-ai-worker
     # This eliminates the cold-start delay on the first AI request after restart
     asyncio.run(prewarm_ai_services())
@@ -968,7 +1022,6 @@ _EXPLICIT_TASK_ROUTES = {
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
     "app.tasks.auto_delete_tasks.auto_delete_old_issues": "persistence",
-    "app.tasks.auto_delete_tasks.auto_delete_old_usage": "persistence",
     "app.tasks.auto_delete_tasks.auto_expire_stale_devices": "persistence",
 
     # PDF processing tasks
@@ -1207,14 +1260,9 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=3, minute=0),  # Daily 03:00 UTC
         'options': {'queue': 'persistence'},
     },
-    # Daily usage auto-delete — permanently purges usage records (Directus + S3 archives)
-    # older than the user-configured retention period (default: 3 years).
-    # Runs at 03:30 UTC, staggered from other auto-delete tasks.
-    'auto-delete-old-usage-daily': {
-        'task': 'app.tasks.auto_delete_tasks.auto_delete_old_usage',
-        'schedule': crontab(hour=3, minute=30),  # Daily 03:30 UTC
-        'options': {'queue': 'persistence'},
-    },
+    # Note: usage record auto-delete was removed — retention is now enforced
+    # by the S3 bucket lifecycle policy on `usage_archives` (3 years). See
+    # backend/core/api/app/services/s3/config.py.
     # Daily device expiry — removes stale device fingerprints not seen in 90 days.
     # GDPR data minimization (Article 5(1)(c)): device hashes should not be stored indefinitely.
     # Runs at 04:00 UTC, staggered from other auto-delete tasks.

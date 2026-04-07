@@ -1,0 +1,12 @@
+{
+  "_comment": "Line numbers of intentionally hardcoded values that should not use tokens. Add entries as: \"relative/path.svelte\": [lineNumber, lineNumber]",
+  "_phaseE_outliers": "Lines below are local class definitions intentionally NOT migrated to ds-* primitives in Phase E sub-phase α. Each represents a different visual role under the same name — see audit notes in src/tokens/sources/components/*.yml.",
+  "components/embeds/images/ImagesSearchEmbedPreview.svelte": [313, 326, 371, 426],
+  "components/embeds/images/ImageGenerateEmbedFullscreen.svelte": [823, 861],
+  "components/embeds/pdf/PdfSearchEmbedFullscreen.svelte": [311],
+  "components/payment/ProcessingPayment.svelte": [150],
+  "components/signup/steps/recoverykey/RecoveryKeyTopContent.svelte": [408],
+  "components/signup/steps/confirmemail/ConfirmEmailBottomContent.svelte": [164],
+  "components/signup/steps/backupcodes/BackupCodesTopContent.svelte": [312],
+  "components/settings/appSettings/ActiveRemindersList.svelte": [156]
+}

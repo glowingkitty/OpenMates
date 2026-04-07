@@ -270,7 +270,7 @@
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
           {#if isLoadingChildren}
-            <span class="loading-text">{$text('common.loading')}</span>
+            <span class="ds-loading-text">{$text('common.loading')}</span>
           {/if}
         </div>
       {:else}
@@ -305,13 +305,13 @@
   .text-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 16px 20px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-8) var(--spacing-10);
     overflow: hidden;
   }
 
   .search-query {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-90, #1a1a1a);
     line-height: 1.4;
@@ -324,7 +324,7 @@
   }
 
   .search-provider {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70, #555);
     line-height: 1.4;
   }
@@ -333,7 +333,7 @@
   .thumbnail-strip {
     display: flex;
     flex-direction: row;
-    gap: 2px;
+    gap: var(--spacing-1);
     width: 100%;
     height: 30px;
     flex-shrink: 0;
@@ -352,28 +352,28 @@
   .results-footer {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px 20px 8px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-5) var(--spacing-10) var(--spacing-4);
     flex-shrink: 0;
   }
 
   .results-footer .search-query {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     line-clamp: 2;
     -webkit-line-clamp: 2;
   }
 
   .results-footer .search-provider {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   .search-results-info {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
-    margin-top: 2px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-1);
   }
 
   /* Favicon row — overlapping circles like WebSearchEmbedPreview */
@@ -401,14 +401,11 @@
     margin-left: 0;
   }
 
-  .loading-text {
-    font-size: 14px;
-    color: var(--color-grey-70, #555);
-    font-weight: 500;
-  }
+  /* .ds-loading-text base styles are generated from
+     frontend/packages/ui/src/tokens/sources/components/loading.yml */
 
   .remaining-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70, #555);
     font-weight: 500;
     white-space: nowrap;
@@ -418,22 +415,22 @@
   .search-error {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 12px 16px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-6) var(--spacing-8);
     background: var(--color-error-5, #fff5f5);
     border: 1px solid var(--color-error-20, #f5c0c0);
-    border-radius: 12px;
-    margin: 12px;
+    border-radius: var(--radius-5);
+    margin: var(--spacing-6);
   }
 
   .error-title {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-error-70, #b04a4a);
   }
 
   .error-message {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error-50, #c06060);
     line-height: 1.4;
   }
@@ -442,13 +439,13 @@
   .skeleton-lines {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .skeleton-line {
     height: 12px;
     background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
 

@@ -408,7 +408,7 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .image-content.clickable:hover .preview-image {
@@ -427,7 +427,7 @@
   .pdf-icon-center .icon_rounded {
     width: 52px;
     height: 52px;
-    border-radius: 14px;
+    border-radius: var(--radius-6);
     background-size: 26px 26px;
     background-repeat: no-repeat;
     background-position: center;

@@ -107,24 +107,6 @@ _PERIOD_TO_DAYS: dict[str, Optional[int]] = {
     'never': None,
 }
 
-# ─── Valid period strings for usage data auto-deletion ────────────────────────
-# Usage data has a longer minimum retention (90 days) than chats.
-# The platform default is 3 years (1095 days) when the user has not configured a period.
-# "never" = null = apply platform default (1095 days); users cannot set truly unlimited retention
-# as usage data must eventually be purged for GDPR compliance.
-USAGE_DEFAULT_RETENTION_DAYS: int = 1095  # 3 years — platform default when field is null
-
-_USAGE_PERIOD_TO_DAYS: dict[str, Optional[int]] = {
-    '90d':   90,
-    '6m':    180,
-    '1y':    365,
-    '2y':    730,
-    '3y':    1095,
-    '5y':    1825,
-    'never': None,  # null → platform default (USAGE_DEFAULT_RETENTION_DAYS)
-}
-
-
 class AutoDeleteChatsRequest(BaseModel):
     """
     Request body for POST /v1/settings/auto-delete-chats.
@@ -152,43 +134,9 @@ class AutoDeleteChatsRequest(BaseModel):
         }
 
 
-class AutoDeleteUsageRequest(BaseModel):
-    """
-    Request body for POST /v1/settings/auto-delete-usage.
-
-    Accepts a period string (e.g. "1y", "3y", "never").  "never" stores null,
-    which tells the auto-delete task to apply the platform default retention of
-    3 years (USAGE_DEFAULT_RETENTION_DAYS = 1095 days).
-
-    Minimum: 90d.  Available options mirror the frontend PERIOD_OPTIONS_LONG list.
-    """
-    period: str  # One of: "90d", "6m", "1y", "2y", "3y", "5y", "never"
-
-    @field_validator('period')
-    @classmethod
-    def validate_period(cls, v: str) -> str:
-        """Reject unknown period strings immediately."""
-        if v not in _USAGE_PERIOD_TO_DAYS:
-            allowed = ', '.join(sorted(_USAGE_PERIOD_TO_DAYS.keys()))
-            raise ValueError(f"Invalid usage period '{v}'. Must be one of: {allowed}")
-        return v
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "period": "3y"
-            }
-        }
-
-
 def period_to_days(period: str) -> Optional[int]:
     """Convert a chat/files UI period string to an integer day count (None for 'never')."""
     return _PERIOD_TO_DAYS.get(period)
-
-
-def usage_period_to_days(period: str) -> Optional[int]:
-    """Convert a usage-data UI period string to an integer day count (None for 'never')."""
-    return _USAGE_PERIOD_TO_DAYS.get(period)
 
 
 # ─── AI Model Defaults ────────────────────────────────────────────────────────

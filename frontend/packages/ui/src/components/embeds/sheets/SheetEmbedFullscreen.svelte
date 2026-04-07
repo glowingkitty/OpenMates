@@ -521,7 +521,7 @@
 
   .sheet-pii-bar {
     flex-shrink: 0;
-    padding: 6px 12px;
+    padding: var(--spacing-3) var(--spacing-6);
     background: var(--color-grey-10);
     border-bottom: 1px solid var(--color-grey-25);
     display: flex;
@@ -531,16 +531,16 @@
   .pii-toggle-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 4px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-5);
+    border-radius: var(--radius-1);
     border: none;
     background: var(--color-grey-20);
     color: var(--color-font-secondary);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color var(--duration-fast), color var(--duration-fast);
   }
 
   .pii-toggle-btn:hover {
@@ -562,14 +562,14 @@
   
   .filter-bar {
     flex-shrink: 0;
-    padding: 6px 12px;
+    padding: var(--spacing-3) var(--spacing-6);
     background: var(--color-grey-10);
     border-bottom: 1px solid var(--color-grey-25);
   }
   
   .filter-bar-inner {
     display: flex;
-    gap: 6px;
+    gap: var(--spacing-3);
     align-items: center;
     overflow-x: auto;
   }
@@ -582,10 +582,10 @@
   
   .filter-input {
     width: 100%;
-    padding: 4px 8px;
+    padding: var(--spacing-2) var(--spacing-4);
     border: 1px solid var(--color-grey-30);
     border-radius: 3px;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     background: var(--color-grey-0);
     color: var(--color-font-primary);
     box-sizing: border-box;
@@ -631,7 +631,7 @@
   
   .spreadsheet {
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Do NOT set width: 100% — let columns size naturally so wide tables scroll */
@@ -647,7 +647,7 @@
   .spreadsheet th,
   .spreadsheet td {
     border: 1px solid var(--color-grey-25);
-    padding: 6px 12px;
+    padding: var(--spacing-3) var(--spacing-6);
     text-align: left;
     vertical-align: top;
     color: var(--color-font-primary);
@@ -660,7 +660,7 @@
     font-weight: 600;
     color: var(--color-font-primary);
     position: sticky;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
   
   /* Column letter row (A, B, C...) — sits at the very top */
@@ -668,15 +668,15 @@
     top: 0;
     border-bottom: 1px solid var(--color-grey-30);
     font-weight: 500;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-font-tertiary);
-    padding: 2px 12px;
+    padding: var(--spacing-1) var(--spacing-6);
     text-align: center;
   }
   
   .col-letter-gutter {
     /* Sticky in both directions (top + left) */
-    z-index: 3 !important;
+    z-index: var(--z-index-raised-3) !important;
   }
   
   .col-letter {
@@ -704,7 +704,7 @@
   .col-header-content {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
   
   .col-header-text {
@@ -735,11 +735,11 @@
     background: var(--color-grey-10);
     color: var(--color-font-tertiary);
     text-align: center;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     width: 40px;
     min-width: 40px;
     max-width: 40px;
-    padding: 6px 4px;
+    padding: var(--spacing-3) var(--spacing-2);
     user-select: none;
     border-right: 2px solid var(--color-grey-30);
   }
@@ -749,11 +749,11 @@
   .row-num {
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
   
   .row-num-header {
-    z-index: 3; /* Above both sticky header row and sticky gutter column */
+    z-index: var(--z-index-raised-3); /* Above both sticky header row and sticky gutter column */
   }
   
   /* Filter toggle button inside the row-number gutter header */
@@ -817,7 +817,7 @@
   
   .no-results {
     text-align: center;
-    padding: 24px 16px;
+    padding: var(--spacing-12) var(--spacing-8);
     color: var(--color-font-tertiary);
     font-style: italic;
     background: var(--color-grey-0) !important;
@@ -836,7 +836,7 @@
   }
   
   .empty-state p {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     margin: 0;
   }
   
@@ -850,7 +850,7 @@
   
   @media (max-width: 768px) {
     .spreadsheet {
-      font-size: 12px;
+      font-size: var(--font-size-xxs);
     }
     
     .spreadsheet th,
@@ -863,7 +863,7 @@
       width: 32px;
       min-width: 32px;
       max-width: 32px;
-      font-size: 10px;
+      font-size: null;
     }
     
     .filter-field {

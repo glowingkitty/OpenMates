@@ -9,10 +9,31 @@
 # - Production server: Apps with 'production' stage components only are included
 # - Apps with no valid components are treated as 'planning' and excluded
 
-# Optional: Explicitly disable apps (opt-out list)
-# Only use this if you need to temporarily disable a problematic app.
-# disabled_apps:
-#   - "problematic_app"
+# Explicitly disable apps (opt-out list).
+#
+# Use this for:
+#   1. Stub folders with no implemented skills (planning-stage only or empty placeholders).
+#   2. Temporarily disabling a problematic app without deleting its folder.
+#
+# Apps listed here are skipped by `build_skill_registry()` (in
+# backend/core/api/app/services/skill_registry.py) at api startup AND at
+# Celery worker_process_init time. They are not loaded into the in-process
+# SkillRegistry, so REST returns 404 and the AI preprocessor doesn't see them.
+#
+# Adding a new app: drop the folder under backend/apps/ and restart api.
+# No docker-compose entry needed (see OPE-342).
+disabled_apps:
+  # Empty / no skills declared
+  - "3d"
+  - "music"
+  - "politics"
+  - "weather"
+  # Planning-stage skills only — no implementation, no container needed yet
+  - "fitness"
+  - "life_coaching"
+  - "pcb_design"
+  - "plants"
+  - "social_media"
 
 # Other backend-wide configurations can be added below.
 # For example:

@@ -309,17 +309,17 @@
   .results-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
     overflow-y: auto;
     max-height: min(70dvh, 620px);
-    padding-right: 2px;
+    padding-right: var(--spacing-1);
   }
 
   .result-item {
     cursor: pointer;
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     border: 2px solid transparent;
-    transition: border-color 0.15s ease;
+    transition: border-color var(--duration-fast) var(--easing-default);
     pointer-events: all;
   }
 
@@ -348,7 +348,7 @@
     color: var(--color-font-secondary);
     font-size: 1rem;
     text-align: center;
-    padding: 24px 8px;
+    padding: var(--spacing-12) var(--spacing-4);
   }
 
   .results-list::-webkit-scrollbar {

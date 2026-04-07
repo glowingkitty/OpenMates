@@ -426,7 +426,7 @@
     justify-content: center;
     /* Smooth background transition when switching from primary → category gradient */
     transition: background 0.5s ease;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-xl);
     /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
     pointer-events: none;
     user-select: none;
@@ -438,8 +438,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    z-index: 2;
+    gap: var(--spacing-6);
+    z-index: var(--z-index-raised-2);
     animation: fadeIn 0.2s ease-out;
   }
 
@@ -471,7 +471,7 @@
 
   /* "Creating new chat ..." text (20px, white) with shimmer */
   .processing-text {
-    font-size: 20px;
+    font-size: var(--font-size-h3);
     font-weight: 600;
     color: white;
     text-align: center;
@@ -516,7 +516,7 @@
   }
 
   .credits-error-text {
-    font-size: 20px;
+    font-size: var(--font-size-h3);
     font-weight: 600;
     color: rgba(255, 255, 255, 0.75);
     text-align: center;
@@ -528,9 +528,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    z-index: 2;
-    padding: 16px 24px;
+    gap: var(--spacing-2);
+    z-index: var(--z-index-raised-2);
+    padding: var(--spacing-8) var(--spacing-12);
     /* Narrow text block so it doesn't stretch the full banner width */
     max-width: 480px;
     width: 100%;
@@ -552,12 +552,13 @@
     flex-shrink: 0;
   }
 
-  /* Title: 20px, white, bold, centered, truncated to 2 lines */
+  /* Title: 20px, white, bold, centered, truncated to 2 lines.
+     Always white regardless of theme — sits on the branded gradient header. */
   .loaded-title {
     display: block;
-    font-size: 20px;
+    font-size: var(--font-size-h3);
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-font-button);
     text-align: center;
     line-height: 1.3;
     max-width: 100%;
@@ -569,12 +570,13 @@
     overflow: hidden;
   }
 
-  /* Summary: 14px, white, centered. Animates height from 0. */
+  /* Summary: 14px, white, centered. Animates height from 0.
+     Always white regardless of theme — sits on the branded gradient header. */
   .loaded-summary {
     margin: 2px 0 0;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
-    color: #ffffff;
+    color: var(--color-font-button);
     line-height: 1.45;
     text-align: center;
     /* Clamp to 3 lines */
@@ -596,17 +598,17 @@
     to {
       opacity: 1;
       max-height: 100px; /* enough for 3 lines */
-      margin-top: 2px;
+      margin-top: var(--spacing-1);
     }
   }
 
   /* Creation time: 14px, white at 0.7 opacity */
   .loaded-time {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     text-align: center;
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
     animation: fadeIn 0.4s ease-out 0.15s both;
   }
 
@@ -665,7 +667,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
+    z-index: var(--z-index-raised);
     pointer-events: none;
     /* Orbital float radius for 126px banner icons */
     --float-rx: 10px;
@@ -723,8 +725,8 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
-    z-index: 20;
+    transition: background-color var(--duration-fast) var(--easing-default);
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto; /* Re-enable interactivity for arrows despite banner pointer-events:none */
     flex-shrink: 0;
   }
@@ -748,7 +750,7 @@
 
   .nav-arrow-right {
     right: 0;
-    border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
+    border-radius: var(--radius-4) 0 0 10px !important; /* rounded on the left (inner) side */
   }
 
 
@@ -776,7 +778,7 @@
   .banner-orbs {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: var(--z-index-base);
     pointer-events: none;
     overflow: hidden;
   }
@@ -858,15 +860,15 @@
     }
 
     .processing-text {
-      font-size: 17px;
+      font-size: var(--font-size-lg);
     }
 
     .credits-error-text {
-      font-size: 17px;
+      font-size: var(--font-size-lg);
     }
 
     .loaded-content {
-      padding: 12px 20px;
+      padding: var(--spacing-6) var(--spacing-10);
       max-width: 360px;
     }
 
@@ -881,11 +883,11 @@
     }
 
     .loaded-title {
-      font-size: 17px;
+      font-size: var(--font-size-lg);
     }
 
     .loaded-summary {
-      font-size: 13px;
+      font-size: var(--font-size-xs);
       -webkit-line-clamp: 2;
       line-clamp: 2;
     }

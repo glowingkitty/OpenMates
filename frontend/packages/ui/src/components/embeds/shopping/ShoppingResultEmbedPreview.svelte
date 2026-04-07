@@ -256,7 +256,7 @@
     height: 100%;
     display: block;
     object-fit: contain;
-    padding: 8px;
+    padding: var(--spacing-4);
     box-sizing: border-box;
   }
 
@@ -266,10 +266,10 @@
     right: 26px;
     padding: 2px 7px;
     border-radius: 100px;
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
-    color: #fff;
-    z-index: 1;
+    color: var(--color-grey-0);
+    z-index: var(--z-index-raised);
   }
 
   .badge-sale {
@@ -282,7 +282,7 @@
   }
 
   .product-title {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -294,18 +294,18 @@
   }
 
   .product-brand {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-60);
   }
 
   .price-row {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .product-price {
-    font-size: 15px;
+    font-size: null;
     font-weight: 700;
     color: var(--color-grey-100);
   }
@@ -315,19 +315,19 @@
   }
 
   .old-price {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-60);
     text-decoration: line-through;
   }
 
   .no-price {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-60);
     font-style: italic;
   }
 
   .grammage {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-60);
   }
 
@@ -339,21 +339,21 @@
   }
 
   .rating {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: #f59e0b;
     font-weight: 600;
   }
 
   .reviews {
-    font-size: 10px;
+    font-size: null;
     color: var(--color-grey-60);
   }
 
   .prime {
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     padding: 1px 5px;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     background: rgba(59, 130, 246, 0.12);
     color: #2563eb;
   }
@@ -361,14 +361,14 @@
   .tags-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--spacing-2);
     margin-top: 1px;
   }
 
   .tag {
-    font-size: 10px;
+    font-size: null;
     padding: 1px 6px;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     background: rgba(var(--color-primary-rgb), 0.1);
     color: var(--color-primary);
     font-weight: 600;

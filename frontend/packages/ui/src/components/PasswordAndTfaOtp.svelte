@@ -1024,7 +1024,7 @@
 
 <style>
     .login-button {
-        margin: 20px 0px 10px 0px;
+        margin: var(--spacing-10) var(--spacing-0) var(--spacing-5) var(--spacing-0);
     }
     .password-tfa-login {
         display: flex;
@@ -1034,7 +1034,7 @@
 
     .email-display {
         text-align: center;
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-5);
     }
 
     .login-options-container {
@@ -1051,14 +1051,14 @@
     .app-name-inline {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         vertical-align: middle
     }
 
     .mini-icon {
         width: 24px;
         height: 24px;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         flex-shrink: 0;
     }
 
@@ -1066,7 +1066,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0px 0px;
+        padding: var(--spacing-0) var(--spacing-0);
         background: none;
         border: none;
         cursor: pointer;
@@ -1074,7 +1074,7 @@
     }
 
     .login-option-button .clickable-icon {
-        margin-right: 8px;
+        margin-right: var(--spacing-4);
     }
 
     .loading-spinner {
@@ -1093,13 +1093,13 @@
 
     .rate-limit-message {
         color: var(--color-error);
-        padding: 24px;
+        padding: var(--spacing-12);
         text-align: center;
         font-weight: 500;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1.5;
         background-color: var(--color-error-light);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         margin: 24px 0;
     }
     

@@ -910,13 +910,39 @@ async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[st
     return health_data
 
 
-async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
-    """Check Proton Mail Bridge provider health using configured bridge credentials."""
+async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Optional[Dict[str, Any]]:
+    """Check Proton Mail Bridge provider health using configured bridge credentials.
+
+    Returns ``None`` (and removes any stale cache entry) when the bridge is not
+    configured at all — protonmail is opt-in self-hosting, so an absent setup is
+    not an "unhealthy" state and should not pollute the public status page.
+    """
     logger.info("Health check: Checking provider 'protonmail' (Proton Mail Bridge)...")
 
     cache_service = CacheService()
 
-    from backend.shared.providers.protonmail.protonmail_bridge import check_protonmail_bridge_health
+    from backend.shared.providers.protonmail.protonmail_bridge import (
+        check_protonmail_bridge_health,
+        get_protonmail_bridge_config,
+        is_bridge_configured,
+    )
+
+    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}protonmail"
+
+    # Short-circuit when ProtonMail Bridge is not configured: drop any stale
+    # cache entry and skip reporting it as a provider entirely.
+    config = await get_protonmail_bridge_config(secrets_manager)
+    if not config.enabled or not is_bridge_configured(config):
+        try:
+            client = await cache_service.client
+            if client:
+                await client.delete(cache_key)
+        except Exception as exc:
+            logger.debug("Health check: Failed to delete stale protonmail cache entry: %s", exc)
+        finally:
+            await cache_service.close()
+        logger.info("Health check: Skipping provider 'protonmail' — bridge not configured")
+        return None
 
     start_time = time.time()
     success, error = await check_protonmail_bridge_health(secrets_manager)
@@ -929,7 +955,6 @@ async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Di
         status = "unhealthy"
         last_error = _sanitize_error_message(error)
 
-    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}protonmail"
     existing_health_data = {}
     try:
         client = await cache_service.client
@@ -976,41 +1001,28 @@ async def _check_protonmail_bridge_health(secrets_manager: SecretsManager) -> Di
 
 async def _check_app_api_health(app_id: str, port: int = 8000) -> tuple[bool, Optional[str]]:
     """
-    Check app API health by making a request to the app's /health endpoint.
-    
+    Check app API health by looking it up in the in-process SkillRegistry.
+
+    Pre-OPE-342 this would HTTP-GET ``http://app-{id}:{port}/health``. Now apps
+    run in-process inside ``api`` and the workers, so "API health" reduces to
+    "is the app loaded and did its skill imports succeed?".
+
     Args:
         app_id: App ID (e.g., "ai", "web")
-        port: Internal port (default: 8000)
-    
+        port: kept for signature compatibility — unused.
+
     Returns:
-        Tuple of (is_healthy, error_message) - error_message is sanitized
+        Tuple of (is_healthy, error_message)
     """
     try:
-        hostname = f"app-{app_id}"
-        health_url = f"http://{hostname}:{port}/health"
-        
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(health_url)
-            if response.status_code == 200:
-                # Verify response structure
-                try:
-                    data = response.json()
-                    if data.get("status") == "ok":
-                        return True, None
-                    else:
-                        return False, _sanitize_error_message(f"Unexpected status: {data.get('status')}")
-                except json.JSONDecodeError:
-                    return False, _sanitize_error_message("Invalid JSON response")
-            else:
-                return False, _sanitize_error_message(f"HTTP {response.status_code}")
-    except httpx.TimeoutException:
-        return False, "timeout"
-    except httpx.RequestError as e:
-        # Sanitize request errors
-        error_str = str(e)
-        if "name resolution" in error_str.lower() or "temporary failure" in error_str.lower():
-            return False, "connection_error"
-        return False, _sanitize_error_message(error_str)
+        from backend.core.api.app.services.skill_registry import get_global_registry
+        registry = get_global_registry()
+        if not registry.has_app(app_id):
+            return False, "not_loaded_in_registry"
+        base_app = registry.apps[app_id]
+        if not base_app.is_valid:
+            return False, "base_app_invalid"
+        return True, None
     except Exception as e:
         return False, _sanitize_error_message(str(e))
 
@@ -1183,49 +1195,43 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
         response_time_ms=None  # Apps don't have response time tracking
     )
     
-    # Build per-skill availability from cached provider health
+    # Build per-skill availability from the in-process registry + cached provider health.
+    # OPE-342: replaces the old HTTP /health fetch to a sibling app-{id} container.
     skills_health = []
     try:
         client = await cache_service.client
         if client and api_healthy:
-            # Fetch app health response which now includes skill→provider mapping
-            try:
-                async with httpx.AsyncClient(timeout=5.0) as http_client:
-                    app_url = f"http://app-{app_id}:{port}/health"
-                    resp = await http_client.get(app_url)
-                    if resp.status_code == 200:
-                        app_health_data = resp.json()
-                        for skill_info in app_health_data.get("skills", []):
-                            skill_id = skill_info.get("id", "")
-                            providers = skill_info.get("providers", [])
-                            # Check each provider's cached health status
-                            skill_available = True
-                            provider_statuses = []
-                            for prov in providers:
-                                prov_name = prov.get("name", "")
-                                if prov.get("no_api_key"):
-                                    provider_statuses.append({"name": prov_name, "status": "healthy"})
-                                    continue
-                                # Check provider health cache
-                                prov_cache_key = f"health_check:provider:{prov_name}"
-                                prov_raw = await client.get(prov_cache_key)
-                                if prov_raw:
-                                    if isinstance(prov_raw, bytes):
-                                        prov_raw = prov_raw.decode("utf-8")
-                                    prov_data = json.loads(prov_raw)
-                                    prov_status = prov_data.get("status", "unknown")
-                                    provider_statuses.append({"name": prov_name, "status": prov_status})
-                                    if prov_status == "unhealthy":
-                                        skill_available = False
-                                else:
-                                    provider_statuses.append({"name": prov_name, "status": "unknown"})
-                            skills_health.append({
-                                "id": skill_id,
-                                "status": "available" if skill_available else "unavailable",
-                                "providers": provider_statuses,
-                            })
-            except Exception as e:
-                logger.debug(f"Health check: Could not fetch skill info for app '{app_id}': {e}")
+            from backend.core.api.app.services.skill_registry import get_global_registry
+            base_app = get_global_registry().apps.get(app_id)
+            if base_app and base_app.app_config:
+                for skill_def in base_app.app_config.skills:
+                    if skill_def.stage == "planning":
+                        continue
+                    skill_id = skill_def.id
+                    skill_available = True
+                    provider_statuses = []
+                    for prov in (skill_def.providers or []):
+                        prov_name = getattr(prov, "name", "") or ""
+                        if getattr(prov, "no_api_key", False):
+                            provider_statuses.append({"name": prov_name, "status": "healthy"})
+                            continue
+                        prov_cache_key = f"health_check:provider:{prov_name}"
+                        prov_raw = await client.get(prov_cache_key)
+                        if prov_raw:
+                            if isinstance(prov_raw, bytes):
+                                prov_raw = prov_raw.decode("utf-8")
+                            prov_data = json.loads(prov_raw)
+                            prov_status = prov_data.get("status", "unknown")
+                            provider_statuses.append({"name": prov_name, "status": prov_status})
+                            if prov_status == "unhealthy":
+                                skill_available = False
+                        else:
+                            provider_statuses.append({"name": prov_name, "status": "unknown"})
+                    skills_health.append({
+                        "id": skill_id,
+                        "status": "available" if skill_available else "unavailable",
+                        "providers": provider_statuses,
+                    })
     except Exception as e:
         logger.debug(f"Health check: Could not build skill health for app '{app_id}': {e}")
 
@@ -2016,7 +2022,6 @@ def check_all_apps_health(self):
             async def get_app_ids():
                 app_ids = []
                 from backend.core.api.app.services.cache import CacheService
-                from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 
                 inner_cache_service = CacheService()
                 try:
@@ -2034,47 +2039,21 @@ def check_all_apps_health(self):
                     except Exception as cache_error:
                         logger.warning(f"Could not retrieve discovered apps from cache: {cache_error}")
                     
-                    # If cache is empty, discover apps by fetching metadata (same logic as discover_apps)
+                    # If cache is empty, build the in-process registry (OPE-342: there
+                    # are no per-app containers to HTTP-probe anymore — we just
+                    # filesystem-scan and instantiate BaseApp in-process).
                     if not discovered_metadata_json:
-                        logger.info("Health check: Discovered apps not in cache, discovering apps via metadata endpoints...")
-                        import httpx
-                        from backend.core.api.main import scan_filesystem_for_apps, filter_app_components_by_stage
-                        
-                        DEFAULT_APP_INTERNAL_PORT = 8000
+                        logger.info("Health check: Discovered apps not in cache, building in-process registry...")
+                        from backend.core.api.app.services.skill_registry import build_skill_registry
+
                         server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
                         disabled_app_ids = config_manager.get_disabled_apps()
-                        all_app_ids = scan_filesystem_for_apps()
-                        
-                        # Check all apps (except disabled ones) - filtering happens at component level
-                        apps_to_check = [app_id for app_id in all_app_ids if app_id not in disabled_app_ids]
-                        
-                        logger.info(f"Health check: Will check {len(apps_to_check)} app(s): {apps_to_check}")
-                        
-                        discovered = {}
-                        async with httpx.AsyncClient(timeout=5.0) as client:
-                            for app_id in apps_to_check:
-                                hostname = f"app-{app_id}"
-                                metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-                                try:
-                                    response = await client.get(metadata_url)
-                                    response.raise_for_status()
-                                    app_metadata_json = response.json()
-                                    
-                                    # Filter components by stage before parsing
-                                    filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
-                                    
-                                    # If no valid components after filtering, skip this app
-                                    if filtered_metadata_json is None:
-                                        continue
-                                    
-                                    app_yaml_data = AppYAML(**filtered_metadata_json)
-                                    app_yaml_data.id = app_id
-                                    discovered[app_id] = app_yaml_data
-                                except Exception:
-                                    # Skip apps that can't be reached or have invalid metadata
-                                    continue
-                        
+                        _registry, discovered = build_skill_registry(
+                            disabled_app_ids=disabled_app_ids,
+                            server_environment=server_environment,
+                        )
                         app_ids = list(discovered.keys())
+                        logger.info(f"Health check: In-process registry built — {len(app_ids)} app(s)")
                     else:
                         # Use app IDs from cache - apps are already filtered by components when discovered
                         disabled_app_ids = config_manager.get_disabled_apps()
@@ -2087,8 +2066,7 @@ def check_all_apps_health(self):
                 except Exception as e:
                     logger.error(f"Error getting app list for health check: {e}", exc_info=True)
                     # Fallback: scan filesystem - check all apps (except disabled ones)
-                    # Import here to avoid circular imports
-                    from backend.core.api.main import scan_filesystem_for_apps
+                    from backend.core.api.app.services.skill_registry import scan_filesystem_for_apps
 
                     APPS_DIR = "/app/backend/apps"
                     if os.path.isdir(APPS_DIR):
@@ -2108,6 +2086,8 @@ def check_all_apps_health(self):
                     return app_ids
                 finally:
                     await inner_cache_service.close()
+
+                return app_ids
             
             # Get app IDs (run async function)
             app_ids = await get_app_ids()
@@ -2251,15 +2231,18 @@ def check_all_providers_health(self):
                         logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
                         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                        # Log results
+                        # Log results — None results indicate "skipped, not configured"
+                        # (e.g. opt-in providers like ProtonMail Bridge) and are not failures.
                         healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
                         unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
                         error_count = sum(1 for r in results if isinstance(r, Exception))
+                        skipped_count = sum(1 for r in results if r is None)
 
                         logger.info("=" * 80)
                         logger.info(
                             f"Health check: Completed. "
-                            f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
+                            f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, "
+                            f"Errors: {error_count}, Skipped: {skipped_count}"
                         )
                         logger.info("=" * 80)
 

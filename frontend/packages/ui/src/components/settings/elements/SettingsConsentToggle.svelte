@@ -139,7 +139,7 @@
         padding: 0.625rem;
         border-radius: 0.5rem;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .settings-consent-toggle:hover {

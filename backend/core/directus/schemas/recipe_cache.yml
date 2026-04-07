@@ -1,0 +1,26 @@
+recipe_cache:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key — auto-generated UUID"
+
+    slug:
+      type: string
+      note: "Recipe URL slug (e.g. 'butter-chicken'). Unique per provider."
+
+    provider:
+      type: string
+      note: "Recipe source provider (e.g. 'rewe'). Allows future multi-provider support."
+
+    title:
+      type: string
+      note: "Recipe title for quick lookups without parsing recipe_data JSON."
+
+    recipe_data:
+      type: text
+      note: "Full recipe data as JSON string. Contains: title, description, ingredients, instructions, nutrition, ratings, dietary_tags, categories, image_url, etc."
+
+    fetched_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the recipe was last fetched from the source."

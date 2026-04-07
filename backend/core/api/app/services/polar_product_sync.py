@@ -64,7 +64,9 @@ class PolarProductSync:
         # Fetch all existing Polar products in one request
         existing_products = await self._fetch_all_products()
         if existing_products is None:
-            logger.error("PolarProductSync: failed to fetch existing Polar products, skipping sync")
+            # _fetch_all_products has already logged the user-facing reason
+            # at the appropriate level (WARNING for auth failures, ERROR for
+            # genuine API errors). Don't double-log here.
             return {}
 
         # Build lookup: credits_amount -> (product_id, current_name) tuple
@@ -176,10 +178,23 @@ class PolarProductSync:
                     )
 
                     if not response.is_success:
-                        logger.error(
-                            f"PolarProductSync: failed to fetch products page {page}. "
-                            f"Status: {response.status_code}, Body: {response.text[:300]}"
-                        )
+                        # 401 = invalid/expired/missing Polar token. This is an
+                        # operational/credentials issue, not a code bug — log as
+                        # WARNING so it doesn't drown the ERROR stream every
+                        # restart. Polar credit purchases will be unavailable
+                        # until the token is rotated in Vault.
+                        if response.status_code == 401:
+                            logger.warning(
+                                "PolarProductSync: Polar access token is invalid or expired "
+                                "(401 from /products). Skipping product sync — Polar credit "
+                                "purchases will be unavailable until the token is rotated in "
+                                "Vault at kv/data/providers/polar."
+                            )
+                        else:
+                            logger.error(
+                                f"PolarProductSync: failed to fetch products page {page}. "
+                                f"Status: {response.status_code}, Body: {response.text[:300]}"
+                            )
                         return None
 
                     data = response.json()

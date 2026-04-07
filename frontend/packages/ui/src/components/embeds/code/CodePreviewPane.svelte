@@ -96,13 +96,13 @@
     if (sanitized.includes('<style')) return sanitized;
     // Otherwise inject a basic fallback stylesheet for readability
     const fallbackStyle = `<style>
-  body { margin: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
+  body { margin: var(--spacing-8); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
   img { max-width: 100%; height: auto; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-  pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; }
+  th, td { border: 1px solid #ddd; padding: var(--spacing-4) var(--spacing-6); text-align: left; }
+  pre { background: #f5f5f5; padding: 12px; border-radius: var(--radius-2); overflow-x: auto; }
   code { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.9em; }
-  blockquote { border-left: 3px solid #ddd; margin-left: 0; padding-left: 16px; color: #666; }
+  blockquote { border-left: 3px solid #ddd; margin-left: 0; padding-left: var(--spacing-8); color: #666; }
 </style>`;
     // Inject before </head> if present, otherwise prepend
     if (sanitized.includes('</head>')) {
@@ -143,7 +143,7 @@
 
   /* ── Markdown preview ── */
   .markdown-preview {
-    padding: 24px;
+    padding: var(--spacing-12);
     color: var(--color-font-primary);
     line-height: 1.7;
     font-size: 0.95rem;
@@ -203,7 +203,7 @@
   .markdown-preview :global(img) {
     max-width: 100%;
     height: auto;
-    border-radius: 6px;
+    border-radius: var(--radius-2);
     margin: 0.5rem 0;
   }
 
@@ -224,13 +224,13 @@
     font-size: 0.88em;
     background: var(--color-grey-20);
     padding: 0.15rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
   }
 
   .markdown-preview :global(pre) {
     background: var(--color-grey-20);
-    padding: 12px 16px;
-    border-radius: 6px;
+    padding: var(--spacing-6) var(--spacing-8);
+    border-radius: var(--radius-2);
     overflow-x: auto;
     margin: 0.6rem 0;
   }
@@ -258,7 +258,7 @@
   .markdown-preview :global(th),
   .markdown-preview :global(td) {
     border: 1px solid var(--color-grey-20);
-    padding: 8px 12px;
+    padding: var(--spacing-4) var(--spacing-6);
     text-align: left;
   }
 

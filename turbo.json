@@ -11,7 +11,8 @@
         ".vercel/**",
         "**/i18n/locales/*.json",
         "**/data/appsMetadata.ts",
-        "**/data/modelsMetadata.ts"
+        "**/data/modelsMetadata.ts",
+        "**/tokens/generated/**"
       ]
     },
     "lint": {

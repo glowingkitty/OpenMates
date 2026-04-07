@@ -304,10 +304,10 @@
 <style>
   .reminder-panel {
     margin: 16px 0 8px;
-    padding: 16px;
+    padding: var(--spacing-8);
     background: var(--color-grey-10);
     border: 1px solid var(--color-grey-25);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     max-width: 480px;
     width: 100%;
     box-sizing: border-box;
@@ -325,7 +325,7 @@
   .panel-title-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     color: var(--color-font-primary);
   }
 
@@ -341,10 +341,10 @@
     justify-content: center;
     width: 26px;
     height: 26px;
-    border-radius: 6px;
+    border-radius: var(--radius-2);
     cursor: pointer;
     color: var(--color-font-secondary);
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
   }
 
   .close-btn:hover {
@@ -357,14 +357,14 @@
   .field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: 10px;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-5);
     flex: 1;
   }
 
   .field-row {
     display: flex;
-    gap: 10px;
+    gap: var(--spacing-5);
     align-items: flex-start;
   }
 
@@ -381,13 +381,13 @@
   .field-input {
     background: var(--color-grey-0);
     border: 1px solid var(--color-grey-25);
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     padding: 7px 10px;
     font-size: var(--input-font-size);
     color: var(--color-font-primary);
     width: 100%;
     box-sizing: border-box;
-    transition: border-color 0.15s ease;
+    transition: border-color var(--duration-fast) var(--easing-default);
     font-family: inherit;
   }
 
@@ -409,7 +409,7 @@
 
   .toggle-row {
     display: flex;
-    gap: 6px;
+    gap: var(--spacing-3);
     flex-wrap: wrap;
   }
 
@@ -417,13 +417,13 @@
     all: unset;
     box-sizing: border-box;
     padding: 5px 12px;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     border: 1px solid var(--color-grey-25);
     background: var(--color-grey-0);
     color: var(--color-font-secondary);
     font-size: var(--processing-details-font-size);
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default), border-color var(--duration-fast) var(--easing-default);
     white-space: nowrap;
   }
 
@@ -451,21 +451,21 @@
   .actions-row {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 12px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-6);
   }
 
   .btn-cancel {
     all: unset;
     box-sizing: border-box;
     padding: 7px 14px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     border: 1px solid var(--color-grey-25);
     background: transparent;
     color: var(--color-font-secondary);
     font-size: var(--button-font-size);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default);
   }
 
   .btn-cancel:hover {
@@ -476,13 +476,13 @@
     all: unset;
     box-sizing: border-box;
     padding: 7px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     background: var(--color-primary);
     color: white;
     font-size: var(--button-font-size);
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .btn-submit:disabled {

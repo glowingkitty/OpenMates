@@ -44,10 +44,10 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
 <!-- Success Icon and Message -->
 <div class="success-section">
-    <div class="success-icon-wrapper">
+    <div class="ds-success-icon-wrapper">
         <div class="success-icon"></div>
     </div>
-    <h2 class="success-title">{$text('settings.billing.purchase_successful')}</h2>
+    <h2 class="ds-success-title">{$text('settings.billing.purchase_successful')}</h2>
     <p class="success-subtitle">{$text('settings.billing.credits_added')}</p>
 </div>
 
@@ -85,20 +85,13 @@ Shows both the purchased credits amount (+X) and the new total balance.
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 20px 0;
     }
 
-    .success-icon-wrapper {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
+    /* Base styles for .ds-success-icon-wrapper / .ds-success-title are generated
+       from frontend/packages/ui/src/tokens/sources/components/status-feedback.yml
+       See docs/architecture/frontend/design-tokens.md (Phase E). */
 
     .success-icon {
         width: 40px;
@@ -110,15 +103,8 @@ Shows both the purchased credits amount (+X) and the new total balance.
         filter: invert(1);
     }
 
-    .success-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0;
-    }
-
     .success-subtitle {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
     }
@@ -133,22 +119,22 @@ Shows both the purchased credits amount (+X) and the new total balance.
     .purchased-credits-badge {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
+        gap: var(--spacing-3);
+        padding: var(--spacing-4) var(--spacing-8);
         background: rgba(16, 185, 129, 0.1);
         border: 1px solid rgba(16, 185, 129, 0.25);
-        border-radius: 20px;
+        border-radius: var(--radius-8);
     }
 
     .purchased-amount {
         color: #10b981;
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 700;
     }
 
     .purchased-label {
         color: #10b981;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
     }
 
@@ -161,22 +147,22 @@ Shows both the purchased credits amount (+X) and the new total balance.
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 20px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-5);
+        box-shadow: var(--shadow-xs);
     }
 
     .balance-amount {
         color: var(--color-grey-100);
-        font-size: 28px;
+        font-size: var(--font-size-xxl);
         font-weight: 600;
     }
 
     .balance-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .coin-icon {
@@ -199,12 +185,12 @@ Shows both the purchased credits amount (+X) and the new total balance.
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 16px;
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all var(--duration-normal) var(--easing-default);
+        box-shadow: var(--shadow-xs);
     }
 
     .done-button:hover {
@@ -215,20 +201,20 @@ Shows both the purchased credits amount (+X) and the new total balance.
 
     .done-button:active {
         transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
     }
 
     /* Responsive Styles */
     @media (max-width: 768px) {
         .balance-display {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .balance-amount {
-            font-size: 24px;
+            font-size: var(--font-size-h2-mobile);
         }
 
-        .success-icon-wrapper {
+        .ds-success-icon-wrapper {
             width: 70px;
             height: 70px;
         }
@@ -238,18 +224,18 @@ Shows both the purchased credits amount (+X) and the new total balance.
             height: 35px;
         }
 
-        .success-title {
-            font-size: 18px;
+        .ds-success-title {
+            font-size: var(--font-size-h3-mobile);
         }
 
         .purchased-amount {
-            font-size: 16px;
+            font-size: var(--font-size-p);
         }
     }
 
     @media (max-width: 480px) {
         .balance-amount {
-            font-size: 22px;
+            font-size: var(--font-size-xl);
         }
 
         .coin-icon {
@@ -258,8 +244,8 @@ Shows both the purchased credits amount (+X) and the new total balance.
         }
 
         .done-button {
-            padding: 12px 20px;
-            font-size: 15px;
+            padding: var(--spacing-6) var(--spacing-10);
+            font-size: null;
         }
     }
 </style>

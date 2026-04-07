@@ -192,34 +192,34 @@
     }
 
     .interval-section {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .interval-label {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-text-secondary, #888);
         font-weight: 500;
     }
 
     .interval-options {
         display: flex;
-        gap: 8px;
+        gap: var(--spacing-4);
         flex-wrap: wrap;
     }
 
     .interval-option {
         padding: 6px 14px;
-        border-radius: 20px;
+        border-radius: var(--radius-8);
         border: 1.5px solid var(--color-border, #ccc);
         background: transparent;
         color: var(--color-text, #333);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
         cursor: pointer;
-        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
     }
 
     .interval-option:hover:not(:disabled) {

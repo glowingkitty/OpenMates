@@ -148,7 +148,7 @@
         align-items: center;
         gap: 0.5rem;
         white-space: nowrap;
-        color: #A9A9A9;
+        color: var(--color-font-secondary);
     }
 
     .subheading-item div[class*="icon_"] {

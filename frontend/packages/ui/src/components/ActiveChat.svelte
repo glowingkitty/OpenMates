@@ -10308,7 +10308,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
        (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
 
        Overlay approach: the ring is painted ON TOP of content via ::after at
-       z-index: 10 with pointer-events: none.  A CSS mask cuts out the interior
+       z-index: var(--z-index-dropdown-1) with pointer-events: none.  A CSS mask cuts out the interior
        so only a 2px ring is visible.  This avoids the old isolation/z-index:-1
        technique where child elements flush to the edges would cover the ring.
        =========================================== */
@@ -10334,7 +10334,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             #30d158, #32ade6, #bf5af2,
             #ff2d55
         );
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         pointer-events: none;
         opacity: 0;
         filter: blur(1.5px);
@@ -10342,7 +10342,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Ring mask: the padding creates the ring thickness (2px).
          * The two gradient layers + exclude composite subtract the content-box
          * from the border-box, leaving only the padded ring area visible. */
-        padding: 2px;
+        padding: var(--spacing-1);
         -webkit-mask:
             linear-gradient(#fff 0 0) content-box,
             linear-gradient(#fff 0 0);
@@ -10416,7 +10416,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* When side-by-side mode is active, content-container uses row layout */
     .content-container.side-by-side {
         flex-direction: row;
-        gap: 10px; /* Gap between chat card and fullscreen card */
+        gap: var(--spacing-5); /* Gap between chat card and fullscreen card */
     }
     
     /* ===========================================
@@ -10531,7 +10531,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     .chat-wrapper.side-by-side-chat .message-input-container {
-        padding: 10px;
+        padding: var(--spacing-5);
     }
     
     .chat-wrapper.side-by-side-chat .typing-indicator {
@@ -10559,7 +10559,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 100;
+        z-index: var(--z-index-dropdown);
     }
     
     /* Side panel mode: Flex child taking remaining space - styled as separate card */
@@ -10567,7 +10567,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex: 1;
         min-width: 0;
         position: relative;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         /* Card styling - matches active-chat-container design */
         background-color: var(--color-grey-20);
         border-radius: 17px;
@@ -10665,7 +10665,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-container.side-by-side-active {
         background-color: var(--color-grey-0); /* Lighter background to show separation */
         box-shadow: none; /* Remove shadow since child cards have shadows */
-        padding: 10px; /* Add padding to show gap around cards */
+        padding: var(--spacing-5); /* Add padding to show gap around cards */
     }
     
     /* Ensure content-container fills the padded area */
@@ -10687,7 +10687,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transform: translate(-50%, -50%);
         text-align: center;
         /* Render above ChatHistory (which is also position:absolute and comes after in DOM) */
-        z-index: 1;
+        z-index: var(--z-index-raised);
         /* Allow clicks to pass through the non-interactive parts to ChatHistory underneath,
            but re-enable pointer-events on interactive children (resume card button) */
         pointer-events: none;
@@ -10708,21 +10708,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
 
 
     .welcome-text h2 {
         margin: 0;
         color: var(--color-grey-80);
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         font-weight: 600;
     }
 
     .welcome-text p {
         margin: 8px 0 0;
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .message-input-wrapper {
@@ -10734,11 +10734,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-direction: column;
         align-items: center;
         justify-content: flex-end;
-        gap: 2px;
+        gap: var(--spacing-1);
         text-align: center;
         font-size: 1rem;
         color: var(--color-grey-60);
-        padding: 0px 16px 6px;
+        padding: var(--spacing-0) var(--spacing-8) var(--spacing-3);
         font-style: italic;
         /* Gradient background so the text remains readable when positioned over chat messages.
            Uses the active chat background color (--color-grey-20) fading from transparent at the top
@@ -10751,7 +10751,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             var(--color-grey-20) 100%
         );
         position: relative;
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .typing-indicator + .message-input-container {
@@ -10813,7 +10813,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
@@ -10855,16 +10855,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 56px;
         min-width: 56px;
         height: 200px;
-        margin-top: 16px;
-        border-radius: 20px;
+        margin-top: var(--spacing-8);
+        border-radius: var(--radius-8);
         background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
         border: 1.5px dashed var(--color-grey-40);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 700;
         color: var(--color-grey-60);
         cursor: pointer;
         flex-shrink: 0;
-        transition: background 0.15s ease, color 0.15s ease;
+        transition: background var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
         pointer-events: auto;
     }
 
@@ -10874,7 +10874,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         height: 44px;
         border-radius: 18px;
         padding: 0 10px;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         line-height: 1;
     }
 
@@ -10889,14 +10889,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: relative;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         width: 100%;
         max-width: 400px;
         min-height: 44px;
-        padding: 10px 16px;
+        padding: var(--spacing-5) var(--spacing-8);
         background-color: transparent;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 20px;
+        border-radius: var(--radius-8);
         cursor: pointer;
         overflow: hidden;
         box-shadow:
@@ -10951,7 +10951,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .resume-chat-draft-content {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         flex: 1;
         min-width: 0;
     }
@@ -10984,7 +10984,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.22);
         backdrop-filter: blur(4px);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 
     .resume-card-pin-badge.compact {
@@ -11028,23 +11028,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .resume-chat-credits-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: rgba(255, 255, 255, 0.78);
     }
 
     .resume-chat-credits-preview {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         display: block;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
 
     .resume-chat-title {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.96);
         white-space: nowrap;
@@ -11140,12 +11140,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Centered content overlay */
     .resume-large-content {
         position: relative;
-        z-index: 3;
+        z-index: var(--z-index-raised-3);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 16px 24px;
+        gap: var(--spacing-2);
+        padding: var(--spacing-8) var(--spacing-12);
         max-width: 260px;
         width: 100%;
         /* Ensure text is readable over the gradient orbs */
@@ -11167,9 +11167,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 700;
-        color: #ffffff;
+        /* Always white regardless of theme — sits on the branded gradient resume card. */
+        color: var(--color-font-button);
         text-align: center;
         line-height: 1.3;
         max-width: 100%;
@@ -11178,7 +11179,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Summary line below the title — matches ChatEmbedPreview card-summary */
     .resume-large-summary {
         margin: 2px 0 0;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         color: rgba(255, 255, 255, 0.85);
         line-height: 1.4;
@@ -11268,7 +11269,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         pointer-events: none;
         /* Smaller orbit radius for the compact card */
         --float-rx: 7px;
@@ -11314,22 +11315,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 24px 16px;
-        margin-bottom: 12px;
+        padding: var(--spacing-12) var(--spacing-8);
+        margin-bottom: var(--spacing-6);
         background-color: var(--color-grey-10, #f0f0f0);
         border: 1px solid var(--color-grey-30, #d0d0d0);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         text-align: center;
     }
     
     .read-only-icon {
-        font-size: 32px;
-        margin-bottom: 12px;
+        font-size: var(--font-size-xxxl);
+        margin-bottom: var(--spacing-6);
         opacity: 0.7;
     }
     
     .read-only-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-70, #666);
         margin: 0;
         line-height: 1.5;
@@ -11356,7 +11357,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
         width: 35%;
         min-width: 400px;
-        padding: 20px;
+        padding: var(--spacing-10);
         align-items: flex-start;
         display: flex; /* To allow typing indicator above input */
         flex-direction: column;
@@ -11374,7 +11375,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Adjust input padding and typing indicator for narrow containers */
     .active-chat-container.narrow .message-input-container {
-        padding: 10px;
+        padding: var(--spacing-5);
     }
     
     .active-chat-container.narrow .typing-indicator {
@@ -11392,13 +11393,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         min-height: 40px;
         background-color: var(--color-grey-15);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        gap: 10px;
+        gap: var(--spacing-5);
         padding: 10px 14px;
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
         flex-shrink: 0;
     }
 
@@ -11413,7 +11414,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .incognito-mode-applies-text {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 400;
         color: var(--color-grey-70);
         line-height: 1.4;
@@ -11425,7 +11426,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         height: 100%;
-        transition: all 0.3s ease;
+        transition: all var(--duration-slow) var(--easing-default);
     }
 
     /* 
@@ -11438,13 +11439,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-container.extra-wide .chat-wrapper.fullscreen .chat-side {
         width: 65%;
-        padding-right: 20px;
+        padding-right: var(--spacing-10);
     }
 
     .active-chat-container.extra-wide .chat-wrapper.fullscreen .message-input-wrapper {
         width: 35%;
         min-width: 400px;
-        padding: 20px;
+        padding: var(--spacing-10);
         align-items: flex-start;
     }
 
@@ -11489,7 +11490,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         width: 120px;
         height: 36px;
         min-width: unset;
@@ -11501,7 +11502,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: center;
         justify-content: center;
         opacity: 0.7;
-        transition: opacity 0.2s ease, background-color 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default), background-color var(--duration-normal) var(--easing-default);
         padding: 0;
         margin: 0;
         filter: none;
@@ -11552,7 +11553,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     /*
@@ -11634,7 +11635,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Add styles for left and right button containers */
     .left-buttons {
         display: flex;
-        gap: 10px; /* Space between buttons */
+        gap: var(--spacing-5); /* Space between buttons */
     }
 
     .right-buttons {
@@ -11656,12 +11657,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .new-chat-button-wrapper {
         background-color: var(--color-grey-10);
         border-radius: 40px;
-        padding: 8px;
+        padding: var(--spacing-4);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
         cursor: pointer;
     }
 
@@ -11700,17 +11701,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         min-width: 0;
         height: 41px;
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border: none;
-        border-radius: 9999px;
+        border-radius: var(--radius-full);
         background-color: var(--color-button-primary);
         color: white;
         font-weight: 500;
         cursor: pointer;
-        transition: background-color 0.15s ease-in-out, transform 0.15s ease-in-out;
+        transition: background-color var(--duration-fast) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         margin-right: 0;
     }
@@ -11757,7 +11758,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             min-width: 0;
             width: 41px;
             height: 41px;
-            padding: 8px;
+            padding: var(--spacing-4);
             box-sizing: border-box;
         }
     }
@@ -11796,7 +11797,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Add scaling transition for the active-chat-container when a new chat is created */
     .active-chat-container {
-        transition: transform 0.2s ease-in-out, opacity 0.3s ease; /* added transform transition */
+        transition: transform var(--duration-normal) var(--easing-in-out), opacity var(--duration-slow) var(--easing-default); /* added transform transition */
     }
 
     .active-chat-container.scaled {
@@ -11827,7 +11828,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
         max-width: 780px;
         box-sizing: border-box;
-        z-index: 100; /* Below fullscreen buttons but above chat content */
+        z-index: var(--z-index-dropdown); /* Below fullscreen buttons but above chat content */
         pointer-events: auto;
         
         /* Smooth transition for position changes */
@@ -11856,7 +11857,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transform: none;
         width: 320px;
         max-width: 320px;
-        z-index: 1000; /* Above everything in ActiveChat */
+        z-index: var(--z-index-modal); /* Above everything in ActiveChat */
     }
 
     .video-iframe-fullscreen-container.pip-mode.pip-top-left {

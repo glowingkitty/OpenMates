@@ -123,7 +123,7 @@
         height: 15px;
         border-radius: 50%;
         background-color: var(--color-grey-30);
-        transition: background-color 0.3s ease;
+        transition: background-color var(--duration-slow) var(--easing-default);
     }
 
     .status-dot.active {

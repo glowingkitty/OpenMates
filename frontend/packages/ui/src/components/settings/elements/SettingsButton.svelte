@@ -84,7 +84,7 @@
         font-weight: 600;
         line-height: 1.25;
         cursor: pointer;
-        transition: box-shadow 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default), background var(--duration-normal) var(--easing-default), opacity var(--duration-normal) var(--easing-default);
         box-sizing: border-box;
     }
 
@@ -102,7 +102,7 @@
     /* ── Variants ───────────────────────────────────────────────── */
     .settings-button.primary {
         background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-        color: #ffffff;
+        color: var(--color-grey-0);
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
     }
 
@@ -112,7 +112,7 @@
 
     .settings-button.danger {
         background: var(--color-error);
-        color: #ffffff;
+        color: var(--color-grey-0);
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
     }
 

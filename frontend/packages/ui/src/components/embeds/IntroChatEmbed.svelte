@@ -131,7 +131,7 @@
   /* Match the standard embed group scroll container layout for consistency */
   .intro-chat-embed {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-4);
     align-items: flex-start;
     overflow-x: auto;
     overflow-y: hidden;

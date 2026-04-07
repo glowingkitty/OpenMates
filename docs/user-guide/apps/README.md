@@ -44,6 +44,7 @@ Apps give your digital team mates special abilities. They let your mates search 
 
 - [Travel](./travel.md) -- Search flights, hotels, and track past flights
 - [Shopping](./shopping.md) -- Search products on REWE and Amazon with live prices
+- [Nutrition](./nutrition.md) -- Search REWE recipes by dietary tags, ingredients, and meal type
 - [Health](./health.md) -- Find doctor appointments and track medical history
 - [Events](./events.md) -- Search for local meetups, conferences, and events
 - [Maps](./maps.md) -- Search for places, restaurants, and businesses

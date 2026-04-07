@@ -456,7 +456,7 @@
     width: 100%;
     /* Must be above other chat-side elements so the banner is clickable */
     position: relative;
-    z-index: 100;
+    z-index: var(--z-index-dropdown);
   }
 
   @keyframes inspirationFadeIn {
@@ -471,12 +471,12 @@
     position: relative;
     width: 100%;
     border: none;
-    border-radius: 14px;
+    border-radius: var(--radius-6);
     height: 240px;
     cursor: pointer;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.1s ease;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-xl);
     /* Reset browser button defaults */
     font: inherit;
     color: white;
@@ -500,21 +500,21 @@
     padding: 14px 40px 12px;  /* 40px sides to leave room for carousel arrows */
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
     /* Stretch to fill the full banner height */
     align-self: stretch;
     min-width: 0;
     /* Sit above the decorative deco-icon elements (z-index: 1) */
     position: relative;
-    z-index: 10;
+    z-index: var(--z-index-dropdown-1);
   }
 
   /* ── Top label ── */
   .banner-label {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: var(--spacing-3);
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     letter-spacing: 0.3px;
@@ -548,7 +548,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     flex: 1;
     min-width: 0;
     /* Vertically center the row within the available column space */
@@ -586,7 +586,7 @@
 
   /* ── Inspiration phrase ── */
   .banner-phrase {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: white;
     margin: 0;
@@ -607,8 +607,8 @@
     left: 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: var(--spacing-3);
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     letter-spacing: 0.2px;
@@ -646,7 +646,7 @@
     margin-top: -15px;
     margin-bottom: -12px;
     overflow: visible;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     position: relative;
     cursor: pointer;
     /* Right-align the embed content within the wrapper */
@@ -656,7 +656,7 @@
 
   /* Make the embed preview card fill the wrapper height and float right */
   .banner-embed-wrapper :global(.embed-preview-container) {
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     box-shadow: none;
     width: 100%;
     height: calc(100% + 15px + 12px); /* compensate for negative margins */
@@ -694,8 +694,8 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
-    z-index: 20;
+    transition: background-color var(--duration-fast) var(--easing-default);
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }
@@ -719,7 +719,7 @@
 
   .carousel-arrow-right {
     right: 0;
-    border-radius: 10px 0 0 10px !important; /* rounded on the left (inner) side */
+    border-radius: var(--radius-4) 0 0 10px !important; /* rounded on the left (inner) side */
   }
 
   /* ── Living gradient orbs ─────────────────────────────────────────────────
@@ -730,7 +730,7 @@
   .banner-orbs {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: var(--z-index-base);
     pointer-events: none;
     overflow: hidden;
   }
@@ -795,7 +795,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
+    z-index: var(--z-index-raised);
     pointer-events: none;
     --float-rx: 10px;
     --float-ry: 12px;
@@ -837,7 +837,7 @@
     }
 
     .banner-phrase {
-      font-size: 14px;
+      font-size: var(--font-size-small);
       -webkit-line-clamp: 4;
       line-clamp: 4;
     }

@@ -287,7 +287,7 @@ Security Notes:
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -298,8 +298,8 @@ Security Notes:
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
-        margin-bottom: 16px;
+        gap: var(--spacing-8);
+        margin-bottom: var(--spacing-8);
     }
 
     .recovery-content {
@@ -308,33 +308,33 @@ Security Notes:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .description-text {
         text-align: center;
         color: var(--color-grey-70);
         line-height: 1.5;
-        font-size: 15px;
+        font-size: null;
     }
 
     .save-options {
         width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .save-instruction {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
         margin: 0;
     }
 
     .save-buttons {
         display: flex;
-        gap: 10px;
+        gap: var(--spacing-5);
         justify-content: center;
         flex-wrap: wrap;
     }
@@ -342,16 +342,16 @@ Security Notes:
     .save-button {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-5) var(--spacing-8);
         background: var(--color-grey-20);
         border: 1px solid var(--color-grey-30);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-80);
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         position: relative;
     }
 
@@ -373,11 +373,11 @@ Security Notes:
     .check-mark {
         color: var(--color-success, #22c55e);
         font-weight: bold;
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .print-icon {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         line-height: 1;
     }
 
@@ -386,8 +386,8 @@ Security Notes:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-        padding: 40px 20px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-20) var(--spacing-10);
     }
 
     .spinner {
@@ -407,7 +407,7 @@ Security Notes:
 
     .loading-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     /* Error state styles */
@@ -415,8 +415,8 @@ Security Notes:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-        padding: 20px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-10);
     }
 
     .error-text {
@@ -425,15 +425,15 @@ Security Notes:
     }
 
     .retry-button {
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         cursor: pointer;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
-        transition: transform 0.2s;
+        transition: transform var(--duration-normal);
     }
 
     .retry-button:hover {

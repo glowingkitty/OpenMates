@@ -13,6 +13,7 @@ Tests: (none yet)
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import { updateProfile } from '../../../stores/userProfile';
+    import * as cryptoService from '../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -61,6 +62,21 @@ Tests: (none yet)
         try {
             const normalizedCode = giftCardCode.trim().toUpperCase();
 
+            // Include the client-held email encryption key when available.
+            // The backend only reads it when the gift card has
+            // `allowed_email_domain` set (OPE-76 reusable prod smoke test card).
+            // Standard single-use user cards ignore this field, so it's a
+            // strictly additive change that keeps existing redemption flows
+            // byte-for-byte compatible.
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+
+            const requestBody: { code: string; email_encryption_key?: string } = {
+                code: normalizedCode
+            };
+            if (emailEncryptionKey) {
+                requestBody.email_encryption_key = emailEncryptionKey;
+            }
+
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.redeemGiftCard), {
                 method: 'POST',
                 headers: {
@@ -68,7 +84,7 @@ Tests: (none yet)
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ code: normalizedCode }),
+                body: JSON.stringify(requestBody),
                 credentials: 'include' // Important for sending auth cookies
             });
 
@@ -191,7 +207,7 @@ Tests: (none yet)
 
 <style>
     .gift-card-redeem-container {
-        padding: 20px 10px;
+        padding: var(--spacing-10) var(--spacing-5);
     }
 
     .gift-card-form {
@@ -201,7 +217,7 @@ Tests: (none yet)
     }
 
     .gift-card-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--text-primary, #333);
         margin-bottom: 5px;
@@ -209,10 +225,10 @@ Tests: (none yet)
 
     .gift-card-input {
         width: 100%;
-        padding: 12px 16px;
-        font-size: 16px;
+        padding: var(--spacing-6) var(--spacing-8);
+        font-size: var(--font-size-p);
         border: 1px solid var(--border-color, #ddd);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         background-color: var(--input-background, #fff);
         color: var(--text-primary, #333);
         box-sizing: border-box;
@@ -231,37 +247,37 @@ Tests: (none yet)
     }
 
     .error-message {
-        padding: 10px;
+        padding: var(--spacing-5);
         background-color: var(--error-background, #fee);
         color: var(--error-text, #c33);
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
     }
 
     .success-message {
-        padding: 10px;
+        padding: var(--spacing-5);
         background-color: var(--success-background, #efe);
         color: var(--success-text, #3c3);
-        border-radius: 6px;
-        font-size: 14px;
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
     }
 
     .button-container {
         display: flex;
-        gap: 10px;
-        margin-top: 10px;
+        gap: var(--spacing-5);
+        margin-top: var(--spacing-5);
     }
 
     .cancel-button,
     .redeem-button {
         flex: 1;
-        padding: 12px 24px;
-        font-size: 16px;
+        padding: var(--spacing-6) var(--spacing-12);
+        font-size: var(--font-size-p);
         font-weight: 500;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .cancel-button {

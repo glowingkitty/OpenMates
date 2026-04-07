@@ -217,8 +217,8 @@
         max-width: calc(100vw - 10px);
         
         /* Base styling */
-        padding: 12px 16px;
-        border-radius: 12px;
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-5);
         background-color: var(--color-grey-30);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
         
@@ -226,7 +226,7 @@
         animation: slideInFromTop 0.2s ease-out forwards;
         
         /* Smooth transition for drag gestures when not actively dragging */
-        transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        transition: transform var(--duration-normal), opacity var(--duration-normal);
         
         /* Enable touch manipulation for swipe gestures */
         touch-action: pan-x;
@@ -275,8 +275,8 @@
     .notification-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-4);
     }
     
     /* Bell/reminder icon in header - grey color, smaller size */
@@ -298,7 +298,7 @@
     
     .notification-title {
         flex: 1;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-50);
         line-height: 1.4;
@@ -307,12 +307,12 @@
     .notification-dismiss {
         all: unset;
         cursor: pointer;
-        padding: 4px;
+        padding: var(--spacing-2);
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0.7;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         flex-shrink: 0;
     }
     
@@ -340,7 +340,7 @@
     .notification-content {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .notification-icon {
@@ -349,7 +349,7 @@
         justify-content: center;
         width: 40px;
         height: 40px;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         background-color: var(--color-grey-40);
         flex-shrink: 0;
     }
@@ -403,19 +403,19 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         min-width: 0;
     }
     
     .notification-message-primary {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         line-height: 1.4;
         color: var(--color-grey-90);
     }
     
     .notification-message-secondary {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         line-height: 1.4;
         color: var(--color-grey-90);
@@ -425,15 +425,15 @@
     .notification-action-btn {
         all: unset;
         cursor: pointer;
-        margin-top: 6px;
+        margin-top: var(--spacing-3);
         padding: 6px 14px;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         line-height: 1.4;
         color: var(--color-primary);
         background-color: var(--color-grey-40);
-        border-radius: 8px;
-        transition: background-color 0.15s ease, opacity 0.15s ease;
+        border-radius: var(--radius-3);
+        transition: background-color var(--duration-fast) var(--easing-default), opacity var(--duration-fast) var(--easing-default);
         align-self: flex-start;
     }
     
@@ -449,7 +449,7 @@
     .notification-action-btn-primary {
         color: var(--color-white-fixed, #fff);
         background-color: var(--color-button-primary);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 8px 18px;
         font-weight: 600;
         filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.15));
@@ -492,7 +492,7 @@
             width: calc(100vw - 20px);
             max-width: calc(100vw - 20px);
             /* Reduce padding slightly on very small screens */
-            padding: 10px 12px;
+            padding: var(--spacing-5) var(--spacing-6);
         }
     }
 </style>

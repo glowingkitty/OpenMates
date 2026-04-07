@@ -224,7 +224,7 @@
   
   .skills-group {
     display: flex;
-    gap: 12px;
+    gap: var(--spacing-6);
     align-items: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
@@ -277,11 +277,11 @@
     height: 148px;
     padding: 0 16px;
     background-color: var(--color-grey-30);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     border: 1px solid var(--color-grey-40);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background-color 0.2s ease, transform 0.2s ease;
+    transition: background-color var(--duration-normal) var(--easing-default), transform var(--duration-normal) var(--easing-default);
   }
   
   .more-badge:hover {
@@ -294,7 +294,7 @@
   }
   
   .more-text {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-70);
     white-space: nowrap;

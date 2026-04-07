@@ -235,11 +235,11 @@ login_2fa_svelte:
     .location-change-notice {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
+        gap: var(--spacing-5);
         padding: 12px 14px;
         margin-bottom: 15px;
         background-color: var(--color-warning-bg, var(--color-grey-10));
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border-left: 3px solid var(--color-warning, var(--color-primary));
     }
 
@@ -247,18 +247,18 @@ login_2fa_svelte:
         width: 20px;
         height: 20px;
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
 
     .location-change-notice p {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.4;
         color: var(--color-grey-70);
     }
 
     .check-2fa-text {
-        margin: 0px;
+        margin: var(--spacing-0);
         margin-bottom: 15px;
         color: var(--color-grey-60);
     }
@@ -266,14 +266,14 @@ login_2fa_svelte:
     .app-name-inline {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         vertical-align: middle
     }
 
     .mini-icon {
         width: 24px;
         height: 24px;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         flex-shrink: 0;
     }
 
@@ -282,7 +282,7 @@ login_2fa_svelte:
     }
 
     .switch-account {
-        margin-top: 10px;
+        margin-top: var(--spacing-5);
     }
 
     .preview * {

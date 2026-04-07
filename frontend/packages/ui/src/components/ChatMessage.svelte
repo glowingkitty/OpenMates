@@ -2438,13 +2438,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   .system-message-notice {
     max-width: 80%;
     text-align: center;
-    padding: 8px 16px;
-    border-radius: 12px;
+    padding: var(--spacing-4) var(--spacing-8);
+    border-radius: var(--radius-5);
     background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
   }
 
   .system-message-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     line-height: 1.4;
     color: var(--color-grey-60, #888);
   }
@@ -2454,15 +2454,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   .system-message-action-btn {
     display: block;
     margin: 8px auto 0;
-    padding: 6px 16px;
-    font-size: 13px;
+    padding: var(--spacing-3) var(--spacing-8);
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-text-on-primary, #fff);
     background: var(--color-button-primary, #e65c3a);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .system-message-action-btn:hover {
@@ -2482,7 +2482,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
      Replaces the small centered notice with a readable card showing the summary content. */
   .chat-message.compression-summary {
     justify-content: center;
-    padding: 12px 16px;
+    padding: var(--spacing-6) var(--spacing-8);
   }
 
   .compression-summary-card {
@@ -2490,25 +2490,25 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     width: 600px;
     background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
-    border-radius: 16px;
-    padding: 16px 20px;
+    border-radius: var(--radius-7);
+    padding: var(--spacing-8) var(--spacing-10);
     text-align: left;
   }
 
   .compression-summary-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
   }
 
   .compression-summary-icon {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     line-height: 1;
   }
 
   .compression-summary-title {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-grey-80, #ccc);
   }
@@ -2519,7 +2519,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .compression-summary-text {
     font-family: inherit;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     line-height: 1.5;
     color: var(--color-grey-60, #888);
     white-space: pre-wrap;
@@ -2532,15 +2532,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .compression-summary-toggle {
     display: block;
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
     padding: 4px 0;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-button-primary, #e65c3a);
     background: none;
     border: none;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .compression-summary-toggle:hover {
@@ -2549,33 +2549,33 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .chat-app-cards-container {
     display: flex;
-    gap: 20px;
+    gap: var(--spacing-10);
     margin-top: 15px;
   }
 
   .generated-by {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60);
   }
 
   .generated-by-container {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 6px;
-    margin-left: 12px;
-    margin-bottom: 10px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-3);
+    margin-left: var(--spacing-6);
+    margin-bottom: var(--spacing-5);
   }
 
   .report-bad-answer-btn {
     all: unset;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 6px;
-    transition: all 0.2s ease;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-2);
+    transition: all var(--duration-normal) var(--easing-default);
     color: var(--color-grey-60);
   }
 
@@ -2591,7 +2591,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   .report-text {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     white-space: nowrap;
   }
 
@@ -2672,8 +2672,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     background-color: var(--color-grey-10);
     color: var(--color-font-primary);
     border: 1px solid var(--color-grey-30);
-    border-radius: 6px;
-    padding: 10px 12px;
+    border-radius: var(--radius-2);
+    padding: var(--spacing-5) var(--spacing-6);
     margin: 0;
     line-height: 1.5;
     overflow-x: auto;
@@ -2690,15 +2690,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   /* Error banner shown below assistant messages when an app skill embed fails */
   .embed-error-banner {
-    margin-top: 8px;
-    margin-left: 12px;
-    padding: 6px 10px;
-    border-radius: 8px;
+    margin-top: var(--spacing-4);
+    margin-left: var(--spacing-6);
+    padding: var(--spacing-3) var(--spacing-5);
+    border-radius: var(--radius-3);
     background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
   }
 
   .embed-error-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-60, #888);
     line-height: 1.4;
   }
@@ -2716,29 +2716,29 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   .message-status {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-font-tertiary);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
     text-align: right;
   }
 
   /* Upload progress list shown under waiting_for_upload messages */
   .upload-progress-list {
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
 
   .upload-progress-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     flex-wrap: wrap;
   }
 
   .upload-progress-label {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-font-secondary);
     max-width: 120px;
     overflow: hidden;
@@ -2748,7 +2748,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   .upload-progress-text {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-font-tertiary);
     flex-shrink: 0;
   }
@@ -2770,11 +2770,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     height: 100%;
     background: var(--color-primary);
     border-radius: 2px;
-    transition: width 0.2s ease;
+    transition: width var(--duration-normal) var(--easing-default);
   }
 
   .message-truncation-controls {
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
     text-align: center;
   }
   
@@ -2786,9 +2786,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     cursor: pointer;
     font-size: 0.9em;
     text-decoration: underline;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-1);
+    transition: background-color var(--duration-normal) var(--easing-default);
   }
   
   .show-full-message-btn:hover,
@@ -2803,16 +2803,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   
   /* App Settings & Memories Summary Styles */
   .app-settings-memories-summary {
-    margin-top: 6px;
+    margin-top: var(--spacing-3);
     padding: 0;
     text-align: right;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-60);
   }
   
   .summary-label {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: var(--spacing-2);
     font-weight: 500;
   }
   
@@ -2820,7 +2820,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
   
   .category-badge {
@@ -2832,10 +2832,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     align-items: center;
     gap: 5px;
     background: var(--color-grey-15, #f5f5f5);
-    border-radius: 8px;
-    padding: 2px 8px 2px 4px;
+    border-radius: var(--radius-3);
+    padding: var(--spacing-1) var(--spacing-4) var(--spacing-1) var(--spacing-2);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default);
   }
   
   .category-badge:hover {
@@ -2843,7 +2843,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
   
   .badge-text {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 500;
     color: var(--color-font-primary, #000);
   }

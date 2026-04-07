@@ -75,7 +75,7 @@
         bottom: 0;
         background: var(--color-grey-30);
         border-radius: 34px;
-        transition: all 0.3s;
+        transition: all var(--duration-slow);
         box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 

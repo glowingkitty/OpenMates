@@ -247,12 +247,12 @@
     .permission-dialog-container {
         position: relative;
         background: var(--color-grey-10, #fff);
-        border-radius: 16px;
-        padding: 16px;
+        border-radius: var(--radius-7);
+        padding: var(--spacing-8);
         width: 100%;
         max-width: 629px; /* Match message input max-width */
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
         border: 1px solid var(--color-grey-25, #e5e5e5);
     }
     
@@ -260,10 +260,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: var(--spacing-3);
         color: var(--color-grey-60, #666);
-        font-size: 13px;
-        margin-bottom: 10px;
+        font-size: var(--font-size-xs);
+        margin-bottom: var(--spacing-5);
     }
     
     /* Small settings gear icon next to "Permissions" header text */
@@ -284,7 +284,7 @@
     
     .dialog-question {
         text-align: center;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-font-primary, #000);
         margin: 0 0 16px 0;
@@ -294,8 +294,8 @@
     .categories-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-bottom: 16px;
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-8);
         max-height: 300px; /* Increased to accommodate expanded entries */
         overflow-y: auto;
     }
@@ -308,11 +308,11 @@
     .category-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-5) var(--spacing-6);
         background: var(--color-grey-15, #f5f5f5);
-        border-radius: 12px;
-        transition: background 0.2s ease;
+        border-radius: var(--radius-5);
+        transition: background var(--duration-normal) var(--easing-default);
     }
     
     .category-item.selected {
@@ -333,13 +333,13 @@
     }
     
     .category-name {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-font-primary, #000);
     }
     
     .category-count {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60, #888);
     }
 
@@ -353,11 +353,11 @@
         justify-content: center;
         background: var(--color-grey-20, #e0e0e0);
         border: none;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
         color: var(--color-grey-60, #888);
-        font-size: 14px;
-        transition: background-color 0.15s ease, color 0.15s ease;
+        font-size: var(--font-size-small);
+        transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
     }
 
     .expand-entries-button:hover {
@@ -378,21 +378,21 @@
     .entries-list {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        margin-left: 20px;
-        margin-top: 4px;
-        padding-left: 12px;
+        gap: var(--spacing-2);
+        margin-left: var(--spacing-10);
+        margin-top: var(--spacing-2);
+        padding-left: var(--spacing-6);
         border-left: 2px solid var(--color-grey-20, #eee);
     }
     
     .entry-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-3) var(--spacing-5);
         background: var(--color-grey-10, #fafafa);
-        border-radius: 8px;
-        transition: background 0.15s ease;
+        border-radius: var(--radius-3);
+        transition: background var(--duration-fast) var(--easing-default);
     }
     
     .entry-item.selected {
@@ -408,7 +408,7 @@
     }
     
     .entry-title {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
         color: var(--color-font-primary, #000);
         white-space: nowrap;
@@ -417,7 +417,7 @@
     }
     
     .entry-subtitle {
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         color: var(--color-grey-60, #888);
         white-space: nowrap;
         overflow: hidden;
@@ -426,23 +426,23 @@
     
     .dialog-actions {
         display: flex;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
     
     .btn-include,
     .btn-reject {
         flex: 1;
-        padding: 12px 20px;
+        padding: var(--spacing-6) var(--spacing-10);
         border-radius: 50px;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         border: none;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
     
     .btn-include {

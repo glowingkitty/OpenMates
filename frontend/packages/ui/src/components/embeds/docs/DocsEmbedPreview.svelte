@@ -328,7 +328,7 @@
     width: 100%;
     background: white;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     padding: 56px 72px 72px;
     min-height: 600px;
   }
@@ -336,7 +336,7 @@
   /* Page content - full-size typography matching fullscreen */
   .doc-page-content {
     color: #1a1a1a;
-    font-size: 15px;
+    font-size: null;
     line-height: 1.75;
     word-break: break-word;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -344,20 +344,20 @@
   
   /* Document typography - matches DocsEmbedFullscreen exactly */
   .doc-page-content :global(h1) {
-    font-size: 26px;
+    font-size: 1.625rem;
     font-weight: 700;
     margin: 0 0 16px;
-    padding-bottom: 8px;
+    padding-bottom: var(--spacing-4);
     border-bottom: 1px solid #e0e0e0;
     color: #0d0d0d;
     line-height: 1.3;
   }
 
   .doc-page-content :global(h2) {
-    font-size: 21px;
+    font-size: 1.3125rem;
     font-weight: 600;
     margin: 28px 0 12px;
-    padding-bottom: 6px;
+    padding-bottom: var(--spacing-3);
     border-bottom: 1px solid #eeeeee;
     color: #1a1a1a;
     line-height: 1.35;
@@ -367,7 +367,7 @@
   .doc-page-content :global(h4),
   .doc-page-content :global(h5),
   .doc-page-content :global(h6) {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     margin: 24px 0 8px;
     color: #1a1a1a;
@@ -391,7 +391,7 @@
   .doc-page-content :global(blockquote) {
     border-left: 3px solid #1a73e8;
     margin: 16px 0;
-    padding: 8px 16px;
+    padding: var(--spacing-4) var(--spacing-8);
     color: #555;
     background: #f8f9fa;
     border-radius: 0 4px 4px 0;
@@ -401,7 +401,7 @@
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
   
   .doc-page-content :global(th),
@@ -418,16 +418,16 @@
   
   .doc-page-content :global(code) {
     background: #f1f3f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-1);
+    font-size: var(--font-size-xs);
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
   }
   
   .doc-page-content :global(pre) {
     background: #f8f9fa;
-    padding: 16px 20px;
-    border-radius: 8px;
+    padding: var(--spacing-8) var(--spacing-10);
+    border-radius: var(--radius-3);
     overflow-x: auto;
     margin: 16px 0;
     border: 1px solid #e8eaed;
@@ -457,7 +457,7 @@
   .doc-page-content :global(img) {
     max-width: 100%;
     height: auto;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
   }
   
   /* ===========================================
@@ -478,8 +478,8 @@
   
   .line-placeholder {
     height: 12px;
-    background: #e8e8e8;
-    border-radius: 6px;
+    background: var(--color-grey-25);
+    border-radius: var(--radius-2);
     animation: shimmer-line 1.5s infinite ease-in-out;
   }
   

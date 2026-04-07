@@ -38,6 +38,7 @@ import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPrev
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
+import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
@@ -266,6 +267,16 @@ export class GroupRenderer implements EmbedRenderer {
         "shopping-product",
         (item, embedData, decodedContent, content) =>
           this.renderShoppingProductComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "nutrition-recipe",
+        (item, embedData, decodedContent, content) =>
+          this.renderNutritionRecipeComponent(
             item,
             embedData,
             decodedContent,
@@ -552,6 +563,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHomeListingItem(item, embedData, decodedContent);
       case "shopping-product":
         return this.renderShoppingProductItem(item, embedData, decodedContent);
+      case "nutrition-recipe":
+        return this.renderNutritionRecipeItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -4495,6 +4508,109 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${brand ? `<div class="embed-text-subline">${esc(String(brand))}</div>` : ""}
         ${priceEur ? `<div class="embed-text-subline">${esc(String(priceEur))}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * Render a nutrition recipe child embed using NutritionRecipeEmbedPreview.
+   */
+  private async renderNutritionRecipeComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping NutritionRecipeEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(NutritionRecipeEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          image_url: (decodedContent?.image_url as string | null | undefined) ?? null,
+          total_time_minutes: typeof decodedContent?.total_time_minutes === "number"
+            ? decodedContent.total_time_minutes
+            : null,
+          difficulty: (decodedContent?.difficulty as string | null | undefined) ?? null,
+          rating: typeof decodedContent?.rating === "number"
+            ? decodedContent.rating
+            : null,
+          rating_count: typeof decodedContent?.rating_count === "number"
+            ? decodedContent.rating_count
+            : null,
+          dietary_tags: Array.isArray(decodedContent?.dietary_tags)
+            ? (decodedContent.dietary_tags as string[])
+            : [],
+          servings: typeof decodedContent?.servings === "number"
+            ? decodedContent.servings
+            : null,
+          status: (embedData?.status || item.status || "finished") as
+            | "processing"
+            | "finished"
+            | "error",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted NutritionRecipeEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount NutritionRecipeEmbedPreview:",
+        err,
+      );
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Recipe preview unavailable</div>`;
+    }
+  }
+
+  /**
+   * HTML fallback renderer for nutrition-recipe embeds (used in group rendering).
+   */
+  private async renderNutritionRecipeItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const title = decodedContent?.title || "Recipe";
+    const totalTime = typeof decodedContent?.total_time_minutes === "number"
+      ? `${decodedContent.total_time_minutes} min`
+      : "";
+    const difficulty = (decodedContent?.difficulty as string | undefined) || "";
+
+    return `
+      <div class="embed-app-icon nutrition">
+        <span class="icon icon_nutrition"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${esc(String(title))}</div>
+        ${totalTime ? `<div class="embed-text-subline">${esc(totalTime)}</div>` : ""}
+        ${difficulty ? `<div class="embed-text-subline">${esc(difficulty)}</div>` : ""}
       </div>
     `;
   }

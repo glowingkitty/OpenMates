@@ -427,7 +427,7 @@
      ========================================================================== */
 
   .player-section {
-    padding: 24px 32px 20px;
+    padding: var(--spacing-12) var(--spacing-16) var(--spacing-10);
     flex-shrink: 0;
     border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
   }
@@ -435,7 +435,7 @@
   .player-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--spacing-8);
   }
 
   .play-btn {
@@ -472,7 +472,7 @@
 
   .pause-icon {
     display: flex;
-    gap: 4px;
+    gap: var(--spacing-2);
     align-items: center;
     height: 18px;
   }
@@ -488,7 +488,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
     min-width: 0;
   }
 
@@ -519,7 +519,7 @@
   }
 
   .time-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-50, #888);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -532,7 +532,7 @@
   .player-skeleton {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--spacing-8);
   }
 
   .skeleton-circle {
@@ -548,13 +548,13 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
 
   .skeleton-line {
     height: 10px;
     background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -567,7 +567,7 @@
   }
 
   .audio-error {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-50, #888);
     margin: 0;
     padding: 8px 0;
@@ -580,13 +580,13 @@
   .transcript-section {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 32px 32px;
+    padding: var(--spacing-12) var(--spacing-16) var(--spacing-16);
     min-height: 0;
   }
 
   .transcript-text {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     line-height: 1.7;
     color: var(--color-font-primary);
     white-space: pre-wrap;
@@ -595,7 +595,7 @@
 
   .no-transcript {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-50, #888);
     font-style: italic;
   }
@@ -605,7 +605,7 @@
     width: 100%;
     min-height: 200px;
     flex: 1;
-    font-size: 16px;
+    font-size: var(--font-size-p);
     line-height: 1.7;
     color: var(--color-font-primary);
     background: transparent;
@@ -627,7 +627,7 @@
   /* ---- Transcribed-via attribution label ---- */
   .transcribed-via {
     margin: 12px 0 0;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-50, #888);
     font-style: italic;
   }

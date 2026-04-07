@@ -1,0 +1,20 @@
+# frontend/packages/ui/src/tokens/sources/layout.yml
+#
+# Layout tokens — breakpoints, max-widths, and dimension constraints.
+# Replaces constants.ts and layout-related custom properties.
+#
+# CSS output:  --breakpoint-{key}: {value}px, --layout-{key}: {value}px
+# TypeScript output: Breakpoint.{key}, Layout.{key}
+# Swift output: CGFloat.breakpoint{Key}, CGFloat.layout{Key}
+
+breakpoints:
+  mobile:     730     # MOBILE_BREAKPOINT — switches to mobile layout
+  chats-open: 1440    # CHATS_DEFAULT_OPEN_BREAKPOINT — sidebar default open
+
+dimensions:
+  chat-content-max-width:          1000
+  chat-container-min-height-mobile: 630
+
+# Border radius for semantic use (backwards compat with --border-radius-medium)
+semantic:
+  border-radius-medium: 8    # maps to --border-radius-medium: 8px

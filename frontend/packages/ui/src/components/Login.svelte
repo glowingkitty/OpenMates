@@ -2652,13 +2652,13 @@
 <style>
     .violation-message {
         color: var(--color-error);
-        padding: 24px;
+        padding: var(--spacing-12);
         text-align: center;
         font-weight: 500;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1.5;
         background-color: var(--color-error-light);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         margin: 24px 0;
     }
 
@@ -2675,23 +2675,23 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
         min-height: 200px;
     }
     
     .passkey-loading-icon {
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
     
     .passkey-loading-icon .clickable-icon {
         width: 64px;
         height: 64px;
         background-color: var(--color-primary-start);
-        border-radius: 16px;
+        border-radius: var(--radius-7);
     }
     
     .passkey-loading-text {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         margin: 0;
         text-align: center;
@@ -2735,7 +2735,7 @@
         justify-content: center;
         gap: 1rem;
         background-color: var(--color-grey-20);
-        z-index: 1;
+        z-index: var(--z-index-raised);
         padding: 2rem;
         text-align: center;
     }
@@ -2748,14 +2748,14 @@
 
     .retry-button {
         all: unset;
-        padding: 10px 20px;
-        border-radius: 8px;
+        padding: var(--spacing-5) var(--spacing-10);
+        border-radius: var(--radius-3);
         background-color: var(--color-button-primary);
         color: white;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         margin-top: 0.5rem;
     }
 
@@ -2772,27 +2772,27 @@
     /* Login/Signup tabs - Modern segmented control design */
     .login-tabs {
         display: flex;
-        gap: 8px;
-        margin-bottom: 32px;
-        padding: 4px;
+        gap: var(--spacing-4);
+        margin-bottom: var(--spacing-16);
+        padding: var(--spacing-2);
         background-color: var(--color-grey-0);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         position: relative;
     }
 
     .tab-button {
         all: unset;
         flex: 1;
-        padding: 12px 20px;
+        padding: var(--spacing-6) var(--spacing-10);
         text-align: center;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         color: var(--color-grey-70);
         cursor: pointer;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .tab-button:hover:not(.active) {
@@ -2816,15 +2816,15 @@
         position: absolute;
         top: 15px;
         left: 15px;
-        z-index: 100; /* Above app icon grids */
+        z-index: var(--z-index-dropdown); /* Above app icon grids */
         background-color: var(--color-grey-10);
         border-radius: 40px;
-        padding: 8px;
+        padding: var(--spacing-4);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
         cursor: pointer;
     }
 

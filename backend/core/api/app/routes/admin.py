@@ -74,6 +74,8 @@ class GenerateGiftCardsRequest(BaseModel):
     count: int = Field(default=1, ge=1, le=100, description="Number of gift cards to generate (1-100)")
     prefix: Optional[str] = Field(default=None, max_length=4, description="Optional custom prefix (max 4 chars, replaces first segment)")
     notes: Optional[str] = Field(default=None, max_length=500, description="Optional admin notes for these gift cards")
+    is_reusable: bool = Field(default=False, description="When true, generated cards survive redemption (for infrastructure/test cards only — OPE-76 prod smoke test). Never exposed in the admin UI; only settable via direct API call.")
+    allowed_email_domain: Optional[str] = Field(default=None, max_length=255, description="Optional exact full-domain restriction (e.g. 'xyz9abc1.mailosaur.net'). When set, only users whose email domain matches exactly (case-insensitive) can redeem. Typically paired with is_reusable=true.")
 
     @field_validator('prefix')
     @classmethod
@@ -864,7 +866,9 @@ async def admin_generate_gift_cards(
             created_card = await directus_service.create_gift_card(
                 code=code,
                 credits_value=payload.credits_value,
-                purchaser_user_id_hash=None  # Admin-generated, not purchased
+                purchaser_user_id_hash=None,  # Admin-generated, not purchased
+                is_reusable=payload.is_reusable,
+                allowed_email_domain=payload.allowed_email_domain,
             )
             
             if not created_card:

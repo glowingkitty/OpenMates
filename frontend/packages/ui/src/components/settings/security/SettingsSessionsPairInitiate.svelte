@@ -491,7 +491,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     }
 
     .qr-svg-container {
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         overflow: hidden;
         border: 1px solid var(--color-grey-25);
         line-height: 0; /* collapse whitespace around inline SVG */
@@ -500,7 +500,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     .url-section {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         padding: 0.75rem;
     }
 
@@ -528,7 +528,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     .info-box {
         background: rgba(59, 130, 246, 0.07);
         border: 1px solid rgba(59, 130, 246, 0.25);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 0.75rem 1rem;
         font-size: var(--processing-details-font-size);
         color: var(--color-font-primary);
@@ -537,7 +537,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     .error-box {
         background: rgba(223, 27, 65, 0.08);
         border: 1px solid rgba(223, 27, 65, 0.25);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 0.75rem 1rem;
         font-size: var(--processing-details-font-size);
         color: var(--color-error);
@@ -566,7 +566,7 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     .pin-input {
         width: 100%;
         padding: 0.75rem 1rem;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         border: 1px solid var(--color-grey-30);
         background: var(--color-grey-10);
         color: var(--color-font-primary);
@@ -588,12 +588,12 @@ Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
     /* Buttons */
     .btn {
         padding: 0.6rem 1.25rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-size: var(--button-font-size);
         font-weight: 500;
         cursor: pointer;
         border: none;
-        transition: opacity 0.15s;
+        transition: opacity var(--duration-fast);
     }
 
     .btn:disabled {

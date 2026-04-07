@@ -662,18 +662,18 @@
         width: 100%;
         padding: 0.75rem;
         border: 1px solid var(--color-grey-30);
-        border-radius: 20px;
+        border-radius: var(--radius-8);
         font-family: inherit;
         font-size: 0.95rem;
         color: var(--text-primary);
         background: var(--color-grey-10);
-        transition: border-color 0.2s ease;
+        transition: border-color var(--duration-normal) var(--easing-default);
         box-sizing: border-box;
     }
     
     /* Textarea keeps same style as input but with multiline-appropriate rounding */
     textarea {
-        border-radius: 16px;
+        border-radius: var(--radius-7);
         resize: vertical;
     }
     
@@ -717,7 +717,7 @@
         padding: 1rem;
         background: var(--color-error-light, #f8d7da);
         border: 1px solid var(--color-error, #f5c6cb);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         color: var(--error-color, #721c24);
         margin-bottom: 1rem;
     }
@@ -732,12 +732,12 @@
     .cancel-btn,
     .create-btn {
         padding: 0.75rem 1.5rem;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         border: none;
         cursor: pointer;
         font-size: 0.95rem;
         font-weight: 500;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
     
     .cancel-btn {
@@ -772,13 +772,13 @@
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.5rem 1rem;
         margin-top: 1rem;
         cursor: pointer;
         font-size: 0.9rem;
         color: var(--text-primary, #000000);
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
     
     .back-button:hover {
@@ -789,7 +789,7 @@
     .encrypted-notice {
         display: flex;
         align-items: flex-start;
-        gap: 6px;
+        gap: var(--spacing-3);
         margin-top: 2rem;
         padding-top: 1rem;
         color: var(--color-grey-40);

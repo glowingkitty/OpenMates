@@ -291,7 +291,7 @@
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -302,19 +302,19 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         margin-bottom: 30px;
     }
     
     .advice-title {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 600;
         color: var(--color-grey-80);
         margin: 0;
     }
     
     .advice-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.5;
@@ -325,20 +325,20 @@
         max-width: 400px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        margin-top: 0px;
+        gap: var(--spacing-8);
+        margin-top: var(--spacing-0);
     }
 
     .input-group {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
     
     .clickable-icon {
         position: absolute;
         left: 16px;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         pointer-events: none;
     }
     
@@ -353,7 +353,7 @@
     .field-error {
         margin: 0;
         padding: 0 4px;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: #E00000;
         line-height: 1.4;
     }

@@ -314,7 +314,7 @@
   .get-docs-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -330,7 +330,7 @@
   
   /* Library ID - the selected library from Context7 (e.g., "/sveltejs/svelte") */
   .docs-library-id {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -347,12 +347,12 @@
   }
   
   .get-docs-details.mobile .docs-library-id {
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
   
   /* Question/query that was asked */
   .docs-question {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-80);
     line-height: 1.3;
     /* Limit to 2 lines with ellipsis */
@@ -366,41 +366,41 @@
   }
   
   .get-docs-details.mobile .docs-question {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Provider attribution: "via Context7" */
   .docs-provider {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     line-height: 1.3;
   }
   
   .get-docs-details.mobile .docs-provider {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* Docs info (word count) */
   .docs-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-2);
   }
   
   .get-docs-details.mobile .docs-info {
-    margin-top: 2px;
+    margin-top: var(--spacing-1);
   }
   
   /* Word count */
   .word-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
   .get-docs-details.mobile .word-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* ===========================================

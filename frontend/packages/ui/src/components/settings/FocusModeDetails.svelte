@@ -346,7 +346,7 @@
         margin-top: 0.75rem;
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
     }
 
     .how-to-use-scroll-container:hover {
@@ -363,7 +363,7 @@
 
     .how-to-use-scroll-container::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid var(--color-grey-20);
     }
 
@@ -385,7 +385,7 @@
         padding: 1rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-20);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         display: grid;
         /* Opening quote top-left, text spans middle, closing quote bottom-right */
         grid-template-areas:
@@ -510,7 +510,7 @@
         /* pad: top leaves room for quote icon, bottom-right leaves room for closing quote */
         padding: 2rem 2.5rem 2rem 2.5rem;
         background: var(--color-grey-10, #f5f5f5);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border: 1px solid var(--color-grey-20);
     }
 
@@ -555,7 +555,7 @@
     .instructions-toggle {
         display: inline;
         margin-top: 0.75rem;
-        margin-left: 10px;
+        margin-left: var(--spacing-5);
         padding: 0;
         font-size: 0.875rem;
         background: none;
@@ -591,13 +591,13 @@
     .back-button {
         background: var(--button-background, #f0f0f0);
         border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.5rem 1rem;
         margin-top: 1rem;
         cursor: pointer;
         font-size: 0.9rem;
         color: var(--text-primary, #000000);
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
     
     .back-button:hover {

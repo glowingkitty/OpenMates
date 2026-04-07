@@ -2022,52 +2022,87 @@ class EmbedService:
             )
             return toon_content, None
 
+    # Hardcoded fallback for `get_child_embed_type` — used only when the
+    # discovered_apps_metadata cache is unavailable (e.g., cold start, cache
+    # outage). The authoritative source is each app's `app.yml` embed_types
+    # section, parsed into AppYAML and cached at API gateway startup.
+    # Adding a new app should NOT require editing this dict — declare
+    # `child_type` in the app's app.yml. This dict only exists so the existing
+    # apps keep working during the brief window before the cache is populated.
+    _CHILD_EMBED_TYPE_FALLBACK: Dict[Tuple[str, str], str] = {
+        ("maps", "search"): "place",
+        ("travel", "search_connections"): "connection",
+        ("travel", "search_stays"): "stay",
+        ("events", "search"): "event",
+        ("images", "search"): "image_result",
+        ("videos", "search"): "video",
+        ("health", "search_appointments"): "appointment",
+        ("home", "search"): "listing",
+        ("shopping", "search_products"): "product",
+        ("news", "search"): "website",
+        ("web", "search"): "website",
+        ("nutrition", "search_recipes"): "recipe",
+    }
+
     @staticmethod
-    def get_child_embed_type(app_id: str, skill_id: str) -> str:
+    async def get_child_embed_type(
+        app_id: str,
+        skill_id: str,
+        cache_service: Optional[CacheService] = None,
+    ) -> str:
         """
-        Return the canonical child embed type for a given app_id + skill_id combination.
+        Return the canonical child embed type for a given app_id + skill_id.
+
+        Resolution order:
+          1. `discovered_apps_metadata` cache (the authoritative source — parsed
+             from each app's `app.yml` embed_types section at API gateway startup).
+          2. Hardcoded fallback dict (`_CHILD_EMBED_TYPE_FALLBACK`) for resilience
+             during cold start / cache outage.
+          3. ValueError if neither resolves the lookup.
 
         This is used by both embed creation paths (update_embed_with_results and
-        create_embeds_from_skill_results) and by main_processor.py when it needs to
-        inject embed_ref slugs into tool results before sending them to the LLM.
+        create_embeds_from_skill_results) and by main_processor.py when it needs
+        to inject embed_ref slugs into tool results before sending them to the LLM.
 
-        Returns one of: "connection", "stay", "place", "event", "video", "image_result",
-        "appointment", "listing", "website"
-
-        Raises ValueError if no mapping exists — never silently falls back to "website".
+        Args:
+            app_id:        The app id (e.g. "nutrition")
+            skill_id:      The skill id (e.g. "search_recipes")
+            cache_service: Optional CacheService to reuse the worker's pooled
+                           connection. If omitted, a new CacheService is
+                           instantiated for this lookup.
         """
-        if app_id == "maps" and skill_id == "search":
-            return "place"
-        elif app_id == "travel" and skill_id == "search_connections":
-            return "connection"
-        elif app_id == "travel" and skill_id == "search_stays":
-            return "stay"
-        elif skill_id == "places_search":
-            return "place"
-        elif skill_id == "events_search":
-            return "event"
-        elif app_id == "events" and skill_id == "search":
-            return "event"
-        elif app_id == "images" and skill_id == "search":
-            return "image_result"
-        elif app_id == "videos" and skill_id == "search":
-            return "video"
-        elif app_id == "health" and skill_id == "search_appointments":
-            return "appointment"
-        elif app_id == "home" and skill_id == "search":
-            return "listing"
-        elif app_id == "shopping" and skill_id == "search_products":
-            return "product"
-        elif app_id == "news" and skill_id == "search":
-            return "website"
-        elif app_id == "web" and skill_id == "search":
-            return "website"
-        else:
-            raise ValueError(
-                f"No child embed type defined for app_id={app_id!r}, skill_id={skill_id!r}. "
-                f"Add an entry to get_child_embed_type() in embed_service.py and to "
-                f"EMBED_CHILD_TYPE_MAP in the app's app.yml."
+        # 1. Try the cache (authoritative).
+        try:
+            cache = cache_service or CacheService()
+            apps_metadata = await cache.get_discovered_apps_metadata()
+            if apps_metadata and app_id in apps_metadata:
+                app_yaml = apps_metadata[app_id]
+                for embed_type_def in (app_yaml.embed_types or []):
+                    if (
+                        embed_type_def.skill_id == skill_id
+                        and embed_type_def.child_type
+                    ):
+                        return embed_type_def.child_type
+        except Exception as cache_err:
+            # Cache lookup is best-effort; fall through to the hardcoded map.
+            logger.warning(
+                f"get_child_embed_type: discovered_apps_metadata lookup failed "
+                f"for app_id={app_id!r}, skill_id={skill_id!r}: {cache_err}. "
+                f"Falling back to hardcoded map."
             )
+
+        # 2. Hardcoded fallback (cold start / cache outage).
+        fallback = EmbedService._CHILD_EMBED_TYPE_FALLBACK.get((app_id, skill_id))
+        if fallback is not None:
+            return fallback
+
+        # 3. Truly unknown — raise with the corrected error message.
+        raise ValueError(
+            f"No child_type defined for app_id={app_id!r}, skill_id={skill_id!r}. "
+            f"Declare it under embed_types[].child_type in {app_id}/app.yml — "
+            f"the discovered_apps_metadata cache will pick it up automatically "
+            f"on the next API gateway startup."
+        )
 
     @staticmethod
     def _get_per_result_child_type(
@@ -2587,7 +2622,9 @@ class EmbedService:
 
             if is_composite:
                 # Determine default child embed type using canonical helper (single source of truth)
-                default_child_type = EmbedService.get_child_embed_type(app_id, skill_id)
+                default_child_type = await EmbedService.get_child_embed_type(
+                    app_id, skill_id, cache_service=self.cache_service
+                )
 
                 for result in results:
                     # Determine per-result child type (may override default for YouTube URLs in web search)
@@ -3390,8 +3427,10 @@ class EmbedService:
             
             if is_composite:
                 # Determine default child embed type using canonical helper (single source of truth)
-                default_child_type = EmbedService.get_child_embed_type(app_id, skill_id)
-                
+                default_child_type = await EmbedService.get_child_embed_type(
+                    app_id, skill_id, cache_service=self.cache_service
+                )
+
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
                 parent_embed_id = str(uuid.uuid4())

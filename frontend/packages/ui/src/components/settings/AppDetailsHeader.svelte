@@ -439,9 +439,9 @@
     height: 44px;
     padding: 0 10px;
     flex-shrink: 0;
-    gap: 6px;
+    gap: var(--spacing-3);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-fast) var(--easing-default);
     pointer-events: auto; /* Re-enable clicks despite parent pointer-events:none */
   }
 
@@ -462,7 +462,7 @@
   }
 
   .breadcrumb-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: rgba(255, 255, 255, 0.7);
     white-space: nowrap;
@@ -479,7 +479,7 @@
     /* Layout direction, alignment and padding are driven by inline style above.
        flex + gap ensure icon and name are neatly spaced in both orientations. */
     display: flex;
-    gap: 10px;
+    gap: var(--spacing-5);
     flex-shrink: 0;
     /* When expanded (column), this takes up the remaining height before details-block */
     flex: 0 0 auto;
@@ -494,13 +494,13 @@
 
   .identity-block.subitem-clickable:hover {
     background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: var(--radius-4);
   }
 
   .identity-block.subitem-clickable:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.9);
     outline-offset: 2px;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
   }
 
   /* Bare white mask icon rendered directly on the gradient banner (no container).
@@ -515,7 +515,7 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
-    transition: width 0.15s, height 0.15s;
+    transition: width var(--duration-fast), height var(--duration-fast);
   }
 
   /* Wrapper that stacks name + category label vertically */
@@ -523,7 +523,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: var(--spacing-1);
   }
 
   /* In row (collapsed) mode, name-category-block aligns left */
@@ -534,7 +534,7 @@
 
   .app-name {
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-grey-100);
     line-height: 1.25;
     text-align: center; /* centered in expanded (column) mode */
     overflow: hidden;
@@ -544,7 +544,7 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
     /* Font size driven by inline style */
-    transition: font-size 0.15s;
+    transition: font-size var(--duration-fast);
   }
 
   /* In row (collapsed) mode: name is left-aligned, single line */
@@ -563,7 +563,7 @@
     text-align: center;
     line-height: 1.25;
     /* Font size driven by inline style (matches nameFontSize) */
-    transition: font-size 0.15s;
+    transition: font-size var(--duration-fast);
   }
 
   /* ─── Collapsible details block ──────────────────────────────────────────── */
@@ -573,7 +573,7 @@
     flex-direction: column;
     align-items: center;
     padding: 6px 20px 14px;
-    gap: 10px;
+    gap: var(--spacing-5);
     flex: 1;
     justify-content: center;
     transition: opacity 0.1s ease;
@@ -581,9 +581,9 @@
 
   .app-description {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
-    color: #ffffff;
+    color: var(--color-grey-100);
     text-align: center;
     line-height: 1.45;
     display: -webkit-box;
@@ -605,13 +605,13 @@
   .cap-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .cap-num {
-    font-size: 15px;
+    font-size: null;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-grey-100);
     line-height: 1;
   }
 
@@ -722,7 +722,7 @@
     }
 
     .app-description {
-      font-size: 13px;
+      font-size: var(--font-size-xs);
       line-height: 1.2;
       -webkit-line-clamp: 2;
       line-clamp: 2;
@@ -736,7 +736,7 @@
 
     /* Reduce gap between icon and name in the identity block */
     .identity-block {
-      gap: 6px;
+      gap: var(--spacing-3);
     }
 
     /* Tighten name/category stacking */
@@ -754,11 +754,11 @@
     }
 
     .cap-num {
-      font-size: 13px;
+      font-size: var(--font-size-xs);
     }
 
     .breadcrumb-label {
-      font-size: 13px;
+      font-size: var(--font-size-xs);
     }
   }
 
@@ -786,8 +786,8 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
-    z-index: 20;
+    transition: background-color var(--duration-fast) var(--easing-default);
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto; /* Re-enable interactivity despite banner pointer-events:none */
     flex-shrink: 0;
   }
@@ -810,6 +810,6 @@
 
   .nav-arrow-right {
     right: 0;
-    border-radius: 10px 0 0 10px !important;
+    border-radius: var(--radius-4) 0 0 10px !important;
   }
 </style>

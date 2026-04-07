@@ -130,10 +130,10 @@ This gift card can only be used once.
 {#if giftCardCode}
     <!-- Success Icon and Message -->
     <div class="success-section">
-        <div class="success-icon-wrapper">
+        <div class="ds-success-icon-wrapper">
             <div class="success-icon"></div>
         </div>
-        <h2 class="success-title">{$text('settings.gift_cards.purchase_successful')}</h2>
+        <h2 class="ds-success-title">{$text('settings.gift_cards.purchase_successful')}</h2>
         <p class="success-subtitle">{$text('settings.gift_cards.purchase_successful_subtitle')}</p>
     </div>
 
@@ -182,20 +182,13 @@ This gift card can only be used once.
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 20px 0;
     }
 
-    .success-icon-wrapper {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
+    /* Base styles for .ds-success-icon-wrapper / .ds-success-title are generated
+       from frontend/packages/ui/src/tokens/sources/components/status-feedback.yml
+       See docs/architecture/frontend/design-tokens.md (Phase E). */
 
     .success-icon {
         width: 40px;
@@ -207,43 +200,36 @@ This gift card can only be used once.
         filter: invert(1);
     }
 
-    .success-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0;
-    }
-
     .success-subtitle {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
     }
 
     /* Gift Card Code Section */
     .gift-card-code-section {
-        padding: 20px;
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         margin: 20px 0;
         text-align: center;
     }
 
     .code-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .code-display {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 12px;
+        margin-bottom: var(--spacing-6);
     }
 
     .code-text {
-        font-size: 24px;
+        font-size: var(--font-size-h2-mobile);
         font-weight: 700;
         font-family: 'Courier New', monospace;
         letter-spacing: 2px;
@@ -253,14 +239,14 @@ This gift card can only be used once.
     .copy-button {
         background: var(--color-primary);
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         width: 40px;
         height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: opacity 0.2s;
+        transition: opacity var(--duration-normal);
         margin: 0 auto 12px auto;
     }
 
@@ -278,7 +264,7 @@ This gift card can only be used once.
     }
 
     .credits-info {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-grey-80);
         font-weight: 500;
     }
@@ -287,7 +273,7 @@ This gift card can only be used once.
     .action-section {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 20px 0;
     }
 
@@ -296,11 +282,11 @@ This gift card can only be used once.
         width: 100%;
         padding: 14px;
         border: none;
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.2s;
+        transition: opacity var(--duration-normal);
     }
 
     .download-button {
@@ -323,40 +309,40 @@ This gift card can only be used once.
 
     /* Loading Section */
     .loading-section {
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
         text-align: center;
     }
 
     .loading-message {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .delayed-message {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         text-align: center;
     }
 
     .delayed-title {
-        font-size: 20px;
+        font-size: var(--font-size-h3);
         font-weight: 600;
         color: var(--color-grey-100);
         margin: 0;
     }
 
     .delayed-subtitle {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
     }
 
     .delayed-info {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         margin: 0;
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
     }
 </style>

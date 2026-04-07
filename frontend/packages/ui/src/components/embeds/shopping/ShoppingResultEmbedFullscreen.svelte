@@ -226,7 +226,7 @@
   .product-fullscreen {
     display: grid;
     grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1fr);
-    gap: 20px;
+    gap: var(--spacing-10);
     width: min(1040px, calc(100% - 24px));
     margin: 24px auto 120px;
   }
@@ -234,7 +234,7 @@
   .media-column {
     background: var(--color-grey-10);
     border: 1px solid var(--color-grey-20);
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     min-height: 320px;
     display: flex;
     align-items: center;
@@ -252,24 +252,24 @@
   }
 
   .image-placeholder {
-    font-size: 52px;
+    font-size: 3.25rem;
     opacity: 0.45;
   }
 
   .info-column {
     background: var(--color-grey-5);
     border: 1px solid var(--color-grey-20);
-    border-radius: 16px;
-    padding: 20px;
+    border-radius: var(--radius-7);
+    padding: var(--spacing-10);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-5);
     min-width: 0;
   }
 
   .title {
     margin: 0;
-    font-size: 24px;
+    font-size: var(--font-size-h2-mobile);
     font-weight: 700;
     line-height: 1.25;
     color: var(--color-font-primary);
@@ -277,19 +277,19 @@
   }
 
   .brand {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-font-secondary);
   }
 
   .price-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     flex-wrap: wrap;
   }
 
   .price {
-    font-size: 28px;
+    font-size: var(--font-size-xxl);
     font-weight: 800;
     color: var(--color-font-primary);
     line-height: 1.2;
@@ -300,23 +300,23 @@
   }
 
   .old-price {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-font-secondary);
     text-decoration: line-through;
   }
 
   .sale-badge {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 700;
-    color: #fff;
+    color: var(--color-grey-0);
     background: var(--color-error);
     border-radius: 100px;
-    padding: 2px 8px;
+    padding: var(--spacing-1) var(--spacing-4);
     text-transform: uppercase;
   }
 
   .price-unavailable {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-font-secondary);
     font-style: italic;
   }
@@ -325,7 +325,7 @@
   .delivery,
   .social-proof,
   .category-path {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
     line-height: 1.35;
     word-break: break-word;
@@ -334,26 +334,26 @@
   .rating-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     flex-wrap: wrap;
   }
 
   .rating {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: #f59e0b;
     font-weight: 700;
   }
 
   .reviews {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-font-secondary);
   }
 
   .prime {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 700;
     padding: 2px 7px;
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     background: rgba(59, 130, 246, 0.12);
     color: #2563eb;
   }
@@ -361,12 +361,12 @@
   .tags-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 2px;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-1);
   }
 
   .tag {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     padding: 3px 8px;
     border-radius: 100px;
@@ -378,7 +378,7 @@
     .product-fullscreen {
       grid-template-columns: 1fr;
       gap: 14px;
-      margin-top: 16px;
+      margin-top: var(--spacing-8);
     }
 
     .media-column {
@@ -386,11 +386,11 @@
     }
 
     .title {
-      font-size: 20px;
+      font-size: var(--font-size-h3);
     }
 
     .price {
-      font-size: 24px;
+      font-size: var(--font-size-h2-mobile);
     }
   }
 </style>

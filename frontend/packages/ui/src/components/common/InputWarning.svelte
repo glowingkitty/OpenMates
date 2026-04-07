@@ -73,10 +73,10 @@
         transform: translateX(-50%);
         background-color: #E00000;
         color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 14px;
-        z-index: 10000;
+        padding: var(--spacing-4) var(--spacing-6);
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-small);
+        z-index: var(--z-index-tooltip);
         white-space: nowrap;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         text-align: center;

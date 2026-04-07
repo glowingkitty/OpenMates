@@ -214,7 +214,7 @@
     /* "Press & hold to record" inline label — muted, sits left of the mic icon */
     .press-hold-label {
         color: var(--color-font-tertiary, rgba(0, 0, 0, 0.4));
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 400;
         white-space: nowrap;
         pointer-events: none;
@@ -257,8 +257,8 @@
     .send-button {
         color: white;
         border: none;
-        padding: 8px 16px;
-        border-radius: 20px;
+        padding: var(--spacing-4) var(--spacing-8);
+        border-radius: var(--radius-8);
         cursor: pointer;
         font-weight: 500;
         height: 40px;

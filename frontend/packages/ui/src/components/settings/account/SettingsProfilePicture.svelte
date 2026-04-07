@@ -299,7 +299,7 @@ Response handling:
 <style>
     /* ── Page container ─────────────────────────────────────────────────────── */
     .profile-picture-container {
-        padding: 24px;
+        padding: var(--spacing-12);
         max-width: 480px;
         display: flex;
         flex-direction: column;
@@ -333,7 +333,7 @@ Response handling:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: var(--spacing-8);
         width: 100%;
     }
 
@@ -368,8 +368,8 @@ Response handling:
         border-radius: 24px;
         border: 2px solid var(--color-grey-0);
         background-color: var(--color-grey-0);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        transition: all 0.2s ease-in-out;
+        box-shadow: var(--shadow-sm);
+        transition: all var(--duration-normal) var(--easing-in-out);
         position: relative;
     }
 
@@ -402,7 +402,7 @@ Response handling:
 
     /* Gradient text label */
     .upload-text {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: transparent;
         background: var(--color-primary);
         -webkit-background-clip: text;
@@ -413,7 +413,7 @@ Response handling:
 
     /* ── Success message ────────────────────────────────────────────────────── */
     .success-message {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-success);
         margin: 0;
@@ -422,11 +422,11 @@ Response handling:
 
     /* ── Last-warning banner ────────────────────────────────────────────────── */
     .last-warning-banner {
-        padding: 16px;
+        padding: var(--spacing-8);
         background-color: var(--color-error-light);
         color: var(--color-error-dark);
         border: 1px solid var(--color-error);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         text-align: center;
         font-weight: 500;
         max-width: 380px;

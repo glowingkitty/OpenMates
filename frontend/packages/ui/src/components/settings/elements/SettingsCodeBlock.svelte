@@ -103,7 +103,7 @@
         border: none;
         border-radius: 0.375rem;
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
 
     .copy-button:hover {
@@ -123,7 +123,7 @@
         mask-repeat: no-repeat;
         -webkit-mask-position: center;
         mask-position: center;
-        transition: background 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default);
     }
 
     .copy-button.copied .copy-icon {

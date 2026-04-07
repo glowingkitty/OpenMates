@@ -138,7 +138,7 @@
 
     @media (max-width: 600px) {
         .waiting-list-section {
-            margin-top: 0px;
+            margin-top: var(--spacing-0);
         }
     }
 
@@ -183,7 +183,7 @@
         color: var(--color-grey-60);
         margin: 0;
         text-align: center;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .newsletter-form {
@@ -201,8 +201,8 @@
         flex: 1;
         padding: 10px 15px;
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         background-color: var(--color-background);
         color: var(--color-text);
     }
@@ -217,15 +217,15 @@
     }
 
     .newsletter-button {
-        padding: 10px 20px;
+        padding: var(--spacing-5) var(--spacing-10);
         background-color: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.2s;
+        transition: opacity var(--duration-normal);
     }
 
     .newsletter-button:hover:not(:disabled) {
@@ -245,14 +245,14 @@
     .newsletter-success {
         color: var(--color-success, #28a745);
         text-align: center;
-        font-size: 14px;
-        padding: 10px;
+        font-size: var(--font-size-small);
+        padding: var(--spacing-5);
     }
 
     .newsletter-error {
         color: var(--color-error, #dc3545);
         text-align: center;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         padding: 5px;
         margin-top: 0.5rem;
     }

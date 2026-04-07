@@ -284,7 +284,7 @@
   .event-text {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     flex: 0 1 55%;
     min-width: 0;
     align-self: center;
@@ -344,21 +344,21 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 2px;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-1);
   }
 
   .event-type-badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
+    padding: var(--spacing-1) var(--spacing-4);
     border-radius: 100px;
     font-size: 0.625rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: #fff; /* intentional: always white on brand colour */
+    color: var(--color-grey-0); /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {

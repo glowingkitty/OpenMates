@@ -80,7 +80,7 @@
         box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
         min-width: 12rem;
         min-height: 7rem;
-        transition: box-shadow 0.2s ease, transform 0.2s ease;
+        transition: box-shadow var(--duration-normal) var(--easing-default), transform var(--duration-normal) var(--easing-default);
         /* Center text vertically in the available space */
         display: flex;
         align-items: center;

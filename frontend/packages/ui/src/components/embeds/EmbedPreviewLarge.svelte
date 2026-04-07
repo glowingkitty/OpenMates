@@ -235,7 +235,7 @@
   /* margin-top is set dynamically via style binding based on isExpanded */
   .embed-preview-large-overlay {
     position: relative;
-    z-index: 2;
+    z-index: var(--z-index-raised-2);
   }
 
   .embed-preview-large-overlay--hidden {
@@ -260,8 +260,8 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
-    z-index: 20;
+    transition: background-color var(--duration-fast) var(--easing-default);
+    z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }
@@ -284,6 +284,6 @@
 
   .nav-arrow-right {
     right: 0;
-    border-radius: 10px 0 0 10px !important;
+    border-radius: var(--radius-4) 0 0 10px !important;
   }
 </style>

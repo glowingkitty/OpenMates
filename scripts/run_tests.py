@@ -18,8 +18,11 @@ Usage:
     python3 scripts/run_tests.py --suite pytest             # just pytest
     python3 scripts/run_tests.py --suite vitest             # just vitest
     python3 scripts/run_tests.py --suite playwright         # just E2E
-    python3 scripts/run_tests.py --daily                   # cron mode
+    python3 scripts/run_tests.py --daily                   # cron mode (3 AM nightly)
     python3 scripts/run_tests.py --daily --force            # skip commit check
+    python3 scripts/run_tests.py --hourly-dev              # hourly dev smoke (4 specs)
+    python3 scripts/run_tests.py --hourly-prod             # hourly prod smoke
+    python3 scripts/run_tests.py --hourly-dev --dry-run-notify  # test Discord wiring
     python3 scripts/run_tests.py --max-concurrent 10       # override batch size
     python3 scripts/run_tests.py --no-fail-fast            # run all batches
 
@@ -53,15 +56,34 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
+LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
+LOCKFILE_HOURLY_PROD = Path("/tmp/openmates-hourly-prod-tests.lock")
 WORKFLOW_NAME = "playwright-spec.yml"
+PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
+PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+# Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
+# tests/dev-smoke/README.md for the policy. Anything that isn't a core user
+# flow that must keep working belongs in the nightly run, not here.
+HOURLY_DEV_SPECS: list[str] = [
+    "dev-smoke/dev-smoke-reachability.spec.ts",
+    "settings-buy-credits-stripe.spec.ts",
+    "signup-flow-polar.spec.ts",
+    "chat-flow.spec.ts",
+]
+
+# Where each hourly mode parks its result archives + heartbeat marker.
+HOURLY_DEV_DIR = RESULTS_DIR / "hourly-dev"
+HOURLY_PROD_DIR = RESULTS_DIR / "hourly-prod"
+HOURLY_ARCHIVE_RETENTION_DAYS = 7
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +867,14 @@ class ResultAggregator:
 # ---------------------------------------------------------------------------
 
 class NotificationService:
-    """Sends email notifications and pushes to OpenObserve."""
+    """Sends email and Discord notifications and pushes to OpenObserve.
+
+    Discord is a fallback notification channel added in OPE-76 to guarantee
+    test run failures surface even when the email path (Brevo / internal API)
+    silently breaks — which is exactly what happened with the 2026-04-06 nightly
+    summary that never arrived. Email and Discord sends are independent: a
+    failure in one must never block the other.
+    """
 
     def __init__(self) -> None:
         self.dot_env = _read_env_file()
@@ -855,6 +884,19 @@ class NotificationService:
         self.internal_api_url = _get_env(
             "INTERNAL_API_URL", self.dot_env, "http://localhost:8000"
         ).rstrip("/")
+        # Discord webhooks — one per cron channel so each can be muted/routed
+        # independently in Discord. Optional — unset means "skip Discord entirely"
+        # for that channel (preserves no-Discord behavior on unconfigured machines).
+        # See OPE-349 for the per-channel split rationale.
+        self.discord_webhook_url = _get_env(
+            "DISCORD_WEBHOOK_DEV_NIGHTLY", self.dot_env
+        )
+        self.discord_webhook_dev_smoke = _get_env(
+            "DISCORD_WEBHOOK_DEV_SMOKE", self.dot_env
+        )
+        self.discord_webhook_prod_smoke = _get_env(
+            "DISCORD_WEBHOOK_PROD_SMOKE", self.dot_env
+        )
 
     def send_start_email(self, git_sha: str, git_branch: str, environment: str) -> None:
         """Notify admin that a test run has started."""
@@ -886,27 +928,37 @@ class NotificationService:
             _log("No email credentials available — skipping start email", "WARN")
 
     def send_summary_email(self, result: RunResult) -> None:
-        """Send test summary email after run completes."""
-        if not self.admin_email:
-            _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
-            return
+        """Send test summary email after run completes, plus Discord fallback.
 
+        The email and Discord sends are INDEPENDENT: neither awaits the other
+        and neither's failure aborts the other. This is the whole point of the
+        dual-channel notification pattern.
+        """
         s = result.summary
         status = "All tests passed" if s["failed"] == 0 else f"{s['failed']} of {s['total']} tests failed"
         subject = f"[OpenMates] {status} ({result.environment})"
 
-        # Build HTML email body
-        html = self._build_summary_html(result)
-        text = self._build_summary_text(result)
-
-        if self.brevo_api_key:
-            self._send_via_brevo(subject, text, html)
-        elif self.internal_token:
-            # Fall back to internal API
-            payload = self._build_internal_api_payload(result)
-            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        # --- Email path (existing) ---
+        if not self.admin_email:
+            _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
         else:
-            _log("No email credentials available — skipping summary email", "WARN")
+            # Build HTML email body
+            html = self._build_summary_html(result)
+            text = self._build_summary_text(result)
+
+            if self.brevo_api_key:
+                self._send_via_brevo(subject, text, html)
+            elif self.internal_token:
+                # Fall back to internal API
+                payload = self._build_internal_api_payload(result)
+                self._send_via_internal_api("dispatch-test-summary-email", payload)
+            else:
+                _log("No email credentials available — skipping summary email", "WARN")
+
+        # --- Discord fallback (OPE-76) ---
+        # Fires for EVERY run — nightly success gives a visible heartbeat so we
+        # notice if the whole pipeline goes quiet. Failures get a louder ping.
+        self._send_summary_to_discord(result)
 
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
@@ -970,6 +1022,170 @@ class NotificationService:
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
+
+    def _send_summary_to_discord(
+        self,
+        result: RunResult,
+        webhook_url: Optional[str] = None,
+        mode_label: str = "nightly",
+        post_on_success: bool = True,
+        env_var_name: str = "DISCORD_WEBHOOK_DEV_NIGHTLY",
+    ) -> None:
+        """Post a test run summary to a Discord webhook.
+
+        Independent of the email path — catches and logs all errors rather than
+        raising, so a dead webhook URL or network hiccup never blocks the
+        cron runner. Uses stdlib urllib to avoid introducing an httpx dependency.
+
+        Args:
+            result: Aggregated run result.
+            webhook_url: Discord webhook to post to. Defaults to the nightly
+                webhook for backwards compatibility with the existing daily flow.
+            mode_label: Short label for the embed title (e.g. "nightly",
+                "dev hourly", "prod hourly"). Defaults to "nightly".
+            post_on_success: When False, the helper short-circuits if there
+                are zero failures — used by the hourly modes so a green run
+                stays silent and we don't flood Discord.
+            env_var_name: Name of the env var, only used in the "missing
+                webhook" log line so the operator knows what to set.
+        """
+        # Backwards-compat: when no explicit webhook is passed, fall back to
+        # the original nightly webhook so existing --daily callers behave
+        # exactly as before this refactor.
+        if webhook_url is None:
+            webhook_url = self.discord_webhook_url
+
+        if not webhook_url:
+            _log(f"{env_var_name} not set — skipping Discord summary", "DEBUG")
+            return
+
+        s = result.summary
+        all_passed = s["failed"] == 0
+
+        # Hourly modes silence green runs to avoid channel flooding.
+        if all_passed and not post_on_success:
+            _log(f"Discord ({mode_label}): green run, suppressed (post_on_success=False)")
+            return
+
+        # Red for failures, green for all-passed — matches the email HTML.
+        color = 0x22C55E if all_passed else 0xEF4444
+        title_emoji = "✅" if all_passed else "❌"
+        status_suffix = "all passed" if all_passed else f"{s['failed']} failed"
+        title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
+
+        # Build a compact description listing up to the first 10 failed tests
+        # so readers see what actually broke without having to open the email.
+        failed_lines: list[str] = []
+        for suite_name, suite_data in result.suites.items():
+            for t in suite_data.get("tests", []):
+                if t.get("status") == "failed":
+                    name = t.get("file", t.get("name", "?"))
+                    failed_lines.append(f"• `{suite_name}` — {name}")
+                    if len(failed_lines) >= 10:
+                        break
+            if len(failed_lines) >= 10:
+                break
+
+        remaining = max(0, s["failed"] - len(failed_lines))
+        if remaining > 0:
+            failed_lines.append(f"…and {remaining} more")
+
+        dur_min = int(result.duration_seconds // 60)
+        dur_sec = int(result.duration_seconds % 60)
+
+        description_parts = [
+            f"**Total:** {s['total']}   **Passed:** {s['passed']}   "
+            f"**Failed:** {s['failed']}   **Skipped:** {s['skipped']}",
+            f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
+        ]
+        if failed_lines:
+            description_parts.append("")
+            description_parts.append("**Failures:**")
+            description_parts.extend(failed_lines)
+
+        description = "\n".join(description_parts)
+        # Discord caps description at 4096 chars
+        if len(description) > 4000:
+            description = description[:3997] + "..."
+
+        payload = {
+            "username": "OpenMates Test Runner",
+            "embeds": [
+                {
+                    "title": title,
+                    "description": description,
+                    "color": color,
+                }
+            ],
+        }
+
+        try:
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                webhook_url,
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp.read()
+            _log(f"Discord summary posted ({mode_label})")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+        except Exception as e:
+            _log(f"Discord summary POST failed: {e}", "ERROR")
+
+    def post_dry_run_notify(
+        self,
+        webhook_url: str,
+        mode_label: str,
+        env_var_name: str,
+    ) -> bool:
+        """Post a one-shot ✅ test embed to verify a webhook is wired correctly.
+
+        Returns True on success, False otherwise. Never raises — same fallback
+        contract as `_send_summary_to_discord`.
+        """
+        if not webhook_url:
+            _log(f"{env_var_name} not set — cannot dry-run notify", "ERROR")
+            return False
+
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        payload = {
+            "username": "OpenMates Test Runner",
+            "embeds": [
+                {
+                    "title": f"✅ {mode_label} — webhook test",
+                    "description": (
+                        f"This is a `--dry-run-notify` smoke test. If you can read "
+                        f"this in the right channel, the webhook is wired up.\n\n"
+                        f"**When:** `{ts}`\n"
+                        f"**Env var:** `{env_var_name}`"
+                    ),
+                    "color": 0x22C55E,
+                }
+            ],
+        }
+        try:
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                webhook_url,
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp.read()
+            _log(f"Dry-run notify posted to {env_var_name}", "OK")
+            return True
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+            _log(f"Dry-run notify failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+            return False
+        except Exception as e:
+            _log(f"Dry-run notify failed: {e}", "ERROR")
+            return False
 
     def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
         """Send via internal API as fallback."""
@@ -1130,6 +1346,297 @@ class NotificationService:
             "failed_tests": failed_tests,
             "all_tests": all_tests,
         }
+
+
+# ---------------------------------------------------------------------------
+# Hourly smoke modes (OPE-349)
+#
+# Both --hourly-dev and --hourly-prod are triggered by the dev server's local
+# crontab. They are intentionally separate from --daily because:
+#   • They have a different goal: catch urgent breakage within an hour, not
+#     full-suite coverage.
+#   • They use a different (much shorter) spec list.
+#   • They have a different Discord routing (per-channel webhook).
+#   • They never run the commit-activity gate — failures within the active
+#     window must always alert.
+#
+# We do NOT use the GitHub Actions `schedule:` cron for any test workflow:
+# we have repeatedly observed it silently skipping runs under load. Local
+# cron + workflow_dispatch is reliable.
+# ---------------------------------------------------------------------------
+
+def _archive_hourly_run(archive_dir: Path, result: RunResult) -> Path:
+    """Persist a single hourly run to test-results/hourly-{dev,prod}/.
+
+    Filename pattern: run-<UTC-timestamp>.json. Also writes last-run.json
+    inside the same dir for quick "did the latest run pass?" lookups.
+    Prunes archives older than HOURLY_ARCHIVE_RETENTION_DAYS files.
+    """
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    ts = result.run_id.replace(":", "").replace("-", "")
+    run_file = archive_dir / f"run-{ts}.json"
+    data = {
+        "run_id": result.run_id,
+        "git_sha": result.git_sha,
+        "git_branch": result.git_branch,
+        "flags": result.flags,
+        "duration_seconds": result.duration_seconds,
+        "summary": result.summary,
+        "suites": result.suites,
+        "environment": result.environment,
+    }
+    _safe_write_json(run_file, data)
+    _safe_write_json(archive_dir / "last-run.json", data)
+
+    # Prune: keep N most-recent run-*.json files (~7 days at 11 runs/day = 77).
+    keep = HOURLY_ARCHIVE_RETENTION_DAYS * 24
+    archives = sorted(archive_dir.glob("run-*.json"), reverse=True)
+    for old in archives[keep:]:
+        old.unlink(missing_ok=True)
+
+    return run_file
+
+
+def _heartbeat_should_fire(archive_dir: Path) -> bool:
+    """Return True at most once per UTC day.
+
+    Used by hourly modes so a green run posts a single "still alive" embed
+    each day even though we suppress all other green runs. Without this the
+    channel could go silent for weeks and we'd never notice the cron itself
+    had stopped firing.
+
+    Marker is a small file at archive_dir/.heartbeat-YYYY-MM-DD; we touch it
+    on the first call of each UTC day and skip on every subsequent call.
+    """
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    marker = archive_dir / f".heartbeat-{today}"
+    if marker.is_file():
+        return False
+    # Prune yesterday's markers so the directory stays tidy.
+    for old in archive_dir.glob(".heartbeat-*"):
+        if old.name != marker.name:
+            old.unlink(missing_ok=True)
+    marker.touch()
+    return True
+
+
+def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
+    """Hourly dev smoke: dispatch the 4 core specs, post to Discord on failure.
+
+    `force=True` (used for manual one-shot runs) bypasses the green-run silence
+    so the operator can verify Discord wiring without breaking a spec on purpose.
+    """
+    git_sha, git_branch = _git_info()
+    run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    print()
+    print("=" * 60)
+    print("  OpenMates Hourly Smoke — DEV")
+    print("=" * 60)
+    _log(f"Git: {git_sha}@{git_branch}")
+    _log(f"Specs: {len(HOURLY_DEV_SPECS)} ({', '.join(HOURLY_DEV_SPECS)})")
+    print()
+
+    start = time.time()
+    client = GitHubActionsClient()
+    runner = BatchRunner(
+        client=client,
+        specs=HOURLY_DEV_SPECS,
+        batch_size=len(HOURLY_DEV_SPECS),  # one batch — small list
+        fail_fast=False,                    # always run all 4, surface every failure
+        use_mocks=True,
+    )
+    suite_result = runner.run_all_batches()
+    duration = time.time() - start
+
+    result = ResultAggregator.build_run_result(
+        suites={"playwright": suite_result},
+        run_id=run_id,
+        git_sha=git_sha,
+        git_branch=git_branch,
+        environment="development",
+        duration=duration,
+        flags={"mode": "hourly-dev", "force": force},
+    )
+
+    archive_path = _archive_hourly_run(HOURLY_DEV_DIR, result)
+    _log(f"Archived hourly-dev run to {archive_path.relative_to(PROJECT_ROOT)}")
+
+    s = result.summary
+    print()
+    print("=" * 60)
+    icon = "✓" if s["failed"] == 0 else "✗"
+    dur_min = int(result.duration_seconds // 60)
+    dur_sec = int(result.duration_seconds % 60)
+    print(f"  {icon} hourly-dev: {s['passed']}/{s['total']} passed, "
+          f"{s['failed']} failed   ({dur_min}m {dur_sec}s)")
+    print("=" * 60)
+    print()
+
+    # Decide whether to ping Discord. On forced runs we always post (so the
+    # operator gets confirmation). Otherwise: post on failure, plus one daily
+    # heartbeat for green runs.
+    post_on_success = force or _heartbeat_should_fire(HOURLY_DEV_DIR)
+    notification._send_summary_to_discord(
+        result,
+        webhook_url=notification.discord_webhook_dev_smoke,
+        mode_label="dev hourly",
+        post_on_success=post_on_success,
+        env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+    )
+
+    return 1 if s["failed"] > 0 else 0
+
+
+def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
+    """Hourly prod smoke: dispatch the existing prod-smoke.yml workflow once
+    and report its result. The workflow internally runs all 3 prod specs.
+    """
+    git_sha, git_branch = _git_info()
+    run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    print()
+    print("=" * 60)
+    print("  OpenMates Hourly Smoke — PROD")
+    print("=" * 60)
+    _log(f"Git: {git_sha}@{git_branch}")
+    _log(f"Workflow: {PROD_SMOKE_WORKFLOW}")
+    print()
+
+    client = GitHubActionsClient()
+    pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
+
+    rc = subprocess.run(
+        ["gh", "workflow", "run", PROD_SMOKE_WORKFLOW,
+         "--repo", GH_REPO, "--ref", GH_BRANCH],
+        capture_output=True, text=True,
+    )
+    if rc.returncode != 0:
+        _log(f"Dispatch failed: {rc.stderr.strip()[:200]}", "ERROR")
+        # Build a synthetic failure result so the Discord path still fires.
+        suite_result = SuiteResult(
+            status="failed",
+            tests=[{"name": "prod-smoke-dispatch", "status": "failed",
+                    "duration_seconds": 0,
+                    "error": f"Dispatch failed: {rc.stderr.strip()[:200]}"}],
+        )
+    else:
+        # Find the new run ID
+        time.sleep(5)
+        new_run_id: Optional[int] = None
+        for _ in range(10):
+            post_ids = client._recent_run_ids(limit=10, workflow=PROD_SMOKE_WORKFLOW)
+            fresh = [rid for rid in post_ids if rid not in pre_ids]
+            if fresh:
+                new_run_id = fresh[0]
+                break
+            time.sleep(3)
+
+        if new_run_id is None:
+            _log("Could not find dispatched prod-smoke run", "ERROR")
+            suite_result = SuiteResult(
+                status="failed",
+                tests=[{"name": "prod-smoke-dispatch", "status": "failed",
+                        "duration_seconds": 0,
+                        "error": "Could not find dispatched workflow run"}],
+            )
+        else:
+            _log(f"Waiting for prod-smoke run {new_run_id}...")
+            statuses = client.wait_for_runs(
+                [new_run_id], fail_fast=False,
+                timeout=PROD_SMOKE_RUN_TIMEOUT,
+            )
+            print()  # clear polling line
+            status_data = statuses.get(new_run_id, {})
+            conclusion = status_data.get("conclusion", "unknown")
+            _log(f"prod-smoke run {new_run_id} → {conclusion}")
+
+            if conclusion == "success":
+                suite_result = SuiteResult(
+                    status="passed",
+                    tests=[{"name": "prod-smoke", "status": "passed",
+                            "duration_seconds": 0,
+                            "file": "prod-smoke.yml",
+                            "run_id": new_run_id}],
+                )
+            else:
+                error_snippet = client.get_failed_job_error(new_run_id) or (
+                    f"prod-smoke conclusion: {conclusion}"
+                )
+                suite_result = SuiteResult(
+                    status="failed",
+                    tests=[{"name": "prod-smoke", "status": "failed",
+                            "duration_seconds": 0,
+                            "file": "prod-smoke.yml",
+                            "run_id": new_run_id,
+                            "error": error_snippet}],
+                )
+
+    result = ResultAggregator.build_run_result(
+        suites={"prod-smoke": suite_result},
+        run_id=run_id,
+        git_sha=git_sha,
+        git_branch=git_branch,
+        environment="production",
+        duration=0.0,  # we don't time the GH workflow itself
+        flags={"mode": "hourly-prod", "force": force},
+    )
+
+    archive_path = _archive_hourly_run(HOURLY_PROD_DIR, result)
+    _log(f"Archived hourly-prod run to {archive_path.relative_to(PROJECT_ROOT)}")
+
+    s = result.summary
+    print()
+    print("=" * 60)
+    icon = "✓" if s["failed"] == 0 else "✗"
+    print(f"  {icon} hourly-prod: {s['passed']}/{s['total']} passed, "
+          f"{s['failed']} failed")
+    print("=" * 60)
+    print()
+
+    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
+    notification._send_summary_to_discord(
+        result,
+        webhook_url=notification.discord_webhook_prod_smoke,
+        mode_label="prod hourly",
+        post_on_success=post_on_success,
+        env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+    )
+
+    return 1 if s["failed"] > 0 else 0
+
+
+def run_dry_run_notify_mode(notification: NotificationService, mode: str) -> int:
+    """Send a one-shot test embed to verify a Discord webhook is wired.
+
+    `mode` selects which webhook + label to use:
+        "daily"        → DISCORD_WEBHOOK_DEV_NIGHTLY
+        "hourly-dev"   → DISCORD_WEBHOOK_DEV_SMOKE
+        "hourly-prod"  → DISCORD_WEBHOOK_PROD_SMOKE
+    """
+    if mode == "daily":
+        ok = notification.post_dry_run_notify(
+            notification.discord_webhook_url,
+            "dev nightly",
+            "DISCORD_WEBHOOK_DEV_NIGHTLY",
+        )
+    elif mode == "hourly-dev":
+        ok = notification.post_dry_run_notify(
+            notification.discord_webhook_dev_smoke,
+            "dev hourly",
+            "DISCORD_WEBHOOK_DEV_SMOKE",
+        )
+    elif mode == "hourly-prod":
+        ok = notification.post_dry_run_notify(
+            notification.discord_webhook_prod_smoke,
+            "prod hourly",
+            "DISCORD_WEBHOOK_PROD_SMOKE",
+        )
+    else:
+        _log(f"Unknown --dry-run-notify mode: {mode}", "ERROR")
+        return 2
+    return 0 if ok else 1
 
 
 # ---------------------------------------------------------------------------
@@ -2160,8 +2667,19 @@ def main() -> int:
                         help="Rerun only tests that failed in last-run.json")
     parser.add_argument("--daily", action="store_true",
                         help="Daily cron mode (commit gate, emails, OpenObserve)")
+    parser.add_argument("--hourly-dev", action="store_true",
+                        help="Hourly DEV smoke (4 specs, post on failure to "
+                             "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
+    parser.add_argument("--hourly-prod", action="store_true",
+                        help="Hourly PROD smoke (dispatches prod-smoke.yml, "
+                             "posts on failure to DISCORD_WEBHOOK_PROD_SMOKE).")
+    parser.add_argument("--dry-run-notify", action="store_true",
+                        help="Send a one-shot ✅ test embed to the Discord "
+                             "webhook of the chosen mode (--daily / --hourly-dev "
+                             "/ --hourly-prod) and exit. Used to verify wiring.")
     parser.add_argument("--force", action="store_true",
-                        help="Skip commit-activity check in --daily mode")
+                        help="Skip commit-activity check in --daily mode; in "
+                             "hourly modes, force a Discord post on green runs.")
     parser.add_argument("--environment", choices=["development", "production"], default="development",
                         help="Target environment (default: development)")
     parser.add_argument("--max-concurrent", type=int, default=20,
@@ -2181,6 +2699,63 @@ def main() -> int:
         _print_flaky_report()
         return 0
 
+    # Reject incompatible mode combinations early so the user gets a clear
+    # error instead of weird half-runs.
+    mode_flags = sum(int(x) for x in (args.daily, args.hourly_dev, args.hourly_prod))
+    if mode_flags > 1:
+        _log("Pass at most one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        return 2
+
+    # Always source .env into the process so cron jobs (which only run via
+    # bash with `set -a && . .env`) and direct invocations both work.
+    dot_env = _read_env_file()
+    for k, v in dot_env.items():
+        if k not in os.environ:
+            os.environ[k] = v
+
+    # --dry-run-notify: short-circuit before any spec dispatch.
+    if args.dry_run_notify:
+        notification = NotificationService()
+        if args.hourly_dev:
+            return run_dry_run_notify_mode(notification, "hourly-dev")
+        if args.hourly_prod:
+            return run_dry_run_notify_mode(notification, "hourly-prod")
+        if args.daily:
+            return run_dry_run_notify_mode(notification, "daily")
+        _log("--dry-run-notify requires one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        return 2
+
+    # --hourly-dev: separate lockfile so it never collides with --daily or
+    # --hourly-prod, and exits cleanly if the previous hour is still running.
+    if args.hourly_dev:
+        lock_fd = None
+        try:
+            lock_fd = open(LOCKFILE_HOURLY_DEV, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            _log("Another --hourly-dev run is in progress — skipping this hour")
+            return 0
+        try:
+            return run_hourly_dev_mode(NotificationService(), force=args.force)
+        finally:
+            if lock_fd:
+                lock_fd.close()
+
+    # --hourly-prod: separate lockfile (same rationale as --hourly-dev).
+    if args.hourly_prod:
+        lock_fd = None
+        try:
+            lock_fd = open(LOCKFILE_HOURLY_PROD, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            _log("Another --hourly-prod run is in progress — skipping this hour")
+            return 0
+        try:
+            return run_hourly_prod_mode(NotificationService(), force=args.force)
+        finally:
+            if lock_fd:
+                lock_fd.close()
+
     # Daily mode: acquire lockfile
     lock_fd = None
     if args.daily:
@@ -2190,12 +2765,6 @@ def main() -> int:
         except (IOError, OSError):
             _log("Another instance is already running — exiting")
             return 0
-
-        # Source .env if not already loaded
-        dot_env = _read_env_file()
-        for k, v in dot_env.items():
-            if k not in os.environ:
-                os.environ[k] = v
 
     try:
         orchestrator = TestOrchestrator(args)

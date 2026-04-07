@@ -91,7 +91,7 @@
         position: relative;
         cursor: pointer;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: background-color 0.2s;
+        transition: background-color var(--duration-normal);
         display: flex;
         align-items: center;
         margin: 4px 0;
@@ -118,7 +118,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         line-height: 1.3;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-font-primary);
         width: 100%;
         word-break: break-word;

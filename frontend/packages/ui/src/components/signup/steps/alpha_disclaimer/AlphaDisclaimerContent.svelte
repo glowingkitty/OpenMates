@@ -66,10 +66,10 @@
     .disclaimer-items {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        margin-bottom: 10px;
+        gap: var(--spacing-2);
+        margin-bottom: var(--spacing-5);
         text-align: left;
-        margin: 10px;
+        margin: var(--spacing-5);
     }
 
     .disclaimer-item {
@@ -77,8 +77,8 @@
         align-items: flex-start;
         gap: 15px;
         padding: 0.5rem;
-        border-radius: 8px;
-        transition: background-color 0.2s ease;
+        border-radius: var(--radius-3);
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .disclaimer-item.clickable {
@@ -114,10 +114,10 @@
 
     @media (max-width: 480px) {
         .disclaimer-items {
-            gap: 0px;
+            gap: var(--spacing-0);
         }
         .disclaimer-text p {
-            font-size: 14.5px
+            font-size: 0.90625rem
         }
     }
 </style>

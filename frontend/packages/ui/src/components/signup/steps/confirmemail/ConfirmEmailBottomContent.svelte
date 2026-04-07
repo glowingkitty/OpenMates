@@ -125,21 +125,21 @@
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .error-message {
-        color: #e74c3c;
+        color: var(--color-error);
         font-size: 0.9rem;
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
         text-align: center;
     }
     
     .error {
-        border-color: #e74c3c !important;
+        border-color: var(--color-error) !important;
     }
 
     .overlay-container {

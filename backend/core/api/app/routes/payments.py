@@ -10,6 +10,10 @@ from pathlib import Path
 
 from backend.core.api.app.services.payment.payment_service import PaymentService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.gift_card_methods import (
+    GiftCardDomainMismatchError,
+    GiftCardEmailRequiredError,
+)
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -123,6 +127,10 @@ class CreateSubscriptionResponse(BaseModel):
 
 class RedeemGiftCardRequest(BaseModel):
     code: str
+    # Optional client-provided email encryption key. Required only when the
+    # redeemed gift card is restricted to a specific email domain (see OPE-76).
+    # Unrestricted cards ignore this field, so existing clients remain compatible.
+    email_encryption_key: Optional[str] = None
 
 class RedeemGiftCardResponse(BaseModel):
     success: bool
@@ -3295,13 +3303,79 @@ async def redeem_gift_card(
                 message="Invalid gift card code or code has already been redeemed"
             )
         
-        # 2. Get credits value
+        # 2. Enforce domain restriction BEFORE touching credits. Only cards
+        # flagged with allowed_email_domain are affected; unrestricted cards
+        # (the vast majority — user-purchased and admin-UI generated) fall
+        # straight through without any email decryption.
+        allowed_email_domain = gift_card.get("allowed_email_domain")
+        if allowed_email_domain:
+            if not gift_card_request.email_encryption_key:
+                logger.warning(
+                    f"User {user_id} attempted to redeem domain-restricted gift card {code} "
+                    f"without providing email_encryption_key"
+                )
+                user_cache_data = await cache_service.get_user_by_id(user_id)
+                current_credits = user_cache_data.get('credits', 0) if user_cache_data else 0
+                return RedeemGiftCardResponse(
+                    success=False,
+                    credits_added=0,
+                    current_credits=current_credits,
+                    message="This gift card is restricted to specific email addresses."
+                )
+
+            if not current_user.encrypted_email_address:
+                logger.error(f"Missing encrypted_email_address for user {user_id} during restricted gift card redemption")
+                raise HTTPException(status_code=500, detail="User email information unavailable.")
+
+            try:
+                decrypted_email = await encryption_service.decrypt_with_email_key(
+                    current_user.encrypted_email_address,
+                    gift_card_request.email_encryption_key
+                )
+            except Exception as decrypt_err:
+                logger.error(f"Failed to decrypt email for restricted gift card redemption (user {user_id}): {decrypt_err}")
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+
+            if not decrypted_email:
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+
+            # Exact full-domain match (NOT suffix). See gift_card_methods._enforce_gift_card_domain
+            # for why a suffix match would be a security hole (Mailosaur subdomains).
+            user_domain = decrypted_email.rsplit("@", 1)[1].strip().lower() if "@" in decrypted_email else ""
+            expected_domain = allowed_email_domain.strip().lower()
+            if user_domain != expected_domain:
+                logger.warning(
+                    f"User {user_id} attempted to redeem domain-restricted gift card {code} "
+                    f"with mismatched domain (expected={expected_domain}, got={user_domain})"
+                )
+                user_cache_data = await cache_service.get_user_by_id(user_id)
+                current_credits = user_cache_data.get('credits', 0) if user_cache_data else 0
+                ComplianceService.log_financial_transaction(
+                    user_id=user_id,
+                    transaction_type="gift_card_redemption",
+                    status="failed",
+                    details={"gift_card_code": code, "reason": "email_domain_mismatch"}
+                )
+                return RedeemGiftCardResponse(
+                    success=False,
+                    credits_added=0,
+                    current_credits=current_credits,
+                    message="This gift card cannot be redeemed with this email address."
+                )
+
+            # Cache the verified email so we can pass it to redeem_gift_card() below
+            # as defense-in-depth — gift_card_methods also re-checks the domain.
+            verified_user_email: Optional[str] = decrypted_email
+        else:
+            verified_user_email = None
+
+        # 3. Get credits value
         credits_value = gift_card.get("credits_value")
         if not credits_value or credits_value <= 0:
             logger.error(f"Invalid credits value {credits_value} for gift card {code}")
             user_cache_data = await cache_service.get_user_by_id(user_id)
             current_credits = user_cache_data.get('credits', 0) if user_cache_data else 0
-            
+
             return RedeemGiftCardResponse(
                 success=False,
                 credits_added=0,
@@ -3381,8 +3455,26 @@ async def redeem_gift_card(
         else:
             logger.warning("Vault key ID missing, cannot encrypt gift card code for redemption record")
         
-        # 10. Redeem (delete) the gift card from Directus and cache
-        redeem_success = await directus_service.redeem_gift_card(code, user_id)
+        # 10. Redeem the gift card. For reusable cards this is a no-op
+        # delete (only cache is invalidated); for single-use cards the row
+        # is deleted from Directus. The domain check was already enforced
+        # above, but we still pass `user_email` so redeem_gift_card's own
+        # defense-in-depth check runs too.
+        try:
+            redeem_success = await directus_service.redeem_gift_card(
+                code,
+                user_id,
+                user_email=verified_user_email,
+            )
+        except (GiftCardDomainMismatchError, GiftCardEmailRequiredError) as gc_err:
+            # This should be unreachable because the route already verified
+            # the domain above; log loudly if it ever fires.
+            logger.error(
+                f"Defense-in-depth gift card domain check fired unexpectedly for code {code}, "
+                f"user {user_id}: {gc_err}"
+            )
+            raise HTTPException(status_code=403, detail=str(gc_err))
+
         if not redeem_success:
             logger.error(f"Failed to delete gift card {code} after redemption. Credits were added but gift card may still exist.")
             # Don't fail the request - credits were already added

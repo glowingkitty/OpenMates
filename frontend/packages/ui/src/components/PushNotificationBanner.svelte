@@ -163,18 +163,18 @@
     .push-notification-banner {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 16px 20px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8) var(--spacing-10);
         margin: 12px 0;
         background-color: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border: 1px solid var(--color-grey-20);
     }
     
     .banner-content {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .banner-icon {
@@ -182,25 +182,25 @@
         height: 24px;
         background: var(--color-primary);
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
     
     .banner-text {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
         flex: 1;
     }
     
     .banner-title {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-font-primary);
         line-height: 1.4;
     }
     
     .banner-subtitle {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 400;
         color: var(--color-grey-60);
         line-height: 1.4;
@@ -208,17 +208,17 @@
     
     .banner-actions {
         display: flex;
-        gap: 12px;
+        gap: var(--spacing-6);
         justify-content: flex-end;
     }
     
     .banner-btn {
-        padding: 10px 20px;
-        border-radius: 20px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-10);
+        border-radius: var(--radius-8);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.2s ease, opacity 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default), opacity var(--duration-normal) var(--easing-default);
         border: none;
     }
     
@@ -250,18 +250,18 @@
     .ios-instructions {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .ios-instructions-header {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .ios-instructions-title {
         flex: 1;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 600;
         color: var(--color-font-primary);
     }
@@ -269,12 +269,12 @@
     .ios-close-btn {
         all: unset;
         cursor: pointer;
-        padding: 4px;
+        padding: var(--spacing-2);
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0.7;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
     
     .ios-close-btn:hover {
@@ -290,13 +290,13 @@
     .ios-instructions-content {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding-left: 36px;
     }
     
     .ios-instructions-content p {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-70);
         line-height: 1.5;
     }

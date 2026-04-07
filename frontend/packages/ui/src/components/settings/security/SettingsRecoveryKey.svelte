@@ -591,7 +591,7 @@ Users should store them securely (offline, in a safe place).
 
 <style>
     .settings-recovery-key {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -600,14 +600,14 @@ Users should store them securely (offline, in a safe place).
     .description {
         color: var(--color-grey-70);
         line-height: 1.6;
-        margin-bottom: 24px;
+        margin-bottom: var(--spacing-12);
     }
 
     .status-section {
         background: var(--color-grey-15);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 24px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-8);
+        margin-bottom: var(--spacing-12);
     }
 
     .status-row {
@@ -623,13 +623,13 @@ Users should store them securely (offline, in a safe place).
 
     .status-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .status-value {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         font-weight: 500;
         color: var(--color-grey-80);
     }
@@ -666,12 +666,12 @@ Users should store them securely (offline, in a safe place).
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .action-hint {
         color: var(--color-grey-50);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         text-align: center;
     }
 
@@ -679,16 +679,16 @@ Users should store them securely (offline, in a safe place).
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 12px 24px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         cursor: pointer;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
-        transition: opacity 0.2s, transform 0.2s;
+        transition: opacity var(--duration-normal), transform var(--duration-normal);
         min-width: 120px;
     }
 
@@ -710,16 +710,16 @@ Users should store them securely (offline, in a safe place).
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 12px 24px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-grey-20);
         color: var(--color-grey-80);
         border: 1px solid var(--color-grey-30);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         cursor: pointer;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
-        transition: opacity 0.2s, transform 0.2s;
+        transition: opacity var(--duration-normal), transform var(--duration-normal);
         min-width: 120px;
     }
 
@@ -734,9 +734,9 @@ Users should store them securely (offline, in a safe place).
 
     .action-buttons {
         display: flex;
-        gap: 12px;
+        gap: var(--spacing-6);
         justify-content: center;
-        margin-top: 24px;
+        margin-top: var(--spacing-12);
     }
 
     /* Loading and generating states */
@@ -746,8 +746,8 @@ Users should store them securely (offline, in a safe place).
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 20px;
-        gap: 16px;
+        padding: var(--spacing-20) var(--spacing-10);
+        gap: var(--spacing-8);
     }
 
     .spinner {
@@ -782,21 +782,21 @@ Users should store them securely (offline, in a safe place).
 
     .generating-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     /* Save step */
     .save-container {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
 
     .header {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .header h2 {
@@ -807,10 +807,10 @@ Users should store them securely (offline, in a safe place).
     .warning-box {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 16px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-8);
         background: var(--color-warning-bg, rgba(255, 193, 7, 0.1));
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         border: 1px solid var(--color-warning, #ffc107);
     }
 
@@ -825,19 +825,19 @@ Users should store them securely (offline, in a safe place).
         width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .save-instruction {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
         margin: 0;
     }
 
     .save-buttons {
         display: flex;
-        gap: 10px;
+        gap: var(--spacing-5);
         justify-content: center;
         flex-wrap: wrap;
     }
@@ -845,16 +845,16 @@ Users should store them securely (offline, in a safe place).
     .save-button {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-5) var(--spacing-8);
         background: var(--color-grey-20);
         border: 1px solid var(--color-grey-30);
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-80);
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         position: relative;
     }
 
@@ -876,23 +876,23 @@ Users should store them securely (offline, in a safe place).
     .check-mark {
         color: var(--color-success, #22c55e);
         font-weight: bold;
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .print-icon {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         line-height: 1;
     }
 
     .important-notice {
-        padding: 16px;
+        padding: var(--spacing-8);
         background: var(--color-grey-15);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
 
     .important-notice p {
         color: var(--color-grey-60);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         line-height: 1.5;
         text-align: center;
         margin: 0;
@@ -902,48 +902,48 @@ Users should store them securely (offline, in a safe place).
     .confirmation-section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-8);
         background: var(--color-grey-15);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
     }
 
     .confirmation-row {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
 
     .confirmation-text {
         color: var(--color-grey-70);
-        font-size: 15px;
+        font-size: null;
         cursor: pointer;
     }
 
     .toggle-hint {
         color: var(--color-grey-50);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         margin: 0;
-        padding-left: 48px;
+        padding-left: var(--spacing-24);
     }
 
     /* Messages */
     .error-message {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--color-error-bg, rgba(239, 68, 68, 0.1));
         border: 1px solid var(--color-error, #ef4444);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-error, #ef4444);
         text-align: center;
     }
 
     .success-message {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--color-success-bg, rgba(34, 197, 94, 0.1));
         border: 1px solid var(--color-success, #22c55e);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-success, #22c55e);
         text-align: center;
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
 </style>

@@ -429,7 +429,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         max-width: 350px;
         margin: 15px auto;
     }
@@ -441,13 +441,13 @@
 
     .rate-limit-message {
         color: var(--color-error);
-        padding: 24px;
+        padding: var(--spacing-12);
         text-align: center;
         font-weight: 500;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1.5;
         background-color: var(--color-error-light);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         margin: 24px 0;
     }
     
@@ -457,7 +457,7 @@
         text-align: center;
         margin: 16px 0;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
     
     .divider::before,
@@ -468,25 +468,25 @@
     }
     
     .divider::before {
-        margin-right: 12px;
+        margin-right: var(--spacing-6);
     }
     
     .divider::after {
-        margin-left: 12px;
+        margin-left: var(--spacing-6);
     }
 
     .passkey-button {
         all: unset;
         width: 100%;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         cursor: pointer;
-        padding: 8px 0px;
+        padding: var(--spacing-4) var(--spacing-0);
         margin: 16px 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         background: var(--color-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;

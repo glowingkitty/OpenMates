@@ -1360,7 +1360,7 @@
         position: absolute;
         inset: 0;
         background: var(--color-grey-0);
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         display: flex;
         flex-direction: column;
         border-radius: 24px;
@@ -1368,8 +1368,8 @@
     }
 
     /* Maximize/minimize button — top-right corner. Overrides buttons.css global button styles.
-       z-index must be above the Leaflet map tiles (z-index: 1 on .map-container) but below
-       search-results-container (z-index: 100). */
+       z-index must be above the Leaflet map tiles (z-index: var(--z-index-raised) on .map-container) but below
+       search-results-container (z-index: var(--z-index-dropdown)). */
     .overlay-fullscreen-btn {
         position: absolute;
         top: 10px;
@@ -1379,11 +1379,11 @@
         width: 32px !important;
         height: 32px !important;
         padding: 4px !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-3) !important;
         background: rgba(255, 255, 255, 0.9) !important;
         border: none !important;
         opacity: 0.75;
-        transition: opacity 0.2s ease-in-out;
+        transition: opacity var(--duration-normal) var(--easing-in-out);
         cursor: pointer;
         margin-right: 0 !important;
         filter: none !important;
@@ -1402,8 +1402,8 @@
         right: 0;
         width: 100%;
         height: calc(100% - 53px);
-        transition: width 0.3s ease;
-        z-index: 1;
+        transition: width var(--duration-slow) var(--easing-default);
+        z-index: var(--z-index-raised);
         /* Create an isolated stacking context so Leaflet's internal z-indexes
            (leaflet-pane uses z-index 400+) do not escape this container and
            cover the bottom-bar / search input above it. */
@@ -1422,7 +1422,7 @@
         height: 53px;
         background: var(--color-grey-0);
         border-radius: 24px;
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 
     .location-error-banner {
@@ -1434,9 +1434,9 @@
         background: var(--color-grey-1, #f5f5f5);
         color: var(--color-font-primary);
         border: 1px solid var(--color-error, #e53e3e);
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 13px;
+        padding: var(--spacing-4) var(--spacing-8);
+        border-radius: var(--radius-8);
+        font-size: var(--font-size-xs);
         text-align: center;
         max-width: calc(100% - 40px);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -1465,15 +1465,15 @@
         left: 50%;
         transform: translateX(-50%);
         background: var(--color-grey-0);
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border-radius: 0 0 20px 20px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         z-index: 1003;
         color: var(--color-font-primary);
-        transition: transform 0.3s ease;
+        transition: transform var(--duration-slow) var(--easing-default);
     }
 
     @keyframes spin {
@@ -1494,15 +1494,15 @@
         position: absolute !important;
         bottom: 5px !important;
         right: 5px !important;
-        font-size: 10px !important;
+        font-size: null !important;
         background: var(--color-grey-0) !important;
         color: var(--color-font-secondary) !important;
         padding: 4px 8px !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-3) !important;
         opacity: 0.8;
         z-index: 9999 !important;
         margin: 0 !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         pointer-events: auto !important;
         visibility: visible !important;
         white-space: nowrap !important;
@@ -1516,7 +1516,7 @@
     :global(.leaflet-container .leaflet-control-container .leaflet-bottom.leaflet-right .leaflet-control-attribution a) {
         color: var(--color-font-secondary) !important;
         text-decoration: none !important;
-        font-size: 10px !important;
+        font-size: null !important;
     }
 
     /* Add specific styles for Leaflet tile loading */
@@ -1611,7 +1611,7 @@
 
     /* Add transition for smoother dark mode switching */
     :global(.leaflet-tile) {
-        transition: filter 0.3s ease;
+        transition: filter var(--duration-slow) var(--easing-default);
     }
 
     /* Add custom marker styles */
@@ -1631,7 +1631,7 @@
         mask-repeat: no-repeat;
         -webkit-mask-position: center;
         mask-position: center;
-        transition: opacity 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default);
     }
 
     /* Precise mode center pin: absolutely positioned at the map center.
@@ -1656,7 +1656,7 @@
         -webkit-mask-position: center;
         mask-position: center;
         pointer-events: none; /* Don't block map interaction */
-        z-index: 500; /* Above map tiles (z-index 400) but below UI controls */
+        z-index: var(--z-index-popover); /* Above map tiles (z-index 400) but below UI controls */
     }
 
     /* Update location indicator styles */
@@ -1668,23 +1668,23 @@
         height: auto;
         min-height: 53px;
         background: var(--color-grey-0);
-        padding: 8px 16px;
-        border-radius: 20px;
+        padding: var(--spacing-4) var(--spacing-8);
+        border-radius: var(--radius-8);
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         z-index: 1003;
         color: var(--color-font-primary);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         pointer-events: auto;
         opacity: 1;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .location-text {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         flex: 1;
         min-width: 0;
     }
@@ -1696,12 +1696,12 @@
     }
 
     .location-line:first-child {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
     }
 
     .location-line:last-child {
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     /* Add moving state styles */
@@ -1712,7 +1712,7 @@
 
     /* Add styles for accuracy circle */
     :global(.accuracy-circle) {
-        z-index: 400 !important; /* Ensure circle appears above tiles but below controls */
+        z-index: var(--z-index-modal) !important; /* Ensure circle appears above tiles but below controls */
     }
 
     .search-container {
@@ -1732,7 +1732,7 @@
         border-radius: 18px;
         background: var(--color-grey-0);
         color: var(--color-font-primary);
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .search-input:focus {
@@ -1748,7 +1748,7 @@
         height: calc(100% - 53px);
         background: var(--color-grey-0);
         /* z-index above map (1) and matching bottom-bar (2) */
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
         border-right: none;
     }
 
@@ -1756,24 +1756,24 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px;
+        padding: var(--spacing-8);
         border-bottom: 1px solid var(--color-grey-20);
     }
 
     .search-results-header h3 {
         margin: 0;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
     }
 
     .search-results {
-        padding: 10px;
+        padding: var(--spacing-5);
         overflow-y: auto;
         height: calc(100% - 53px);
         overflow-x: hidden;
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
     }
 
     .search-results:hover {
@@ -1790,9 +1790,9 @@
 
     .search-results::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid transparent;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .search-results:hover::-webkit-scrollbar-thumb {
@@ -1807,17 +1807,17 @@
         width: 100%;
         height: auto; /* Remove fixed height */
         min-height: 48px;
-        padding: 12px;
+        padding: var(--spacing-6);
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
         text-align: left;
         background: none;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-font-primary);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         white-space: normal;
         word-wrap: break-word;
     }
@@ -1859,27 +1859,27 @@
     .result-info {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
         flex: 1;
         min-width: 0;
         height: auto; /* Allow content to determine height */
     }
 
     .result-name {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-font-primary);
         line-height: 1.4;
     }
 
     .result-location {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-font-secondary);
         line-height: 1.4;
     }
 
     .result-type {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-font-secondary);
     }
 
@@ -1933,7 +1933,7 @@
 
     /* Update search results styles for better text wrapping */
     .search-results {
-        padding: 10px;
+        padding: var(--spacing-5);
         overflow-y: auto;
         height: calc(100% - 53px);
         overflow-x: hidden;
@@ -1943,17 +1943,17 @@
         width: 100%;
         height: auto; /* Remove fixed height */
         min-height: 48px;
-        padding: 12px;
+        padding: var(--spacing-6);
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
         text-align: left;
         background: none;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-font-primary);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         white-space: normal;
         word-wrap: break-word;
     }
@@ -1961,14 +1961,14 @@
     .result-info {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--spacing-2);
         flex: 1;
         min-width: 0;
         height: auto; /* Allow content to determine height */
     }
 
     .result-name {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         white-space: pre-wrap;
         word-break: break-word;
         overflow-wrap: break-word;
@@ -1984,7 +1984,7 @@
         /* Keep minimal padding in the controls container */
         .controls {
             padding: 0 10px;
-            gap: 8px; /* Add small gap between elements */
+            gap: var(--spacing-4); /* Add small gap between elements */
         }
 
         /* Reduce the width of the search container */

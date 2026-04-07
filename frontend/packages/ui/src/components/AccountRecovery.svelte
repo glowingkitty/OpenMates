@@ -1175,25 +1175,25 @@
         width: 100%;
         max-width: 400px;
         margin: 0 auto;
-        padding: 20px;
+        padding: var(--spacing-10);
     }
     
     .step-content {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
     
     .info-text {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.5;
         text-align: center;
     }
     
     .info-text-secondary {
         color: var(--color-grey-50);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         line-height: 1.4;
         text-align: center;
         margin-top: -8px;
@@ -1201,16 +1201,16 @@
     
     .error-text {
         color: var(--color-red-50);
-        font-size: 12px;
-        margin-top: 4px;
+        font-size: var(--font-size-xxs);
+        margin-top: var(--spacing-2);
     }
     
     .resend-button {
-        padding: 10px;
+        padding: var(--spacing-5);
         background: transparent;
         color: var(--color-grey-60);
         border: none;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
         text-decoration: underline;
     }
@@ -1227,7 +1227,7 @@
     .back-button {
         all: unset;
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         cursor: pointer;
         padding: 4px 0;
         align-self: flex-start;
@@ -1238,14 +1238,14 @@
     }
     
     .secondary-button {
-        padding: 10px 20px;
+        padding: var(--spacing-5) var(--spacing-10);
         background: var(--color-grey-20);
         color: var(--color-grey-70);
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
     
     .secondary-button:hover {
@@ -1255,18 +1255,18 @@
     
     .confirmation-section {
         background: var(--color-grey-15);
-        border-radius: 12px;
-        padding: 16px;
+        border-radius: var(--radius-5);
+        padding: var(--spacing-8);
     }
     
     .toggle-row {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: var(--spacing-6);
     }
     
     .toggle-label {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-70);
         line-height: 1.4;
         cursor: pointer;
@@ -1277,10 +1277,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 12px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6);
         background: var(--color-green-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         color: var(--color-green-60);
         font-weight: 500;
     }
@@ -1294,7 +1294,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
     
     .loading-spinner {
@@ -1321,7 +1321,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 30px;
+        font-size: var(--font-size-h2);
         margin: 0 auto 16px;
     }
     
@@ -1336,8 +1336,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-        padding: 24px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-12);
     }
     
     .passkey-icon {
@@ -1347,7 +1347,7 @@
         width: 80px;
         height: 80px;
         background: var(--color-primary-10);
-        border-radius: 16px;
+        border-radius: var(--radius-7);
     }
     
     /* Resetting account loading state */
@@ -1362,8 +1362,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
-        padding: 32px;
+        gap: var(--spacing-10);
+        padding: var(--spacing-16);
     }
     
     .resetting-icon {
@@ -1389,8 +1389,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        margin-bottom: 8px;
+        gap: var(--spacing-6);
+        margin-bottom: var(--spacing-4);
     }
     
     .tfa-setup-header h3 {
@@ -1401,9 +1401,9 @@
     .qr-code-container {
         display: flex;
         justify-content: center;
-        padding: 16px;
+        padding: var(--spacing-8);
         background: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         color: var(--color-grey-80);
     }
     
@@ -1411,20 +1411,20 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
-        padding: 12px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
     
     .secret-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
     }
     
     .secret-key {
         font-family: monospace;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-70);
         word-break: break-all;
         text-align: center;
@@ -1433,34 +1433,34 @@
     
     .input-label {
         display: block;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
-        margin-bottom: 6px;
+        margin-bottom: var(--spacing-3);
     }
     
     /* 2FA App Selection Styles */
     .app-selection-section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .app-list {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .app-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-5) var(--spacing-6);
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         text-align: left;
     }
     
@@ -1487,7 +1487,7 @@
     
     .app-item .app-name {
         flex: 1;
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-80);
         white-space: nowrap;
         overflow: hidden;

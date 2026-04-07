@@ -52,11 +52,11 @@
 
 <style>
     .provider-icon-wrapper {
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         flex-shrink: 0;
         /* Subtle appearance — entire element at 0.5 opacity */
         opacity: 0.5;
-        /* White background */
+        /* Always-white background (theme-independent — provider logos need light bg in both themes) */
         background-color: #ffffff;
         /* Use CSS variable for background image */
         background-image: var(--provider-bg-image);

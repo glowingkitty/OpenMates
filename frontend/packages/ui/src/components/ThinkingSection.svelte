@@ -141,13 +141,13 @@
 
 <style>
     .thinking-section {
-        margin-bottom: 12px;
-        border-radius: 8px;
+        margin-bottom: var(--spacing-6);
+        border-radius: var(--radius-3);
         background: var(--color-surface-secondary, rgba(0, 0, 0, 0.03));
         border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
         overflow: hidden;
         position: relative;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .thinking-section.streaming {
@@ -161,17 +161,17 @@
     .thinking-header {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding: 10px 14px;
         width: 100%;
         background: transparent;
         border: none;
         cursor: pointer;
         color: var(--color-text-secondary, #666);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-family: inherit;
         text-align: left;
-        transition: background-color 0.15s ease, color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
     }
     
     .thinking-header:hover {
@@ -205,13 +205,13 @@
         mask-position: center;
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
     }
     
     .thinking-summary {
         flex: 1;
         font-weight: 500;
-        transition: color 0.15s ease;
+        transition: color var(--duration-fast) var(--easing-default);
     }
     
     /* Dropdown expand icon using mask-image */
@@ -228,7 +228,7 @@
         mask-position: center;
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
-        transition: transform 0.2s ease, background-color 0.15s ease;
+        transition: transform var(--duration-normal) var(--easing-default), background-color var(--duration-fast) var(--easing-default);
     }
     
     /* Rotate dropdown icon when expanded */
@@ -239,7 +239,7 @@
     .thinking-content {
         padding: 0 14px 14px;
         border-top: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08));
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.6;
         color: var(--color-text-secondary, #555);
     }
@@ -259,7 +259,7 @@
     
     /* Override ReadOnlyMessage styles for thinking content */
     .thinking-content :global(.tiptap-editor) {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         opacity: 0.85;
     }
     

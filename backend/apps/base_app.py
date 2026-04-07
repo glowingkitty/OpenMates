@@ -42,15 +42,38 @@ class CreditChargePayload(BaseModel):
     usage_details: Optional[Dict[str, Any]] = None
 
 class BaseApp:
-    def __init__(self, app_dir: str, app_yml_filename: str = "app.yml", app_port: int = 8001):
+    """
+    Holds app metadata, resolved skill classes, and the in-process dispatch entry point.
+
+    Two construction modes:
+      1. ``register_http_routes=True`` (default, legacy) — also creates a FastAPI
+         instance and registers ``/health``, ``/metadata``, and ``/skills/{id}`` routes.
+         Used by the deprecated standalone per-app Uvicorn containers.
+      2. ``register_http_routes=False`` (in-process) — skips FastAPI creation entirely.
+         Used by ``api`` and Celery workers, which call ``dispatch_skill()`` directly
+         via the in-process ``SkillRegistry`` instead of going over HTTP.
+
+    See: docs/architecture/apps/app-skills.md (in-process loading) and OPE-342.
+    """
+
+    def __init__(
+        self,
+        app_dir: str,
+        app_yml_filename: str = "app.yml",
+        app_port: int = 8001,
+        register_http_routes: bool = True,
+        preloaded_config_dict: Optional[Dict[str, Any]] = None,
+    ):
         self.app_dir = app_dir
         self.app_yml_path = os.path.join(self.app_dir, app_yml_filename)
         self.app_config: Optional[AppYAML] = None
         self.app_id: str = os.path.basename(self.app_dir.rstrip(os.sep))
         self.is_valid = False
         self.port = app_port
+        self._preloaded_config_dict = preloaded_config_dict
+        self.skill_classes: Dict[str, type] = {}  # skill_id -> resolved class (populated by _resolve_skill_classes)
         self.celery_producer = self._initialize_celery_producer()
-        
+
         # Initialize translation service to load translations from YAML files
         # This ensures translations are ready for skill initialization and metadata endpoint
         try:
@@ -67,16 +90,71 @@ class BaseApp:
                 self.app_id = self.app_config.id
             else:
                 self.app_config.id = self.app_id
-        
-        logger.info(f"BaseApp initialized. Effective App ID: {self.app_id}")
 
-        self.fastapi_app = FastAPI(
-            title=self.name_translation_key or self.app_id or "BaseApp",
-            description=self.description or "A base application.",
-            version="0.1.0"
-        )
-        self._register_default_routes()
-        self._register_skill_routes()
+        logger.info(f"BaseApp initialized. Effective App ID: {self.app_id} (http_routes={register_http_routes})")
+
+        # Resolve skill class_path -> class via importlib. Used by both modes:
+        # in-process dispatch reads self.skill_classes directly, and the legacy
+        # HTTP route registration loops over the same dict.
+        self._resolve_skill_classes()
+
+        if register_http_routes:
+            self.fastapi_app = FastAPI(
+                title=self.name_translation_key or self.app_id or "BaseApp",
+                description=self.description or "A base application.",
+                version="0.1.0"
+            )
+            self._register_default_routes()
+            self._register_skill_routes()
+        else:
+            self.fastapi_app = None
+
+    def _resolve_skill_classes(self) -> None:
+        """
+        Resolve every skill's ``class_path`` string into an actual class via importlib,
+        populating ``self.skill_classes``. Called once at construction.
+
+        A failed import logs ERROR and skips the skill — the skill becomes unavailable
+        (REST returns 404, AI preprocessor doesn't see it as a tool) but the app and
+        the rest of its skills keep working. This is the in-process replacement for
+        the old "MISSING CONTAINER" startup check.
+        """
+        self.skill_classes = {}
+        if not self.is_valid or not self.app_config or not self.app_config.skills:
+            return
+
+        for skill_def in self.app_config.skills:
+            if not skill_def.class_path:
+                # Planning-stage or stub skill — no implementation yet, skip silently
+                logger.debug(f"Skill '{self.app_id}.{skill_def.id}' has no class_path, skipping (likely planning-stage)")
+                continue
+            try:
+                module_path, class_name = skill_def.class_path.strip().rsplit('.', 1)
+                # Normalize relative class_paths. Some app.yml files (e.g. ai/app.yml) use
+                # the legacy form 'ai.skills.ask_skill.AskSkill' which only resolved inside
+                # the old per-app containers (where the app code lived at /app/ai/). In the
+                # in-process api/worker layout the apps live at /app/backend/apps/<name>/,
+                # so we prepend 'backend.apps.' if the path doesn't already start with
+                # 'backend.'. This mirrors the existing fallback in _get_skill_models().
+                if not module_path.startswith('backend.'):
+                    module_path = f"backend.apps.{module_path}"
+                module = importlib.import_module(module_path)
+                skill_class = getattr(module, class_name, None)
+                if skill_class is None or not isinstance(skill_class, type):
+                    logger.error(
+                        f"Skill '{self.app_id}.{skill_def.id}' class_path '{skill_def.class_path}' "
+                        f"(resolved to '{module_path}.{class_name}') does not resolve to a class. "
+                        f"Skipping (skill will be unavailable)."
+                    )
+                    continue
+                self.skill_classes[skill_def.id] = skill_class
+                logger.debug(f"Resolved skill '{self.app_id}.{skill_def.id}' -> {module_path}.{class_name}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to import skill '{self.app_id}.{skill_def.id}' from '{skill_def.class_path}': {e}. "
+                    f"Skill will be unavailable.",
+                    exc_info=True,
+                )
 
     def _get_skill_models(self, skill_def: AppSkillDefinition):
         """
@@ -212,33 +290,70 @@ class BaseApp:
 
     async def _execute_skill_route(self, request: Request, skill_definition, captured_class):
         """
-        Dynamic skill executor endpoint.
-        Manually parses request body as JSON to bypass FastAPI validation.
-        This allows us to dynamically validate against the skill's request model.
+        Legacy FastAPI route handler. Parses the Request body as JSON, then
+        delegates to the shared in-process dispatcher. Only used by the old
+        per-app Uvicorn containers (now deprecated by OPE-342).
         """
-        # Use the captured values from default parameters (evaluated at function definition time)
+        try:
+            body_bytes = await request.body()
+            if not body_bytes:
+                raise HTTPException(status_code=400, detail="Request body is required")
+            request_body = json.loads(body_bytes.decode('utf-8'))
+            if not isinstance(request_body, dict):
+                raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+        except json.JSONDecodeError as e:
+            logger.error(f"[SKILL_ROUTE] Invalid JSON in request body: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid JSON in request body: {str(e)}")
+        except UnicodeDecodeError as e:
+            logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
+            raise HTTPException(status_code=400, detail="Invalid encoding in request body")
 
-        logger.info(f"[SKILL_ROUTE] Received request for skill '{skill_definition.id}' at /skills/{skill_definition.id}")
+        return await self._dispatch_skill_with_class(skill_definition, captured_class, request_body)
+
+    async def dispatch_skill(self, skill_id: str, request_body: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        In-process skill dispatch entry point. Looks up the skill definition + class
+        from this BaseApp's registry, then delegates to ``_dispatch_skill_with_class``.
+        Used by:
+          - ``backend/core/api/app/services/skill_registry.SkillRegistry.dispatch_skill``
+            (which is called by both the REST handler in ``apps_api.py`` and the
+            worker dispatcher in ``backend/apps/ai/processing/skill_executor.py``)
+
+        Raises ``HTTPException`` (re-used as a generic error type, even outside FastAPI)
+        for missing skill, validation failures, and execution errors.
+        """
+        skill_definition = self.get_skill_by_id(skill_id)
+        if skill_definition is None:
+            raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found in app '{self.app_id}'")
+        captured_class = self.skill_classes.get(skill_id)
+        if captured_class is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"Skill '{skill_id}' has no resolved implementation in app '{self.app_id}' "
+                    f"(class_path import failed at startup; check api logs for the original ImportError)."
+                ),
+            )
+        return await self._dispatch_skill_with_class(skill_definition, captured_class, request_body)
+
+    async def _dispatch_skill_with_class(
+        self,
+        skill_definition,
+        captured_class,
+        request_body: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Core dispatch: instantiate the skill class, invoke ``execute()`` with the
+        right argument shape (Pydantic model / Union / kwargs / list-of-requests),
+        and return a JSON-serializable dict.
+
+        Takes a pre-parsed ``request_body`` dict so callers don't need a FastAPI
+        Request object. The body of this method was lifted unchanged from the old
+        ``_execute_skill_route`` after the JSON parsing block.
+        """
+        logger.info(f"[SKILL_DISPATCH] Dispatching skill '{self.app_id}.{skill_definition.id}' (keys={list(request_body.keys())})")
 
         try:
-            # Manually read and parse the request body to bypass FastAPI validation
-            try:
-                body_bytes = await request.body()
-                if not body_bytes:
-                    raise HTTPException(status_code=400, detail="Request body is required")
-
-                request_body = json.loads(body_bytes.decode('utf-8'))
-                if not isinstance(request_body, dict):
-                    raise HTTPException(status_code=400, detail="Request body must be a JSON object")
-
-                logger.debug(f"[SKILL_ROUTE] Parsed request body with keys: {list(request_body.keys())}")
-            except json.JSONDecodeError as e:
-                logger.error(f"[SKILL_ROUTE] Invalid JSON in request body: {e}")
-                raise HTTPException(status_code=400, detail=f"Invalid JSON in request body: {str(e)}")
-            except UnicodeDecodeError as e:
-                logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
-                raise HTTPException(status_code=400, detail="Invalid encoding in request body")
-
             logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
 
             # Extract metadata fields (_chat_id, _message_id, _user_id) from request body if present
@@ -761,16 +876,26 @@ class BaseApp:
             raise HTTPException(status_code=500, detail=f"Unexpected error during credit charge: {str(e)}")
 
     def _load_and_validate_app_yml(self):
-        if not os.path.exists(self.app_yml_path):
-            logger.error(f"App configuration file not found: {self.app_yml_path}")
-            return
+        # Two sources for the raw config:
+        #   1. preloaded dict (in-process discovery already parsed + filtered the YAML)
+        #   2. on-disk app.yml file (legacy path used by standalone containers)
+        if self._preloaded_config_dict is not None:
+            raw_config = self._preloaded_config_dict
+        else:
+            if not os.path.exists(self.app_yml_path):
+                logger.error(f"App configuration file not found: {self.app_yml_path}")
+                return
+            try:
+                with open(self.app_yml_path, 'r') as f:
+                    raw_config = yaml.safe_load(f)
+            except Exception as e:
+                logger.error(f"Error reading app configuration from {self.app_yml_path}: {e}", exc_info=True)
+                self.is_valid = False
+                return
 
         try:
-            with open(self.app_yml_path, 'r') as f:
-                raw_config = yaml.safe_load(f)
-            
             if not raw_config:
-                logger.error(f"App configuration file is empty: {self.app_yml_path}")
+                logger.error(f"App configuration is empty for app '{self.app_id}' (path: {self.app_yml_path})")
                 return
 
             def _strip_trailing_whitespace(data: Any) -> Any:
@@ -807,16 +932,24 @@ class BaseApp:
                 continue
             try:
                 module_path, class_name = skill_def.class_path.strip().rsplit('.', 1)
+                # Normalize legacy relative class_paths (e.g. 'ai.skills.ask_skill') to the
+                # in-process layout where apps live at /app/backend/apps/<name>/. See the
+                # equivalent fallback in _resolve_skill_classes for context.
+                if not module_path.startswith('backend.'):
+                    module_path = f"backend.apps.{module_path}"
                 module = importlib.import_module(module_path)
                 if not hasattr(module, class_name):
-                    logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' - class '{class_name}' not found in module")
+                    logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' - class '{class_name}' not found in module '{module_path}'")
                     all_paths_valid = False
             except Exception as e:
                 logger.warning(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' failed to import: {e}")
                 all_paths_valid = False
-        
-        if not all_paths_valid:
-            self.is_valid = False
+
+        if all_paths_valid is False:
+            # Don't set is_valid=False on import failures — they're logged loudly enough
+            # by _resolve_skill_classes and shouldn't prevent the rest of the app from loading.
+            # The failing skills simply won't be in self.skill_classes and will return 404.
+            logger.warning(f"App '{self.app_id}' has one or more skill class_path validation issues — see warnings above")
 
     @property
     def id(self) -> Optional[str]:

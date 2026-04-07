@@ -50,6 +50,8 @@ import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPr
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
+import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
+import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
@@ -456,6 +458,26 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           content,
         );
       }
+      // For nutrition search_recipes, render nutrition recipe search preview
+      if (appId === "nutrition" && skillId === "search_recipes") {
+        return this.renderNutritionSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      // For nutrition recipe child embeds (standalone recipe card in message stream)
+      if (appId === "nutrition" && skillId === "recipe") {
+        return this.renderNutritionRecipeComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For images search, render images search preview using Svelte component
       if (appId === "images" && skillId === "search") {
         return this.renderImagesSearchComponent(
@@ -3253,6 +3275,137 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting MathCalculateEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render nutrition search_recipes embed preview using Svelte component.
+   */
+  private renderNutritionSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "REWE";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(NutritionSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted NutritionSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting NutritionSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render a standalone nutrition-recipe child embed preview.
+   * Shows an individual recipe card in the message stream.
+   */
+  private renderNutritionRecipeComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(NutritionRecipeEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title || "",
+          image_url: decodedContent?.image_url || null,
+          total_time_minutes: decodedContent?.total_time_minutes ?? null,
+          difficulty: decodedContent?.difficulty || null,
+          rating: decodedContent?.rating ?? null,
+          rating_count: decodedContent?.rating_count ?? null,
+          dietary_tags: Array.isArray(decodedContent?.dietary_tags) ? decodedContent.dietary_tags : [],
+          servings: decodedContent?.servings ?? null,
+          status: (embedData?.status || decodedContent?.status || "finished") as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted NutritionRecipeEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting NutritionRecipeEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

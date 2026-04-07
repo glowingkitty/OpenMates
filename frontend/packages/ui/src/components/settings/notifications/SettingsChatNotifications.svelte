@@ -497,9 +497,9 @@ When enabled, notifications are sent to the user's login email (from account set
     
     .warning-banner,
     .info-banner {
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 16px;
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-8);
     }
     
     .warning-banner {
@@ -514,16 +514,16 @@ When enabled, notifications are sent to the user's login email (from account set
     
     .warning-text,
     .info-text {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         line-height: 1.5;
         color: var(--color-font-primary);
     }
     
     /* PWA Install Instructions Banner (iOS Safari non-PWA) */
     .pwa-install-banner {
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 16px;
+        padding: var(--spacing-8);
+        border-radius: var(--radius-5);
+        margin-bottom: var(--spacing-8);
         background-color: var(--color-grey-10);
         border: 1px solid var(--color-primary, var(--color-grey-30));
     }
@@ -531,19 +531,19 @@ When enabled, notifications are sent to the user's login email (from account set
     .pwa-install-header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 8px;
+        gap: var(--spacing-5);
+        margin-bottom: var(--spacing-4);
     }
     
     .pwa-install-title {
-        font-size: 15px;
+        font-size: null;
         font-weight: 600;
         color: var(--color-font-primary);
         line-height: 1.4;
     }
     
     .pwa-install-desc {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-60);
         line-height: 1.5;
         margin: 0 0 12px 0;
@@ -552,19 +552,19 @@ When enabled, notifications are sent to the user's login email (from account set
     .pwa-install-steps {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--spacing-3);
     }
     
     .pwa-install-steps p {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-font-primary);
         line-height: 1.6;
     }
     
     .category-section {
-        margin-top: 24px;
-        padding-top: 16px;
+        margin-top: var(--spacing-12);
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-grey-20);
     }
     
@@ -580,20 +580,20 @@ When enabled, notifications are sent to the user's login email (from account set
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: var(--z-index-modal);
     }
     
     .ios-modal {
         background-color: var(--color-grey-0);
-        border-radius: 16px;
-        padding: 24px;
+        border-radius: var(--radius-7);
+        padding: var(--spacing-12);
         max-width: 320px;
         width: 90%;
         text-align: center;
     }
     
     .ios-modal-title {
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         color: var(--color-font-primary);
         margin: 0 0 16px 0;
@@ -601,11 +601,11 @@ When enabled, notifications are sent to the user's login email (from account set
     
     .ios-modal-content {
         text-align: left;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
     
     .ios-modal-content p {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-70);
         line-height: 1.6;
         margin: 8px 0;
@@ -613,15 +613,15 @@ When enabled, notifications are sent to the user's login email (from account set
     
     .ios-modal-close {
         width: 100%;
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background-color: var(--color-button-primary);
         color: var(--color-font-button);
         border: none;
-        border-radius: 20px;
-        font-size: 14px;
+        border-radius: var(--radius-8);
+        font-size: var(--font-size-small);
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
     
     .ios-modal-close:hover {
@@ -630,26 +630,26 @@ When enabled, notifications are sent to the user's login email (from account set
     
     /* Email Notifications Section Styles */
     .email-section {
-        margin-top: 32px;
-        padding-top: 24px;
+        margin-top: var(--spacing-16);
+        padding-top: var(--spacing-12);
         border-top: 1px solid var(--color-grey-20);
     }
     
     .email-info {
-        margin-bottom: 16px;
+        margin-bottom: var(--spacing-8);
     }
     
     .email-options {
-        margin-top: 16px;
-        padding-top: 16px;
+        margin-top: var(--spacing-8);
+        padding-top: var(--spacing-8);
         border-top: 1px solid var(--color-grey-10);
     }
     
     .saving-indicator {
         text-align: center;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
-        margin-top: 12px;
-        padding: 8px;
+        margin-top: var(--spacing-6);
+        padding: var(--spacing-4);
     }
 </style>

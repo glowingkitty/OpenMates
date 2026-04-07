@@ -284,7 +284,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: var(--spacing-8);
     width: 100%;
     margin-top: 80px;
   }
@@ -304,33 +304,33 @@
     max-width: 722px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
     padding: 0 4px;
   }
 
   .search-query {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--spacing-4);
     flex-wrap: wrap;
   }
 
   .query-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-grey-70);
     flex-shrink: 0;
   }
 
   .query-text {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 700;
     color: var(--color-grey-100);
     word-break: break-word;
   }
 
   .match-summary {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-grey-60);
   }
@@ -341,21 +341,21 @@
     max-width: 722px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-5);
   }
 
   .match-card {
     background-color: var(--color-grey-10);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .match-page {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 700;
     color: var(--color-grey-60);
     text-transform: uppercase;
@@ -363,7 +363,7 @@
   }
 
   .match-context {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     line-height: 1.65;
     color: var(--color-grey-90);
     word-break: break-word;

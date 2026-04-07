@@ -244,7 +244,7 @@
   .connection-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
     justify-content: center;
     padding: 2px 0;
@@ -258,7 +258,7 @@
   .price-row {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: var(--spacing-3);
     flex-wrap: wrap;
   }
 

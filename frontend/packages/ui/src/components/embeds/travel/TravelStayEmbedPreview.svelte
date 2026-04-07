@@ -205,10 +205,10 @@
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     box-shadow: inset 0 0 0 2px var(--color-primary);
     pointer-events: none;
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
   
   /* ===========================================
@@ -236,7 +236,7 @@
   }
   
   .placeholder-icon {
-    font-size: 28px;
+    font-size: var(--font-size-xxl);
     opacity: 0.4;
   }
   
@@ -245,16 +245,16 @@
      =========================================== */
   
   .stay-info {
-    padding: 8px 12px 6px;
+    padding: var(--spacing-4) var(--spacing-6) var(--spacing-3);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--spacing-1);
     flex: 1;
     min-height: 0;
   }
   
   .stay-name {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--color-font-primary);
     line-height: 1.3;
@@ -267,7 +267,7 @@
   }
   
   .stay-stars {
-    font-size: 10px;
+    font-size: null;
     color: #f5a623;
     letter-spacing: 1px;
   }
@@ -277,7 +277,7 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   .rating {
@@ -297,9 +297,9 @@
   }
   
   .amenity {
-    font-size: 10px;
+    font-size: null;
     padding: 1px 6px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     background: var(--color-grey-15);
     color: var(--color-font-secondary);
     white-space: nowrap;
@@ -315,7 +315,7 @@
   }
   
   .price-amount {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 700;
     color: var(--color-font-primary);
   }
@@ -325,12 +325,12 @@
   }
   
   .price-unit {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-font-secondary);
   }
   
   .price-total {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     color: var(--color-font-secondary);
     margin-left: auto;
   }
@@ -344,10 +344,10 @@
   }
   
   .stay-details.mobile .stay-name {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   .stay-details.mobile .price-amount {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 </style>

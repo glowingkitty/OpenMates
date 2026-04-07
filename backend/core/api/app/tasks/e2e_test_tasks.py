@@ -17,13 +17,17 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 from backend.core.api.app.tasks.celery_config import app
-from celery import Task
+from backend.core.api.app.tasks.base_task import DedupedTask
 
 logger = logging.getLogger(__name__)
 
 
-class E2ETestTask(Task):
-    """Base task class for E2E test result processing."""
+class E2ETestTask(DedupedTask):
+    """Base task class for E2E test result processing.
+
+    Inherits from DedupedTask so duplicate broker deliveries are caught
+    automatically (see base_task.py for rationale).
+    """
     abstract = True
 
 

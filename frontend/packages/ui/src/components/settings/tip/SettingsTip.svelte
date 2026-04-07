@@ -247,18 +247,18 @@
         padding: 0 10px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: var(--spacing-10);
     }
     
     /* Tip description */
     .tip-description {
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
     
     .tip-description p {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-80);
         margin: 0;
         line-height: 1.5;
@@ -268,7 +268,7 @@
     .tip-amount-section {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
     
     
@@ -276,14 +276,14 @@
     .slider-container {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding: 12px 0;
     }
     
     .tip-slider {
         width: 100%;
         height: 8px;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         background: var(--color-grey-20);
         -webkit-appearance: none;
         appearance: none;
@@ -313,7 +313,7 @@
     .slider-labels {
         display: flex;
         justify-content: space-between;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-60);
     }
     
@@ -322,21 +322,21 @@
         display: flex;
         align-items: baseline;
         justify-content: center;
-        gap: 8px;
-        padding: 16px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 2px solid var(--color-primary);
     }
     
     .tip-amount-value {
-        font-size: 32px;
+        font-size: var(--font-size-xxxl);
         font-weight: 700;
         color: var(--color-primary);
     }
     
     .tip-amount-label {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-grey-70);
     }
     
@@ -344,20 +344,20 @@
     .balance-info {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 12px 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
     
     .info-icon {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1;
     }
     
     .balance-info p {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-80);
         margin: 0;
         line-height: 1.4;
@@ -372,20 +372,20 @@
     .insufficient-balance-warning {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 12px 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-warning-light, #fef3c7);
         border: 1px solid var(--color-warning, #f59e0b);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
     
     .warning-icon {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1;
     }
     
     .insufficient-balance-warning p {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-warning-dark, #92400e);
         margin: 0;
         line-height: 1.4;
@@ -398,11 +398,11 @@
         background-color: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 10px;
-        font-size: 15px;
+        border-radius: var(--radius-4);
+        font-size: null;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
     
     .tip-creator-button:hover:not(:disabled) {
@@ -419,15 +419,15 @@
     .tip-info {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 12px 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6) var(--spacing-8);
         background-color: var(--color-grey-5);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
     
     .tip-info p {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;
@@ -437,22 +437,22 @@
     .info-message {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 16px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-8);
         background-color: var(--color-grey-5);
         border: 1px solid var(--color-grey-20);
-        border-radius: 8px;
-        margin-bottom: 16px;
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-8);
     }
     
     .info-message .info-icon {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         line-height: 1;
         flex-shrink: 0;
     }
     
     .info-message p {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-grey-70);
         margin: 0;
         line-height: 1.4;

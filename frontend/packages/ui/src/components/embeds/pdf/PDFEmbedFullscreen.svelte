@@ -419,7 +419,7 @@
     min-height: 300px;
     padding: 60px 40px 80px;
     box-sizing: border-box;
-    gap: 16px;
+    gap: var(--spacing-8);
     text-align: center;
     flex: 1;
   }
@@ -432,12 +432,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    gap: var(--spacing-12);
     overflow-y: auto;
     overflow-x: hidden;
     width: 100%;
     height: 100%;
-    padding: 24px 16px 40px;
+    padding: var(--spacing-12) var(--spacing-8) var(--spacing-20);
     box-sizing: border-box;
   }
 
@@ -449,7 +449,7 @@
     position: relative;
     width: 100%;
     max-width: 800px;
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     overflow: hidden;
     background: var(--color-grey-10, #f5f5f5);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
@@ -469,11 +469,11 @@
     bottom: 8px;
     left: 8px;
     background: rgba(0, 0, 0, 0.55);
-    color: #fff;
-    font-size: 11px;
+    color: var(--color-grey-0);
+    font-size: var(--font-size-tiny);
     font-weight: 500;
     padding: 2px 7px;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     pointer-events: none;
     user-select: none;
   }
@@ -532,20 +532,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-4);
   }
 
   .icon_rounded.large {
     width: 80px;
     height: 80px;
-    border-radius: 20px;
+    border-radius: var(--radius-8);
     background-size: 40px 40px;
     background-repeat: no-repeat;
     background-position: center;
   }
 
   .pdf-filename {
-    font-size: 20px;
+    font-size: var(--font-size-h3);
     font-weight: 600;
     color: var(--color-font-primary);
     margin: 0;
@@ -554,13 +554,13 @@
   }
 
   .pdf-pages {
-    font-size: 15px;
+    font-size: null;
     color: var(--color-grey-60, #888);
     margin: 0;
   }
 
   .pdf-hint {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-50, #999);
     margin: 8px 0 0;
     max-width: 380px;
@@ -572,7 +572,7 @@
   }
 
   .pdf-hint.small {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     margin: 0;
     max-width: none;
   }

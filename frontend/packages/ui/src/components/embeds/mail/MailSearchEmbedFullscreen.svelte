@@ -142,31 +142,31 @@
     margin: 72px 12px 100px;
     display: grid;
     grid-template-columns: minmax(240px, 320px) 1fr;
-    gap: 12px;
+    gap: var(--spacing-6);
     min-height: calc(100vh - 220px);
   }
 
   .results-list {
     border: 1px solid var(--color-grey-20);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     background: var(--color-grey-5);
-    padding: 10px;
+    padding: var(--spacing-5);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
 
   .result-item {
     border: 1px solid var(--color-grey-20);
-    background: #fff;
-    border-radius: 10px;
-    padding: 10px;
+    background: var(--color-grey-0);
+    border-radius: var(--radius-4);
+    padding: var(--spacing-5);
     text-align: left;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
   }
 
   .result-item.selected {
@@ -175,7 +175,7 @@
   }
 
   .subject {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--color-font-primary);
     overflow: hidden;
@@ -185,7 +185,7 @@
 
   .sender,
   .snippet {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-font-secondary);
     line-height: 1.35;
   }
@@ -200,8 +200,8 @@
 
   .mail-reader {
     border: 1px solid var(--color-grey-20);
-    border-radius: 12px;
-    background: #fff;
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -214,20 +214,20 @@
   }
 
   .reader-subject {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 700;
     color: var(--color-font-primary);
   }
 
   .reader-meta {
-    margin-top: 4px;
-    font-size: 12px;
+    margin-top: var(--spacing-2);
+    font-size: var(--font-size-xxs);
     color: var(--color-font-secondary);
   }
 
   .reader-body {
-    padding: 16px;
-    font-size: 14px;
+    padding: var(--spacing-8);
+    font-size: var(--font-size-small);
     line-height: 1.5;
     color: var(--color-font-primary);
     overflow-y: auto;
@@ -242,12 +242,12 @@
   .html-body :global(img) {
     max-width: 100%;
     height: auto;
-    border-radius: 6px;
+    border-radius: var(--radius-2);
   }
 
   .empty {
-    padding: 16px;
-    font-size: 13px;
+    padding: var(--spacing-8);
+    font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
   }
 

@@ -1125,7 +1125,7 @@
     background-color: var(--color-grey-20);
     border-radius: 17px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    z-index: 100;
+    z-index: var(--z-index-dropdown);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1193,7 +1193,7 @@
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-    transition: scrollbar-color 0.2s ease;
+    transition: scrollbar-color var(--duration-normal) var(--easing-default);
   }
 
   .content-area:hover {
@@ -1210,9 +1210,9 @@
 
   .content-area::-webkit-scrollbar-thumb {
     background-color: rgba(128, 128, 128, 0.2);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     border: 2px solid transparent;
-    transition: background-color 0.2s ease;
+    transition: background-color var(--duration-normal) var(--easing-default);
   }
 
   .content-area:hover::-webkit-scrollbar-thumb {
@@ -1233,7 +1233,7 @@
     justify-content: center;
     height: 200px;
     color: var(--color-grey-70);
-    font-size: 16px;
+    font-size: var(--font-size-p);
     text-align: center;
   }
 

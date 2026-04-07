@@ -1,0 +1,31 @@
+# frontend/packages/ui/src/tokens/sources/z-index.yml
+#
+# Named layer system for z-index values.
+# Values match the original hardcoded numbers to maintain backwards compatibility
+# with components that still use raw z-index values.
+#
+# IMPORTANT: Do NOT change these values until ALL hardcoded z-index values in
+# the codebase have been migrated to use var(--z-index-*) tokens.
+# Run `node scripts/validate-token-usage.js` to find remaining hardcoded values.
+#
+# CSS output:  --z-index-{key}: {value}
+# Swift output: CGFloat.zIndex{Key}
+
+layers:
+  base:            0
+  raised:          1       # alias for raised-1 (most common "above siblings")
+  raised-1:        1       # slightly above siblings (was z-index: 1)
+  raised-2:        2       # above raised-1 (was z-index: 2)
+  raised-3:        3       # above raised-2 (was z-index: 3)
+  dropdown-1:      10      # local overlays within a section (was z-index: 10)
+  dropdown-2:      20      # above dropdown-1 (was z-index: 20)
+  dropdown:        100     # standard dropdowns, menus (was z-index: 100)
+  sticky:          200     # sticky headers, toolbars
+  overlay:         300     # backdrop overlays
+  modal:           1000    # modal dialogs (was z-index: 1000)
+  modal-above:     1001    # elements above modals (was z-index: 1001)
+  popover-above:   1005    # elements above popovers (was z-index: 1005)
+  popover-above-2: 1006    # above popover-above (was z-index: 1006)
+  tooltip:         10000   # tooltips, warnings (was z-index: 10000)
+  popover:         99999   # context menus, popovers (was z-index: 99999)
+  skip-link:       100000  # accessibility skip navigation

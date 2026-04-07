@@ -153,7 +153,7 @@
     
     .buy-button {
         width: 100%;
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
     
     .buy-button:disabled {
@@ -164,19 +164,19 @@
 
 
     .vat-info {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
-        margin-top: 10px;
-        margin-bottom: 10px;
+        margin-top: var(--spacing-5);
+        margin-bottom: var(--spacing-5);
     }
 
     .error-message {
         background-color: var(--color-error-bg, #fee);
         color: var(--color-error-text, #c00);
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        font-size: 14px;
+        padding: var(--spacing-6) var(--spacing-8);
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-8);
+        font-size: var(--font-size-small);
         line-height: 1.5;
         border: 1px solid var(--color-error-border, #fcc);
     }

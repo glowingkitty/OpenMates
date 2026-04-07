@@ -65,17 +65,17 @@
     .pii-warning-banner {
         display: flex;
         align-items: center;
-        padding: 8px 12px;
+        padding: var(--spacing-4) var(--spacing-6);
         background-color: var(--color-warning-bg, rgba(255, 193, 7, 0.15));
         border: 1px solid var(--color-warning-border, rgba(255, 193, 7, 0.3));
-        border-radius: 8px;
-        margin-bottom: 8px;
+        border-radius: var(--radius-3);
+        margin-bottom: var(--spacing-4);
     }
     
     .banner-content {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--spacing-5);
         width: 100%;
     }
     
@@ -89,20 +89,20 @@
     .banner-text {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
         flex: 1;
         min-width: 0;
     }
     
     .banner-title {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         color: var(--color-font-primary);
         line-height: 1.3;
     }
     
     .banner-description {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-weight: 400;
         color: var(--color-grey-60);
         line-height: 1.4;
@@ -110,12 +110,12 @@
     
     .undo-all-btn {
         flex-shrink: 0;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: var(--spacing-3) var(--spacing-6);
+        border-radius: var(--radius-2);
+        font-size: var(--font-size-xxs);
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
         border: 1px solid var(--color-grey-30);
         background-color: var(--color-grey-10);
         color: var(--color-font-primary);
@@ -132,12 +132,12 @@
     /* Mobile responsiveness */
     @media (max-width: 480px) {
         .pii-warning-banner {
-            padding: 6px 10px;
+            padding: var(--spacing-3) var(--spacing-5);
         }
         
         .banner-content {
             flex-wrap: wrap;
-            gap: 6px;
+            gap: var(--spacing-3);
         }
         
         .banner-text {

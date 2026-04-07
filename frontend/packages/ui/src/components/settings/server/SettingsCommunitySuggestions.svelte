@@ -1151,7 +1151,7 @@
     .email-suggestion-card {
         background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary-lightest) 100%);
         border: 2px solid var(--color-primary);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 1.5rem;
         margin-bottom: 1rem;
         position: relative;
@@ -1178,9 +1178,9 @@
     .suggestion-card {
         background: var(--color-background-secondary);
         border: 1px solid var(--color-border);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 1rem;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         display: flex;
         flex-direction: column;
         min-height: 0; /* Allow flex children to shrink */
@@ -1196,10 +1196,10 @@
     .suggestion-chat-preview {
         margin-bottom: 1rem;
         background: var(--color-background-tertiary);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         overflow: hidden;
         border: 1px solid var(--color-border);
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     .suggestion-chat-preview.clickable {
@@ -1231,7 +1231,7 @@
         background: var(--color-primary-light);
         color: var(--color-primary);
         padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-size: 0.8rem;
         font-weight: 500;
         white-space: nowrap;
@@ -1239,7 +1239,7 @@
 
     .audience-tag {
         padding: 0.2rem 0.4rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
@@ -1258,7 +1258,7 @@
 
     .category-inline-select {
         padding: 0.15rem 0.3rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
@@ -1266,7 +1266,7 @@
         border: 1px solid transparent;
         cursor: pointer;
         appearance: auto;
-        transition: border-color 0.2s ease;
+        transition: border-color var(--duration-normal) var(--easing-default);
     }
 
     .category-inline-select:hover:not(:disabled) {
@@ -1293,7 +1293,7 @@
         margin-bottom: 0.75rem;
         padding: 0.75rem;
         background: var(--color-background-tertiary);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         border: 1px solid var(--color-border);
     }
 
@@ -1305,7 +1305,7 @@
 
     .status-tag {
         padding: 0.2rem 0.4rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
@@ -1332,7 +1332,7 @@
         margin: 0.75rem 0;
         padding: 0.75rem;
         background: var(--color-background-tertiary);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         border: 1px solid var(--color-border);
     }
 
@@ -1340,7 +1340,7 @@
         width: 100%;
         height: 8px;
         background: var(--color-background-secondary);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         overflow: hidden;
         margin-bottom: 0.5rem;
     }
@@ -1348,8 +1348,8 @@
     .progress-bar-fill {
         height: 100%;
         background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
-        border-radius: 4px;
-        transition: width 0.3s ease-out;
+        border-radius: var(--radius-1);
+        transition: width var(--duration-slow);
         position: relative;
     }
 
@@ -1439,7 +1439,7 @@
         margin-bottom: 0.75rem;
         padding: 0.75rem;
         background: var(--color-background-tertiary);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         border: 1px solid var(--color-border);
     }
 
@@ -1455,7 +1455,7 @@
         width: 100%;
         padding: 0.5rem;
         border: 1px solid var(--color-border);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         background: var(--color-background-secondary);
         color: var(--color-text-primary);
         font-size: 0.9rem;
@@ -1474,10 +1474,10 @@
 
     .btn {
         padding: 0.5rem 1rem;
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: none;
         font-size: 0.9rem;
     }
@@ -1554,7 +1554,7 @@
     .info-card {
         background: var(--color-background-secondary);
         border: 1px solid var(--color-border);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 1.5rem;
     }
 
@@ -1589,7 +1589,7 @@
     .preview-modal {
         background: var(--color-background-primary);
         border: 1px solid var(--color-border);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         width: 100%;
         max-width: 700px;
         max-height: 85vh;
@@ -1664,7 +1664,7 @@
     .preview-message {
         margin-bottom: 1rem;
         padding: 0.75rem;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-border);
     }
 
@@ -1701,7 +1701,7 @@
         color: var(--color-text-tertiary);
         background: var(--color-background-tertiary);
         padding: 0.1rem 0.4rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
     }
 
     .preview-message-content p {
@@ -1718,7 +1718,7 @@
         font-size: 0.75rem;
         line-height: 1.4;
         background: var(--color-background-tertiary);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         padding: 0.5rem;
         overflow-x: auto;
         max-height: 200px;
@@ -1741,7 +1741,7 @@
 
     .preview-embed {
         border: 1px solid var(--color-border);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         padding: 0.75rem;
         margin-bottom: 0.5rem;
         background: var(--color-background-secondary);
@@ -1776,7 +1776,7 @@
     .preview-embed-parent-badge {
         font-size: 0.7rem;
         padding: 0.1rem 0.4rem;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         font-weight: 500;
     }
 

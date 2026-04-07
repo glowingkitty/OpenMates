@@ -322,10 +322,10 @@ directus_users:
       nullable: true
       note: "Auto-delete chats older than N days. Null means never auto-delete. The daily Celery Beat task reads this field and dispatches persist_delete_chat for stale chats. Settable via POST /v1/settings/auto-delete-chats."
 
-    auto_delete_usage_after_days:
-      type: integer
-      nullable: true
-      note: "Auto-delete usage records older than N days. Null means apply the platform default (1095 days / 3 years). The daily Celery Beat task reads this and purges stale usage entries. Settable via POST /v1/settings/auto-delete-usage. Usage records are already archived to S3 after 3 months by the usage archive task; this setting controls permanent deletion from both Directus and S3."
+    # Note: auto_delete_usage_after_days was removed — usage retention is now
+    # enforced by the S3 bucket lifecycle policy on `usage_archives` (3 years).
+    # The column is left in place on existing production DBs (harmless orphan);
+    # it is no longer read or written by the application code.
 
     storage_billing_failures:
       type: integer

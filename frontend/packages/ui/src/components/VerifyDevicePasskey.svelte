@@ -275,11 +275,11 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     .location-change-notice {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
+        gap: var(--spacing-5);
         padding: 12px 14px;
         margin-bottom: 15px;
         background-color: var(--color-warning-bg, var(--color-grey-10));
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border-left: 3px solid var(--color-warning, var(--color-primary));
     }
 
@@ -287,18 +287,18 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
         width: 20px;
         height: 20px;
         flex-shrink: 0;
-        margin-top: 2px;
+        margin-top: var(--spacing-1);
     }
 
     .location-change-notice p {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         line-height: 1.4;
         color: var(--color-grey-70);
     }
 
     .verify-prompt {
-        margin: 0px;
+        margin: var(--spacing-0);
         margin-bottom: 15px;
         color: var(--color-grey-60);
     }
@@ -306,22 +306,22 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     .action-area {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--spacing-5);
     }
 
     .verify-button {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 12px 24px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6) var(--spacing-12);
         background-color: var(--color-primary);
         color: var(--color-white);
         border: none;
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-p);
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .verify-button:hover:not(:disabled) {
@@ -341,7 +341,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     .loading-indicator {
         display: flex;
         justify-content: center;
-        padding: 12px;
+        padding: var(--spacing-6);
     }
 
     .spinner {
@@ -358,7 +358,7 @@ Follows the same event-based pattern as VerifyDevice2FA.svelte:
     }
 
     .switch-account {
-        margin-top: 10px;
+        margin-top: var(--spacing-5);
     }
 
     @media (max-width: 600px) {

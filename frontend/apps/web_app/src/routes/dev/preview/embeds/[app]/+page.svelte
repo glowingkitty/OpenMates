@@ -411,6 +411,26 @@
 				quoteText: '850 EUR/month — 55 m², 2 rooms, Bergmannstr., Berlin-Kreuzberg'
 			}
 		],
+		nutrition: [
+			{
+				skillLabel: 'Search',
+				appId: 'nutrition',
+				previewPath: 'embeds/nutrition/NutritionSearchEmbedPreview',
+				fullscreenPath: 'embeds/nutrition/NutritionSearchEmbedFullscreen',
+				inlineLinkText: 'Vegetarische Pasta Rezepte',
+				quoteText:
+					'3 Rezepte gefunden: Spaghetti Aglio e Olio, Penne Arrabiata, Tagliatelle mit Pilzrahmsauce.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Recipe',
+				appId: 'nutrition',
+				previewPath: 'embeds/nutrition/NutritionRecipeEmbedPreview',
+				fullscreenPath: 'embeds/nutrition/NutritionRecipeEmbedFullscreen',
+				inlineLinkText: 'Spaghetti Aglio e Olio',
+				quoteText: 'Spaghetti Aglio e Olio — 25 min, einfach, 4 Portionen.'
+			}
+		],
 		shopping: [
 			{
 				skillLabel: 'Search',
@@ -452,7 +472,8 @@
 		mail: 'mail',
 		pdf: 'pdf',
 		shopping: 'shopping',
-		home: 'home'
+		home: 'home',
+		nutrition: 'nutrition'
 	};
 
 	const ALL_APPS = [
@@ -473,7 +494,8 @@
 		'mail',
 		'pdf',
 		'shopping',
-		'home'
+		'home',
+		'nutrition'
 	];
 
 	// ─── Glob maps ────────────────────────────────────────────────────
@@ -686,6 +708,108 @@
 			return buildDataVariants(s.fullscreenMockProps, s.fullscreenVariants);
 		}
 		return getDataVariants(s);
+	}
+
+	/**
+	 * Top-level prop names that fullscreen components receive directly (NOT wrapped in `data`).
+	 * These are common to ALL fullscreen components per EmbedFullscreenCommonProps.
+	 */
+	const FULLSCREEN_TOP_LEVEL_PROPS = new Set([
+		'onClose',
+		'embedId',
+		'hasPreviousEmbed',
+		'hasNextEmbed',
+		'onNavigatePrevious',
+		'onNavigateNext',
+		'navigateDirection',
+		'showChatButton',
+		'onShowChat',
+		'data'
+	]);
+
+	/**
+	 * Direct-prop names used by child-detail fullscreens that DON'T use the data-driven shape.
+	 * E.g., ShoppingResultEmbedFullscreen takes `product`, NutritionRecipeEmbedFullscreen takes `recipe`.
+	 * If any of these keys is present in raw props, the fullscreen is treated as a direct-props
+	 * component and no wrapping is applied.
+	 */
+	const DIRECT_PROP_NAMES = new Set([
+		'product',
+		'recipe',
+		'event',
+		'listing',
+		'connection',
+		'stay',
+		'place',
+		'appointment',
+		'image',
+		'video',
+		'recording',
+		'sheet',
+		'plot',
+		'flight',
+		'transcript',
+		'docs'
+	]);
+
+	/**
+	 * Fullscreen component paths that NEVER use the data-driven shape — they take
+	 * flat props directly. These were not migrated in OPE-276 (data-driven routing).
+	 * Listed here so the wrapper passes their preview props through untouched.
+	 */
+	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
+		'embeds/news/NewsEmbedFullscreen',
+		'embeds/pdf/PdfReadEmbedFullscreen',
+		'embeds/pdf/PdfSearchEmbedFullscreen'
+	]);
+
+	/**
+	 * Wrap legacy preview-file fullscreen props into the data-driven shape required
+	 * by post-OPE-276 fullscreen components.
+	 *
+	 * Legacy preview files export flat content props like { query, provider, results }.
+	 * Post-OPE-276 fullscreens require { data: { decodedContent: {...}, embedData: {...} } }.
+	 *
+	 * Detection rules:
+	 * - If `data` already exists → component already uses new shape, pass through
+	 * - If any DIRECT_PROP_NAMES key exists → child-detail fullscreen, pass through
+	 * - Otherwise → wrap content fields into `data.decodedContent` and pass through
+	 *   common navigation props at top level
+	 */
+	function wrapFullscreenProps(
+		rawProps: Record<string, unknown>,
+		section: EmbedSection
+	): Record<string, unknown> {
+		// Already in new shape — pass through
+		if ('data' in rawProps) return rawProps;
+
+		// Explicit opt-out: fullscreen not migrated to data-driven shape
+		if (NEVER_WRAP_FULLSCREEN_PATHS.has(section.fullscreenPath)) return rawProps;
+
+		// Direct-prop fullscreen (e.g., ShoppingResultEmbedFullscreen takes `product`)
+		for (const key of Object.keys(rawProps)) {
+			if (DIRECT_PROP_NAMES.has(key)) return rawProps;
+		}
+
+		// Legacy flat props — wrap into data-driven shape
+		const decodedContent: Record<string, unknown> = {};
+		const topLevel: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(rawProps)) {
+			if (FULLSCREEN_TOP_LEVEL_PROPS.has(k)) {
+				topLevel[k] = v;
+			} else {
+				decodedContent[k] = v;
+			}
+		}
+		const status = decodedContent.status as string | undefined;
+		return {
+			...topLevel,
+			data: {
+				decodedContent,
+				embedData: { status: status || 'finished' },
+				attrs: { app_id: section.appId }
+			}
+		};
 	}
 
 	function getEffectiveProps(s: LoadedSection): Record<string, unknown> {
@@ -963,7 +1087,8 @@
 							{@const Fullscreen = s.FullscreenComponent}
 							{@const dataVars2 = getFullscreenDataVariants(s)}
 							{@const fsIdx = s.fullscreenVariantIndex}
-							{@const [_fsVname, fsProps] = dataVars2[fsIdx]}
+							{@const [_fsVname, fsRawProps] = dataVars2[fsIdx]}
+							{@const fsProps = wrapFullscreenProps(fsRawProps, section)}
 							{@const fsTotal = dataVars2.length}
 							<div class="dt">
 								<h3 class="dt-heading" data-testid="dt-heading">

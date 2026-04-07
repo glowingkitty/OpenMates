@@ -22,7 +22,7 @@ from backend.core.api.app.services.directus.user.user_lookup import hash_usernam
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, AutoDeleteUsageRequest, period_to_days, usage_period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 
@@ -4455,69 +4455,9 @@ async def update_auto_delete_chats(
         raise HTTPException(status_code=500, detail="An error occurred while saving auto-delete setting")
 
 
-@router.post("/auto-delete-usage", response_model=SimpleSuccessResponse, include_in_schema=False)
-@limiter.limit("30/minute")
-async def update_auto_delete_usage(
-    request: Request,
-    request_data: AutoDeleteUsageRequest,
-    current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service),
-) -> SimpleSuccessResponse:
-    """
-    Persist the user's usage data auto-deletion period.
-
-    Accepts a period string (e.g. "1y", "3y", "never") and converts it to an
-    integer day count stored on the user record as ``auto_delete_usage_after_days``.
-    "never" stores null, which tells the auto-delete task to apply the platform
-    default of 3 years (1095 days).
-
-    The daily Celery Beat task (auto_delete_tasks.auto_delete_old_usage) reads this
-    field each run and permanently deletes usage records older than the configured period.
-    Note: usage records are already archived to S3 after 3 months by the usage archive
-    task; this setting controls permanent deletion from both Directus and S3 archives.
-    """
-    user_id = current_user.id
-    days = usage_period_to_days(request_data.period)  # None for "never" (→ platform default)
-
-    logger.info(
-        f"[AutoDelete] Updating usage auto-delete period for user {user_id}: "
-        f"period={request_data.period!r} → days={days}"
-    )
-
-    update_data = {'auto_delete_usage_after_days': days}
-
-    try:
-        success = await directus_service.update_user(user_id, update_data)
-        if not success:
-            logger.error(
-                f"[AutoDelete] Failed to update Directus for user {user_id} "
-                f"(usage period={request_data.period!r})."
-            )
-            raise HTTPException(status_code=500, detail="Failed to save usage auto-delete setting")
-
-        cache_ok = await cache_service.update_user(user_id, update_data)
-        if not cache_ok:
-            logger.warning(
-                f"[AutoDelete] Cache update failed for user {user_id} after "
-                f"usage auto-delete period change (Directus was updated successfully)."
-            )
-        else:
-            logger.info(f"[AutoDelete] Cache updated usage auto-delete for user {user_id}.")
-
-        return SimpleSuccessResponse(
-            success=True,
-            message="Usage auto-delete setting saved successfully"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(
-            f"[AutoDelete] Unexpected error updating usage auto-delete for user {user_id}: {e}",
-            exc_info=True,
-        )
-        raise HTTPException(status_code=500, detail="An error occurred while saving usage auto-delete setting")
+# Usage data retention is enforced by the S3 bucket lifecycle policy on
+# `usage_archives` (3 years). There is no per-user application-level override —
+# see backend/core/api/app/services/s3/config.py.
 
 
 # ─── AI Model Default Preferences ────────────────────────────────────────────

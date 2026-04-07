@@ -434,7 +434,7 @@
 		border-radius: 1rem;
 		border: 1px solid var(--color-grey-25);
 		cursor: pointer;
-		transition: background 0.15s ease;
+		transition: background var(--duration-fast) var(--easing-default);
 		width: calc(100% - 1.25rem);
 		text-align: left;
 	}
@@ -497,7 +497,7 @@
 		color: var(--color-grey-100);
 		appearance: none;
 		-webkit-appearance: none;
-		transition: box-shadow 0.2s ease;
+		transition: box-shadow var(--duration-normal) var(--easing-default);
 		box-sizing: border-box;
 	}
 

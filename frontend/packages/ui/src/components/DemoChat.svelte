@@ -128,7 +128,7 @@
 	}
 
 	.demo-header {
-		padding: 20px;
+		padding: var(--spacing-10);
 		border-bottom: 1px solid var(--color-grey-20);
 		background: linear-gradient(135deg, var(--color-grey-5) 0%, var(--color-grey-10) 100%);
 	}
@@ -136,14 +136,14 @@
 	.demo-badge {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
-		padding: 4px 12px;
+		gap: var(--spacing-3);
+		padding: var(--spacing-2) var(--spacing-6);
 		background-color: var(--color-primary);
 		color: white;
-		border-radius: 12px;
-		font-size: 12px;
+		border-radius: var(--radius-5);
+		font-size: var(--font-size-xxs);
 		font-weight: 600;
-		margin-bottom: 12px;
+		margin-bottom: var(--spacing-6);
 	}
 
 	.demo-badge svg {
@@ -151,7 +151,7 @@
 	}
 
 	.demo-title {
-		font-size: 24px;
+		font-size: var(--font-size-h2-mobile);
 		font-weight: 600;
 		color: var(--color-grey-100);
 		margin: 0;
@@ -160,10 +160,10 @@
 	.messages-container {
 		flex: 1;
 		overflow-y: auto;
-		padding: 20px;
+		padding: var(--spacing-10);
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: var(--spacing-8);
 	}
 
 	.message-wrapper {
@@ -182,20 +182,20 @@
 	}
 
 	.input-container {
-		padding: 20px;
+		padding: var(--spacing-10);
 		border-top: 1px solid var(--color-grey-20);
 		background-color: var(--color-grey-5);
 	}
 
 	.input-wrapper {
 		display: flex;
-		gap: 12px;
+		gap: var(--spacing-6);
 		align-items: flex-end;
 		background-color: white;
 		border: 2px solid var(--color-grey-30);
-		border-radius: 12px;
-		padding: 12px;
-		transition: border-color 0.2s;
+		border-radius: var(--radius-5);
+		padding: var(--spacing-6);
+		transition: border-color var(--duration-normal);
 	}
 
 	.input-wrapper:focus-within {
@@ -207,7 +207,7 @@
 		border: none;
 		resize: none;
 		font-family: inherit;
-		font-size: 16px;
+		font-size: var(--font-size-p);
 		line-height: 1.5;
 		max-height: 200px;
 		overflow-y: auto;
@@ -217,16 +217,16 @@
 	.signup-button {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 10px 20px;
+		gap: var(--spacing-4);
+		padding: var(--spacing-5) var(--spacing-10);
 		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #0056b3) 100%);
 		color: white;
 		border: none;
-		border-radius: 8px;
+		border-radius: var(--radius-3);
 		font-weight: 600;
-		font-size: 14px;
+		font-size: var(--font-size-small);
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all var(--duration-normal);
 		white-space: nowrap;
 	}
 
@@ -245,8 +245,8 @@
 	}
 
 	.demo-hint {
-		margin-top: 12px;
-		font-size: 13px;
+		margin-top: var(--spacing-6);
+		font-size: var(--font-size-xs);
 		color: var(--color-grey-60);
 		text-align: center;
 	}
@@ -262,7 +262,7 @@
 
 	.messages-container::-webkit-scrollbar-thumb {
 		background-color: var(--color-grey-40);
-		border-radius: 4px;
+		border-radius: var(--radius-1);
 	}
 
 	.messages-container::-webkit-scrollbar-thumb:hover {
@@ -272,19 +272,19 @@
 	/* Mobile responsiveness */
 	@media (max-width: 730px) {
 		.demo-header {
-			padding: 16px;
+			padding: var(--spacing-8);
 		}
 
 		.demo-title {
-			font-size: 20px;
+			font-size: var(--font-size-h3);
 		}
 
 		.messages-container {
-			padding: 16px;
+			padding: var(--spacing-8);
 		}
 
 		.input-container {
-			padding: 16px;
+			padding: var(--spacing-8);
 		}
 
 		.signup-button span {
@@ -292,7 +292,7 @@
 		}
 
 		.signup-button {
-			padding: 10px;
+			padding: var(--spacing-5);
 		}
 	}
 </style>

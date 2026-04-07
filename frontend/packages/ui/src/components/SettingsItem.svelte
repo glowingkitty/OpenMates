@@ -366,8 +366,8 @@
         display: flex;
         flex-direction: column;
         padding: 5px 10px;
-        border-radius: 8px;
-        transition: background-color 0.2s ease;
+        border-radius: var(--radius-3);
+        transition: background-color var(--duration-normal) var(--easing-default);
         cursor: default;
         position: relative;
     }
@@ -425,7 +425,7 @@
     .settings-icon {
         width: 44px;
         height: 44px;
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         position: relative;
     }
 
@@ -486,19 +486,19 @@
     .text-container {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--spacing-1);
     }
 
     .text-container.has-title {
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .text-container.has-subtitle {
-        gap: 2px;
+        gap: var(--spacing-1);
     }
 
     .menu-title {
-        font-size: 16px;
+        font-size: var(--font-size-p);
         color: var(--color-grey-100);
         /* Use logical alignment: left in LTR, right in RTL */
         text-align: start;
@@ -537,19 +537,19 @@
 
     .menu-subtitle-top,
     .menu-subtitle-bottom {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         text-align: start;
     }
 
     .menu-credits {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
         font-weight: 500;
     }
 
     .nested-content {
-        margin-top: 8px;
+        margin-top: var(--spacing-4);
         /* Logical property: indent nested items from the inline-start side */
         padding-inline-start: 36px;
     }
@@ -557,24 +557,24 @@
     .menu-item-right {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         flex-shrink: 0;
     }
 
     .app-icons-container {
         display: flex;
-        gap: 4px;
+        gap: var(--spacing-2);
         align-items: center;
     }
 
     .app-icon {
         width: 20px;
         height: 20px;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: null;
         font-weight: 500;
         color: white;
         background-color: var(--color-grey-40);
@@ -596,9 +596,9 @@
         display: flex;
         align-items: center;
         cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
+        padding: var(--spacing-2);
+        border-radius: var(--radius-1);
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .toggle-container:hover {
@@ -624,9 +624,9 @@
         background: var(--color-primary);
         cursor: pointer;
         position: relative;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--shadow-sm);
         flex-shrink: 0;
-        transition: transform 0.2s ease;
+        transition: transform var(--duration-normal) var(--easing-default);
     }
 
     .right-action-button:hover {
@@ -636,7 +636,7 @@
     .right-action-icon {
         position: absolute;
         inset: 0;
-        background-color: #ffffff;
+        background-color: var(--color-grey-0);
         -webkit-mask-image: var(--right-action-icon-url);
         -webkit-mask-size: 50%;
         -webkit-mask-position: center;
@@ -651,12 +651,12 @@
     .credits-display {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
         flex-shrink: 0;
     }
 
     .credits-display-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         color: var(--color-grey-50);
     }
@@ -678,7 +678,7 @@
     /* Responsive adjustments */
     @media (max-width: 600px) {
         .menu-item {
-            padding: 4px 10px;
+            padding: var(--spacing-2) var(--spacing-5);
         }
     }
 </style>

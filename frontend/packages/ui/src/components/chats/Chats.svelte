@@ -3904,7 +3904,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         min-height: 0; /* Important for flex child to enable scrolling */
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
+        transition: scrollbar-color var(--duration-normal) var(--easing-default);
     }
 
     .activity-history:hover {
@@ -3921,9 +3921,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .activity-history::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
+        border-radius: var(--radius-1);
         border: 2px solid transparent;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .activity-history:hover::-webkit-scrollbar-thumb {
@@ -3936,9 +3936,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .top-buttons-container {
         flex-shrink: 0;
-        z-index: 10;
+        z-index: var(--z-index-dropdown-1);
         background-color: var(--color-grey-20);
-        padding: 16px 20px;
+        padding: var(--spacing-8) var(--spacing-10);
         border-bottom: 1px solid var(--color-grey-30);
     }
 
@@ -3961,14 +3961,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     }
 
     .select-mode-button {
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-grey-40);
         background-color: var(--color-grey-20);
         color: var(--color-text);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
         font-size: 0.9em;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
         margin-inline-end: 8px;
     }
 
@@ -3989,14 +3989,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .chat-groups {
         display: flex;
         flex-direction: column;
-        gap: 20px; /* Slightly reduced gap */
+        gap: var(--spacing-10); /* Slightly reduced gap */
         position: relative;
     }
 
     .chat-group {
         display: flex;
         flex-direction: column;
-        gap: 4px; /* Reduced gap between title and items */
+        gap: var(--spacing-2); /* Reduced gap between title and items */
     }
 
     .group-title {
@@ -4005,7 +4005,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         margin: 0;
         padding: 0 15px; /* Match horizontal padding */
         font-weight: 500;
-        margin-bottom: 6px; /* Reduced margin */
+        margin-bottom: var(--spacing-3); /* Reduced margin */
         text-transform: uppercase; /* Optional: Make titles stand out */
         letter-spacing: 0.5px; /* Optional */
 		padding-top: 15px;
@@ -4020,14 +4020,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         all: unset; /* Reset all default button styles */
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         font-size: 0.85em; /* Match group-title font size */
         color: var(--color-grey-60); /* Match group-title color */
         font-weight: 500; /* Match group-title font weight */
         text-transform: uppercase; /* Match group-title text transform */
         letter-spacing: 0.5px; /* Match group-title letter spacing */
         cursor: pointer;
-        transition: color 0.2s ease;
+        transition: color var(--duration-normal) var(--easing-default);
     }
 
     .show-hidden-chats-button:hover {
@@ -4037,7 +4037,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .show-hidden-chats-button:focus-visible {
         outline: 2px solid var(--color-primary-focus);
         outline-offset: 2px;
-        border-radius: 4px;
+        border-radius: var(--radius-1);
     }
 
     .show-hidden-chats-button .clickable-icon {
@@ -4059,7 +4059,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .syncing-inline-indicator {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         font-size: 0.85em; /* Match group-title font size */
         font-weight: 500; /* Match group-title font weight */
         text-transform: uppercase; /* Match group-title text transform */
@@ -4114,14 +4114,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .no-chats-indicator {
         text-align: center;
-        padding: 12px 20px;
+        padding: var(--spacing-6) var(--spacing-10);
         color: var(--color-grey-60);
         font-style: italic;
     }
 
     .chat-item {
-        transition: background-color 0.15s ease;
-        border-radius: 8px; /* Apply border-radius directly */
+        transition: background-color var(--duration-fast) var(--easing-default);
+        border-radius: var(--radius-3); /* Apply border-radius directly */
         cursor: pointer;
     }
 
@@ -4164,18 +4164,18 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         display: flex;
         justify-content: center;
         padding: 10px 0;
-        margin-top: 10px; /* Add some space above the button */
+        margin-top: var(--spacing-5); /* Add some space above the button */
     }
 
     .load-more-button {
-        padding: 8px 16px;
+        padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-grey-40);
         background-color: var(--color-grey-20); /* Use a subtle background */
         color: var(--color-text);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         cursor: pointer;
         font-size: 0.9em;
-        transition: background-color 0.2s ease;
+        transition: background-color var(--duration-normal) var(--easing-default);
     }
 
     .load-more-button:hover {
@@ -4194,7 +4194,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     /* Overscroll unlock interface */
     .overscroll-unlock-container {
-        padding: 20px;
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
         border-bottom: 1px solid var(--color-grey-30);
         animation: slideDown 0.3s ease-out;
@@ -4214,20 +4214,20 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .overscroll-unlock-content {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--spacing-6);
         max-width: 400px;
         margin: 0 auto;
     }
     
     .no-hidden-chats-message {
-        padding: 24px 16px;
+        padding: var(--spacing-12) var(--spacing-8);
         text-align: center;
         color: var(--color-grey-60);
     }
     
     .no-hidden-chats-message p {
         margin: 0;
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .overscroll-unlock-label,
@@ -4236,7 +4236,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         color: var(--color-grey-70);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .overscroll-unlock-label .clickable-icon {
@@ -4248,7 +4248,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
     
     .overscroll-unlock-button .clickable-icon {
@@ -4264,18 +4264,18 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .overscroll-unlock-input-wrapper {
         display: flex;
         flex-direction: column;
-        padding-bottom: 10px;
+        padding-bottom: var(--spacing-5);
     }
 
     .overscroll-unlock-input {
         all: unset;
-        padding: 12px 16px;
+        padding: var(--spacing-6) var(--spacing-8);
         background: var(--color-grey-20);
-        border-radius: 8px;
-        font-size: 16px;
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-p);
         color: var(--color-text-primary);
         border: 2px solid transparent;
-        transition: border-color 0.2s;
+        transition: border-color var(--duration-normal);
         width: 100%;
         box-sizing: border-box;
     }
@@ -4296,7 +4296,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .overscroll-unlock-error {
         color: #E80000;
         font-size: 0.85em;
-        margin-top: 4px;
+        margin-top: var(--spacing-2);
     }
 
     .loading-spinner {
@@ -4316,7 +4316,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .overscroll-unlock-close {
         margin: 8px auto 0;
-        transition: transform 0.2s ease, opacity 0.2s ease;
+        transition: transform var(--duration-normal) var(--easing-default), opacity var(--duration-normal) var(--easing-default);
     }
 
     .overscroll-unlock-close:hover {
@@ -4328,7 +4328,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .search-loading-indicator {
         display: flex;
         justify-content: center;
-        padding: 40px 20px;
+        padding: var(--spacing-20) var(--spacing-10);
     }
 
     .search-loading-indicator .syncing-icon {
@@ -4347,10 +4347,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         position: absolute;
         left: 0;
         right: 0;
-        z-index: 20;
+        z-index: var(--z-index-dropdown-2);
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--spacing-5);
         padding: 6px 14px;
         /* Solid opaque background — never transparent, never changes opacity on scroll */
         background-color: var(--color-grey-30);
@@ -4362,7 +4362,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         font-weight: 500;
         color: var(--color-text-primary);
         text-align: start;
-        transition: background-color 0.15s ease;
+        transition: background-color var(--duration-fast) var(--easing-default);
         white-space: nowrap;
     }
 
@@ -4410,7 +4410,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         justify-content: center;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         border: 2px solid var(--color-background);
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
     }
 
     /* Icon inside the circle — mirrors .category-icon in Chat.svelte */

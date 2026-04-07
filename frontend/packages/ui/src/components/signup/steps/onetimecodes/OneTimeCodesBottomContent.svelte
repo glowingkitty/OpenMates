@@ -244,7 +244,7 @@ step_4_bottom_content_svelte:
 
 <style>
     .bottom-content {
-        padding: 24px;
+        padding: var(--spacing-12);
         display: flex;
         flex-direction: column;
         /* gap: 16px; */
@@ -254,7 +254,7 @@ step_4_bottom_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .hidden {

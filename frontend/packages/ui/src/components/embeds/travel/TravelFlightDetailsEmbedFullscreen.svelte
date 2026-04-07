@@ -366,22 +366,22 @@
   .date-header {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
-    margin-bottom: 12px;
+    margin-bottom: var(--spacing-6);
     text-align: center;
   }
 
   .diversion-warning {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 30%, transparent);
-    border-radius: 10px;
+    border-radius: var(--radius-4);
     padding: 10px 14px;
     font-size: 0.88rem;
     font-weight: 600;
     color: var(--color-warning, #f59e0b);
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-8);
   }
 
   .diversion-icon {
@@ -392,9 +392,9 @@
   .route-map-container {
     width: 100%;
     height: 280px;
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: var(--spacing-3);
     /* Dark filter for OpenStreetMap tiles in dark mode */
     :global(.dark-tiles) {
       filter: invert(100%) hue-rotate(180deg) brightness(0.85) contrast(1.1);
@@ -405,7 +405,7 @@
     font-size: 0.7rem;
     color: var(--color-text-tertiary, var(--color-text-secondary));
     text-align: right;
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-10);
   }
 
   .fr24-attribution a {
@@ -418,11 +418,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 40px 20px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-20) var(--spacing-10);
     background: var(--color-grey-10, rgba(0, 0, 0, 0.04));
-    border-radius: 12px;
-    margin-bottom: 20px;
+    border-radius: var(--radius-5);
+    margin-bottom: var(--spacing-10);
   }
 
   .no-track-icon {
@@ -441,7 +441,7 @@
     flex-direction: column;
     gap: 0;
     border: 1px solid var(--color-grey-20, rgba(0, 0, 0, 0.08));
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     overflow: hidden;
   }
 
@@ -449,7 +449,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
+    padding: var(--spacing-6) var(--spacing-8);
     border-bottom: 1px solid var(--color-grey-10, rgba(0, 0, 0, 0.04));
   }
 

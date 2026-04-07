@@ -21,8 +21,15 @@ import logging
 import random
 import time
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from backend.apps.ai.daily_inspiration.category_age_policy import (
+    describe_policy_for_prompt,
+    get_max_age_years,
+    is_within_category_policy,
+    policy_bucket_for_category,
+    video_age_years,
+)
 from backend.apps.ai.daily_inspiration.content_filter import (
     check_video_metadata,
     is_blocked_topic,
@@ -109,6 +116,46 @@ def get_search_params_for_language(language: str) -> Dict[str, str]:
     return _LANGUAGE_TO_SEARCH_PARAMS.get(lang_base, {"country": "us", "search_lang": "en"})
 
 
+def _find_age_compliant_fallback(
+    slot_candidates: List[Dict[str, Any]],
+    used_youtube_ids: set,
+    current_youtube_id: str,
+    category: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Find a same-slot fallback video that satisfies the category's age policy
+    and the content keyword filter.
+
+    The slot's candidate list is already sorted by view count descending, so
+    the first match is the best available fallback.
+
+    Args:
+        slot_candidates: Same-slot candidate universe from video_candidates_per_slot.
+        used_youtube_ids: IDs already used in this generation run (to avoid
+            duplicating a previous slot's video).
+        current_youtube_id: The ID the LLM originally picked (now rejected).
+        category: Resolved category (must exist in AVAILABLE_CATEGORIES).
+
+    Returns:
+        A candidate dict, or None if no eligible fallback exists.
+    """
+    for cand in slot_candidates:
+        cand_id = cand.get("youtube_id")
+        if not cand_id or cand_id == current_youtube_id or cand_id in used_youtube_ids:
+            continue
+        if not is_within_category_policy(category, cand.get("published_at")):
+            continue
+        # Re-run the keyword check on the fallback's metadata so we don't
+        # accidentally swap in a video that would have failed Layer 3.
+        if check_video_metadata(
+            title=cand.get("title", ""),
+            channel_name=cand.get("channel_name"),
+        ):
+            continue
+        return cand
+    return None
+
+
 def _build_tool_definition(language: str) -> Dict[str, Any]:
     """
     Build the LLM tool definition with a language-specific phrase and assistant_response.
@@ -193,7 +240,8 @@ def _build_tool_definition(language: str) -> Dict[str, Any]:
                 "architectural contributions, philosophical comparisons between belief systems, or the "
                 "science and mathematics developed within a religious tradition are all fine — as long as "
                 "the content treats religion as an object of study, not an object of devotion. "
-                "If a candidate video is clearly religious propaganda or a sermon, skip it."
+                "If a candidate video is clearly religious propaganda or a sermon, skip it. "
+                + describe_policy_for_prompt()
             ),
             "parameters": {
                 "type": "object",
@@ -319,12 +367,21 @@ def _build_generation_prompt(
             dur_str = f"{dur // 60}m{dur % 60:02d}s" if dur else "unknown"
             # Include channel name so the LLM can apply the anti-corporate-channel rule
             channel_str = c.get("channel_name") or "unknown"
+            # Include publication date (YYYY-MM + approximate age in years) so
+            # the LLM can apply the category-based age policy (OPE-350).
+            published_raw = c.get("published_at")
+            age_years = video_age_years(published_raw)
+            if published_raw and age_years is not None:
+                published_str = f"{published_raw[:7]} (~{age_years:.1f}y old)"
+            else:
+                published_str = "unknown"
             slot_lines.append(
                 f"  [{i + 1}] YouTube ID: {c['youtube_id']} | "
                 f"Channel: {channel_str} | "
                 f"Title: {c['title']} | "
                 f"Views: {view_str} | "
-                f"Duration: {dur_str}"
+                f"Duration: {dur_str} | "
+                f"Published: {published_str}"
             )
         slot_descriptions.append("\n".join(slot_lines))
 
@@ -394,7 +451,8 @@ def _build_generation_prompt(
             "religious movement to grow its membership is promotional — reject it. "
             "Historical, cultural, and architectural content about religions is acceptable when the "
             "framing is educational, not devotional. A sermon, a conversion appeal, or a 'this religion "
-            "is the truth' video must be skipped regardless of how it is titled."
+            "is the truth' video must be skipped regardless of how it is titled. "
+            + describe_policy_for_prompt()
         )
         + lang_instruction
     )
@@ -535,7 +593,7 @@ async def generate_inspirations(
     inspirations: List[DailyInspiration] = []
     used_youtube_ids: set = set()
 
-    for raw in raw_inspirations[:count]:
+    for slot_idx, raw in enumerate(raw_inspirations[:count]):
         phrase = raw.get("phrase", "").strip()
         title = raw.get("title", "").strip()
         assistant_response = raw.get("assistant_response", "").strip() or None
@@ -596,6 +654,48 @@ async def generate_inspirations(
                 f"categories={matched_cats}, keywords={matched_kws}"
             )
             continue
+
+        # ── Layer 5 (post-LLM): category-based video age policy (OPE-350) ────
+        # If the LLM picked a video that violates its chosen category's max-age
+        # cap, try to substitute another same-slot candidate. Drop the slot
+        # if no eligible fallback exists — we don't retry the LLM (too costly;
+        # next day's batch refills the pool).
+        category_resolved = category if category in AVAILABLE_CATEGORIES else "general_knowledge"
+        if not is_within_category_policy(category_resolved, candidate.get("published_at")):
+            cap_years = get_max_age_years(category_resolved)
+            violated_age = video_age_years(candidate.get("published_at"))
+            age_str = f"{violated_age:.1f}y" if violated_age is not None else "?"
+            logger.warning(
+                f"[DailyInspiration][{task_id}] Layer 5 age policy REJECTED: "
+                f"category={category_resolved} "
+                f"(bucket={policy_bucket_for_category(category_resolved)}) "
+                f"cap={cap_years}y age={age_str} "
+                f"video='{candidate.get('title', '')[:50]}'"
+            )
+            fallback = _find_age_compliant_fallback(
+                slot_candidates=(
+                    video_candidates_per_slot[slot_idx]
+                    if slot_idx < len(video_candidates_per_slot)
+                    else []
+                ),
+                used_youtube_ids=used_youtube_ids,
+                current_youtube_id=youtube_id,
+                category=category_resolved,
+            )
+            if fallback is None:
+                logger.warning(
+                    f"[DailyInspiration][{task_id}] No age-compliant fallback for slot "
+                    f"{slot_idx} (category={category_resolved}) — dropping inspiration"
+                )
+                continue
+            logger.info(
+                f"[DailyInspiration][{task_id}] Age-policy fallback applied for slot "
+                f"{slot_idx}: category={category_resolved}, swapped "
+                f"{youtube_id} → {fallback['youtube_id']} "
+                f"(title='{fallback.get('title', '')[:50]}')"
+            )
+            candidate = fallback
+            youtube_id = fallback["youtube_id"]
 
         video = DailyInspirationVideo(
             youtube_id=youtube_id,

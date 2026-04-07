@@ -240,10 +240,10 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 8px 12px;
+    padding: var(--spacing-4) var(--spacing-6);
     background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
-    color: #fff;
-    font-size: 14px;
+    color: var(--color-grey-0);
+    font-size: var(--font-size-small);
     font-weight: 600;
     line-height: 1.3;
     /* Truncate long names */
@@ -253,8 +253,8 @@
   }
 
   .map-location-name-overlay.mobile {
-    font-size: 12px;
-    padding: 6px 10px;
+    font-size: var(--font-size-xxs);
+    padding: var(--spacing-3) var(--spacing-5);
   }
 
   /* ===========================================
@@ -264,10 +264,10 @@
   .location-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
     justify-content: center;
-    padding: 8px;
+    padding: var(--spacing-4);
   }
 
   .location-details.mobile {
@@ -276,20 +276,20 @@
 
   /* "Nearby:" prefix label — small, muted, indicates imprecise/area mode */
   .location-nearby-label {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     font-weight: 500;
     color: var(--color-grey-60);
     line-height: 1.2;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    margin-bottom: 2px;
+    margin-bottom: var(--spacing-1);
   }
 
   /* Name row: flex container holding the inline icon + bold place name */
   .location-name-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-3);
     min-width: 0;
   }
 
@@ -319,7 +319,7 @@
 
   /* Primary place name — bold, shown above the street address */
   .location-name {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.3;
@@ -336,12 +336,12 @@
   }
 
   .location-details.mobile .location-name {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 
   /* Category/type label (e.g. "Railway", "Airport") — muted, shown below the place name */
   .location-place-type {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-60);
     line-height: 1.3;
@@ -353,23 +353,23 @@
   }
 
   .location-details.mobile .location-place-type {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
   }
 
   /* Street address — muted text below the name, can be multi-line */
   .location-address {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-70);
     line-height: 1.4;
     word-break: break-word;
   }
 
   .location-details.mobile .location-address {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   .location-loading {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-70);
     line-height: 1.3;
   }

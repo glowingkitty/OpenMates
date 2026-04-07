@@ -172,7 +172,7 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
 {/if}
 
 <!-- Save button -->
-<div class="save-button-container">
+<div class="ds-save-button-container">
     <button
         class="save-button"
         class:disabled={!isValid || isSaving || isDeleting}
@@ -202,14 +202,15 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
 
     .error-message p {
         color: var(--color-error, #ff4444);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin: 0;
     }
 
-    .save-button-container {
-        display: flex;
-        justify-content: center;
-        padding: 16px 16px 8px;
+    /* Base .ds-save-button-container (display:flex, justify-content:center)
+       generated from tokens/sources/components/forms.yml. Padding stays local
+       because it varies between Add (uniform 8) and Edit (8/8/4 reduced bottom). */
+    .ds-save-button-container {
+        padding: var(--spacing-8) var(--spacing-8) var(--spacing-4);
     }
 
     .delete-button-container {
@@ -225,11 +226,11 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
         border-radius: 15px;
         background-color: var(--color-cta, #ff553b);
         color: white;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         font-family: inherit;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .save-button:hover:not(.disabled) {
@@ -248,11 +249,11 @@ Related to: SettingsAddBirthday.svelte, SettingsHidePersonalData.svelte
         border-radius: 15px;
         background-color: transparent;
         color: var(--color-error, #ff4444);
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
         font-family: inherit;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
     }
 
     .delete-button:hover:not(.disabled) {

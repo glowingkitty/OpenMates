@@ -116,7 +116,7 @@
         font-size: 1.5rem;
         font-weight: 600;
         position: relative; /* Ensure text stays above gradients */
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 
     .separator {
@@ -124,6 +124,6 @@
         border-top: 2px dotted #ccc;
         margin: 1rem 0;
         position: relative; /* Ensure separator stays above gradients */
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
 </style>

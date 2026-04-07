@@ -331,15 +331,15 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   /* Loading skeleton */
   .skeleton-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 16px 20px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-8) var(--spacing-10);
     width: 100%;
     height: 100%;
     box-sizing: border-box;
@@ -348,13 +348,13 @@
   .skeleton-lines {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
 
   .skeleton-line {
     height: 12px;
     background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -370,9 +370,9 @@
   .image-error-small {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 12px;
-    font-size: 11px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-6);
+    font-size: var(--font-size-tiny);
     color: var(--color-grey-50, #888);
   }
 
@@ -385,7 +385,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: null;
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -394,11 +394,11 @@
   .error-state {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6);
     background: var(--color-error-5, #fff5f5);
-    border-radius: 6px;
-    margin: 12px;
+    border-radius: var(--radius-2);
+    margin: var(--spacing-6);
   }
 
   .error-icon {
@@ -410,13 +410,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 700;
     flex-shrink: 0;
   }
 
   .error-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error-70, #b04a4a);
     line-height: 1.4;
   }

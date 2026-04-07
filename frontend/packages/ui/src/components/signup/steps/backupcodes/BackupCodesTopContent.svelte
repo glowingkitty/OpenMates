@@ -216,7 +216,7 @@ step_5_top_content_svelte:
 
 <style>
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -227,7 +227,7 @@ step_5_top_content_svelte:
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .text-block {
@@ -256,15 +256,15 @@ step_5_top_content_svelte:
     .mini-icon {
         width: 38px;
         height: 38px;
-        border-radius: 8px;
-        margin-right: 10px;
+        border-radius: var(--radius-3);
+        margin-right: var(--spacing-5);
         opacity: 1;
     }
 
     .download-button {
         width: 60px;
         height: 60px;
-        transition: transform 0.2s;
+        transition: transform var(--duration-normal);
         margin-top: 30px;
     }
 
@@ -291,8 +291,8 @@ step_5_top_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-        padding: 40px 20px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-20) var(--spacing-10);
         text-align: center;
     }
 
@@ -311,25 +311,25 @@ step_5_top_content_svelte:
 
     .loading-text {
         color: var(--color-grey-60);
-        font-size: 16px;
+        font-size: var(--font-size-p);
     }
 
     .error-text {
         color: var(--color-error, #ef4444);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
     }
 
     .retry-button {
-        padding: 12px 24px;
+        padding: var(--spacing-6) var(--spacing-12);
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         cursor: pointer;
-        font-size: 16px;
+        font-size: var(--font-size-p);
         font-weight: 500;
-        transition: transform 0.2s;
+        transition: transform var(--duration-normal);
     }
 
     .retry-button:hover {

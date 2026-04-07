@@ -106,7 +106,7 @@
         height: 73px !important;
         position: static !important;
         transform: none !important;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
 
     /* Compact mode: smaller icon and tighter spacing for settings panel */
@@ -125,26 +125,26 @@
         -webkit-mask-size: contain;
         mask-size: contain;
         background-color: #58BC00;
-        margin-bottom: 20px;
+        margin-bottom: var(--spacing-10);
     }
     
     /* Text spacing */
     .processing-text {
-        margin-bottom: 6px;
-        font-size: 15px;
+        margin-bottom: var(--spacing-3);
+        font-size: null;
     }
 
     .processing-subtext {
-        margin-bottom: 10px;
-        font-size: 13px;
+        margin-bottom: var(--spacing-5);
+        font-size: var(--font-size-xs);
     }
     
     .success-text {
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-5);
     }
     
     .confirmation-text {
-        margin-bottom: 40px;
+        margin-bottom: var(--spacing-20);
     }
     
     .loading-text {
@@ -158,13 +158,13 @@
         background: var(--color-grey-15, #e5e5e5);
         border-radius: 2px;
         overflow: hidden;
-        margin-top: 16px;
-        margin-bottom: 12px;
+        margin-top: var(--spacing-8);
+        margin-bottom: var(--spacing-6);
     }
 
     .compact .shimmer-bar {
-        margin-top: 12px;
-        margin-bottom: 10px;
+        margin-top: var(--spacing-6);
+        margin-bottom: var(--spacing-5);
     }
 
     .shimmer-fill {
@@ -182,7 +182,7 @@
 
     /* "Powered by" text — replaces the old clickable button in bottom-container */
     .powered-by-text {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         margin: 0;
     }
     
@@ -202,7 +202,7 @@
         background-position: center;
         background-repeat: no-repeat;
         opacity: 0.6;
-        z-index: 1;
+        z-index: var(--z-index-raised);
     }
     
 </style>

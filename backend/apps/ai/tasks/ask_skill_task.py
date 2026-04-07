@@ -66,6 +66,14 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 logger = logging.getLogger(__name__)
 
 
+# Note: per-task_id dedup is now performed by `DedupedTask.__call__` (the
+# Celery base class hooked in via `task_cls=` on the Celery app, see
+# backend/core/api/app/tasks/base_task.py). It runs BEFORE this task body
+# executes so duplicate broker deliveries (caused by task_acks_late=True +
+# task_reject_on_worker_lost=True + autoreload connection cycles) are caught
+# globally for every Celery task, not just this one.
+
+
 async def _cleanup_processing_embeds_on_task_failure(
     task_id: str,
     chat_id: str,
@@ -502,34 +510,14 @@ async def _async_process_ai_skill_ask_task(
                 
         raise RuntimeError(f"Service initialization failed: {e}")
 
-    # --- Idempotency Guard: Prevent duplicate task execution ---
-    # Celery broker (Dragonfly/Redis) can redeliver the same task message due to
-    # retry_on_timeout or acks_late race conditions. Both copies carry the same task_id.
-    # Use SET NX (set-if-not-exists) to ensure only the first execution proceeds.
-    # TTL of 600s (10 min) covers the max task time_limit (360s) with margin.
-    if cache_service_instance:
-        try:
-            dedup_key = f"celery_task_dedup:{task_id}"
-            client = await cache_service_instance.client
-            was_set = await client.set(dedup_key, "1", ex=600, nx=True)
-            if not was_set:
-                logger.warning(
-                    f"[Task ID: {task_id}] DEDUP: Duplicate task execution detected for "
-                    f"chat_id={request_data.chat_id}, message_id={request_data.message_id}. "
-                    f"Skipping to prevent double processing and double charging."
-                )
-                return {
-                    "status": "deduplicated_skip",
-                    "task_id": task_id,
-                    "chat_id": request_data.chat_id,
-                    "message_id": request_data.message_id,
-                    "_celery_task_state": "SUCCESS"
-                }
-            logger.info(f"[Task ID: {task_id}] DEDUP: Acquired processing lock (key={dedup_key}, ttl=600s)")
-        except Exception as dedup_err:
-            # Don't fail the task if dedup check fails — proceed with processing
-            # This is a safety net, not a hard requirement
-            logger.warning(f"[Task ID: {task_id}] DEDUP: Could not check/set dedup key: {dedup_err}. Proceeding with execution.")
+    # NOTE: Idempotency dedup is performed by `DedupedTask.__call__` (the
+    # Celery base class hooked in via `task_cls=` on the Celery app, see
+    # backend/core/api/app/tasks/base_task.py). It runs sync-redis SET NX
+    # BEFORE this async helper is even reached, so duplicate broker
+    # deliveries never get this far. Do NOT re-add an async dedup here —
+    # the worker-level CacheService caches a redis.asyncio client bound to
+    # a stale loop on task redelivery, which silently broke the previous
+    # in-place async guard (commit 04d3994cf).
 
     # --- Load configurations from cache (preloaded by main API server at startup) ---
     # The main API server preloads these into the shared Dragonfly cache during startup.
@@ -2231,6 +2219,12 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
         raise Ignore()
+
+    # Idempotency dedup is now handled globally by `DedupedTask.__call__`
+    # (see backend/core/api/app/tasks/base_task.py). It runs BEFORE this
+    # function body, so by the time we get here this is guaranteed to be
+    # the first delivery of `task_id` (or DedupedTask already returned the
+    # `deduplicated_skip` short-circuit and we never reach this code).
 
     # Focus mode continuation now creates its own assistant message (this task_id).
     # Client merges "focus activation" + "continuation" into one bubble for display.

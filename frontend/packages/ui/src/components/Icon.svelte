@@ -343,7 +343,7 @@
   .icon.settings_size {
     width: 44px;
     height: 44px;
-    border-radius: 10px; /* Keep your existing border radius */
+    border-radius: var(--radius-4); /* Keep your existing border radius */
     animation: unset;
     animation-delay: unset;
     opacity: 1;
@@ -355,7 +355,7 @@
     width: 44px;
     height: 44px;
     position: relative;
-    border-radius: 10px; /* Adding border-radius for consistency */
+    border-radius: var(--radius-4); /* Adding border-radius for consistency */
     
     &::after {
       content: '';
@@ -478,7 +478,7 @@
   .icon.in_header {
     width: 67.98px;
     height: 67.98px;
-    border-radius: 10px; /* Keep your existing border radius */
+    border-radius: var(--radius-4); /* Keep your existing border radius */
     border-width: 1.4px; /* 3.2% of 44px = ~1.4px */
     /* Use fade-in animation but start immediately (no delay) */
     opacity: 0;

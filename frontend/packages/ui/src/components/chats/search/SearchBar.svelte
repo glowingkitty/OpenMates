@@ -156,12 +156,12 @@
   .search-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) var(--spacing-6);
     background-color: var(--color-grey-20);
-    border-radius: 12px;
+    border-radius: var(--radius-5);
     border: 1px solid var(--color-grey-25);
-    transition: border-color 0.15s ease;
+    transition: border-color var(--duration-fast) var(--easing-default);
   }
 
   .search-bar:focus-within {
@@ -180,7 +180,7 @@
     border: none;
     background: transparent;
     color: var(--color-font-primary);
-    font-size: 15px;
+    font-size: null;
     padding: 4px 0;
     min-width: 0;
     /* Override browser default search input styles */
@@ -204,7 +204,7 @@
     height: 20px;
     cursor: pointer;
     opacity: 0.5;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-fast) var(--easing-default);
     /* NOTE: Do NOT set background here — button.clickable-icon sets
        background: var(--color-primary) which is used as the mask fill color.
        Overriding it to transparent makes the icon invisible. */

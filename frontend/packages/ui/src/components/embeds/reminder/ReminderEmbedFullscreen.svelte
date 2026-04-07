@@ -317,7 +317,7 @@
     width: 100%;
     height: 100%;
     overflow: auto;
-    padding: 24px;
+    padding: var(--spacing-12);
     box-sizing: border-box;
   }
   
@@ -331,18 +331,18 @@
     height: 100%;
     min-height: 200px;
     text-align: center;
-    padding: 32px;
+    padding: var(--spacing-16);
   }
   
   .error-icon,
   .cancelled-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
+    font-size: var(--font-size-hero);
+    margin-bottom: var(--spacing-8);
   }
   
   .error-title,
   .cancelled-title {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     margin: 0 0 8px 0;
     color: var(--color-grey-90, #1a1a1a);
@@ -350,7 +350,7 @@
   
   .error-message,
   .cancelled-message {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60, #666);
     margin: 0;
     max-width: 400px;
@@ -360,7 +360,7 @@
   .reminder-content {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--spacing-10);
     max-width: 500px;
     margin: 0 auto;
     width: 100%;
@@ -370,42 +370,42 @@
   .reminder-card {
     background: var(--color-grey-5, #fafafa);
     border: 1px solid var(--color-grey-15, #f0f0f0);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: var(--radius-5);
+    padding: var(--spacing-10);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--spacing-8);
   }
   
   /* Trigger time section */
   .trigger-time-section {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding-bottom: 16px;
+    gap: var(--spacing-6);
+    padding-bottom: var(--spacing-8);
     border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
   }
   
   .trigger-icon {
-    font-size: 32px;
+    font-size: var(--font-size-xxxl);
     flex-shrink: 0;
   }
   
   .trigger-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--spacing-1);
   }
   
   .trigger-label {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-50, #888);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
   
   .trigger-time {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     color: var(--color-grey-90, #1a1a1a);
   }
@@ -414,7 +414,7 @@
   .reminder-properties {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--spacing-6);
   }
   
   .property-row {
@@ -424,19 +424,19 @@
   }
   
   .property-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-60, #666);
   }
   
   .property-value {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-90, #1a1a1a);
     font-weight: 500;
   }
   
   .property-value.id-value {
     font-family: monospace;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-grey-50, #888);
   }
   
@@ -444,9 +444,9 @@
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: var(--spacing-2) var(--spacing-5);
+    border-radius: var(--radius-5);
+    font-size: var(--font-size-xxs);
     font-weight: 500;
   }
   
@@ -469,22 +469,22 @@
   .email-warning {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 12px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6);
     background: var(--color-warning-5, #fffdf5);
-    border-radius: 8px;
+    border-radius: var(--radius-3);
     border: 1px solid var(--color-warning-20, #f5e6c0);
-    margin-top: 4px;
+    margin-top: var(--spacing-2);
   }
   
   .warning-icon {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     color: var(--color-warning-60, #c9a02d);
     flex-shrink: 0;
   }
   
   .warning-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-warning-80, #8a6b1a);
     line-height: 1.4;
   }
@@ -493,21 +493,21 @@
   .action-buttons {
     display: flex;
     justify-content: center;
-    gap: 12px;
-    margin-top: 8px;
+    gap: var(--spacing-6);
+    margin-top: var(--spacing-4);
   }
   
   .action-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6) var(--spacing-12);
+    border-radius: var(--radius-3);
+    font-size: var(--font-size-small);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--duration-fast) var(--easing-default);
     border: none;
   }
   
@@ -553,16 +553,16 @@
   .inactive-notice {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-6) var(--spacing-8);
     background: var(--color-grey-10, #f5f5f5);
-    border-radius: 8px;
-    font-size: 13px;
+    border-radius: var(--radius-3);
+    font-size: var(--font-size-xs);
     color: var(--color-grey-60, #666);
   }
   
   .notice-icon {
-    font-size: 16px;
+    font-size: var(--font-size-p);
   }
   
   /* Cancel error */
@@ -570,16 +570,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 10px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-5);
     background: var(--color-error-5, #fff5f5);
-    border-radius: 6px;
-    font-size: 13px;
+    border-radius: var(--radius-2);
+    font-size: var(--font-size-xs);
     color: var(--color-error-70, #b04a4a);
   }
   
   .error-icon-small {
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
   
   /* Dark mode */
@@ -661,24 +661,24 @@
   /* Responsive */
   @media (max-width: 768px) {
     .reminder-fullscreen {
-      padding: 16px;
+      padding: var(--spacing-8);
     }
     
     .reminder-card {
-      padding: 16px;
+      padding: var(--spacing-8);
     }
     
     .trigger-icon {
-      font-size: 28px;
+      font-size: var(--font-size-xxl);
     }
     
     .trigger-time {
-      font-size: 16px;
+      font-size: var(--font-size-p);
     }
     
     .action-btn {
-      padding: 10px 20px;
-      font-size: 13px;
+      padding: var(--spacing-5) var(--spacing-10);
+      font-size: var(--font-size-xs);
     }
   }
 </style>

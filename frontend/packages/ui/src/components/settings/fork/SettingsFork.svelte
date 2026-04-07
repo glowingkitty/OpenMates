@@ -220,19 +220,19 @@
     .fork-container {
         display: flex;
         flex-direction: column;
-        gap: 20px;
-        padding: 20px 16px 32px;
+        gap: var(--spacing-10);
+        padding: var(--spacing-10) var(--spacing-8) var(--spacing-16);
     }
 
     /* ---- Name field ---- */
     .fork-field {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .fork-label {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-weight: 500;
         color: var(--color-text-secondary, #8a9bb0);
         text-transform: uppercase;
@@ -244,11 +244,11 @@
         box-sizing: border-box;
         background: var(--color-input-bg, rgba(255, 255, 255, 0.06));
         border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-        border-radius: 10px;
+        border-radius: var(--radius-4);
         color: var(--color-text-primary, #ffffff);
-        font-size: 15px;
+        font-size: null;
         padding: 12px 14px;
-        transition: border-color 0.2s ease;
+        transition: border-color var(--duration-normal) var(--easing-default);
     }
 
     .fork-input:focus {
@@ -264,9 +264,9 @@
     .fork-meta {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--spacing-3);
         color: var(--color-text-secondary, #8a9bb0);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     .fork-meta-count {
@@ -278,7 +278,7 @@
     .fork-progress-wrapper {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .fork-progress-bar {
@@ -292,11 +292,11 @@
         height: 100%;
         background: var(--color-primary, #4f8ef7);
         border-radius: 3px;
-        transition: width 0.3s ease;
+        transition: width var(--duration-slow) var(--easing-default);
     }
 
     .fork-progress-text {
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         color: var(--color-text-secondary, #8a9bb0);
     }
 
@@ -308,12 +308,12 @@
         justify-content: center;
         background: var(--color-primary, #4f8ef7);
         color: white;
-        border-radius: 10px;
-        font-size: 15px;
+        border-radius: var(--radius-4);
+        font-size: null;
         font-weight: 500;
         padding: 14px 20px;
         cursor: pointer;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--duration-normal) var(--easing-default);
         text-align: center;
     }
 
@@ -329,7 +329,7 @@
     /* ---- No context placeholder ---- */
     .fork-no-context {
         color: var(--color-text-secondary, #8a9bb0);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
         padding: 32px 0;
     }

@@ -68,10 +68,45 @@ python3 scripts/run_tests.py --spec chat-flow.spec.ts  # Single Playwright spec
 python3 scripts/run_tests.py --suite playwright        # All E2E specs via GitHub Actions
 python3 scripts/run_tests.py --daily                   # Cron mode (commit gate, emails)
 python3 scripts/run_tests.py --daily --force           # Skip commit check
+python3 scripts/run_tests.py --hourly-dev              # Hourly dev smoke (4 specs)
+python3 scripts/run_tests.py --hourly-prod             # Hourly prod smoke
+python3 scripts/run_tests.py --hourly-dev --dry-run-notify  # Test Discord wiring only
 python3 scripts/run_tests.py --max-concurrent 10       # Override batch size (default: 20)
 python3 scripts/run_tests.py --no-fail-fast            # Run all batches even on failure
 python3 scripts/run_tests.py --dry-run                 # Show what would run
 ```
+
+### Hourly smoke modes (OPE-349)
+
+Two thin "is the core flow alive?" runners triggered hourly by the dev server's
+local crontab. They are intentionally separate from `--daily` because the goal
+is "catch urgent breakage within an hour", not full coverage.
+
+| Mode | What it runs | Discord webhook | Schedule |
+| --- | --- | --- | --- |
+| `--hourly-dev` | reachability + Stripe + Polar + chat (see `frontend/apps/web_app/tests/dev-smoke/README.md`) | `DISCORD_WEBHOOK_DEV_SMOKE` | local cron, 08–18 UTC |
+| `--hourly-prod` | dispatches `prod-smoke.yml` (3 specs) | `DISCORD_WEBHOOK_PROD_SMOKE` | local cron, 08–18 UTC |
+| `--daily` | full pytest + vitest + all E2E | `DISCORD_WEBHOOK_DEV_NIGHTLY` | local cron, 03 UTC weekdays |
+
+**Why local cron, not GitHub Actions `schedule:`** — the GH-Actions cron silently
+skips runs under load, which lost us prod outage alerts. The local crontab on
+the dev server triggers `gh workflow run` so the actual specs still execute on
+GH Actions runners; only the trigger moves. See OPE-349 for the full rationale.
+
+**Discord noise control** — the hourly modes post on FAILURE only, plus a single
+"all good" heartbeat once per UTC day so the channel proves the pipeline is
+still alive. The nightly mode posts every run. Each webhook lives in its own
+Discord channel so noise from one cron never drowns out alerts from another.
+
+To verify a webhook without dispatching specs:
+
+```bash
+python3 scripts/run_tests.py --hourly-dev --dry-run-notify
+python3 scripts/run_tests.py --hourly-prod --dry-run-notify
+python3 scripts/run_tests.py --daily --dry-run-notify
+```
+
+Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-prod/run-*.json` (rotated to last 7 days).
 
 Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of 20 concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
 
@@ -265,6 +300,54 @@ Convention: `{app}_{skill}_{context}` where context is `web`, `cli`, or a descri
 ### Legacy Fixture System
 
 The old `withMockMarker()` / fixture replay system still exists in `backend/apps/ai/testing/mock_replay.py` and `fixtures/` for backward compatibility. It skips the entire pipeline and replays pre-recorded Redis events. **Do not use it for new tests** — use `withLiveMockMarker()` instead.
+
+---
+
+## Production Smoke Suite (OPE-76)
+
+A minimal Playwright suite runs hourly from 10:00–20:00 Europe/Berlin against the **live production server** via `.github/workflows/prod-smoke.yml`. Three specs live under `frontend/apps/web_app/tests/prod-smoke/`:
+
+| Spec | What it verifies |
+|------|-------------------|
+| `prod-smoke-reachability.spec.ts` | `/`, `/login`, `/signup` load and render key `data-testid` markers. Pre-flight check. |
+| `prod-smoke-signup-giftcard-chat.spec.ts` | Fresh Mailosaur email → full cold-boot signup → redeem reusable gift card → send chat → delete account. |
+| `prod-smoke-login-chat.spec.ts` | Persistent prod test account login → send chat → best-effort cleanup. |
+
+### Why it's structured this way
+
+- **No Stripe on prod.** The signup spec uses the OPE-76 reusable + domain-bound gift card extension, so the flow goes through the Credits step via the existing "I have a gift card" button (`#signup-credits-gift-card`). Zero real money is burned.
+- **The gift card is locked to one Mailosaur server subdomain**, not the bare `mailosaur.net` TLD. `gift_card_methods._enforce_gift_card_domain` does an EXACT full-domain match (not a suffix match) — a suffix check would let ANY Mailosaur customer redeem our smoke-test card.
+- **Dual-channel failure notifications.** `.github/actions/notify-test-failure/` posts to Discord AND sends a Brevo email on any failure. Both sends are independent so one channel's outage cannot mask the failure. Motivated by the 2026-04-06 nightly summary email that silently never arrived.
+
+### Seeding the reusable gift card on prod
+
+One-time admin API call against the prod API after the schema migration lands:
+
+```bash
+curl -X POST "$PROD_API/v1/admin/generate-gift-cards" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "credits_value": 1000,
+    "count": 1,
+    "notes": "OPE-76 reusable prod smoke test card",
+    "is_reusable": true,
+    "allowed_email_domain": "<mailosaur-server-id>.mailosaur.net"
+  }'
+```
+
+Copy the returned code into the `PROD_SMOKE_GIFT_CARD_CODE` GitHub secret. The card survives redemptions forever and is only redeemable by users whose email domain matches `allowed_email_domain` exactly.
+
+### Required GitHub Actions secrets
+
+`PROD_BASE_URL`, `PROD_SMOKE_GIFT_CARD_CODE`, `PROD_SMOKE_EMAIL_DOMAIN`, `PROD_SMOKE_MAILOSAUR_API_KEY`, `PROD_SMOKE_MAILOSAUR_SERVER_ID`, `OPENMATES_PROD_TEST_ACCOUNT_EMAIL`/`_PASSWORD`/`_OTP_KEY`, `DISCORD_WEBHOOK_PROD_SMOKE`, `PROD_SMOKE_EMAIL_TO`, `BREVO_API_KEY`.
+
+### Manual dispatch
+
+```bash
+gh workflow run prod-smoke.yml
+gh run watch
+```
 
 ---
 

@@ -533,12 +533,12 @@
     h3 { font-size: 13pt; margin-top: 1.2em; }
     p { margin: 0.5em 0; }
     ul, ol { padding-left: 2em; }
-    blockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: #666; }
+    blockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: var(--color-grey-70); }
     table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+    th, td { border: 1px solid #999; padding: var(--spacing-3) var(--spacing-5); text-align: left; }
     th { background: #f0f0f0; font-weight: bold; }
-    code { font-family: 'Courier New', monospace; background: #f5f5f5; padding: 2px 4px; font-size: 10pt; }
-    pre { background: #f5f5f5; padding: 12px; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
+    code { font-family: 'Courier New', monospace; background: #f5f5f5; padding: var(--spacing-1) var(--spacing-2); font-size: 10pt; }
+    pre { background: #f5f5f5; padding: var(--spacing-6); font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
     a { color: #0563C1; }
     img { max-width: 100%; }
   </style>
@@ -706,7 +706,7 @@ ${downloadHtmlContent}
     flex: 1;
     overflow: auto;
     /* Padding: small top gap, side padding, bottom for zoom bar overlap */
-    padding: 16px 12px 64px;
+    padding: var(--spacing-8) var(--spacing-6) var(--spacing-32);
     box-sizing: border-box;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
@@ -725,7 +725,7 @@ ${downloadHtmlContent}
 
   .doc-canvas-scroll::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
   }
 
   .doc-canvas-scroll::-webkit-scrollbar-thumb:hover {
@@ -755,7 +755,7 @@ ${downloadHtmlContent}
   .doc-page-scaler {
     width: 794px; /* A4 width at 96 DPI */
     flex-shrink: 0;
-    transition: transform 0.15s ease;
+    transition: transform var(--duration-fast) var(--easing-default);
     transform-origin: top left;
   }
 
@@ -783,7 +783,7 @@ ${downloadHtmlContent}
     box-shadow:
       0 2px 6px rgba(0, 0, 0, 0.35),
       0 8px 24px rgba(0, 0, 0, 0.25);
-    z-index: 0;
+    z-index: var(--z-index-base);
   }
 
   /* ===========================================
@@ -795,7 +795,7 @@ ${downloadHtmlContent}
   .doc-content-wrapper {
     position: relative;
     padding: 96px 72px;
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
 
   /* ===========================================
@@ -804,7 +804,7 @@ ${downloadHtmlContent}
 
   .doc-page-content {
     font-family: 'Calibri', 'Cambria', Georgia, 'Times New Roman', serif;
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 400;
     line-height: 1.65;
     color: #202020;
@@ -814,10 +814,10 @@ ${downloadHtmlContent}
   }
 
   .doc-page-content :global(h1) {
-    font-size: 24px;
+    font-size: var(--font-size-h2-mobile);
     font-weight: 700;
     margin: 0 0 20px;
-    padding-bottom: 10px;
+    padding-bottom: var(--spacing-5);
     border-bottom: 2px solid #e8e8e8;
     color: #1a1a1a;
     line-height: 1.25;
@@ -825,7 +825,7 @@ ${downloadHtmlContent}
   }
 
   .doc-page-content :global(h2) {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
     font-weight: 600;
     margin: 32px 0 10px;
     color: #1a1a1a;
@@ -834,7 +834,7 @@ ${downloadHtmlContent}
   }
 
   .doc-page-content :global(h3) {
-    font-size: 15px;
+    font-size: null;
     font-weight: 600;
     margin: 24px 0 8px;
     color: #2c2c2c;
@@ -844,7 +844,7 @@ ${downloadHtmlContent}
   .doc-page-content :global(h4),
   .doc-page-content :global(h5),
   .doc-page-content :global(h6) {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     margin: 18px 0 6px;
     color: #333;
@@ -857,7 +857,7 @@ ${downloadHtmlContent}
 
   .doc-page-content :global(ul),
   .doc-page-content :global(ol) {
-    padding-left: 24px;
+    padding-left: var(--spacing-12);
     margin: 0 0 10px;
   }
 
@@ -874,7 +874,7 @@ ${downloadHtmlContent}
   .doc-page-content :global(blockquote) {
     border-left: 3px solid #c0c0c0;
     margin: 16px 0 16px 8px;
-    padding: 4px 16px;
+    padding: var(--spacing-2) var(--spacing-8);
     color: #555;
     font-style: italic;
   }
@@ -887,7 +887,7 @@ ${downloadHtmlContent}
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 
   .doc-page-content :global(th),
@@ -902,7 +902,7 @@ ${downloadHtmlContent}
     background: #f2f2f2;
     font-weight: 600;
     color: #1a1a1a;
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     text-transform: none;
     letter-spacing: 0;
   }
@@ -916,7 +916,7 @@ ${downloadHtmlContent}
     border: 1px solid #e0e0e0;
     padding: 1px 5px;
     border-radius: 3px;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     font-family: 'Consolas', 'SF Mono', 'Fira Mono', 'Courier New', monospace;
     color: #c7254e;
     font-style: normal;
@@ -925,11 +925,11 @@ ${downloadHtmlContent}
   .doc-page-content :global(pre) {
     background: #f8f8f8;
     padding: 14px 18px;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     overflow-x: auto;
     margin: 14px 0;
     border: 1px solid #e4e4e4;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
   }
 
   .doc-page-content :global(pre code) {
@@ -981,14 +981,14 @@ ${downloadHtmlContent}
 
   .doc-page-content :global(dt) {
     font-weight: 600;
-    margin-top: 8px;
+    margin-top: var(--spacing-4);
     color: #1a1a1a;
   }
 
   .doc-page-content :global(dd) {
-    margin-left: 24px;
-    margin-bottom: 6px;
-    color: #444;
+    margin-left: var(--spacing-12);
+    margin-bottom: var(--spacing-3);
+    color: var(--color-grey-80);
   }
 
   /* ===========================================
@@ -1002,7 +1002,7 @@ ${downloadHtmlContent}
   .doc-zoom-bar {
     position: sticky;
     bottom: 16px;
-    z-index: 1000;
+    z-index: var(--z-index-modal);
     pointer-events: none;
     display: flex;
     justify-content: center;
@@ -1010,16 +1010,16 @@ ${downloadHtmlContent}
        canvas instead of adding extra space below it. The bar height
        (~44px) + bottom (16px) = 60px overlap. */
     margin-top: -60px;
-    padding-bottom: 16px;
+    padding-bottom: var(--spacing-8);
   }
 
   .doc-zoom-bar-inner {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-2);
     background: var(--color-grey-0, #ffffff);
     border-radius: 28px;
-    padding: 4px 6px;
+    padding: var(--spacing-2) var(--spacing-3);
     box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.15),
       0 0 1px rgba(0, 0, 0, 0.1);
@@ -1037,7 +1037,7 @@ ${downloadHtmlContent}
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color var(--duration-fast), color var(--duration-fast);
     padding: 0;
     flex-shrink: 0;
   }
@@ -1059,11 +1059,11 @@ ${downloadHtmlContent}
   .doc-zoom-level {
     min-width: 52px;
     height: 32px;
-    border-radius: 16px;
+    border-radius: var(--radius-7);
     border: 1px solid var(--color-grey-20, #e5e5e5);
     background: var(--color-grey-5, #fafafa);
     color: var(--color-grey-80, #333);
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
@@ -1071,7 +1071,7 @@ ${downloadHtmlContent}
     align-items: center;
     justify-content: center;
     padding: 0 10px;
-    transition: background-color 0.15s, border-color 0.15s;
+    transition: background-color var(--duration-fast), border-color var(--duration-fast);
     letter-spacing: 0.2px;
   }
 
@@ -1098,13 +1098,13 @@ ${downloadHtmlContent}
 
   @container fullscreen (max-width: 500px) {
     .doc-canvas-scroll {
-      padding: 12px 4px 24px;
+      padding: var(--spacing-6) var(--spacing-2) var(--spacing-12);
     }
 
     .doc-zoom-bar {
       bottom: 10px;
       margin-top: -56px;
-      padding-bottom: 10px;
+      padding-bottom: var(--spacing-5);
     }
   }
 </style>

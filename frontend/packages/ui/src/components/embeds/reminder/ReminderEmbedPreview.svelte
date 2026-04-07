@@ -313,19 +313,19 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 12px;
+    padding: var(--spacing-6);
     box-sizing: border-box;
   }
   
   .reminder-preview.mobile {
-    padding: 8px;
+    padding: var(--spacing-4);
   }
   
   /* Skeleton loading state */
   .skeleton-content {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--spacing-6);
     width: 100%;
   }
   
@@ -341,13 +341,13 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--spacing-4);
   }
   
   .skeleton-line {
     height: 14px;
     background: var(--color-grey-15, #f0f0f0);
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
   
@@ -368,20 +368,20 @@
   .reminder-content {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-5);
     width: 100%;
   }
   
   /* Prompt preview */
   .reminder-prompt {
-    padding: 8px 10px;
+    padding: var(--spacing-4) var(--spacing-5);
     background: var(--color-grey-10, #f5f5f5);
-    border-radius: 6px;
+    border-radius: var(--radius-2);
     border-left: 3px solid var(--color-app-reminder, #FF9500);
   }
   
   .prompt-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-grey-80, #333);
     line-height: 1.4;
     white-space: pre-wrap;
@@ -397,14 +397,14 @@
   .reminder-time {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 15px;
+    gap: var(--spacing-4);
+    font-size: null;
     color: var(--color-grey-80, #333);
     font-weight: 500;
   }
   
   .time-icon {
-    font-size: 18px;
+    font-size: var(--font-size-h3-mobile);
   }
   
   .time-text {
@@ -415,15 +415,15 @@
   .reminder-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--spacing-3);
   }
   
   .badge {
     display: inline-flex;
     align-items: center;
     padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 11px;
+    border-radius: var(--radius-5);
+    font-size: var(--font-size-tiny);
     font-weight: 500;
   }
   
@@ -451,21 +451,21 @@
   .email-warning {
     display: flex;
     align-items: flex-start;
-    gap: 6px;
-    padding: 8px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
     background: var(--color-warning-5, #fffdf5);
-    border-radius: 6px;
+    border-radius: var(--radius-2);
     border: 1px solid var(--color-warning-20, #f5e6c0);
   }
   
   .warning-icon {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-warning-60, #c9a02d);
     flex-shrink: 0;
   }
   
   .warning-text {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     color: var(--color-warning-80, #8a6b1a);
     line-height: 1.4;
   }
@@ -474,41 +474,41 @@
   .error-state {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px;
+    gap: var(--spacing-4);
+    padding: var(--spacing-5);
     background: var(--color-error-5, #fff5f5);
-    border-radius: 6px;
+    border-radius: var(--radius-2);
     border: 1px solid var(--color-error-20, #f5c0c0);
   }
   
   .error-icon {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     flex-shrink: 0;
   }
   
   .error-text {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
     color: var(--color-error-70, #b04a4a);
     line-height: 1.4;
   }
   
   /* Mobile adjustments */
   .mobile .reminder-time {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
   
   .mobile .time-icon {
-    font-size: 16px;
+    font-size: var(--font-size-p);
   }
   
   .mobile .badge {
-    font-size: 10px;
-    padding: 2px 6px;
+    font-size: null;
+    padding: var(--spacing-1) var(--spacing-3);
   }
   
   .mobile .warning-text,
   .mobile .error-text {
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
   }
   
   /* Dark mode support */

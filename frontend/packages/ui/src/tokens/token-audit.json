@@ -1,0 +1,498 @@
+{
+  "generated": "2026-04-05T20:48:26.841Z",
+  "summary": {
+    "total_files": 374,
+    "files_with_hardcoded": 30,
+    "total_replacements": 40,
+    "by_category": {
+      "font-size": 40
+    },
+    "by_confidence": {
+      "exact": 40,
+      "approximate": 0,
+      "manual": 0
+    }
+  },
+  "files": {
+    "components/ActiveChat.svelte": {
+      "replacements": [
+        {
+          "line": 11326,
+          "property": "font-size",
+          "original": "32px",
+          "replacement": "var(--font-size-xxxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "32px = 2rem × 16px base"
+        }
+      ]
+    },
+    "components/ChatHeader.svelte": {
+      "replacements": [
+        {
+          "line": 861,
+          "property": "font-size",
+          "original": "17px",
+          "replacement": "var(--font-size-lg)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "17px = 1.0625rem × 16px base"
+        },
+        {
+          "line": 865,
+          "property": "font-size",
+          "original": "17px",
+          "replacement": "var(--font-size-lg)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "17px = 1.0625rem × 16px base"
+        },
+        {
+          "line": 884,
+          "property": "font-size",
+          "original": "17px",
+          "replacement": "var(--font-size-lg)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "17px = 1.0625rem × 16px base"
+        }
+      ]
+    },
+    "components/DevConsole.svelte": {
+      "replacements": [
+        {
+          "line": 337,
+          "property": "font-size",
+          "original": "9px",
+          "replacement": "var(--font-size-micro)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "9px = 0.5625rem × 16px base"
+        }
+      ]
+    },
+    "components/Not404Screen.svelte": {
+      "replacements": [
+        {
+          "line": 277,
+          "property": "font-size",
+          "original": "17px",
+          "replacement": "var(--font-size-lg)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "17px = 1.0625rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/EmbedHeader.svelte": {
+      "replacements": [
+        {
+          "line": 753,
+          "property": "font-size",
+          "original": "17px",
+          "replacement": "var(--font-size-lg)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "17px = 1.0625rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/code/CodeGetDocsEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 661,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/health/HealthAppointmentEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 281,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/math/MathCalculateEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 251,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/math/MathCalculateEmbedPreview.svelte": {
+      "replacements": [
+        {
+          "line": 180,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/news/NewsEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 530,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        },
+        {
+          "line": 580,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/reminder/ReminderEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 339,
+          "property": "font-size",
+          "original": "48px",
+          "replacement": "var(--font-size-hero)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "48px = 3rem × 16px base"
+        },
+        {
+          "line": 390,
+          "property": "font-size",
+          "original": "32px",
+          "replacement": "var(--font-size-xxxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "32px = 2rem × 16px base"
+        },
+        {
+          "line": 672,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/sheets/SheetEmbedPreview.svelte": {
+      "replacements": [
+        {
+          "line": 429,
+          "property": "font-size",
+          "original": "9px",
+          "replacement": "var(--font-size-micro)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "9px = 0.5625rem × 16px base"
+        },
+        {
+          "line": 468,
+          "property": "font-size",
+          "original": "32px",
+          "replacement": "var(--font-size-xxxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "32px = 2rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 292,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 712,
+          "property": "font-size",
+          "original": "9px",
+          "replacement": "var(--font-size-micro)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "9px = 0.5625rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/travel/TravelStayEmbedPreview.svelte": {
+      "replacements": [
+        {
+          "line": 239,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/web/WebReadEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 630,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/embeds/web/WebsiteEmbedFullscreen.svelte": {
+      "replacements": [
+        {
+          "line": 520,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/CurrentSettingsPage.svelte": {
+      "replacements": [
+        {
+          "line": 498,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/SettingsBilling.svelte": {
+      "replacements": [
+        {
+          "line": 167,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        },
+        {
+          "line": 211,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/SettingsReportIssueConfirmation.svelte": {
+      "replacements": [
+        {
+          "line": 121,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/account/SettingsAccountChats.svelte": {
+      "replacements": [
+        {
+          "line": 404,
+          "property": "font-size",
+          "original": "48px",
+          "replacement": "var(--font-size-hero)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "48px = 3rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/billing/SettingsBuyCreditsConfirmation.svelte": {
+      "replacements": [
+        {
+          "line": 173,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        },
+        {
+          "line": 252,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/developers/SettingsApiKeys.svelte": {
+      "replacements": [
+        {
+          "line": 471,
+          "property": "font-size",
+          "original": "48px",
+          "replacement": "var(--font-size-hero)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "48px = 3rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/incognito/SettingsIncognitoInfo.svelte": {
+      "replacements": [
+        {
+          "line": 152,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/security/SettingsPassword.svelte": {
+      "replacements": [
+        {
+          "line": 784,
+          "property": "font-size",
+          "original": "32px",
+          "replacement": "var(--font-size-xxxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "32px = 2rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/security/SettingsTwoFactorAuth.svelte": {
+      "replacements": [
+        {
+          "line": 1092,
+          "property": "font-size",
+          "original": "32px",
+          "replacement": "var(--font-size-xxxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "32px = 2rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/server/SettingsGiftCardGenerator.svelte": {
+      "replacements": [
+        {
+          "line": 922,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/support/SettingsSupportMonthlyConfirmation.svelte": {
+      "replacements": [
+        {
+          "line": 119,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        },
+        {
+          "line": 204,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/support/SettingsSupportOneTimeConfirmation.svelte": {
+      "replacements": [
+        {
+          "line": 119,
+          "property": "font-size",
+          "original": "28px",
+          "replacement": "var(--font-size-xxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "28px = 1.75rem × 16px base"
+        },
+        {
+          "line": 204,
+          "property": "font-size",
+          "original": "22px",
+          "replacement": "var(--font-size-xl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "22px = 1.375rem × 16px base"
+        }
+      ]
+    },
+    "components/settings/tip/SettingsTip.svelte": {
+      "replacements": [
+        {
+          "line": 333,
+          "property": "font-size",
+          "original": "32px",
+          "replacement": "var(--font-size-xxxl)",
+          "category": "font-size",
+          "confidence": "exact",
+          "proof": "32px = 2rem × 16px base"
+        }
+      ]
+    }
+  }
+}

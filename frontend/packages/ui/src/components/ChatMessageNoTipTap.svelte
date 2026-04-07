@@ -138,7 +138,7 @@
   <style>
     .chat-app-cards-container {
       display: flex;
-      gap: 20px;
+      gap: var(--spacing-10);
       margin-top: 15px;
     }
   

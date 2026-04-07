@@ -1492,41 +1492,41 @@
 
 <style>
   /* Header airline logos — overlapping circle stack */
-  .header-airline-logos { display: flex; align-items: center; justify-content: center; margin-top: 8px; }
+  .header-airline-logos { display: flex; align-items: center; justify-content: center; margin-top: var(--spacing-4); }
   .header-airline-logos .header-airline-logo + .header-airline-logo { margin-left: -8px; }
   .header-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); flex-shrink: 0; }
 
-  .flight-card { display: flex; flex-direction: column; gap: 12px; }
+  .flight-card { display: flex; flex-direction: column; gap: var(--spacing-6); }
   .route-header-pill { background: var(--color-grey-10); border-radius: 11px; padding: 8px 14px; font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
   .travel-class-label { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); text-align: center; }
   .start-airport { font-size: 0.875rem; font-weight: 700; color: var(--color-grey-50); text-align: center; }
 
   .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
-  .segment-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; flex-shrink: 0; min-width: 96px; }
-  .time-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 58px; font-size: 0.875rem; font-weight: 700; color: white; white-space: nowrap; }
+  .segment-left { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-3); flex-shrink: 0; min-width: 96px; }
+  .time-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 10px; border-radius: 58px; font-size: 0.875rem; font-weight: 700; color: white; white-space: nowrap; }
   .time-badge.nighttime { background: linear-gradient(to right, #365dad, #1745a1); }
   .time-badge.daytime { background: linear-gradient(to right, #f5bb12, #e79600); }
   .time-icon { font-size: 0.75rem; line-height: 1; }
   .time-text { line-height: 1; }
   .segment-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; padding: 2px 0; }
 
-  .segment-center { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; justify-content: space-between; }
+  .segment-center { display: flex; flex-direction: column; gap: var(--spacing-4); flex: 1; min-width: 0; justify-content: space-between; }
   .segment-airport-code { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); }
-  .segment-carrier-row { display: flex; align-items: center; gap: 8px; }
+  .segment-carrier-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .segment-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 1.5px solid var(--color-grey-20); flex-shrink: 0; }
   .segment-carrier-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .carrier-flight { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
   .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
 
-  .layover-section { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px; }
-  .layover-overnight-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }
+  .layover-section { display: flex; flex-direction: column; gap: var(--spacing-2); padding: 8px 14px; }
+  .layover-overnight-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }
   .layover-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .layover-airport-text { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
 
   .summary-fallback { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 0; font-size: 1rem; color: var(--color-font-primary); font-weight: 600; }
   .fr24-attribution { font-size: 0.7rem; color: var(--color-grey-50); text-align: right; margin-top: 4px; }
   .fr24-attribution a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-  .booking-info { display: flex; flex-direction: column; gap: 6px; }
+  .booking-info { display: flex; flex-direction: column; gap: var(--spacing-3); }
   .booking-info:empty { display: none; }
   .booking-item { font-size: 0.813rem; color: var(--color-grey-60); }
   .booking-item.warning { color: var(--color-warning, #f59e0b); font-weight: 600; }

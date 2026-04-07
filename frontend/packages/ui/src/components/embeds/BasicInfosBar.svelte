@@ -219,14 +219,14 @@
   .basic-infos-bar.desktop {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--spacing-5);
     height: 61px;
     min-height: 61px;
     background-color: var(--color-grey-30);
     border-radius: 30px;
     padding: 0 0 0 0;
     flex-shrink: 0;
-    z-index: 1;
+    z-index: var(--z-index-raised);
   }
   
   /* App icon circle: 61x61px with gradient background, contains 26x26px icon */
@@ -388,6 +388,11 @@
     mask-image: url('@openmates/ui/static/icons/math.svg');
   }
 
+  .basic-infos-bar .skill-icon[data-skill-icon="nutrition"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+    mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
+
   /* Status text container */
   .basic-infos-bar.desktop .status-text {
     display: flex;
@@ -395,24 +400,24 @@
     justify-content: center;
     flex: 1;
     min-width: 0;
-    gap: 2px;
+    gap: var(--spacing-1);
   }
   
   .basic-infos-bar.desktop .status-label {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.2;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     overflow: hidden;
   }
   
   .basic-infos-bar.desktop .title-favicon {
     width: 20px;
     height: 20px;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     flex-shrink: 0;
     object-fit: cover;
   }
@@ -445,7 +450,7 @@
   }
   
   .basic-infos-bar.desktop .status-value {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
@@ -483,7 +488,7 @@
   }
   
   .basic-infos-bar.desktop .status-text.single-line .status-label {
-    font-size: 16px;
+    font-size: var(--font-size-p);
     line-height: 1.4;
   }
   
@@ -506,7 +511,7 @@
     justify-content: center;
     flex-shrink: 0;
     border-radius: 50%;
-    transition: background-color 0.2s;
+    transition: background-color var(--duration-normal);
   }
   
   .basic-infos-bar.desktop .stop-button:hover {
@@ -526,7 +531,7 @@
     width: 35px;
     height: 35px;
     background: red !important;
-    transition: background 0.2s ease;
+    transition: background var(--duration-normal) var(--easing-default);
     /* Ensure mask-image is properly applied */
     -webkit-mask-size: contain;
     mask-size: contain;
@@ -562,7 +567,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-4);
     padding: 13px;
   }
   
@@ -599,7 +604,7 @@
   .basic-infos-bar.mobile .favicon-image-mobile {
     width: 20px;
     height: 20px;
-    border-radius: 4px;
+    border-radius: var(--radius-1);
     object-fit: cover;
   }
   
@@ -630,19 +635,19 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    gap: 2px;
+    gap: var(--spacing-1);
     flex-shrink: 0;
   }
   
   .basic-infos-bar.mobile .status-text-container .status-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     font-weight: 600;
     color: var(--color-grey-100);
     line-height: 1.2;
   }
   
   .basic-infos-bar.mobile .status-text-container .status-value {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
@@ -671,7 +676,7 @@
   }
   
   .basic-infos-bar.mobile .status-text-container.single-line .status-label {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     line-height: 1.4;
   }
   
@@ -693,7 +698,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: background-color 0.2s;
+    transition: background-color var(--duration-normal);
   }
   
   .basic-infos-bar.mobile .stop-button:hover {
@@ -713,7 +718,7 @@
     width: 35px;
     height: 35px;
     background: red !important;
-    transition: background 0.2s ease;
+    transition: background var(--duration-normal) var(--easing-default);
     /* Ensure mask-image is properly applied */
     -webkit-mask-size: contain;
     mask-size: contain;

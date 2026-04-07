@@ -253,7 +253,7 @@ let skipButtonText = $derived(
         left: 0;
         right: 0;
         height: 48px;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         display: flex;
         justify-content: space-between;
     }
@@ -265,8 +265,8 @@ let skipButtonText = $derived(
             left: 0; /* Ensure left alignment is consistent */
             right: 0; /* Ensure right alignment is consistent */
             background-color: transparent;
-            z-index: 10;
-            padding: 10px;
+            z-index: var(--z-index-dropdown-1);
+            padding: var(--spacing-5);
             margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
             margin-top: 0; /* Ensure it sticks to the very top */
             width: 100%; /* Ensure full width */
@@ -277,7 +277,7 @@ let skipButtonText = $derived(
     .nav-button {
         all: unset;
         position: relative;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         background: none;
         border: none;
@@ -285,7 +285,7 @@ let skipButtonText = $derived(
         padding: 0;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .nav-button:hover {
@@ -304,13 +304,13 @@ let skipButtonText = $derived(
         transform: translateX(-50%);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         background: var(--color-primary);
         color: white;
         border: none;
         border-radius: 19px;
-        padding: 6px 12px;
-        font-size: 16px;
+        padding: var(--spacing-3) var(--spacing-6);
+        font-size: var(--font-size-p);
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }

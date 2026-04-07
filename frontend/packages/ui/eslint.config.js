@@ -1,3 +1,6 @@
 import { config } from '@repo/eslint-config/index.js';
 
-export default config;
+export default [
+  { ignores: ['src/tokens/generated/**'] },
+  ...config
+];

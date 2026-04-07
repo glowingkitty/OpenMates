@@ -351,7 +351,7 @@ See docs/architecture/sync.md for the encryption model.
     .select-section {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-25);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1.25rem;
         margin-bottom: 1.5rem;
     }
@@ -417,8 +417,8 @@ See docs/architecture/sync.md for the encryption model.
         gap: 0.75rem;
         cursor: pointer;
         padding: 0.625rem 0.75rem;
-        border-radius: 8px;
-        transition: background 0.15s;
+        border-radius: var(--radius-3);
+        transition: background var(--duration-fast);
     }
 
     .option-label:hover {
@@ -478,7 +478,7 @@ See docs/architecture/sync.md for the encryption model.
         gap: 0.75rem;
         background: var(--color-info-light);
         border: 1px solid var(--color-info);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         padding: 1rem;
         margin-bottom: 1.5rem;
     }
@@ -501,7 +501,7 @@ See docs/architecture/sync.md for the encryption model.
     /* ── Progress ────────────────────────────────────────────────────────── */
     .progress-container {
         background: var(--color-grey-10);
-        border-radius: 12px;
+        border-radius: var(--radius-5);
         padding: 1.25rem;
         margin-bottom: 1.25rem;
     }
@@ -535,7 +535,7 @@ See docs/architecture/sync.md for the encryption model.
         height: 100%;
         background: var(--color-primary);
         border-radius: 0.25rem;
-        transition: width 0.3s ease;
+        transition: width var(--duration-slow) var(--easing-default);
     }
 
     .progress-message {
@@ -561,7 +561,7 @@ See docs/architecture/sync.md for the encryption model.
         padding: 1rem;
         background: var(--color-danger-light);
         border: 1px solid var(--color-danger);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         margin-bottom: 1.25rem;
     }
 
@@ -584,7 +584,7 @@ See docs/architecture/sync.md for the encryption model.
         padding: 1rem;
         background: var(--color-success-light);
         border: 1px solid var(--color-success);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         margin-bottom: 1.25rem;
     }
 
@@ -613,11 +613,11 @@ See docs/architecture/sync.md for the encryption model.
         width: 100%;
         padding: 0.875rem 1.5rem;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         font-size: var(--button-font-size);
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s, opacity 0.2s;
+        transition: background var(--duration-normal), opacity var(--duration-normal);
     }
 
     .btn-primary {
@@ -668,7 +668,7 @@ See docs/architecture/sync.md for the encryption model.
         padding: 0.75rem 1rem;
         background: var(--color-warning-bg);
         border: 1px solid var(--color-warning);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .login-notice p {

@@ -610,7 +610,7 @@ component:
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        margin-top: 40px;
+        margin-top: var(--spacing-20);
         width: 100%;
     }
 
@@ -618,8 +618,8 @@ component:
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin-top: 40px;
-        gap: 16px;
+        margin-top: var(--spacing-20);
+        gap: var(--spacing-8);
     }
 
     .up-to-date-container {
@@ -627,8 +627,8 @@ component:
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        margin-top: 16px;
+        gap: var(--spacing-4);
+        margin-top: var(--spacing-8);
     }
 
     /* Icons */
@@ -700,19 +700,19 @@ component:
     .checking-text,
     .progress-text {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
     }
 
     .error-text {
         color: #FF4444;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
     }
 
     .error-detail {
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         text-align: center;
         max-width: 300px;
         word-break: break-word;
@@ -720,7 +720,7 @@ component:
 
     .up-to-date-text {
         color: #58BC00;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin: 0;
     }
 
@@ -729,14 +729,14 @@ component:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 6px;
-        margin-top: 24px;
+        gap: var(--spacing-3);
+        margin-top: var(--spacing-12);
         padding: 0 20px;
     }
 
     .version-header-label {
         color: var(--color-grey-60);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -745,12 +745,12 @@ component:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .version-tag-link {
         color: var(--color-text);
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         text-decoration: none;
     }
@@ -762,7 +762,7 @@ component:
 
     .version-unknown {
         color: var(--color-grey-50);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     /* Update available banner */
@@ -771,13 +771,13 @@ component:
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        margin-top: 16px;
+        gap: var(--spacing-4);
+        margin-top: var(--spacing-8);
     }
 
     .update-available-text {
         color: var(--color-primary);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         margin: 0;
     }
 
@@ -786,19 +786,19 @@ component:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 6px;
-        margin-top: 12px;
+        gap: var(--spacing-3);
+        margin-top: var(--spacing-6);
         padding: 0 20px;
     }
 
     .version-value {
         color: var(--color-grey-60);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
     }
 
     .commit-link {
         color: var(--color-primary);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         font-family: monospace;
         text-decoration: none;
     }
@@ -808,18 +808,18 @@ component:
     }
 
     .commit-link.small {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
     }
 
     .commits-behind {
         color: var(--color-warning, #FFA500);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         margin: 0;
     }
 
     .commit-message {
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         text-align: center;
         margin: 4px 0 0;
         max-width: 300px;
@@ -834,14 +834,14 @@ component:
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-top: 16px;
+        margin-top: var(--spacing-8);
     }
 
     .restart-notice {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         text-align: center;
-        margin-top: 10px;
+        margin-top: var(--spacing-5);
     }
 
     .retry-button,
@@ -849,11 +849,11 @@ component:
         background: var(--color-grey-20);
         color: var(--color-text);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        padding: 8px 20px;
-        font-size: 14px;
+        border-radius: var(--radius-3);
+        padding: var(--spacing-4) var(--spacing-10);
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background var(--duration-normal);
     }
 
     .retry-button:hover,
@@ -863,7 +863,7 @@ component:
 
     /* Settings section */
     .settings-section {
-        margin-top: 32px;
+        margin-top: var(--spacing-16);
         padding: 0 16px;
     }
 
@@ -877,16 +877,16 @@ component:
 
     .setting-label {
         color: var(--color-text);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .interval-select {
         background: var(--color-grey-10);
         color: var(--color-text);
         border: 1px solid var(--color-grey-30);
-        border-radius: 6px;
-        padding: 4px 8px;
-        font-size: 13px;
+        border-radius: var(--radius-2);
+        padding: var(--spacing-2) var(--spacing-4);
+        font-size: var(--font-size-xs);
         cursor: pointer;
     }
 
@@ -901,7 +901,7 @@ component:
     .server-versions-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .server-version-row {
@@ -919,32 +919,32 @@ component:
     .server-version-info {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .server-version-name {
         color: var(--color-text);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
 
     .branch-badge {
         background: var(--color-grey-20);
         color: var(--color-grey-60);
-        font-size: 11px;
-        padding: 2px 6px;
-        border-radius: 4px;
+        font-size: var(--font-size-tiny);
+        padding: var(--spacing-1) var(--spacing-3);
+        border-radius: var(--radius-1);
         font-family: monospace;
     }
 
     .unreachable-badge {
         color: #FF4444;
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
     }
 
     /* Server status (during install) */
     .server-status-list {
-        margin-top: 16px;
+        margin-top: var(--spacing-8);
         width: 100%;
         max-width: 300px;
     }
@@ -952,7 +952,7 @@ component:
     .server-status-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         padding: 6px 0;
     }
 
@@ -965,17 +965,17 @@ component:
 
     .server-name {
         color: var(--color-text);
-        font-size: 13px;
+        font-size: var(--font-size-xs);
         flex: 1;
     }
 
     .server-status-text {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
     }
 
     .server-duration {
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         font-family: monospace;
     }
 </style>

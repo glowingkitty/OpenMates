@@ -49,8 +49,10 @@ import re
 import secrets
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -1818,7 +1820,7 @@ def _linear_start_integration(
         if _scripts_dir not in sys.path:
             sys.path.insert(0, _scripts_dir)
         from _linear_client import (
-            get_api_key, get_issue, create_issue,
+            get_api_key, get_issue,
             update_issue_status, add_label, post_comment,
         )
     except ImportError:
@@ -2017,6 +2019,15 @@ def cmd_start(args: argparse.Namespace) -> None:
     task_id_arg = getattr(args, "task_id", None)
 
     # Register session
+    #
+    # `zellij_session`: captured from $ZELLIJ_SESSION_NAME so the auto-track
+    # hook can deterministically identify which Claude Code instance fired
+    # it (each parallel instance lives in its own Zellij tab named claude1,
+    # claude2, ...). See cmd_track for the resolution logic. None when the
+    # session is started outside Zellij (CI runners, bare ssh shells), in
+    # which case auto-tracking gracefully degrades to silent no-op rather
+    # than the previous race-prone max(last_active) fallback that caused
+    # ghost ownership across unrelated sessions.
     session_record: dict = {
         "task": args.task or "(pending)",
         "mode": mode,
@@ -2027,6 +2038,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         "writing": None,
         "task_id": task_id_arg,
         "linear_issue_id": None,
+        "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
     }
     data["sessions"][sid] = session_record
 
@@ -2691,10 +2703,43 @@ def cmd_release(args: argparse.Namespace) -> None:
         _save_sessions(data)
 
 
+def _resolve_session_from_zellij(sessions: dict) -> Optional[str]:
+    """Resolve the current session id from $ZELLIJ_SESSION_NAME.
+
+    Returns:
+        The single session id whose `zellij_session` matches the env var.
+        None if the env var is unset, no session matches, or more than one
+        session matches (caller decides whether to warn or skip).
+
+    Why this exists: the auto-track and pre-edit-guard hooks have no way to
+    know *which* Claude Code instance fired them. The previous fallback
+    `max(last_active)` was racy across concurrent sessions and caused
+    permanent ghost ownership of files in unrelated sessions (chat 7929b948
+    incident, OPE-338 follow-up). Each parallel Claude Code instance lives
+    in its own Zellij tab (claude1, claude2, ...), and `ZELLIJ_SESSION_NAME`
+    is exposed to every child process — including hook scripts. We capture
+    it on `cmd_start` and look it up here. Deterministic, no races.
+    """
+    zellij = os.environ.get("ZELLIJ_SESSION_NAME")
+    if not zellij:
+        return None
+    matches = [
+        sid for sid, info in sessions.items()
+        if info.get("zellij_session") == zellij
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return None  # 0 matches (no session in this tab) or >1 (ambiguous)
+
+
 def cmd_track(args: argparse.Namespace) -> None:
     """Track one or more files as modified by this session (without write lock).
 
-    If --session is omitted, falls back to the most-recently-active session.
+    If --session is omitted, resolves identity from $ZELLIJ_SESSION_NAME via
+    `_resolve_session_from_zellij`. If no match (env unset, no session in
+    this tab, or ambiguous), exits silently — better to under-track than to
+    ghost-attach a file to the wrong session.
+
     Accepts multiple file paths: --file f1 f2 f3.
     """
     data = _load_sessions()
@@ -2702,13 +2747,27 @@ def cmd_track(args: argparse.Namespace) -> None:
     sid = args.session
 
     if not sid:
-        # Fall back to most-recently-active session
         if not sessions:
             return  # No active session — silently ignore
-        sid = max(
-            sessions.keys(),
-            key=lambda s: sessions[s].get("last_active", ""),
-        )
+        sid = _resolve_session_from_zellij(sessions)
+        if sid is None:
+            # Identity unresolved: env var unset, no matching session in this
+            # Zellij tab, or ambiguous (multiple sessions sharing one tab).
+            # Silently exit. The user can still track explicitly with
+            # `track --session <id> --file <path>` if they want to.
+            zellij = os.environ.get("ZELLIJ_SESSION_NAME") or "(unset)"
+            ambiguous = sum(
+                1 for info in sessions.values()
+                if info.get("zellij_session") == os.environ.get("ZELLIJ_SESSION_NAME")
+            )
+            if ambiguous > 1:
+                print(
+                    f"WARNING: ambiguous Zellij tab '{zellij}' has {ambiguous} "
+                    f"sessions.py sessions; refusing to auto-track. "
+                    f"Run `sessions.py end <old_id>` to disambiguate.",
+                    file=sys.stderr,
+                )
+            return
 
     if sid not in sessions:
         print(f"Error: Session {sid} not found.", file=sys.stderr)
@@ -2753,23 +2812,25 @@ def cmd_track(args: argparse.Namespace) -> None:
 
 
 def cmd_track_stdin(args: argparse.Namespace) -> None:
-    """Track a file from PostToolUse hook (reads JSON from stdin)."""
+    """Track a file from PostToolUse hook (reads JSON from stdin).
+
+    Identity resolution: prefers `--session` if given, otherwise resolves
+    via `_resolve_session_from_zellij` (matches the calling Claude Code
+    instance's $ZELLIJ_SESSION_NAME against the session record's
+    `zellij_session` field). Silent exit on no match — better to under-track
+    than to attribute the edit to the wrong session.
+    """
     data = _load_sessions()
 
-    # Find the most recently active session (hooks don't know session ID)
     sessions = data.get("sessions", {})
     if not sessions:
         return  # No active session, silently exit
 
-    # Use the session specified, or find the most recent one
     sid = args.session
     if not sid:
-        # Find most recently active session
-        latest_sid = max(
-            sessions.keys(),
-            key=lambda s: sessions[s].get("last_active", ""),
-        )
-        sid = latest_sid
+        sid = _resolve_session_from_zellij(sessions)
+        if sid is None:
+            return  # Identity unresolvable; silent exit
 
     if sid not in sessions:
         return
@@ -2798,6 +2859,94 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
         sessions[sid].setdefault("modified_files", []).append(filepath)
         sessions[sid]["last_active"] = _now_iso()
         _save_sessions(data)
+
+
+def cmd_untrack(args: argparse.Namespace) -> None:
+    """Remove file(s) from a session's modified_files list.
+
+    Two modes:
+      --file <path> [<path> ...]
+          Remove the listed paths from the named session's modified_files.
+
+      --all-ghosts
+          Sweep the named session for files that were almost certainly
+          ghost-attached by the legacy `max(last_active)` heuristic — i.e.
+          files also tracked by another session whose `zellij_session` we
+          recognize. Used as a one-time cleanup after upgrading to the
+          Zellij-aware identity resolver. Conservative: only removes paths
+          that have a clear "real owner" elsewhere.
+
+    Note: this is the opposite of `track`. The existing `release` command
+    operates on the single-file write claim (`writing` field), not on the
+    `modified_files` list — different semantics, so we use a different name.
+    """
+    data = _load_sessions()
+    sessions = data.get("sessions", {})
+    sid = args.session
+
+    if sid not in sessions:
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+
+    session = sessions[sid]
+    modified = session.get("modified_files", [])
+
+    to_remove: list[str] = []
+
+    if getattr(args, "all_ghosts", False):
+        # Build the set of "recognized" sessions: any other session that has
+        # a non-None zellij_session. Sessions started before the identity
+        # fix have zellij_session=None and are NOT considered authoritative.
+        recognized_other_files: dict[str, str] = {}
+        for other_sid, other_info in sessions.items():
+            if other_sid == sid:
+                continue
+            if not other_info.get("zellij_session"):
+                continue
+            for f in other_info.get("modified_files", []):
+                # First-write-wins: if multiple sessions own it, just pick one
+                # for the report. We only need to know SOME other session
+                # recognizes it.
+                recognized_other_files.setdefault(f, other_sid)
+        for f in list(modified):
+            owner = recognized_other_files.get(f)
+            if owner:
+                to_remove.append(f)
+                print(
+                    f"Ghost candidate: '{f}' is also tracked by session "
+                    f"{owner}; removing from {sid}."
+                )
+    else:
+        if not args.file:
+            print(
+                "Error: untrack requires --file <path> [<path> ...] or "
+                "--all-ghosts.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        # Normalise like cmd_track does, so user-supplied absolute paths and
+        # relative paths both work consistently.
+        for raw in args.file:
+            try:
+                filepath = str(Path(raw).resolve().relative_to(PROJECT_ROOT))
+            except ValueError:
+                filepath = raw
+            if filepath in modified:
+                to_remove.append(filepath)
+            else:
+                print(
+                    f"File '{filepath}' is not tracked by session {sid}; "
+                    f"nothing to remove."
+                )
+
+    if not to_remove:
+        print(f"No files removed from session {sid}.")
+        return
+
+    session["modified_files"] = [f for f in modified if f not in to_remove]
+    session["last_active"] = _now_iso()
+    _save_sessions(data)
+    print(f"Removed {len(to_remove)} file(s) from session {sid}.")
 
 
 def cmd_check_write(args: argparse.Namespace) -> None:
@@ -3213,6 +3362,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     # 1c. Test enforcement gate — warn if related specs exist but weren't run
     skip_tests_reason = getattr(args, "skip_tests_reason", None)
     _run_test_enforcement_gate(to_commit, skip_tests_reason)
+
+    # 1d. Pytest gate — hard-block on failing related pytest unit tests
+    _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
 
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
@@ -3989,6 +4141,175 @@ def _run_test_enforcement_gate(
     print("  To suppress: deploy --skip-tests \"reason\"")
     print("── END TEST GATE ──")
     print()
+
+
+# Pytest test files that must be excluded from the deploy gate — these match
+# the ignore list used by run_tests.py:run_pytest() so the deploy gate stays
+# consistent with the daily pytest suite.
+_PYTEST_GATE_IGNORE_EXACT: set[str] = {
+    "backend/tests/test_encryption_service.py",
+    "backend/tests/test_integration_encryption.py",
+}
+_PYTEST_GATE_IGNORE_PREFIX: tuple[str, ...] = (
+    "backend/tests/fixtures/",
+)
+_PYTEST_GATE_IGNORE_NAME_PREFIX: tuple[str, ...] = (
+    "test_model_comparison_",
+)
+# Hard timeout for the pytest gate — deploys should stay fast; if a targeted
+# test run exceeds this, the fix is to scope the tests better, not to wait.
+_PYTEST_GATE_TIMEOUT_SECONDS: int = 180
+
+
+def _is_backend_py(path: str) -> bool:
+    return path.startswith("backend/") and path.endswith(".py")
+
+
+def _is_pytest_gate_ignored(path: str) -> bool:
+    if path in _PYTEST_GATE_IGNORE_EXACT:
+        return True
+    if any(path.startswith(p) for p in _PYTEST_GATE_IGNORE_PREFIX):
+        return True
+    name = Path(path).name
+    return any(name.startswith(g) for g in _PYTEST_GATE_IGNORE_NAME_PREFIX)
+
+
+def _is_pytest_test_file(path: str) -> bool:
+    """True if the file is itself a pytest test module under backend/."""
+    if not _is_backend_py(path):
+        return False
+    name = Path(path).name
+    if not name.startswith("test_"):
+        return False
+    # Must live under a tests/ directory (backend/tests/ or backend/apps/*/tests/)
+    return "/tests/" in path
+
+
+def _resolve_pytest_venv() -> Path | None:
+    """Return a usable python interpreter for pytest, matching run_tests.py."""
+    candidates = [
+        PROJECT_ROOT / "backend" / ".venv" / "bin" / "python3",
+        Path("/OpenMates/.venv/bin/python3"),
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _collect_pytest_targets(files_to_commit: list[str]) -> list[str]:
+    """Return a deduplicated, filtered list of pytest test files related to
+    the backend Python files in the current commit.
+    """
+    targets: list[str] = []
+    seen: set[str] = set()
+
+    for filepath in files_to_commit:
+        if not _is_backend_py(filepath):
+            continue
+
+        candidates: list[str] = []
+
+        if _is_pytest_test_file(filepath):
+            candidates.append(filepath)
+        else:
+            result = _find_tests_for_file(filepath)
+            for unit_test in result.get("unit_tests", []):
+                if _is_backend_py(unit_test) and _is_pytest_test_file(unit_test):
+                    candidates.append(unit_test)
+
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            if _is_pytest_gate_ignored(candidate):
+                continue
+            if not (PROJECT_ROOT / candidate).is_file():
+                continue
+            seen.add(candidate)
+            targets.append(candidate)
+
+    return targets
+
+
+def _run_pytest_gate(
+    files_to_commit: list[str],
+    *,
+    skip_reason: str | None = None,
+    no_verify: bool = False,
+) -> None:
+    """Hard-block deploy if related pytest unit tests fail.
+
+    Only runs when the commit touches backend/**/*.py files. Uses the local
+    backend venv and runs only the test files related to the changed sources
+    (resolved via _find_tests_for_file). On failure, prints pytest output and
+    aborts the deploy. Honors --skip-tests "reason" and --no-verify.
+    """
+    if no_verify:
+        print("Pytest gate: SKIPPED (--no-verify)")
+        return
+    if skip_reason:
+        print(f"Pytest gate: SKIPPED ({skip_reason})")
+        return
+
+    backend_py = [f for f in files_to_commit if _is_backend_py(f)]
+    if not backend_py:
+        print("Pytest gate: SKIPPED (no backend python files changed)")
+        return
+
+    targets = _collect_pytest_targets(files_to_commit)
+    if not targets:
+        print("Pytest gate: SKIPPED (no related pytest tests found)")
+        return
+
+    venv_python = _resolve_pytest_venv()
+    if venv_python is None:
+        print("Pytest gate: SKIPPED (backend venv not found)", file=sys.stderr)
+        return
+
+    print(f"Running pytest gate ({len(targets)} test file(s))...")
+    for t in targets:
+        print(f"  • {t}")
+
+    cmd = [
+        str(venv_python), "-m", "pytest",
+        *targets,
+        "-m", "not integration and not benchmark",
+        "--tb=short", "--color=no", "-q",
+    ]
+
+    start = time.time()
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=_PYTEST_GATE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        print(
+            f"PYTEST GATE FAILED — timed out after {_PYTEST_GATE_TIMEOUT_SECONDS}s",
+            file=sys.stderr,
+        )
+        print("  Bypass with: deploy --skip-tests \"reason\"", file=sys.stderr)
+        sys.exit(1)
+
+    elapsed = time.time() - start
+
+    if result.returncode == 0:
+        print(f"Pytest gate: PASSED ({len(targets)} file(s) in {elapsed:.1f}s)")
+        return
+
+    print("PYTEST GATE FAILED — aborting deploy:", file=sys.stderr)
+    if result.stdout:
+        print(result.stdout, file=sys.stderr)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+    print(
+        "  Bypass with: deploy --skip-tests \"reason\"  (requires explicit justification)",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def cmd_check_tests(args: argparse.Namespace) -> None:
@@ -5288,7 +5609,8 @@ def main() -> None:
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
     p_track.add_argument(
-        "--session", "-s", help="Session ID (omit to use most-recently-active session)"
+        "--session", "-s",
+        help="Session ID (omit to resolve from $ZELLIJ_SESSION_NAME)",
     )
     p_track.add_argument("--file", "-f", required=True, nargs="+", help="File path(s)")
 
@@ -5297,6 +5619,26 @@ def main() -> None:
         "track-stdin", help="Track file from hook stdin"
     )
     p_track_stdin.add_argument("--session", "-s", help="Session ID")
+
+    # untrack — remove files from a session's modified_files list
+    p_untrack = sub.add_parser(
+        "untrack",
+        help="Remove file(s) from a session's modified_files list "
+             "(opposite of track; cleans up ghost ownership)",
+    )
+    p_untrack.add_argument(
+        "--session", "-s", required=True, help="Session ID to remove from"
+    )
+    p_untrack.add_argument(
+        "--file", "-f", nargs="+",
+        help="One or more file paths to untrack",
+    )
+    p_untrack.add_argument(
+        "--all-ghosts", action="store_true",
+        help="Remove every file currently in this session that is also "
+             "tracked by another session whose zellij_session is recognized "
+             "(one-time scrub for pre-fix ghost ownership)",
+    )
 
     # check-write (for PreToolUse hook)
     p_check_write = sub.add_parser(
@@ -5673,6 +6015,7 @@ def main() -> None:
         "release": cmd_release,
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
+        "untrack": cmd_untrack,
         "check-write": cmd_check_write,
         "lock": cmd_lock,
         "unlock": cmd_unlock,

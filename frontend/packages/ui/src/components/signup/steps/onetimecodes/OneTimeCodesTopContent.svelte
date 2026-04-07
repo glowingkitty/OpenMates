@@ -445,7 +445,7 @@ step_4_top_content_svelte:
     }
 
     .content {
-        padding: 24px;
+        padding: var(--spacing-12);
         height: auto;
         min-height: 0;
         display: flex;
@@ -457,14 +457,14 @@ step_4_top_content_svelte:
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .prevent-access-text {
         margin: 20px 0 20px 0;
         text-align: center;
         /* Transition all properties for smooth collapse animation */
-        transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default), max-height var(--duration-slow) var(--easing-default), margin var(--duration-slow) var(--easing-default);
         max-height: 100px; /* Enough height for the text */
         overflow: hidden;
     }
@@ -481,11 +481,11 @@ step_4_top_content_svelte:
 
     .features {
         display: flex;
-        gap: 32px;
+        gap: var(--spacing-16);
         justify-content: center;
         align-items: flex-start;
         /* Transition all properties for smooth collapse animation */
-        transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease, gap 0.3s ease;
+        transition: opacity var(--duration-slow) var(--easing-default), max-height var(--duration-slow) var(--easing-default), margin var(--duration-slow) var(--easing-default), gap var(--duration-slow) var(--easing-default);
         max-height: 200px; /* Enough height for the features */
         overflow: hidden;
     }
@@ -494,7 +494,7 @@ step_4_top_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         width: 110px;
         text-align: center;
     }
@@ -513,8 +513,8 @@ step_4_top_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
-        margin-top: 20px;
+        gap: var(--spacing-8);
+        margin-top: var(--spacing-10);
         position: relative;
         width: 100%;
     }
@@ -522,9 +522,9 @@ step_4_top_content_svelte:
     .button-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--spacing-4);
         position: relative;
-        transition: transform 0.3s ease;
+        transition: transform var(--duration-slow) var(--easing-default);
     }
 
     .button-row.move-up {
@@ -535,13 +535,13 @@ step_4_top_content_svelte:
         color: var(--color-grey-60);
         position: absolute;
         right: 100%;
-        margin-right: 8px;
+        margin-right: var(--spacing-4);
         white-space: nowrap;
     }
 
     .text-button.with-icon {
         display: flex;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .button-icon {
@@ -577,7 +577,7 @@ step_4_top_content_svelte:
         width: var(--qr-code-size);
         height: var(--qr-code-size);
         transform: translateY(calc(var(--qr-code-size) * 0.53));
-        z-index: 1;
+        z-index: var(--z-index-raised);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -608,7 +608,7 @@ step_4_top_content_svelte:
         }
 
         .action-buttons {
-            margin-top: 10px;
+            margin-top: var(--spacing-5);
         }
     }
 
@@ -623,16 +623,16 @@ step_4_top_content_svelte:
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
-        margin-top: 16px;
-        padding: 16px;
-        border-radius: 8px;
+        gap: var(--spacing-4);
+        margin-top: var(--spacing-8);
+        padding: var(--spacing-8);
+        border-radius: var(--radius-3);
         width: 100%;
         max-width: 320px;
     }
 
     .secret-code-label {
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         color: var(--color-text-secondary, #666);
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -640,15 +640,15 @@ step_4_top_content_svelte:
 
     .secret-code-input {
         width: 100%;
-        padding: 12px;
+        padding: var(--spacing-6);
         font-family: 'Courier New', Courier, monospace;
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: bold;
         letter-spacing: 1px;
         text-align: center;
         background: var(--color-grey-10);
         border: 2px dashed var(--color-grey-50, #ccc);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         color: var(--color-grey-100);
         cursor: text;
         /* Allow text selection for manual copying */
@@ -661,8 +661,8 @@ step_4_top_content_svelte:
     }
 
     .hide-secret-button {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: var(--spacing-3) var(--spacing-6);
+        font-size: var(--font-size-xxs);
         color: var(--color-text-secondary, #666);
         background: transparent;
         border: none;

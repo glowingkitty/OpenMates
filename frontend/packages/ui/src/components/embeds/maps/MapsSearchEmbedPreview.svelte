@@ -100,6 +100,7 @@
   /**
    * Handle embed data updates from UnifiedEmbedPreview
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
     console.debug(`[MapsSearchEmbedPreview] 🔄 Received embed data update for ${id}`);
     
@@ -175,14 +176,14 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="maps-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
-      <div class="search-query">{query}</div>
+      <div class="ds-search-query">{query}</div>
       
       <!-- Provider subtitle -->
-      <div class="search-provider">{viaProvider}</div>
+      <div class="ds-search-provider">{viaProvider}</div>
       
       <!-- Finished state: show results count -->
       {#if status === 'finished' && resultsCount > 0}
-        <div class="search-results-info">
+        <div class="ds-search-results-info">
           <span class="results-count">
             {resultsCount} {resultsCount === 1 ? $text('embeds.place') : $text('embeds.places')}
           </span>
@@ -200,7 +201,7 @@
   .maps-search-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-2);
     height: 100%;
   }
   
@@ -214,60 +215,33 @@
     justify-content: flex-start;
   }
   
-  /* Query text */
-  .search-query {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    /* Limit to 3 lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .maps-search-details.mobile .search-query {
-    font-size: 14px;
+  /* Base styles for .ds-search-query / .ds-search-provider / .ds-search-results-info
+     are generated from frontend/packages/ui/src/tokens/sources/components/search-results.yml
+     See docs/architecture/frontend/design-tokens.md (Phase E). */
+
+  .maps-search-details.mobile .ds-search-query {
+    font-size: var(--font-size-small);
     -webkit-line-clamp: 4;
     line-clamp: 4;
   }
-  
-  /* Provider subtitle */
-  .search-provider {
-    font-size: 14px;
-    color: var(--color-grey-70);
-    line-height: 1.3;
+
+  .maps-search-details.mobile .ds-search-provider {
+    font-size: var(--font-size-xxs);
   }
-  
-  .maps-search-details.mobile .search-provider {
-    font-size: 12px;
-  }
-  
-  /* Search results info (results count) */
-  .search-results-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-  }
-  
-  .maps-search-details.mobile .search-results-info {
-    margin-top: 2px;
+
+  .maps-search-details.mobile .ds-search-results-info {
+    margin-top: var(--spacing-1);
   }
   
   /* Results count */
   .results-count {
-    font-size: 14px;
+    font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
   .maps-search-details.mobile .results-count {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
   
   /* ===========================================

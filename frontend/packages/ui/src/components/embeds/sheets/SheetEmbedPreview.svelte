@@ -322,7 +322,7 @@
     flex-direction: column;
     gap: 3px;
     width: 100%;
-    padding: 6px;
+    padding: var(--spacing-3);
     box-sizing: border-box;
     background: var(--color-grey-0);
   }
@@ -362,7 +362,7 @@
   
   .preview-table {
     border-collapse: collapse;
-    font-size: 11px;
+    font-size: var(--font-size-tiny);
     line-height: 1.3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     /* Auto-layout: colgroup widths drive column sizing, not equal-split fixed.
@@ -375,13 +375,13 @@
   }
 
   .preview-table.large-desktop {
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
   
   .preview-table th,
   .preview-table td {
     border: 1px solid var(--color-grey-25);
-    padding: 4px 8px;
+    padding: var(--spacing-2) var(--spacing-4);
     text-align: left;
     color: var(--color-font-primary);
   }
@@ -418,7 +418,7 @@
     width: 28px;
     min-width: 28px;
     max-width: 28px;
-    padding: 4px 4px;
+    padding: var(--spacing-2) var(--spacing-2);
     text-align: center;
     white-space: nowrap;
   }
@@ -426,7 +426,7 @@
   .more-cols-header {
     background: var(--color-grey-10);
     color: var(--color-font-tertiary);
-    font-size: 9px;
+    font-size: var(--font-size-micro);
     font-weight: 600;
     letter-spacing: 0.02em;
     border-left: 2px solid var(--color-grey-30);
@@ -448,7 +448,7 @@
   
   .more-indicator {
     color: var(--color-font-tertiary);
-    font-size: 10px;
+    font-size: null;
     font-style: italic;
   }
   
@@ -465,14 +465,14 @@
   }
   
   .empty-icon {
-    font-size: 32px;
+    font-size: var(--font-size-xxxl);
     opacity: 0.5;
   }
   
   /* ── Mobile ────────────────────────────────────────── */
   
   .mobile .preview-table {
-    font-size: 10px;
+    font-size: null;
   }
   
   .mobile .preview-table th,

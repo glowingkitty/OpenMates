@@ -12,7 +12,6 @@ import uuid
 import time # Import time for performance timing
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
-import httpx
 
 from fastapi import WebSocket
 
@@ -1494,41 +1493,28 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return  # Exit early - message is queued, don't start new task
         
         # No active task - proceed with normal processing
-        # 5. Call AI app's FastAPI endpoint to execute the ask skill
-        # The AI app will handle the request and dispatch to its own Celery worker
-        ai_task_id = None   # Initialize to None
+        # 5. Dispatch the AI ask skill in-process via the SkillRegistry (OPE-342).
+        # AskSkill validates the AskSkillRequest, enqueues a Celery task on the
+        # app_ai queue, and returns {task_id, ...} immediately. The api process
+        # is the producer; app-ai-worker is the consumer.
+        ai_task_id = None
+        from backend.core.api.app.services.skill_registry import get_global_registry
 
         ai_call_start = time.time()
         try:
-            # Call the AI app's FastAPI endpoint for the ask skill
-            # BaseApp registers routes as /skills/{skill_id}, so for ask skill it's /skills/ask
-            ai_app_url = "http://app-ai:8000/skills/ask"
-            
-            # Prepare the request payload - AskSkill expects AskSkillRequest
             request_payload = ai_request_payload.model_dump()
-            
-            logger.debug(f"Calling AI app ask skill endpoint: {ai_app_url} for chat {chat_id}, message {message_id}")
-            
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    ai_app_url,
-                    json=request_payload,
-                    headers={"Content-Type": "application/json"}
-                )
-                response.raise_for_status()
-                response_data = response.json()
-                
-                # AskSkillResponse contains task_id
-                ai_task_id = response_data.get("task_id")
-                ai_call_time = time.time() - ai_call_start
-                logger.info(f"[PERF] AI app call took {ai_call_time:.3f}s, Task ID: {ai_task_id} for user_id={user_id}, chat_id={chat_id}, message_id={message_id}")
-                logger.info(f"AI app ask skill executed successfully. Task ID: {ai_task_id} for user_id={user_id}, chat_id={chat_id}, message_id={message_id}")
+            logger.debug(f"Dispatching ai.ask in-process for chat {chat_id}, message {message_id}")
 
-            # Mark this chat as having an active AI task
+            response_data = await get_global_registry().dispatch_skill("ai", "ask", request_payload)
+            ai_task_id = response_data.get("task_id") if isinstance(response_data, dict) else None
+            ai_call_time = time.time() - ai_call_start
+            logger.info(
+                f"[PERF] In-process ai.ask dispatch took {ai_call_time:.3f}s, "
+                f"Task ID: {ai_task_id} for user_id={user_id}, chat_id={chat_id}, message_id={message_id}"
+            )
+
             if ai_task_id:
                 await cache_service.set_active_ai_task(chat_id, ai_task_id)
-
-                # Send acknowledgement with task_id to the originating client
                 await manager.send_personal_message(
                     message={
                         "type": "ai_task_initiated",
@@ -1544,31 +1530,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
             else:
-                logger.warning(f"AI app returned response but no task_id found. Response: {response_data}")
+                logger.warning(f"ai.ask returned but no task_id found. Response: {response_data}")
 
-        except httpx.HTTPStatusError as e_ai_task:
-            logger.error(f"HTTP error calling AI app ask skill endpoint for chat {chat_id}: {e_ai_task.response.status_code} - {e_ai_task.response.text}", exc_info=True)
-            # Attempt to send an error message to the client
-            try:
-                await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Could not initiate AI response. Please try again."}},
-                    user_id, device_fingerprint_hash
-                )
-            except Exception as e_send_err:
-                logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
-        except httpx.RequestError as e_ai_task:
-            logger.error(f"Request error calling AI app ask skill endpoint for chat {chat_id}: {e_ai_task}", exc_info=True)
-            # Attempt to send an error message to the client
-            try:
-                await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Could not connect to AI service. Please try again."}},
-                    user_id, device_fingerprint_hash
-                )
-            except Exception as e_send_err:
-                logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
         except Exception as e_ai_task:
-            logger.error(f"Failed to call AI app ask skill endpoint for chat {chat_id}: {e_ai_task}", exc_info=True)
-            # Attempt to send an error message to the client
+            logger.error(f"Failed to dispatch ai.ask for chat {chat_id}: {e_ai_task}", exc_info=True)
             try:
                 await manager.send_personal_message(
                     {"type": "error", "payload": {"message": "Could not initiate AI response. Please try again."}},

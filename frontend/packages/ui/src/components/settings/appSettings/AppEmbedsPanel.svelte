@@ -502,7 +502,7 @@
     .embed-preview-error {
         padding: 1rem;
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
         color: var(--color-grey-100);
         font-size: 0.9rem;
@@ -526,11 +526,11 @@
         padding: 0.5rem 1rem;
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-20);
-        border-radius: 6px;
+        border-radius: var(--radius-2);
         color: var(--color-grey-100);
         font-size: 0.9rem;
         cursor: pointer;
-        transition: background 0.2s ease, border-color 0.2s ease;
+        transition: background var(--duration-normal) var(--easing-default), border-color var(--duration-normal) var(--easing-default);
     }
 
     .pagination-button:hover:not(:disabled) {

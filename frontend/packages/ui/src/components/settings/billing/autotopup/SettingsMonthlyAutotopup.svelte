@@ -450,17 +450,17 @@ Allows creating new subscriptions if user has a saved payment method
         padding: 0 10px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     /* Subscription Info */
     .subscription-info {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 12px;
+        gap: var(--spacing-6);
+        padding: var(--spacing-6);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .info-row {
@@ -471,29 +471,29 @@ Allows creating new subscriptions if user has a saved payment method
 
     .info-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .info-value {
         color: var(--color-grey-100);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--spacing-2);
     }
 
     .info-text {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         padding: 0;
         margin: 0 0 8px 0;
     }
 
     .status-badge {
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 12px;
+        padding: var(--spacing-2) var(--spacing-6);
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-xxs);
         font-weight: 600;
     }
 
@@ -532,17 +532,17 @@ Allows creating new subscriptions if user has a saved payment method
     /* Buttons */
     .button-group {
         display: flex;
-        gap: 8px;
-        margin-top: 8px;
+        gap: var(--spacing-4);
+        margin-top: var(--spacing-4);
     }
 
     .primary-button {
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: none;
         background: var(--color-primary);
         color: white;
@@ -558,12 +558,12 @@ Allows creating new subscriptions if user has a saved payment method
     }
 
     .secondary-button {
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: 1px solid var(--color-grey-30);
         background: transparent;
         color: var(--color-grey-100);
@@ -579,12 +579,12 @@ Allows creating new subscriptions if user has a saved payment method
     }
 
     .danger-button {
-        padding: 10px 16px;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-8);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-small);
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--duration-normal) var(--easing-default);
         border: none;
         background: rgba(223, 27, 65, 0.1);
         color: #df1b41;
@@ -603,15 +603,15 @@ Allows creating new subscriptions if user has a saved payment method
     .create-form {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        padding: 12px;
+        gap: var(--spacing-8);
+        padding: var(--spacing-6);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
     }
 
     .form-title {
         color: var(--color-grey-100);
-        font-size: 18px;
+        font-size: var(--font-size-h3-mobile);
         font-weight: 600;
         margin: 0 0 8px 0;
     }
@@ -619,24 +619,24 @@ Allows creating new subscriptions if user has a saved payment method
     .form-group {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--spacing-4);
     }
 
     .form-group label {
         color: var(--color-grey-100);
-        font-size: 14px;
+        font-size: var(--font-size-small);
         font-weight: 500;
     }
 
     .form-group select {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-grey-100);
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-6);
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: border-color 0.2s ease;
+        transition: border-color var(--duration-normal) var(--easing-default);
     }
 
     .form-group select:focus {
@@ -650,14 +650,14 @@ Allows creating new subscriptions if user has a saved payment method
 
     .help-text {
         color: var(--color-grey-60);
-        font-size: 12px;
+        font-size: var(--font-size-xxs);
         margin: 0;
         line-height: 1.4;
     }
 
     .help-text-small {
         color: var(--color-grey-60);
-        font-size: 11px;
+        font-size: var(--font-size-tiny);
         margin: 4px 0 0 0;
         line-height: 1.3;
     }
@@ -666,10 +666,10 @@ Allows creating new subscriptions if user has a saved payment method
     .billing-day-section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 12px;
+        gap: var(--spacing-4);
+        padding: var(--spacing-6);
         background: var(--color-grey-10);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
 
@@ -677,12 +677,12 @@ Allows creating new subscriptions if user has a saved payment method
     .billing-day-select {
         background: var(--color-grey-10);
         border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
+        border-radius: var(--radius-3);
         color: var(--color-grey-100);
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: var(--spacing-5) var(--spacing-6);
+        font-size: var(--font-size-small);
         cursor: pointer;
-        transition: border-color 0.2s ease;
+        transition: border-color var(--duration-normal) var(--easing-default);
     }
 
     .billing-day-select:focus {
@@ -698,10 +698,10 @@ Allows creating new subscriptions if user has a saved payment method
     .info-box {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 13px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-6);
+        border-radius: var(--radius-3);
+        font-size: var(--font-size-xs);
     }
 
     .info-box.warning {
@@ -725,7 +725,7 @@ Allows creating new subscriptions if user has a saved payment method
         .info-row {
             flex-direction: column;
             align-items: flex-start;
-            gap: 6px;
+            gap: var(--spacing-3);
         }
     }
 

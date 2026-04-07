@@ -156,10 +156,9 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "privacy/hide-personal-data/add-address": SettingsAddAddress,
   "privacy/hide-personal-data/add-birthday": SettingsAddBirthday,
   "privacy/hide-personal-data/add-custom": SettingsAddCustomEntry,
-  // Auto-deletion period editing — one component, three routes (category determined from path)
+  // Auto-deletion period editing — one component, two routes (category determined from path)
   "privacy/auto-deletion/chats": SettingsAutoDeletion,
   "privacy/auto-deletion/files": SettingsAutoDeletion,
-  "privacy/auto-deletion/usage_data": SettingsAutoDeletion,
   "privacy/share-debug-logs": SettingsShareDebugLogs,
   // App Store
   app_store: SettingsAppStore,

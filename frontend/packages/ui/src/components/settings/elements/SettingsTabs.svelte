@@ -249,7 +249,7 @@
         background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
         border-radius: 3.25rem;
         transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 0;
+        z-index: var(--z-index-base);
     }
 
     /* For scrollable (>4 tabs), pill uses fixed width */
@@ -275,7 +275,7 @@
         background: transparent;
         cursor: pointer;
         position: relative;
-        z-index: 1;
+        z-index: var(--z-index-raised);
         /* Smooth hover transition */
         transition: background 0.25s ease;
     }
@@ -320,12 +320,12 @@
 
     /* Hover on inactive tab: lighten icon (in sync with pill opacity) */
     .settings-tab:not(.active):hover .tab-icon {
-        background-color: #ffffff;
+        background-color: var(--color-grey-0);
     }
 
     /* Active tab icon: white */
     .tab-icon.active {
-        background-color: #ffffff;
+        background-color: var(--color-grey-0);
     }
 
     /* ── Counter badge ───────────────────────────────────────────── */
@@ -344,7 +344,7 @@
         height: 1.125rem;
         border-radius: 50%;
         background: var(--color-error, #FF553B);
-        color: #ffffff;
+        color: var(--color-grey-0);
         font-family: 'Lexend Deca Variable', sans-serif;
         font-weight: 700;
         font-size: 0.625rem;
@@ -354,6 +354,6 @@
         justify-content: center;
         line-height: 1;
         box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        z-index: var(--z-index-raised-2);
     }
 </style>

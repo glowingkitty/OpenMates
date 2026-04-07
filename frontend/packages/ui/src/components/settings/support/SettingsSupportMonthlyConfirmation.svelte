@@ -33,10 +33,10 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
 
 <!-- Success Icon and Message -->
 <div class="success-section">
-    <div class="success-icon-wrapper">
+    <div class="ds-success-icon-wrapper">
         <div class="success-icon"></div>
     </div>
-    <h2 class="success-title">{$text('settings.support.subscription_successful')}</h2>
+    <h2 class="ds-success-title">{$text('settings.support.subscription_successful')}</h2>
 </div>
 
 <!-- Amount Display -->
@@ -63,20 +63,13 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 12px;
+        gap: var(--spacing-6);
         padding: 20px 0;
     }
 
-    .success-icon-wrapper {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
+    /* Base styles for .ds-success-icon-wrapper / .ds-success-title are generated
+       from frontend/packages/ui/src/tokens/sources/components/status-feedback.yml
+       See docs/architecture/frontend/design-tokens.md (Phase E). */
 
     .success-icon {
         width: 40px;
@@ -88,41 +81,34 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
         filter: invert(1);
     }
 
-    .success-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--color-grey-100);
-        margin: 0;
-    }
-
     /* Amount Info Section */
     .amount-info {
         padding: 0 10px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--spacing-8);
     }
 
     .amount-display {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 20px;
+        gap: var(--spacing-5);
+        padding: var(--spacing-10);
         background: var(--color-grey-10);
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-5);
+        box-shadow: var(--shadow-xs);
     }
 
     .amount-value {
         color: var(--color-grey-100);
-        font-size: 28px;
+        font-size: var(--font-size-xxl);
         font-weight: 600;
     }
 
     .amount-label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: var(--font-size-small);
     }
 
     .heart-icon {
@@ -135,7 +121,7 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
     }
 
     .details-text {
-        font-size: 14px;
+        font-size: var(--font-size-small);
         color: var(--color-grey-60);
         text-align: center;
         line-height: 1.5;
@@ -146,7 +132,7 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
     /* Action Section */
     .action-section {
         padding: 0 10px;
-        margin-top: 20px;
+        margin-top: var(--spacing-10);
     }
 
     .done-button {
@@ -155,12 +141,12 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
         background: var(--color-primary);
         color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 16px;
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-p);
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all var(--duration-normal) var(--easing-default);
+        box-shadow: var(--shadow-xs);
     }
 
     .done-button:hover {
@@ -171,20 +157,20 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
 
     .done-button:active {
         transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
     }
 
     /* Responsive Styles */
     @media (max-width: 768px) {
         .amount-display {
-            padding: 16px;
+            padding: var(--spacing-8);
         }
 
         .amount-value {
-            font-size: 24px;
+            font-size: var(--font-size-h2-mobile);
         }
 
-        .success-icon-wrapper {
+        .ds-success-icon-wrapper {
             width: 70px;
             height: 70px;
         }
@@ -194,14 +180,14 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
             height: 35px;
         }
 
-        .success-title {
-            font-size: 18px;
+        .ds-success-title {
+            font-size: var(--font-size-h3-mobile);
         }
     }
 
     @media (max-width: 480px) {
         .amount-value {
-            font-size: 22px;
+            font-size: var(--font-size-xl);
         }
 
         .heart-icon {
@@ -210,8 +196,8 @@ Support Monthly Payment Confirmation - Success screen after monthly support paym
         }
 
         .done-button {
-            padding: 12px 20px;
-            font-size: 15px;
+            padding: var(--spacing-6) var(--spacing-10);
+            font-size: null;
         }
     }
 </style>
