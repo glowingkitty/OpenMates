@@ -1330,6 +1330,338 @@ class NotificationService:
             _log(f"Dry-run notify failed: {e}", "ERROR")
             return False
 
+    # ─── Discord per-test MD-style messages (OPE-349) ──────────────────────
+    #
+    # In addition to the lightweight summary embed (`_send_summary_to_discord`)
+    # we send ONE message per failed test that mirrors the structure of the
+    # per-test markdown reports in test-results/reports/failed/*.md:
+    #
+    #   • Embeds are split into "step groups" — each group is N step
+    #     checkpoints followed by 1 screenshot. The checkpoints become the
+    #     embed's `description`; the screenshot becomes the embed's `image`.
+    #     This gives a visual flow of "text → image → text → image" because
+    #     each embed renders as its own card stacked vertically in Discord.
+    #   • The final embed (red) carries the failure error message + the
+    #     test-failed-*.png Playwright wrote at exit time.
+    #   • Crucially, embeds do NOT share a `url` — that would cause Discord
+    #     to "gallery-merge" them (descriptions stack at the top, images
+    #     collapse to a grid below), defeating the interleaving.
+    #
+    # Source data lives under test-results/screenshots/current/<spec-name>/:
+    #   step-log.json     — ordered list of {type: checkpoint|screenshot, ...}
+    #   <step>.png        — inline step screenshots referenced by step-log
+    #   test-failed-*.png — final failure shots Playwright took on exit
+    #
+    # Discord limits respected:
+    #   • ≤ 10 embeds per message  → MD_DISCORD_MAX_EMBEDS = 10
+    #   • ≤ 10 attachments         → matches embed count
+    #   • ≤ 4096 chars per description (we truncate)
+    #   • ≤ 25 MB total body, 2 MB per file (DISCORD_MAX_ATTACHMENT_BYTES)
+
+    MD_DISCORD_MAX_EMBEDS = 10
+    MD_NOISE_PREFIXES = ("Captured step screenshot", "Archived prior screenshots")
+
+    @staticmethod
+    def _strip_ansi(text: str) -> str:
+        """Strip ANSI escape sequences (Playwright wraps locator names in
+        terminal colour codes that render as garbage in Discord)."""
+        return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+    def _build_md_style_test_message(
+        self,
+        test: dict,
+        suite_name: str,
+        run_id: str,
+        screenshots_root: Path,
+    ) -> tuple[list[dict], list[tuple[str, bytes, str]]]:
+        """Build the per-test embeds + multipart files for one failed test.
+
+        Returns `(embeds, files)`. Caller is responsible for posting them
+        via _post_discord_multipart.
+
+        Returns empty lists if there's nothing useful to send (no
+        screenshots and no step log) — caller can fall back to skipping
+        this test entirely.
+        """
+        name = test.get("file") or test.get("name", "unknown")
+        spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
+        spec_dir = screenshots_root / spec_name
+
+        # Try to load the step log; if absent we'll fall back to filename
+        # parsing in _build_steps_from_filenames.
+        step_log: list[dict] = []
+        step_log_path = spec_dir / "step-log.json"
+        if step_log_path.is_file():
+            try:
+                with open(step_log_path) as f:
+                    step_log = json.load(f) or []
+            except (json.JSONDecodeError, OSError):
+                step_log = []
+
+        # Resolve absolute paths for screenshot_paths (which are stored
+        # relative to RESULTS_DIR in the test dict).
+        screenshot_paths_abs: list[Path] = []
+        for ss_rel in test.get("screenshot_paths", []) or []:
+            p = RESULTS_DIR / ss_rel
+            if p.is_file():
+                screenshot_paths_abs.append(p)
+
+        # Bail out if we have neither a step log nor any screenshots.
+        if not step_log and not screenshot_paths_abs:
+            return [], []
+
+        # Group: each group = (list of checkpoint strings, optional screenshot Path).
+        groups: list[dict] = []
+        current_checkpoints: list[str] = []
+        display_num = 0
+
+        if step_log:
+            filtered = [
+                e for e in step_log
+                if not (
+                    e.get("type") == "checkpoint"
+                    and e.get("message", "").startswith(self.MD_NOISE_PREFIXES)
+                )
+            ]
+            for entry in filtered:
+                et = entry.get("type", "checkpoint")
+                msg = entry.get("message", "")
+                if et == "checkpoint":
+                    display_num += 1
+                    current_checkpoints.append(f"`{display_num:>2}.` ✅ {msg}")
+                elif et == "screenshot":
+                    screenshot_file = entry.get("screenshot", "")
+                    if screenshot_file:
+                        p = spec_dir / screenshot_file
+                        if p.is_file():
+                            groups.append({
+                                "checkpoints": current_checkpoints,
+                                "screenshot": (msg or screenshot_file, p),
+                            })
+                            current_checkpoints = []
+            if current_checkpoints:
+                groups.append({"checkpoints": current_checkpoints, "screenshot": None})
+        else:
+            # No step log — synthesize groups from non-failure screenshot
+            # filenames so the operator still gets visual context. Each
+            # screenshot becomes its own group with a single derived caption.
+            for p in screenshot_paths_abs:
+                fname = p.name.lower()
+                if fname.startswith("test-failed") or fname.startswith("test-finished"):
+                    continue  # those go in the final failure embed
+                caption = re.sub(r"^[a-z]+-?\d*-", "", p.stem).replace("-", " ")
+                display_num += 1
+                groups.append({
+                    "checkpoints": [f"`{display_num:>2}.` ✅ {caption}"],
+                    "screenshot": (caption, p),
+                })
+
+        # Mark the last checkpoint as ❌ for failed tests.
+        if test.get("status") == "failed" and groups:
+            for g in reversed(groups):
+                if g["checkpoints"]:
+                    last = g["checkpoints"][-1]
+                    g["checkpoints"][-1] = last.replace(" ✅ ", " ❌ ", 1)
+                    break
+
+        # Find any test-failed-*.png screenshots (final failure state).
+        failure_pngs = [
+            p for p in screenshot_paths_abs
+            if p.name.lower().startswith("test-failed")
+        ]
+        # Also pick them up directly from the spec dir if they're not
+        # serialized into screenshot_paths (some workflows skip the relpath).
+        if not failure_pngs and spec_dir.is_dir():
+            failure_pngs = sorted(spec_dir.glob("test-failed-*.png"))
+
+        # Trim groups to fit the per-message embed cap, reserving 1 slot for
+        # the final failure embed (if any). When there are too many groups,
+        # collapse the oldest checkpoints into a single text-only opening
+        # embed so the operator still sees the early steps.
+        failure_slot = 1 if failure_pngs else 0
+        group_budget = self.MD_DISCORD_MAX_EMBEDS - failure_slot
+        if len(groups) > group_budget:
+            keep = groups[-(group_budget - 1):]
+            dropped = groups[: -(group_budget - 1)]
+            collapsed: list[str] = []
+            for g in dropped:
+                collapsed.extend(g["checkpoints"])
+            collapsed.append(f"*…{len(dropped)} earlier step group(s) collapsed for length…*")
+            groups = [{"checkpoints": collapsed, "screenshot": None}] + keep
+
+        # Build embeds + multipart file fields.
+        embeds: list[dict] = []
+        files: list[tuple[str, bytes, str]] = []
+        status = test.get("status", "unknown")
+        # Pull a sensible error string out of the test dict (preferring the
+        # first structured Playwright error if present).
+        pw_errors = test.get("playwright_errors") or []
+        error_msg = ""
+        if pw_errors:
+            error_msg = (pw_errors[0].get("message", "") or "").strip()
+        if not error_msg:
+            error_msg = (test.get("error") or "").strip()
+        error_msg = self._strip_ansi(error_msg)
+
+        for gi, g in enumerate(groups):
+            chunks: list[str] = []
+            if gi == 0:
+                status_icon = "❌" if status == "failed" else "⚠️"
+                chunks.append(f"## {status_icon} {name} — {status.upper()}")
+                chunks.append(f"*Suite: {suite_name}   |   Run: {run_id}*")
+                chunks.append("")
+            chunks.extend(g["checkpoints"])
+            description = "\n".join(chunks)
+            if len(description) > 4000:
+                description = description[:3997] + "..."
+
+            # Last (text-side) embed gets the red colour to mark where the
+            # failure happened. Earlier embeds get amber so they read as
+            # "in progress" up until the failure point.
+            is_last_text = gi == len(groups) - 1
+            color = 0xEF4444 if is_last_text and status == "failed" else 0xFB923C
+            embed: dict = {"description": description, "color": color}
+
+            if g["screenshot"]:
+                caption, src_path = g["screenshot"]
+                try:
+                    size = src_path.stat().st_size
+                    if size <= DISCORD_MAX_ATTACHMENT_BYTES:
+                        idx = len(files)
+                        safe_name = f"step-{gi:02d}-{src_path.name}".replace("/", "-")
+                        files.append((f"files[{idx}]", src_path.read_bytes(), safe_name))
+                        embed["image"] = {"url": f"attachment://{safe_name}"}
+                except OSError:
+                    pass
+
+            embeds.append(embed)
+
+        # Final failure embed: error message + test-failed-*.png at the bottom.
+        if failure_pngs and len(embeds) < self.MD_DISCORD_MAX_EMBEDS:
+            fp = failure_pngs[0]
+            chunks = []
+            if error_msg:
+                err = error_msg if len(error_msg) <= 1500 else error_msg[:1497].rstrip() + "..."
+                err = err.replace("```", "ʼʼʼ")
+                chunks.append("**💥 Final state — error:**")
+                chunks.append("```")
+                chunks.append(err)
+                chunks.append("```")
+            else:
+                chunks.append("**💥 Final state**")
+
+            embed = {"description": "\n".join(chunks), "color": 0xEF4444}
+            try:
+                if fp.stat().st_size <= DISCORD_MAX_ATTACHMENT_BYTES:
+                    idx = len(files)
+                    safe_name = f"failure-{fp.name}"
+                    files.append((f"files[{idx}]", fp.read_bytes(), safe_name))
+                    embed["image"] = {"url": f"attachment://{safe_name}"}
+            except OSError:
+                pass
+            embeds.append(embed)
+
+        return embeds, files
+
+    def _post_discord_multipart(
+        self,
+        webhook_url: str,
+        embeds: list[dict],
+        files: list[tuple[str, bytes, str]],
+    ) -> bool:
+        """POST a multipart Discord message with retry-on-429.
+
+        Returns True on success, False otherwise. Never raises — same
+        fallback contract as the other Discord helpers. Reads the
+        `Retry-After` header on 429 and retries once after sleeping.
+        """
+        if not webhook_url or not embeds:
+            return False
+
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": embeds,
+        }
+        body, content_type = _build_multipart_body(payload, files)
+        ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
+
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    webhook_url, data=body,
+                    headers={"Content-Type": content_type, "User-Agent": ua},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    resp.read()
+                return True
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt == 0:
+                    # Discord returns Retry-After in seconds (sometimes
+                    # fractional). Sleep + retry once.
+                    retry_after_raw = e.headers.get("Retry-After", "1") if e.headers else "1"
+                    try:
+                        retry_after = float(retry_after_raw)
+                    except ValueError:
+                        retry_after = 1.0
+                    _log(f"Discord 429 — sleeping {retry_after:.1f}s and retrying", "WARN")
+                    time.sleep(min(retry_after + 0.25, 30))
+                    continue
+                err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+                _log(f"Discord per-test POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+                return False
+            except Exception as e:
+                _log(f"Discord per-test POST failed: {e}", "ERROR")
+                return False
+        return False
+
+    def send_per_test_md_messages(
+        self,
+        result: RunResult,
+        webhook_url: str,
+        suite_name: str,
+        screenshots_root: Path,
+        env_var_name: str,
+    ) -> int:
+        """Send one MD-style multi-embed message per failed test.
+
+        Returns the number of messages successfully posted. Skips tests
+        that have no screenshots / no step log (their info is already in
+        the lightweight summary embed sent separately).
+
+        Caller orchestration: call _send_summary_to_discord first (the
+        overview), then this method (the per-test detail).
+        """
+        if not webhook_url:
+            _log(f"{env_var_name} not set — skipping per-test Discord detail", "DEBUG")
+            return 0
+
+        suite_data = result.suites.get(suite_name, {}) or {}
+        failed_tests = [t for t in suite_data.get("tests", []) if t.get("status") == "failed"]
+        if not failed_tests:
+            return 0
+
+        sent = 0
+        for t in failed_tests:
+            embeds, files = self._build_md_style_test_message(
+                t, suite_name, result.run_id, screenshots_root,
+            )
+            if not embeds:
+                # Nothing to send for this test (no screenshots / no step log).
+                # The lightweight summary already named it as failed, so we
+                # don't bother spamming an empty card.
+                continue
+            if self._post_discord_multipart(webhook_url, embeds, files):
+                sent += 1
+                # 250 ms breather between sends to stay well under Discord's
+                # 30-msg/60-sec webhook bucket and any sub-second burst caps.
+                time.sleep(0.25)
+
+        if sent:
+            _log(f"Discord per-test detail posted ({sent}/{len(failed_tests)} failed test(s))")
+        return sent
+
     def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
         """Send via internal API as fallback."""
         url = f"{self.internal_api_url}/internal/{endpoint}"
@@ -1617,32 +1949,29 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     print("=" * 60)
     print()
 
-    # Collect the last screenshot from each failed spec (usually the
-    # failure-state shot Playwright captures right before the test exits).
-    # BatchRunner has already persisted them to test-results/screenshots/current/.
-    screenshots: list[Path] = []
-    for t in result.suites.get("playwright", {}).get("tests", []):
-        if t.get("status") != "failed":
-            continue
-        for ss_rel in (t.get("screenshot_paths") or [])[-1:]:
-            full = RESULTS_DIR / ss_rel
-            if full.is_file():
-                screenshots.append(full)
-        if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
-            break
-
     # Decide whether to ping Discord. On forced runs we always post (so the
     # operator gets confirmation). Otherwise: post on failure, plus one daily
     # heartbeat for green runs.
     post_on_success = force or _heartbeat_should_fire(HOURLY_DEV_DIR)
+
+    # Send the lightweight summary embed first (one message: overview of
+    # which specs failed + clickable [logs] links), then one MD-style detail
+    # message per failed test (chunked text + inline screenshots).
     notification._send_summary_to_discord(
         result,
         webhook_url=notification.discord_webhook_dev_smoke,
         mode_label="dev hourly",
         post_on_success=post_on_success,
         env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
-        screenshots=screenshots,
     )
+    if s["failed"] > 0:
+        notification.send_per_test_md_messages(
+            result,
+            webhook_url=notification.discord_webhook_dev_smoke,
+            suite_name="playwright",
+            screenshots_root=RESULTS_DIR / "screenshots" / "current",
+            env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+        )
 
     return 1 if s["failed"] > 0 else 0
 
@@ -1652,10 +1981,11 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
 # of truth for per-spec status. Step `conclusion` is unreliable here because
 # every step uses `continue-on-error: true && exit 0`, so all step
 # conclusions are `success` even when the underlying spec failed.
-PROD_SMOKE_SPECS: list[tuple[str, str]] = [
-    ("reachability", "reachability spec"),
-    ("signup", "signup + gift card + chat spec"),
-    ("login", "login + chat spec"),
+PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
+    # (key, human-readable label, spec filename)
+    ("reachability", "reachability spec", "prod-smoke-reachability.spec.ts"),
+    ("signup", "signup + gift card + chat spec", "prod-smoke-signup-giftcard-chat.spec.ts"),
+    ("login", "login + chat spec", "prod-smoke-login-chat.spec.ts"),
 ]
 
 
@@ -1697,10 +2027,12 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
         return []
 
     out: list[dict] = []
-    for spec_key, spec_label in PROD_SMOKE_SPECS:
+    for spec_key, spec_label, spec_filename in PROD_SMOKE_SPECS:
         json_path = base / f"{spec_key}.json"
         if not json_path.is_file() or json_path.stat().st_size == 0:
             out.append({
+                "key": spec_key,
+                "filename": spec_filename,
                 "name": spec_label,
                 "status": "failed",
                 "error": "",  # caller will substitute the job log snippet
@@ -1733,6 +2065,8 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
 
         if not isinstance(data, dict):
             out.append({
+                "key": spec_key,
+                "filename": spec_filename,
                 "name": spec_label, "status": "failed",
                 "error": (raw.strip().splitlines()[-1][:300] if raw.strip() else ""),
                 "passed": 0, "failed": 1,
@@ -1765,6 +2099,8 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
 
         status = "passed" if unexpected == 0 and expected > 0 else "failed"
         out.append({
+            "key": spec_key,
+            "filename": spec_filename,
             "name": spec_label,
             "status": status,
             "error": first_error,
@@ -1869,7 +2205,10 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                     "name": sr["name"],
                     "status": sr["status"],
                     "duration_seconds": 0,
-                    "file": "prod-smoke.yml",
+                    # Use the per-spec filename so the per-test detail
+                    # sender can derive a screenshot directory name from it
+                    # (it strips .spec.ts and looks under <root>/<base>/).
+                    "file": sr.get("filename", "prod-smoke.yml"),
                     "run_id": new_run_id,
                 }
                 if sr["status"] == "failed":
@@ -1926,20 +2265,40 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     print("=" * 60)
     print()
 
-    # Pull screenshots from the already-downloaded artifact (best effort).
-    # The artifact contains both the test-results/*.json playwright reports
-    # AND any failure screenshots the spec wrote to the workspace.
-    screenshots: list[Path] = []
-    if art_path and s["failed"] > 0:
-        for png in sorted(art_path.rglob("*.png")):
-            if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
-                break
-            screenshots.append(png)
-        if not screenshots:
-            for img in sorted(art_path.rglob("*.webp")):
-                if len(screenshots) >= DISCORD_MAX_ATTACHMENTS:
-                    break
-                screenshots.append(img)
+    # Stage any failure screenshots from the artifact under a temporary
+    # per-spec screenshots root that matches the layout the MD-style sender
+    # expects: <root>/<spec-base-name>/test-failed-1.png. Playwright stores
+    # failure shots under frontend/apps/web_app/test-results/<test-id>/, so
+    # we walk those, group by which spec key appears in the path, and copy
+    # them into the per-spec subdir using the spec filename's base.
+    staged_root: Optional[Path] = None
+    if art_path and spec_results:
+        staged_root = Path(tempfile.mkdtemp(prefix="prod-smoke-staged-"))
+        for sr in spec_results:
+            if sr.get("status") != "failed":
+                continue
+            spec_key = sr.get("key", "")
+            spec_filename = sr.get("filename", "")
+            if not spec_key or not spec_filename:
+                continue
+            spec_base = spec_filename.replace(".spec.ts", "")
+            spec_subdir = staged_root / spec_base
+            spec_subdir.mkdir(parents=True, exist_ok=True)
+            # Walk the artifact for any PNG/webp whose path mentions the
+            # spec key (case-insensitive). Test-failed shots get a stable
+            # name; other PNGs preserve theirs.
+            for img in sorted(list(art_path.rglob("*.png")) + list(art_path.rglob("*.webp"))):
+                try:
+                    rel_str = str(img.relative_to(art_path)).lower()
+                except ValueError:
+                    rel_str = str(img).lower()
+                if spec_key not in rel_str:
+                    continue
+                dest = spec_subdir / img.name
+                try:
+                    shutil.copy2(str(img), str(dest))
+                except OSError:
+                    continue
 
     run_url = (
         f"https://github.com/{GH_REPO}/actions/runs/{new_run_id}"
@@ -1949,6 +2308,8 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
 
     post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
     try:
+        # Lightweight summary first (overview of which specs failed +
+        # clickable links).
         notification._send_summary_to_discord(
             result,
             webhook_url=notification.discord_webhook_prod_smoke,
@@ -1956,11 +2317,21 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             post_on_success=post_on_success,
             env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
             run_url=run_url,
-            screenshots=screenshots,
         )
+        # Then per-spec MD-style detail messages with inline screenshots.
+        if s["failed"] > 0 and staged_root is not None:
+            notification.send_per_test_md_messages(
+                result,
+                webhook_url=notification.discord_webhook_prod_smoke,
+                suite_name="prod-smoke",
+                screenshots_root=staged_root,
+                env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+            )
     finally:
         if artifact_dir:
             shutil.rmtree(artifact_dir, ignore_errors=True)
+        if staged_root:
+            shutil.rmtree(staged_root, ignore_errors=True)
 
     return 1 if s["failed"] > 0 else 0
 
