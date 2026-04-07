@@ -8598,7 +8598,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            await chatDB.saveMessage(updatedMessage);
+                            // $state.snapshot() converts the Svelte proxy to a plain object —
+                            // IndexedDB structured clone cannot serialize $state proxies (DataCloneError).
+                            await chatDB.saveMessage($state.snapshot(updatedMessage) as ChatMessageModel);
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
                         }
