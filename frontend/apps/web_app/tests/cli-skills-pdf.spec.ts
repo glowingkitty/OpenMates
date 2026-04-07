@@ -251,7 +251,9 @@ test.describe('CLI PDF Skills', () => {
 				if (attempt < 3) await page.waitForTimeout(31000);
 			}
 		}
-		await page.waitForURL(/chat/, { timeout: 20000 });
+		// Wait for the authenticated DOM signal instead of a URL pattern —
+		// post-login URLs no longer reliably contain `/chat/`. (OPE-354)
+		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 		logCheckpoint('Web app logged in.');
 
 		// -----------------------------------------------------------------------
@@ -291,7 +293,7 @@ test.describe('CLI PDF Skills', () => {
 		logCheckpoint('Step 3: Opening new chat and attaching PDF...');
 		// Navigate back to main chat view
 		await page.goto('/');
-		await page.waitForURL(/chat/, { timeout: 15000 });
+		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 15000 });
 		await page.waitForTimeout(2000);
 
 		// Open a new chat
