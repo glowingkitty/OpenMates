@@ -833,6 +833,12 @@ async def _async_process_ai_skill_ask_task(
                     if _test_marker[0] == "record":
                         from backend.apps.ai.testing.fixture_recorder import FixtureRecorder
                         _fixture_recorder = FixtureRecorder(_test_marker[1], request_data)
+                        # Bind the recorder to the current async context so main_processor's
+                        # _publish_skill_status can capture skill_execution events without
+                        # needing the recorder plumbed through the whole call chain.
+                        # See backend/apps/ai/testing/mock_replay.py for the ContextVar.
+                        from backend.apps.ai.testing.mock_replay import set_active_fixture_recorder
+                        set_active_fixture_recorder(_fixture_recorder)
 
     # Detect <<<TEST_LIVE_MOCK:group_id>>> or <<<TEST_LIVE_RECORD:group_id>>> markers.
     # Unlike TEST_MOCK (which skips the pipeline entirely), live mock runs the FULL

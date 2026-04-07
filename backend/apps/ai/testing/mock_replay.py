@@ -11,6 +11,7 @@
 # Architecture context: See docs/contributing/guides/testing.md ("E2E Mock/Replay System")
 
 import asyncio
+import contextvars
 import json
 import logging
 import os
@@ -26,6 +27,34 @@ logger = logging.getLogger(__name__)
 
 # Directory where fixture JSON files are stored
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+# ContextVar that holds the active FixtureRecorder while a TEST_RECORD task runs.
+#
+# Why a ContextVar:
+#   `ask_skill_task._async_process_ai_skill_ask_task` owns the per-task recorder
+#   instance as a local variable, but `main_processor._publish_skill_status` (in
+#   a different module) is the single choke point for every skill_execution_status
+#   event we need to capture. Threading the recorder through ~9 deep call sites
+#   would be invasive; a ContextVar scopes the recorder to the current async task
+#   without any plumbing and is safe under Celery prefork (each task runs in its
+#   own process-local context copy).
+#
+# Use `set_active_fixture_recorder(recorder)` in ask_skill_task after constructing
+# the recorder, and `get_active_fixture_recorder()` inside main_processor to
+# append skill events to the fixture as they are published.
+_active_fixture_recorder: contextvars.ContextVar[Optional[Any]] = contextvars.ContextVar(
+    "_active_fixture_recorder", default=None
+)
+
+
+def set_active_fixture_recorder(recorder: Optional[Any]) -> None:
+    """Bind the given FixtureRecorder to the current async context for skill capture."""
+    _active_fixture_recorder.set(recorder)
+
+
+def get_active_fixture_recorder() -> Optional[Any]:
+    """Return the FixtureRecorder bound to the current async context (or None)."""
+    return _active_fixture_recorder.get()
 
 # Regex to detect mock/record markers in message text.
 # Formats:
