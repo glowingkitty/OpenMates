@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
         working-directory: frontend
+      - name: Build openmates CLI (required by cli-skills-* specs)
+        run: pnpm --filter openmates build
+        working-directory: frontend
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app

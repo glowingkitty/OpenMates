@@ -93,6 +93,12 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 function spawnCliLogin(apiUrl: string) {
+	if (!fs.existsSync(CLI_DIST)) {
+		throw new Error(
+			`CLI binary not found at ${CLI_DIST}. ` +
+				`Run 'pnpm --filter openmates build' (CI does this in the 'Build openmates CLI' workflow step).`
+		);
+	}
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const child = spawn('node', [CLI_DIST, 'login'], {
 		env: {
@@ -106,6 +112,11 @@ function spawnCliLogin(apiUrl: string) {
 
 	const stdout: string[] = [];
 	const stderr: string[] = [];
+	let spawnError: Error | null = null;
+	child.on('error', (err: Error) => {
+		spawnError = err;
+		consoleLogs.push(`[CLI spawn-error] ${err.message}`);
+	});
 	child.stdout.on('data', (d: Buffer) => {
 		const l = d.toString();
 		stdout.push(l);
@@ -124,10 +135,20 @@ function spawnCliLogin(apiUrl: string) {
 		waitForToken(): Promise<string> {
 			return new Promise((resolve, reject) => {
 				const timeout = setTimeout(
-					() => reject(new Error(`No pair token in 15s. stdout: ${stdout.join('')}`)),
+					() =>
+						reject(
+							new Error(
+								`No pair token in 15s. spawnError=${spawnError?.message ?? 'none'} stdout=${stdout.join('')} stderr=${stderr.join('')}`
+							)
+						),
 					15_000
 				);
 				const check = () => {
+					if (spawnError) {
+						clearTimeout(timeout);
+						reject(new Error(`CLI spawn failed: ${spawnError.message}`));
+						return;
+					}
 					const m = stdout.join('').match(/pair=([A-Z0-9]{6})/);
 					if (m) {
 						clearTimeout(timeout);
