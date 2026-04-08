@@ -46,7 +46,7 @@ export {};
  *   docker exec api python /app/backend/scripts/trigger_daily_inspiration.py <email> --reset-first-run
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];

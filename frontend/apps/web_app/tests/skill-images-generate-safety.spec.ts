@@ -17,7 +17,7 @@
  */
 export {};
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');

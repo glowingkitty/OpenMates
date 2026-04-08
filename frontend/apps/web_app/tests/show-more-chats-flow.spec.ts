@@ -31,7 +31,7 @@ export {};
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { getTestAccount } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');

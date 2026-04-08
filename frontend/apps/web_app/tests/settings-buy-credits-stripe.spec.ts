@@ -43,7 +43,7 @@ export {};
  * - Test account env vars are not set.
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,

@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-
+import { expect, test } from './helpers/cookie-audit';
 /**
  * Tests for the /dev/preview/ component preview system.
  * Runs against the deployed dev instance (app.dev.openmates.org).

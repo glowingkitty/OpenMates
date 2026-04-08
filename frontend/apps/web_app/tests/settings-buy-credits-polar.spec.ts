@@ -47,7 +47,7 @@ export {};
  * - Polar is not configured in Vault on this environment.
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,

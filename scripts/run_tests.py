@@ -941,7 +941,13 @@ class BatchRunner:
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
         """Copy screenshots, traces, and reports from a test's artifacts to
-        test-results/screenshots/current/{spec-name}/ for MD report generation."""
+        test-results/screenshots/current/{spec-name}/ for MD report generation.
+
+        Also copies any storage-audit JSON files from the spec's
+        test-results/storage-audits/ subdirectory into the canonical
+        repo-level test-results/storage-audits/ directory so that
+        scripts/merge_storage_audits.py can aggregate them after the run.
+        """
         spec_name = spec.replace(".spec.ts", "")
         dest = RESULTS_DIR / "screenshots" / "current" / spec_name
         dest.mkdir(parents=True, exist_ok=True)
@@ -954,6 +960,23 @@ class BatchRunner:
                     copied += 1
         if copied:
             _log(f"    Saved {copied} artifact(s) to test-results/screenshots/current/{spec_name}/")
+
+        # Storage audit snapshots — written by tests/helpers/cookie-audit.ts
+        # into frontend/apps/web_app/test-results/storage-audits/. The full
+        # artifact tree is uploaded by playwright-spec.yml so we walk it for
+        # any storage-audits/*.json files and copy them to the repo-level dir.
+        audit_dest = RESULTS_DIR / "storage-audits"
+        audit_dest.mkdir(parents=True, exist_ok=True)
+        audit_copied = 0
+        for root, _dirs, files in os.walk(art_path):
+            if Path(root).name != "storage-audits":
+                continue
+            for fname in files:
+                if fname.endswith(".json"):
+                    shutil.copy2(Path(root) / fname, audit_dest / fname)
+                    audit_copied += 1
+        if audit_copied:
+            _log(f"    Saved {audit_copied} storage-audit snapshot(s) to test-results/storage-audits/")
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -3750,7 +3773,39 @@ class TestOrchestrator:
             fail_fast=self.fail_fast,
             use_mocks=self.use_mocks,
         )
-        return runner.run_all_batches()
+        result = runner.run_all_batches()
+
+        # Aggregate storage-audit snapshots from this run into cookies.yml.
+        # Skipped for single-spec runs (--spec) since coverage is intentionally
+        # narrow and would prune entries from other flows. The merger never
+        # clobbers human-maintained fields (purpose / consent_exempt / etc).
+        if not self.spec:
+            self._merge_cookie_audits()
+
+        return result
+
+    @staticmethod
+    def _merge_cookie_audits() -> None:
+        """Run scripts/merge_storage_audits.py to update cookies.yml."""
+        merger = PROJECT_ROOT / "scripts" / "merge_storage_audits.py"
+        if not merger.is_file():
+            return
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(merger)],
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            # Merger writes its summary to stderr.
+            if proc.stderr:
+                for line in proc.stderr.rstrip().splitlines():
+                    _log(line)
+            if proc.returncode != 0:
+                _log(f"merge_storage_audits exited {proc.returncode}", "WARN")
+        except Exception as e:
+            _log(f"merge_storage_audits failed to run: {e}", "WARN")
 
     # Specs excluded from daily / all-spec runs.
     # These are utility specs (e.g. account provisioning) that should only be

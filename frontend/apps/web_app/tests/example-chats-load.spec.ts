@@ -19,7 +19,7 @@
  * No credentials required — this tests the non-authenticated flow.
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 test.describe('Example chats loading for new users', () => {

@@ -14,8 +14,7 @@ noise.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('../helpers/cookie-audit');
 // These specs are designed to run against live production. A misconfigured
 // PLAYWRIGHT_TEST_BASE_URL (pointing at dev) would mask prod outages — fail
 // loudly on obvious misroutes.

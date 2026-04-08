@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
+import { expect, test } from './helpers/cookie-audit';
+import type { Page } from '@playwright/test';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 

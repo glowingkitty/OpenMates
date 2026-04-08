@@ -19,8 +19,7 @@
  */
 export {};
 
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 

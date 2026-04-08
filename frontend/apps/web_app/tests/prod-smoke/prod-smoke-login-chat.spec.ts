@@ -15,8 +15,7 @@ Required env vars (set by .github/workflows/prod-smoke.yml from repo secrets):
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('../helpers/cookie-audit');
 const {
 	loginToTestAccount,
 	startNewChat,

@@ -6,8 +6,7 @@ export {};
 // provides the @playwright/test module at runtime. To keep repo-wide TypeScript
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
