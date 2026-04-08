@@ -1,5 +1,5 @@
 <!--
-  Encryption Architecture - End-to-End Overview
+  Encryption Architecture - Client-side Encryption Overview
 
   The single entry point for understanding how client-side encryption works
   in OpenMates after the Phase 1-4 rebuild. Covers module boundaries, data
@@ -7,18 +7,25 @@
   sync handler architecture, and WebSocket key delivery.
 
   Created: 2026-03-26 (Phase 5, Plan 03 -- ARCH-05)
+  Terminology note: we describe this as "client-side encryption with
+  in-memory-only server processing", NOT "end-to-end encryption" or
+  "zero-knowledge". The server decrypts user content transiently in RAM
+  to run AI responses, render invoices, and deliver reminders — it just
+  never writes the plaintext to disk, logs, or traces. See
+  docs/architecture/compliance/gdpr-audit.md §3 for the full honest posture.
   Related: encryption-code-inventory.md, encryption-formats.md,
            master-key-lifecycle.md, encryption-root-causes.md
 -->
 
 # Encryption Architecture
 
-End-to-end encryption architecture for OpenMates after the Phase 1-4 rebuild.
-All chat content is encrypted client-side before syncing to the server.
+Client-side encryption architecture for OpenMates after the Phase 1-4 rebuild.
+All chat content is encrypted in the browser before syncing to the server, and
+is stored on the server only as ciphertext.
 
 ## Overview
 
-OpenMates encrypts all chat content on the user's device before it leaves the browser. The server stores only ciphertext and never sees plaintext message content. This is not multi-party end-to-end encryption (like Signal) -- it is single-user encryption where the user protects their own data from the server operator. The threat model assumes a compromised or untrusted server: even with full database access, an attacker cannot read chat content without the user's credential.
+OpenMates encrypts all chat content on the user's device before it leaves the browser. The server stores only ciphertext on disk, in Redis caches, and in S3 backups. **This is not end-to-end encryption:** when the server needs to run an AI response, render an invoice, or deliver a reminder, it decrypts the relevant content transiently in memory, uses the plaintext, and discards the reference — nothing is ever written to disk, logs, or traces. The server *can* decrypt user content on behalf of the user; it just never persists the plaintext. The threat model assumes a compromised database, compromised backups, or a compromised cache tier: an attacker with only at-rest access cannot read chat content without the user's encryption key.
 
 The cryptographic primitives are **AES-256-GCM** (via the Web Crypto API) for all symmetric encryption, and **PBKDF2-SHA256** / **HKDF-SHA256** for key derivation. Key wrapping for cross-device distribution uses NaCl-style patterns via the `tweetnacl` library for specific operations, though the core encrypt/decrypt path is pure Web Crypto. The rebuild (Phases 1-4) did not change any cryptographic algorithms -- it reorganized the code into well-separated modules with clear ownership and eliminated race conditions that caused recurring "content decryption failed" errors.
 
@@ -99,7 +106,7 @@ sequenceDiagram
     ME->>ME: Generate IV, prepend OM header + fingerprint
     ME-->>User: base64 ciphertext
     User->>WS: Send ciphertext via sendersChatMessages
-    WS->>Server: Store ciphertext (server never sees plaintext)
+    WS->>Server: Store ciphertext (plaintext never written to disk)
 
     Note over User,UI2: Receiving on another device
     Server->>WS2: Relay ciphertext via WebSocket sync

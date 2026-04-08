@@ -51,7 +51,7 @@ Share links use zero-knowledge encryption. The decryption key is embedded in the
 - Optional password protection adds a second layer -- the recipient must know both the URL and the password.
 - Expiration is enforced server-side by deleting the encrypted blob after the specified duration.
 
-See [shareEncryption.ts](../../frontend/packages/openmates-cli/src/shareEncryption.ts) for the encryption implementation and [zero-knowledge-storage.md](../architecture/core/zero-knowledge-storage.md) for the architecture.
+See [shareEncryption.ts](../../frontend/packages/openmates-cli/src/shareEncryption.ts) for the encryption implementation and [client-side-encryption.md](../architecture/core/client-side-encryption.md) for the broader architecture.
 
 ## Mentions
 
@@ -101,7 +101,7 @@ openmates chats new "@best review @/home/user/project/.env"
 ```
 
 Security rules for file mentions:
-- Sensitive files (`.env`) use zero-knowledge mode -- only variable names and the last 3 characters of values are sent.
+- Sensitive files (`.env`) are scrubbed locally before upload -- only variable names and the last 3 characters of values are sent.
 - Private keys (`.pem`, `.key`, SSH keys) are blocked by default.
 
 ## Key Files
@@ -117,5 +117,5 @@ Security rules for file mentions:
 
 - [README](./README.md) -- CLI overview
 - [Chat Commands](./chats.md) -- using mentions in chat, share command
-- [Zero-Knowledge Storage](../architecture/core/zero-knowledge-storage.md) -- encryption architecture
+- [Client-Side Encryption](../architecture/core/client-side-encryption.md) -- encryption architecture
 - [CLI Standards](../contributing/standards/cli.md) -- Rule 5 on embed key resolution strategies

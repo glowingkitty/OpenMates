@@ -115,7 +115,7 @@ message:
     ## 💻 CLI, pip & npm packages - a usability-focused approach
 
 
-    The soon-to-be-released CLI and pip & npm packages will allow you full access to your OpenMates account from anywhere. While ensuring zero-knowledge encryption and you staying in control. Access all your chats and App skills from your terminal.
+    The soon-to-be-released CLI and pip & npm packages will allow you full access to your OpenMates account from anywhere. While ensuring client-side encryption of your content and you staying in control. Access all your chats and App skills from your terminal.
 
     Or task OpenMates with building or debugging a software project on your VM / dev server, but with the convenience of managing that task in your web browser instead of from a terminal.
 
@@ -123,7 +123,7 @@ message:
     ## 🔒 Privacy & encryption
 
 
-    OpenMates never trains any models on any of your data. And all your chats, project details and other app settings & memories are zero-knowledge encrypted & decrypted on your device. When you make a request, only the minimum amount of data needed to fulfill your request is processed on the server and never stored on disk in a way that the server or hackers could decrypt the chats or your App settings & memories.
+    OpenMates never trains any models on any of your data. All your chats, project details and other app settings & memories are encrypted in your browser with a key derived from your login credential, and are stored on our servers only as ciphertext. When you make a request, our servers decrypt the minimum amount of data needed to fulfill it in memory, use it, and discard the plaintext — nothing is ever written to disk, logs, or traces. Before your prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is **not** end-to-end encryption (our servers can decrypt your content transiently to serve you), but when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
 
 
     ## 🛡️ Open source as enshittification protection

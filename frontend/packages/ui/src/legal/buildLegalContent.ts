@@ -56,7 +56,24 @@ export interface LegalContentOptions {
 }
 
 /**
- * Build Privacy Policy content from translation keys
+ * Build Privacy Policy content from translation keys.
+ *
+ * The structure mirrors shared/docs/privacy_policy.yml. Providers are grouped
+ * by WHEN they are used (Group A-J), so a user can tell at a glance which
+ * third parties they opt into by using a specific feature.
+ *
+ * Honest encryption posture: the server processes user content in memory
+ * (for AI responses, invoices, reminders) but never writes plaintext to
+ * disk. This is NOT end-to-end encryption. The i18n strings below use
+ * "client-side encryption" and "in-memory-only processing" language
+ * accordingly — do not reintroduce E2EE / zero-knowledge claims.
+ *
+ * When adding a new provider:
+ *   1. Add it to shared/docs/privacy_policy.yml under the correct group
+ *   2. Add its i18n keys to frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+ *   3. Add its URL to privacyPolicyLinks in config/links.ts
+ *   4. Render it in the matching renderGroup* helper below
+ *   5. Bump `lastUpdated` in legal/documents/privacy-policy.ts
  *
  * @param t - Translation function from svelte-i18n
  * @param options - Options including lastUpdated date and locale for formatting
@@ -67,12 +84,25 @@ export function buildPrivacyPolicyContent(
 ): string {
   const lines: string[] = [];
 
-  // Title
+  // ──────────────────────────────────────────────────────────────
+  // Helper: render a provider entry with a heading and privacy link
+  // ──────────────────────────────────────────────────────────────
+  const providerLinkLabel = t("legal.privacy.provider_link_label");
+  const renderProvider = (keyBase: string, url: string) => {
+    lines.push(`### ${t(`${keyBase}.heading`)}`);
+    lines.push("");
+    lines.push(t(`${keyBase}.description`));
+    lines.push("");
+    lines.push(`${providerLinkLabel}: ${url}`);
+    lines.push("");
+  };
+
+  // ──────────────────────────────────────────────────────────────
+  // Title + last updated
+  // ──────────────────────────────────────────────────────────────
   lines.push(`# ${t("legal.privacy.title")}`);
   lines.push("");
 
-  // Last updated - format date using Intl.DateTimeFormat for the user's locale
-  // The date comes from TypeScript metadata (single source of truth)
   const formattedDate = formatDateForLocale(
     options.lastUpdated,
     options.locale,
@@ -80,214 +110,42 @@ export function buildPrivacyPolicyContent(
   lines.push(`*${t("legal.privacy.last_updated")}: ${formattedDate}*`);
   lines.push("");
 
-  // Section 1: Data Protection Overview
-  lines.push(`## ${t("legal.privacy.data_protection.heading")}`);
+  // ──────────────────────────────────────────────────────────────
+  // Section 1 — Overview
+  // ──────────────────────────────────────────────────────────────
+  lines.push(`## ${t("legal.privacy.overview.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.data_protection.overview"));
+  lines.push(t("legal.privacy.overview.summary"));
   lines.push("");
-  lines.push(t("legal.privacy.data_protection.website_vs_webapp"));
-  lines.push("");
-
-  // Section 2: Vercel
-  lines.push(`## ${t("legal.privacy.vercel.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.vercel.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.vercel.privacy_policy_link")}: ${privacyPolicyLinks.vercel}`,
-  );
+  lines.push(t("legal.privacy.overview.website_vs_webapp"));
   lines.push("");
 
-  // Section 3: Web Application Services
-  lines.push(`## ${t("legal.privacy.webapp_services.heading")}`);
+  // ──────────────────────────────────────────────────────────────
+  // Section 2 — How we protect your data (six technical measures)
+  // ──────────────────────────────────────────────────────────────
+  lines.push(`## ${t("legal.privacy.protection.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.webapp_services.intro"));
-  lines.push("");
-
-  // Section 3.1: Hetzner
-  lines.push(`### ${t("legal.privacy.hetzner.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.hetzner.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.hetzner.privacy_policy_link")}: ${privacyPolicyLinks.hetzner}`,
-  );
+  lines.push(t("legal.privacy.protection.intro"));
   lines.push("");
 
-  // Section 3.2: IP-API
-  lines.push(`### ${t("legal.privacy.ip_api.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.ip_api.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.ip_api.privacy_policy_link")}: ${privacyPolicyLinks.ipApi}`,
-  );
-  lines.push("");
+  const protectionMeasures = [
+    "client_side_encryption",
+    "pii_placeholder_substitution",
+    "encrypted_at_rest",
+    "hashed_identifiers",
+    "cryptographic_erasure",
+    "observability_without_tracking",
+  ];
+  for (const measure of protectionMeasures) {
+    lines.push(`### ${t(`legal.privacy.protection.${measure}.heading`)}`);
+    lines.push("");
+    lines.push(t(`legal.privacy.protection.${measure}.description`));
+    lines.push("");
+  }
 
-  // Section 3.3: Brevo
-  lines.push(`### ${t("legal.privacy.brevo.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.brevo.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.brevo.privacy_policy_link")}: ${privacyPolicyLinks.brevo}`,
-  );
-  lines.push("");
-
-  // Section 3.4: Sightengine
-  lines.push(`### ${t("legal.privacy.sightengine.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.sightengine.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.sightengine.privacy_policy_link")}: ${privacyPolicyLinks.sightengine}`,
-  );
-  lines.push("");
-
-  // Section 3.5: Stripe
-  lines.push(`### ${t("legal.privacy.stripe.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.stripe.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.stripe.privacy_policy_link")}: ${privacyPolicyLinks.stripe}`,
-  );
-  lines.push("");
-
-  // Section 3.6: Mistral
-  lines.push(`### ${t("legal.privacy.mistral.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.mistral.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.mistral.privacy_policy_link")}: ${privacyPolicyLinks.mistral}`,
-  );
-  lines.push("");
-
-  // Section 3.7: AWS
-  lines.push(`### ${t("legal.privacy.aws.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.aws.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.aws.privacy_policy_link")}: ${privacyPolicyLinks.aws}`,
-  );
-  lines.push("");
-
-  // Section 3.8: OpenRouter
-  lines.push(`### ${t("legal.privacy.openrouter.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.openrouter.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.openrouter.privacy_policy_link")}: ${privacyPolicyLinks.openrouter}`,
-  );
-  lines.push("");
-
-  // Section 3.9: Cerebras
-  lines.push(`### ${t("legal.privacy.cerebras.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.cerebras.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.cerebras.privacy_policy_link")}: ${privacyPolicyLinks.cerebras}`,
-  );
-  lines.push("");
-
-  // Section 3.10: Brave Search
-  lines.push(`### ${t("legal.privacy.brave.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.brave.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.brave.privacy_policy_link")}: ${privacyPolicyLinks.brave}`,
-  );
-  lines.push("");
-
-  // Section 3.11: Webshare
-  lines.push(`### ${t("legal.privacy.webshare.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.webshare.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.webshare.privacy_policy_link")}: ${privacyPolicyLinks.webshare}`,
-  );
-  lines.push("");
-
-  // Section 3.12: Google
-  lines.push(`### ${t("legal.privacy.google.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.google.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.google.privacy_policy_link")}: ${privacyPolicyLinks.google}`,
-  );
-  lines.push("");
-
-  // Section 3.13: Firecrawl
-  lines.push(`### ${t("legal.privacy.firecrawl.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.firecrawl.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.firecrawl.privacy_policy_link")}: ${privacyPolicyLinks.firecrawl}`,
-  );
-  lines.push("");
-
-  // Section 3.14: Groq
-  lines.push(`### ${t("legal.privacy.groq.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.groq.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.groq.privacy_policy_link")}: ${privacyPolicyLinks.groq}`,
-  );
-  lines.push("");
-
-  // Section 3.15: Polar
-  lines.push(`### ${t("legal.privacy.polar.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.polar.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.polar.privacy_policy_link")}: ${privacyPolicyLinks.polar}`,
-  );
-  lines.push("");
-
-  // Section 3.16: Flightradar24
-  lines.push(`### ${t("legal.privacy.flightradar24.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.flightradar24.description"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.flightradar24.privacy_policy_link")}: ${privacyPolicyLinks.flightradar24}`,
-  );
-  lines.push("");
-
-  // Section 4: Security Measures
-  lines.push(`## ${t("legal.privacy.security_measures.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.security_measures.intro"));
-  lines.push("");
-
-  lines.push(
-    `### ${t("legal.privacy.security_measures.device_fingerprinting.subheading")}`,
-  );
-  lines.push("");
-  lines.push(
-    t("legal.privacy.security_measures.device_fingerprinting.purpose"),
-  );
-  lines.push("");
-  lines.push(
-    t("legal.privacy.security_measures.device_fingerprinting.storage"),
-  );
-  lines.push("");
-  lines.push(
-    t("legal.privacy.security_measures.device_fingerprinting.ip_logging"),
-  );
-  lines.push("");
-
-  // Section 5: Data Categories
+  // ──────────────────────────────────────────────────────────────
+  // Section 3 — Data we collect
+  // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.data_categories.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.data_categories.intro"));
@@ -299,7 +157,130 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.data_categories.newsletter")}`);
   lines.push("");
 
-  // Section 6: Data Retention
+  // ──────────────────────────────────────────────────────────────
+  // Section 4 — When each provider is used (Group A-J)
+  // ──────────────────────────────────────────────────────────────
+  lines.push(`## ${t("legal.privacy.providers.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.intro"));
+  lines.push("");
+
+  // Group A — Always active
+  lines.push(`### ${t("legal.privacy.providers.always_active.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.always_active.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.always_active.vercel", privacyPolicyLinks.vercel);
+  renderProvider("legal.privacy.providers.always_active.hetzner", privacyPolicyLinks.hetzner);
+  renderProvider("legal.privacy.providers.always_active.brevo", privacyPolicyLinks.brevo);
+  renderProvider("legal.privacy.providers.always_active.ip_api", privacyPolicyLinks.ipApi);
+  renderProvider("legal.privacy.providers.always_active.sightengine", privacyPolicyLinks.sightengine);
+
+  // Group B — Payments
+  lines.push(`### ${t("legal.privacy.providers.payments.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.payments.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.payments.stripe", privacyPolicyLinks.stripe);
+  renderProvider("legal.privacy.providers.payments.polar", privacyPolicyLinks.polar);
+
+  // Group C — AI models
+  lines.push(`### ${t("legal.privacy.providers.ai_models.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.ai_models.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.ai_models.mistral", privacyPolicyLinks.mistral);
+  renderProvider("legal.privacy.providers.ai_models.aws_bedrock", privacyPolicyLinks.aws);
+  renderProvider("legal.privacy.providers.ai_models.anthropic", privacyPolicyLinks.anthropic);
+  renderProvider("legal.privacy.providers.ai_models.openai", privacyPolicyLinks.openai);
+  renderProvider("legal.privacy.providers.ai_models.openrouter", privacyPolicyLinks.openrouter);
+  renderProvider("legal.privacy.providers.ai_models.cerebras", privacyPolicyLinks.cerebras);
+  renderProvider("legal.privacy.providers.ai_models.google_gemini", privacyPolicyLinks.google);
+  renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);
+  renderProvider("legal.privacy.providers.ai_models.together", privacyPolicyLinks.together);
+  renderProvider("legal.privacy.providers.ai_models.groq", privacyPolicyLinks.groq);
+
+  // Group D — Image generation
+  lines.push(`### ${t("legal.privacy.providers.image_generation.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.image_generation.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.image_generation.fal", privacyPolicyLinks.fal);
+  renderProvider("legal.privacy.providers.image_generation.recraft", privacyPolicyLinks.recraft);
+
+  // Group E — Web, search, content
+  lines.push(`### ${t("legal.privacy.providers.web_and_search.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.web_and_search.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.web_and_search.brave", privacyPolicyLinks.brave);
+  renderProvider("legal.privacy.providers.web_and_search.firecrawl", privacyPolicyLinks.firecrawl);
+  renderProvider("legal.privacy.providers.web_and_search.webshare", privacyPolicyLinks.webshare);
+  renderProvider("legal.privacy.providers.web_and_search.google_maps", privacyPolicyLinks.googleMaps);
+
+  // Group F — Travel
+  lines.push(`### ${t("legal.privacy.providers.travel.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.travel.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.travel.serpapi", privacyPolicyLinks.serpapi);
+  renderProvider("legal.privacy.providers.travel.flightradar24", privacyPolicyLinks.flightradar24);
+
+  // Group G — Events
+  lines.push(`### ${t("legal.privacy.providers.events.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.events.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.events.meetup", privacyPolicyLinks.meetup);
+  renderProvider("legal.privacy.providers.events.luma", privacyPolicyLinks.luma);
+  renderProvider("legal.privacy.providers.events.resident_advisor", privacyPolicyLinks.residentAdvisor);
+
+  // Group H — Health
+  lines.push(`### ${t("legal.privacy.providers.health.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.health.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.health.doctolib", privacyPolicyLinks.doctolib);
+  renderProvider("legal.privacy.providers.health.jameda", privacyPolicyLinks.jameda);
+
+  // Group I — Shopping
+  lines.push(`### ${t("legal.privacy.providers.shopping.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.shopping.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.shopping.rewe", privacyPolicyLinks.rewe);
+  renderProvider("legal.privacy.providers.shopping.amazon", privacyPolicyLinks.amazon);
+
+  // Group J — Community
+  lines.push(`### ${t("legal.privacy.providers.community.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.community.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.community.discord", privacyPolicyLinks.discord);
+  lines.push(t("legal.privacy.providers.community.discord.admin_access"));
+  lines.push("");
+
+  // ──────────────────────────────────────────────────────────────
+  // Section 5 — Device fingerprinting (security measure)
+  // ──────────────────────────────────────────────────────────────
+  lines.push(`## ${t("legal.privacy.security_measures.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.security_measures.intro"));
+  lines.push("");
+  lines.push(
+    `### ${t("legal.privacy.security_measures.device_fingerprinting.subheading")}`,
+  );
+  lines.push("");
+  lines.push(t("legal.privacy.security_measures.device_fingerprinting.purpose"));
+  lines.push("");
+  lines.push(t("legal.privacy.security_measures.device_fingerprinting.storage"));
+  lines.push("");
+  lines.push(t("legal.privacy.security_measures.device_fingerprinting.ip_logging"));
+  lines.push("");
+
+  // ──────────────────────────────────────────────────────────────
+  // Section 6 — Data retention
+  // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.data_retention.heading")}`);
   lines.push("");
   lines.push(`- ${t("legal.privacy.data_retention.account")}`);
@@ -307,9 +288,35 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.data_retention.device_fingerprints")}`);
   lines.push(`- ${t("legal.privacy.data_retention.content")}`);
   lines.push(`- ${t("legal.privacy.data_retention.payments_and_invoices")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.compliance_logs")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.observability_traces")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.user_data_backups")}`);
   lines.push("");
 
-  // Section 7: Legal Basis
+  // ──────────────────────────────────────────────────────────────
+  // Section 7 — Limitations of erasure
+  // ──────────────────────────────────────────────────────────────
+  lines.push(`## ${t("legal.privacy.limitations_of_erasure.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.limitations_of_erasure.intro"));
+  lines.push("");
+  const limitationItems = [
+    "financial_records",
+    "audit_logs",
+    "third_party_ai_logs",
+    "observability_traces",
+    "user_data_backups",
+  ];
+  for (const item of limitationItems) {
+    lines.push(`### ${t(`legal.privacy.limitations_of_erasure.${item}.heading`)}`);
+    lines.push("");
+    lines.push(t(`legal.privacy.limitations_of_erasure.${item}.description`));
+    lines.push("");
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Section 8 — Legal basis
+  // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.legal_basis.heading")}`);
   lines.push("");
   lines.push(`- ${t("legal.privacy.legal_basis.contract")}`);
@@ -318,7 +325,9 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.legal_basis.legal_obligation")}`);
   lines.push("");
 
-  // Section 8: Legal Rights
+  // ──────────────────────────────────────────────────────────────
+  // Section 9 — Your rights
+  // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.legal_rights.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.legal_rights.intro"));
@@ -329,10 +338,13 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.legal_rights.gdpr.access")}`);
   lines.push(`- ${t("legal.privacy.legal_rights.gdpr.rectification")}`);
   lines.push(`- ${t("legal.privacy.legal_rights.gdpr.erasure")}`);
-  lines.push(`- ${t("legal.privacy.legal_rights.gdpr.restriction")}`);
   lines.push(`- ${t("legal.privacy.legal_rights.gdpr.portability")}`);
-  lines.push(`- ${t("legal.privacy.legal_rights.gdpr.objection")}`);
   lines.push(`- ${t("legal.privacy.legal_rights.gdpr.withdraw_consent")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.legal_rights.gdpr.manual_note"));
+  lines.push("");
+  lines.push(`- ${t("legal.privacy.legal_rights.gdpr.restriction")}`);
+  lines.push(`- ${t("legal.privacy.legal_rights.gdpr.objection")}`);
   lines.push("");
   lines.push(t("legal.privacy.legal_rights.gdpr.exercise"));
   lines.push("");
@@ -352,24 +364,13 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.legal_rights.ccpa_cpra.exercise"));
   lines.push("");
 
-  // Section 9: Discord Integration
-  lines.push(`## ${t("legal.privacy.discord_integration.heading")}`);
-  lines.push("");
-  lines.push(t("legal.privacy.discord_integration.description"));
-  lines.push("");
-  lines.push(t("legal.privacy.discord_integration.admin_access"));
-  lines.push("");
-  lines.push(
-    `${t("legal.privacy.discord_integration.privacy_policy_link")}: ${privacyPolicyLinks.discord}`,
-  );
-  lines.push("");
-
-  // Section 10: Contact
+  // ──────────────────────────────────────────────────────────────
+  // Section 10 — Contact
+  // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.contact.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.contact.questions"));
   lines.push("");
-  // Email and postal info are handled separately in the Svelte component, but we include email here
   lines.push(`${t("legal.privacy.contact.email")}: contact@openmates.org`);
   lines.push("");
   lines.push(t("legal.privacy.contact.postal"));

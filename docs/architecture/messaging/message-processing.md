@@ -13,12 +13,12 @@ key_files:
 
 # Message Processing Architecture
 
-> Three-stage pipeline (pre-processing → main → post-processing) with zero-knowledge encryption and server-side caching of last 3 chats for fast follow-ups.
+> Three-stage pipeline (pre-processing → main → post-processing) with client-side encrypted permanent storage and a short-lived server-readable cache of the last 3 chats for fast follow-ups.
 
 ## Why This Exists
 
 - Fast AI responses without re-sending full chat history every message
-- Zero-knowledge: server can't read stored messages — needs a caching strategy
+- Permanent storage is client-side encrypted — the persistence tier holds only ciphertext — so a server-readable cache is needed for AI follow-ups
 - Different messages need different LLMs — pre-processing selects optimal model
 - Growing skill count (35+ apps) requires intelligent tool filtering
 
@@ -34,7 +34,7 @@ key_files:
 - LLM calls skills → each creates/updates embeds
 - Response streamed via [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
 - Server caches assistant response via `_save_to_cache_and_publish()` in [stream_consumer.py](../../backend/apps/ai/tasks/stream_consumer.py)
-- Client encrypts response → stores in Directus (zero-knowledge permanent)
+- Client encrypts response → stores in Directus (ciphertext at rest; plaintext never written server-side)
 
 ```mermaid
 graph LR
@@ -62,7 +62,7 @@ Two caches, different encryption, different purposes:
 | **AI Inference** | `user:{id}:chat:{id}:messages:ai` | Vault (server can decrypt) | 72h | AI context for follow-ups |
 | **Sync** | `user:{id}:chat:{id}:messages:sync` | Client-encrypted | 1h | Login sync (phases 1-3) |
 
-- Why separate? AI cache needs server-readable encryption; sync cache must stay zero-knowledge. Mixing → decryption failures
+- Why separate? AI cache needs server-readable encryption (Vault-wrapped, transient in RAM); sync cache holds client-encrypted blobs the server can only relay, not read. Mixing → decryption failures
 - Implementation: [cache_chat_mixin.py](../../backend/core/api/app/services/cache_chat_mixin.py) — `add_ai_message_to_history()`, `get_ai_messages_history()`, `set_sync_messages_history()`
 - Embeds cached separately: `embed:{embed_id}` — vault-encrypted, 24h TTL, global
 - App settings/memories: `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}` — auto-evicted with chat

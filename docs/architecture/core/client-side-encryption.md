@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-04-08
 key_files:
   - frontend/packages/ui/src/services/cryptoService.ts
   - frontend/packages/ui/src/services/cryptoKeyStorage.ts
@@ -8,15 +8,16 @@ key_files:
   - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
 ---
 
-# Zero-Knowledge Storage
+# Client-Side Encryption
 
-> All sensitive user data is encrypted client-side before storage; the server stores only encrypted blobs it cannot decrypt.
+> All sensitive user content is encrypted in the browser before it reaches our servers, and is stored only as ciphertext on disk, in caches, and in backups. When the server needs to read content (to run an AI response, render an invoice, or deliver a reminder), decryption happens transiently in memory via HashiCorp Vault — the plaintext is never written to disk, logs, or traces. **This is not end-to-end encryption.** See [encryption-architecture.md](./encryption-architecture.md) for the full posture.
 
 ## Why This Exists
 
-- User data must remain private even if the server is fully compromised
-- Government data requests should be unanswerable: zero-knowledge means we cannot decrypt
-- The exception: AI inference requires cleartext during active processing (see below)
+- User data at rest must remain unreadable even if the database, caches, or backups are fully compromised
+- Third-party data requests targeting cold storage cannot yield plaintext — ciphertext on disk requires the user's credential and a live Vault to decrypt
+- AI features, invoicing, and scheduled reminders require server-side decryption on demand → the server decrypts in memory and discards the plaintext after use
+- Multiple login methods (password, passkey PRF, recovery key) each derive the same master key deterministically, so any device can decrypt any chat after login
 
 ## How It Works
 
@@ -39,9 +40,9 @@ graph TB
 
 ### Two Encryption Tiers
 
-**Client-Managed (true zero-knowledge):** chats, messages, app data, emails, profile settings. Key lives on the user's device. Server stores encrypted blobs only.
+**Client-Managed (client-side encrypted):** chats, messages, app data, emails, profile settings. Master key is derived from the user's credential on their device; the raw key never leaves the device. The server stores only ciphertext on disk. When the server needs to run an AI response against the content, it decrypts transiently in memory and never writes the plaintext to disk.
 
-**Server-Managed (Vault-hybrid):** server-generated files (images, PDFs, videos), long-running task outputs. AES key wrapped by HashiCorp Vault using a user-specific key ID. Needed because the server must complete tasks while the user may be offline.
+**Server-Managed (Vault-hybrid):** server-generated files (images, PDFs, videos) and long-running task outputs. AES key wrapped by HashiCorp Vault using a user-specific key ID. Needed because the server must complete tasks while the user may be offline.
 
 For the full breakdown of both tiers, see [Security Architecture](./security.md).
 
@@ -52,7 +53,7 @@ For the full breakdown of both tiers, see [Security Architecture](./security.md)
    - **Password:** PBKDF2-SHA256 (100k iterations) via `deriveKeyFromPassword()`
    - **Passkey:** HKDF from WebAuthn PRF signature + user salt via `deriveWrappingKeyFromPRF()`
    - **Recovery key:** PBKDF2-SHA256 (100k iterations) via `deriveKeyFromPassword()`
-3. The wrapped master key is stored on the server; the plaintext master key stays client-side only
+3. The wrapped master key is stored on the server; the unwrapped master key stays in browser memory (or IndexedDB if "Stay Logged In" is on)
 
 ### Master Key Storage Modes
 
@@ -82,14 +83,20 @@ Once a chat has an `encrypted_chat_key`, the server will not accept a different 
 
 This prevents a misconfigured device from corrupting the chat key across devices.
 
-### AI Inference Exception
+### AI Inference and Transient Decryption
 
-**Zero-knowledge storage does not mean zero server access during active use.** For AI inference:
+**Client-side encryption does not mean the server never reads your content.** The server decrypts transiently in memory whenever it needs to act on your behalf:
 
-- The client sends cleartext chat content for processing
-- The server caches the last 3 active chats per user via HashiCorp Vault encryption (72-hour TTL, LRU eviction)
-- This cache is separate from permanent encrypted storage and improves inference performance
-- The server cannot access stored chat history without user cooperation
+- AI inference (the largest and most frequent case)
+- PDF invoice rendering (tax and billing)
+- Scheduled reminder delivery (when the relevant mate fires)
+
+Mechanics for AI inference specifically:
+
+- The client sends the new user message; the server caches the last 3 active chats per user via HashiCorp Vault-wrapped AES keys (72-hour TTL, LRU eviction) so that follow-up messages don't require a round-trip to the client for history
+- The cache holds ciphertext whose wrapping key lives inside Vault; the API process unwraps on demand, reads the plaintext in RAM, and discards the reference
+- Nothing plaintext is written to disk, logs, or OpenTelemetry traces (enforced by `TracePrivacyFilter`)
+- The permanent storage tier (Directus/Postgres, S3 backups) is never touched by the AI inference path in plaintext form
 
 ## Cryptographic Standards
 
@@ -102,14 +109,16 @@ All constants defined in [cryptoService.ts](../../frontend/packages/ui/src/servi
 
 ## Edge Cases
 
-- **Server compromise:** yields only encrypted blobs and hashes; no access to passwords, emails, chat content, or master keys
+- **At-rest compromise (cold DB / backup / cache dump):** yields only ciphertext and hashes; without a user credential, no content can be decrypted
+- **Live-process compromise:** an attacker with root on a running API host could in principle read plaintext transiently in RAM during AI processing. This is the honest limit of the posture — defense-in-depth (Vault, OTel redaction, minimal blast radius) applies to live hosts.
 - **Browser eviction (iOS Safari):** `navigator.storage.persist()` + `STAY_LOGGED_IN_FLAG` in localStorage tracks whether key loss is expected or unexpected
 - **Tab/device race on embed keys:** embed keys are derived deterministically from chat key + embed ID via HKDF, so all tabs produce the same key
 
 ## Related Docs
 
+- [Encryption Architecture](./encryption-architecture.md) -- module boundaries and data flow
 - [Security Architecture](./security.md) -- encryption tiers, S3 access, controls summary
-- [Chat Encryption Implementation](./chat-encryption-implementation.md) -- field-level encryption details
+- [Master Key Lifecycle](./master-key-lifecycle.md) -- full derivation chain
 - [Signup & Login](./signup-and-auth.md) -- master key creation during signup
 - [Passkeys](./passkeys.md) -- PRF-based key wrapping
 - [Email Privacy](../privacy/email-privacy.md) -- email encryption specifics

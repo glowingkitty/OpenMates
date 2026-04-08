@@ -58,7 +58,7 @@ What makes OpenMates different from other AI apps is that your mates can use app
 
 ## Privacy & encryption
 
-OpenMates is built with privacy in mind. Your conversations are end-to-end encrypted by default - only you can read them. OpenMates uses zero-knowledge encryption, meaning even the OpenMates team cannot access your data.
+OpenMates is built with privacy in mind. Your chats, titles, app settings, and memories are **encrypted in your browser before being sent to our servers** — and are stored only as ciphertext. When you need an AI response, our servers briefly decrypt your content in memory, use it, and discard the plaintext without ever writing it to disk. Before your prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is not end-to-end encryption (our servers can decrypt your content transiently to serve you), but it is a much stronger guarantee than encryption-at-rest alone — and when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
 
 ## Pay-per-use - no subscription required
 
@@ -84,7 +84,7 @@ OpenMates provides a REST API and CLI for developers who want to integrate OpenM
 
 ## Privacy & open source
 
-Your code and conversations stay private with zero-knowledge encryption. OpenMates is open source — you can inspect the code, contribute, or self-host your own instance.
+Your code and conversations are encrypted in your browser before being sent to our servers, and stored only as ciphertext. Our servers decrypt content transiently in memory when you need it (for AI responses, invoices, reminders) and never persist plaintext to disk, logs, or traces. Before prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. OpenMates is open source — you can inspect the exact encryption code, contribute, or self-host your own instance.
 
 ## No subscription required
 
@@ -108,7 +108,7 @@ We all have our share of frustrations with technology — apps that disrespect y
 
 ## The philosophy
 
-OpenMates is built on a simple belief: powerful AI tools should be accessible to everyone, private by design, and open to the community. No dark patterns, no data harvesting, no lock-in.
+OpenMates is built on a simple belief: powerful AI tools should be accessible to everyone, privacy-respecting by design, and open to the community. No dark patterns, no data harvesting, no lock-in.
 
 ## Open source
 

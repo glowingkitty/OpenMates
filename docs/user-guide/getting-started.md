@@ -5,11 +5,11 @@ last_verified: 2026-03-24
 
 # Getting Started
 
-> OpenMates is a privacy-first, open-source alternative to ChatGPT and other AI assistants. Your conversations are encrypted on your device before being stored -- the server never sees your data in readable form.
+> OpenMates is a privacy-first, open-source alternative to ChatGPT and other AI assistants. Your conversations are encrypted in your browser before being sent to our servers, and are stored only as ciphertext. When the server needs to read your content to generate an AI response or render an invoice, it decrypts transiently in memory and never writes the plaintext to disk.
 
 ## What Makes OpenMates Different
 
-- **Privacy by design** -- Your messages are encrypted on your device. The server only stores data it cannot read.
+- **Privacy by design** -- Your messages are encrypted in your browser before being sent to our servers. Everything on disk, in caches, and in backups is ciphertext. The server decrypts content only transiently in memory when you actively need an AI response.
 - **Open source** -- The entire codebase is publicly available and transparent.
 - **Pay only for what you use** -- No subscriptions. You buy credits and spend them as you go.
 - **Smart model selection** -- OpenMates automatically picks the best digital team mate for each request.

@@ -4,7 +4,7 @@
 
 ## What is OpenMates?
 
-OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, zero-knowledge encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
+OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. — focused on the best user experience, fulfilling your tasks using a wide range of apps, client-side encryption of your content by default, and compatibility with a wide range of AI models, making it also independent of specific companies. Currently in an alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
 
 [Click to show project overview slides PDF](./marketing/slides/openmates_overview_slides.pdf)
 
@@ -33,7 +33,7 @@ Apps are one of the core components of OpenMates. They allow your digital team m
 The [alpha release of OpenMates](https://openmates.org) is available and includes core features like:
 
 - **Apps & AI Agents**: Fulfill tasks using a wide range of integrated apps (Web search, Videos, Maps, News, etc.)
-- **Zero-Knowledge Encryption**: Privacy by default with client-side encryption for all your chats and data.
+- **Client-Side Encryption**: Chats, titles, app settings, memories, and other sensitive fields are encrypted in your browser before being sent to our servers, and are stored only as ciphertext. Our servers decrypt content transiently in memory when you need it (for AI responses, invoices, reminders) but never write plaintext to disk, logs, or traces. Before your prompts go to any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is not end-to-end encryption, but it is a stronger guarantee than encryption-at-rest alone — and when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
 - **Unified UI**: A modern interface that seamlessly integrates media previews and app skill details.
 - **Educational Support**: Auto-generated follow-up questions and new chat suggestions to help you explore topics more deeply.
 - **Auto AI Model Selection**: Automatically routes your requests to the best-suited AI model based on complexity.
