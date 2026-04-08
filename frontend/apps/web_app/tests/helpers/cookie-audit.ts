@@ -28,9 +28,10 @@
  * The auto-fixture runs without any spec-side opt-in. Failures inside the
  * teardown are swallowed so audit instrumentation can never break a test.
  *
- * Anonymization: cookie values are truncated (4 chars + length) and
- * sensitive-named keys are fully redacted. Local/session storage values are
- * never captured in the first place — only their key names.
+ * Anonymization: cookie values are NEVER captured. Only the value length
+ * is recorded (so you can tell "a cookie of 64 chars exists at this name")
+ * without exposing the actual content. Local/session storage values are
+ * similarly never read — only key names.
  */
 export {};
 
@@ -38,10 +39,6 @@ import { test as baseTest, expect } from '@playwright/test';
 
 const fs = require('fs');
 const path = require('path');
-
-// Keys whose values are sensitive — store length only, never the value.
-const SENSITIVE_KEY_RE =
-	/(token|refresh|secret|key|auth|session|csrf|jwt|otp|password|stripe|code$|^code|bearer)/i;
 
 // Output dir relative to the Playwright cwd (frontend/apps/web_app).
 // run_tests.py copies this back to repo-root test-results/ after the run.
@@ -55,7 +52,6 @@ interface CookieRecord {
 	http_only: boolean;
 	secure: boolean;
 	same_site: string;
-	example_value: string;
 	value_length: number;
 }
 
@@ -72,18 +68,6 @@ interface StorageSnapshot {
 	local_storage_keys: string[];
 	session_storage_keys: string[];
 	indexed_db: string[];
-}
-
-function anonymizeValue(key: string, value: unknown): { example_value: string; value_length: number } {
-	const str = typeof value === 'string' ? value : JSON.stringify(value ?? '');
-	const len = str.length;
-	if (SENSITIVE_KEY_RE.test(key)) {
-		return { example_value: '<redacted>', value_length: len };
-	}
-	if (len <= 8) {
-		return { example_value: str, value_length: len };
-	}
-	return { example_value: `${str.slice(0, 4)}…<${len}>`, value_length: len };
 }
 
 function sanitizeFilename(s: string): string {
@@ -108,22 +92,19 @@ async function captureStorage(
 	};
 
 	// Cookies live on the BrowserContext and survive page closure.
+	// We record attributes + value LENGTH only — never the value itself.
 	try {
 		const cookies = await context.cookies();
-		snapshot.cookies = cookies.map((c: any) => {
-			const anon = anonymizeValue(c.name, c.value);
-			return {
-				name: c.name,
-				domain: c.domain || '',
-				path: c.path || '/',
-				expires: typeof c.expires === 'number' ? c.expires : -1,
-				http_only: !!c.httpOnly,
-				secure: !!c.secure,
-				same_site: c.sameSite || 'Lax',
-				example_value: anon.example_value,
-				value_length: anon.value_length
-			};
-		});
+		snapshot.cookies = cookies.map((c: any) => ({
+			name: c.name,
+			domain: c.domain || '',
+			path: c.path || '/',
+			expires: typeof c.expires === 'number' ? c.expires : -1,
+			http_only: !!c.httpOnly,
+			secure: !!c.secure,
+			same_site: c.sameSite || 'Lax',
+			value_length: typeof c.value === 'string' ? c.value.length : 0
+		}));
 	} catch {
 		// context already disposed — leave cookies empty
 	}

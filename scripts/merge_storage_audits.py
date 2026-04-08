@@ -79,11 +79,12 @@ COOKIES_HEADER = """# Cookie Inventory (runtime evidence, banner-decision source
 #     `consent_exempt`, `exemption_basis`, `notes`. Fill these in once per
 #     entry.
 #
-# Anonymization (see frontend/apps/web_app/tests/helpers/cookie-audit.ts):
-#   - Sensitive-named cookies (token / refresh / secret / key / auth /
-#     session / csrf / jwt / otp / password / stripe) -> example_value:
-#     "<redacted>" (length only).
-#   - All other cookies -> first 4 chars + ellipsis + length.
+# Privacy:
+#   Cookie values are NEVER captured. Only the length is recorded
+#   (`value_length`) alongside the standard attributes (domain, path,
+#   http_only, secure, same_site, expires). This is sufficient to verify
+#   a cookie exists and roughly how much data it stores, without ever
+#   committing real user/session content to this repository.
 #
 # Compliance gate:
 #   Every entry MUST have `consent_exempt: true` with an `exemption_basis`
@@ -221,7 +222,6 @@ def merge() -> tuple[dict[str, Any], dict[str, Any]]:
                 "http_only": c.get("http_only", False),
                 "secure": c.get("secure", False),
                 "same_site": c.get("same_site", "Lax"),
-                "example_value": c.get("example_value", ""),
                 "value_length": c.get("value_length", 0),
             }
             _merge_observation(entry, cookie_idx, key, spec, today)
