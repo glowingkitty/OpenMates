@@ -1,0 +1,104 @@
+# safety_audit_log.yml
+# Audit log for the image safety pipeline.
+# See docs/architecture/image-safety-pipeline.md §5 (Audit log structure) and
+# docs/architecture/image-safety-policy.md for the policy enforced.
+#
+# Retention: 1 year (balances GDPR minimization with legal defensibility window).
+# Encrypted at rest via Directus storage but NOT client-encrypted — required for
+# compliance review and 48h TAKE IT DOWN Act takedown responses.
+
+safety_audit_log:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    timestamp:
+      type: integer
+      note: "[Indexed] Unix epoch seconds when the safety decision was made"
+
+    user_id:
+      type: string
+      length: 64
+      note: "[Indexed] User whose request was evaluated"
+
+    stage:
+      type: string
+      length: 16
+      note: "'input' or 'output' — whether this was a reference image or a generated image"
+
+    decision:
+      type: string
+      length: 16
+      note: "'allow', 'block', or 'escalate'"
+
+    category:
+      type: string
+      length: 64
+      nullable: true
+      note: "[Indexed] Policy category (S1_csam, S6_public_figure_blocked, etc.)"
+
+    severity:
+      type: string
+      length: 16
+      note: "'critical', 'adversarial', 'severe', or 'moderate'"
+
+    strike_weight:
+      type: integer
+      note: "Weight applied to the strike counter (0 when debounced)"
+
+    sightengine_json:
+      type: json
+      nullable: true
+      note: "Compact Sightengine findings (scores, face/minor/celebrity signals)"
+
+    vlm_json:
+      type: json
+      nullable: true
+      note: "Compact VLM (Gemini/GPT-5 mini) findings"
+
+    safeguard_reasoning:
+      type: text
+      nullable: true
+      note: "gpt-oss-safeguard chain-of-thought reasoning (truncated)"
+
+    provider:
+      type: string
+      length: 64
+      nullable: true
+      note: "Image generation provider (google, fal, recraft) if output stage"
+
+    model:
+      type: string
+      length: 128
+      nullable: true
+      note: "Model identifier"
+
+    source_embed_id:
+      type: uuid
+      nullable: true
+      note: "Source reference image embed ID (input stage only)"
+
+    output_embed_id:
+      type: uuid
+      nullable: true
+      note: "Generated image embed ID (output stage only)"
+
+    prompt_hash:
+      type: string
+      length: 64
+      nullable: true
+      note: "SHA-256 of the user prompt — we never store plaintext prompts"
+
+    prompt_language:
+      type: string
+      length: 16
+      nullable: true
+      note: "Detected prompt language (best-effort)"
+
+    assistant_response_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "[Indexed] Message ID of the AI response this strike belongs to (for debounce)"

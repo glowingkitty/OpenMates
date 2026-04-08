@@ -42,6 +42,13 @@ from backend.shared.providers.recraft.recraft import (
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.image_safety import (
+    PipelineDecision,
+    SafetyRejection,
+    get_pipeline,
+    get_strike_counter,
+)
+from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +175,233 @@ def _get_image_dimensions(image_bytes: bytes) -> Tuple[int, int]:
 def _hash_value(value: str) -> str:
     """Create SHA256 hash of a value for privacy protection."""
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Image safety pipeline integration
+# See docs/architecture/image-safety-pipeline.md §2, §3, §5, §9
+# ---------------------------------------------------------------------------
+
+# Redis key for the per-assistant-response rejection cache used to enforce
+# `do_not_retry`: once one images-generate call in a response is rejected, any
+# subsequent call in the same response is auto-rejected without invoking the
+# classifiers.
+_SAFETY_REJECT_CACHE_TTL = 1800  # 30 minutes — longer than any AI response
+
+
+def _safety_reject_cache_key(user_id: str, assistant_response_id: str) -> str:
+    return f"safety_response_reject:{user_id}:{assistant_response_id}"
+
+
+async def _check_cached_safety_rejection(
+    task: BaseServiceTask,
+    user_id: str,
+    assistant_response_id: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """
+    Return the cached rejection payload for this (user, response) pair, if any.
+
+    Used to auto-reject subsequent images-generate calls within the same
+    assistant response after the first rejection — see pipeline doc §9
+    "do_not_retry auto-reject behavior".
+    """
+    if not assistant_response_id:
+        return None
+    try:
+        client = await task._cache_service.client
+        if not client:
+            return None
+        raw = await client.get(_safety_reject_cache_key(user_id, assistant_response_id))
+        if not raw:
+            return None
+        return json.loads(raw)
+    except Exception as e:
+        logger.warning(f"[ImageSafety] Failed to read reject cache: {e}")
+        return None
+
+
+async def _cache_safety_rejection(
+    task: BaseServiceTask,
+    user_id: str,
+    assistant_response_id: Optional[str],
+    rejection_payload: Dict[str, Any],
+) -> None:
+    """Cache a rejection payload so subsequent sub-calls auto-reject."""
+    if not assistant_response_id:
+        return
+    try:
+        client = await task._cache_service.client
+        if not client:
+            return
+        await client.set(
+            _safety_reject_cache_key(user_id, assistant_response_id),
+            json.dumps(rejection_payload),
+            ex=_SAFETY_REJECT_CACHE_TTL,
+        )
+    except Exception as e:
+        logger.warning(f"[ImageSafety] Failed to write reject cache: {e}")
+
+
+async def _handle_safety_rejection(
+    task: BaseServiceTask,
+    rejection: SafetyRejection,
+    *,
+    user_id: str,
+    prompt: str,
+    assistant_response_id: Optional[str],
+    source_embed_id: Optional[str],
+    output_embed_id: Optional[str],
+    provider: Optional[str],
+    model: Optional[str],
+    log_prefix: str,
+) -> Dict[str, Any]:
+    """
+    Unified rejection handler: records the strike, writes the audit log,
+    caches the rejection for the remainder of the assistant response, and
+    returns the structured tool response for the LLM.
+    """
+    strike_counter = get_strike_counter(task._cache_service)
+    strike_result = await strike_counter.record_strike(
+        user_id=user_id,
+        severity=rejection.severity,
+        assistant_response_id=assistant_response_id,
+    )
+
+    await write_audit_entry(
+        directus_service=task._directus_service,
+        user_id=user_id,
+        stage=rejection.stage,
+        decision="block",
+        category=rejection.category,
+        severity=rejection.severity,
+        strike_weight=(0 if strike_result.debounced else
+                       {"critical": 4, "adversarial": 2, "severe": 2,
+                        "moderate": 1}.get(rejection.severity, 1)),
+        sightengine_json=rejection.sightengine_audit,
+        vlm_json=rejection.vlm_audit,
+        safeguard_reasoning=(rejection.safeguard_audit or {}).get("reasoning"),
+        provider=provider,
+        model=model,
+        source_embed_id=source_embed_id,
+        output_embed_id=output_embed_id,
+        prompt=prompt,
+        assistant_response_id=assistant_response_id,
+    )
+
+    await _cache_safety_rejection(
+        task, user_id, assistant_response_id, rejection.tool_response
+    )
+
+    logger.warning(
+        f"{log_prefix} [ImageSafety] REJECTED at stage={rejection.stage} "
+        f"category={rejection.category} severity={rejection.severity} "
+        f"reason={rejection.reason} strike_count={strike_result.new_count} "
+        f"ban={strike_result.ban_triggered} debounced={strike_result.debounced}"
+    )
+
+    # Ban path — kept best-effort; delegated to internal ban endpoint if the
+    # strike counter crossed the threshold. Current upload-content-safety-reject
+    # endpoint already implements account deletion, so we reuse the pattern
+    # here when weight pushes the counter over the threshold.
+    if strike_result.ban_triggered and not strike_result.debounced:
+        await _trigger_safety_ban(
+            user_id=user_id,
+            category=rejection.category,
+            log_prefix=log_prefix,
+        )
+
+    return rejection.tool_response
+
+
+async def _trigger_safety_ban(
+    *,
+    user_id: str,
+    category: str,
+    log_prefix: str,
+) -> None:
+    """
+    Call the internal API ban endpoint. Best-effort; logs on failure.
+    Mirrors the existing upload-content-safety-reject behavior.
+    """
+    try:
+        headers = {"Content-Type": "application/json"}
+        if INTERNAL_API_SHARED_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+        async with httpx.AsyncClient(timeout=15) as client:
+            await client.post(
+                f"{INTERNAL_API_BASE_URL}/internal/uploads/content-safety-reject",
+                json={
+                    "user_id": user_id,
+                    "rejection_reason": f"image_generation_safety:{category}",
+                    "upload_type": "chat_image",
+                },
+                headers=headers,
+            )
+        logger.warning(f"{log_prefix} [ImageSafety] Ban triggered for user")
+    except Exception as e:
+        logger.error(
+            f"{log_prefix} [ImageSafety] Ban trigger failed (non-fatal): {e}",
+            exc_info=True,
+        )
+
+
+async def _emit_safety_rejection_embed(
+    task: BaseServiceTask,
+    *,
+    embed_id: Optional[str],
+    user_id: str,
+    chat_id: Optional[str],
+    message_id: Optional[str],
+    user_facing_message: str,
+    log_prefix: str,
+) -> None:
+    """
+    Emit an error embed to the client so the user sees why the generation
+    was blocked. Mirrors the existing error-embed flow at the bottom of
+    _async_generate_image but uses the safety user_facing_message.
+    """
+    if not (embed_id and user_id and chat_id and message_id):
+        return
+    try:
+        from toon_format import encode as toon_encode
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        error_content = {
+            "app_id": "images",
+            "skill_id": "generate",
+            "type": "image",
+            "status": "error",
+            "error": user_facing_message,
+            "safety_rejection": True,
+        }
+        content_toon = toon_encode(error_content)
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+
+        embed_service = EmbedService(
+            cache_service=task._cache_service,
+            directus_service=task._directus_service,
+            encryption_service=task._encryption_service,
+        )
+        await embed_service.send_embed_data_to_client(
+            embed_id=embed_id,
+            embed_type="app_skill_use",
+            content_toon=content_toon,
+            chat_id=str(chat_id),
+            message_id=str(message_id),
+            user_id=user_id,
+            user_id_hash=_hash_value(user_id),
+            status="error",
+            encryption_mode="client",
+            created_at=now_ts,
+            updated_at=now_ts,
+            log_prefix=f"{log_prefix} [SAFETY_REJECT]",
+            check_cache_status=False,
+        )
+    except Exception as e:
+        logger.error(
+            f"{log_prefix} Failed to emit safety rejection embed: {e}",
+            exc_info=True,
+        )
 
 
 async def _decrypt_reference_images(
@@ -465,6 +699,78 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                     "for image-to-image generation"
                 )
 
+        # 3c. Image Safety Pipeline — input validation
+        # See docs/architecture/image-safety-pipeline.md §2, §3
+        cached_rejection = await _check_cached_safety_rejection(
+            task, user_id, message_id
+        )
+        if cached_rejection:
+            logger.info(
+                f"{log_prefix} [ImageSafety] Auto-rejecting (cached decision "
+                f"for assistant_response_id={message_id}): "
+                f"{cached_rejection.get('category')}"
+            )
+            await _emit_safety_rejection_embed(
+                task,
+                embed_id=embed_id,
+                user_id=user_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_facing_message=cached_rejection.get(
+                    "user_facing_message", "This image couldn't be generated."
+                ),
+                log_prefix=log_prefix,
+            )
+            return {
+                "embed_id": embed_id,
+                "status": "rejected",
+                **cached_rejection,
+            }
+
+        pipeline = get_pipeline()
+        safety_reference_images = list(
+            zip(reference_image_bytes_list, reference_image_mime_types)
+        )
+        input_decision: PipelineDecision = await pipeline.validate_input(
+            prompt=prompt,
+            reference_images=safety_reference_images,
+            secrets_manager=task._secrets_manager,
+        )
+
+        if not input_decision.allowed and input_decision.rejection:
+            tool_response = await _handle_safety_rejection(
+                task,
+                input_decision.rejection,
+                user_id=user_id,
+                prompt=prompt,
+                assistant_response_id=message_id,
+                source_embed_id=(
+                    reference_image_embed_ids[0]
+                    if reference_image_embed_ids
+                    else None
+                ),
+                output_embed_id=None,
+                provider=None,
+                model=model_ref,
+                log_prefix=log_prefix,
+            )
+            await _emit_safety_rejection_embed(
+                task,
+                embed_id=embed_id,
+                user_id=user_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_facing_message=tool_response.get(
+                    "user_facing_message", "This image couldn't be generated."
+                ),
+                log_prefix=log_prefix,
+            )
+            return {
+                "embed_id": embed_id,
+                "status": "rejected",
+                **tool_response,
+            }
+
         # 4. Call Provider API
         #
         # Routing logic:
@@ -619,6 +925,62 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         logger.info(
             f"{log_prefix} Provider model: {actual_model}, display ID: {display_model_id}"
         )
+
+        # 4b. Image Safety Pipeline — output validation
+        # Run parallel Sightengine + Gemini scan against the generated image
+        # with stricter thresholds. SVG is skipped (vector images are not
+        # photorealistic) but raster output from any provider goes through
+        # the same dual scan regardless of source.
+        #
+        # NOTE: This runs BEFORE billing. If the output is rejected:
+        #   - the generated image is discarded (never persisted to S3)
+        #   - the user is not charged for the generation
+        #   - the audit log records full classifier detail
+        #   - a strike is recorded (debounced per assistant response)
+        if output_filetype != "svg" and image_bytes:
+            output_mime = "image/png"
+            if model_ref and "google" in (model_ref or ""):
+                output_mime = "image/png"  # Gemini returns PNG
+            output_decision: PipelineDecision = await pipeline.validate_output(
+                prompt=prompt,
+                image_bytes=image_bytes,
+                mime_type=output_mime,
+                secrets_manager=task._secrets_manager,
+            )
+            if not output_decision.allowed and output_decision.rejection:
+                tool_response = await _handle_safety_rejection(
+                    task,
+                    output_decision.rejection,
+                    user_id=user_id,
+                    prompt=prompt,
+                    assistant_response_id=message_id,
+                    source_embed_id=(
+                        reference_image_embed_ids[0]
+                        if reference_image_embed_ids
+                        else None
+                    ),
+                    output_embed_id=embed_id,
+                    provider=actual_model.split(" ")[0] if actual_model else None,
+                    model=actual_model,
+                    log_prefix=log_prefix,
+                )
+                await _emit_safety_rejection_embed(
+                    task,
+                    embed_id=embed_id,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_facing_message=tool_response.get(
+                        "user_facing_message",
+                        "This image couldn't be generated.",
+                    ),
+                    log_prefix=log_prefix,
+                )
+                return {
+                    "embed_id": embed_id,
+                    "status": "rejected",
+                    **tool_response,
+                }
 
         # 5. Get original dimensions (raster only; SVG is resolution-independent)
         original_width, original_height = 0, 0
