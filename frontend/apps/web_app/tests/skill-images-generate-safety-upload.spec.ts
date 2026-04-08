@@ -93,15 +93,16 @@ async function attachImage(page: any, filePath: string, log: (m: string) => void
 	await expect(fileInput).toBeAttached({ timeout: 10000 });
 	log(`Attaching: ${filePath}`);
 	await fileInput.setInputFiles(filePath);
-	// Allow the TipTap NodeView to mount the embed preview
-	await page.waitForTimeout(3000);
+	// Allow the TipTap NodeView to mount the embed preview. The ImageEmbedPreview
+	// uses UnifiedEmbedPreview which sets data-testid="embed-preview".
+	await page.waitForTimeout(4000);
 	const embedInEditor = page
 		.getByTestId('message-editor')
-		.locator('[data-testid="embed-full-width-wrapper"]');
+		.getByTestId('embed-preview');
 	await expect(async () => {
 		await expect(embedInEditor.first()).toBeVisible();
 	}).toPass({ timeout: 20000 });
-	log('Image embed visible in editor.');
+	log('Image embed (embed-preview) visible in editor.');
 }
 
 async function typeAndSend(page: any, text: string, log: (m: string) => void): Promise<void> {
