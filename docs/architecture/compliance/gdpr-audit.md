@@ -22,7 +22,7 @@ OpenMates has an **unusually strong privacy foundation** for an AI product: clie
 |---|---|---|
 | 🔴 Critical | 9 | Undisclosed LLM subprocessors, undisclosed payment processor (Revolut), S3 PDFs not deleted, no Art. 17 cascade to third parties, no cookie consent banner |
 | 🟠 High | 11 | No Art. 21, no Art. 18, no email rectification, no granular consent withdrawal, ~18 undisclosed event/travel/health/shopping providers, Discord disclosed in i18n but not in `privacy_policy.yml`, possible Brevo/Mailjet inconsistency |
-| 🟡 Medium | 8 | Inconsistent IP hashing in compliance logs, Caddy access logs <2y, chat-content export client-only, consent versioning by timestamp only, `temp-images` bucket public, `safety_audit_log.user_id` in plaintext |
+| 🟡 Medium | 8 | Inconsistent IP hashing in compliance logs, Caddy access logs <2y, chat-content export client-only, consent versioning by timestamp only, ~~`temp-images` bucket public~~ (✅ C6 resolved 2026-04-08), `safety_audit_log.user_id` in plaintext |
 | 🟢 Low | 4 | sessionStorage WebSocket token fallback, `last_opened` not in export, demo-chat metadata cleartext, profile-image legacy URL field |
 
 `legal/documents/privacy-policy.ts` reports `lastUpdated: 2026-03-06`. Code has clearly diverged since then.
@@ -78,7 +78,7 @@ Redis/Dragonfly holds short-lived **decrypted** copies of profile, device, chat 
 | `openmates-userdata-backups` | User master key | 60 days |
 | `openmates-compliance-logs-backups` | **Plaintext** | 2 y audit / 10 y financial |
 | `openmates-usage-archives` | Server key | 3 years |
-| `openmates-temp-images` | **Plaintext, public-read** | 1 day |
+| `openmates-temp-images` | Plaintext, **private** (15min presigned URL to SerpAPI) — C6 resolved 2026-04-08 | 1 day (safety net) |
 | `openmates-issue-logs` | Encrypted YAML + plaintext PNG | 1 year |
 
 ### 3.4 Browser-side (`frontend/packages/ui/src/services/db.ts` v22)
@@ -287,7 +287,7 @@ Imprint is i18n keys + a TMG (German Telemedia Act §5) heading + 4 SVG images f
 | L1 | sessionStorage WebSocket token (Safari iOS fallback) — XSS-readable. Mitigated by client-side encryption of content + short-lived JWT, but document. | 🟢 Low |
 | L2 | `demo_chats` table holds cleartext title/summary/icon. Intentional (public demo content) and outside GDPR scope (admin-curated, not user PII). | 🟢 Low |
 | M1 | `aes_key` in `upload_files` is stored as plaintext base64 *and* as `vault_wrapped_aes_key`. Confirm whether the plaintext field is ever read in production; if not, drop it. | 🟡 Medium |
-| M2 | `openmates-temp-images` bucket is public-read with 1d TTL — used to feed Google Lens (SerpAPI). Even with 1d TTL, **decrypted** user images are world-readable for that window. Document this in the privacy policy and consider replacing with a signed-URL flow. | 🔴 Critical |
+| M2 | ~~`openmates-temp-images` bucket is public-read with 1d TTL~~ ✅ **RESOLVED 2026-04-08 (OPE-372)** — bucket switched to private; SerpAPI Google Lens now receives a 15-minute presigned URL; skill deletes immediately after the call; 1-day lifecycle retained as safety net. Startup ACL reconciliation in `s3/service.py` flips existing buckets on next deploy. | 🔴 Critical |
 | M3 | `safety_audit_log.user_id` plaintext (already noted). | 🟡 Medium |
 | M4 | `connected_devices` JSON in `directus_users` carries device hashes; deletion path verified, but ensure `device_hash` rotation when a device is unlinked. | 🟡 Medium |
 | M5 | Reminder records (`reminders` table) Vault-encrypt the **raw user_id** so the worker can deliver via WebSocket. On erasure, confirm the Vault key delete invalidates these. | 🟡 Medium |
@@ -306,7 +306,7 @@ Imprint is i18n keys + a TMG (German Telemedia Act §5) heading + 4 SVG images f
 | C3 | **S3 invoice & credit note PDFs not deleted on account erasure** | `user_cache_tasks.py:~1507`, `~1638` | Implement S3 delete using `encrypted_s3_object_key` (decrypt with Vault, then `s3.delete_object`). |
 | C4 | **Compliance logs retain plaintext `user_id` after erasure** | `compliance.py:75-79` | Replace `user_id` with `account_id` + non-reversible hash for new entries; for past entries within the financial window, document the legitimate-interest basis (HGB §257) in the privacy policy. |
 | C5 | **No Stripe subscription cancellation on erasure** | `user_cache_tasks.py` deletion task | Call `stripe.Subscription.delete()` + `stripe.Customer.delete()` (or anonymize per Stripe's GDPR docs). |
-| C6 | **`openmates-temp-images` bucket is public-read with decrypted user images** | `s3/config.py` | Switch to private bucket + presigned URLs for SerpAPI uploads, or restrict TTL to <5 minutes; disclose in policy. |
+| ~~C6~~ | ✅ **RESOLVED 2026-04-08 (OPE-372)** — `openmates-temp-images` now private, SerpAPI receives a 15-min presigned URL, startup reconciliation in `s3/service.py` applies the new ACL to existing buckets. | `s3/config.py`, `s3/service.py`, `internal_api.py`, `search_skill.py` | Done. |
 | C7 | **No cookie consent banner** | frontend (none found) | Either prove every cookie is strictly necessary and document this in the privacy policy, or add a banner. ePrivacy applies regardless of GDPR. |
 | C8 | **Discord disclosed in i18n privacy.yml but missing from `shared/docs/privacy_policy.yml`** | both files | Per `.claude/rules/privacy.md` they must be kept in sync. Add Discord to the canonical YAML. |
 | C9 | **Policy promises Art. 18 + Art. 21 rights that the code cannot deliver** | `legal_rights.gdpr.rights` vs absent endpoints | Either implement the endpoints or remove the promise (and document the alternative path: deletion). |
@@ -364,7 +364,7 @@ The user requested **report-only**, so this is a checklist for a follow-up sessi
 5. Add `providers.together`.
 6. Add `providers.google_maas` (separate from existing `google` block).
 7. Add `providers.fal` and `providers.recraft` (image generation).
-8. Add `providers.serpapi` and explain the `temp-images` upload flow for Google Lens (and fix the public-read bucket).
+8. Add `providers.serpapi` and explain the `temp-images` upload flow for Google Lens (bucket is now private, SerpAPI receives a 15-min presigned URL — C6 fixed 2026-04-08).
 9. Add a `providers.events_aggregators` block listing Meetup, Luma, Google Calendar, Bachtrack, ResidentAdvisor, ClassicTIC, Berlin Phil, Siegessäule.
 10. Add `providers.travel_aggregators` (Travelpayouts, SerpAPI flights/hotels, Transitous).
 11. Add `providers.health_directories` with explicit Art. 9 disclosure (Doctolib, Jameda).
