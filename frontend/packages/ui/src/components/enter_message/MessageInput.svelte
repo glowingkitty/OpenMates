@@ -216,6 +216,18 @@
     // When true, the drop overlay ("Drop files to upload") is shown.
     let isDragging = $state(false);
 
+    // --- Pending paste → code-embed creation ---
+    // When the user pastes multi-line text we fire an async
+    // createCodeEmbedFromPastedText() call that only resolves after the
+    // embed is registered with the EmbedStore. If the user hits Enter
+    // before that promise resolves, handleSendMessage would read a stale
+    // originalMarkdown (missing the embed reference) and either drop the
+    // send or transmit a broken message — the root cause of OPE-377.
+    // We track in-flight paste embeds and defer the send until they all
+    // resolve.
+    let pendingPasteEmbedCount = $state(0);
+    let sendRequestedWhilePending = false;
+
     // --- Focus Pill State ---
     // Whether the toggle has been clicked and we are waiting 1 second before deactivating.
     // If user clicks toggle again within that second, we cancel (undo).
@@ -1504,6 +1516,11 @@
                             // Authenticated path: create a proper embed in EmbedStore (async).
                             // This follows the same pattern as URL embeds.
                             // Pass VS Code editor data for automatic language detection.
+                            // Mark hasContent immediately so the send button appears and the
+                            // user understands their paste was accepted; also track the in-flight
+                            // embed so handleSendMessage can defer sends until it resolves.
+                            pendingPasteEmbedCount += 1;
+                            hasContent = true;
                             createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData }).then(async (embedResult) => {
                                 console.info('[MessageInput] Created code embed for pasted text:', {
                                     embed_id: embedResult.embed_id,
@@ -1557,6 +1574,18 @@
                                 console.error('[MessageInput] Failed to create code embed:', error);
                                 // Fallback: insert as plain text if embed creation fails
                                 editor.commands.insertContent(normalizedPasteText);
+                            }).finally(() => {
+                                pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
+                                // If the user pressed Enter while the embed was being created,
+                                // execute the deferred send now that originalMarkdown is up-to-date.
+                                if (pendingPasteEmbedCount === 0 && sendRequestedWhilePending) {
+                                    sendRequestedWhilePending = false;
+                                    // Re-check content before firing — editor may have been cleared.
+                                    if (!isContentEmptyExceptMention(editor)) {
+                                        hasContent = true;
+                                        handleSendMessage();
+                                    }
+                                }
                             });
                             
                             return true; // Prevent default paste handling
@@ -3608,6 +3637,16 @@
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
         if (!hasContent) return;
+
+        // Defer the send while paste→code-embed creation is in flight. Firing
+        // now would read originalMarkdown before the embed reference is appended,
+        // producing a broken or empty message (OPE-377). The .finally() handler
+        // in the paste path will re-invoke handleSendMessage() once the last
+        // pending embed resolves.
+        if (pendingPasteEmbedCount > 0) {
+            sendRequestedWhilePending = true;
+            return;
+        }
 
         // Hide the send button immediately on first press — this is the primary
         // mechanism preventing double-sends. The button disappears before any async

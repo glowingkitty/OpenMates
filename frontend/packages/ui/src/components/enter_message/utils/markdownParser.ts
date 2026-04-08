@@ -195,7 +195,9 @@ function extractMathFormulas(markdownText: string): {
 }
 
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
-function preprocessMarkdown(markdownText: string): string {
+// Exported for unit tests (see __tests__/markdownParser.preprocess.test.ts).
+// OPE-380 regression covers fence tracking with indented ```json blocks.
+export function preprocessMarkdown(markdownText: string): string {
   // Normalise embed ```json fences so markdown-it sees them at column 0.
   //
   // LLMs occasionally emit embed references in two broken forms:
@@ -243,20 +245,31 @@ function preprocessMarkdown(markdownText: string): string {
   const processedSections: string[] = [];
 
   // Track whether we are currently inside an open code fence.
-  // A fence is opened by a line starting with ``` (with optional language tag) and
-  // closed by a subsequent line that is exactly ```.
+  // A fence is opened by a line starting with ``` (with optional leading
+  // whitespace and/or language tag) and closed by a subsequent ``` line.
+  //
+  // IMPORTANT: the leading-whitespace allowance is critical — AI responses
+  // often nest fenced JSON blocks inside list items, producing indented
+  // fence markers like "    ```json". Without matching indentation the
+  // fence toggle desyncs and <!-- EMPTY_PARAGRAPH --> gets injected inside
+  // the block, surfacing as literal text in the rendered message (OPE-380).
+  const fenceLineRegex = /^[ \t]*```/;
   let insideFence = false;
 
   for (let i = 0; i < sections.length; i++) {
-    const section = sections[i].trim();
+    // Do NOT trim the section before counting fence lines — trimming can
+    // strip the trailing "```" newline context we need. We trim only for
+    // the empty-check and push.
+    const rawSection = sections[i];
+    const section = rawSection.trim();
     if (section) {
       processedSections.push(section);
 
-      // Update fence tracking: count unmatched opening/closing fence lines.
-      // A line starting with ``` opens or closes a fence.
-      const fenceLines = section.split("\n");
+      // Update fence tracking by scanning every line of the raw section
+      // (pre-trim) so indented fences are detected consistently.
+      const fenceLines = rawSection.split("\n");
       for (const line of fenceLines) {
-        if (/^```/.test(line)) {
+        if (fenceLineRegex.test(line)) {
           insideFence = !insideFence;
         }
       }

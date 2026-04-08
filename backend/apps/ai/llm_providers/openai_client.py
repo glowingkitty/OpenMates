@@ -2,7 +2,6 @@
 Unified OpenAI client that supports:
 - Direct OpenAI API
 - OpenRouter delegation
-- Azure scaffold (to be implemented)
 """
 
 from typing import Any, AsyncIterator, Dict, List, Optional, Union
@@ -50,7 +49,7 @@ def _is_reasoning_model(model_id: str) -> bool:
 
 
 def _select_server_for_model(model_id: str) -> str:
-    """Return one of: "openai", "openrouter", or "azure" (default "openai")."""
+    """Return one of: "openai" or "openrouter" (default "openai")."""
     try:
         provider_config = config_manager.get_provider_config("openai")
         if not provider_config:
@@ -58,7 +57,7 @@ def _select_server_for_model(model_id: str) -> str:
         for model in provider_config.get("models", []):
             if isinstance(model, dict) and model.get("id") == model_id:
                 default_server = model.get("default_server")
-                if default_server in {"openai", "openrouter", "azure"}:
+                if default_server in {"openai", "openrouter"}:
                     return default_server
                 break
         return "openai"
@@ -274,10 +273,10 @@ async def _invoke_openai_direct_api(
             if mapped_tools:
                 stream_payload["tools"] = mapped_tools
                 if tool_choice:
-                    if tool_choice == "required":
-                        stream_payload["tool_choice"] = {"type": "function"}
-                    elif tool_choice == "auto":
-                        stream_payload["tool_choice"] = "auto"
+                    # OpenAI v2 API expects the bare string "required" (or "auto"/"none").
+                    # Passing {"type": "function"} without a function name is rejected with 400.
+                    if tool_choice in ("required", "auto", "none"):
+                        stream_payload["tool_choice"] = tool_choice
                     else:
                         stream_payload["tool_choice"] = tool_choice
 
@@ -467,10 +466,10 @@ async def _invoke_openai_direct_api(
     if tools:
         payload["tools"] = _map_tools_to_openai_format(tools)
         if tool_choice:
-            if tool_choice == "required":
-                payload["tool_choice"] = {"type": "function"}
-            elif tool_choice == "auto":
-                payload["tool_choice"] = "auto"
+            # OpenAI v2 API expects the bare string "required" (or "auto"/"none").
+            # Passing {"type": "function"} without a function name is rejected with 400.
+            if tool_choice in ("required", "auto", "none"):
+                payload["tool_choice"] = tool_choice
             else:
                 payload["tool_choice"] = tool_choice
 
@@ -517,12 +516,6 @@ async def invoke_openai_chat_completions(
             tool_choice=tool_choice,
             stream=stream,
         )
-    elif server_choice == "azure":
-        error_msg = "Azure OpenAI selected by config, but not yet implemented in this client."
-        logger.error("[%s] %s", task_id, error_msg)
-        if stream:
-            raise ValueError(error_msg)
-        response = UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
     else:
         # Default to openai direct
         response = await _invoke_openai_direct_api(
