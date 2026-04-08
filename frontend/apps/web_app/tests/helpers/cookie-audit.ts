@@ -3,17 +3,23 @@
 /**
  * frontend/apps/web_app/tests/helpers/cookie-audit.ts
  *
- * Drop-in replacement for `@playwright/test` that auto-captures storage
- * (cookies, localStorage, sessionStorage, IndexedDB DB names) at the end of
- * every E2E test — pass or fail.
+ * Drop-in replacement for `@playwright/test` that auto-captures browser
+ * storage at the end of every E2E test — pass or fail.
  *
- * Why this exists:
- *   The legal/compliance cronjob (scripts/legal-compliance-scan.sh) needs
- *   runtime evidence — not just static acknowledgments — that the app does
- *   not set non-essential cookies. Per-test snapshots are merged by
- *   scripts/merge_storage_audits.py into
- *   docs/architecture/compliance/cookies.yml, which the auditor agent
- *   reviews against ePrivacy Art. 5(3) / TTDSG §25 strict-necessity rules.
+ * Two separate outputs (split by compliance relevance):
+ *   - Cookies → full attributes (domain, path, http_only, secure, same_site,
+ *     expires, anonymized example value). Cookies are the only storage type
+ *     that actually gates the ePrivacy cookie-banner decision, so we capture
+ *     the full attribute set for legal review.
+ *   - localStorage / sessionStorage / IndexedDB → KEY NAMES ONLY. No values
+ *     are captured or written to disk. This file is an inventory for
+ *     "what does this app put on the user's device at all", not a content
+ *     dump. The separate browser-storage.yml gives an overview; cookies.yml
+ *     is the banner-decision source of truth.
+ *
+ * Both outputs are merged into YAML by scripts/merge_storage_audits.py after
+ * a Playwright suite run and consumed by the twice-weekly legal compliance
+ * cronjob (scripts/legal-compliance-scan.sh).
  *
  * Specs use this exactly like @playwright/test:
  *   import { test, expect } from './helpers/cookie-audit';
@@ -22,9 +28,9 @@
  * The auto-fixture runs without any spec-side opt-in. Failures inside the
  * teardown are swallowed so audit instrumentation can never break a test.
  *
- * Anonymization is mandatory: this is an open-source repo, so values are
- * truncated and high-entropy / sensitive keys are redacted entirely. Real
- * tokens must never be committed.
+ * Anonymization: cookie values are truncated (4 chars + length) and
+ * sensitive-named keys are fully redacted. Local/session storage values are
+ * never captured in the first place — only their key names.
  */
 export {};
 
@@ -53,12 +59,6 @@ interface CookieRecord {
 	value_length: number;
 }
 
-interface StorageEntry {
-	key: string;
-	example_value: string;
-	value_length: number;
-}
-
 interface StorageSnapshot {
 	spec: string;
 	test: string;
@@ -66,8 +66,11 @@ interface StorageSnapshot {
 	captured_at: string;
 	url: string | null;
 	cookies: CookieRecord[];
-	local_storage: StorageEntry[];
-	session_storage: StorageEntry[];
+	// Key names only — values are intentionally NOT captured. These sections
+	// are informational (inventory of what the app stores on-device); only
+	// cookies gate the banner-exemption decision.
+	local_storage_keys: string[];
+	session_storage_keys: string[];
 	indexed_db: string[];
 }
 
@@ -99,8 +102,8 @@ async function captureStorage(
 		captured_at: new Date().toISOString(),
 		url: null,
 		cookies: [],
-		local_storage: [],
-		session_storage: [],
+		local_storage_keys: [],
+		session_storage_keys: [],
 		indexed_db: []
 	};
 
@@ -126,15 +129,18 @@ async function captureStorage(
 	}
 
 	// Page-bound storage requires a live page that's still on a same-origin URL.
+	// We capture KEY NAMES ONLY — values are never read. This keeps the audit
+	// trail lean and avoids any accidental leakage of user state into CI
+	// artifacts or the committed browser-storage.yml.
 	try {
 		if (page && !page.isClosed()) {
 			snapshot.url = page.url();
 			const webStorage = await page.evaluate(async () => {
-				const entries = (s: Storage): Array<[string, string]> => {
-					const out: Array<[string, string]> = [];
+				const keys = (s: Storage): string[] => {
+					const out: string[] = [];
 					for (let i = 0; i < s.length; i++) {
 						const k = s.key(i);
-						if (k !== null) out.push([k, s.getItem(k) ?? '']);
+						if (k !== null) out.push(k);
 					}
 					return out;
 				};
@@ -148,20 +154,14 @@ async function captureStorage(
 					// older browsers — ignore
 				}
 				return {
-					local: entries(localStorage),
-					session: entries(sessionStorage),
+					local: keys(localStorage),
+					session: keys(sessionStorage),
 					idb
 				};
 			});
 
-			snapshot.local_storage = webStorage.local.map(([k, v]: [string, string]) => ({
-				key: k,
-				...anonymizeValue(k, v)
-			}));
-			snapshot.session_storage = webStorage.session.map(([k, v]: [string, string]) => ({
-				key: k,
-				...anonymizeValue(k, v)
-			}));
+			snapshot.local_storage_keys = webStorage.local;
+			snapshot.session_storage_keys = webStorage.session;
 			snapshot.indexed_db = webStorage.idb;
 		}
 	} catch {

@@ -101,6 +101,7 @@ export FULL_PROMPT_PATH="$SCRIPT_DIR/prompts/legal-compliance-full.md"
 export DELTA_PROMPT_PATH="$SCRIPT_DIR/prompts/legal-compliance-delta.md"
 export ACKNOWLEDGMENTS_PATH="$PROJECT_ROOT/docs/architecture/compliance/acknowledgments.yml"
 export COOKIES_YAML_PATH="$PROJECT_ROOT/docs/architecture/compliance/cookies.yml"
+export BROWSER_STORAGE_YAML_PATH="$PROJECT_ROOT/docs/architecture/compliance/browser-storage.yml"
 
 if [[ "$SCAN_TYPE" == "full" ]]; then
   if [[ "$DRY_RUN" == "true" ]]; then

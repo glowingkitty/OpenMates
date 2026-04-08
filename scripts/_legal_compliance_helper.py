@@ -161,11 +161,11 @@ def _load_acknowledgments(path: str) -> str:
 
 
 def _load_cookies_yaml(path: str) -> str:
-    """Load the runtime cookie/storage inventory produced by the E2E suite.
+    """Load the runtime cookie inventory produced by the E2E suite.
 
     This is the empirical evidence that backs the "no consent banner needed"
     claim from acknowledgments.yml. The auditor agent compares observed
-    entries against the strict-necessity bar of ePrivacy Art. 5(3) / TTDSG §25.
+    cookies against the strict-necessity bar of ePrivacy Art. 5(3) / TTDSG §25.
     Missing file means the E2E suite has not run yet — the auditor should
     flag that and fall back to the static acknowledgment.
     """
@@ -184,6 +184,26 @@ def _load_cookies_yaml(path: str) -> str:
             file=sys.stderr,
         )
         return "# (cookies.yml unreadable — treat as missing)\n"
+
+
+def _load_browser_storage_yaml(path: str) -> str:
+    """Load the runtime localStorage / sessionStorage / IndexedDB key inventory.
+
+    Informational only — NOT part of the cookie-banner decision. The auditor
+    may still use it to spot engineering / privacy concerns (e.g. unexpectedly
+    persisted keys), but it does not affect the banner exemption verdict.
+    """
+    if not path or not os.path.isfile(path):
+        return "# (browser-storage.yml not found — non-cookie inventory unavailable)\n"
+    try:
+        with open(path) as f:
+            return f.read()
+    except Exception as e:
+        print(
+            f"[legal-compliance] WARNING: could not read browser-storage.yml: {e}",
+            file=sys.stderr,
+        )
+        return "# (browser-storage.yml unreadable — treat as missing)\n"
 
 
 def _prior_top_10_json(state: dict) -> str:
@@ -218,6 +238,7 @@ def _build_prompt(scan_type: str, env: dict) -> str:
     current_sha = _get_current_sha(project_root)
     acknowledgments_yaml = _load_acknowledgments(acknowledgments_path)
     cookies_yaml = _load_cookies_yaml(env.get("COOKIES_YAML_PATH", ""))
+    browser_storage_yaml = _load_browser_storage_yaml(env.get("BROWSER_STORAGE_YAML_PATH", ""))
     prior_top_10 = _prior_top_10_json(state)
 
     last_full_date = state.get("last_full_scan_date") or "(never)"
@@ -245,6 +266,7 @@ def _build_prompt(scan_type: str, env: dict) -> str:
         .replace("{{LAST_DELTA_SCAN_SHA}}", last_delta_sha)
         .replace("{{ACKNOWLEDGMENTS_YAML}}", acknowledgments_yaml)
         .replace("{{COOKIES_YAML}}", cookies_yaml)
+        .replace("{{BROWSER_STORAGE_YAML}}", browser_storage_yaml)
         .replace("{{PRIOR_TOP_10_JSON}}", prior_top_10)
         .replace("{{GIT_LOG}}", git_log)
         .replace("{{GIT_DIFF_SUMMARY}}", git_diff_summary)
@@ -257,7 +279,7 @@ def _get_env() -> dict:
         "PROJECT_ROOT", "TODAY_DATE", "STATE_FILE",
         "FULL_PROMPT_PATH", "DELTA_PROMPT_PATH", "ACKNOWLEDGMENTS_PATH",
     ]
-    optional = ["COOKIES_YAML_PATH"]
+    optional = ["COOKIES_YAML_PATH", "BROWSER_STORAGE_YAML_PATH"]
     env = {}
     missing = []
     for key in required:

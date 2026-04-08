@@ -1,0 +1,26 @@
+# Browser Storage Inventory (informational — NOT a banner-decision file)
+#
+# Runtime inventory of every localStorage key, sessionStorage key, and
+# IndexedDB database name the OpenMates web app uses during the full E2E
+# test suite. Key NAMES only — values are intentionally never captured or
+# stored anywhere in this repository.
+#
+# Why this file exists:
+#   For engineering + privacy awareness. It answers "what does the app
+#   actually put on the user's device?" It is NOT used to decide whether
+#   a cookie banner is required — that decision lives entirely in
+#   cookies.yml in the same directory.
+#
+# Sources of truth:
+#   - `seen_in_specs`, `first_observed`, `last_observed` are AUTO-GENERATED.
+#   - `purpose` and `notes` are HUMAN-MAINTAINED and preserved across runs.
+#
+# Read by: scripts/_legal_compliance_helper.py (Mon + Thu cron, informational only)
+# Updated by: scripts/run_tests.py after `--suite playwright` runs
+# Related: docs/architecture/compliance/cookies.yml (banner-decision file)
+
+local_storage: []
+
+session_storage: []
+
+indexed_db: []
