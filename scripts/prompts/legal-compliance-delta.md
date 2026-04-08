@@ -1,0 +1,107 @@
+You are running the **Thursday commit-delta legal & compliance scan** for OpenMates.
+
+**Scan type:** delta
+**Date:** {{DATE}}
+**HEAD SHA:** {{GIT_SHA}}
+**Last full scan:** {{LAST_FULL_SCAN_DATE}} (SHA: {{LAST_FULL_SCAN_SHA}})
+**Last delta scan:** {{LAST_DELTA_SCAN_DATE}} (SHA: {{LAST_DELTA_SCAN_SHA}})
+
+Your role, regulatory scope, scoring formula, output schema, and all rules are defined in the `legal-compliance-auditor` subagent definition at `.claude/agents/legal-compliance-auditor.md`. Read it now and follow it strictly.
+
+## Context injected for this run
+
+### Acknowledgments (DO NOT re-surface findings matching a valid ack)
+
+```yaml
+{{ACKNOWLEDGMENTS_YAML}}
+```
+
+### Prior Top 10 (from last scan — this is your starting point)
+
+```json
+{{PRIOR_TOP_10_JSON}}
+```
+
+### Commits since last full scan
+
+```
+{{GIT_LOG}}
+```
+
+### File change summary (files touched, with line counts)
+
+```
+{{GIT_DIFF_SUMMARY}}
+```
+
+## Your task for this run
+
+This is a **delta scan** — your starting point is the prior Top 10, and your job is to figure out how the recent commits changed the legal posture. Do NOT re-scan the entire codebase.
+
+1. **Read** `.claude/agents/legal-compliance-auditor.md` for the full rules if you need a refresher.
+
+2. **For each commit**, classify legal relevance:
+   - **Legal-neutral** — commit is tests, cosmetics, comments, i18n strings (unless policy-related), perf, etc. Skip.
+   - **Legal-relevant** — touches any of:
+     - `backend/*/providers/*.py` (subprocessor added/removed/changed)
+     - `backend/core/directus/schemas/` (PII fields added/removed)
+     - `backend/core/api/app/services/s3/` or bucket lifecycle
+     - `backend/core/api/app/services/compliance.py` (audit logging)
+     - `backend/core/api/app/services/encryption.py` or vault/KMS code
+     - `backend/core/api/app/tasks/user_cache_tasks.py` (erasure cascade)
+     - `backend/core/api/app/tasks/auto_delete_tasks.py` (retention)
+     - `backend/core/api/app/routes/settings.py` (rights endpoints)
+     - `backend/core/api/app/routes/auth_routes/` (cookies, sessions)
+     - `backend/apps/*/skills/` (new skills may introduce AI Act concerns)
+     - `backend/shared/providers/` (new third-party integrations)
+     - `backend/core/api/app/services/payment/` (payment processors)
+     - `backend/core/api/app/services/email/` (email providers)
+     - `frontend/**/cookies.ts`, `frontend/**/hooks.server.ts` (cookie/security headers)
+     - `frontend/**/legal/**` (privacy, ToU, imprint)
+     - `frontend/**/package.json` (new analytics/tracking SDKs)
+     - `shared/docs/privacy_policy.yml`
+     - `frontend/packages/ui/src/i18n/sources/legal/*.yml`
+     - `deployment/**/Caddyfile` (CSP, HSTS, access logs)
+
+3. **For each legal-relevant commit**, Read the actual changed file(s) and reason:
+   - Does this introduce a new finding? (e.g. new provider file → new undisclosed subprocessor)
+   - Does this resolve a prior Top 10 item? (e.g. privacy policy commit adding Revolut → resolves the Revolut-missing finding)
+   - Does this invalidate an acknowledgment? (e.g. a new `Set-Cookie` outside auth routes invalidates the cookie-banner ack)
+   - Does this change the severity or urgency of an existing finding?
+
+4. **Update the Top 10**:
+   - Start from the prior Top 10
+   - Remove resolved items (move them to `resolved_since_last_run` with `resolved_by: <commit sha>`)
+   - Add new items surfaced by commits
+   - Re-rank if severity/urgency/effort scores changed
+   - Annotate each item with `delta_since_last_run: new | unchanged | rank_up | rank_down | returned`
+
+5. **If no commits have legal implications**, emit the prior Top 10 unchanged with `delta_summary: "no legal-relevant changes in this window"` — this is a valid and expected outcome on quiet weeks.
+
+6. **Do NOT re-evaluate items that weren't touched by any commit**. Trust the prior ranking. The only exception: if an acknowledgment was invalidated by a new commit, re-surface any previously-suppressed finding that the ack was hiding.
+
+7. **Write both output files** (see agent definition for exact schemas):
+   - `logs/nightly-reports/legal-compliance.json` — with `scan_type: "delta"`
+   - `docs/architecture/compliance/top-10-recommendations.md`
+
+8. **Update state file** at `scripts/.legal-compliance-state.json`:
+    ```json
+    {
+      "last_full_scan_date": "{{LAST_FULL_SCAN_DATE}}",
+      "last_full_scan_sha": "{{LAST_FULL_SCAN_SHA}}",
+      "last_delta_scan_date": "{{DATE}}",
+      "last_delta_scan_sha": "{{GIT_SHA}}",
+      "prior_top_10": [<the updated Top 10>],
+      "dismissed_counts": {<carry-over from prior state with any updates>}
+    }
+    ```
+
+## Constraints
+
+- You have `Read`, `Grep`, `Glob`, `Bash`, `Write`, `Edit` tools.
+- Delta scan = surgical. Do NOT explore files that weren't touched by the commits unless you need them for direct context.
+- Do NOT modify source code, policy docs, or i18n files.
+- You MAY NOT amend `gdpr-audit.md` in a delta scan (only full scans can do that).
+- Session timeout is 20 minutes. Be efficient.
+
+Begin.
