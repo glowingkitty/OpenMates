@@ -46,11 +46,20 @@ data_protection_measures:
       happens transiently in process memory and the plaintext is never persisted.
   pii_placeholder_substitution:
     description: >
-      Before any message is sent to a third-party AI model, your browser replaces
-      real names, email addresses, and physical addresses with neutral placeholders
-      (for example [USER_0]). The mapping back to your real values is stored
-      encrypted with your key and is never decrypted on our servers. The AI models
-      we integrate with see only the placeholder version of your content.
+      Before any message is sent to a third-party AI model, your browser scans
+      your message for real names, email addresses, and physical addresses that
+      you have saved in your privacy settings (or that match common patterns)
+      and replaces any matches with neutral placeholders (for example [USER_0]).
+      The mapping back to your real values is stored encrypted with your key
+      and is never decrypted on our servers. **Important limitation:** this
+      substitution only protects personal data that our client-side detector
+      actually recognizes — typically the values you have explicitly saved in
+      your privacy settings and values highlighted in the message field before
+      you send. Anything the detector does not recognize (typos of your own
+      name, uncommon address formats, other people's personal data, sensitive
+      topics that are not formally PII) will be transmitted as you typed it.
+      Please treat every message as you would treat a note passed to a
+      third-party AI provider and be cautious with personal data.
     gdpr_article: Art. 5(1)(c) — Data minimization
   encrypted_at_rest:
     description: >
