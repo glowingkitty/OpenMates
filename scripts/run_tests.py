@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -240,6 +241,164 @@ def _safe_write_json(path: Path, data: dict) -> None:
 # unless boosted. Be conservative: cap to 5 files at 2 MB each.
 DISCORD_MAX_ATTACHMENTS = 5
 DISCORD_MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
+
+# ---------------------------------------------------------------------------
+# Discord per-test deduplication state (OPE-349 follow-up)
+# ---------------------------------------------------------------------------
+#
+# Architecture:
+# - Per hourly mode (`hourly-dev`, `hourly-prod`) we maintain a small JSON
+#   state file under that mode's archive dir. The file maps a stable
+#   per-test key to:
+#       { message_id, error_hash, first_seen, last_seen, count, summary_hash,
+#         summary_message_id }
+# - On each tick:
+#       1. Compute the current set of {test_key: error_hash} from this run.
+#       2. For each currently-failing test:
+#            * If state has the same key + same error_hash → repeat. PATCH the
+#              existing message in place with an updated counter footer.
+#            * If state has the key but a DIFFERENT error_hash → the failure
+#              mode changed; treat as new. POST a fresh message and replace
+#              the state entry.
+#            * If state has no entry → first sight. POST and save.
+#       3. Any state entries whose key is NOT in the current failure set are
+#          recoveries — post a single "✅ recovered" line and drop the entry.
+# - The lightweight summary embed is also dedup'd: state stores a hash of
+#   the failure set + the summary message id. On a repeat tick where the
+#   failure set is unchanged AND there are no recoveries, we skip the
+#   summary post entirely so we don't spam the channel.
+#
+# State file retention: 7 days after `last_seen` so dead entries (e.g. tests
+# that were renamed or removed) eventually get garbage-collected.
+
+DISCORD_STATE_RETENTION_DAYS = 7
+DISCORD_STATE_FILE_NAME = "discord-state.json"
+
+
+def _compute_test_key(suite_name: str, test: dict) -> str:
+    """Stable identity for a single test across runs.
+
+    Uses suite + the most descriptive name field available. We intentionally
+    do NOT include error or status — those change between repeats.
+    """
+    name = test.get("file") or test.get("name") or test.get("title") or "?"
+    return f"{suite_name}::{name}"
+
+
+def _normalize_error(error: str) -> str:
+    """Normalise an error string for hashing.
+
+    Strips ANSI codes, timestamps, run IDs, file paths and excess
+    whitespace so two runs of the same underlying failure produce the
+    same hash even when the surrounding noise drifts.
+    """
+    if not error:
+        return ""
+    # Strip ANSI escape codes
+    s = re.sub(r"\x1b\[[0-9;]*m", "", error)
+    # Strip ISO timestamps (2026-04-08T12:34:56[.789][Z])
+    s = re.sub(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?", "<TS>", s)
+    # Strip run IDs / numeric ids that appear inline
+    s = re.sub(r"\b\d{8,}\b", "<ID>", s)
+    # Strip absolute paths so /home/runner/... vs /tmp/... don't differ.
+    # Allow optional :line[:col] suffix so we collapse "foo.ts:42:7" too.
+    s = re.sub(r"/[\w\-./]+\.(ts|js|py|spec\.ts)(:\d+)?(:\d+)?", "<PATH>", s)
+    # Strip remaining standalone line:col fragments that appeared without
+    # a leading slash (Playwright sometimes prints `at line 42:7`).
+    s = re.sub(r":\d+(:\d+)?\b", ":<LN>", s)
+    # Collapse whitespace
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _compute_error_hash(test: dict) -> str:
+    """SHA-256 of the normalised error so we can detect 'same test, same error'.
+
+    Considers both the structured Playwright error message and the plain
+    `error` field for backend / non-Playwright tests.
+    """
+    pw = test.get("playwright_errors") or []
+    parts: list[str] = []
+    if pw:
+        msg = (pw[0].get("message") or "").strip()
+        if msg:
+            parts.append(msg)
+    err = (test.get("error") or "").strip()
+    if err and err not in parts:
+        parts.append(err)
+    if not parts:
+        return ""
+    normalized = _normalize_error("\n".join(parts))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+
+
+def _compute_failure_set_hash(state_keys_now: dict[str, str]) -> str:
+    """Hash of the current {test_key: error_hash} mapping.
+
+    Used to decide whether to skip the lightweight summary embed: if this
+    matches the previously stored hash AND there are no recoveries, the
+    summary would just be a duplicate of what's already in the channel.
+    """
+    if not state_keys_now:
+        return ""
+    encoded = json.dumps(state_keys_now, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:16]
+
+
+def _load_discord_state(state_file: Path) -> dict:
+    """Load the per-mode Discord dedup state.
+
+    Returns an empty skeleton when the file is missing or unreadable so
+    callers can always rely on the structure being present.
+    """
+    if not state_file.is_file():
+        return {"tests": {}, "summary": {}}
+    try:
+        with open(state_file) as f:
+            data = json.load(f) or {}
+    except (OSError, json.JSONDecodeError):
+        return {"tests": {}, "summary": {}}
+    if not isinstance(data, dict):
+        return {"tests": {}, "summary": {}}
+    data.setdefault("tests", {})
+    data.setdefault("summary", {})
+    return data
+
+
+def _save_discord_state(state_file: Path, state: dict) -> None:
+    """Atomically write the state file."""
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp = state_file.with_suffix(state_file.suffix + ".tmp")
+    try:
+        with open(tmp, "w") as f:
+            json.dump(state, f, indent=2)
+        tmp.replace(state_file)
+    except OSError as e:
+        _log(f"Failed to write discord state to {state_file}: {e}", "WARN")
+
+
+def _prune_discord_state(state: dict, retention_days: int = DISCORD_STATE_RETENTION_DAYS) -> dict:
+    """Drop entries whose `last_seen` is older than the retention window.
+
+    Stops state files from accumulating ghost entries for tests that were
+    renamed, removed, or stayed green long enough that their recovery
+    message has already been posted.
+    """
+    cutoff = time.time() - retention_days * 86400
+    tests = state.get("tests", {}) or {}
+    keep: dict = {}
+    for k, entry in tests.items():
+        last_seen = entry.get("last_seen", "")
+        try:
+            ts = datetime.strptime(last_seen, "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=timezone.utc
+            ).timestamp()
+        except (ValueError, TypeError):
+            ts = 0
+        if ts >= cutoff:
+            keep[k] = entry
+    state["tests"] = keep
+    return state
 
 
 def _build_multipart_body(
@@ -1096,6 +1255,8 @@ class NotificationService:
         env_var_name: str = "DISCORD_WEBHOOK_DEV_NIGHTLY",
         run_url: Optional[str] = None,
         screenshots: Optional[list[Path]] = None,
+        state_file: Optional[Path] = None,
+        suite_name_for_dedup: Optional[str] = None,
     ) -> None:
         """Post a test run summary to a Discord webhook.
 
@@ -1132,6 +1293,39 @@ class NotificationService:
         if all_passed and not post_on_success:
             _log(f"Discord ({mode_label}): green run, suppressed (post_on_success=False)")
             return
+
+        # Dedup: skip the summary entirely on a repeat tick where the
+        # exact same set of tests is failing with the exact same root
+        # cause AND no recoveries have happened. The per-test detail
+        # messages get PATCHed in place by send_per_test_md_messages so
+        # the operator already sees the latest screenshots/timings; a
+        # fresh summary post would just be channel noise.
+        #
+        # State layout: state["summary"] = {"hash": "<sha>", "last_seen": "<iso>"}
+        new_summary_hash: Optional[str] = None
+        if state_file is not None and suite_name_for_dedup is not None:
+            current_keys: dict[str, str] = {}
+            for sname, sdata in result.suites.items():
+                for t in (sdata or {}).get("tests", []):
+                    if t.get("status") != "failed":
+                        continue
+                    current_keys[_compute_test_key(sname, t)] = _compute_error_hash(t)
+            new_summary_hash = _compute_failure_set_hash(current_keys)
+            existing_state = _load_discord_state(state_file)
+            prev = existing_state.get("summary", {}) or {}
+            prev_hash = prev.get("hash", "")
+            # Skip if: same failure set as last tick AND we've already
+            # posted a summary for it AND there's nothing new to say.
+            if (
+                new_summary_hash
+                and new_summary_hash == prev_hash
+                and not all_passed
+            ):
+                _log(
+                    f"Discord ({mode_label}): same failure set as last tick "
+                    f"({new_summary_hash}) — summary suppressed"
+                )
+                return
 
         # Red for failures, green for all-passed — matches the email HTML.
         color = 0x22C55E if all_passed else 0xEF4444
@@ -1267,6 +1461,19 @@ class NotificationService:
                 resp.read()
             attached_note = f" (+{len(attachments)} screenshot(s))" if attachments else ""
             _log(f"Discord summary posted ({mode_label}){attached_note}")
+            # Persist the new summary fingerprint so the next tick can
+            # detect "nothing changed" and skip. Best-effort: a write
+            # failure is logged but never breaks the cron run.
+            if state_file is not None and new_summary_hash is not None:
+                try:
+                    persisted = _load_discord_state(state_file)
+                    persisted["summary"] = {
+                        "hash": new_summary_hash,
+                        "last_seen": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    }
+                    _save_discord_state(state_file, persisted)
+                except Exception as state_err:
+                    _log(f"Discord summary state write failed: {state_err}", "WARN")
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
@@ -1568,15 +1775,25 @@ class NotificationService:
         webhook_url: str,
         embeds: list[dict],
         files: list[tuple[str, bytes, str]],
-    ) -> bool:
+        return_message_id: bool = False,
+    ) -> "bool | Optional[str]":
         """POST a multipart Discord message with retry-on-429.
 
-        Returns True on success, False otherwise. Never raises — same
-        fallback contract as the other Discord helpers. Reads the
-        `Retry-After` header on 429 and retries once after sleeping.
+        When `return_message_id=False` (default — backwards compatible),
+        returns True on success / False on failure.
+
+        When `return_message_id=True`, returns the Discord `message.id`
+        string on success or None on failure. The webhook URL is augmented
+        with `?wait=true` so Discord blocks until the message is created
+        and returns its full JSON (we need the id to PATCH it later for
+        the dedup workflow).
+
+        Never raises — same fallback contract as the other Discord
+        helpers. Reads `Retry-After` on 429 and retries once.
         """
+        failure_return = None if return_message_id else False
         if not webhook_url or not embeds:
-            return False
+            return failure_return
 
         payload = {
             "username": "OpenMates Server",
@@ -1586,15 +1803,29 @@ class NotificationService:
         body, content_type = _build_multipart_body(payload, files)
         ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
 
+        # When the caller wants the message id back we must append
+        # ?wait=true so Discord blocks until the message exists and returns
+        # the full message object (otherwise we get a 204 No Content).
+        post_url = webhook_url
+        if return_message_id and "?wait=" not in post_url:
+            sep = "&" if "?" in post_url else "?"
+            post_url = f"{post_url}{sep}wait=true"
+
         for attempt in range(2):
             try:
                 req = urllib.request.Request(
-                    webhook_url, data=body,
+                    post_url, data=body,
                     headers={"Content-Type": content_type, "User-Agent": ua},
                     method="POST",
                 )
                 with urllib.request.urlopen(req, timeout=30) as resp:
-                    resp.read()
+                    raw = resp.read()
+                if return_message_id:
+                    try:
+                        msg = json.loads(raw.decode("utf-8")) if raw else {}
+                        return str(msg.get("id") or "") or None
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        return None
                 return True
             except urllib.error.HTTPError as e:
                 if e.code == 429 and attempt == 0:
@@ -1610,11 +1841,114 @@ class NotificationService:
                     continue
                 err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
                 _log(f"Discord per-test POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
-                return False
+                return failure_return
             except Exception as e:
                 _log(f"Discord per-test POST failed: {e}", "ERROR")
+                return failure_return
+        return failure_return
+
+    def _patch_discord_multipart(
+        self,
+        webhook_url: str,
+        message_id: str,
+        embeds: list[dict],
+        files: list[tuple[str, bytes, str]],
+    ) -> bool:
+        """PATCH an existing webhook message in place.
+
+        Used by the per-test dedup workflow: when a previously-failing test
+        is still failing with the same root cause, we update the existing
+        message (incrementing the counter footer + refreshing screenshots)
+        instead of posting a new one.
+
+        Endpoint: `PATCH /webhooks/{id}/{token}/messages/{message_id}`.
+        Multipart body is identical to POST, but uploading new files
+        replaces the message's attachments entirely (Discord behaviour
+        when no `attachments` array is referenced in the payload).
+
+        Returns True on success, False otherwise. Never raises.
+        """
+        if not webhook_url or not message_id or not embeds:
+            return False
+
+        # Build the message-edit URL — strip any trailing query string from
+        # the webhook URL first so we can append `/messages/{id}` cleanly.
+        base_url = webhook_url.split("?", 1)[0].rstrip("/")
+        patch_url = f"{base_url}/messages/{message_id}"
+
+        payload = {
+            "embeds": embeds,
+            # Username/avatar are NOT supported on PATCH (the original
+            # message keeps the identity it was created with), so we omit
+            # them deliberately. Sending them would not error but would
+            # silently waste bytes.
+        }
+        body, content_type = _build_multipart_body(payload, files)
+        ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
+
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    patch_url, data=body,
+                    headers={"Content-Type": content_type, "User-Agent": ua},
+                    method="PATCH",
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    resp.read()
+                return True
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt == 0:
+                    retry_after_raw = e.headers.get("Retry-After", "1") if e.headers else "1"
+                    try:
+                        retry_after = float(retry_after_raw)
+                    except ValueError:
+                        retry_after = 1.0
+                    _log(f"Discord 429 (PATCH) — sleeping {retry_after:.1f}s and retrying", "WARN")
+                    time.sleep(min(retry_after + 0.25, 30))
+                    continue
+                # 404 means the message we tried to edit no longer exists
+                # (deleted by hand, channel cleared, etc.). Caller should
+                # treat this as "fall back to a fresh POST".
+                err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+                if e.code == 404:
+                    _log(f"Discord PATCH 404 — message {message_id} gone, will repost", "WARN")
+                else:
+                    _log(f"Discord PATCH failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+                return False
+            except Exception as e:
+                _log(f"Discord PATCH failed: {e}", "ERROR")
                 return False
         return False
+
+    @staticmethod
+    def _annotate_embeds_with_counter(
+        embeds: list[dict],
+        first_seen: str,
+        last_seen: str,
+        count: int,
+    ) -> None:
+        """Add a dedup-counter footer to the LAST embed in the list, in place.
+
+        On a fresh failure (count == 1) the footer is just `🆕 First seen
+        HH:MM UTC`. On repeats it becomes `🔁 Repeated N× • since HH:MM
+        UTC • last HH:MM UTC` so the operator can see at a glance both how
+        long the failure has been live and when the most recent tick was.
+        """
+        if not embeds:
+            return
+        try:
+            first_short = first_seen.split("T")[1][:5] + " UTC" if "T" in first_seen else first_seen
+            last_short = last_seen.split("T")[1][:5] + " UTC" if "T" in last_seen else last_seen
+        except (IndexError, AttributeError):
+            first_short = first_seen or "?"
+            last_short = last_seen or "?"
+        if count <= 1:
+            footer_text = f"🆕 First seen {first_short}"
+        else:
+            footer_text = (
+                f"🔁 Repeated {count}× • since {first_short} • last {last_short}"
+            )
+        embeds[-1]["footer"] = {"text": footer_text}
 
     def send_per_test_md_messages(
         self,
@@ -1623,26 +1957,53 @@ class NotificationService:
         suite_name: str,
         screenshots_root: Path,
         env_var_name: str,
-    ) -> int:
-        """Send one MD-style multi-embed message per failed test.
+        state_file: Optional[Path] = None,
+    ) -> tuple[int, int, int]:
+        """Send one MD-style multi-embed message per failed test, with dedup.
 
-        Returns the number of messages successfully posted. Skips tests
-        that have no screenshots / no step log (their info is already in
-        the lightweight summary embed sent separately).
+        Returns `(posted, edited, recovered)`:
+            posted    — number of NEW messages posted (first failure or
+                        failure with a different root cause)
+            edited    — number of existing messages PATCHed (repeat with
+                        same error)
+            recovered — number of recovery messages posted for tests that
+                        passed after previously failing
+
+        When `state_file` is provided, dedup is active:
+            * On first sight of a failing test → POST and store
+              {message_id, error_hash, first_seen, last_seen, count=1}
+            * On repeat with same error_hash → PATCH the existing message
+              in place; bump count + last_seen.
+            * On repeat with a different error_hash → treat as new failure;
+              POST a fresh message and replace the entry.
+            * Tests in the state file but NOT in the current failure set
+              are recoveries — post a single line and drop the entry.
 
         Caller orchestration: call _send_summary_to_discord first (the
         overview), then this method (the per-test detail).
         """
         if not webhook_url:
             _log(f"{env_var_name} not set — skipping per-test Discord detail", "DEBUG")
-            return 0
+            return (0, 0, 0)
 
         suite_data = result.suites.get(suite_name, {}) or {}
         failed_tests = [t for t in suite_data.get("tests", []) if t.get("status") == "failed"]
-        if not failed_tests:
-            return 0
 
-        sent = 0
+        # Load state once. When state_file is None, dedup is disabled and
+        # we behave like the original implementation (always POST).
+        state: dict = {"tests": {}, "summary": {}}
+        if state_file is not None:
+            state = _load_discord_state(state_file)
+            state = _prune_discord_state(state)
+
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        posted = 0
+        edited = 0
+        recovered = 0
+
+        # ─── 1. Process current failures (POST or PATCH) ────────────────────
+        current_failure_keys: set[str] = set()
         for t in failed_tests:
             embeds, files = self._build_md_style_test_message(
                 t, suite_name, result.run_id, screenshots_root,
@@ -1652,15 +2013,138 @@ class NotificationService:
                 # The lightweight summary already named it as failed, so we
                 # don't bother spamming an empty card.
                 continue
-            if self._post_discord_multipart(webhook_url, embeds, files):
-                sent += 1
-                # 250 ms breather between sends to stay well under Discord's
-                # 30-msg/60-sec webhook bucket and any sub-second burst caps.
-                time.sleep(0.25)
 
-        if sent:
-            _log(f"Discord per-test detail posted ({sent}/{len(failed_tests)} failed test(s))")
-        return sent
+            test_key = _compute_test_key(suite_name, t)
+            error_hash = _compute_error_hash(t)
+            current_failure_keys.add(test_key)
+
+            existing = state.get("tests", {}).get(test_key) if state_file else None
+            same_error = (
+                existing is not None
+                and existing.get("error_hash") == error_hash
+                and error_hash != ""
+            )
+
+            if same_error:
+                # Repeat with same root cause → PATCH the existing message
+                # in place after annotating with the bumped counter.
+                new_count = int(existing.get("count", 1)) + 1
+                first_seen = existing.get("first_seen", now_iso)
+                self._annotate_embeds_with_counter(
+                    embeds,
+                    first_seen=first_seen,
+                    last_seen=now_iso,
+                    count=new_count,
+                )
+                ok = self._patch_discord_multipart(
+                    webhook_url, str(existing.get("message_id", "")), embeds, files
+                )
+                if ok:
+                    edited += 1
+                    state["tests"][test_key] = {
+                        **existing,
+                        "last_seen": now_iso,
+                        "count": new_count,
+                    }
+                    time.sleep(0.25)
+                else:
+                    # PATCH failed (e.g. message deleted) — fall back to a
+                    # fresh POST so the operator still sees the failure.
+                    self._annotate_embeds_with_counter(
+                        embeds, first_seen=now_iso, last_seen=now_iso, count=1
+                    )
+                    msg_id = self._post_discord_multipart(
+                        webhook_url, embeds, files, return_message_id=True
+                    )
+                    if msg_id:
+                        posted += 1
+                        state["tests"][test_key] = {
+                            "message_id": msg_id,
+                            "error_hash": error_hash,
+                            "first_seen": now_iso,
+                            "last_seen": now_iso,
+                            "count": 1,
+                        }
+                        time.sleep(0.25)
+            else:
+                # First sight OR error fingerprint changed (different root
+                # cause) → fresh POST.
+                self._annotate_embeds_with_counter(
+                    embeds, first_seen=now_iso, last_seen=now_iso, count=1
+                )
+                msg_id = self._post_discord_multipart(
+                    webhook_url, embeds, files, return_message_id=True
+                ) if state_file else self._post_discord_multipart(
+                    webhook_url, embeds, files
+                )
+                # When dedup is disabled (state_file is None), msg_id is a
+                # bool — treat True as "posted, no id to track".
+                if state_file is None:
+                    if msg_id:
+                        posted += 1
+                        time.sleep(0.25)
+                else:
+                    if msg_id:
+                        posted += 1
+                        state["tests"][test_key] = {
+                            "message_id": msg_id,
+                            "error_hash": error_hash,
+                            "first_seen": now_iso,
+                            "last_seen": now_iso,
+                            "count": 1,
+                        }
+                        time.sleep(0.25)
+
+        # ─── 2. Process recoveries (tests in state but not failing now) ────
+        if state_file is not None:
+            recovered_entries = []
+            for k, entry in list(state.get("tests", {}).items()):
+                if k in current_failure_keys:
+                    continue
+                # Only count recoveries for tests in this suite — leave
+                # entries from other suites alone.
+                if not k.startswith(f"{suite_name}::"):
+                    continue
+                recovered_entries.append((k, entry))
+
+            for k, entry in recovered_entries:
+                # Strip "{suite_name}::" prefix for the human label.
+                human = k.split("::", 1)[1] if "::" in k else k
+                count = int(entry.get("count", 1))
+                first_seen = entry.get("first_seen", "")
+                first_short = (
+                    first_seen.split("T")[1][:5] + " UTC"
+                    if "T" in first_seen else (first_seen or "?")
+                )
+                description = (
+                    f"**{human}** is green again.\n"
+                    f"Failed **{count}×** since `{first_short}`."
+                )
+                recovery_embed = {
+                    "description": description,
+                    "color": 0x22C55E,
+                    "footer": {"text": "✅ Recovery"},
+                }
+                ok = self._post_discord_multipart(
+                    webhook_url, [recovery_embed], []
+                )
+                if ok:
+                    recovered += 1
+                    # Drop the entry — recovery message is one-shot, we
+                    # don't track it after this. If it fails again, it'll
+                    # come back as a fresh first-sight POST.
+                    state["tests"].pop(k, None)
+                    time.sleep(0.25)
+
+            # Persist state for next tick.
+            _save_discord_state(state_file, state)
+
+        if posted or edited or recovered:
+            _log(
+                f"Discord per-test: {posted} new, {edited} updated, "
+                f"{recovered} recovered"
+            )
+        return (posted, edited, recovered)
 
     def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
         """Send via internal API as fallback."""
@@ -1954,24 +2438,35 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     # heartbeat for green runs.
     post_on_success = force or _heartbeat_should_fire(HOURLY_DEV_DIR)
 
+    # Dedup state file: persists per-test message ids and the summary
+    # fingerprint so repeat ticks PATCH the existing messages instead of
+    # spamming new ones. Lives next to the run archives.
+    state_file = HOURLY_DEV_DIR / DISCORD_STATE_FILE_NAME
+
     # Send the lightweight summary embed first (one message: overview of
-    # which specs failed + clickable [logs] links), then one MD-style detail
-    # message per failed test (chunked text + inline screenshots).
+    # which specs failed + clickable [logs] links), then per-test detail
+    # messages (PATCH on repeat, fresh POST on first sight, recovery line
+    # when a previously failing test goes green).
     notification._send_summary_to_discord(
         result,
         webhook_url=notification.discord_webhook_dev_smoke,
         mode_label="dev hourly",
         post_on_success=post_on_success,
         env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+        state_file=state_file,
+        suite_name_for_dedup="playwright",
     )
-    if s["failed"] > 0:
-        notification.send_per_test_md_messages(
-            result,
-            webhook_url=notification.discord_webhook_dev_smoke,
-            suite_name="playwright",
-            screenshots_root=RESULTS_DIR / "screenshots" / "current",
-            env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
-        )
+    # Always call the per-test sender — even with zero current failures it
+    # may still need to post recovery messages for tests that just turned
+    # green AND prune the state file.
+    notification.send_per_test_md_messages(
+        result,
+        webhook_url=notification.discord_webhook_dev_smoke,
+        suite_name="playwright",
+        screenshots_root=RESULTS_DIR / "screenshots" / "current",
+        env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+        state_file=state_file,
+    )
 
     return 1 if s["failed"] > 0 else 0
 
@@ -2307,9 +2802,11 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     )
 
     post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
+    state_file = HOURLY_PROD_DIR / DISCORD_STATE_FILE_NAME
     try:
         # Lightweight summary first (overview of which specs failed +
-        # clickable links).
+        # clickable links). Skipped automatically when the failure set is
+        # unchanged from the last tick (dedup'd via state file).
         notification._send_summary_to_discord(
             result,
             webhook_url=notification.discord_webhook_prod_smoke,
@@ -2317,16 +2814,24 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             post_on_success=post_on_success,
             env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
             run_url=run_url,
+            state_file=state_file,
+            suite_name_for_dedup="prod-smoke",
         )
-        # Then per-spec MD-style detail messages with inline screenshots.
-        if s["failed"] > 0 and staged_root is not None:
-            notification.send_per_test_md_messages(
-                result,
-                webhook_url=notification.discord_webhook_prod_smoke,
-                suite_name="prod-smoke",
-                screenshots_root=staged_root,
-                env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
-            )
+        # Always call the per-test sender so recoveries get reported
+        # and the state file gets pruned even on a green tick. When
+        # there are no current failures and no screenshots, the call
+        # is essentially a no-op + recovery scan.
+        notification.send_per_test_md_messages(
+            result,
+            webhook_url=notification.discord_webhook_prod_smoke,
+            suite_name="prod-smoke",
+            # staged_root may be None on a fully-green run; pass a
+            # non-existent path so the per-test builder simply finds
+            # nothing and the recovery scan still runs.
+            screenshots_root=staged_root or (PROJECT_ROOT / "test-results" / "_no_screens"),
+            env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+            state_file=state_file,
+        )
     finally:
         if artifact_dir:
             shutil.rmtree(artifact_dir, ignore_errors=True)
