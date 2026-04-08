@@ -8,7 +8,22 @@
 // AI-response patterns that broke it. Change detection — if someone swaps
 // the regex back to ^``` this test fires.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+// markdownParser.ts pulls in Svelte store modules and metadata tables at
+// module load. In the GH-Actions node environment these imports can hang
+// or fail silently, which causes the whole test file to be skipped. Stub
+// them so the import graph stays minimal and preprocessMarkdown can be
+// exercised in isolation.
+vi.mock("../../../../data/modelsMetadata", () => ({ modelsMetadata: {} }));
+vi.mock("../../../../data/matesMetadata", () => ({ matesMetadata: {} }));
+vi.mock("../../../../stores/appSettingsMemoriesStore", () => ({
+  appSettingsMemoriesStore: { subscribe: () => () => {} },
+}));
+vi.mock("../../../../stores/appSkillsStore", () => ({
+  appSkillsStore: { subscribe: () => () => {} },
+}));
+
 import { preprocessMarkdown } from "../markdownParser";
 
 describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
