@@ -140,32 +140,40 @@ class S3UploadService:
             except ClientError as e:
                 error_code = e.response.get('Error', {}).get('Code')
                 # Common error codes for non-existent buckets
-                if error_code == '404' or error_code == 'NoSuchBucket': 
+                if error_code == '404' or error_code == 'NoSuchBucket':
                     logger.info(f"Bucket '{bucket_name}' not found. Creating...")
                     try:
                         # Attempt to create the bucket (Hetzner implies region from endpoint)
                         self.client.create_bucket(Bucket=bucket_name)
                         logger.info(f"Successfully created bucket '{bucket_name}'.")
                         bucket_exists = True
-
-                        # Apply ACL if public-read is required, after creation
-                        if access_type == 'public-read':
-                            try:
-                                self.client.put_bucket_acl(Bucket=bucket_name, ACL='public-read')
-                                logger.info(f"Set ACL for bucket '{bucket_name}' to public-read.")
-                            except ClientError as acl_e:
-                                logger.warning(f"Failed to set public-read ACL for bucket '{bucket_name}': {acl_e}. Manual check might be needed.")
-                                # Continue even if ACL fails, bucket exists
-
                     except ClientError as create_e:
                         logger.error(f"Failed to create bucket '{bucket_name}': {create_e}")
-                        bucket_exists = False # Creation failed
-                        continue # Skip lifecycle for this bucket
+                        bucket_exists = False  # Creation failed
+                        continue  # Skip lifecycle for this bucket
                 else:
                     # Handle other errors during head_bucket (e.g., permissions)
                     logger.error(f"Error checking bucket '{bucket_name}': {e}. Skipping lifecycle policy application.")
-                    bucket_exists = False # Unsure about state, assume no for safety
-                    continue # Skip lifecycle for this bucket
+                    bucket_exists = False  # Unsure about state, assume no for safety
+                    continue  # Skip lifecycle for this bucket
+
+            # Reconcile bucket ACL with the current config on every startup.
+            # Previously this only ran at creation time, which meant that flipping
+            # a bucket's `access` in config.py (e.g. public-read → private after
+            # GDPR audit C6) had no effect on buckets that already existed.
+            # Running it unconditionally keeps the live state aligned with code.
+            if bucket_exists:
+                desired_acl = 'public-read' if access_type == 'public-read' else 'private'
+                try:
+                    self.client.put_bucket_acl(Bucket=bucket_name, ACL=desired_acl)
+                    logger.info(f"Reconciled ACL for bucket '{bucket_name}' to '{desired_acl}'.")
+                except ClientError as acl_e:
+                    logger.warning(
+                        f"Failed to reconcile ACL for bucket '{bucket_name}' to '{desired_acl}': {acl_e}. "
+                        "Manual check might be needed."
+                    )
+                    # Continue even if ACL reconciliation fails — object-level ACLs
+                    # applied during put_object are the enforced boundary.
 
             # Apply lifecycle policy if the bucket exists (or was just created) and has a policy defined
             if bucket_exists and isinstance(lifecycle_days, int) and lifecycle_days > 0:

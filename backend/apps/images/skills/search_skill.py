@@ -10,11 +10,16 @@
 #   For reverse image search with user-uploaded images:
 #     - The image is stored encrypted on private S3.
 #     - This skill downloads + decrypts the image server-side (same as view_skill).
-#     - The plaintext bytes are temporarily uploaded to the public `temp_images` bucket
-#       via the internal API route POST /internal/s3/upload-temp-image.
-#     - The resulting public URL is passed to SerpAPI Google Lens.
+#     - The plaintext bytes are temporarily uploaded to the PRIVATE `temp_images`
+#       bucket via the internal API route POST /internal/s3/upload-temp-image.
+#     - That route returns a short-lived (15 min) presigned URL which is passed
+#       to SerpAPI Google Lens — SerpAPI fetches the object exactly once.
 #     - After the search completes, the temp image is deleted immediately.
 #       The 1-day S3 lifecycle policy is a safety net for any failures.
+#     - Prior to GDPR audit finding C6 (fixed 2026-04-08 / OPE-372) this bucket
+#       was public-read and the URL was a plain public S3 URL, which exposed
+#       decrypted user images to anyone holding the URL for up to 24h.
+#       See docs/architecture/compliance/gdpr-audit.md.
 #
 #   For image search results (search-result child embeds):
 #     - The child embed stores image_url (the external full-res URL) and thumbnail_url.
@@ -316,17 +321,22 @@ class SearchSkill(BaseSkill):
         aesgcm = AESGCM(aes_key_bytes)
         return aesgcm.decrypt(nonce_bytes, encrypted_bytes, None)
 
-    async def _upload_temp_public_image(
+    async def _upload_temp_image(
         self, image_bytes: bytes, content_type: str
     ) -> tuple[str, str]:
         """
-        Upload plaintext image bytes to the temporary public S3 bucket.
+        Upload plaintext image bytes to the temporary (private) S3 bucket and
+        obtain a short-lived presigned URL for SerpAPI Google Lens.
 
-        Returns (public_url, s3_key) — the public URL for Google Lens and the
-        S3 key needed to delete the file after the search.
+        Returns (image_url, s3_key) — a 15-minute presigned URL that SerpAPI
+        can fetch once, and the S3 key needed to delete the file after the
+        search completes.
 
-        The temp_images bucket is public-read with a 1-day lifecycle policy.
-        The s3_key uses a random UUID prefix so the URL cannot be guessed.
+        The temp_images bucket is private with a 1-day lifecycle safety net;
+        immediate cleanup is done via `_delete_temp_image` in the finally block
+        of the caller. Before GDPR audit finding C6 this bucket was public-read
+        and the returned URL was a plain public S3 URL — see
+        docs/architecture/compliance/gdpr-audit.md.
         """
         ext_map = {
             "image/webp": "webp",
@@ -362,10 +372,10 @@ class SearchSkill(BaseSkill):
             )
 
         data = resp.json()
-        return data["public_url"], data["s3_key"]
+        return data["image_url"], data["s3_key"]
 
-    async def _delete_temp_public_image(self, s3_key: str) -> None:
-        """Delete a previously uploaded temporary public image. Best-effort — never raises."""
+    async def _delete_temp_image(self, s3_key: str) -> None:
+        """Delete a previously uploaded temporary image. Best-effort — never raises."""
         delete_url = (
             f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}"
             "/internal/s3/temp-image"
@@ -516,7 +526,8 @@ class SearchSkill(BaseSkill):
                     )
                 else:
                     # Uploaded/generated image — decrypt from private S3,
-                    # upload to temp public bucket, call Google Lens, delete temp file.
+                    # upload to private temp bucket, get a short-lived presigned URL,
+                    # call Google Lens, delete temp file.
                     logger.info(
                         "%s Decrypting uploaded image for reverse search", log_prefix
                     )
@@ -524,24 +535,25 @@ class SearchSkill(BaseSkill):
                         embed_content, user_vault_key_id
                     )
                     logger.info(
-                        "%s Uploading %d bytes to temp public bucket", log_prefix, len(image_bytes)
+                        "%s Uploading %d bytes to temp bucket", log_prefix, len(image_bytes)
                     )
-                    public_url, temp_s3_key = await self._upload_temp_public_image(
+                    image_url, temp_s3_key = await self._upload_temp_image(
                         image_bytes, DECRYPTED_IMAGE_CONTENT_TYPE
                     )
                     logger.info(
-                        "%s Calling Google Lens with temp URL: %s", log_prefix, public_url[:80]
+                        "%s Calling Google Lens with presigned temp URL (key=%s)",
+                        log_prefix, temp_s3_key,
                     )
                     try:
                         results, provider = await self._reverse_image_search(
-                            image_url=public_url,
+                            image_url=image_url,
                             secrets_manager=secrets_manager,
                             query=query,
                             count=count,
                         )
                     finally:
                         # Always clean up the temp file, even on error
-                        await self._delete_temp_public_image(temp_s3_key)
+                        await self._delete_temp_image(temp_s3_key)
 
             elif query:
                 # ── Text image search ────────────────────────────────────────
