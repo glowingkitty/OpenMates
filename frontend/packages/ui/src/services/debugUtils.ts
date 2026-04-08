@@ -20,8 +20,8 @@
  *   window.debug.animation('ai_is_typing_on')  — test rainbow glow + typing indicator
  *   window.debug.animation('ai_is_typing_off') — stop the animation
  *
- *   window.debug_tools.hide()              — hide New Chat, Report Issue & Start Debugging buttons (chat + embed)
- *   window.debug_tools.show()              — show New Chat, Report Issue & Start Debugging buttons (chat + embed)
+ *   window.demo_mode.on()                  — hide Report Issue & Start Debugging buttons (chat + embed) and Server/Logs settings
+ *   window.demo_mode.off()                 — restore normal developer UI
  *
  * Architecture context: See docs/architecture/embed-encryption.md
  */
@@ -3959,8 +3959,8 @@ function showDebugHelp(): void {
       "  window.debug.animation('ai_is_typing_on') — activate rainbow glow + typing indicator\n" +
       "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n\n" +
       "  UI Tools:\n" +
-      "  window.debug_tools.hide()                 — hide New Chat, Report Issue & Start Debugging buttons (chat + embed)\n" +
-      "  window.debug_tools.show()                 — show New Chat, Report Issue & Start Debugging buttons (chat + embed)\n",
+      "  window.demo_mode.on()                     — demo mode: hide Report Issue & Start Debugging buttons + Server/Logs settings\n" +
+      "  window.demo_mode.off()                    — exit demo mode, restore normal developer UI\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4541,39 +4541,65 @@ export function initDebugUtils(): void {
 
   (window as unknown as Record<string, unknown>).debug = debugFn;
 
-  // ─── window.debug_tools — show/hide debug UI buttons ──────────────────────
-  // Hides the new-chat CTA, Report Issue & Start Debugging buttons in both
-  // ActiveChat.svelte and EmbedTopBar.svelte. Uses an injected <style> tag so
-  // the rules persist across DOM changes (e.g. opening embed fullscreen later).
-  const DEBUG_TOOLS_STYLE_ID = "debug-tools-hide-style";
-  const DEBUG_TOOLS_HIDE_CSS = `
-    .new-chat-button-wrapper:has([data-testid="new-chat-button"]),
-    .new-chat-button-wrapper:has([data-testid="report-issue-button"]),
-    .new-chat-button-wrapper:has([data-testid="start-debugging-button"]),
-    .button-wrapper:has([data-testid="embed-report-issue-button"]),
-    .button-wrapper:has([data-testid="embed-toggle-debug"]) {
+  // ─── window.demo_mode — hide developer affordances for demos ─────────────
+  // Hides Report Issue & Start Debugging buttons in both ActiveChat.svelte and
+  // EmbedTopBar.svelte, and hides Server/Logs entries in the settings menu (the
+  // latter is driven reactively by the demoMode store inside Settings.svelte).
+  // Uses an injected <style> tag so the rules persist across DOM changes (e.g.
+  // opening an embed fullscreen later). The CSS uses direct-child `:has()` so
+  // it can never accidentally match sibling buttons like New Chat or Share —
+  // each button lives in its own wrapper, and we target the wrapper by its
+  // single direct child testid.
+  const DEMO_MODE_STYLE_ID = "demo-mode-hide-style";
+  const DEMO_MODE_HIDE_CSS = `
+    .new-chat-button-wrapper:has(> [data-testid="report-issue-button"]),
+    .new-chat-button-wrapper:has(> [data-testid="start-debugging-button"]),
+    .button-wrapper:has(> [data-testid="embed-report-issue-button"]),
+    .button-wrapper:has(> [data-testid="embed-toggle-debug"]) {
       display: none !important;
     }
   `;
 
-  (window as unknown as Record<string, unknown>).debug_tools = {
-    /** Hide the new-chat button, Report Issue and Start Debugging buttons (persistent across DOM changes) */
-    hide: () => {
-      if (!document.getElementById(DEBUG_TOOLS_STYLE_ID)) {
+  const applyDemoModeStyles = (enabled: boolean) => {
+    const existing = document.getElementById(DEMO_MODE_STYLE_ID);
+    if (enabled) {
+      if (!existing) {
         const style = document.createElement("style");
-        style.id = DEBUG_TOOLS_STYLE_ID;
-        style.textContent = DEBUG_TOOLS_HIDE_CSS;
+        style.id = DEMO_MODE_STYLE_ID;
+        style.textContent = DEMO_MODE_HIDE_CSS;
         document.head.appendChild(style);
       }
-      console.log("[debug_tools] New chat, Report Issue and Start Debugging buttons hidden (chat + embed)");
-    },
-    /** Show the new-chat button, Report Issue and Start Debugging buttons */
-    show: () => {
-      const style = document.getElementById(DEBUG_TOOLS_STYLE_ID);
-      if (style) style.remove();
-      console.log("[debug_tools] New chat, Report Issue and Start Debugging buttons shown (chat + embed)");
-    },
+    } else if (existing) {
+      existing.remove();
+    }
   };
+
+  // Subscribe to the demoMode store so the CSS stays in sync with persisted
+  // state (e.g. after a page reload while demo mode is still enabled) and so
+  // future programmatic toggles also flip the CSS.
+  void (async () => {
+    try {
+      const { demoMode } = await import("../stores/demoModeStore");
+      demoMode.subscribe((enabled) => applyDemoModeStyles(enabled));
+
+      (window as unknown as Record<string, unknown>).demo_mode = {
+        /** Enable demo mode: hide Report Issue/Start Debugging buttons and Server/Logs settings. */
+        on: () => {
+          demoMode.set(true);
+          console.log(
+            "[demo_mode] ON — Report Issue & Start Debugging buttons hidden (chat + embed); Server/Logs settings hidden",
+          );
+        },
+        /** Disable demo mode and restore the normal developer UI. */
+        off: () => {
+          demoMode.set(false);
+          console.log("[demo_mode] OFF — normal developer UI restored");
+        },
+      };
+    } catch (err) {
+      console.error("[demo_mode] failed to initialize:", err);
+    }
+  })();
 
   console.info(
     "%c🔧 Debug utilities loaded%c — type %cwindow.debug()%c for health check, %cwindow.debug.help()%c for all commands",

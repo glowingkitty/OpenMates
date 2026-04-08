@@ -46,6 +46,7 @@ changes to the documentation (to keep the documentation up to date).
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
+    import { demoMode } from '../stores/demoModeStore'; // Hide admin-only server/logs entries when demoing
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
@@ -253,8 +254,16 @@ changes to the documentation (to keep the documentation up to date).
     let settingsViews = $derived.by((): Record<string, any> => {
         const isAuthenticated = $authStore.isAuthenticated;
         const restrictedMode = $isRestrictedSession;
+        const demoModeOn = $demoMode;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return Object.entries(allSettingsViews).reduce((filtered: Record<string, any>, [key, component]) => {
+            // Demo mode: hide admin "Server" section and the "Logs" entry so screenshots /
+            // screen recordings don't expose infrastructure internals. Toggled via
+            // window.demo_mode.on() / .off() in the browser console.
+            if (demoModeOn && (key === 'logs' || key.startsWith('server'))) {
+                return filtered;
+            }
+
             // Filter out payment-related routes if self-hosted (use isSelfHosted from request-based validation)
             // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
             if (isSelfHosted) {
