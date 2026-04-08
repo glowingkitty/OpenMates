@@ -42,7 +42,7 @@ def process_invoice_and_send_email(
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
-    provider: Optional[str] = None,  # Payment provider ("stripe", "polar", "revolut") — controls PDF document type
+    provider: Optional[str] = None,  # Payment provider ("stripe" or "polar") — controls PDF document type
     provider_order_id: Optional[str] = None,  # Provider-specific order ID for refunds (e.g. Polar Order UUID)
 ) -> bool:
     """
@@ -50,7 +50,7 @@ def process_invoice_and_send_email(
 
     For Polar orders the PDF title is "Payment Confirmation" (not "Invoice") because Polar as
     Merchant of Record issues the real tax invoice. A footer note is added to inform the buyer.
-    For Stripe/Revolut orders the PDF title remains "Invoice".
+    For Stripe orders the PDF title remains "Invoice".
     """
     logger.info(f"Starting invoice processing task for Order ID: {order_id}, User ID: {user_id}, Provider: {provider}")
     try:
@@ -86,7 +86,7 @@ async def _async_process_invoice_and_send_email(
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
-    provider: Optional[str] = None,  # Payment provider ("stripe", "polar", "revolut")
+    provider: Optional[str] = None,  # Payment provider ("stripe" or "polar")
     provider_order_id: Optional[str] = None,  # Provider-specific order ID for refunds (e.g. Polar Order UUID)
 ) -> bool:
     """
@@ -174,7 +174,7 @@ async def _async_process_invoice_and_send_email(
 
         # Determine PDF document type:
         # - Polar: "payment_confirmation" (Polar as MoR issues the real tax invoice)
-        # - Stripe / Revolut / unknown: "invoice"
+        # - Stripe / unknown: "invoice"
         document_type = "payment_confirmation" if effective_provider == "polar" else "invoice"
         logger.info(f"Invoice task for order {order_id}: provider={effective_provider}, document_type={document_type}")
 
@@ -307,10 +307,10 @@ async def _async_process_invoice_and_send_email(
         # For Polar orders, pass the actual amount charged by Polar (in smallest currency unit)
         # so the PDF can display the real amount the buyer paid, regardless of currency.
         # Polar may charge in CAD, AUD, KRW, etc. — currencies not in our pricing.yml.
-        # For Stripe/Revolut orders this is not set; the PDF looks up the price from pricing.yml.
+        # For Stripe orders this is not set; the PDF looks up the price from pricing.yml.
         actual_amount_paid: Optional[float] = None
         # Tax amount from Polar (in display units) — used for the PDF tax line.
-        # None for Stripe/Revolut (they use the §19 UStG Kleinunternehmer 0% rule).
+        # None for Stripe (they use the §19 UStG Kleinunternehmer 0% rule).
         actual_tax_amount: Optional[float] = None
         # Net amount (before tax, in display units) — subtotal for the PDF.
         actual_net_amount: Optional[float] = None
@@ -519,7 +519,7 @@ async def _async_process_invoice_and_send_email(
             "aes_nonce": nonce_b64, # Store the base64 encoded nonce
             "is_gift_card": is_gift_card,  # Store gift card flag for invoice display
             "provider": provider,  # Payment provider for routing refunds correctly
-            "provider_order_id": provider_order_id,  # Polar Order UUID for refund API (None for Stripe/Revolut)
+            "provider_order_id": provider_order_id,  # Polar Order UUID for refund API (None for Stripe)
         }
 
         # Encrypt and store the currency code so the frontend can display amounts
@@ -728,7 +728,7 @@ async def _async_process_invoice_and_send_email(
         email_context = {
             "darkmode": user_darkmode,
             "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template
-            "document_type": document_type,  # "payment_confirmation" for Polar, "invoice" for Stripe/Revolut
+            "document_type": document_type,  # "payment_confirmation" for Polar, "invoice" for Stripe
             "refund_deep_link_url": refund_deep_link_url,  # Deep link URL for refund button (for variable processor)
             "refund_link": refund_deep_link_url,  # Set refund_link directly to ensure it's used in email template
             "customer_portal_url": customer_portal_url  # Pass management link to email
@@ -800,7 +800,7 @@ async def _async_process_invoice_and_send_email(
         # 14. Process Income Transaction in Invoice Ninja
         # Skip for Polar: Polar is the Merchant of Record and handles all tax/accounting
         # documents. We only record our periodic payout from Polar, not individual customer
-        # transactions. Invoice Ninja recording is only needed for Stripe/Revolut where
+        # transactions. Invoice Ninja recording is only needed for Stripe where
         # OpenMates is the seller of record.
         if effective_provider == "polar":
             logger.info(

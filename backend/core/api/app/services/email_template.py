@@ -13,7 +13,6 @@ from backend.core.api.app.services.email.variable_processor import process_templ
 from backend.core.api.app.services.email.renderer import render_mjml_template
 from backend.core.api.app.services.email.mjml_processor import image_cache
 from backend.core.api.app.services.email.brevo_provider import BrevoProvider
-from backend.core.api.app.services.email.mailjet_provider import MailjetProvider
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
@@ -125,13 +124,10 @@ def html_to_plain_text(html_content: str) -> str:
 
 class EmailTemplateService:
     """
-    Service for rendering and sending email templates.
-    
-    Supports multiple email providers:
-    - Brevo (default, EU-based, GDPR-compliant)
-    - Mailjet (fallback option)
+    Service for rendering and sending email templates via Brevo
+    (EU-based, GDPR-compliant transactional email provider).
     """
-    
+
     def __init__(self, secrets_manager: SecretsManager):
         """Initialize the email template service with template directory and SecretsManager."""
         self.secrets_manager = secrets_manager
@@ -140,31 +136,24 @@ class EmailTemplateService:
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
             "templates", "email"
         )
-        
+
         # Create templates directory if it doesn't exist
         os.makedirs(self.templates_dir, exist_ok=True)
-        
+
         # Initialize translation service
         self.translation_service = TranslationService()
-        
+
         # Load shared URL configuration
         self.shared_urls = load_shared_urls()
-        
-        # Email provider configuration
-        # Default provider: Brevo (EU-based, GDPR-compliant)
-        # Can be overridden via EMAIL_PROVIDER environment variable: "brevo" or "mailjet"
-        self.email_provider = os.getenv("EMAIL_PROVIDER", "brevo").lower()
-        
-        # Provider instances will be created in send_email method after fetching credentials
+
+        # Brevo provider instance is created lazily in send_email()
         self._brevo_provider = None
-        self._mailjet_provider = None
-        
+
         # Default sender info
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
         self.default_sender_email = os.getenv("EMAIL_SENDER_EMAIL", "noreply@openmates.org")
-        
+
         logger.info(f"Email template service initialized with templates directory: {self.templates_dir}")
-        logger.info(f"Default email provider: {self.email_provider.upper()}")
     
     def render_template(
         self, 
@@ -232,8 +221,8 @@ class EmailTemplateService:
         attachments: Optional[list] = None # Add attachments parameter
     ) -> bool:
         """
-        Send an email using Brevo (default) or Mailjet (fallback) with a rendered template.
-        
+        Send an email via Brevo with a rendered template.
+
         Args:
             template: Template name to use
             recipient_email: Email address of the recipient
@@ -244,64 +233,18 @@ class EmailTemplateService:
             sender_email: Email of sender (uses default if None)
             lang: Language code for translations
             attachments: Optional list of attachments (dicts with 'filename', 'content' base64 encoded)
-            
+
         Returns:
             True if email was sent successfully, False otherwise
         """
-        # Determine which provider to use (default: Brevo)
-        provider = self.email_provider
-        
-        # Try to get Brevo API key first (default provider)
         brevo_api_key = await self.secrets_manager.get_secret(
             secret_path="kv/data/providers/brevo",
             secret_key="api_key"
         )
-        
-        # Try to get Mailjet credentials (fallback)
-        mailjet_api_key = await self.secrets_manager.get_secret(
-            secret_path="kv/data/providers/mailjet",
-            secret_key="api_key"
-        )
-        mailjet_api_secret = await self.secrets_manager.get_secret(
-            secret_path="kv/data/providers/mailjet",
-            secret_key="api_secret"
-        )
-        
-        # Determine which provider to actually use
-        use_brevo = False
-        use_mailjet = False
-        
-        if provider == "brevo" and brevo_api_key:
-            use_brevo = True
-            logger.debug("Using Brevo as email provider")
-        elif provider == "brevo" and not brevo_api_key:
-            logger.warning("Brevo selected but API key not found, falling back to Mailjet")
-            if mailjet_api_key and mailjet_api_secret:
-                use_mailjet = True
-            else:
-                logger.error("Cannot send email: Neither Brevo nor Mailjet credentials found")
-                return False
-        elif provider == "mailjet" and mailjet_api_key and mailjet_api_secret:
-            use_mailjet = True
-            logger.debug("Using Mailjet as email provider")
-        elif provider == "mailjet" and (not mailjet_api_key or not mailjet_api_secret):
-            logger.warning("Mailjet selected but credentials not found, trying Brevo fallback")
-            if brevo_api_key:
-                use_brevo = True
-            else:
-                logger.error("Cannot send email: Neither Mailjet nor Brevo credentials found")
-                return False
-        else:
-            # Default: try Brevo first, then Mailjet
-            if brevo_api_key:
-                use_brevo = True
-                logger.debug("Using Brevo as email provider (default)")
-            elif mailjet_api_key and mailjet_api_secret:
-                use_mailjet = True
-                logger.debug("Using Mailjet as email provider (Brevo not available)")
-            else:
-                logger.error("Cannot send email: No email provider credentials found (Brevo or Mailjet)")
-                return False
+
+        if not brevo_api_key:
+            logger.error("Cannot send email: Brevo API key not found in Vault")
+            return False
         try:
             # Initialize default context if needed
             if context is None:
@@ -495,8 +438,6 @@ class EmailTemplateService:
                     )
             
             # Prepare email headers - only include List-Unsubscribe if we have a valid URL
-            # Note: X-Mailer cannot be set via Headers collection in Mailjet API (error send-0011)
-            # Mailjet sets this automatically, so we omit it
             email_headers = {
                 # Precedence header indicates transactional email
                 "Precedence": "bulk",
@@ -536,52 +477,21 @@ class EmailTemplateService:
             send_attempt_time = datetime.now(timezone.utc)
             logger.info(f"[EMAIL_SEND_TIMING] Attempting to send email at {send_attempt_time.isoformat()} UTC")
             
-            # Create provider instances and send email
-            if use_brevo:
-                if not self._brevo_provider or self._brevo_provider.api_key != brevo_api_key:
-                    self._brevo_provider = BrevoProvider(api_key=brevo_api_key)
-                
-                result = await self._brevo_provider.send_email(
-                    sender_name=sender_name,
-                    sender_email=sender_email,
-                    recipient_email=recipient_email,
-                    recipient_name=recipient_name,
-                    subject=subject,
-                    html_content=html_content,
-                    plain_text_content=plain_text_content,
-                    email_headers=email_headers,
-                    attachments=attachments
-                )
-                return result
-            elif use_mailjet:
-                if (not self._mailjet_provider or 
-                    self._mailjet_provider.api_key != mailjet_api_key or 
-                    self._mailjet_provider.api_secret != mailjet_api_secret):
-                    self._mailjet_provider = MailjetProvider(
-                        api_key=mailjet_api_key,
-                        api_secret=mailjet_api_secret
-                    )
-                
-                result = await self._mailjet_provider.send_email(
-                    sender_name=sender_name,
-                    sender_email=sender_email,
-                    recipient_email=recipient_email,
-                    recipient_name=recipient_name,
-                    subject=subject,
-                    html_content=html_content,
-                    plain_text_content=plain_text_content,
-                    email_headers=email_headers,
-                    attachments=attachments
-                )
-                
-                # Schedule Mailjet contact cleanup if email was sent successfully
-                if result:
-                    self._mailjet_provider.schedule_contact_cleanup(recipient_email)
-                
-                return result
-            else:
-                logger.error("No email provider selected - this should not happen")
-                return False
+            # Create the Brevo provider lazily and send the email
+            if not self._brevo_provider or self._brevo_provider.api_key != brevo_api_key:
+                self._brevo_provider = BrevoProvider(api_key=brevo_api_key)
+
+            return await self._brevo_provider.send_email(
+                sender_name=sender_name,
+                sender_email=sender_email,
+                recipient_email=recipient_email,
+                recipient_name=recipient_name,
+                subject=subject,
+                html_content=html_content,
+                plain_text_content=plain_text_content,
+                email_headers=email_headers,
+                attachments=attachments
+            )
                         
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)

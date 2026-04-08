@@ -88,7 +88,7 @@ For high-volume users and Tier 0 users:
 - Regular SEPA: credits added when transfer received (1-2 business days).
 - SEPA Instant: credits added immediately on confirmation.
 - Transaction purpose format: `Account: {user_account_id}, Transaction: {transaction_id}`.
-- Incoming transfers monitored via Revolut Business API.
+- Incoming transfers monitored via the bank's API (provider TBD — Revolut Business integration was removed with the GDPR cleanup).
 - Mismatched amounts auto-refunded; user notified if account ID present.
 
 ## Edge Cases

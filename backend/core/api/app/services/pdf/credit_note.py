@@ -27,7 +27,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
             credit_note_data: Dictionary with credit note data (amounts, numbers, etc.)
             lang: Language code for translations
             currency: Currency code (e.g. 'eur', 'usd')
-            document_type: 'credit_note' for Stripe/Revolut (OpenMates is seller),
+            document_type: 'credit_note' for Stripe (OpenMates is seller),
                           'refund_confirmation' for Polar (Polar is MoR, we only confirm).
         """
         # Create a buffer for the PDF
@@ -88,7 +88,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         # Create header with Credit Note / Refund Confirmation and OpenMates side by side
         # For Polar refunds: use "Refund Confirmation" because Polar is MoR and issues the
-        # official credit note. For Stripe/Revolut: use "Credit Note" (we are the seller).
+        # official credit note. For Stripe: use "Credit Note" (we are the seller).
         if document_type == "refund_confirmation":
             title_key = "refund_confirmation_title"
         else:
@@ -152,7 +152,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         # Build sender details string.
         # For Polar (refund_confirmation): omit our VAT number because Polar as MoR is the
         # seller — our VAT number is irrelevant and would be misleading on this document.
-        # For Stripe/Revolut (credit_note): include VAT number as we are the direct seller.
+        # For Stripe (credit_note): include VAT number as we are the direct seller.
         sender_details_str = (
             f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
             f"<br/>{translated_sender_country}<br/>{sender_email_val}"
@@ -391,7 +391,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         # For Polar (refund_confirmation): show actual tax amount from Polar as MoR.
         #   - If tax > 0: derive tax rate, show "Tax ({rate}%)" with actual tax amount.
         #   - If tax == 0: show "Tax (0%)" without asterisk (§19 UStG does not apply when Polar is MoR).
-        # For Stripe/Revolut (credit_note): keep "VAT (0%) *" with asterisk referencing §19 UStG.
+        # For Stripe (credit_note): keep "VAT (0%) *" with asterisk referencing §19 UStG.
         actual_tax_amount = credit_note_data.get('actual_tax_amount')
         actual_net_amount = credit_note_data.get('actual_net_amount')
 
@@ -420,7 +420,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
                  Paragraph(f"<b>{fmt_price(total_refund_amount)}</b>", self.styles['Bold'])]
             ]
         else:
-            # Stripe/Revolut: §19 UStG Kleinunternehmer — 0% VAT with asterisk
+            # Stripe: §19 UStG Kleinunternehmer — 0% VAT with asterisk
             totals_data = [
                 [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
                  Paragraph(fmt_price(credit_note_data['refund_amount']), self.styles['Normal'])],
@@ -468,7 +468,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         # Add refund details with translation.
         # For Polar (refund_confirmation): Polar as MoR does not expose card details —
         # use "Refunded via {provider}" instead of "Refunded to {card_provider} card ending in ****".
-        # For Stripe/Revolut (credit_note): show full card-based refund text.
+        # For Stripe (credit_note): show full card-based refund text.
         if document_type == "refund_confirmation":
             # Polar: use polar_refunded_via i18n key, fall back to a hardcoded string
             polar_refunded_via = (
@@ -486,7 +486,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
             payment_table = Table([[Spacer(self.left_indent, 0), refunded_to_paragraph]],
                                   colWidths=[self.left_indent, doc.width - self.left_indent])
         else:
-            # Stripe/Revolut: show card-based refund text - fix <br> tags
+            # Stripe: show card-based refund text - fix <br> tags
             # Special handling for the refunded_to text that might contain unclosed br tags
             refunded_to_text = self.t["invoices_and_credit_notes"]["refunded_to"]["text"]
 
@@ -536,7 +536,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         ]))
         elements.append(footer_table)
         
-        # Add VAT disclaimer — only for Stripe/Revolut credit notes where OpenMates is the
+        # Add VAT disclaimer — only for Stripe credit notes where OpenMates is the
         # direct seller and the §19 UStG Kleinunternehmer rule applies.
         # For Polar (refund_confirmation): Polar is the MoR and handles tax, so the
         # §19 UStG disclaimer does not apply and would be legally incorrect.

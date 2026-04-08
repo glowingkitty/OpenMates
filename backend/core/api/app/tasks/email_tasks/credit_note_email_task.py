@@ -53,7 +53,7 @@ def process_credit_note_and_send_email(
     For Polar refunds: generates a "Refund Confirmation" (not a credit note) because Polar as
     Merchant of Record issues the official credit note. Our document just confirms we deducted
     the credits on our side.
-    For Stripe/Revolut refunds: generates a standard "Credit Note".
+    For Stripe refunds: generates a standard "Credit Note".
     """
     logger.info(f"Starting credit note processing task for Invoice ID: {invoice_id}, User ID: {user_id}, Provider: {provider}")
     try:
@@ -217,7 +217,7 @@ async def _async_process_credit_note_and_send_email(
 
         # 7. Generate Credit Note / Refund Confirmation PDF(s)
         # For Polar: "Refund Confirmation" (Polar is MoR, issues official credit note)
-        # For Stripe/Revolut: "Credit Note" (OpenMates is seller of record)
+        # For Stripe: "Credit Note" (OpenMates is seller of record)
         pdf_document_type = "refund_confirmation" if provider == "polar" else "credit_note"
         logger.info(f"Generating English {pdf_document_type} PDF")
         pdf_buffer_en = task.credit_note_template_service.generate_credit_note(
@@ -428,7 +428,7 @@ async def _async_process_credit_note_and_send_email(
 
         # 13. Process Refund Transaction in Invoice Ninja
         # Skip for Polar: Polar is the Merchant of Record and handles all tax/accounting
-        # documents including credit notes. We only need Invoice Ninja for Stripe/Revolut
+        # documents including credit notes. We only need Invoice Ninja for Stripe
         # where OpenMates is the seller of record.
         if provider == "polar":
             logger.info(

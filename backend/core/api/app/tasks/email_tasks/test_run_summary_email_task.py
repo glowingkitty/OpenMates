@@ -11,7 +11,7 @@ The email subject is:
   - "Warning: X of Y tests failed!" when failures exist
 
 Architecture: run-tests-daily.sh → dispatches this task via celery_dispatch_task.py
-→ EmailTemplateService (Brevo/Mailjet). See docs/architecture/health-checks.md
+→ EmailTemplateService (Brevo). See docs/architecture/health-checks.md
 """
 
 import logging
@@ -151,7 +151,7 @@ async def _async_send_test_run_summary(
     Async implementation for sending the daily test run summary email.
 
     Initializes BaseServiceTask services, builds the email context, then sends
-    via EmailTemplateService (Brevo/Mailjet). Subject line varies by outcome:
+    via EmailTemplateService (Brevo). Subject line varies by outcome:
     - "All tests successful" when failed == 0
     - "Warning: X of Y tests failed!" when failed > 0
     """

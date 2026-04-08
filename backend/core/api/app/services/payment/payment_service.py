@@ -14,19 +14,14 @@ Both providers are always initialized at startup so provider switching
 is instant (no re-initialization on override).
 """
 
-import os
 import logging
 from typing import Optional, Dict, Any, Tuple
 
-from backend.core.api.app.services.payment.revolut_service import RevolutService
 from backend.core.api.app.services.payment.stripe_service import StripeService
 from backend.core.api.app.services.payment.polar_service import PolarService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
-
-# Sentinel used to distinguish "no override" from an explicit provider choice
-_NO_OVERRIDE = object()
 
 
 class PaymentService:
@@ -36,35 +31,20 @@ class PaymentService:
     Provider selection priority (highest to lowest):
       1. Explicit provider_override in the request ("stripe" or "polar")
       2. Region-based detection: EU → Stripe, non-EU → Polar
-      3. Legacy PAYMENT_PROVIDER env var for Revolut (backwards compatibility)
     """
 
     def __init__(self, secrets_manager: SecretsManager) -> None:
         self.secrets_manager = secrets_manager
 
-        # Legacy single-provider mode (Revolut) — kept for backwards compatibility
-        self._legacy_provider_name = os.getenv("PAYMENT_PROVIDER", "stripe").lower()
-
-        if self._legacy_provider_name == "revolut":
-            # Revolut mode: use only Revolut, no Polar/Stripe dual-provider
-            self._revolut_provider: Optional[RevolutService] = RevolutService(secrets_manager)
-            self._stripe_provider: Optional[StripeService] = None
-            self._polar_provider: Optional[PolarService] = None
-            self.provider_name = "revolut"
-            # Legacy .provider attribute for code that accesses it directly (e.g. StripeProductSync)
-            self.provider = self._revolut_provider
-            logger.info("PaymentService: running in legacy Revolut-only mode")
-        else:
-            # Dual-provider mode: Stripe (EU) + Polar (non-EU)
-            self._revolut_provider = None
-            self._stripe_provider = StripeService(secrets_manager)
-            self._polar_provider = PolarService(secrets_manager)
-            # Default provider_name for legacy callers (e.g. /payments/config without override)
-            self.provider_name = "stripe"
-            # Legacy .provider points to Stripe for backwards compatibility
-            # (StripeProductSync accesses payment_service.provider directly)
-            self.provider = self._stripe_provider
-            logger.info("PaymentService: running in dual-provider mode (Stripe EU + Polar non-EU)")
+        # Dual-provider mode: Stripe (EU) + Polar (non-EU)
+        self._stripe_provider: Optional[StripeService] = StripeService(secrets_manager)
+        self._polar_provider: Optional[PolarService] = PolarService(secrets_manager)
+        # Default provider_name for legacy callers (e.g. /payments/config without override)
+        self.provider_name = "stripe"
+        # Legacy .provider points to Stripe for backwards compatibility
+        # (StripeProductSync accesses payment_service.provider directly)
+        self.provider = self._stripe_provider
+        logger.info("PaymentService: running in dual-provider mode (Stripe EU + Polar non-EU)")
 
     async def initialize(self, is_production: bool) -> None:
         """
@@ -73,11 +53,6 @@ class PaymentService:
         Args:
             is_production: True for live environment, False for sandbox
         """
-        if self._revolut_provider:
-            await self._revolut_provider.initialize(is_production)
-            return
-
-        # Initialize both Stripe and Polar for dual-provider mode
         if self._stripe_provider:
             await self._stripe_provider.initialize(is_production)
             logger.info("PaymentService: Stripe provider initialized")
@@ -111,10 +86,6 @@ class PaymentService:
         Returns:
             Tuple of (provider_name, provider_instance)
         """
-        # Legacy Revolut mode — no routing, always return Revolut
-        if self._revolut_provider:
-            return ("revolut", self._revolut_provider)
-
         # Explicit override takes highest priority
         if provider_override:
             normalized = provider_override.lower().strip()
@@ -173,11 +144,6 @@ class PaymentService:
         Returns:
             Provider-specific order dict, or None on error
         """
-        if self._revolut_provider:
-            return await self._revolut_provider.create_order(
-                amount, currency, email, credits_amount, customer_id
-            )
-
         provider_name, provider = self.get_provider(is_eu, provider_override)
 
         if provider_name == "polar":
@@ -206,10 +172,6 @@ class PaymentService:
         Supporter contributions always use Stripe (for all users, all regions).
         Polar does not support supporter contributions in Phase 1.
         """
-        if self._revolut_provider:
-            return await self._revolut_provider.create_support_order(
-                amount, currency, email, is_recurring, user_id
-            )
         # Support orders always go through Stripe regardless of region
         if self._stripe_provider is None:
             logger.error("PaymentService.create_support_order: Stripe provider not available")
@@ -232,9 +194,6 @@ class PaymentService:
         Returns:
             Normalized order dict, or None on error
         """
-        if self._revolut_provider:
-            return await self._revolut_provider.get_order(order_id)
-
         # Route by ID format: Polar uses UUID-style IDs, Stripe uses "pi_" prefix
         if self._polar_provider and not order_id.startswith("pi_"):
             # Try Polar first for non-Stripe IDs
@@ -252,24 +211,16 @@ class PaymentService:
         request_timestamp_header: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
-        Verify and parse a webhook event from either provider.
+        Verify and parse a Stripe webhook event.
 
         The payments.py route layer already detects which provider sent the
         webhook (by checking the signature header name) and passes in the
         correct provider. This method is kept for backwards compatibility
         with code that calls it directly on the service.
 
-        For Revolut: passes request_timestamp_header through
-        For Stripe/Polar: ignores request_timestamp_header
+        Polar webhooks are handled via verify_polar_webhook() called directly
+        from payments.py.
         """
-        if self._revolut_provider:
-            is_valid, parsed_payload = await self._revolut_provider.verify_and_parse_webhook(
-                payload, sig_header, request_timestamp_header
-            )
-            return parsed_payload if is_valid else None
-
-        # Delegate to Stripe (default) — Polar webhooks are handled via
-        # verify_polar_webhook() called directly from payments.py
         return await self._stripe_provider.verify_and_parse_webhook(payload, sig_header)
 
     async def verify_polar_webhook(
@@ -307,16 +258,15 @@ class PaymentService:
 
         Provider routing order:
         1. Explicit provider override (if given)
-        2. Revolut (if active — legacy migration path)
-        3. Stripe (if order ID starts with 'pi_')
-        4. Polar (if initialized and order ID doesn't match other providers)
+        2. Stripe (if order ID starts with 'pi_')
+        3. Polar (if initialized and order ID doesn't match Stripe)
 
         Args:
             payment_intent_id: Provider-specific order/payment ID.
                                For Stripe: PaymentIntent ID ('pi_...').
                                For Polar: the Polar Order UUID (from invoices.provider_order_id).
             amount: Refund amount in smallest currency unit (cents). If None, full refund (Stripe only).
-            provider: Explicit provider name ('stripe', 'polar', 'revolut') to bypass auto-detection.
+            provider: Explicit provider name ('stripe' or 'polar') to bypass auto-detection.
             reason: Refund reason (used by Polar). Default: 'customer_request'.
 
         Returns:
@@ -327,13 +277,8 @@ class PaymentService:
             return await self._polar_provider.refund_payment(payment_intent_id, amount, reason=reason)
         if provider == "stripe" and self._stripe_provider:
             return await self._stripe_provider.refund_payment(payment_intent_id, amount)
-        if provider == "revolut" and self._revolut_provider:
-            return await self._revolut_provider.refund_payment(payment_intent_id, amount)
 
         # Auto-detection fallback (for backwards compatibility)
-        if self._revolut_provider and hasattr(self._revolut_provider, "refund_payment"):
-            return await self._revolut_provider.refund_payment(payment_intent_id, amount)
-
         if self._stripe_provider and payment_intent_id.startswith("pi_"):
             return await self._stripe_provider.refund_payment(payment_intent_id, amount)
 
@@ -386,8 +331,6 @@ class PaymentService:
 
     async def close(self) -> None:
         """Clean up provider connections."""
-        if self._revolut_provider:
-            await self._revolut_provider.close()
         if self._stripe_provider:
             await self._stripe_provider.close()
         if self._polar_provider:

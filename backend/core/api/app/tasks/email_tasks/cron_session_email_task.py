@@ -6,7 +6,7 @@ Notifies the admin when an automated Claude Code session completes (or fails),
 so cron job results are visible without checking log files manually.
 
 Architecture: cron script → _claude_utils.py → POST /internal/dispatch-cron-session-email
-→ this task → EmailTemplateService (Brevo/Mailjet).
+→ this task → EmailTemplateService (Brevo).
 See docs/architecture/infrastructure/cronjobs.md
 """
 

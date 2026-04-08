@@ -38,7 +38,6 @@ class InvoiceNinjaService:
         self.headers: Optional[Dict[str, str]] = None
 
         # --- Static Configuration (Consider moving to config or secrets) ---
-        self.REVOLUT_BANK_ACCOUNT_NAME: str = "Revolut Business Merchant"
         self.STRIPE_BANK_ACCOUNT_NAME: str = "Stripe"
         self.PRODUCT_KEY_CREDITS_1K: str = "1.000 credits"
         self.PRODUCT_KEY_CREDITS_10K: str = "10.000 credits"
@@ -49,8 +48,6 @@ class InvoiceNinjaService:
         self.ORDER_ID_CUSTOM_FIELD: str = "custom_value2" # Field used to store external order ID
 
         # --- Initialize dynamic bank integration details (will be populated in _async_init) ---
-        self._revolut_bank_account_id: Optional[str] = None
-        self._revolut_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
         self._stripe_bank_account_id: Optional[str] = None
         self._stripe_bank_integration_id: Optional[str] = None # Note: API returns string ID for integration
 
@@ -136,7 +133,6 @@ class InvoiceNinjaService:
             logger.debug(f"Received {len(integrations)} bank integrations from API: {json.dumps(integrations, indent=2)}")
 
 
-        found_revolut = False
         found_stripe = False
 
         for integration in integrations:
@@ -153,28 +149,15 @@ class InvoiceNinjaService:
 
             logger.debug(f"Processing integration: Name='{acc_name}', AccountID='{acc_id}', IntegrationID='{int_id}'")
 
-            # Check for Revolut
-            if not found_revolut and acc_name == self.REVOLUT_BANK_ACCOUNT_NAME:
-                self._revolut_bank_account_id = acc_id
-                self._revolut_bank_integration_id = int_id
-                logger.info(f"Found and assigned Revolut integration: Name='{acc_name}', AccountID='{self._revolut_bank_account_id}', IntegrationID='{self._revolut_bank_integration_id}'")
-                found_revolut = True
-
             # Check for Stripe
             if not found_stripe and acc_name == self.STRIPE_BANK_ACCOUNT_NAME:
                 self._stripe_bank_account_id = acc_id
                 self._stripe_bank_integration_id = int_id
                 logger.info(f"Found and assigned Stripe integration: Name='{acc_name}', AccountID='{self._stripe_bank_account_id}', IntegrationID='{self._stripe_bank_integration_id}'")
                 found_stripe = True
-
-            # Optimization: exit early if both found
-            if found_revolut and found_stripe:
-                logger.debug("Found both Revolut and Stripe integrations. Stopping search.")
                 break
 
         # Log warnings if not found
-        if not found_revolut:
-            logger.warning(f"Could not find a valid bank integration matching name '{self.REVOLUT_BANK_ACCOUNT_NAME}' with all required IDs. Revolut transactions cannot be processed.")
         if not found_stripe:
             logger.warning(f"Could not find a valid bank integration matching name '{self.STRIPE_BANK_ACCOUNT_NAME}' with all required IDs. Stripe transactions cannot be processed.")
 
@@ -454,8 +437,8 @@ class InvoiceNinjaService:
         Creates a bank transaction in Invoice Ninja.
 
         Args:
-            processor_bank_account_id: The HASHED ID of the bank account (e.g., self._revolut_bank_account_id).
-            bank_integration_id: The HASHED ID of the bank integration (e.g., self._revolut_bank_integration_id).
+            processor_bank_account_id: The HASHED ID of the bank account (e.g., self._stripe_bank_account_id).
+            bank_integration_id: The HASHED ID of the bank integration (e.g., self._stripe_bank_integration_id).
             amount: Transaction amount.
             date_str: Transaction date (YYYY-MM-DD).
             invoice_number: Associated Invoice Ninja invoice number.
@@ -530,15 +513,11 @@ class InvoiceNinjaService:
         target_processor_bank_id: Optional[str] = None
         target_bank_integration_id: Optional[str] = None
 
-        if processor_type.lower() == 'revolut':
-            target_processor_bank_id = self._revolut_bank_account_id
-            target_bank_integration_id = self._revolut_bank_integration_id
-        elif processor_type.lower() == 'stripe':
+        if processor_type.lower() == 'stripe':
             target_processor_bank_id = self._stripe_bank_account_id
             target_bank_integration_id = self._stripe_bank_integration_id
         else:
             logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
-            # Decide if you should abort or continue without bank details
 
         # --- Sanity Check Fetched IDs ---
         if target_processor_bank_id is None:
@@ -726,7 +705,7 @@ class InvoiceNinjaService:
             currency_code: Currency code (e.g., 'eur', 'usd')
             credit_date: Date of the credit note (ISO format: YYYY-MM-DD)
             credit_number: Credit note number (e.g., 'CN-MRRUNHO-1')
-            payment_processor: Payment processor name (e.g., 'stripe', 'revolut')
+            payment_processor: Payment processor name (e.g., 'stripe')
             external_order_id: External order ID from payment provider
             referenced_invoice_number: Original invoice number for reference
             
@@ -996,10 +975,7 @@ class InvoiceNinjaService:
         target_processor_bank_id: Optional[str] = None
         target_bank_integration_id: Optional[str] = None
 
-        if processor_type.lower() == 'revolut':
-            target_processor_bank_id = self._revolut_bank_account_id
-            target_bank_integration_id = self._revolut_bank_integration_id
-        elif processor_type.lower() == 'stripe':
+        if processor_type.lower() == 'stripe':
             target_processor_bank_id = self._stripe_bank_account_id
             target_bank_integration_id = self._stripe_bank_integration_id
         else:

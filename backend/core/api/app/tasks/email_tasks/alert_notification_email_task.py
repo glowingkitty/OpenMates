@@ -3,11 +3,11 @@
 Celery task for sending Prometheus alert notification emails to server owner/admin.
 
 This module handles sending notifications when Alertmanager fires or resolves
-alerts, routing them through the existing Brevo/Mailjet email infrastructure
+alerts, routing them through the existing Brevo email infrastructure
 instead of requiring a separate SMTP configuration.
 
 Architecture: Alertmanager webhook → POST /internal/alerts/webhook → this task
-→ EmailTemplateService (Brevo/Mailjet). Alertmanager still handles grouping,
+→ EmailTemplateService (Brevo). Alertmanager still handles grouping,
 throttling and inhibition; only the delivery path is changed.
 See docs/architecture/logging-and-monitoring.md
 """
@@ -124,7 +124,7 @@ async def _async_send_alert_notification(
     Async implementation for sending the Prometheus alert notification email.
 
     Initializes the BaseServiceTask services, sanitizes inputs, then sends
-    the email via EmailTemplateService (Brevo/Mailjet).
+    the email via EmailTemplateService (Brevo).
     """
     from html import escape
 
