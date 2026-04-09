@@ -3,21 +3,34 @@
 /**
  * Report Issue E2E test.
  *
- * Validates the issue reporting flow end-to-end:
+ * Validates the issue reporting flow end-to-end, including the screenshot
+ * attach path and the async debug pipeline that stores the YAML report in S3:
  *
  * 1. Login with test account + 2FA
  * 2. Open Settings menu → navigate to "Report Issue"
  * 3. Verify the report issue form is visible with required elements
  * 4. Attempt to submit with empty title — verify validation error
- * 5. Fill in the title field with a valid test issue
- * 6. Submit the form — verify the API call succeeds (200 + success: true)
- * 7. Verify the confirmation page appears with an issue ID
- * 8. Click "Submit another report" — verify form resets
+ * 5. Fill in the title + description fields with valid test data
+ * 6. Attach a test PNG via the hidden screenshot file input
+ * 7. Submit the form — verify:
+ *      - API call succeeds (200)
+ *      - response.success === true
+ *      - response.issue_id is set
+ *      - response.screenshot_uploaded === true  ← proves synchronous S3 upload
+ * 8. Verify the confirmation page appears with the returned issue ID
+ * 9. Poll GET /v1/settings/issues/{id}/status until has_yaml_report === true
+ *    (the YAML upload happens in a celery email task, usually within a few seconds)
+ * 10. Click "Submit another report" — verify form resets
  *
  * Bug history this test suite guards against:
  * - 6b082ce08 (2026-03-31): OPE-221 added prompt injection detection to report_issue
  *   endpoint — need to verify the sanitization layer doesn't break normal submissions
  * - CMS outage (2026-04-01): Directus downtime caused 500s on /v1/settings/issues
+ * - OPE-385 (2026-04-09): admin submitted an issue report with a screenshot, but
+ *   the S3 YAML report + screenshot were never persisted. Root cause: broken
+ *   ephemeral_log_promotion celery task + worker-level cache singleton reused
+ *   across event loops. This spec must assert both the screenshot path AND the
+ *   YAML report path end-to-end so future regressions are caught immediately.
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -26,6 +39,14 @@
  * - PLAYWRIGHT_TEST_BASE_URL (defaults to https://app.dev.openmates.org)
  */
 export {};
+
+// -----------------------------------------------------------------------------
+// Test fixture: a tiny 8×8 solid red PNG (< 200 bytes) used as the screenshot.
+// Inlined so the test has no external fixture file dependency.
+// -----------------------------------------------------------------------------
+const TINY_PNG_BASE64 =
+	'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAIAQMAAAD+wSzIAAAABlBMVEX///+/v7+jQ3Y5AAAADklEQVQI12P4//8/w38GIAXDAQAIAwGTPb1IAAAAAElFTkSuQmCC';
+const TINY_PNG_BUFFER = Buffer.from(TINY_PNG_BASE64, 'base64');
 
 const {
 	test,
@@ -46,6 +67,13 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+// Derive API base URL from PLAYWRIGHT_TEST_BASE_URL (app.dev.* → api.dev.*)
+// Used for polling the /v1/settings/issues/{id}/status endpoint after
+// submission — the frontend origin serves an SPA fallback for unknown
+// routes so relative paths to /v1/* would return HTML instead of JSON.
+const BASE_URL: string = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+const API_BASE_URL: string = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -79,14 +107,24 @@ async function navigateToReportIssue(
 
 /**
  * Close the settings panel by clicking the settings toggle close icon.
+ *
+ * Both click paths are bounded with an explicit timeout so a flaky render
+ * can't eat the entire test budget during non-fatal teardown — without a
+ * timeout on the fallback click, a hung toggle would hold the test open
+ * until Playwright's overall test timeout fires and mark the whole run
+ * timedOut even after every assertion passed.
  */
 async function closeSettings(page: any): Promise<void> {
 	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
 	try {
 		await closeIcon.click({ timeout: 3000 });
 	} catch {
-		const settingsToggle = page.locator('#settings-menu-toggle');
-		await settingsToggle.click();
+		try {
+			const settingsToggle = page.locator('#settings-menu-toggle');
+			await settingsToggle.click({ timeout: 3000 });
+		} catch {
+			/* best-effort cleanup — never throw from closeSettings */
+		}
 	}
 	await page.waitForTimeout(500);
 }
@@ -152,11 +190,33 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint('Submit button enabled after filling title.');
 		await takeStepScreenshot(page, '04-title-filled');
 
+		// ── Step 5b: Attach screenshot via the hidden file input ───────
+		// The screenshot section is always rendered for authenticated users.
+		// The <input type=file> is hidden via CSS, but setInputFiles() works on
+		// hidden inputs so we can attach a PNG without invoking getDisplayMedia.
+		const screenshotSection = page.getByTestId('screenshot-section');
+		await expect(screenshotSection).toBeVisible({ timeout: 5000 });
+		const screenshotFileInput = page.getByTestId('screenshot-file-input');
+		await screenshotFileInput.setInputFiles({
+			name: 'e2e-screenshot.png',
+			mimeType: 'image/png',
+			buffer: TINY_PNG_BUFFER,
+		});
+		logCheckpoint(`Attached ${TINY_PNG_BUFFER.length}-byte test PNG via screenshot-file-input.`);
+
+		// Wait for the FileReader onload to populate screenshotDataUrl and
+		// render the preview. The preview uses data-testid="screenshot-preview".
+		const screenshotPreview = page.getByTestId('screenshot-preview');
+		await expect(screenshotPreview).toBeVisible({ timeout: 5000 });
+		logCheckpoint('Screenshot preview rendered after attach.');
+		await takeStepScreenshot(page, '04b-screenshot-attached');
+
 		// ── Step 6: Submit and intercept API response ──────────────────
 		// Set up a response listener for the API call
 		const responsePromise = page.waitForResponse(
 			(response: any) =>
 				response.url().includes('/v1/settings/issues') &&
+				!response.url().includes('/status') &&
 				response.request().method() === 'POST',
 			{ timeout: 30000 }
 		);
@@ -178,12 +238,49 @@ test.describe('Report Issue Flow', () => {
 			logCheckpoint('Could not parse API response as JSON.');
 		}
 
-		// Verify success
+		// Verify success + screenshot was uploaded synchronously
 		expect(statusCode).toBe(200);
 		expect(responseBody?.success).toBe(true);
 		expect(responseBody?.issue_id).toBeTruthy();
-		logCheckpoint(`Issue created with ID: ${responseBody?.issue_id}`);
+		expect(responseBody?.screenshot_uploaded).toBe(true);
+		logCheckpoint(
+			`Issue created with ID: ${responseBody?.issue_id} ` +
+			`(screenshot_uploaded=${responseBody?.screenshot_uploaded})`
+		);
 		await takeStepScreenshot(page, '05-submitted');
+
+		// ── Step 6b: Poll /status until the YAML report S3 key is present ──
+		// The YAML report is generated and uploaded asynchronously by the
+		// issue_report_email_task Celery task. Poll until has_yaml_report=true
+		// or give up after the timeout (and fail the test).
+		const issueId: string = responseBody?.issue_id;
+		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${issueId}/status`;
+		logCheckpoint(`Polling status endpoint: ${statusUrl}`);
+		const statusDeadline = Date.now() + 90_000; // 90s — celery + S3 upload
+		let lastStatus: { has_screenshot?: boolean; has_yaml_report?: boolean; processed?: boolean } | null = null;
+		let lastStatusHttp = 0;
+		while (Date.now() < statusDeadline) {
+			const statusResp = await page.request.get(statusUrl);
+			lastStatusHttp = statusResp.status();
+			if (statusResp.ok()) {
+				const ct = statusResp.headers()['content-type'] || '';
+				if (ct.includes('application/json')) {
+					lastStatus = await statusResp.json();
+					if (lastStatus?.has_screenshot && lastStatus?.has_yaml_report) {
+						break;
+					}
+				} else {
+					logCheckpoint(`Status poll returned non-JSON content-type: ${ct}`);
+				}
+			}
+			await page.waitForTimeout(3000);
+		}
+		logCheckpoint(`Final /status HTTP=${lastStatusHttp} payload=${JSON.stringify(lastStatus)}`);
+		logCheckpoint(`Final /status payload: ${JSON.stringify(lastStatus)}`);
+		expect(lastStatus, 'issue status endpoint returned nothing').not.toBeNull();
+		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
+		expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
+		logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
 
 		// ── Step 7: Verify confirmation page ───────────────────────────
 		const confirmation = page.getByTestId('report-issue-confirmation');

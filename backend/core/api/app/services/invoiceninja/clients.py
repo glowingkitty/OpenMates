@@ -49,7 +49,7 @@ async def create_client(service_instance: Any, user_hash: str, external_order_id
     Args:
         service_instance: The instance of the main service class.
         user_hash: The unique hash for the user.
-        external_order_id: The external order ID (e.g., from Stripe/Revolut).
+        external_order_id: The external order ID (e.g., from Stripe).
         client_details: A dictionary containing client information (e.g., name, contacts).
 
     Returns:

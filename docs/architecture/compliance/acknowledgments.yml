@@ -1,0 +1,41 @@
+# Legal & Compliance Acknowledgments
+#
+# Justified exceptions and user-reviewed decisions that the twice-weekly
+# legal-compliance scan should NOT re-surface as findings, unless the
+# `re_check_if` trigger conditions are met (in which case the acknowledgment
+# auto-invalidates and the item re-emerges for fresh review).
+#
+# Structure:
+#   <topic_key>:
+#     status: <short state>             # e.g. essential-only | dead-code | resolved
+#     decision: <one-sentence rationale>
+#     verified: YYYY-MM-DD
+#     verified_by: <admin | user>
+#     re_check_if:                      # list of conditions that invalidate this ack
+#       - "<plain-english condition>"
+#     notes: <optional longer context>
+#
+# Maintained by: manual edits + the `legal-compliance-auditor` Claude agent,
+# which may propose new entries after each scan (appended as `# PROPOSED` blocks
+# that a human then accepts or rejects).
+#
+# Read by: scripts/_legal_compliance_helper.py (Mon + Thu cron)
+# Related: docs/architecture/compliance/gdpr-audit.md (baseline audit)
+#          docs/architecture/compliance/top-10-recommendations.md (latest Top 10)
+
+cookies:
+  status: essential-only
+  decision: "OpenMates uses cookies for essential services only (auth session + payment checkout). No analytics, no tracking, no advertising cookies. Under GDPR + ePrivacy + German DDG, essential-only cookie use does NOT require a consent banner."
+  verified: 2026-04-08
+  verified_by: admin
+  re_check_if:
+    - "new Set-Cookie calls introduced outside backend/core/api/app/routes/auth_routes/ or payment routes"
+    - "new <script src=> pointing to a third-party analytics/tracking domain in frontend templates"
+    - "new analytics/telemetry SDK added to frontend/packages/ui/package.json or frontend/apps/web_app/package.json (e.g. posthog, mixpanel, amplitude, google-analytics, segment, plausible, fathom)"
+    - "new iframe embed known to set third-party cookies without SameSite=None + Partitioned"
+  notes: |
+    Current essential cookies (as of 2026-04-08):
+      - auth_refresh_token: HttpOnly, Secure, SameSite=Strict, Domain=parent-of-Origin
+      - Stripe checkout session cookies (only set during active checkout, not on normal browsing)
+    The privacy policy must document this cookie inventory explicitly. If any
+    non-essential cookie ships in the future, a consent banner becomes mandatory.

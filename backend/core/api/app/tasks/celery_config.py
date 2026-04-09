@@ -84,28 +84,52 @@ invoice_template_service: Optional[InvoiceTemplateService] = None
 # They are NOT thread-safe, but Celery prefork workers use separate processes.
 
 # Worker-level cache service instance (reused across tasks)
+# The singleton is keyed on the event loop it was created in because
+# redis.asyncio.Redis binds its connection pool to the first loop that
+# touches it. Celery tasks that spawn fresh loops per run (via
+# asyncio.new_event_loop() / asyncio.run()) would otherwise reuse a client
+# bound to a closed loop and get 'Event loop is closed' errors on every
+# cache operation. See OPE-385 investigation notes.
 _worker_cache_service: Optional[_CacheService] = None
+_worker_cache_service_loop: Optional[asyncio.AbstractEventLoop] = None
 
 
 async def get_worker_cache_service() -> _CacheService:
     """
     Get the worker-level CacheService instance, creating it if needed.
-    
-    This provides connection pooling for Redis/Dragonfly across tasks.
-    The connection is established once per worker process and reused.
-    
+
+    This provides connection pooling for Redis/Dragonfly across tasks that
+    share the same event loop. If the stored client was bound to a
+    different (now-closed) loop, we drop it and create a fresh one so
+    callers never see 'Event loop is closed' errors.
+
     Returns:
         CacheService: The worker-level cache service instance
     """
-    global _worker_cache_service
-    
+    global _worker_cache_service, _worker_cache_service_loop
+
+    current_loop = asyncio.get_running_loop()
+
+    # If the cached client is bound to a different loop, reset it. This
+    # happens when Celery tasks use asyncio.new_event_loop() per run.
+    if _worker_cache_service is not None and _worker_cache_service_loop is not current_loop:
+        logger.info(
+            "[PERF] Worker-level CacheService was bound to a stale event loop — "
+            "recreating for the current loop to avoid 'Event loop is closed'."
+        )
+        # Best-effort cleanup of the stale client. We cannot await on it
+        # because its loop is closed; just drop the reference.
+        _worker_cache_service = None
+        _worker_cache_service_loop = None
+
     if _worker_cache_service is None:
-        logger.info("[PERF] Creating worker-level CacheService (first task in this worker)")
+        logger.info("[PERF] Creating worker-level CacheService (first task in this loop)")
         _worker_cache_service = _CacheService()
         # Ensure the client is connected
         await _worker_cache_service.client
+        _worker_cache_service_loop = current_loop
         logger.info("[PERF] Worker-level CacheService initialized and connected")
-    
+
     return _worker_cache_service
 
 

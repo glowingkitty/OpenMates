@@ -5,8 +5,7 @@ export {};
 // This file is executed inside the official Playwright Docker image, which
 // provides the @playwright/test module at runtime. We avoid extra dependencies
 // and keep the flow aligned with the existing password-based signup test.
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 

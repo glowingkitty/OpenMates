@@ -43,7 +43,7 @@ export {};
  * Tests: frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,

@@ -29,7 +29,7 @@
  */
 export {};
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const fs = require('fs');
 const path = require('path');
 const { skipWithoutCredentials } = require('./helpers/env-guard');

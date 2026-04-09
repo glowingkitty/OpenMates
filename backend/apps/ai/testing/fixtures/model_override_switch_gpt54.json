@@ -1,0 +1,46 @@
+{
+  "fixture_id": "model_override_switch_gpt54",
+  "recorded_at": "2026-04-07T15:53:31.737510+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is 5 + 5? Answer with just the number.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "What is 5 + 5?",
+    "icon_names": [
+      "calculator"
+    ],
+    "selected_model_id": "openai/gpt-5.4",
+    "selected_model_name": "GPT-5.4",
+    "mate_id": "george",
+    "chat_summary": "User asks for a simple math calculation.",
+    "chat_tags": [
+      "math",
+      "calculation"
+    ],
+    "relevant_app_skills": [
+      "math-calculate"
+    ],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "GPT-5.4",
+    "provider_name": "OpenAI API",
+    "server_region": "US",
+    "icon_names": [
+      "calculator"
+    ]
+  },
+  "response": "10",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "GPT-5.4"
+  }
+}

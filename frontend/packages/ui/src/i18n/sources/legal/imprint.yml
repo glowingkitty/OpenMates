@@ -21,6 +21,7 @@ title:
   cs: Právní oznámení (Imprint)
   sv: Juridiskt meddelande (Impressum)
   verified_by_human: []
+  he: הודעה משפטית (אימפרסום)
 information_tmg:
   context: Legal information section header
   en: Information according to § 5 TMG
@@ -44,6 +45,7 @@ information_tmg:
   cs: Informace dle § 5 TMG
   sv: Information enligt § 5 TMG
   verified_by_human: []
+  he: מידע לפי סעיף 5 TMG
 contact:
   context: Contact section header in imprint
   en: Contact
@@ -67,6 +69,7 @@ contact:
   cs: Kontakt
   sv: Kontakt
   verified_by_human: []
+  he: יצירת קשר
 email:
   context: Email label in contact section
   en: Email
@@ -90,6 +93,7 @@ email:
   cs: E-mail
   sv: E-post
   verified_by_human: []
+  he: דוא״ל
 follow_up_1:
   context: Follow-up suggestion for imprint
   en: Why does German law require an Imprint?
@@ -113,6 +117,7 @@ follow_up_1:
   cs: Proč německý zákon vyžaduje Imprint?
   sv: Varför kräver tysk lag ett Impressum?
   verified_by_human: []
+  he: מדוע החוק הגרמני דורש אימפרסום?
 follow_up_2:
   context: Follow-up suggestion for imprint
   en: How can I contact your legal team?
@@ -136,6 +141,7 @@ follow_up_2:
   cs: Jak mohu kontaktovat váš právní tým?
   sv: Hur kan jag kontakta ert juridiska team?
   verified_by_human: []
+  he: כיצד ניתן ליצור קשר עם הצוות המשפטי שלכם?
 follow_up_3:
   context: Follow-up suggestion for imprint
   en: What open source licenses do you use?
@@ -159,6 +165,7 @@ follow_up_3:
   cs: Jaké open source licence používáte?
   sv: Vilka öppen källkodslicenser använder ni?
   verified_by_human: []
+  he: באילו רישיונות קוד פתוח אתם משתמשים?
 follow_up_4:
   context: Follow-up suggestion for imprint
   en: Where is your company registered?
@@ -182,6 +189,7 @@ follow_up_4:
   cs: Kde je vaše společnost registrována?
   sv: Var är ert företag registrerat?
   verified_by_human: []
+  he: היכן רשומה החברה שלכם?
 follow_up_5:
   context: Follow-up suggestion for imprint
   en: Who is the legal representative?
@@ -205,3 +213,4 @@ follow_up_5:
   cs: Kdo je zákonným zástupcem?
   sv: Vem är den juridiska representanten?
   verified_by_human: []
+  he: מי הנציג המשפטי?

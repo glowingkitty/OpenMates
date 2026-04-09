@@ -1,132 +1,537 @@
-providers:
-  vercel:
-    privacy_policy: https://vercel.com/legal/privacy-policy
-    provider_location: US
-    used_for:
-      - web app static frontend hosting
-      - website static frontend hosting
-  hetzner:
-    privacy_policy: https://www.hetzner.com/legal/privacy-policy
-    provider_location: EU
-    used_for:
-      - web app backend hosting
-      - all backend processing
-      - database hosting
-      - S3 file hosting
-  ip-api:
-    privacy_policy: https://members.ip-api.com/privacy-policy
-    provider_location: EU
-    used_for:
-      - IP address geolocation
-  brevo:
-    privacy_policy: https://www.brevo.com/legal/privacypolicy
-    provider_location: EU
-    used_for:
-      - email sending (transactional + newsletter)
-    data_shared:
-      - Recipient email address (required to deliver emails)
-      - Email content (subject + body + metadata required for delivery)
-  sightengine:
-    privacy_policy: https://sightengine.com/policies/privacy
-    provider_location: EU
-    used_for:
-      - moderation for uploaded images & videos
-  stripe:
-    privacy_policy: https://stripe.com/privacy
-    provider_location: US
-    used_for:
-      - payment processing for purchases made in web app
-  polar:
-    privacy_policy: https://polar.sh/legal/privacy
-    provider_location: US
-    used_for:
-      - payment processing for purchases made in web app (Polar Storefront)
-  mistral:
-    privacy_policy: https://mistral.ai/privacy-policy
-    provider_location: EU
-    used_for:
-      - LLM requests processing for web app
-  aws:
-    privacy_policy: https://aws.amazon.com/privacy/
-    provider_location: US
-    server_location: EU
-    used_for:
-      - LLM requests processing for web app via Anthropic (AWS Bedrock)
-  openrouter:
-    privacy_policy: https://openrouter.ai/privacy
-    provider_location: US
-    server_location: US
-    used_for:
-      - LLM requests processing for web app via OpenRouter
-  cerebras:
-    privacy_policy: https://www.cerebras.ai/privacy-policy
-    provider_location: US
-    server_location: US
-    used_for:
-      - LLM requests processing for web app via Cerebras as a provider on OpenRouter
-  brave:
-    privacy_policy: https://brave.com/privacy/
-    provider_location: US
-    used_for:
-      - web search skill (when users search the web)
-      - videos search skill (when users search for videos)
-      - news search skill (when users search for news)
-    data_shared:
-      - Search queries entered by users (Brave sees the content of what you search for)
-      - Country and language preferences for localized results
-      - Note: All data is shared without user identifiers - Brave does not know which specific user made each search
-  webshare:
-    privacy_policy: https://www.webshare.io/privacy-policy
-    provider_location: US
-    used_for:
-      - videos get transcript skill (when users request video transcripts)
-      - health get appointments skill (when users search for appointments)
-      - events search skill (when users search for events)
-    data_shared:
-      - request URLs routed to external services (YouTube, Doctolib, Meetup, etc.)
-      - Note: All data is shared without user identifiers - Webshare does not know which specific user made each request
-  google:
-    privacy_policy: https://policies.google.com/privacy
-    provider_location: US
-    used_for:
-      - maps search skill (when users search for places)
-      - LLM requests processing for web app (Google GenAI)
-    data_shared:
-      - Place search queries entered by users (Google sees the content of what places you search for via Google Maps Platform)
-      - Chat messages and prompts (Google GenAI sees the content of your chat messages and prompts when processing LLM requests)
-      - Note: All data is shared without user identifiers - Google does not know which specific user made each search or sent each message
-  firecrawl:
-    privacy_policy: https://www.firecrawl.dev/privacy-policy
-    provider_location: US
-    used_for:
-      - web read skill (when users read/scrape web pages)
-    data_shared:
-      - URLs of web pages requested to be scraped
-      - The actual content of those web pages (Firecrawl sees and processes the full content of websites you request to read)
-      - Note: All data is shared without user identifiers - Firecrawl does not know which specific user requested each web page
-  groq:
-    privacy_policy: https://groq.com/privacy-policy
-    provider_location: US
-    used_for:
-      - LLM requests processing for external data sanitization (when users use skills that retrieve external data like search results, website content, etc.)
-    data_shared:
-      - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization (Groq sees the actual content of search results and scraped web pages)
-      - Note: Groq is used to process and sanitize external content before it's included in chat responses. All data is shared without user identifiers - Groq does not know which specific user requested the processing of each piece of content
-  flightradar24:
-    privacy_policy: https://www.flightradar24.com/terms-and-conditions
-    provider_location: EU
-    used_for:
-      - get_flight skill (when users request real flight track data for a specific flight)
-    data_shared:
-      - IATA flight numbers (e.g. "LH2472") and departure dates used to look up flight tracks
-      - Note: All data is shared without user identifiers - Flightradar24 does not know which specific user requested each flight track
+# OpenMates™ Privacy Policy — canonical source of truth.
+#
+# This YAML is the single source of truth for the privacy policy. The user-facing
+# policy is rendered from the i18n keys in
+# frontend/packages/ui/src/i18n/sources/legal/privacy.yml via
+# frontend/packages/ui/src/legal/buildLegalContent.ts. Any change here must be
+# mirrored in the i18n source, and translations rebuilt via
+# `cd frontend/packages/ui && npm run build:translations`.
+#
+# Structure:
+#   1. data_protection_overview       — plain-language summary of the privacy model
+#   2. data_protection_measures       — the six technical protections we implement
+#   3. data_categories                — what personal data we collect
+#   4. provider_groups                — third-party providers grouped by WHEN they are used
+#   5. data_processing_notes          — ephemeral stability logs + device fingerprinting specifics
+#   6. data_retention                 — how long we keep what
+#   7. limitations_of_erasure         — what survives account deletion and why
+#   8. legal_basis                    — GDPR Art. 6 bases
+#   9. legal_rights                   — GDPR and CCPA/CPRA rights that are actually implemented
+#  10. contact                        — controller, DPO, email
+
+data_protection_overview: >
+  OpenMates is designed so that most of your data is encrypted on your device
+  before it reaches our servers. We do not practice end-to-end encryption:
+  our servers must briefly decrypt your content in memory to run AI responses,
+  render invoices, and deliver reminders. But we never write decrypted content
+  to disk, logs, or traces, and when you delete your account we destroy the
+  encryption key that protects your data — cryptographically shredding every
+  encrypted field we still hold.
+
+# The six technical privacy measures we actually implement. Each is verifiable
+# in the codebase and is linked to the corresponding GDPR article.
+data_protection_measures:
+  client_side_encryption:
+    description: >
+      Your chat content, titles, summaries, tags, per-chat keys, app settings
+      and memories, reminders, and sensitive profile fields (encrypted username,
+      auto-top-up email, 2FA secrets) are encrypted in your browser before being
+      sent to our servers. The browser uses a master key derived from your login
+      credential; our servers reject writes that contain anything but ciphertext.
+    gdpr_article: Art. 32 — Security of processing
+    not_claimed: >
+      This is not end-to-end encryption. Our servers can decrypt your content
+      in memory when they need to (for AI responses, invoice rendering, reminder
+      delivery). The difference from end-to-end encryption is that decryption
+      happens transiently in process memory and the plaintext is never persisted.
+  pii_placeholder_substitution:
+    description: >
+      Before any message is sent to a third-party AI model, your browser scans
+      your message for real names, email addresses, and physical addresses that
+      you have saved in your privacy settings (or that match common patterns)
+      and replaces any matches with neutral placeholders (for example [USER_0]).
+      The mapping back to your real values is stored encrypted with your key
+      and is never decrypted on our servers. **Important limitation:** this
+      substitution only protects personal data that our client-side detector
+      actually recognizes — typically the values you have explicitly saved in
+      your privacy settings and values highlighted in the message field before
+      you send. Anything the detector does not recognize (typos of your own
+      name, uncommon address formats, other people's personal data, sensitive
+      topics that are not formally PII) will be transmitted as you typed it.
+      Please treat every message as you would treat a note passed to a
+      third-party AI provider and be cautious with personal data.
+    gdpr_article: Art. 5(1)(c) — Data minimization
+  encrypted_at_rest:
+    description: >
+      Our PostgreSQL database (via Directus), our Redis caches, our S3 object
+      storage, and our backup snapshots hold only ciphertext for any field
+      containing user content. Decryption happens only in memory during active
+      processing and is discarded immediately after. Key material is released
+      on demand by HashiCorp Vault and never stored in raw form outside it.
+    gdpr_article: Art. 32 — Security of processing
+  hashed_identifiers:
+    description: >
+      Your user ID is stored in most database tables as a SHA-256 hash rather
+      than as a direct reference. Login uses a zero-knowledge password
+      verification flow (we never learn your password — only whether you know
+      it). API-key device records anonymize the IP address to its first two
+      octets before encryption, so we can recognize a device without storing
+      a precise location.
+    gdpr_article: Art. 5(1)(c) — Data minimization, Art. 25 — Data protection by design
+  cryptographic_erasure:
+    description: >
+      When you delete your account we destroy your HashiCorp Vault Transit key
+      in addition to removing your rows from our database. Any encrypted field
+      still sitting in a backup, cache, or running process becomes mathematically
+      unrecoverable ciphertext at that moment — cryptographic erasure on top of
+      row-level deletion.
+    gdpr_article: Art. 17 — Right to erasure
+  observability_without_tracking:
+    description: >
+      Our internal tracing pipeline (OpenTelemetry) replaces your user ID with
+      a hash that rotates every 24 hours, strips authentication headers and
+      cookies from every span, and redacts chat content before any trace leaves
+      the backend. Our web analytics use a server-side beacon with no cookies
+      and no stored individual identifiers. We do not use Google Analytics,
+      Plausible, PostHog, or any third-party analytics platform.
+    gdpr_article: Art. 5(1)(c) — Data minimization
+
+# Enumerate the categories of personal data collected and processed by OpenMates™
+data_categories:
+  account:
+    description: >
+      Account and profile data provided during signup and use of the web app,
+      such as email address, username/display name, profile image, locale, and
+      security settings (e.g., 2FA enabled). Email and username are encrypted
+      with your key before storage. Passwords are not stored; we only retain a
+      verification hash.
+  usage:
+    description: >
+      Service usage data such as basic server logs, event timestamps, feature
+      usage, error logs, and device recognition identifiers (hashed). IP
+      addresses may be temporarily processed for security and rate limiting.
+  content:
+    description: >
+      User-provided content necessary to deliver the service, such as chat
+      messages, prompts, attachments, reminders, and uploaded images/videos
+      (subject to moderation when applicable). All content is client-side
+      encrypted before transmission.
+  payments:
+    description: >
+      Payment-related data processed by our payment processors (Stripe and
+      Polar), such as payment method token, transaction ID, billing address
+      and VAT information when required for invoicing. We do not store full
+      card numbers.
+  newsletter:
+    description: >
+      If you opt in to the OpenMates newsletter, we retain your email address
+      and consent timestamp until you unsubscribe. This is separate from your
+      account email.
+
+# Third-party providers grouped by WHEN they are actually used. Most providers
+# are only reached when a user selects a specific model or invokes a specific
+# skill. A user who never uses the events skill, for example, never triggers
+# any of the Group G providers.
+#
+# When adding a new provider to any skill, app.yml, or backend/providers/*.yml,
+# add it to the correct group below AND to frontend/packages/ui/src/i18n/sources/
+# legal/privacy.yml. See .claude/agents/privacy-policy-sync.md (follow-up task)
+# for automation.
+provider_groups:
+
+  # =====================================================================
+  # Group A — Always active. Every user's data touches these.
+  # =====================================================================
+  always_active:
+    description: >
+      These providers are used for every user, regardless of which features
+      you use. Using OpenMates at all means your data passes through them.
+    providers:
+      vercel:
+        privacy_policy: https://vercel.com/legal/privacy-policy
+        location: US
+        used_for:
+          - web app static frontend hosting
+          - website static frontend hosting
+      hetzner:
+        privacy_policy: https://www.hetzner.com/legal/privacy-policy
+        location: EU
+        used_for:
+          - web app backend hosting
+          - all backend processing
+          - database hosting
+          - S3 file hosting
+          - self-hosted observability (OpenObserve runs on our Hetzner infrastructure; traces never leave the EU)
+      brevo:
+        privacy_policy: https://www.brevo.com/legal/privacypolicy
+        location: EU
+        used_for:
+          - transactional email (account verification, password reset, receipts, credit notes)
+          - newsletter delivery (only for users who opt in)
+        data_shared:
+          - Recipient email address (required to deliver emails)
+          - Email content (subject + body + metadata required for delivery)
+      ip_api:
+        privacy_policy: https://members.ip-api.com/privacy-policy
+        location: EU
+        used_for:
+          - IP address geolocation for abuse prevention and regional compliance
+      sightengine:
+        privacy_policy: https://sightengine.com/policies/privacy
+        location: EU
+        used_for:
+          - moderation for every uploaded image and video
+
+  # =====================================================================
+  # Group B — Payment providers. Only used when you purchase credits or
+  # subscribe to auto top-up.
+  # =====================================================================
+  payments:
+    description: >
+      These providers are only used when you purchase credits, subscribe to
+      monthly auto top-up, or receive a refund. If you never make a purchase,
+      none of your data is shared with them.
+    providers:
+      stripe:
+        privacy_policy: https://stripe.com/privacy
+        location: US
+        used_for:
+          - one-time credit purchases
+          - monthly auto top-up subscriptions
+        data_shared:
+          - Email address
+          - Payment method token (Stripe tokenizes the card; we never see it)
+          - Billing address and VAT information when required for invoicing
+          - Transaction metadata (amount, currency, timestamp)
+      polar:
+        privacy_policy: https://polar.sh/legal/privacy
+        location: US
+        used_for:
+          - one-time credit purchases for non-EU customers (Polar acts as Merchant of Record for tax compliance)
+        data_shared:
+          - Email address
+          - Payment method token
+          - Billing address and VAT information
+          - Transaction metadata
+
+  # =====================================================================
+  # Group C — AI model providers. Only used when you pick a model that
+  # routes through them. You can always see which provider a model uses
+  # in AI settings.
+  # =====================================================================
+  ai_models:
+    description: >
+      OpenMates routes AI requests to different providers depending on which
+      model you choose. Before any message is sent to a provider in this group,
+      your browser replaces real names, emails, and addresses with placeholders
+      (see data_protection_measures.pii_placeholder_substitution). You can
+      always see which provider a model uses in the model details panel.
+    providers:
+      mistral:
+        privacy_policy: https://mistral.ai/privacy-policy
+        location: EU
+        used_for:
+          - Mistral-family model inference (when you select a Mistral model)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      aws_bedrock:
+        privacy_policy: https://aws.amazon.com/privacy/
+        company_location: US
+        server_location: EU (Frankfurt region)
+        used_for:
+          - Anthropic Claude model inference (primary path when you select Claude)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      anthropic_direct:
+        privacy_policy: https://www.anthropic.com/legal/privacy
+        location: US
+        used_for:
+          - Anthropic Claude model inference (fallback path used if AWS Bedrock is unreachable)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      openai:
+        privacy_policy: https://openai.com/policies/privacy-policy
+        location: US
+        used_for:
+          - GPT-family model inference (when you select an OpenAI model)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      openrouter:
+        privacy_policy: https://openrouter.ai/privacy
+        location: US
+        used_for:
+          - routing LLM requests to Cerebras and other third-party model hosts
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      cerebras:
+        privacy_policy: https://www.cerebras.ai/privacy-policy
+        location: US
+        used_for:
+          - LLM inference served via OpenRouter (when you select a Cerebras-hosted model)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      google_gemini:
+        privacy_policy: https://policies.google.com/privacy
+        location: US
+        used_for:
+          - Gemini-family model inference (when you select a Gemini model)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      google_vertex_maas:
+        privacy_policy: https://cloud.google.com/terms/cloud-privacy-notice
+        location: US
+        used_for:
+          - hosting third-party open models on Google Vertex AI Model-as-a-Service (for example DeepSeek V3.2). This is separate from Google Gemini; the model weights are third-party but the inference runs on Google infrastructure via an OpenAI-compatible endpoint.
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      together_ai:
+        privacy_policy: https://www.together.ai/privacy
+        location: US
+        used_for:
+          - inference for models hosted on Together AI (for example Kimi K2.5)
+        data_shared:
+          - Chat messages with PII placeholders substituted client-side
+      groq:
+        privacy_policy: https://groq.com/privacy-policy
+        location: US
+        used_for:
+          - server-side sanitization of external content (search results, scraped web pages) before inclusion in chat responses
+        data_shared:
+          - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization
+          - No user identifiers; Groq does not know which user requested each piece of content
+
+  # =====================================================================
+  # Group D — Image generation and editing. Only used when you invoke an
+  # image skill.
+  # =====================================================================
+  image_generation:
+    description: >
+      These providers are only used when you invoke an image generation or
+      editing skill. If you never use the images app, none of your data is
+      shared with them.
+    providers:
+      fal:
+        privacy_policy: https://fal.ai/privacy-policy
+        location: US
+        used_for:
+          - draft image generation via the images.generate_draft skill (Flux models)
+        data_shared:
+          - Image generation prompts
+          - Source images when editing
+      recraft:
+        privacy_policy: https://www.recraft.ai/privacy-policy
+        location: US
+        used_for:
+          - vector and raster image generation via the images.generate skill
+          - image-to-SVG conversion via the images.vectorize skill
+        data_shared:
+          - Image generation prompts and style preferences
+          - Source images when vectorizing
+
+  # =====================================================================
+  # Group E — Web, search, and content retrieval. Only used when you
+  # invoke a web/videos/news/read skill.
+  # =====================================================================
+  web_and_search:
+    description: >
+      These providers are only used when you invoke a web, videos, news, or
+      web-read skill. They see the content of what you search for or the URLs
+      you ask to read, but no user identifier.
+    providers:
+      brave:
+        privacy_policy: https://brave.com/privacy/
+        location: US
+        used_for:
+          - web search skill
+          - videos search skill
+          - news search skill
+        data_shared:
+          - Search queries entered by users
+          - Country and language preferences for localized results
+          - Note: All data is shared without user identifiers
+      firecrawl:
+        privacy_policy: https://www.firecrawl.dev/privacy-policy
+        location: US
+        used_for:
+          - web read skill (scraping and extracting content from web pages)
+        data_shared:
+          - URLs of web pages requested
+          - Full content of the scraped pages
+          - Note: All data is shared without user identifiers
+      webshare:
+        privacy_policy: https://www.webshare.io/privacy-policy
+        location: US
+        used_for:
+          - rotating proxy for requests that would otherwise be blocked by the upstream service
+          - used by the videos get-transcript skill (proxied to YouTube)
+          - used by the health search-appointments skill (proxied to Doctolib and Jameda — see Group H)
+        data_shared:
+          - Request URLs routed to external services
+          - Note: Webshare sees the URLs but not user identifiers
+      google_maps:
+        privacy_policy: https://policies.google.com/privacy
+        location: US
+        used_for:
+          - places search skill (Google Maps Platform)
+        data_shared:
+          - Place search queries (the text you type to find a place)
+          - Approximate location for localized results
+          - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group F — Travel. Only used when you invoke a travel skill.
+  # =====================================================================
+  travel:
+    description: >
+      These providers are only used when you invoke a travel skill (flight
+      search, hotel search, flight tracking). If you never use the travel
+      app, none of your data is shared with them.
+    providers:
+      serpapi:
+        privacy_policy: https://serpapi.com/legal/privacy-policy
+        location: US
+        used_for:
+          - flight search (via Google Flights)
+          - hotel search (via Google Hotels)
+        data_shared:
+          - Flight and hotel search queries (origin, destination, dates, preferences)
+          - Note: Shared without user identifiers
+      flightradar24:
+        privacy_policy: https://www.flightradar24.com/terms-and-conditions
+        location: EU
+        used_for:
+          - real flight track data for a specific flight number
+        data_shared:
+          - IATA flight numbers and departure dates
+          - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group G — Events. Only used when you invoke the events skill.
+  # Only the providers actually enabled in the events app registry are
+  # listed here. Providers that exist as code but are gated behind a
+  # feature flag (Bachtrack, ClassicTIC, Berlin Philharmonic, Siegessäule,
+  # Google Calendar) are NOT listed until they are enabled.
+  # =====================================================================
+  events:
+    description: >
+      These providers are only used when you invoke the events search skill.
+      The specific set of providers called depends on the city and event type
+      you search for.
+    providers:
+      meetup:
+        privacy_policy: https://www.meetup.com/privacy/
+        location: US
+        used_for:
+          - events search skill (Meetup.com event listings)
+        data_shared:
+          - Event search queries (city, category, dates)
+          - Note: Shared without user identifiers
+      luma:
+        privacy_policy: https://lu.ma/privacy
+        location: US
+        used_for:
+          - events search skill (Luma event listings)
+        data_shared:
+          - Event search queries
+          - Note: Shared without user identifiers
+      resident_advisor:
+        privacy_policy: https://ra.co/about/privacy
+        location: UK
+        used_for:
+          - events search skill (Resident Advisor electronic music event listings)
+        data_shared:
+          - Event search queries
+          - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group H — Health. Only used when you invoke the appointment-search
+  # skill. Special-category data disclosure.
+  # =====================================================================
+  health:
+    description: >
+      These upstream services are reached through the Webshare rotating proxy
+      (see Group E) only when you invoke the health app's appointment-search
+      skill. The queries you send — for example "dermatologist in Berlin next
+      Tuesday" — are transmitted without user identifiers, but the content of
+      the query itself can imply a health concern. By invoking the skill you
+      consent to this transmission under GDPR Art. 9(2)(a) (explicit consent
+      for special-category data processing).
+    providers:
+      doctolib:
+        privacy_policy: https://www.doctolib.de/terms/privacy
+        location: EU
+        used_for:
+          - doctor and specialist appointment search in supported EU regions
+        data_shared:
+          - Speciality, city, and date range (implicitly health-related)
+          - Note: Transmitted via Webshare proxy without user identifiers
+      jameda:
+        privacy_policy: https://www.jameda.de/datenschutz/
+        location: EU
+        used_for:
+          - doctor and specialist appointment search in Germany
+        data_shared:
+          - Speciality, city, and date range (implicitly health-related)
+          - Note: Transmitted via Webshare proxy without user identifiers
+
+  # =====================================================================
+  # Group I — Shopping. Only used when you invoke the shopping skill.
+  # =====================================================================
+  shopping:
+    description: >
+      These providers are only used when you invoke the shopping search skill.
+    providers:
+      rewe:
+        privacy_policy: https://www.rewe.de/datenschutz/
+        location: EU
+        used_for:
+          - live product and price lookups at REWE (German grocery retailer)
+        data_shared:
+          - Product search queries
+          - Note: Shared without user identifiers
+      amazon:
+        privacy_policy: https://www.amazon.com/privacy
+        location: US
+        used_for:
+          - live product and price lookups at Amazon
+        data_shared:
+          - Product search queries
+          - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group J — Community and developer channels. Only used if you choose
+  # to use them.
+  # =====================================================================
+  community:
+    description: >
+      These providers are only involved if you choose to join our community
+      or developer channels.
+    providers:
+      discord:
+        privacy_policy: https://discord.com/privacy
+        location: US
+        used_for:
+          - OpenMates community Discord server (discussions, support, announcements)
+        data_shared:
+          - Whatever you post on Discord (Discord sees everything you send on its platform)
+          - Discord username and any data Discord itself collects per its own privacy policy
+          - Note: You only interact with Discord if you voluntarily join the OpenMates Discord server
+        admin_access: >
+          OpenMates administrators with Discord server admin rights can read
+          all messages posted in the OpenMates Discord server. Do not share
+          sensitive information on Discord.
+
+# ==========================================================================
+# Section 5 — Specific data processing notes
+# ==========================================================================
 data_processing:
   ephemeral_stability_logs:
     purpose: >
-      To diagnose and fix technical errors that affect service reliability. Browser console logs
-      (technical error messages, component lifecycle events, connection status) are collected
-      from all authenticated users and stored for up to 48 hours. If an error occurs, the
-      surrounding log context is retained for up to 14 days to support debugging.
+      To diagnose and fix technical errors that affect service reliability.
+      Browser console logs (technical error messages, component lifecycle events,
+      connection status) are collected from all authenticated users and stored
+      for up to 48 hours. If an error occurs, the surrounding log context is
+      retained for up to 14 days to support debugging.
     legal_basis: Legitimate interest (GDPR Art. 6(1)(f)) — ensuring service reliability and quality.
     data_collected:
       - Browser console log messages (sanitized to remove personal data)
@@ -139,85 +544,149 @@ data_processing:
       - Email addresses, IP addresses, or any personally identifiable information
       - Base64-encoded encrypted content
     anonymization: >
-      Each browser session generates a random UUID that cannot be linked to a user account.
-      This identifier is stored only in the browser's sessionStorage and is discarded when the tab is closed.
-      Email addresses, long strings, UUIDs in chat/message contexts, and base64 blobs are automatically
-      stripped by both client-side and server-side sanitization before storage. A daily PII audit
-      scans stored logs for any patterns that may have slipped through sanitization.
+      Each browser session generates a random UUID that cannot be linked to a
+      user account. This identifier is stored only in the browser's sessionStorage
+      and is discarded when the tab is closed. Email addresses, long strings,
+      UUIDs in chat/message contexts, and base64 blobs are automatically stripped
+      by both client-side and server-side sanitization before storage. A daily
+      PII audit scans stored logs for any patterns that may have slipped through
+      sanitization.
     retention:
       ephemeral_stream: 48 hours (automatically deleted by the storage system)
       error_context_stream: 14 days (only for sessions where an error occurred)
     opt_out: >
-      Users can disable stability log forwarding at any time via Settings > Privacy > Stability Logs.
-      When disabled, no console logs are forwarded from the browser to the server.
+      Users can disable stability log forwarding at any time via
+      Settings > Privacy > Stability Logs. When disabled, no console logs
+      are forwarded from the browser to the server.
+
 security_measures:
   device_fingerprinting:
     purpose: >
-      To enhance account security, prevent fraudulent access, and distinguish between new and recognized devices during login and session validation.
+      To enhance account security, prevent fraudulent access, and distinguish
+      between new and recognized devices during login and session validation.
     data_collected:
       - User-Agent string (browser, OS, device type information)
       - IP address (used temporarily to derive approximate geo-location like country/city, then discarded from the device record)
     storage: >
-      A unique, stable hash is generated based on a combination of the collected signals. This hash acts as an identifier for a recognized device/browser environment and is the only value stored in the device record. Browser/OS type and derived country code may be used transiently for risk assessment and notifications but are not stored with the device record. Raw IP addresses are NOT stored as part of the device record itself.
+      A unique, stable hash is generated based on a combination of the collected
+      signals. This hash acts as an identifier for a recognized device/browser
+      environment and is the only value stored in the device record. Browser/OS
+      type and derived country code may be used transiently for risk assessment
+      and notifications but are not stored with the device record. Raw IP
+      addresses are NOT stored as part of the device record itself.
     ip_logging: >
-      For security monitoring and abuse prevention, IP addresses associated with *failed* login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. In addition, certain security/compliance events (for example: successful backup-code logins or successful device verifications) may be logged with IP for audit purposes with limited retention. IP addresses are also used for rate limiting login attempts.
+      For security monitoring and abuse prevention, IP addresses associated with
+      *failed* login attempts (invalid password or 2FA code) may be logged
+      separately with limited retention periods. In addition, certain
+      security/compliance events (for example: successful backup-code logins or
+      successful device verifications) may be logged with IP for audit purposes
+      with limited retention. IP addresses are also used for rate limiting
+      login attempts.
 
-# Enumerate the categories of personal data collected and processed by OpenMates™
-data_categories:
-  account:
-    description: >
-      Account and profile data provided during signup and use of the web app, such as email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as secure salted hashes.
-  usage:
-    description: >
-      Service usage data such as basic server logs, event timestamps, feature usage, error logs, and device recognition identifiers (hashed). IP addresses may be temporarily processed for security and rate limiting.
-  content:
-    description: >
-      User-provided content necessary to deliver the service, such as chat messages, prompts, attachments, and uploaded images/videos (subject to moderation when applicable).
-  payments:
-    description: >
-      Payment-related data processed by our payment processor (Stripe), such as payment method token, transaction ID, billing address and VAT information when required for invoicing. We do not store full card numbers.
-
-# Define retention periods to comply with modern privacy regulations
+# ==========================================================================
+# Section 6 — Retention periods
+# ==========================================================================
 data_retention:
   account:
     period: Until account deletion and completion of related legal obligations
   usage_and_logs:
-    period: Routine operational logs kept up to 12 months; IPs tied to failed logins up to 30 days for security
+    period: Routine operational logs kept up to 30 days (Caddy access logs); application-level error logs up to 14 days in context streams; IPs tied to failed logins up to 30 days for security
   device_fingerprints:
-    period: Until account deletion or manual removal from account settings (when available)
+    period: Until account deletion, manual removal from account settings, or 90 days of inactivity (enforced by a daily cleanup task)
   content:
     period: Until the user deletes the content or closes the account, subject to backup cycles
   payments_and_invoices:
-    period: Up to 10 years where required by tax/commercial law
+    period: Up to 10 years where required by tax/commercial law (AO §147 and HGB §257)
+  compliance_logs:
+    audit: 2 years (GDPR accountability + BSI §34 BDSG)
+    financial: 10 years (AO §147 and HGB §257)
+  observability_traces:
+    period: Up to 30 days; user IDs in traces use a hash that rotates every 24 hours, so older traces cannot be joined to a specific user
+  user_data_backups:
+    period: 60 days (S3 lifecycle); backups contain only ciphertext encrypted with your own key
 
-# Specify legal bases for processing under GDPR
+# ==========================================================================
+# Section 7 — What survives an account deletion and why
+# ==========================================================================
+limitations_of_erasure: >
+  When you delete your account we destroy your encryption key and remove your
+  rows from our database. A small number of things outside our immediate
+  control are retained for limited, legally-justified reasons:
+limitations_of_erasure_items:
+  financial_records:
+    what: Invoices, credit notes, and financial compliance log entries
+    retention: Up to 10 years
+    reason: GDPR Art. 17(3)(b) — legal obligation (AO §147 and HGB §257 require businesses to retain records of transactions for tax and commercial audit purposes)
+    scope: The retained records contain transaction metadata, an invoice number, and a user identifier — not chat content or any other personal data
+  audit_logs:
+    what: Authentication and data-access audit logs
+    retention: 2 years
+    reason: BSI §34 BDSG — security audit obligations
+    scope: Timestamp, user identifier, event type, status — no content
+  third_party_ai_logs:
+    what: Request logs retained by the AI providers we send your prompts to
+    retention: Typically 30 days per the providers' own policies
+    reason: We cannot reach into Anthropic, OpenAI, Google, Together, Mistral, Groq, or Cerebras to delete your data from their systems
+    mitigation: Real names, emails, and addresses in your prompts are replaced with placeholders client-side before transmission (see data_protection_measures.pii_placeholder_substitution), so the provider never sees your real PII to begin with
+  observability_traces:
+    what: OpenTelemetry spans
+    retention: Up to 30 days; effectively unjoinable to a specific user after 24 hours due to daily salt rotation
+    reason: Operational debugging; traces are heavily redacted and contain no content
+  user_data_backups:
+    what: Ciphertext backups of your own data exports, encrypted with your own key
+    retention: 60 days via S3 lifecycle
+    reason: Allows you to retrieve an export if your device is lost; because we destroyed your key at deletion time, we cannot decrypt these backups either — they are effectively inert ciphertext
+
+# ==========================================================================
+# Section 8 — Legal bases under GDPR Art. 6
+# ==========================================================================
 legal_basis:
   contract:
     description: >
-      Processing necessary for the performance of a contract or to take steps at the user's request prior to entering into a contract (e.g., account creation, delivering the web app features).
+      Processing necessary for the performance of a contract or to take steps
+      at the user's request prior to entering into a contract (e.g., account
+      creation, delivering the web app features).
   consent:
     description: >
-      Processing based on consent, where applicable (e.g., optional communications, certain analytics or marketing where used). Consent can be withdrawn at any time.
+      Processing based on consent, where applicable (e.g., newsletter
+      subscription, optional health-adjacent skills such as appointment
+      search). Consent can be withdrawn at any time.
   legitimate_interests:
     description: >
-      Processing necessary for our legitimate interests, such as service security, fraud prevention, abuse detection, and improving the service, provided these interests are not overridden by user rights and interests.
+      Processing necessary for our legitimate interests, such as service
+      security, fraud prevention, abuse detection, stability logs, and
+      improving the service, provided these interests are not overridden
+      by user rights and interests.
   legal_obligation:
     description: >
-      Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records).
+      Processing necessary to comply with legal obligations (e.g., tax and
+      accounting requirements for invoices and transaction records; retention
+      of audit logs under BSI §34 BDSG).
 
-# List user rights and how to exercise them
+# ==========================================================================
+# Section 9 — Rights we actually support in code
+# ==========================================================================
+# Note: GDPR also grants Art. 18 (restriction of processing) and Art. 21
+# (objection). We do not currently have dedicated endpoints for these; to
+# exercise them, contact us by email and we will process your request manually.
 legal_rights:
   gdpr:
     rights:
-      - access
-      - rectification
-      - erasure
-      - restriction
-      - portability
-      - objection
-      - withdraw_consent
+      - access                # Art. 15 — via Settings > Export account data
+      - rectification         # Art. 16 — via Settings (username, language, darkmode, timezone, etc.)
+      - erasure               # Art. 17 — via Settings > Delete account
+      - portability           # Art. 20 — via Settings > Export account data (JSON)
+      - withdraw_consent      # Art. 7(3) — via Settings or email
+    manual_rights:
+      - restriction           # Art. 18 — by email request
+      - objection             # Art. 21 — by email request
     exercise: >
-      To exercise your rights under the GDPR, contact us by email at contact@openmates.org or via the Imprint page. We may need to verify your identity before fulfilling your request.
+      To exercise your rights under the GDPR, you can use the corresponding
+      options in your account settings (access, rectification, erasure,
+      portability) or contact us by email at contact@openmates.org for
+      rights we process manually (restriction, objection, withdraw consent
+      for specific processing). We may need to verify your identity before
+      fulfilling your request.
   ccpa_cpra:
     rights:
       - right_to_know
@@ -226,9 +695,12 @@ legal_rights:
       - right_to_opt_out_of_sale_or_sharing
       - right_to_non_discrimination
     exercise: >
-      California residents can exercise CCPA/CPRA rights by contacting us at contact@openmates.org. We do not sell personal information.
+      California residents can exercise CCPA/CPRA rights by contacting us at
+      contact@openmates.org. We do not sell personal information.
 
-# Contact and controller information
+# ==========================================================================
+# Section 10 — Contact and controller
+# ==========================================================================
 contact:
   controller: OpenMates™ (see Legal Notice/Imprint for postal address)
   email: contact@openmates.org

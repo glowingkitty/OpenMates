@@ -44,6 +44,158 @@ career_insights.process:
     - מתן צעדים מעשיים להמשך (נטוורקינג, שדרוג מיומנויות, לוחות דרושים)
   verified_by_human:
     - en
+  de: |
+    - Versteht deine aktuelle berufliche Situation und was einen Wechsel antreibt
+    - Erkundet, was dich in vergangenen und aktuellen Rollen energetisiert und erschöpft
+    - Identifiziert deine Kernkompetenzen, Stärken und Fachkenntnisse
+    - Bespricht deine Werte, Interessen und Prioritäten in einer Karriere
+    - Berücksichtigt praktische Einschränkungen (Standort, Finanzen, Familie, Zeitplan)
+    - Schlägt 2–4 konkrete Karriererichtungen vor, die zu deinem Profil passen
+    - Bietet umsetzbare nächste Schritte (Networking, Weiterbildung, Jobbörsen)
+  zh: |
+    - 了解你目前的工作状况以及促使变化的原因
+    - 探索在过去和当前职位中什么让你充满活力、什么让你精疲力竭
+    - 识别你的核心技能、优势和专业领域
+    - 讨论你在职业生涯中的价值观、兴趣和优先事项
+    - 考虑实际限制（地点、财务、家庭、时间表）
+    - 建议 2–4 个符合你个人特点的具体职业方向
+    - 提供可行的下一步行动（人际网络、技能提升、招聘平台）
+  es: |
+    - Entiende tu situación laboral actual y qué impulsa el cambio
+    - Explora qué te da energía y qué te agota en roles pasados y actuales
+    - Identifica tus habilidades clave, fortalezas y áreas de especialización
+    - Analiza tus valores, intereses y prioridades en una carrera
+    - Considera restricciones prácticas (ubicación, finanzas, familia, cronograma)
+    - Sugiere 2–4 direcciones de carrera concretas que se ajustan a tu perfil
+    - Proporciona pasos accionables (networking, actualización de habilidades, bolsas de trabajo)
+  fr: |
+    - Comprend votre situation professionnelle actuelle et ce qui motive un changement
+    - Explore ce qui vous dynamise et vous épuise dans vos rôles passés et actuels
+    - Identifie vos compétences clés, vos forces et vos domaines d'expertise
+    - Discute de vos valeurs, intérêts et priorités dans une carrière
+    - Tient compte des contraintes pratiques (lieu, finances, famille, calendrier)
+    - Suggère 2–4 orientations de carrière concrètes correspondant à votre profil
+    - Fournit des prochaines étapes concrètes (réseautage, montée en compétences, plateformes d'emploi)
+  pt: |
+    - Compreende sua situação profissional atual e o que motiva uma mudança
+    - Explora o que te energiza e esgota em funções passadas e atuais
+    - Identifica suas habilidades essenciais, pontos fortes e áreas de especialização
+    - Discute seus valores, interesses e prioridades em uma carreira
+    - Considera restrições práticas (localização, finanças, família, cronograma)
+    - Sugere 2–4 direções de carreira concretas que correspondem ao seu perfil
+    - Fornece próximos passos acionáveis (networking, aprimoramento de habilidades, plataformas de emprego)
+  ru: |
+    - Понимает вашу текущую профессиональную ситуацию и что побуждает к переменам
+    - Исследует, что вас заряжает и истощает в прошлых и текущих ролях
+    - Определяет ваши ключевые навыки, сильные стороны и области экспертизы
+    - Обсуждает ваши ценности, интересы и приоритеты в карьере
+    - Учитывает практические ограничения (местоположение, финансы, семья, сроки)
+    - Предлагает 2–4 конкретных карьерных направления, соответствующих вашему профилю
+    - Предоставляет практические следующие шаги (нетворкинг, повышение квалификации, биржи труда)
+  ja: |
+    - 現在の仕事の状況と変化を促しているものを理解する
+    - 過去と現在の役割で何があなたを活性化させ、何があなたを消耗させるかを探る
+    - コアスキル、強み、専門分野を特定する
+    - キャリアにおける価値観、興味、優先事項を話し合う
+    - 実際の制約（場所、財務、家族、タイムライン）を考慮する
+    - あなたのプロフィールに合った2〜4つの具体的なキャリア方向を提案する
+    - 実行可能な次のステップを提供する（ネットワーキング、スキルアップ、求人掲示板）
+  ko: |
+    - 현재 직업 상황과 변화를 촉진하는 요인을 이해합니다
+    - 과거 및 현재 역할에서 활력을 주는 것과 소진시키는 것을 탐색합니다
+    - 핵심 기술, 강점 및 전문 영역을 파악합니다
+    - 커리어에서 가치관, 관심사 및 우선순위를 논의합니다
+    - 실질적인 제약 조건(위치, 재정, 가족, 일정)을 고려합니다
+    - 프로필에 맞는 2–4개의 구체적인 커리어 방향을 제안합니다
+    - 실행 가능한 다음 단계를 제공합니다 (네트워킹, 역량 강화, 구직 게시판)
+  it: |
+    - Comprende la tua situazione lavorativa attuale e cosa sta spingendo un cambiamento
+    - Esplora cosa ti energizza e cosa ti esaurisce nei ruoli passati e attuali
+    - Identifica le tue competenze principali, punti di forza e aree di specializzazione
+    - Discute i tuoi valori, interessi e priorità in una carriera
+    - Considera i vincoli pratici (posizione, finanze, famiglia, tempistiche)
+    - Suggerisce 2–4 direzioni di carriera concrete che si adattano al tuo profilo
+    - Fornisce prossimi passi attuabili (networking, aggiornamento competenze, bacheche di lavoro)
+  tr: |
+    - Mevcut iş durumunuzu ve değişimi neyin tetiklediğini anlar
+    - Geçmiş ve mevcut rollerde sizi neyin enerjilendirdiğini ve neyin tükettiğini keşfeder
+    - Temel becerilerinizi, güçlü yönlerinizi ve uzmanlık alanlarınızı belirler
+    - Kariyer değerlerinizi, ilgi alanlarınızı ve önceliklerinizi tartışır
+    - Pratik kısıtlamaları göz önünde bulundurur (konum, finanslar, aile, zaman çizelgesi)
+    - Profilinize uyan 2–4 somut kariyer yönü önerir
+    - Uygulanabilir sonraki adımlar sunar (ağ oluşturma, beceri geliştirme, iş ilanı panoları)
+  vi: |
+    - Hiểu tình trạng công việc hiện tại và điều gì thúc đẩy sự thay đổi
+    - Khám phá điều gì tiếp thêm năng lượng và điều gì khiến bạn kiệt sức ở các vai trò trước và hiện tại
+    - Xác định các kỹ năng cốt lõi, điểm mạnh và lĩnh vực chuyên môn của bạn
+    - Thảo luận về giá trị, sở thích và ưu tiên của bạn trong sự nghiệp
+    - Xem xét các ràng buộc thực tế (vị trí, tài chính, gia đình, thời gian biểu)
+    - Đề xuất 2–4 hướng nghề nghiệp cụ thể phù hợp với hồ sơ của bạn
+    - Cung cấp các bước tiếp theo có thể thực hiện (kết nối mạng, nâng cao kỹ năng, bảng tìm việc)
+  id: |
+    - Memahami situasi pekerjaan Anda saat ini dan apa yang mendorong perubahan
+    - Menjelajahi apa yang memberi Anda energi dan apa yang menguras Anda di peran masa lalu dan saat ini
+    - Mengidentifikasi keterampilan inti, kekuatan, dan area keahlian Anda
+    - Mendiskusikan nilai, minat, dan prioritas Anda dalam karier
+    - Mempertimbangkan kendala praktis (lokasi, keuangan, keluarga, jadwal)
+    - Menyarankan 2–4 arah karier konkret yang sesuai dengan profil Anda
+    - Memberikan langkah selanjutnya yang dapat ditindaklanjuti (jaringan, peningkatan keterampilan, papan lowongan kerja)
+  pl: |
+    - Rozumie Twoją obecną sytuację zawodową i co skłania do zmiany
+    - Bada, co Cię energetyzuje i wyczerpuje w poprzednich i obecnych rolach
+    - Identyfikuje Twoje kluczowe umiejętności, mocne strony i obszary ekspertyzy
+    - Omawia Twoje wartości, zainteresowania i priorytety w karierze
+    - Uwzględnia praktyczne ograniczenia (lokalizacja, finanse, rodzina, harmonogram)
+    - Sugeruje 2–4 konkretne kierunki kariery pasujące do Twojego profilu
+    - Dostarcza możliwych do podjęcia kroków (networking, podnoszenie kwalifikacji, portale pracy)
+  nl: |
+    - Begrijpt uw huidige werksituatie en wat een verandering aandrijft
+    - Verkent wat u energiseert en uitput in vroegere en huidige rollen
+    - Identificeert uw kernvaardigheden, sterke punten en expertisegebieden
+    - Bespreekt uw waarden, interesses en prioriteiten in een carrière
+    - Houdt rekening met praktische beperkingen (locatie, financiën, gezin, tijdlijn)
+    - Stelt 2–4 concrete carrièrerichtingen voor die passen bij uw profiel
+    - Biedt uitvoerbare vervolgstappen (netwerken, bijscholing, vacaturesites)
+  ar: |
+    - يفهم وضعك الوظيفي الحالي وما الذي يدفع إلى التغيير
+    - يستكشف ما يمنحك الطاقة وما يستنزفك في أدوارك السابقة والحالية
+    - يحدد مهاراتك الجوهرية ونقاط قوتك ومجالات خبرتك
+    - يناقش قيمك واهتماماتك وأولوياتك في مسيرتك المهنية
+    - يأخذ في الاعتبار القيود العملية (الموقع، الوضع المالي، الأسرة، الجدول الزمني)
+    - يقترح 2–4 توجهات مهنية ملموسة تناسب ملفك الشخصي
+    - يقدم خطوات عملية قابلة للتنفيذ (التواصل المهني، تطوير المهارات، لوحات الوظائف)
+  hi: |
+    - आपकी वर्तमान नौकरी की स्थिति और बदलाव को प्रेरित करने वाली बात को समझता है
+    - पिछली और वर्तमान भूमिकाओं में आपको क्या ऊर्जा देता है और क्या थकाता है, यह जानता है
+    - आपके मूल कौशल, शक्तियों और विशेषज्ञता के क्षेत्रों की पहचान करता है
+    - करियर में आपके मूल्यों, रुचियों और प्राथमिकताओं पर चर्चा करता है
+    - व्यावहारिक बाधाओं पर विचार करता है (स्थान, वित्त, परिवार, समयरेखा)
+    - आपके प्रोफाइल से मेल खाने वाली 2–4 ठोस करियर दिशाएं सुझाता है
+    - व्यावहारिक अगले कदम प्रदान करता है (नेटवर्किंग, कौशल उन्नयन, जॉब बोर्ड)
+  th: |
+    - เข้าใจสถานการณ์งานปัจจุบันของคุณและสิ่งที่กระตุ้นให้เกิดการเปลี่ยนแปลง
+    - สำรวจสิ่งที่ให้พลังงานและสิ่งที่ดูดซับพลังงานจากคุณในบทบาทที่ผ่านมาและปัจจุบัน
+    - ระบุทักษะหลัก จุดแข็ง และพื้นที่ความเชี่ยวชาญของคุณ
+    - หารือเกี่ยวกับคุณค่า ความสนใจ และลำดับความสำคัญของคุณในอาชีพ
+    - พิจารณาข้อจำกัดในทางปฏิบัติ (สถานที่ การเงิน ครอบครัว ไทม์ไลน์)
+    - แนะนำ 2–4 ทิศทางอาชีพที่เป็นรูปธรรมซึ่งตรงกับโปรไฟล์ของคุณ
+    - ให้ขั้นตอนต่อไปที่สามารถนำไปปฏิบัติได้ (การสร้างเครือข่าย การพัฒนาทักษะ กระดานหางาน)
+  cs: |
+    - Rozumí vaší aktuální pracovní situaci a co podněcuje změnu
+    - Zkoumá, co vás v minulých a současných rolích nabíjí energií a co vás vyčerpává
+    - Identifikuje vaše klíčové dovednosti, silné stránky a oblasti odbornosti
+    - Diskutuje o vašich hodnotách, zájmech a prioritách v kariéře
+    - Bere v úvahu praktická omezení (lokalita, finance, rodina, časový plán)
+    - Navrhuje 2–4 konkrétní kariérní směry odpovídající vašemu profilu
+    - Poskytuje uskutečnitelné další kroky (síťování, rozvoj dovedností, pracovní portály)
+  sv: |
+    - Förstår din nuvarande jobbsituation och vad som driver en förändring
+    - Utforskar vad som ger dig energi och vad som tömmer dig i tidigare och nuvarande roller
+    - Identifierar dina kärnkompetenser, styrkor och expertisområden
+    - Diskuterar dina värderingar, intressen och prioriteringar i en karriär
+    - Beaktar praktiska begränsningar (plats, ekonomi, familj, tidslinje)
+    - Föreslår 2–4 konkreta karriärriktningar som matchar din profil
+    - Ger genomförbara nästa steg (nätverkande, kompetensutveckling, platsannonser)
 career_insights.description:
   context: Description for career insights focus mode in the Jobs app
   en: Find the right career based on your strengths.

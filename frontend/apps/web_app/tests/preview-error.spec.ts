@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-
+import { expect, test } from './helpers/cookie-audit';
 /**
  * Tests for component preview error handling.
  * Components without .preview.ts files (like BaseAppCard) may crash during

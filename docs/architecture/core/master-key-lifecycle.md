@@ -338,7 +338,7 @@ The master key distribution mechanism was confirmed architecturally sound during
 
 - [Encryption Architecture](./encryption-architecture.md) -- high-level architecture overview (post-rebuild)
 - [Encryption Formats](./encryption-formats.md) -- byte-level ciphertext format documentation
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- encryption tiers and key hierarchy
+- [Client-Side Encryption](./client-side-encryption.md) -- encryption tiers and key hierarchy
 - [Signup & Login](./signup-and-auth.md) -- authentication flow context
 - [Passkeys](./passkeys.md) -- PRF-based key wrapping details
 - [Chat Encryption Implementation](./chat-encryption-implementation.md) -- field-level encryption details

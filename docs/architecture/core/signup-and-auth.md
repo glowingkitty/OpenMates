@@ -13,7 +13,9 @@ key_files:
 
 # Signup & Login
 
-> Zero-knowledge authentication where the server never sees plaintext passwords, emails, or master encryption keys. Authentication is proven by successful client-side decryption.
+> Zero-knowledge password verification: the server verifies you know your password without ever learning it, via a pre-computed lookup hash. Emails are looked up by a SHA-256 hash, and master encryption keys are derived on the device and wrapped before transmission. Authentication is proven by successful client-side decryption.
+>
+> Note on terminology: "zero-knowledge" here refers specifically to password verification and key derivation — it does NOT mean the server cannot decrypt your stored content. The server can decrypt `encrypted_*` columns transiently in memory when running an AI response, rendering an invoice, or delivering a reminder; it just never persists plaintext. See [encryption-architecture.md](./encryption-architecture.md) for the full posture.
 
 ## Why This Exists
 
@@ -64,7 +66,7 @@ graph TB
 
 **Passkey path:**
 1. Server generates WebAuthn registration options with PRF extension
-2. Browser creates credential; client verifies PRF support (required for zero-knowledge)
+2. Browser creates credential; client verifies PRF support (required for client-side key wrapping)
 3. Client generates master key, wraps it with `deriveWrappingKeyFromPRF()` (HKDF from PRF signature + user salt)
 4. Wrapped master key uploaded to server
 
@@ -124,7 +126,7 @@ Implementation: preference captured during email lookup, stored in Redis, cookie
 
 ## Related Docs
 
-- [Security Architecture](./security.md) -- zero-knowledge authentication overview
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- master key lifecycle
+- [Security Architecture](./security.md) -- zero-knowledge password verification overview
+- [Client-Side Encryption](./client-side-encryption.md) -- master key lifecycle
 - [Passkeys](./passkeys.md) -- WebAuthn PRF implementation
 - [Account Recovery](./account-recovery.md) -- recovery and reset flows

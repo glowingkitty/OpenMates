@@ -16,7 +16,7 @@
  * Architecture context: docs/contributing/guides/docs-writing-guidelines.md
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/cookie-audit';
 import * as fs from 'fs';
 import * as path from 'path';
 

@@ -147,19 +147,29 @@ async def _run_promotion() -> dict:
     from backend.core.api.app.services.cache import CacheService
 
     cache = CacheService()
-    await cache.connect()
-    redis = cache.redis
+    # CacheService exposes the connected redis client via an async `client`
+    # property — there is no `.redis` attribute and no `connect()`/`disconnect()`
+    # method. The previous code (`cache.connect()` / `cache.redis`) raised
+    # AttributeError on every run, so the promotion task never actually read
+    # the Redis error-session flags. Client cleanup happens via aclose() in
+    # the finally block.
+    redis_client = await cache.client
+    if redis_client is None:
+        logger.error(
+            "Ephemeral log promotion: cache client is None — cannot read error flags"
+        )
+        return {"promoted": 0, "skipped": 0, "failed": 0, "total_flagged": 0}
 
     promoted = 0
     skipped = 0
     failed = 0
+    flagged_sessions: list = []
 
     try:
         # SCAN for error-flagged sessions (never use KEYS in production)
         cursor = 0
-        flagged_sessions = []
         while len(flagged_sessions) < MAX_SESSIONS_PER_RUN:
-            cursor, keys = await redis.scan(
+            cursor, keys = await redis_client.scan(
                 cursor=cursor,
                 match="ephemeral-error:*",
                 count=100,
@@ -180,9 +190,9 @@ async def _run_promotion() -> dict:
         for session_id in flagged_sessions:
             # Check if already promoted (idempotency guard)
             promoted_key = f"ephemeral-promoted:{session_id}"
-            if await redis.exists(promoted_key):
+            if await redis_client.exists(promoted_key):
                 # Already promoted — clean up the error flag
-                await redis.delete(f"ephemeral-error:{session_id}")
+                await redis_client.delete(f"ephemeral-error:{session_id}")
                 skipped += 1
                 continue
 
@@ -190,14 +200,28 @@ async def _run_promotion() -> dict:
 
             if success:
                 # Mark as promoted (48h TTL) and remove the error flag
-                await redis.set(promoted_key, "1", ex=172800)
-                await redis.delete(f"ephemeral-error:{session_id}")
+                await redis_client.set(promoted_key, "1", ex=172800)
+                await redis_client.delete(f"ephemeral-error:{session_id}")
                 promoted += 1
             else:
                 failed += 1
 
     finally:
-        await cache.disconnect()
+        # Close the per-task redis client cleanly so its connection pool is
+        # released before asyncio.run() tears down the loop. Without this,
+        # Celery logs a 'Event loop is closed' warning on the next task.
+        try:
+            aclose = getattr(redis_client, "aclose", None)
+            if aclose is not None:
+                await aclose()
+            else:
+                close = getattr(redis_client, "close", None)
+                if close is not None:
+                    result = close()
+                    if hasattr(result, "__await__"):
+                        await result
+        except Exception as cleanup_err:
+            logger.debug(f"Ephemeral promotion: cache client cleanup error: {cleanup_err}")
 
     return {
         "promoted": promoted,
@@ -223,7 +247,11 @@ def promote_error_sessions(self) -> dict:
     long-retention error-context stream.
     """
     try:
-        result = asyncio.get_event_loop().run_until_complete(_run_promotion())
+        # asyncio.run() creates a fresh event loop for this Celery thread and
+        # tears it down cleanly. Using asyncio.get_event_loop() here raised
+        # `RuntimeError: There is no current event loop in thread` on every run
+        # because Celery worker threads have no pre-existing loop.
+        result = asyncio.run(_run_promotion())
         if result["promoted"] > 0 or result["failed"] > 0:
             logger.info(
                 f"Ephemeral log promotion complete: "

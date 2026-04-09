@@ -39,7 +39,7 @@ Each app defines its own types of settings and memories. Common examples:
 - **Lists** -- Collections of items like favourite books, watched movies, or plant collections
 - **Preferences** -- Single settings like your preferred writing style or communication tone
 
-Each entry is individually encrypted before being stored, so even the server cannot read your data.
+Each entry is individually encrypted in your browser before being stored, so the server holds only ciphertext on disk and in backups. When your mate actually uses one of these entries to answer you, the server briefly decrypts it in memory — it is never written out in plain text.
 
 ## Managing Your Data
 
@@ -60,7 +60,7 @@ Your settings and memories sync across all your devices. Changes on one device a
 - You can save data proactively through the App Store settings without needing a conversation.
 - Pending entries (suggested by your mate but not yet confirmed) appear in a "Pending Review" section so you can act on them later.
 - Your mate cannot see your saved data unless you give permission during a conversation.
-- All data is encrypted on your device before being stored -- the server never sees your data in plain text.
+- All data is encrypted on your device before being stored -- the server stores only ciphertext on disk and in backups, and only decrypts transiently in memory when your mate actually needs to use it.
 
 ## Related
 

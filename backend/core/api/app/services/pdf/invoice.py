@@ -67,7 +67,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
             invoice_data: Dictionary of invoice fields (invoice_number, dates, credits, etc.)
             lang: Language code for translations (e.g. "en", "de")
             currency: ISO currency code lowercase (e.g. "eur", "usd")
-            document_type: "invoice" (default, for Stripe/Revolut) or "payment_confirmation"
+            document_type: "invoice" (default, for Stripe) or "payment_confirmation"
                            (for Polar — Polar as MoR issues the official tax invoice separately)
         """
         # Create a buffer for the PDF
@@ -89,7 +89,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # For Polar orders, `actual_amount_paid` contains the exact amount charged by Polar
         # (already converted to display units, e.g. 15.00 for $15 USD or 1800 for ¥1800 JPY).
         # This is necessary because Polar may charge in CAD, AUD, KRW, etc. — currencies
-        # that are not in our pricing.yml. For Stripe/Revolut orders we fall back to the
+        # that are not in our pricing.yml. For Stripe orders we fall back to the
         # pricing.yml lookup.
         actual_amount_paid = invoice_data.get('actual_amount_paid')
         if actual_amount_paid is not None:
@@ -196,7 +196,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Build sender details string.
         # For Polar (payment_confirmation): omit our VAT number because Polar as MoR is the
         # seller — our VAT number is irrelevant and would be misleading on this document.
-        # For Stripe/Revolut (invoice): include VAT number as we are the direct seller.
+        # For Stripe (invoice): include VAT number as we are the direct seller.
         sender_details_str = (
             f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
             f"<br/>{translated_sender_country}<br/>{sender_email_val}"
@@ -432,7 +432,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # For Polar (payment_confirmation): show actual tax amount from Polar as MoR.
         #   - If tax > 0: derive tax rate, show "Tax ({rate}%)" with actual tax amount.
         #   - If tax == 0: show "Tax (0%)" without asterisk (no §19 UStG applies).
-        # For Stripe/Revolut (invoice): keep "VAT (0%) *" with asterisk referencing §19 UStG.
+        # For Stripe (invoice): keep "VAT (0%) *" with asterisk referencing §19 UStG.
         actual_tax_amount = invoice_data.get('actual_tax_amount')
         actual_net_amount = invoice_data.get('actual_net_amount')
 
@@ -462,7 +462,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
                  Paragraph(f"<b>{fmt_price(total_paid_amount)}</b>", self.styles['Bold'])]
             ]
         else:
-            # Stripe/Revolut: §19 UStG Kleinunternehmer — 0% VAT with asterisk
+            # Stripe: §19 UStG Kleinunternehmer — 0% VAT with asterisk
             totals_data = [
                 [Paragraph(self.t['invoices_and_credit_notes']['total_excl_tax']['text'], self.styles['Normal']),
                  Paragraph(fmt_price(invoice_data['total_price']), self.styles['Normal'])],
@@ -517,7 +517,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         card_name = invoice_data.get("card_name", "")
 
         if card_last4:
-            # Standard card-based payment (Stripe, Revolut)
+            # Standard card-based payment (Stripe)
             paid_with_text = self.t["invoices_and_credit_notes"]["paid_with"]["text"]
 
             # First fix any potential HTML issues
@@ -581,7 +581,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         ]))
         elements.append(footer_table)
         
-        # Add VAT disclaimer — only for Stripe/Revolut invoices where OpenMates is the
+        # Add VAT disclaimer — only for Stripe invoices where OpenMates is the
         # direct seller and the §19 UStG Kleinunternehmer rule applies.
         # For Polar (payment_confirmation): Polar is the MoR and handles tax, so the
         # §19 UStG disclaimer does not apply and would be legally incorrect.

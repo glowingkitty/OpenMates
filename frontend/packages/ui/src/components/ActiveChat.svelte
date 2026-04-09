@@ -763,13 +763,38 @@
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
                 }
-                // CRITICAL: Clear the chat header state from any previously loaded demo chat
-                // (e.g. "OpenMates | For everyone" header that was visible before login).
-                // The phased sync will load the correct chat after authentication completes;
-                // until then the welcome screen should show no chat header.
+                // CRITICAL: Fully clear the previously loaded demo chat (e.g. 'demo-for-everyone')
+                // on login transition.
+                //
+                // Why this matters (OPE-354):
+                // The non-authenticated view of the app keeps `currentChat` set to the
+                // `demo-for-everyone` welcome chat so the demo content renders before login.
+                // After authentication succeeds we need a clean welcome screen so the first
+                // message the user sends creates a genuinely fresh chat.
+                //
+                // If we only reset the header (old behavior), `currentChat.chat_id` stays as
+                // `demo-for-everyone`. That ID is then passed into MessageInput → handleSend
+                // → sendHandlers.ts, which detects it via `isPublicChat(chatIdToUse)` and
+                // triggers the "Demo Duplication Flow": every demo message ("Digital team
+                // mates for everyone …") gets copied into the user's brand-new chat. The
+                // result is the wedged "Creating new chat …" banner sitting on top of the
+                // leaked demo history that OPE-354 surfaced in 6 E2E tests.
+                //
+                // The duplication flow is intentional for unauthenticated users reading the
+                // demo — it lets them continue the conversation as a regular chat. Once the
+                // user is authenticated the correct path is: fresh welcome screen → fresh
+                // chat on first send → phased sync can still load last_opened afterwards.
                 if (isPublicChat(currentChat?.chat_id ?? '')) {
+                    console.debug('[ActiveChat] Clearing demo chat on login transition (OPE-354)');
                     resetChatHeaderState();
-                    console.debug('[ActiveChat] Cleared demo chat header on login transition');
+                    currentChat = null;
+                    currentMessages = [];
+                    followUpSuggestions = [];
+                    showWelcome = true;
+                    activeChatStore.clearActiveChat();
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages([]);
+                    }
                 }
             } else if ($isInSignupProcess) {
                 // User is in signup process - ensure login interface stays open
@@ -8573,7 +8598,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            await chatDB.saveMessage(updatedMessage);
+                            // $state.snapshot() converts the Svelte proxy to a plain object —
+                            // IndexedDB structured clone cannot serialize $state proxies (DataCloneError).
+                            await chatDB.saveMessage($state.snapshot(updatedMessage) as ChatMessageModel);
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
                         }

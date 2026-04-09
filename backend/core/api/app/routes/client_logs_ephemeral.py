@@ -193,12 +193,17 @@ async def receive_ephemeral_client_logs(
 
     # Flag this session in Redis if any error occurred, so the promotion
     # task knows to copy the surrounding context to the long-retention stream.
+    # NOTE: CacheService exposes the redis client via an async `client`
+    # property — there is no `.redis` attribute. Using `.redis` silently
+    # broke the error-session flag pipeline for an unknown period.
     if has_error and success:
         try:
             cache_service = request.app.state.cache_service
-            redis = cache_service.redis
+            redis_client = await cache_service.client
+            if redis_client is None:
+                raise RuntimeError("cache client not connected")
             flag_key = f"ephemeral-error:{body.session_pseudonym}"
-            await redis.set(flag_key, "1", ex=172800)  # 48h TTL
+            await redis_client.set(flag_key, "1", ex=172800)  # 48h TTL
         except Exception as e:
             logger.warning(f"Failed to set ephemeral error flag in Redis: {e}")
 

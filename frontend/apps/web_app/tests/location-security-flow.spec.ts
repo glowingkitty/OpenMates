@@ -41,7 +41,7 @@ export {};
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
@@ -152,7 +152,9 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 			}
 		}
 	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
+	// Wait for the authenticated DOM signal instead of a URL pattern —
+	// post-login URLs no longer reliably contain `/chat/`. (OPE-354)
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 	log('Initial login complete.');
 	await screenshot(page, 'initial-login-done');
 
@@ -324,7 +326,7 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 			}
 		}
 	}
-	await page.waitForURL(/chat/, { timeout: 20000 });
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 	log('Initial login done.');
 	await screenshot(page, 'initial-login-done');
 

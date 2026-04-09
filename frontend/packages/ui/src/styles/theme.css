@@ -74,6 +74,21 @@ body {
   -ms-user-select: text;
 }
 
+/* ── Native selection highlight ──────────────────────────────────────────
+   Without an explicit ::selection rule mobile WebKit uses a near-invisible
+   default highlight on custom-themed backgrounds. Users reported that on
+   mobile they could not see whether text was selected at all (OPE-378).
+   We use the primary brand color at ~35% opacity so the highlight is
+   clearly visible on both light and dark themes while remaining legible. */
+::selection {
+  background-color: rgba(255, 85, 59, 0.35); /* --color-button-primary */
+  color: inherit;
+}
+::-moz-selection {
+  background-color: rgba(255, 85, 59, 0.35);
+  color: inherit;
+}
+
 /* ── Global focus-visible system ─────────────────────────────────────────────
    Provides a consistent, accessible focus indicator for keyboard navigation.
 

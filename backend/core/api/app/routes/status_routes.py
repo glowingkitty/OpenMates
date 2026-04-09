@@ -76,7 +76,6 @@ SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
     ("Payment", [
         ("Stripe", ["stripe"]),
         ("Polar", ["polar"]),
-        ("Revolut", ["revolut"]),
     ]),
     ("Email & Moderation", [
         ("Brevo", ["brevo"]),

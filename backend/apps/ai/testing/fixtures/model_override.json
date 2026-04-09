@@ -1,0 +1,45 @@
+{
+  "fixture_id": "model_override",
+  "recorded_at": "2026-04-07T15:53:59.399278+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "Capital city of Germany? short answer please.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Capital city of Germany",
+    "icon_names": [
+      "map"
+    ],
+    "selected_model_id": "moonshot/kimi-k2.5",
+    "selected_model_name": "Kimi K2.5",
+    "mate_id": "george",
+    "chat_summary": "User asked for the capital city of Germany.",
+    "chat_tags": [
+      "Germany",
+      "capital city",
+      "geography"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.3,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Kimi K2.5",
+    "provider_name": "Together AI",
+    "server_region": "US",
+    "icon_names": [
+      "map"
+    ]
+  },
+  "response": " Berlin",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Kimi K2.5"
+  }
+}

@@ -1037,26 +1037,15 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting encryption keys for user {user_id}: {e}", exc_info=True)
         
-        # 7. Delete Vault transit key for this user (irreversible — all encrypted data unrecoverable)
-        # Must run AFTER all Vault-encrypted content is deleted (steps 1-6 above handle auth data,
-        # and Phase 3 handles content). However, we delete the key here in Phase 1 to prevent
-        # any re-encryption attempts with the old key. Content deletion in Phase 3 does not
-        # need the Vault key — it deletes Directus records and S3 objects directly.
-        try:
-            user_data_for_vault = await directus_service.get_user(user_id, fields="vault_key_id")
-            vault_key_id = user_data_for_vault.get("vault_key_id") if user_data_for_vault else None
-            if vault_key_id:
-                success = await encryption_service.delete_user_key(vault_key_id)
-                if success:
-                    logger.info(f"[DELETE_ACCOUNT] Deleted Vault transit key '{vault_key_id}' for user {user_id}")
-                    # Clear the vault_key_id field on the user record
-                    await directus_service.update_user(user_id, {"vault_key_id": None})
-                else:
-                    logger.error(f"[DELETE_ACCOUNT] Failed to delete Vault transit key '{vault_key_id}' for user {user_id}")
-            else:
-                logger.info(f"[DELETE_ACCOUNT] No vault_key_id found for user {user_id}, skipping Vault key deletion")
-        except Exception as e:
-            logger.error(f"[DELETE_ACCOUNT] Error deleting Vault key for user {user_id}: {e}", exc_info=True)
+        # 7. Vault transit key deletion moved to the END of Phase 2.
+        #    Rationale: Phase 2 steps that follow still need the Vault key to
+        #    (a) decrypt encrypted_amount for refund processing, and
+        #    (b) decrypt encrypted_s3_object_key for invoice/credit-note PDF
+        #        deletion from S3 (OPE-370 / GDPR audit finding C3).
+        #    Phase 3 (chat/embed/message content) deletes Directus rows and
+        #    S3 objects directly and does NOT need the Vault key, so moving
+        #    the key delete to end-of-Phase-2 is safe and fixes a latent
+        #    silent-refund-failure bug.
 
         # 8. Unshare all shared chats — invalidate public share links before content deletion
         try:
@@ -1091,9 +1080,9 @@ async def _async_delete_user_account(
         # ===== PHASE 2: Payment & Subscription Data =====
         logger.info(f"[DELETE_ACCOUNT] Phase 2: Processing payment/subscription data for user {user_id}")
         
-        # 8. Stripe cleanup - Note: Requires PaymentService integration
-        # This would cancel subscription and delete customer - marked as TODO
-        
+        # 8. Stripe cleanup runs AFTER refund processing below — see step 9.5.
+        #    (Refunds first so we don't strand PaymentIntents on a deleted customer.)
+
         # 9. Auto-refund processing (if enabled)
         # Calls the actual payment provider API (Stripe/Polar) to return money,
         # deducts credits, updates Directus, and optionally dispatches the credit
@@ -1271,7 +1260,7 @@ async def _async_delete_user_account(
                                 f"[DELETE_ACCOUNT] Failed to deduct credits for invoice {invoice_id}: {credit_err}"
                             )
 
-                        # Record in Invoice Ninja — only for Stripe/Revolut (not Polar MoR)
+                        # Record in Invoice Ninja — only for Stripe (not Polar MoR)
                         if invoice_provider != "polar":
                             try:
                                 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
@@ -1370,7 +1359,92 @@ async def _async_delete_user_account(
 
             except Exception as e:
                 logger.error(f"[DELETE_ACCOUNT] Error processing refunds for user {user_id}: {e}", exc_info=True)
-        
+
+        # 9.5 Stripe cleanup — cancel active subscription + delete customer (GDPR Art. 17, C5)
+        # Runs after refund processing so refunds against existing PaymentIntents still work.
+        # Idempotent: missing customer / missing subscription do not fail the cascade.
+        try:
+            stripe_fields = await directus_service.get_user_fields_direct(
+                user_id, ["stripe_customer_id", "stripe_subscription_id"]
+            )
+            stripe_customer_id = (stripe_fields or {}).get("stripe_customer_id")
+            stripe_subscription_id = (stripe_fields or {}).get("stripe_subscription_id")
+
+            if stripe_customer_id or stripe_subscription_id:
+                import os
+                from backend.core.api.app.services.payment.payment_service import PaymentService
+                from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+                # Always use a fresh PaymentService here — the refund block above
+                # already calls close() on its instance, so we cannot reuse it.
+                secrets_manager = SecretsManager()
+                await secrets_manager.initialize()
+                stripe_payment_service = PaymentService(secrets_manager=secrets_manager)
+                is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+                await stripe_payment_service.initialize(is_production=not is_dev)
+
+                # Only Stripe handles subscriptions today (Polar is one-off purchases).
+                if stripe_payment_service.provider_name != "stripe":
+                    logger.info(
+                        f"[DELETE_ACCOUNT] Payment provider is {stripe_payment_service.provider_name}, "
+                        f"skipping Stripe cleanup for user {user_id}"
+                    )
+                else:
+                    # Cancel subscription first (if any)
+                    if stripe_subscription_id:
+                        try:
+                            cancel_result = await stripe_payment_service.provider.cancel_subscription(
+                                stripe_subscription_id
+                            )
+                            if cancel_result:
+                                logger.info(
+                                    f"[DELETE_ACCOUNT] Cancelled Stripe subscription "
+                                    f"{stripe_subscription_id} for user {user_id}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"[DELETE_ACCOUNT] Stripe subscription cancel returned no result "
+                                    f"for {stripe_subscription_id} (user {user_id}) — may already be cancelled"
+                                )
+                        except Exception as sub_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Error cancelling Stripe subscription "
+                                f"{stripe_subscription_id} for user {user_id}: {sub_err}",
+                                exc_info=True,
+                            )
+
+                    # Delete the customer record (removes email, address, payment methods from Stripe)
+                    if stripe_customer_id:
+                        try:
+                            deleted = await stripe_payment_service.provider.delete_customer(
+                                stripe_customer_id
+                            )
+                            if deleted:
+                                logger.info(
+                                    f"[DELETE_ACCOUNT] Deleted Stripe customer "
+                                    f"{stripe_customer_id} for user {user_id}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"[DELETE_ACCOUNT] Stripe customer delete failed for "
+                                    f"{stripe_customer_id} (user {user_id})"
+                                )
+                        except Exception as cust_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Error deleting Stripe customer "
+                                f"{stripe_customer_id} for user {user_id}: {cust_err}",
+                                exc_info=True,
+                            )
+
+                try:
+                    await stripe_payment_service.close()
+                except Exception:
+                    pass
+            else:
+                logger.info(f"[DELETE_ACCOUNT] No Stripe customer/subscription for user {user_id}, skipping Stripe cleanup")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error during Stripe cleanup for user {user_id}: {e}", exc_info=True)
+
         # 10. Delete gift cards (using bulk delete for efficiency)
         try:
             gift_cards = await directus_service.get_items(
@@ -1393,20 +1467,82 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting gift cards for user {user_id}: {e}", exc_info=True)
         
-        # 11. Delete invoices (using bulk delete for efficiency)
+        # 11. Delete invoice PDFs from S3, then the Directus rows (GDPR Art. 17 / C3).
+        #     The PDF content is also retained in Invoice Ninja (the authoritative
+        #     accounting system) and the financial-compliance.log (10-year retention
+        #     bucket with transaction metadata), both of which are independent of the
+        #     user's Vault key. The S3 copy is a customer-facing convenience only —
+        #     deleting it is safe under HGB §257 / AO §147 because the legal record
+        #     lives elsewhere. See docs/architecture/compliance/gdpr-audit.md §6.
         try:
             invoices = await directus_service.get_items(
                 "invoices",
-                params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+                params={
+                    "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                    "fields": "id,encrypted_s3_object_key",
+                },
             )
-            # TODO: Delete invoice PDFs from S3 using encrypted_s3_object_key for each invoice
-            invoice_ids = [i.get("id") for i in (invoices or []) if i.get("id")]
+            invoices = invoices or []
+
+            # Delete each PDF from S3 using the user's still-live Vault key to
+            # decrypt the encrypted_s3_object_key reference. Failures are logged
+            # per-invoice but never block the cascade — the S3 bucket has a
+            # 10-year lifecycle policy as a safety net anyway.
+            deleted_s3_pdfs = 0
+            skipped_s3_pdfs = 0
+            if invoices:
+                try:
+                    from backend.core.api.app.services.s3.service import S3UploadService
+                    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+                    pdf_secrets_manager = SecretsManager()
+                    await pdf_secrets_manager.initialize()
+                    invoice_s3_service = S3UploadService(secrets_manager=pdf_secrets_manager)
+                    await invoice_s3_service.initialize()
+
+                    user_data_for_vault = await directus_service.get_user_fields_direct(
+                        user_id, ["vault_key_id"]
+                    )
+                    vault_key_id_for_pdfs = (user_data_for_vault or {}).get("vault_key_id")
+
+                    for inv in invoices:
+                        enc_s3_key = inv.get("encrypted_s3_object_key")
+                        if not enc_s3_key or not vault_key_id_for_pdfs:
+                            skipped_s3_pdfs += 1
+                            continue
+                        try:
+                            s3_object_key = await encryption_service.decrypt_with_user_key(
+                                enc_s3_key, vault_key_id_for_pdfs
+                            )
+                            if not s3_object_key:
+                                skipped_s3_pdfs += 1
+                                continue
+                            await invoice_s3_service.delete_file("invoices", s3_object_key)
+                            deleted_s3_pdfs += 1
+                        except Exception as s3_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Failed to delete S3 PDF for invoice "
+                                f"{inv.get('id')} (user {user_id}): {s3_err}"
+                            )
+                except Exception as s3_init_err:
+                    logger.error(
+                        f"[DELETE_ACCOUNT] Could not initialize S3 for invoice PDF deletion "
+                        f"(user {user_id}): {s3_init_err}. Directus rows will still be deleted; "
+                        f"S3 objects will be reaped by the 10-year lifecycle policy."
+                    )
+
+            logger.info(
+                f"[DELETE_ACCOUNT] Invoice PDFs: deleted {deleted_s3_pdfs} from S3, "
+                f"skipped {skipped_s3_pdfs} (user {user_id})"
+            )
+
+            invoice_ids = [i.get("id") for i in invoices if i.get("id")]
             if invoice_ids:
                 await directus_service.bulk_delete_items("invoices", invoice_ids)
             logger.info(f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting invoices for user {user_id}: {e}", exc_info=True)
-        
+
         logger.info(f"[DELETE_ACCOUNT] Phase 2 complete for user {user_id}")
         
         # ===== PHASE 3: User Content & Data =====
@@ -1545,14 +1681,70 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting embed keys for user {user_id}: {e}", exc_info=True)
         
-        # 18. Delete credit notes (using bulk delete for efficiency)
+        # 18. Delete credit note PDFs from S3, then the Directus rows (GDPR Art. 17 / C3).
+        #     Same legal reasoning as invoices (step 11): the authoritative record
+        #     lives in Invoice Ninja + financial-compliance.log, so the S3 copy is
+        #     a convenience that can be safely erased. Credit notes share the
+        #     'invoices' S3 bucket (see credit_note_email_task.py).
         try:
             credit_notes = await directus_service.get_items(
                 "credit_notes",
-                params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+                params={
+                    "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                    "fields": "id,encrypted_s3_object_key",
+                },
             )
-            # TODO: Delete credit note PDFs from S3 using encrypted_s3_object_key for each credit note
-            credit_note_ids = [c.get("id") for c in (credit_notes or []) if c.get("id")]
+            credit_notes = credit_notes or []
+
+            deleted_cn_pdfs = 0
+            skipped_cn_pdfs = 0
+            if credit_notes:
+                try:
+                    from backend.core.api.app.services.s3.service import S3UploadService
+                    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+                    pdf_secrets_manager = SecretsManager()
+                    await pdf_secrets_manager.initialize()
+                    cn_s3_service = S3UploadService(secrets_manager=pdf_secrets_manager)
+                    await cn_s3_service.initialize()
+
+                    user_data_for_vault = await directus_service.get_user_fields_direct(
+                        user_id, ["vault_key_id"]
+                    )
+                    vault_key_id_for_pdfs = (user_data_for_vault or {}).get("vault_key_id")
+
+                    for cn in credit_notes:
+                        enc_s3_key = cn.get("encrypted_s3_object_key")
+                        if not enc_s3_key or not vault_key_id_for_pdfs:
+                            skipped_cn_pdfs += 1
+                            continue
+                        try:
+                            s3_object_key = await encryption_service.decrypt_with_user_key(
+                                enc_s3_key, vault_key_id_for_pdfs
+                            )
+                            if not s3_object_key:
+                                skipped_cn_pdfs += 1
+                                continue
+                            await cn_s3_service.delete_file("invoices", s3_object_key)
+                            deleted_cn_pdfs += 1
+                        except Exception as s3_err:
+                            logger.error(
+                                f"[DELETE_ACCOUNT] Failed to delete S3 PDF for credit note "
+                                f"{cn.get('id')} (user {user_id}): {s3_err}"
+                            )
+                except Exception as s3_init_err:
+                    logger.error(
+                        f"[DELETE_ACCOUNT] Could not initialize S3 for credit note PDF deletion "
+                        f"(user {user_id}): {s3_init_err}. Directus rows will still be deleted; "
+                        f"S3 objects will be reaped by the 10-year lifecycle policy."
+                    )
+
+            logger.info(
+                f"[DELETE_ACCOUNT] Credit note PDFs: deleted {deleted_cn_pdfs} from S3, "
+                f"skipped {skipped_cn_pdfs} (user {user_id})"
+            )
+
+            credit_note_ids = [c.get("id") for c in credit_notes if c.get("id")]
             if credit_note_ids:
                 await directus_service.bulk_delete_items("credit_notes", credit_note_ids)
             logger.info(f"[DELETE_ACCOUNT] Deleted {len(credit_note_ids)} credit notes for user {user_id}")
@@ -1571,7 +1763,33 @@ async def _async_delete_user_account(
             logger.info(f"[DELETE_ACCOUNT] Deleted {len(income_ids)} creator income records for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting creator income for user {user_id}: {e}", exc_info=True)
-        
+
+        # 20. Delete Vault transit key — MUST be the final content step.
+        #     By now every step that needed to decrypt user data (refunds in Phase 2,
+        #     Stripe cleanup in Phase 2, invoice/credit-note S3 PDF deletion in
+        #     Phase 2/3) has completed. From this point on the user's encrypted data
+        #     is cryptographically unrecoverable — this is the "crypto-shred" moment
+        #     that turns any residual ciphertext (backups, orphan S3 objects, stale
+        #     cache) into random noise. Must run BEFORE Phase 4 cache cleanup so
+        #     nothing re-encrypts with the dead key on its way out.
+        try:
+            user_data_for_vault = await directus_service.get_user_fields_direct(
+                user_id, ["vault_key_id"]
+            )
+            vault_key_id = (user_data_for_vault or {}).get("vault_key_id")
+            if vault_key_id:
+                success = await encryption_service.delete_user_key(vault_key_id)
+                if success:
+                    logger.info(f"[DELETE_ACCOUNT] Deleted Vault transit key '{vault_key_id}' for user {user_id}")
+                    # Clear the vault_key_id field on the user record
+                    await directus_service.update_user(user_id, {"vault_key_id": None})
+                else:
+                    logger.error(f"[DELETE_ACCOUNT] Failed to delete Vault transit key '{vault_key_id}' for user {user_id}")
+            else:
+                logger.info(f"[DELETE_ACCOUNT] No vault_key_id found for user {user_id}, skipping Vault key deletion")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting Vault key for user {user_id}: {e}", exc_info=True)
+
         logger.info(f"[DELETE_ACCOUNT] Phase 3 complete for user {user_id}")
         
         # ===== PHASE 4: Cache Cleanup =====

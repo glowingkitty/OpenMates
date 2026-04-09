@@ -1,7 +1,7 @@
 """
 Base abstract class for email providers.
 
-All email providers (Brevo, Mailjet, etc.) should inherit from this class
+All email providers (Brevo, etc.) should inherit from this class
 and implement the required methods.
 """
 
@@ -54,7 +54,7 @@ class BaseEmailProvider(ABC):
         Get the name of the email provider.
         
         Returns:
-            Provider name (e.g., "Brevo", "Mailjet")
+            Provider name (e.g., "Brevo")
         """
         pass
 

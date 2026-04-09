@@ -188,7 +188,7 @@
             <!-- Credits: always visible when authenticated AND payment is enabled.
                  Expanded: centered below username. Collapsed: inline next to username. -->
             {#if isAuthenticated && paymentEnabled}
-                <div class="credits-row credits-container" class:credits-row-collapsed={isCollapsed}>
+                <div data-testid="credits-row" class="credits-row credits-container" class:credits-row-collapsed={isCollapsed}>
                     <button
                         class="credits-button"
                         class:credits-button-collapsed={isCollapsed}
@@ -417,7 +417,8 @@
 
     .username-label {
         font-weight: 700;
-        color: var(--color-grey-100);
+        /* Always white — sits on the colored gradient header, not theme-dependent. */
+        color: var(--color-font-button);
         line-height: 1.25;
         text-align: center;
         overflow: hidden;
@@ -431,7 +432,8 @@
     .username-label-clickable {
         all: unset;
         font-weight: 700;
-        color: var(--color-grey-100);
+        /* Always white — sits on the colored gradient header, not theme-dependent. */
+        color: var(--color-font-button);
         line-height: 1.25;
         text-align: center;
         overflow: hidden;

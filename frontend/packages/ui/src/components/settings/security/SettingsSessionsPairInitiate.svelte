@@ -6,7 +6,7 @@ authorization, then prompts for the 6-digit PIN to decrypt the session bundle an
 complete login via the standard auth flow.
 
 Architecture: docs/architecture/device-sessions.md
-Zero-knowledge crypto: docs/architecture/zero-knowledge-storage.md
+Client-side encryption: docs/architecture/core/client-side-encryption.md
 -->
 
 <script lang="ts">

@@ -12,28 +12,28 @@ key_files:
 
 # Security Architecture
 
-> Zero-knowledge architecture where the server never sees passwords, emails, or encryption keys. Dual-mode encryption balances maximum privacy with AI-powered features.
+> Client-side encryption with in-memory-only server processing. The server never *persists* plaintext passwords, emails, or user content — everything on disk, in caches, and in backups is ciphertext. When the server needs to read content (to run an AI response, render an invoice, or deliver a reminder), decryption happens transiently in process memory and is discarded. This is **not** end-to-end encryption. See [encryption-architecture.md](./encryption-architecture.md) for the full posture.
 
 ## Why This Exists
 
-- User data must remain private even if server is fully compromised
-- Government data requests should be unanswerable — zero-knowledge means we can't decrypt
-- AI features (image gen, long-running tasks) need server-side processing → requires controlled exception to pure client-side encryption
+- User data at rest must remain unreadable even if the database, caches, or backups are fully compromised
+- Third-party data requests targeting at-rest storage cannot yield plaintext — ciphertext on disk requires the user's key, which is derived from their credential and wrapped inside HashiCorp Vault
+- AI features (image gen, long-running tasks) need server-side processing → the server decrypts in memory on demand but never writes plaintext to disk, logs, or traces
 - Multiple login methods (password, passkey, recovery key) each need their own path to the master key
 
 ## Two Encryption Tiers
 
 ```mermaid
 graph TB
-    subgraph "Client-Managed · Zero-Knowledge"
+    subgraph "Client-Managed · Client-Side Encrypted"
         U[User Device]
-        MK[Master Key<br/>never leaves device]
+        MK[Master Key<br/>derived from credential]
         EB[Encrypted Blob]
         SRV1[Server / Directus]
         U -->|generates| MK
         MK -->|AES-256-GCM| EB
         EB -->|store| SRV1
-        SRV1 -.->|cannot decrypt| EB
+        SRV1 -.->|stores ciphertext only<br/>decrypts only in RAM<br/>when needed| EB
     end
 
     subgraph "Server-Managed · Vault-Hybrid"
@@ -48,13 +48,13 @@ graph TB
     end
 ```
 
-### Client-Managed (Zero-Knowledge)
+### Client-Managed (Client-Side Encrypted)
 
 - **Used for:** chat messages, app data, profile settings, user email addresses
-- Key lives on user's device — never sent to server
-- Server stores encrypted blobs it cannot decrypt
+- Master key is derived from the user's credential on their device; the raw key is never sent to the server
+- Server stores only ciphertext on disk, in Redis caches, and in backups. It *can* decrypt transiently in memory when the user invokes an AI response, but the plaintext is never persisted.
 - Implementation: [cryptoService.ts](../../frontend/packages/ui/src/services/cryptoService.ts), [cryptoKeyStorage.ts](../../frontend/packages/ui/src/services/cryptoKeyStorage.ts)
-- **Limitation:** server can't process this data in background (user must be online)
+- **Limitation:** background processing without user interaction would require a different key-release path (not currently implemented)
 
 ### Server-Managed (Vault-Hybrid)
 
@@ -64,11 +64,13 @@ graph TB
 - Implementation: [encryption.py](../../backend/core/api/app/utils/encryption.py), [vault/](../../backend/core/vault/)
 - **Why needed:** long-running tasks complete while user may be offline — can't wait for client to encrypt
 
-## Zero-Knowledge Authentication
+## Zero-Knowledge Password Verification
 
-- Client derives `lookup_hash = SHA256(password + salt)` → sends only hash, never plaintext
-- Server locates user by `hashed_email = SHA256(email)` → never sees real email
-- Server verifies lookup_hash → never sees or stores plaintext password
+> Note: "zero-knowledge" here refers specifically to the password verification flow — we verify that you know your password without ever learning it. It does NOT mean the server cannot decrypt your stored content. See [encryption-architecture.md](./encryption-architecture.md).
+
+- Client derives `lookup_hash = SHA256(password + salt)` → sends only hash, never the plaintext password
+- Server locates user by `hashed_email = SHA256(email)` → the plaintext email is not used as a direct lookup key (an encrypted copy is still stored for invoicing / transactional mail)
+- Server verifies lookup_hash → the plaintext password is never stored
 - Client decrypts master key locally to verify authentication
 - Implementation: [auth_login.py](../../backend/core/api/app/routes/auth_routes/auth_login.py) (server), [cryptoService.ts](../../frontend/packages/ui/src/services/cryptoService.ts) (client)
 
@@ -102,7 +104,8 @@ graph TB
 
 ## Edge Cases
 
-- **Server compromise:** attackers get only hashes — no access to passwords, emails, chat content, or master keys
+- **At-rest compromise (cold DB / backup / cache dump):** attackers get only ciphertext and hashes — no access to passwords, email plaintext, chat content, or master keys without a user credential
+- **Live-process compromise:** an attacker with root on a running API host could in principle read plaintext that is transiently in RAM during AI processing. This is the honest limit of the posture and is why we rely on defense-in-depth (Vault, OTel redaction, minimal blast radius) for live hosts
 - **Presigned URL expiry:** 403 → auto-retry in [presignedUrlService.ts](../../frontend/packages/ui/src/services/presignedUrlService.ts)
 - **Stale vault keys in cache:** decryption fails → request fresh data from client → re-cache. Handled in [message_received_handler.py](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py)
 - **Multiple login methods:** each wraps the same master key differently (password-derived, passkey PRF, recovery key). See [passkeys.md](./passkeys.md), [account-recovery.md](./account-recovery.md)
@@ -111,7 +114,7 @@ graph TB
 
 | Category | Status | Documentation |
 |----------|--------|---------------|
-| Authentication | Zero-knowledge login, 2FA mandatory | [Signup & Login](./signup-and-auth.md) |
+| Authentication | Zero-knowledge password verification, 2FA mandatory | [Signup & Login](./signup-and-auth.md) |
 | Encryption | AES-256-GCM, dual-mode | See tiers above |
 | S3 Access | Private bucket + presigned URLs (15-min TTL) | See section above |
 | Email Privacy | Client-side encrypted storage | [Email Privacy](../privacy/email-privacy.md) |
@@ -123,7 +126,7 @@ graph TB
 
 > **Status:** Planned — part of Finance app milestone. Reusable pattern for any app needing user-level provider auth.
 
-Apps can connect to external services on a per-user basis (e.g., Revolut Business, InvoiceNinja). Connected account credentials follow the zero-knowledge principle by default and are treated like other settings/memories — client-side encrypted, with the same lifecycle as chat messages.
+Apps can connect to external services on a per-user basis (e.g., Revolut Business, InvoiceNinja). Connected account credentials are client-side encrypted by default and follow the same lifecycle as chat messages and other settings/memories.
 
 ### How It Fits the Existing Settings & Memories Pipeline
 
@@ -164,7 +167,7 @@ Credentials follow the **same lifecycle as chat messages and other settings/memo
 3. When the chat ages out of the recent window (or 24h TTL expires), cached credentials are evicted
 4. Credentials are never persisted server-side in plaintext — only E2E encrypted blobs in Directus
 
-### Default: Client-Side Encrypted (Zero-Knowledge)
+### Default: Client-Side Encrypted
 
 ```mermaid
 sequenceDiagram
@@ -195,7 +198,7 @@ sequenceDiagram
 
 - **Credentials stored:** Client-side encrypted in Directus as `connected_accounts` memory field (same encryption as chat messages)
 - **Server access:** Credentials submitted per-chat when user confirms, held in memory with same lifecycle as chat messages, discarded when chat is no longer recent
-- **Server compromise:** Attacker gets only encrypted blobs — cannot access user's external accounts
+- **At-rest compromise:** Attacker reading a cold database, cache dump, or backup gets only ciphertext — without a user credential the external accounts cannot be reached
 - **Token types supported:**
   - OAuth refresh tokens (Revolut Business) — server exchanges for short-lived access token on each skill call
   - API keys/tokens (InvoiceNinja) — used directly by skill execution code
@@ -235,7 +238,7 @@ When a user enables background features (scheduled reports, webhook-triggered ac
 
 ### Security Properties
 
-- **Default posture:** Zero-knowledge — server cannot access external accounts without active user participation
+- **Default posture:** Client-side encrypted — server cannot access external accounts without active user participation in an active chat session
 - **LLM isolation:** LLM sees account names only after user confirms; credentials are resolved by application code, never in LLM context
 - **Chat-scoped retention:** Credentials in server memory follow the same lifecycle as chat messages — discarded when chat is no longer recent
 - **Upgrade path:** Vault-hybrid only with explicit user consent, only for features that require offline/background access
@@ -243,8 +246,8 @@ When a user enables background features (scheduled reports, webhook-triggered ac
 
 ## Design Assumptions
 
-- **Servers will be compromised** → all user data encrypted with user-controlled keys
-- **Government data requests** → zero-knowledge means we can't decrypt even under legal pressure
+- **At-rest compromise is assumed possible** → all user content and credentials are stored as ciphertext, with keys wrapped in HashiCorp Vault
+- **Legal process targeting at-rest data** → the relevant storage tier (database, backups, caches) holds only ciphertext; serving decrypted content requires live access to user credentials and Vault, not just a cold dump. We do not claim this makes us unable to comply with valid legal orders that target live processing.
 - **Prompt injection** → defense-in-depth, minimize data exposure. See [Prompt Injection](../privacy/prompt-injection.md)
 
 <!-- TODO: screenshot (1000x400) — security settings page showing encryption status -->
@@ -257,7 +260,7 @@ When a user enables background features (scheduled reports, webhook-triggered ac
 ## Related Docs
 
 - [Signup & Login](./signup-and-auth.md) — authentication flows
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) — client-side encryption details
+- [Client-Side Encryption](./client-side-encryption.md) — client-side encryption details
 - [Passkeys](./passkeys.md) — WebAuthn implementation
 - [Email Privacy](../privacy/email-privacy.md) — email encryption
 - [Device Sessions](../data/device-sessions.md) — device management

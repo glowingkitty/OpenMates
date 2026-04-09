@@ -11,7 +11,7 @@ class StripeService:
         self._is_production = False
         self.api_key = None
         self.webhook_secret = None
-        self.provider_name = "stripe" # Consistent with RevolutService
+        self.provider_name = "stripe"
 
     async def initialize(self, is_production: bool):
         self._is_production = is_production
@@ -429,7 +429,7 @@ class StripeService:
                 "amount": payment_intent.amount, # Add amount
                 "currency": payment_intent.currency, # Add currency
                 "customer": payment_intent.customer, # Add customer ID
-                "payments": [ # Add a 'payments' list to mimic Revolut structure for compatibility
+                "payments": [ # Normalized payments list for compatibility with downstream callers
                     {
                         "state": payment_intent.status.upper(), # Use PaymentIntent status as payment state
                         "payment_method": {
@@ -826,7 +826,41 @@ class StripeService:
         except Exception as e:
             logger.error(f"Unexpected error canceling Stripe subscription: {str(e)}", exc_info=True)
             return None
-    
+
+    async def delete_customer(self, customer_id: str) -> bool:
+        """
+        Permanently deletes a Stripe customer. Used by the GDPR Art. 17 erasure
+        cascade to remove personal data (email, address, payment methods) from
+        Stripe. Idempotent: missing customers return True.
+
+        Args:
+            customer_id: The Stripe customer ID to delete
+
+        Returns:
+            True on success (or if the customer is already gone), False on error.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return False
+
+        try:
+            stripe.Customer.delete(customer_id)
+            logger.info(f"Stripe customer {customer_id} deleted")
+            return True
+        except stripe.error.InvalidRequestError as e:
+            # Already deleted or never existed — treat as success for idempotency
+            if "No such customer" in str(e) or "resource_missing" in str(getattr(e, "code", "")):
+                logger.info(f"Stripe customer {customer_id} already deleted or missing")
+                return True
+            logger.error(f"Stripe API error deleting customer {customer_id}: {e}", exc_info=True)
+            return False
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error deleting customer {customer_id}: {e.user_message}", exc_info=True)
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting Stripe customer {customer_id}: {str(e)}", exc_info=True)
+            return False
+
     async def get_customer_portal_url(self, customer_id: str, return_url: str = "https://openmates.org/settings/support") -> Optional[str]:
         """
         Creates a Stripe billing portal session and returns the URL.

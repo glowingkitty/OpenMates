@@ -371,6 +371,28 @@ async def _publish_skill_status(
             f"[Task ID: {task_id}] Published skill status '{status}' for skill '{app_id}.{skill_id}' "
             f"to channel '{channel}' with preview_data keys: {list(preview_data.keys()) if preview_data else 'none'}"
         )
+
+        # --- TEST RECORD: capture skill_execution status updates to the fixture ---
+        # When a TEST_RECORD task is active, mirror every skill status update into
+        # the FixtureRecorder so replay mode can emit the same sequence of events.
+        # Without this, fixtures record `skill_executions: []` and replayed embeds
+        # stay stuck at "Processing…" forever even though the text stream finishes.
+        if os.getenv("SERVER_ENVIRONMENT", "production") != "production":
+            try:
+                from backend.apps.ai.testing.mock_replay import get_active_fixture_recorder
+                _recorder = get_active_fixture_recorder()
+                if _recorder is not None:
+                    _recorder.record_skill_execution(
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        status=status,
+                        preview_data=preview_data,
+                        error=error,
+                    )
+            except Exception as rec_err:
+                logger.warning(
+                    f"[Task ID: {task_id}] Failed to record skill_execution to fixture: {rec_err}"
+                )
     except Exception as e:
         logger.error(
             f"[Task ID: {task_id}] Failed to publish skill status for '{app_id}.{skill_id}': {e}",

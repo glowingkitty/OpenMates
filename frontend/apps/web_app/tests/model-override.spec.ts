@@ -2,8 +2,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
@@ -146,10 +145,13 @@ async function typeQuestionAndSend(
 	question: string,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>,
-	stepLabel: string
+	stepLabel: string,
+	fixtureId: string = 'model_override'
 ): Promise<void> {
-	// Type a space after the autocompleted model, then the question
-	await page.keyboard.type(withMockMarker(' ' + question, 'model_override'));
+	// Type a space after the autocompleted model, then the question.
+	// Each model variant uses a distinct fixture id so the replayer returns the
+	// correct cached response per model (otherwise all variants get the same one). (OPE-354)
+	await page.keyboard.type(withMockMarker(' ' + question, fixtureId));
 	logCheckpoint(`Typed question: "${question}"`);
 	await takeStepScreenshot(page, `${stepLabel}-question-typed`);
 
@@ -335,7 +337,8 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 		'Capital city of Germany? short answer please.',
 		logCheckpoint,
 		takeStepScreenshot,
-		'qwen'
+		'qwen',
+		'model_override_qwen'
 	);
 
 	// Wait for response and verify Qwen model was used
@@ -418,13 +421,16 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 		'gpt'
 	);
 
-	// Type the question and send
+	// Type the question and send. Math question instead of geography because the
+	// gpt-5.4 provider repeatedly errors on the "Capital city of Germany" prompt
+	// during recording (chat.an_error_occured). (OPE-354)
 	await typeQuestionAndSend(
 		page,
-		'Capital city of Germany? short answer please.',
+		'What is 7 + 7? Answer with just the number.',
 		logCheckpoint,
 		takeStepScreenshot,
-		'gpt'
+		'gpt',
+		'model_override_gpt54'
 	);
 
 	// Wait for response and verify GPT-5.4 model was used
@@ -438,8 +444,8 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
 	);
 
 	// Verify the response contains the expected answer
-	expect(response.toLowerCase()).toContain('berlin');
-	logCheckpoint('Verified response contains "Berlin".');
+	expect(response).toContain('14');
+	logCheckpoint('Verified response contains "14".');
 
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'gpt-cleanup');
@@ -506,7 +512,8 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 		'What is 3 + 3? Answer with just the number.',
 		logCheckpoint,
 		takeStepScreenshot,
-		'switch-qwen'
+		'switch-qwen',
+		'model_override_switch_qwen'
 	);
 
 	const qwenResponse = await waitForResponseAndVerifyModel(
@@ -540,7 +547,8 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 		'What is 5 + 5? Answer with just the number.',
 		logCheckpoint,
 		takeStepScreenshot,
-		'switch-gpt'
+		'switch-gpt',
+		'model_override_switch_gpt54'
 	);
 
 	const gptResponse = await waitForResponseAndVerifyModel(
@@ -619,13 +627,16 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 		'kimi'
 	);
 
-	// Type the question and send
+	// Type the question and send. Note: model_override.json (the existing fixture
+	// from the kimi recording) is reused here so the kimi-only test passes without
+	// needing a re-record. (OPE-354)
 	await typeQuestionAndSend(
 		page,
 		'Capital city of Germany? short answer please.',
 		logCheckpoint,
 		takeStepScreenshot,
-		'kimi'
+		'kimi',
+		'model_override'
 	);
 
 	// Wait for response and verify Kimi K2.5 model was used

@@ -26,7 +26,8 @@ export {};
  * - PLAYWRIGHT_TEST_BASE_URL
  */
 
-const { test, expect, chromium } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
+const { chromium } = require('@playwright/test');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from fastapi import WebSocket
+from starlette.websockets import WebSocketState
 from typing import Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,36 @@ def _safe_message_summary(message: object) -> str:
     if isinstance(message, list):
         return f"list_len={len(message)}"
     return f"type={type(message).__name__}"
+
+
+def _ws_is_live(websocket: WebSocket) -> bool:
+    """
+    True iff the server-side application state of the WebSocket is still
+    CONNECTED. During the 30s disconnect grace period the ws stays in
+    active_connections but Starlette has already closed the transport —
+    calling send_json() then raises RuntimeError('Unexpected ASGI message
+    "websocket.send", after sending "websocket.close"...'). Callers must
+    check this before broadcasting to avoid the race.
+    """
+    try:
+        return websocket.application_state == WebSocketState.CONNECTED
+    except Exception:
+        return False
+
+
+def _is_closed_ws_error(exc: BaseException) -> bool:
+    """
+    Identifies the benign race where a broadcast reached a ws that was
+    already closed (grace-period remnant). Logged at DEBUG — not an error.
+    """
+    if isinstance(exc, RuntimeError):
+        msg = str(exc)
+        return (
+            "Unexpected ASGI message" in msg
+            or "websocket.close" in msg
+            or "response already completed" in msg
+        )
+    return False
 
 class ConnectionManager:
     """
@@ -182,6 +213,16 @@ class ConnectionManager:
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
         if websocket:
+            # Skip silently if the server-side socket has already transitioned
+            # to DISCONNECTED (30s grace period remnant). Trying to send_json
+            # on a closed ws raises the "Unexpected ASGI message" RuntimeError.
+            if not _ws_is_live(websocket):
+                logger.debug(
+                    f"Skipped personal message for {user_id}/{device_fingerprint_hash}: "
+                    f"ws already closed (grace period). Triggering disconnect cleanup."
+                )
+                self.disconnect(websocket, reason="ws already closed when sending")
+                return
             try:
                 await websocket.send_json(message)
                 logger.debug(
@@ -189,7 +230,13 @@ class ConnectionManager:
                     f"(message_summary={_safe_message_summary(message)})"
                 )
             except Exception as e: # Catch any exception during send
-                logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.")
+                if _is_closed_ws_error(e):
+                    logger.debug(
+                        f"Send raced with close for {user_id}/{device_fingerprint_hash} "
+                        f"(ws_id: {id(websocket)}): {e}. Disconnecting."
+                    )
+                else:
+                    logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.")
                 self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
         else:
             logger.warning(f"Attempted to send personal message to {user_id}/{device_fingerprint_hash}, but no active WebSocket found (possibly in grace period or fully disconnected).")
@@ -200,12 +247,21 @@ class ConnectionManager:
             # Create a list of tasks to send messages concurrently
             tasks = []
             websockets_to_send = [] # Keep track of websockets we attempt to send to
+            stale_websockets = []  # Grace-period remnants to clean up after iteration
 
             # Iterate safely over a copy of items in case disconnect modifies the dict
             for device_hash, websocket in list(self.active_connections[user_id].items()):
-                if device_hash != exclude_device_hash:
-                    tasks.append(websocket.send_json(message))
-                    websockets_to_send.append(websocket)
+                if device_hash == exclude_device_hash:
+                    continue
+                # Skip sockets whose server-side transport is already closed
+                # (grace-period remnants). Sending would raise RuntimeError
+                # and the broadcast would reach live peers anyway — but the
+                # noisy error log was masking real broadcast failures.
+                if not _ws_is_live(websocket):
+                    stale_websockets.append(websocket)
+                    continue
+                tasks.append(websocket.send_json(message))
+                websockets_to_send.append(websocket)
 
             if tasks:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -222,14 +278,24 @@ class ConnectionManager:
                              ru_user_id, ru_device_hash = self.reverse_lookup[ws_id]
                              if ru_user_id == user_id:
                                  failed_device_hash_lookup = ru_device_hash
-                        
-                        logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
+
+                        if _is_closed_ws_error(result):
+                            logger.debug(
+                                f"Broadcast raced with close for User {user_id}, Device "
+                                f"{failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Disconnecting."
+                            )
+                        else:
+                            logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
                         self.disconnect(failed_websocket, reason=f"Broadcast error: {type(result).__name__}") # Pass reason
 
                 logger.debug(
                     f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}) "
                     f"(message_summary={_safe_message_summary(message)})"
                 )
+
+            # Kick off disconnect cleanup for any stale sockets we skipped.
+            for stale_ws in stale_websockets:
+                self.disconnect(stale_ws, reason="ws closed before broadcast")
 
     async def broadcast_to_user_specific_event(
         self,
@@ -248,14 +314,19 @@ class ConnectionManager:
             message = {"type": event_name, "payload": payload}
             tasks = []
             websockets_to_send = []
+            stale_websockets = []
             connection_count = len(self.active_connections[user_id])
 
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 if device_hash == exclude_device_hash:
                     continue
+                # Skip dead sockets in the 30s grace period — see _ws_is_live.
+                if not _ws_is_live(websocket):
+                    stale_websockets.append(websocket)
+                    continue
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
-            
+
             if tasks:
                 # Enhanced logging for send_embed_data events
                 if event_name == "send_embed_data":
@@ -263,9 +334,10 @@ class ConnectionManager:
                     status = payload.get("status", "unknown")
                     logger.info(
                         f"[EMBED_EVENT] Broadcasting 'send_embed_data' for embed {embed_id} (status={status}) "
-                        f"to User {user_id} across {connection_count} WebSocket connection(s)"
+                        f"to User {user_id} across {len(tasks)} live WebSocket connection(s) "
+                        f"({len(stale_websockets)} stale skipped of {connection_count} total)"
                     )
-                
+
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, result in enumerate(results):
                     if isinstance(result, Exception):
@@ -276,15 +348,25 @@ class ConnectionManager:
                              ru_user_id, ru_device_hash = self.reverse_lookup[ws_id]
                              if ru_user_id == user_id:
                                  failed_device_hash_lookup = ru_device_hash
-                        logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
+                        if _is_closed_ws_error(result):
+                            logger.debug(
+                                f"Event broadcast raced with close ('{event_name}') for User {user_id}, "
+                                f"Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Disconnecting."
+                            )
+                        else:
+                            logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
                         self.disconnect(failed_websocket, reason=f"Broadcast event error: {type(result).__name__}") # Pass reason
-                
+
                 if event_name != "send_embed_data":  # Avoid duplicate logging for send_embed_data
                     payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
                     logger.debug(
                         f"Broadcasted event '{event_name}' to User {user_id}. "
                         f"Payload summary: keys={payload_keys}, key_count={len(payload_keys)}"
                     )
+
+            # Clean up stale grace-period sockets we skipped.
+            for stale_ws in stale_websockets:
+                self.disconnect(stale_ws, reason=f"ws closed before '{event_name}' broadcast")
 
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections or connections in grace period."""

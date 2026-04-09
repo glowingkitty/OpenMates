@@ -2328,7 +2328,7 @@ async def download_s3_file(
 
 
 # ---------------------------------------------------------------------------
-# S3 temporary public image upload (for reverse image search via Google Lens)
+# S3 temporary image upload (for reverse image search via Google Lens)
 # ---------------------------------------------------------------------------
 
 class UploadTempImageRequest(BaseModel):
@@ -2349,8 +2349,18 @@ class UploadTempImageRequest(BaseModel):
 
 class UploadTempImageResponse(BaseModel):
     """Response from /internal/s3/upload-temp-image."""
-    public_url: str = Field(..., description="Public HTTP URL accessible by Google Lens.")
+    image_url: str = Field(
+        ...,
+        description="Short-lived presigned HTTP URL (15 min) that SerpAPI Google Lens can fetch once.",
+    )
     s3_key: str = Field(..., description="S3 object key for cleanup after search.")
+
+
+# Presigned URL lifetime for the SerpAPI Google Lens fetch.
+# 15 minutes is long enough to absorb SerpAPI scheduling delays but short
+# enough that a leaked URL loses value quickly. The skill also deletes the
+# object immediately after the SerpAPI call returns.
+TEMP_IMAGE_PRESIGN_SECONDS = 15 * 60
 
 
 @router.post("/s3/upload-temp-image", response_model=UploadTempImageResponse)
@@ -2360,11 +2370,16 @@ async def upload_temp_image(
     s3_service: S3UploadService = Depends(get_s3_service),
 ) -> UploadTempImageResponse:
     """
-    Upload a plaintext image to the temporary public S3 bucket for Google Lens reverse search.
+    Upload a plaintext image to the temporary (private) S3 bucket and return a
+    short-lived presigned URL for SerpAPI Google Lens to fetch it once.
 
-    The 'temp_images' bucket is public-read with a 1-day lifecycle policy, so Google's
-    crawlers can fetch the image URL without auth. The skill calls this endpoint, obtains
-    the public URL, passes it to SerpAPI Google Lens, then optionally deletes the file.
+    The 'temp_images' bucket is PRIVATE with a 1-day lifecycle safety net. The
+    skill calls this endpoint, obtains a 15-minute presigned URL, passes it to
+    SerpAPI Google Lens, then deletes the object.
+
+    Before GDPR audit finding C6 this bucket was public-read and the URL was a
+    plain public S3 URL; anyone who obtained the URL could fetch a decrypted
+    user image for up to 24h. See docs/architecture/compliance/gdpr-audit.md.
 
     Protected by INTERNAL_API_SHARED_TOKEN like all /internal/* routes.
 
@@ -2374,8 +2389,8 @@ async def upload_temp_image(
         body.filename: Suffix for the S3 key (e.g. 'abc123.webp').
 
     Returns:
-        public_url: Publicly accessible URL Google Lens can fetch.
-        s3_key:     Object key for the caller to delete after use.
+        image_url: 15-minute presigned URL SerpAPI Google Lens can fetch.
+        s3_key:    Object key for the caller to delete after use.
     """
     import base64 as _b64
     import uuid as _uuid
@@ -2417,15 +2432,16 @@ async def upload_temp_image(
         )
         raise HTTPException(status_code=500, detail=f"Temp image upload failed: {exc}")
 
-    # Construct the public URL for the uploaded object
-    # Format: https://{bucket_name}.{region}.your-objectstorage.com/{s3_key}
-    public_url = f"https://{bucket_name}.{s3_service.base_domain}/{s3_key}"
+    # Presigned URL so SerpAPI Google Lens can fetch the private object exactly once.
+    image_url = s3_service.generate_presigned_url(
+        bucket_name, s3_key, expiration=TEMP_IMAGE_PRESIGN_SECONDS
+    )
     logger.info(
-        "[UploadTempImage] Uploaded %d bytes to %s (key=%s)",
-        len(image_bytes), bucket_name, s3_key,
+        "[UploadTempImage] Uploaded %d bytes to %s (key=%s, presign=%ds)",
+        len(image_bytes), bucket_name, s3_key, TEMP_IMAGE_PRESIGN_SECONDS,
     )
 
-    return UploadTempImageResponse(public_url=public_url, s3_key=s3_key)
+    return UploadTempImageResponse(image_url=image_url, s3_key=s3_key)
 
 
 @router.delete("/s3/temp-image")
@@ -2435,10 +2451,10 @@ async def delete_temp_image(
     s3_service: S3UploadService = Depends(get_s3_service),
 ) -> Dict[str, Any]:
     """
-    Delete a previously uploaded temporary public image from the temp_images bucket.
+    Delete a previously uploaded temporary image from the temp_images bucket.
 
     Called by the search skill after Google Lens finishes, so plaintext images do not
-    linger in the public bucket longer than necessary. The 1-day lifecycle policy is
+    linger in the private bucket longer than necessary. The 1-day lifecycle policy is
     a safety net; this endpoint provides immediate cleanup.
 
     Protected by INTERNAL_API_SHARED_TOKEN like all /internal/* routes.

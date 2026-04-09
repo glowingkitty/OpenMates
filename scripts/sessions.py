@@ -2538,14 +2538,20 @@ def cmd_end(args: argparse.Namespace) -> None:
     _linear_complete_session(sid, session)
 
     # ── Zellij cleanup ───────────────────────────────────────────────────
+    # NEVER kill the zellij session the current process is attached to —
+    # that would destroy the user's own terminal. Only kill spawned sub-sessions.
     zellij_name = session.get("zellij_session")
     if zellij_name:
-        try:
-            from _zellij_utils import kill_session
-            kill_session(zellij_name)
-            print(f"  Zellij: session '{zellij_name}' killed")
-        except Exception:
-            pass
+        current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
+        if current_zellij == zellij_name:
+            print(f"  Zellij: keeping session '{zellij_name}' alive (this terminal is attached to it)")
+        else:
+            try:
+                from _zellij_utils import kill_session
+                kill_session(zellij_name)
+                print(f"  Zellij: session '{zellij_name}' killed")
+            except Exception:
+                pass
 
     # Remove session
     del data["sessions"][sid]

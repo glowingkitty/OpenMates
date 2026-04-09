@@ -1,0 +1,40 @@
+# Cookie Inventory (runtime evidence, banner-decision source of truth)
+#
+# Empirical record of every cookie the OpenMates web app sets during the
+# full E2E test suite. This is the ONLY file that gates the ePrivacy
+# Art. 5(3) / TTDSG §25 cookie-banner decision — because cookies are the
+# only storage type legally tied to the banner requirement in the specific
+# way we rely on ("strictly necessary" exemption).
+#
+# For a broader inventory of localStorage / sessionStorage / IndexedDB keys
+# (informational only, not part of the banner decision), see
+# browser-storage.yml in the same directory.
+#
+# Sources of truth:
+#   - All fields except the human-maintained ones below are AUTO-GENERATED
+#     by scripts/merge_storage_audits.py after a full Playwright run. Do
+#     not hand-edit them — they will be overwritten on the next run.
+#   - HUMAN-MAINTAINED fields (preserved across regenerations): `purpose`,
+#     `consent_exempt`, `exemption_basis`, `notes`. Fill these in once per
+#     entry.
+#
+# Privacy:
+#   Cookie values are NEVER captured. Only the length is recorded
+#   (`value_length`) alongside the standard attributes (domain, path,
+#   http_only, secure, same_site, expires). This is sufficient to verify
+#   a cookie exists and roughly how much data it stores, without ever
+#   committing real user/session content to this repository.
+#
+# Compliance gate:
+#   Every entry MUST have `consent_exempt: true` with an `exemption_basis`
+#   that maps to "strictly necessary for the service explicitly requested
+#   by the user" under ePrivacy Art. 5(3) and TTDSG §25 (German DDG).
+#   Anything that does not meet this bar means a cookie banner is legally
+#   required.
+#
+# Read by: scripts/_legal_compliance_helper.py (Mon + Thu cron)
+# Updated by: scripts/run_tests.py after `--suite playwright` runs
+# Related: docs/architecture/compliance/acknowledgments.yml (cookies entry)
+#          docs/architecture/compliance/browser-storage.yml (non-cookie inventory)
+
+cookies: []

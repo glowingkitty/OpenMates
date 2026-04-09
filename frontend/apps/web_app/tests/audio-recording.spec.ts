@@ -17,8 +17,7 @@
  *   4. Press & hold then Escape → recording cancelled, no embed inserted
  */
 
-import { test, expect } from '@playwright/test';
-
+import { test, expect } from './helpers/cookie-audit';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 

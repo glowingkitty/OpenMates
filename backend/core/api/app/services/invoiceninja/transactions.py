@@ -25,7 +25,7 @@ async def create_bank_transaction(
 
     Args:
         service_instance: The instance of the main service class.
-        processor_bank_account_id: The Invoice Ninja ID of the bank account (e.g., Stripe, Revolut).
+        processor_bank_account_id: The Invoice Ninja ID of the bank account (e.g., Stripe).
         bank_integration_id: The ID of the bank integration associated with the account.
         amount: The transaction amount (positive for deposit).
         date_str: The transaction date in "YYYY-MM-DD" format.

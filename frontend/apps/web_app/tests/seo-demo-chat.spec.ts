@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-
+import { expect, test } from './helpers/cookie-audit';
 /**
  * Tests for SEO demo chat pages at /demo/chat/ and /demo/chat/[slug].
  *

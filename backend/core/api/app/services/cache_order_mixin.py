@@ -84,7 +84,7 @@ class OrderCacheMixin:
         """Cache order metadata and status.
 
         The `provider` field records which payment provider processed the order
-        ("stripe", "polar", or "revolut"). It is used by the invoice email task
+        ("stripe" or "polar"). It is used by the invoice email task
         to determine the correct document type (Invoice vs. Payment Confirmation).
         """
         try:
@@ -116,7 +116,7 @@ class OrderCacheMixin:
             if is_auto_topup:
                 order_data["is_auto_topup"] = True
 
-            # Store the resolved payment provider ("stripe", "polar", "revolut")
+            # Store the resolved payment provider ("stripe", "polar")
             # Used by the invoice task to select document type and Invoice Ninja handling
             if provider:
                 order_data["provider"] = provider

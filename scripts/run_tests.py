@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -232,6 +233,228 @@ def _safe_write_json(path: Path, data: dict) -> None:
         pass
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
+
+
+# Discord multipart constants — used by _send_summary_to_discord when
+# screenshots are attached. Discord webhooks accept up to 10 files; the
+# free-tier per-file cap is 25 MB but each guild has a 25 MB combined cap
+# unless boosted. Be conservative: cap to 5 files at 2 MB each.
+DISCORD_MAX_ATTACHMENTS = 5
+DISCORD_MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
+
+# ---------------------------------------------------------------------------
+# Discord per-test deduplication state (OPE-349 follow-up)
+# ---------------------------------------------------------------------------
+#
+# Architecture:
+# - Per hourly mode (`hourly-dev`, `hourly-prod`) we maintain a small JSON
+#   state file under that mode's archive dir. The file maps a stable
+#   per-test key to:
+#       { message_id, error_hash, first_seen, last_seen, count, summary_hash,
+#         summary_message_id }
+# - On each tick:
+#       1. Compute the current set of {test_key: error_hash} from this run.
+#       2. For each currently-failing test:
+#            * If state has the same key + same error_hash → repeat. PATCH the
+#              existing message in place with an updated counter footer.
+#            * If state has the key but a DIFFERENT error_hash → the failure
+#              mode changed; treat as new. POST a fresh message and replace
+#              the state entry.
+#            * If state has no entry → first sight. POST and save.
+#       3. Any state entries whose key is NOT in the current failure set are
+#          recoveries — post a single "✅ recovered" line and drop the entry.
+# - The lightweight summary embed is also dedup'd: state stores a hash of
+#   the failure set + the summary message id. On a repeat tick where the
+#   failure set is unchanged AND there are no recoveries, we skip the
+#   summary post entirely so we don't spam the channel.
+#
+# State file retention: 7 days after `last_seen` so dead entries (e.g. tests
+# that were renamed or removed) eventually get garbage-collected.
+
+DISCORD_STATE_RETENTION_DAYS = 7
+DISCORD_STATE_FILE_NAME = "discord-state.json"
+
+
+def _compute_test_key(suite_name: str, test: dict) -> str:
+    """Stable identity for a single test across runs.
+
+    Uses suite + the most descriptive name field available. We intentionally
+    do NOT include error or status — those change between repeats.
+    """
+    name = test.get("file") or test.get("name") or test.get("title") or "?"
+    return f"{suite_name}::{name}"
+
+
+def _normalize_error(error: str) -> str:
+    """Normalise an error string for hashing.
+
+    Strips ANSI codes, timestamps, run IDs, file paths and excess
+    whitespace so two runs of the same underlying failure produce the
+    same hash even when the surrounding noise drifts.
+    """
+    if not error:
+        return ""
+    # Strip ANSI escape codes
+    s = re.sub(r"\x1b\[[0-9;]*m", "", error)
+    # Strip ISO timestamps (2026-04-08T12:34:56[.789][Z])
+    s = re.sub(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?", "<TS>", s)
+    # Strip run IDs / numeric ids that appear inline
+    s = re.sub(r"\b\d{8,}\b", "<ID>", s)
+    # Strip absolute paths so /home/runner/... vs /tmp/... don't differ.
+    # Allow optional :line[:col] suffix so we collapse "foo.ts:42:7" too.
+    s = re.sub(r"/[\w\-./]+\.(ts|js|py|spec\.ts)(:\d+)?(:\d+)?", "<PATH>", s)
+    # Strip remaining standalone line:col fragments that appeared without
+    # a leading slash (Playwright sometimes prints `at line 42:7`).
+    s = re.sub(r":\d+(:\d+)?\b", ":<LN>", s)
+    # Collapse whitespace
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _compute_error_hash(test: dict) -> str:
+    """SHA-256 of the normalised error so we can detect 'same test, same error'.
+
+    Considers both the structured Playwright error message and the plain
+    `error` field for backend / non-Playwright tests.
+    """
+    pw = test.get("playwright_errors") or []
+    parts: list[str] = []
+    if pw:
+        msg = (pw[0].get("message") or "").strip()
+        if msg:
+            parts.append(msg)
+    err = (test.get("error") or "").strip()
+    if err and err not in parts:
+        parts.append(err)
+    if not parts:
+        return ""
+    normalized = _normalize_error("\n".join(parts))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+
+
+def _compute_failure_set_hash(state_keys_now: dict[str, str]) -> str:
+    """Hash of the current {test_key: error_hash} mapping.
+
+    Used to decide whether to skip the lightweight summary embed: if this
+    matches the previously stored hash AND there are no recoveries, the
+    summary would just be a duplicate of what's already in the channel.
+    """
+    if not state_keys_now:
+        return ""
+    encoded = json.dumps(state_keys_now, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:16]
+
+
+def _load_discord_state(state_file: Path) -> dict:
+    """Load the per-mode Discord dedup state.
+
+    Returns an empty skeleton when the file is missing or unreadable so
+    callers can always rely on the structure being present.
+    """
+    if not state_file.is_file():
+        return {"tests": {}, "summary": {}}
+    try:
+        with open(state_file) as f:
+            data = json.load(f) or {}
+    except (OSError, json.JSONDecodeError):
+        return {"tests": {}, "summary": {}}
+    if not isinstance(data, dict):
+        return {"tests": {}, "summary": {}}
+    data.setdefault("tests", {})
+    data.setdefault("summary", {})
+    return data
+
+
+def _save_discord_state(state_file: Path, state: dict) -> None:
+    """Atomically write the state file."""
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp = state_file.with_suffix(state_file.suffix + ".tmp")
+    try:
+        with open(tmp, "w") as f:
+            json.dump(state, f, indent=2)
+        tmp.replace(state_file)
+    except OSError as e:
+        _log(f"Failed to write discord state to {state_file}: {e}", "WARN")
+
+
+def _prune_discord_state(state: dict, retention_days: int = DISCORD_STATE_RETENTION_DAYS) -> dict:
+    """Drop entries whose `last_seen` is older than the retention window.
+
+    Stops state files from accumulating ghost entries for tests that were
+    renamed, removed, or stayed green long enough that their recovery
+    message has already been posted.
+    """
+    cutoff = time.time() - retention_days * 86400
+    tests = state.get("tests", {}) or {}
+    keep: dict = {}
+    for k, entry in tests.items():
+        last_seen = entry.get("last_seen", "")
+        try:
+            ts = datetime.strptime(last_seen, "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=timezone.utc
+            ).timestamp()
+        except (ValueError, TypeError):
+            ts = 0
+        if ts >= cutoff:
+            keep[k] = entry
+    state["tests"] = keep
+    return state
+
+
+def _build_multipart_body(
+    payload_json: dict,
+    files: list[tuple[str, bytes, str]],
+) -> tuple[bytes, str]:
+    """Build a multipart/form-data body for a Discord webhook with attachments.
+
+    Discord requires the JSON payload under the field name `payload_json`
+    and each attached file under `files[N]` with a `filename`. Returns
+    `(body_bytes, content_type)` ready to feed into urllib.request.
+
+    Stdlib-only because run_tests.py intentionally avoids extra deps so it
+    can run on a vanilla Python install on the dev server cron.
+
+    Args:
+        payload_json: The JSON-serialisable Discord webhook payload.
+        files: List of `(field_name, content_bytes, filename)` tuples. Use
+               `field_name = "files[N]"` to follow Discord's convention.
+    """
+    # A boundary is any token that doesn't appear in the body. uuid-like is fine.
+    boundary = f"----openmates-{int(time.time())}-{os.getpid()}"
+    crlf = b"\r\n"
+    parts: list[bytes] = []
+
+    # payload_json field
+    parts.append(f"--{boundary}".encode())
+    parts.append(b'Content-Disposition: form-data; name="payload_json"')
+    parts.append(b"Content-Type: application/json")
+    parts.append(b"")
+    parts.append(json.dumps(payload_json).encode("utf-8"))
+
+    # File fields
+    for field_name, content_bytes, filename in files:
+        parts.append(f"--{boundary}".encode())
+        parts.append(
+            f'Content-Disposition: form-data; name="{field_name}"; '
+            f'filename="{filename}"'.encode()
+        )
+        # Sniff content-type from extension (PNG for *.png, default octet-stream).
+        ct = "image/png" if filename.lower().endswith(".png") else (
+            "image/webp" if filename.lower().endswith(".webp") else (
+                "image/jpeg" if filename.lower().endswith((".jpg", ".jpeg"))
+                else "application/octet-stream"
+            )
+        )
+        parts.append(f"Content-Type: {ct}".encode())
+        parts.append(b"")
+        parts.append(content_bytes)
+
+    parts.append(f"--{boundary}--".encode())
+    parts.append(b"")
+
+    body = crlf.join(parts)
+    content_type = f"multipart/form-data; boundary={boundary}"
+    return body, content_type
 
 
 # ---------------------------------------------------------------------------
@@ -718,7 +941,13 @@ class BatchRunner:
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
         """Copy screenshots, traces, and reports from a test's artifacts to
-        test-results/screenshots/current/{spec-name}/ for MD report generation."""
+        test-results/screenshots/current/{spec-name}/ for MD report generation.
+
+        Also copies any storage-audit JSON files from the spec's
+        test-results/storage-audits/ subdirectory into the canonical
+        repo-level test-results/storage-audits/ directory so that
+        scripts/merge_storage_audits.py can aggregate them after the run.
+        """
         spec_name = spec.replace(".spec.ts", "")
         dest = RESULTS_DIR / "screenshots" / "current" / spec_name
         dest.mkdir(parents=True, exist_ok=True)
@@ -731,6 +960,23 @@ class BatchRunner:
                     copied += 1
         if copied:
             _log(f"    Saved {copied} artifact(s) to test-results/screenshots/current/{spec_name}/")
+
+        # Storage audit snapshots — written by tests/helpers/cookie-audit.ts
+        # into frontend/apps/web_app/test-results/storage-audits/. The full
+        # artifact tree is uploaded by playwright-spec.yml so we walk it for
+        # any storage-audits/*.json files and copy them to the repo-level dir.
+        audit_dest = RESULTS_DIR / "storage-audits"
+        audit_dest.mkdir(parents=True, exist_ok=True)
+        audit_copied = 0
+        for root, _dirs, files in os.walk(art_path):
+            if Path(root).name != "storage-audits":
+                continue
+            for fname in files:
+                if fname.endswith(".json"):
+                    shutil.copy2(Path(root) / fname, audit_dest / fname)
+                    audit_copied += 1
+        if audit_copied:
+            _log(f"    Saved {audit_copied} storage-audit snapshot(s) to test-results/storage-audits/")
 
     @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
@@ -1030,6 +1276,10 @@ class NotificationService:
         mode_label: str = "nightly",
         post_on_success: bool = True,
         env_var_name: str = "DISCORD_WEBHOOK_DEV_NIGHTLY",
+        run_url: Optional[str] = None,
+        screenshots: Optional[list[Path]] = None,
+        state_file: Optional[Path] = None,
+        suite_name_for_dedup: Optional[str] = None,
     ) -> None:
         """Post a test run summary to a Discord webhook.
 
@@ -1067,6 +1317,39 @@ class NotificationService:
             _log(f"Discord ({mode_label}): green run, suppressed (post_on_success=False)")
             return
 
+        # Dedup: skip the summary entirely on a repeat tick where the
+        # exact same set of tests is failing with the exact same root
+        # cause AND no recoveries have happened. The per-test detail
+        # messages get PATCHed in place by send_per_test_md_messages so
+        # the operator already sees the latest screenshots/timings; a
+        # fresh summary post would just be channel noise.
+        #
+        # State layout: state["summary"] = {"hash": "<sha>", "last_seen": "<iso>"}
+        new_summary_hash: Optional[str] = None
+        if state_file is not None and suite_name_for_dedup is not None:
+            current_keys: dict[str, str] = {}
+            for sname, sdata in result.suites.items():
+                for t in (sdata or {}).get("tests", []):
+                    if t.get("status") != "failed":
+                        continue
+                    current_keys[_compute_test_key(sname, t)] = _compute_error_hash(t)
+            new_summary_hash = _compute_failure_set_hash(current_keys)
+            existing_state = _load_discord_state(state_file)
+            prev = existing_state.get("summary", {}) or {}
+            prev_hash = prev.get("hash", "")
+            # Skip if: same failure set as last tick AND we've already
+            # posted a summary for it AND there's nothing new to say.
+            if (
+                new_summary_hash
+                and new_summary_hash == prev_hash
+                and not all_passed
+            ):
+                _log(
+                    f"Discord ({mode_label}): same failure set as last tick "
+                    f"({new_summary_hash}) — summary suppressed"
+                )
+                return
+
         # Red for failures, green for all-passed — matches the email HTML.
         color = 0x22C55E if all_passed else 0xEF4444
         title_emoji = "✅" if all_passed else "❌"
@@ -1074,21 +1357,41 @@ class NotificationService:
         title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
 
         # Build a compact description listing up to the first 10 failed tests
-        # so readers see what actually broke without having to open the email.
-        failed_lines: list[str] = []
+        # AND their error snippets so readers can act on the alert without
+        # leaving Discord. Each entry: name + per-test GH Actions run link
+        # (when present) + a fenced code block with the truncated error.
+        failed_blocks: list[str] = []
+        max_failures_shown = 5  # keep description well under 4096 chars
+        max_error_chars = 500   # per failure
         for suite_name, suite_data in result.suites.items():
             for t in suite_data.get("tests", []):
-                if t.get("status") == "failed":
-                    name = t.get("file", t.get("name", "?"))
-                    failed_lines.append(f"• `{suite_name}` — {name}")
-                    if len(failed_lines) >= 10:
-                        break
-            if len(failed_lines) >= 10:
+                if t.get("status") != "failed":
+                    continue
+                name = t.get("file", t.get("name", "?"))
+                err = (t.get("error") or "").strip()
+                rid = t.get("run_id")
+                # Header line: suite/test name + optional [logs] link.
+                if rid:
+                    rid_url = f"https://github.com/{GH_REPO}/actions/runs/{rid}"
+                    header = f"• `{suite_name}` — **{name}** — [logs]({rid_url})"
+                else:
+                    header = f"• `{suite_name}` — **{name}**"
+                if err:
+                    if len(err) > max_error_chars:
+                        err = err[:max_error_chars - 3].rstrip() + "..."
+                    # Strip backticks so they don't break the fenced block.
+                    err_safe = err.replace("```", "ʼʼʼ")
+                    failed_blocks.append(f"{header}\n```\n{err_safe}\n```")
+                else:
+                    failed_blocks.append(header)
+                if len(failed_blocks) >= max_failures_shown:
+                    break
+            if len(failed_blocks) >= max_failures_shown:
                 break
 
-        remaining = max(0, s["failed"] - len(failed_lines))
+        remaining = max(0, s["failed"] - len(failed_blocks))
         if remaining > 0:
-            failed_lines.append(f"…and {remaining} more")
+            failed_blocks.append(f"…and {remaining} more failure(s)")
 
         dur_min = int(result.duration_seconds // 60)
         dur_sec = int(result.duration_seconds % 60)
@@ -1098,38 +1401,102 @@ class NotificationService:
             f"**Failed:** {s['failed']}   **Skipped:** {s['skipped']}",
             f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
         ]
-        if failed_lines:
+        if run_url:
+            description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
+        if failed_blocks:
             description_parts.append("")
             description_parts.append("**Failures:**")
-            description_parts.extend(failed_lines)
+            description_parts.extend(failed_blocks)
 
         description = "\n".join(description_parts)
         # Discord caps description at 4096 chars
         if len(description) > 4000:
             description = description[:3997] + "..."
 
+        embed: dict = {
+            "title": title,
+            "description": description,
+            "color": color,
+        }
+        if run_url:
+            embed["url"] = run_url
+
         payload = {
-            "username": "OpenMates Test Runner",
-            "embeds": [
-                {
-                    "title": title,
-                    "description": description,
-                    "color": color,
-                }
-            ],
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": [embed],
         }
 
+        # Collect attachments. Each path on disk is read into memory once,
+        # capped at DISCORD_MAX_ATTACHMENT_BYTES per file and DISCORD_MAX_ATTACHMENTS
+        # total. Files that don't exist or are oversized are silently skipped
+        # so a single bad path can't break the whole notification path.
+        attachments: list[tuple[str, bytes, str]] = []
+        if screenshots:
+            for idx, src in enumerate(screenshots):
+                if len(attachments) >= DISCORD_MAX_ATTACHMENTS:
+                    break
+                try:
+                    src_path = Path(src)
+                    if not src_path.is_file():
+                        continue
+                    size = src_path.stat().st_size
+                    if size > DISCORD_MAX_ATTACHMENT_BYTES:
+                        _log(
+                            f"Discord: skipping {src_path.name} "
+                            f"({size // 1024} KB > {DISCORD_MAX_ATTACHMENT_BYTES // 1024} KB cap)",
+                            "WARN",
+                        )
+                        continue
+                    with open(src_path, "rb") as fh:
+                        content = fh.read()
+                    # filename must be unique across the multipart so prefix
+                    # with the spec-folder name (the parent dir holds the spec name).
+                    parent = src_path.parent.name or "screenshot"
+                    safe_name = f"{parent}-{src_path.name}".replace("/", "-")
+                    attachments.append((f"files[{idx}]", content, safe_name))
+                except Exception as e:
+                    _log(f"Discord: failed to read screenshot {src}: {e}", "WARN")
+                    continue
+
+        # Build the request body — JSON when no attachments, multipart otherwise.
+        # Identify ourselves with a non-default User-Agent: Cloudflare (Discord's
+        # edge) blocks the default `Python-urllib/*` UA with error 1010. See OPE-349.
+        ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
         try:
-            body = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                webhook_url,
-                data=body,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            if attachments:
+                body, content_type = _build_multipart_body(payload, attachments)
+                req = urllib.request.Request(
+                    webhook_url,
+                    data=body,
+                    headers={"Content-Type": content_type, "User-Agent": ua},
+                    method="POST",
+                )
+            else:
+                body = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    webhook_url,
+                    data=body,
+                    headers={"Content-Type": "application/json", "User-Agent": ua},
+                    method="POST",
+                )
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
-            _log(f"Discord summary posted ({mode_label})")
+            attached_note = f" (+{len(attachments)} screenshot(s))" if attachments else ""
+            _log(f"Discord summary posted ({mode_label}){attached_note}")
+            # Persist the new summary fingerprint so the next tick can
+            # detect "nothing changed" and skip. Best-effort: a write
+            # failure is logged but never breaks the cron run.
+            if state_file is not None and new_summary_hash is not None:
+                try:
+                    persisted = _load_discord_state(state_file)
+                    persisted["summary"] = {
+                        "hash": new_summary_hash,
+                        "last_seen": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    }
+                    _save_discord_state(state_file, persisted)
+                except Exception as state_err:
+                    _log(f"Discord summary state write failed: {state_err}", "WARN")
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
@@ -1153,7 +1520,8 @@ class NotificationService:
 
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         payload = {
-            "username": "OpenMates Test Runner",
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
             "embeds": [
                 {
                     "title": f"✅ {mode_label} — webhook test",
@@ -1172,7 +1540,12 @@ class NotificationService:
             req = urllib.request.Request(
                 webhook_url,
                 data=body,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    # See _send_summary_to_discord — Cloudflare blocks the
+                    # default Python-urllib UA with error 1010 (OPE-349).
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
@@ -1186,6 +1559,615 @@ class NotificationService:
         except Exception as e:
             _log(f"Dry-run notify failed: {e}", "ERROR")
             return False
+
+    # ─── Discord per-test MD-style messages (OPE-349) ──────────────────────
+    #
+    # In addition to the lightweight summary embed (`_send_summary_to_discord`)
+    # we send ONE message per failed test that mirrors the structure of the
+    # per-test markdown reports in test-results/reports/failed/*.md:
+    #
+    #   • Embeds are split into "step groups" — each group is N step
+    #     checkpoints followed by 1 screenshot. The checkpoints become the
+    #     embed's `description`; the screenshot becomes the embed's `image`.
+    #     This gives a visual flow of "text → image → text → image" because
+    #     each embed renders as its own card stacked vertically in Discord.
+    #   • The final embed (red) carries the failure error message + the
+    #     test-failed-*.png Playwright wrote at exit time.
+    #   • Crucially, embeds do NOT share a `url` — that would cause Discord
+    #     to "gallery-merge" them (descriptions stack at the top, images
+    #     collapse to a grid below), defeating the interleaving.
+    #
+    # Source data lives under test-results/screenshots/current/<spec-name>/:
+    #   step-log.json     — ordered list of {type: checkpoint|screenshot, ...}
+    #   <step>.png        — inline step screenshots referenced by step-log
+    #   test-failed-*.png — final failure shots Playwright took on exit
+    #
+    # Discord limits respected:
+    #   • ≤ 10 embeds per message  → MD_DISCORD_MAX_EMBEDS = 10
+    #   • ≤ 10 attachments         → matches embed count
+    #   • ≤ 4096 chars per description (we truncate)
+    #   • ≤ 25 MB total body, 2 MB per file (DISCORD_MAX_ATTACHMENT_BYTES)
+
+    MD_DISCORD_MAX_EMBEDS = 10
+    MD_NOISE_PREFIXES = ("Captured step screenshot", "Archived prior screenshots")
+
+    @staticmethod
+    def _strip_ansi(text: str) -> str:
+        """Strip ANSI escape sequences (Playwright wraps locator names in
+        terminal colour codes that render as garbage in Discord)."""
+        return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+    def _build_md_style_test_message(
+        self,
+        test: dict,
+        suite_name: str,
+        run_id: str,
+        screenshots_root: Path,
+    ) -> tuple[list[dict], list[tuple[str, bytes, str]]]:
+        """Build the per-test embeds + multipart files for one failed test.
+
+        Returns `(embeds, files)`. Caller is responsible for posting them
+        via _post_discord_multipart.
+
+        Returns empty lists if there's nothing useful to send (no
+        screenshots and no step log) — caller can fall back to skipping
+        this test entirely.
+        """
+        name = test.get("file") or test.get("name", "unknown")
+        spec_name = name.replace(".spec.ts", "").replace(".test.ts", "")
+        spec_dir = screenshots_root / spec_name
+
+        # Try to load the step log; if absent we'll fall back to filename
+        # parsing in _build_steps_from_filenames.
+        step_log: list[dict] = []
+        step_log_path = spec_dir / "step-log.json"
+        if step_log_path.is_file():
+            try:
+                with open(step_log_path) as f:
+                    step_log = json.load(f) or []
+            except (json.JSONDecodeError, OSError):
+                step_log = []
+
+        # Resolve absolute paths for screenshot_paths (which are stored
+        # relative to RESULTS_DIR in the test dict).
+        screenshot_paths_abs: list[Path] = []
+        for ss_rel in test.get("screenshot_paths", []) or []:
+            p = RESULTS_DIR / ss_rel
+            if p.is_file():
+                screenshot_paths_abs.append(p)
+
+        # Bail out if we have neither a step log nor any screenshots.
+        if not step_log and not screenshot_paths_abs:
+            return [], []
+
+        # Group: each group = (list of checkpoint strings, optional screenshot Path).
+        groups: list[dict] = []
+        current_checkpoints: list[str] = []
+        display_num = 0
+
+        if step_log:
+            filtered = [
+                e for e in step_log
+                if not (
+                    e.get("type") == "checkpoint"
+                    and e.get("message", "").startswith(self.MD_NOISE_PREFIXES)
+                )
+            ]
+            for entry in filtered:
+                et = entry.get("type", "checkpoint")
+                msg = entry.get("message", "")
+                if et == "checkpoint":
+                    display_num += 1
+                    current_checkpoints.append(f"`{display_num:>2}.` ✅ {msg}")
+                elif et == "screenshot":
+                    screenshot_file = entry.get("screenshot", "")
+                    if screenshot_file:
+                        p = spec_dir / screenshot_file
+                        if p.is_file():
+                            groups.append({
+                                "checkpoints": current_checkpoints,
+                                "screenshot": (msg or screenshot_file, p),
+                            })
+                            current_checkpoints = []
+            if current_checkpoints:
+                groups.append({"checkpoints": current_checkpoints, "screenshot": None})
+        else:
+            # No step log — synthesize groups from non-failure screenshot
+            # filenames so the operator still gets visual context. Each
+            # screenshot becomes its own group with a single derived caption.
+            for p in screenshot_paths_abs:
+                fname = p.name.lower()
+                if fname.startswith("test-failed") or fname.startswith("test-finished"):
+                    continue  # those go in the final failure embed
+                caption = re.sub(r"^[a-z]+-?\d*-", "", p.stem).replace("-", " ")
+                display_num += 1
+                groups.append({
+                    "checkpoints": [f"`{display_num:>2}.` ✅ {caption}"],
+                    "screenshot": (caption, p),
+                })
+
+        # Mark the last checkpoint as ❌ for failed tests.
+        if test.get("status") == "failed" and groups:
+            for g in reversed(groups):
+                if g["checkpoints"]:
+                    last = g["checkpoints"][-1]
+                    g["checkpoints"][-1] = last.replace(" ✅ ", " ❌ ", 1)
+                    break
+
+        # Find any test-failed-*.png screenshots (final failure state).
+        failure_pngs = [
+            p for p in screenshot_paths_abs
+            if p.name.lower().startswith("test-failed")
+        ]
+        # Also pick them up directly from the spec dir if they're not
+        # serialized into screenshot_paths (some workflows skip the relpath).
+        if not failure_pngs and spec_dir.is_dir():
+            failure_pngs = sorted(spec_dir.glob("test-failed-*.png"))
+
+        # Trim groups to fit the per-message embed cap, reserving 1 slot for
+        # the final failure embed (if any). When there are too many groups,
+        # collapse the oldest checkpoints into a single text-only opening
+        # embed so the operator still sees the early steps.
+        failure_slot = 1 if failure_pngs else 0
+        group_budget = self.MD_DISCORD_MAX_EMBEDS - failure_slot
+        if len(groups) > group_budget:
+            keep = groups[-(group_budget - 1):]
+            dropped = groups[: -(group_budget - 1)]
+            collapsed: list[str] = []
+            for g in dropped:
+                collapsed.extend(g["checkpoints"])
+            collapsed.append(f"*…{len(dropped)} earlier step group(s) collapsed for length…*")
+            groups = [{"checkpoints": collapsed, "screenshot": None}] + keep
+
+        # Build embeds + multipart file fields.
+        embeds: list[dict] = []
+        files: list[tuple[str, bytes, str]] = []
+        status = test.get("status", "unknown")
+        # Pull a sensible error string out of the test dict (preferring the
+        # first structured Playwright error if present).
+        pw_errors = test.get("playwright_errors") or []
+        error_msg = ""
+        if pw_errors:
+            error_msg = (pw_errors[0].get("message", "") or "").strip()
+        if not error_msg:
+            error_msg = (test.get("error") or "").strip()
+        error_msg = self._strip_ansi(error_msg)
+
+        for gi, g in enumerate(groups):
+            chunks: list[str] = []
+            if gi == 0:
+                status_icon = "❌" if status == "failed" else "⚠️"
+                chunks.append(f"## {status_icon} {name} — {status.upper()}")
+                chunks.append(f"*Suite: {suite_name}   |   Run: {run_id}*")
+                chunks.append("")
+            chunks.extend(g["checkpoints"])
+            description = "\n".join(chunks)
+            if len(description) > 4000:
+                description = description[:3997] + "..."
+
+            # Last (text-side) embed gets the red colour to mark where the
+            # failure happened. Earlier embeds get amber so they read as
+            # "in progress" up until the failure point.
+            is_last_text = gi == len(groups) - 1
+            color = 0xEF4444 if is_last_text and status == "failed" else 0xFB923C
+            embed: dict = {"description": description, "color": color}
+
+            if g["screenshot"]:
+                caption, src_path = g["screenshot"]
+                try:
+                    size = src_path.stat().st_size
+                    if size <= DISCORD_MAX_ATTACHMENT_BYTES:
+                        idx = len(files)
+                        safe_name = f"step-{gi:02d}-{src_path.name}".replace("/", "-")
+                        files.append((f"files[{idx}]", src_path.read_bytes(), safe_name))
+                        embed["image"] = {"url": f"attachment://{safe_name}"}
+                except OSError:
+                    pass
+
+            embeds.append(embed)
+
+        # Final failure embed: error message + test-failed-*.png at the bottom.
+        if failure_pngs and len(embeds) < self.MD_DISCORD_MAX_EMBEDS:
+            fp = failure_pngs[0]
+            chunks = []
+            if error_msg:
+                err = error_msg if len(error_msg) <= 1500 else error_msg[:1497].rstrip() + "..."
+                err = err.replace("```", "ʼʼʼ")
+                chunks.append("**💥 Final state — error:**")
+                chunks.append("```")
+                chunks.append(err)
+                chunks.append("```")
+            else:
+                chunks.append("**💥 Final state**")
+
+            embed = {"description": "\n".join(chunks), "color": 0xEF4444}
+            try:
+                if fp.stat().st_size <= DISCORD_MAX_ATTACHMENT_BYTES:
+                    idx = len(files)
+                    safe_name = f"failure-{fp.name}"
+                    files.append((f"files[{idx}]", fp.read_bytes(), safe_name))
+                    embed["image"] = {"url": f"attachment://{safe_name}"}
+            except OSError:
+                pass
+            embeds.append(embed)
+
+        return embeds, files
+
+    def _post_discord_multipart(
+        self,
+        webhook_url: str,
+        embeds: list[dict],
+        files: list[tuple[str, bytes, str]],
+        return_message_id: bool = False,
+    ) -> "bool | Optional[str]":
+        """POST a multipart Discord message with retry-on-429.
+
+        When `return_message_id=False` (default — backwards compatible),
+        returns True on success / False on failure.
+
+        When `return_message_id=True`, returns the Discord `message.id`
+        string on success or None on failure. The webhook URL is augmented
+        with `?wait=true` so Discord blocks until the message is created
+        and returns its full JSON (we need the id to PATCH it later for
+        the dedup workflow).
+
+        Never raises — same fallback contract as the other Discord
+        helpers. Reads `Retry-After` on 429 and retries once.
+        """
+        failure_return = None if return_message_id else False
+        if not webhook_url or not embeds:
+            return failure_return
+
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": embeds,
+        }
+        body, content_type = _build_multipart_body(payload, files)
+        ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
+
+        # When the caller wants the message id back we must append
+        # ?wait=true so Discord blocks until the message exists and returns
+        # the full message object (otherwise we get a 204 No Content).
+        post_url = webhook_url
+        if return_message_id and "?wait=" not in post_url:
+            sep = "&" if "?" in post_url else "?"
+            post_url = f"{post_url}{sep}wait=true"
+
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    post_url, data=body,
+                    headers={"Content-Type": content_type, "User-Agent": ua},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    raw = resp.read()
+                if return_message_id:
+                    try:
+                        msg = json.loads(raw.decode("utf-8")) if raw else {}
+                        return str(msg.get("id") or "") or None
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        return None
+                return True
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt == 0:
+                    # Discord returns Retry-After in seconds (sometimes
+                    # fractional). Sleep + retry once.
+                    retry_after_raw = e.headers.get("Retry-After", "1") if e.headers else "1"
+                    try:
+                        retry_after = float(retry_after_raw)
+                    except ValueError:
+                        retry_after = 1.0
+                    _log(f"Discord 429 — sleeping {retry_after:.1f}s and retrying", "WARN")
+                    time.sleep(min(retry_after + 0.25, 30))
+                    continue
+                err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+                _log(f"Discord per-test POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+                return failure_return
+            except Exception as e:
+                _log(f"Discord per-test POST failed: {e}", "ERROR")
+                return failure_return
+        return failure_return
+
+    def _patch_discord_multipart(
+        self,
+        webhook_url: str,
+        message_id: str,
+        embeds: list[dict],
+        files: list[tuple[str, bytes, str]],
+    ) -> bool:
+        """PATCH an existing webhook message in place.
+
+        Used by the per-test dedup workflow: when a previously-failing test
+        is still failing with the same root cause, we update the existing
+        message (incrementing the counter footer + refreshing screenshots)
+        instead of posting a new one.
+
+        Endpoint: `PATCH /webhooks/{id}/{token}/messages/{message_id}`.
+        Multipart body is identical to POST, but uploading new files
+        replaces the message's attachments entirely (Discord behaviour
+        when no `attachments` array is referenced in the payload).
+
+        Returns True on success, False otherwise. Never raises.
+        """
+        if not webhook_url or not message_id or not embeds:
+            return False
+
+        # Build the message-edit URL — strip any trailing query string from
+        # the webhook URL first so we can append `/messages/{id}` cleanly.
+        base_url = webhook_url.split("?", 1)[0].rstrip("/")
+        patch_url = f"{base_url}/messages/{message_id}"
+
+        payload = {
+            "embeds": embeds,
+            # Username/avatar are NOT supported on PATCH (the original
+            # message keeps the identity it was created with), so we omit
+            # them deliberately. Sending them would not error but would
+            # silently waste bytes.
+        }
+        body, content_type = _build_multipart_body(payload, files)
+        ua = "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)"
+
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    patch_url, data=body,
+                    headers={"Content-Type": content_type, "User-Agent": ua},
+                    method="PATCH",
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    resp.read()
+                return True
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt == 0:
+                    retry_after_raw = e.headers.get("Retry-After", "1") if e.headers else "1"
+                    try:
+                        retry_after = float(retry_after_raw)
+                    except ValueError:
+                        retry_after = 1.0
+                    _log(f"Discord 429 (PATCH) — sleeping {retry_after:.1f}s and retrying", "WARN")
+                    time.sleep(min(retry_after + 0.25, 30))
+                    continue
+                # 404 means the message we tried to edit no longer exists
+                # (deleted by hand, channel cleared, etc.). Caller should
+                # treat this as "fall back to a fresh POST".
+                err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+                if e.code == 404:
+                    _log(f"Discord PATCH 404 — message {message_id} gone, will repost", "WARN")
+                else:
+                    _log(f"Discord PATCH failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+                return False
+            except Exception as e:
+                _log(f"Discord PATCH failed: {e}", "ERROR")
+                return False
+        return False
+
+    @staticmethod
+    def _annotate_embeds_with_counter(
+        embeds: list[dict],
+        first_seen: str,
+        last_seen: str,
+        count: int,
+    ) -> None:
+        """Add a dedup-counter footer to the LAST embed in the list, in place.
+
+        On a fresh failure (count == 1) the footer is just `🆕 First seen
+        HH:MM UTC`. On repeats it becomes `🔁 Repeated N× • since HH:MM
+        UTC • last HH:MM UTC` so the operator can see at a glance both how
+        long the failure has been live and when the most recent tick was.
+        """
+        if not embeds:
+            return
+        try:
+            first_short = first_seen.split("T")[1][:5] + " UTC" if "T" in first_seen else first_seen
+            last_short = last_seen.split("T")[1][:5] + " UTC" if "T" in last_seen else last_seen
+        except (IndexError, AttributeError):
+            first_short = first_seen or "?"
+            last_short = last_seen or "?"
+        if count <= 1:
+            footer_text = f"🆕 First seen {first_short}"
+        else:
+            footer_text = (
+                f"🔁 Repeated {count}× • since {first_short} • last {last_short}"
+            )
+        embeds[-1]["footer"] = {"text": footer_text}
+
+    def send_per_test_md_messages(
+        self,
+        result: RunResult,
+        webhook_url: str,
+        suite_name: str,
+        screenshots_root: Path,
+        env_var_name: str,
+        state_file: Optional[Path] = None,
+    ) -> tuple[int, int, int]:
+        """Send one MD-style multi-embed message per failed test, with dedup.
+
+        Returns `(posted, edited, recovered)`:
+            posted    — number of NEW messages posted (first failure or
+                        failure with a different root cause)
+            edited    — number of existing messages PATCHed (repeat with
+                        same error)
+            recovered — number of recovery messages posted for tests that
+                        passed after previously failing
+
+        When `state_file` is provided, dedup is active:
+            * On first sight of a failing test → POST and store
+              {message_id, error_hash, first_seen, last_seen, count=1}
+            * On repeat with same error_hash → PATCH the existing message
+              in place; bump count + last_seen.
+            * On repeat with a different error_hash → treat as new failure;
+              POST a fresh message and replace the entry.
+            * Tests in the state file but NOT in the current failure set
+              are recoveries — post a single line and drop the entry.
+
+        Caller orchestration: call _send_summary_to_discord first (the
+        overview), then this method (the per-test detail).
+        """
+        if not webhook_url:
+            _log(f"{env_var_name} not set — skipping per-test Discord detail", "DEBUG")
+            return (0, 0, 0)
+
+        suite_data = result.suites.get(suite_name, {}) or {}
+        failed_tests = [t for t in suite_data.get("tests", []) if t.get("status") == "failed"]
+
+        # Load state once. When state_file is None, dedup is disabled and
+        # we behave like the original implementation (always POST).
+        state: dict = {"tests": {}, "summary": {}}
+        if state_file is not None:
+            state = _load_discord_state(state_file)
+            state = _prune_discord_state(state)
+
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        posted = 0
+        edited = 0
+        recovered = 0
+
+        # ─── 1. Process current failures (POST or PATCH) ────────────────────
+        current_failure_keys: set[str] = set()
+        for t in failed_tests:
+            embeds, files = self._build_md_style_test_message(
+                t, suite_name, result.run_id, screenshots_root,
+            )
+            if not embeds:
+                # Nothing to send for this test (no screenshots / no step log).
+                # The lightweight summary already named it as failed, so we
+                # don't bother spamming an empty card.
+                continue
+
+            test_key = _compute_test_key(suite_name, t)
+            error_hash = _compute_error_hash(t)
+            current_failure_keys.add(test_key)
+
+            existing = state.get("tests", {}).get(test_key) if state_file else None
+            same_error = (
+                existing is not None
+                and existing.get("error_hash") == error_hash
+                and error_hash != ""
+            )
+
+            if same_error:
+                # Repeat with same root cause → PATCH the existing message
+                # in place after annotating with the bumped counter.
+                new_count = int(existing.get("count", 1)) + 1
+                first_seen = existing.get("first_seen", now_iso)
+                self._annotate_embeds_with_counter(
+                    embeds,
+                    first_seen=first_seen,
+                    last_seen=now_iso,
+                    count=new_count,
+                )
+                ok = self._patch_discord_multipart(
+                    webhook_url, str(existing.get("message_id", "")), embeds, files
+                )
+                if ok:
+                    edited += 1
+                    state["tests"][test_key] = {
+                        **existing,
+                        "last_seen": now_iso,
+                        "count": new_count,
+                    }
+                    time.sleep(0.25)
+                else:
+                    # PATCH failed (e.g. message deleted) — fall back to a
+                    # fresh POST so the operator still sees the failure.
+                    self._annotate_embeds_with_counter(
+                        embeds, first_seen=now_iso, last_seen=now_iso, count=1
+                    )
+                    msg_id = self._post_discord_multipart(
+                        webhook_url, embeds, files, return_message_id=True
+                    )
+                    if msg_id:
+                        posted += 1
+                        state["tests"][test_key] = {
+                            "message_id": msg_id,
+                            "error_hash": error_hash,
+                            "first_seen": now_iso,
+                            "last_seen": now_iso,
+                            "count": 1,
+                        }
+                        time.sleep(0.25)
+            else:
+                # First sight OR error fingerprint changed (different root
+                # cause) → fresh POST.
+                self._annotate_embeds_with_counter(
+                    embeds, first_seen=now_iso, last_seen=now_iso, count=1
+                )
+                msg_id = self._post_discord_multipart(
+                    webhook_url, embeds, files, return_message_id=True
+                ) if state_file else self._post_discord_multipart(
+                    webhook_url, embeds, files
+                )
+                # When dedup is disabled (state_file is None), msg_id is a
+                # bool — treat True as "posted, no id to track".
+                if state_file is None:
+                    if msg_id:
+                        posted += 1
+                        time.sleep(0.25)
+                else:
+                    if msg_id:
+                        posted += 1
+                        state["tests"][test_key] = {
+                            "message_id": msg_id,
+                            "error_hash": error_hash,
+                            "first_seen": now_iso,
+                            "last_seen": now_iso,
+                            "count": 1,
+                        }
+                        time.sleep(0.25)
+
+        # ─── 2. Process recoveries (tests in state but not failing now) ────
+        if state_file is not None:
+            recovered_entries = []
+            for k, entry in list(state.get("tests", {}).items()):
+                if k in current_failure_keys:
+                    continue
+                # Only count recoveries for tests in this suite — leave
+                # entries from other suites alone.
+                if not k.startswith(f"{suite_name}::"):
+                    continue
+                recovered_entries.append((k, entry))
+
+            for k, entry in recovered_entries:
+                # Strip "{suite_name}::" prefix for the human label.
+                human = k.split("::", 1)[1] if "::" in k else k
+                count = int(entry.get("count", 1))
+                first_seen = entry.get("first_seen", "")
+                first_short = (
+                    first_seen.split("T")[1][:5] + " UTC"
+                    if "T" in first_seen else (first_seen or "?")
+                )
+                description = (
+                    f"**{human}** is green again.\n"
+                    f"Failed **{count}×** since `{first_short}`."
+                )
+                recovery_embed = {
+                    "description": description,
+                    "color": 0x22C55E,
+                    "footer": {"text": "✅ Recovery"},
+                }
+                ok = self._post_discord_multipart(
+                    webhook_url, [recovery_embed], []
+                )
+                if ok:
+                    recovered += 1
+                    # Drop the entry — recovery message is one-shot, we
+                    # don't track it after this. If it fails again, it'll
+                    # come back as a fresh first-sight POST.
+                    state["tests"].pop(k, None)
+                    time.sleep(0.25)
+
+            # Persist state for next tick.
+            _save_discord_state(state_file, state)
+
+        if posted or edited or recovered:
+            _log(
+                f"Discord per-test: {posted} new, {edited} updated, "
+                f"{recovered} recovered"
+            )
+        return (posted, edited, recovered)
 
     def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
         """Send via internal API as fallback."""
@@ -1478,15 +2460,173 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     # operator gets confirmation). Otherwise: post on failure, plus one daily
     # heartbeat for green runs.
     post_on_success = force or _heartbeat_should_fire(HOURLY_DEV_DIR)
+
+    # Dedup state file: persists per-test message ids and the summary
+    # fingerprint so repeat ticks PATCH the existing messages instead of
+    # spamming new ones. Lives next to the run archives.
+    state_file = HOURLY_DEV_DIR / DISCORD_STATE_FILE_NAME
+
+    # Send the lightweight summary embed first (one message: overview of
+    # which specs failed + clickable [logs] links), then per-test detail
+    # messages (PATCH on repeat, fresh POST on first sight, recovery line
+    # when a previously failing test goes green).
     notification._send_summary_to_discord(
         result,
         webhook_url=notification.discord_webhook_dev_smoke,
         mode_label="dev hourly",
         post_on_success=post_on_success,
         env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+        state_file=state_file,
+        suite_name_for_dedup="playwright",
+    )
+    # Always call the per-test sender — even with zero current failures it
+    # may still need to post recovery messages for tests that just turned
+    # green AND prune the state file.
+    notification.send_per_test_md_messages(
+        result,
+        webhook_url=notification.discord_webhook_dev_smoke,
+        suite_name="playwright",
+        screenshots_root=RESULTS_DIR / "screenshots" / "current",
+        env_var_name="DISCORD_WEBHOOK_DEV_SMOKE",
+        state_file=state_file,
     )
 
     return 1 if s["failed"] > 0 else 0
+
+
+# prod-smoke.yml writes one playwright JSON file per spec into the artifact:
+# test-results/{reachability,signup,login}.json. We use these as the source
+# of truth for per-spec status. Step `conclusion` is unreliable here because
+# every step uses `continue-on-error: true && exit 0`, so all step
+# conclusions are `success` even when the underlying spec failed.
+PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
+    # (key, human-readable label, spec filename)
+    ("reachability", "reachability spec", "prod-smoke-reachability.spec.ts"),
+    ("signup", "signup + gift card + chat spec", "prod-smoke-signup-giftcard-chat.spec.ts"),
+    ("login", "login + chat spec", "prod-smoke-login-chat.spec.ts"),
+]
+
+
+def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
+    """Parse per-spec results from a downloaded prod-smoke artifact.
+
+    Returns one dict per spec in the order they ran:
+        {"name": <human label>, "status": "passed"|"failed",
+         "error": <error snippet or empty>, "passed": int, "failed": int}
+
+    Empty/missing/unparseable JSON files mean playwright crashed before
+    producing any test output (e.g. config load error) — treated as
+    `failed` with an empty error so the caller falls back to the job-level
+    log snippet for the actual cause.
+
+    Returns an empty list when the artifact is missing entirely so the
+    caller can fall back to the conclusion-based single-test path.
+    """
+    if not art_path or not art_path.is_dir():
+        return []
+
+    # The JSON files live under one of these locations depending on how the
+    # artifact was unpacked. Try both.
+    candidates = [
+        art_path / "test-results",
+        art_path / f"prod-smoke-results-{art_path.name}" / "test-results",
+    ]
+    # Also walk one level down in case the artifact name is unknown.
+    if not any(c.is_dir() for c in candidates):
+        for child in art_path.iterdir():
+            if child.is_dir():
+                inner = child / "test-results"
+                if inner.is_dir():
+                    candidates.append(inner)
+                    break
+
+    base: Optional[Path] = next((c for c in candidates if c.is_dir()), None)
+    if base is None:
+        return []
+
+    out: list[dict] = []
+    for spec_key, spec_label, spec_filename in PROD_SMOKE_SPECS:
+        json_path = base / f"{spec_key}.json"
+        if not json_path.is_file() or json_path.stat().st_size == 0:
+            out.append({
+                "key": spec_key,
+                "filename": spec_filename,
+                "name": spec_label,
+                "status": "failed",
+                "error": "",  # caller will substitute the job log snippet
+                "passed": 0,
+                "failed": 1,
+            })
+            continue
+
+        # The file may have non-JSON prefix from the `list` reporter — find
+        # the first `{` and try to parse from there.
+        try:
+            raw = json_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            out.append({
+                "name": spec_label, "status": "failed",
+                "error": "", "passed": 0, "failed": 1,
+            })
+            continue
+
+        data = None
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            brace = raw.find("{")
+            if brace >= 0:
+                try:
+                    data = json.loads(raw[brace:])
+                except json.JSONDecodeError:
+                    data = None
+
+        if not isinstance(data, dict):
+            out.append({
+                "key": spec_key,
+                "filename": spec_filename,
+                "name": spec_label, "status": "failed",
+                "error": (raw.strip().splitlines()[-1][:300] if raw.strip() else ""),
+                "passed": 0, "failed": 1,
+            })
+            continue
+
+        # Playwright JSON: stats.expected = passed, stats.unexpected = failed
+        stats = data.get("stats", {}) or {}
+        expected = int(stats.get("expected", 0) or 0)
+        unexpected = int(stats.get("unexpected", 0) or 0)
+
+        # Pull the first failure message if available.
+        first_error = ""
+        if unexpected > 0:
+            for suite in data.get("suites", []) or []:
+                for spec in suite.get("specs", []) or []:
+                    for t in spec.get("tests", []) or []:
+                        for r in (t.get("results") or []):
+                            if r.get("status") in ("failed", "timedOut"):
+                                err = (r.get("error", {}) or {}).get("message", "")
+                                if err:
+                                    first_error = err.strip()
+                                    break
+                        if first_error:
+                            break
+                    if first_error:
+                        break
+                if first_error:
+                    break
+
+        status = "passed" if unexpected == 0 and expected > 0 else "failed"
+        out.append({
+            "key": spec_key,
+            "filename": spec_filename,
+            "name": spec_label,
+            "status": status,
+            "error": first_error,
+            "passed": expected,
+            "failed": unexpected,
+        })
+
+    return out
 
 
 def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
@@ -1507,6 +2647,10 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     client = GitHubActionsClient()
     pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
 
+    new_run_id: Optional[int] = None
+    suite_result: Optional[SuiteResult] = None  # set by failure paths OR by artifact parser
+    conclusion: str = "unknown"
+
     rc = subprocess.run(
         ["gh", "workflow", "run", PROD_SMOKE_WORKFLOW,
          "--repo", GH_REPO, "--ref", GH_BRANCH],
@@ -1524,7 +2668,6 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     else:
         # Find the new run ID
         time.sleep(5)
-        new_run_id: Optional[int] = None
         for _ in range(10):
             post_ids = client._recent_run_ids(limit=10, workflow=PROD_SMOKE_WORKFLOW)
             fresh = [rid for rid in post_ids if rid not in pre_ids]
@@ -1552,25 +2695,70 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             conclusion = status_data.get("conclusion", "unknown")
             _log(f"prod-smoke run {new_run_id} → {conclusion}")
 
+    # ─── Result building (artifact-driven) ──────────────────────────────────
+    # Download the prod-smoke artifact so we can read the per-spec playwright
+    # JSON files AND pull failure screenshots in a single round trip. This
+    # block runs unconditionally when we have a run ID and no early failure
+    # path already produced a synthetic suite_result.
+    artifact_dir: Optional[Path] = None
+    art_path: Optional[Path] = None
+    spec_results: list[dict] = []
+    log_snippet = ""
+
+    if new_run_id is not None and suite_result is None:
+        artifact_dir = Path(tempfile.mkdtemp(prefix="prod-smoke-artifact-"))
+        art_path = client.download_artifact(
+            new_run_id, f"prod-smoke-results-{new_run_id}", artifact_dir
+        )
+        spec_results = _parse_prod_smoke_artifact(art_path) if art_path else []
+        # Job-level log snippet — used when an individual spec's JSON is
+        # empty/missing (the spec crashed before producing structured output).
+        if conclusion != "success":
+            log_snippet = client.get_failed_job_error(new_run_id) or ""
+
+        if spec_results:
+            tests: list[dict] = []
+            for sr in spec_results:
+                t: dict = {
+                    "name": sr["name"],
+                    "status": sr["status"],
+                    "duration_seconds": 0,
+                    # Use the per-spec filename so the per-test detail
+                    # sender can derive a screenshot directory name from it
+                    # (it strips .spec.ts and looks under <root>/<base>/).
+                    "file": sr.get("filename", "prod-smoke.yml"),
+                    "run_id": new_run_id,
+                }
+                if sr["status"] == "failed":
+                    # Prefer the per-spec error from the playwright JSON;
+                    # fall back to the job-level log snippet when the JSON
+                    # was empty (e.g. config-load crash).
+                    t["error"] = sr.get("error") or log_snippet or (
+                        f"prod-smoke conclusion: {conclusion}"
+                    )
+                tests.append(t)
+            has_fail = any(t["status"] == "failed" for t in tests)
+            suite_result = SuiteResult(
+                status="failed" if has_fail else "passed",
+                tests=tests,
+            )
+        else:
+            # Artifact missing entirely — preserve the conclusion-based
+            # single-test fallback so we never silently drop a notification.
             if conclusion == "success":
                 suite_result = SuiteResult(
                     status="passed",
                     tests=[{"name": "prod-smoke", "status": "passed",
-                            "duration_seconds": 0,
-                            "file": "prod-smoke.yml",
+                            "duration_seconds": 0, "file": "prod-smoke.yml",
                             "run_id": new_run_id}],
                 )
             else:
-                error_snippet = client.get_failed_job_error(new_run_id) or (
-                    f"prod-smoke conclusion: {conclusion}"
-                )
                 suite_result = SuiteResult(
                     status="failed",
                     tests=[{"name": "prod-smoke", "status": "failed",
-                            "duration_seconds": 0,
-                            "file": "prod-smoke.yml",
+                            "duration_seconds": 0, "file": "prod-smoke.yml",
                             "run_id": new_run_id,
-                            "error": error_snippet}],
+                            "error": log_snippet or f"prod-smoke conclusion: {conclusion}"}],
                 )
 
     result = ResultAggregator.build_run_result(
@@ -1595,14 +2783,83 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     print("=" * 60)
     print()
 
-    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
-    notification._send_summary_to_discord(
-        result,
-        webhook_url=notification.discord_webhook_prod_smoke,
-        mode_label="prod hourly",
-        post_on_success=post_on_success,
-        env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+    # Stage any failure screenshots from the artifact under a temporary
+    # per-spec screenshots root that matches the layout the MD-style sender
+    # expects: <root>/<spec-base-name>/test-failed-1.png. Playwright stores
+    # failure shots under frontend/apps/web_app/test-results/<test-id>/, so
+    # we walk those, group by which spec key appears in the path, and copy
+    # them into the per-spec subdir using the spec filename's base.
+    staged_root: Optional[Path] = None
+    if art_path and spec_results:
+        staged_root = Path(tempfile.mkdtemp(prefix="prod-smoke-staged-"))
+        for sr in spec_results:
+            if sr.get("status") != "failed":
+                continue
+            spec_key = sr.get("key", "")
+            spec_filename = sr.get("filename", "")
+            if not spec_key or not spec_filename:
+                continue
+            spec_base = spec_filename.replace(".spec.ts", "")
+            spec_subdir = staged_root / spec_base
+            spec_subdir.mkdir(parents=True, exist_ok=True)
+            # Walk the artifact for any PNG/webp whose path mentions the
+            # spec key (case-insensitive). Test-failed shots get a stable
+            # name; other PNGs preserve theirs.
+            for img in sorted(list(art_path.rglob("*.png")) + list(art_path.rglob("*.webp"))):
+                try:
+                    rel_str = str(img.relative_to(art_path)).lower()
+                except ValueError:
+                    rel_str = str(img).lower()
+                if spec_key not in rel_str:
+                    continue
+                dest = spec_subdir / img.name
+                try:
+                    shutil.copy2(str(img), str(dest))
+                except OSError:
+                    continue
+
+    run_url = (
+        f"https://github.com/{GH_REPO}/actions/runs/{new_run_id}"
+        if new_run_id
+        else None
     )
+
+    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
+    state_file = HOURLY_PROD_DIR / DISCORD_STATE_FILE_NAME
+    try:
+        # Lightweight summary first (overview of which specs failed +
+        # clickable links). Skipped automatically when the failure set is
+        # unchanged from the last tick (dedup'd via state file).
+        notification._send_summary_to_discord(
+            result,
+            webhook_url=notification.discord_webhook_prod_smoke,
+            mode_label="prod hourly",
+            post_on_success=post_on_success,
+            env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+            run_url=run_url,
+            state_file=state_file,
+            suite_name_for_dedup="prod-smoke",
+        )
+        # Always call the per-test sender so recoveries get reported
+        # and the state file gets pruned even on a green tick. When
+        # there are no current failures and no screenshots, the call
+        # is essentially a no-op + recovery scan.
+        notification.send_per_test_md_messages(
+            result,
+            webhook_url=notification.discord_webhook_prod_smoke,
+            suite_name="prod-smoke",
+            # staged_root may be None on a fully-green run; pass a
+            # non-existent path so the per-test builder simply finds
+            # nothing and the recovery scan still runs.
+            screenshots_root=staged_root or (PROJECT_ROOT / "test-results" / "_no_screens"),
+            env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
+            state_file=state_file,
+        )
+    finally:
+        if artifact_dir:
+            shutil.rmtree(artifact_dir, ignore_errors=True)
+        if staged_root:
+            shutil.rmtree(staged_root, ignore_errors=True)
 
     return 1 if s["failed"] > 0 else 0
 
@@ -2516,7 +3773,39 @@ class TestOrchestrator:
             fail_fast=self.fail_fast,
             use_mocks=self.use_mocks,
         )
-        return runner.run_all_batches()
+        result = runner.run_all_batches()
+
+        # Aggregate storage-audit snapshots from this run into cookies.yml.
+        # Skipped for single-spec runs (--spec) since coverage is intentionally
+        # narrow and would prune entries from other flows. The merger never
+        # clobbers human-maintained fields (purpose / consent_exempt / etc).
+        if not self.spec:
+            self._merge_cookie_audits()
+
+        return result
+
+    @staticmethod
+    def _merge_cookie_audits() -> None:
+        """Run scripts/merge_storage_audits.py to update cookies.yml."""
+        merger = PROJECT_ROOT / "scripts" / "merge_storage_audits.py"
+        if not merger.is_file():
+            return
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(merger)],
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            # Merger writes its summary to stderr.
+            if proc.stderr:
+                for line in proc.stderr.rstrip().splitlines():
+                    _log(line)
+            if proc.returncode != 0:
+                _log(f"merge_storage_audits exited {proc.returncode}", "WARN")
+        except Exception as e:
+            _log(f"merge_storage_audits failed to run: {e}", "WARN")
 
     # Specs excluded from daily / all-spec runs.
     # These are utility specs (e.g. account provisioning) that should only be

@@ -38,7 +38,7 @@ export {};
  *   npx playwright test frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -93,6 +93,12 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 function spawnCliLogin(apiUrl: string) {
+	if (!fs.existsSync(CLI_DIST)) {
+		throw new Error(
+			`CLI binary not found at ${CLI_DIST}. ` +
+				`Run 'pnpm --filter openmates build' (CI does this in the 'Build openmates CLI' workflow step).`
+		);
+	}
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const child = spawn('node', [CLI_DIST, 'login'], {
 		env: {
@@ -106,6 +112,11 @@ function spawnCliLogin(apiUrl: string) {
 
 	const stdout: string[] = [];
 	const stderr: string[] = [];
+	let spawnError: Error | null = null;
+	child.on('error', (err: Error) => {
+		spawnError = err;
+		consoleLogs.push(`[CLI spawn-error] ${err.message}`);
+	});
 	child.stdout.on('data', (d: Buffer) => {
 		const l = d.toString();
 		stdout.push(l);
@@ -124,10 +135,20 @@ function spawnCliLogin(apiUrl: string) {
 		waitForToken(): Promise<string> {
 			return new Promise((resolve, reject) => {
 				const timeout = setTimeout(
-					() => reject(new Error(`No pair token in 15s. stdout: ${stdout.join('')}`)),
+					() =>
+						reject(
+							new Error(
+								`No pair token in 15s. spawnError=${spawnError?.message ?? 'none'} stdout=${stdout.join('')} stderr=${stderr.join('')}`
+							)
+						),
 					15_000
 				);
 				const check = () => {
+					if (spawnError) {
+						clearTimeout(timeout);
+						reject(new Error(`CLI spawn failed: ${spawnError.message}`));
+						return;
+					}
 					const m = stdout.join('').match(/pair=([A-Z0-9]{6})/);
 					if (m) {
 						clearTimeout(timeout);
@@ -251,7 +272,9 @@ test.describe('CLI PDF Skills', () => {
 				if (attempt < 3) await page.waitForTimeout(31000);
 			}
 		}
-		await page.waitForURL(/chat/, { timeout: 20000 });
+		// Wait for the authenticated DOM signal instead of a URL pattern —
+		// post-login URLs no longer reliably contain `/chat/`. (OPE-354)
+		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 		logCheckpoint('Web app logged in.');
 
 		// -----------------------------------------------------------------------
@@ -291,6 +314,9 @@ test.describe('CLI PDF Skills', () => {
 		logCheckpoint('Step 3: Opening new chat and attaching PDF...');
 		// Navigate back to main chat view
 		await page.goto('/');
+		// Tolerate either the authenticated chat view OR the demo "for everyone" landing
+		// page — pair-auth occasionally drops the session and lands the test on the demo
+		// page; the new-chat-btn below still works from there.
 		await page.waitForURL(/chat/, { timeout: 15000 });
 		await page.waitForTimeout(2000);
 

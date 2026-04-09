@@ -95,7 +95,6 @@ class CreateSupportOrderRequest(BaseModel):
 
 class CreateOrderResponse(BaseModel):
     provider: str
-    order_token: Optional[str] = None  # For Revolut
     client_secret: Optional[str] = None  # For Stripe / Polar embedded checkout
     order_id: str
     checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
@@ -191,7 +190,6 @@ class BuyGiftCardRequest(BaseModel):
 
 class BuyGiftCardResponse(BaseModel):
     provider: str
-    order_token: Optional[str] = None  # For Revolut
     client_secret: Optional[str] = None  # For Stripe
     order_id: str
     checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
@@ -344,24 +342,13 @@ async def get_payment_config(
     Provides the public payment configuration for the frontend payment widget.
 
     Provider selection:
-    - Legacy Revolut mode: always returns revolut.
-    - Dual-provider mode: detects user region from IP. EU/EEA/CH/GB → Stripe, all others → Polar.
+    - Detects user region from IP. EU/EEA/CH/GB → Stripe, all others → Polar.
     - provider_override query param lets the frontend switch providers explicitly (for the switch button).
     """
     try:
         environment = "production" if is_production() else "sandbox"
 
-        # --- Legacy Revolut mode ---
-        if payment_service._revolut_provider:
-            secret_key_name = f"merchant_{environment}_public_key"
-            secret_path = "kv/data/providers/revolut_business"
-            public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
-            if not public_key:
-                logger.error(f"Revolut public key '{secret_key_name}' not found in Vault.")
-                raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
-            return PaymentConfigResponse(provider="revolut", public_key=public_key, environment=environment)
-
-        # --- Dual-provider mode: detect region from IP ---
+        # --- Detect region from IP ---
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         is_eu = True  # Default to EU (Stripe) for safety if detection fails
         try:
@@ -558,7 +545,6 @@ async def create_payment_order(
         response_data = {
             "provider": provider_name,
             "order_id": order_id,
-            "order_token": order_response.get("token"),          # For Revolut
             "client_secret": order_response.get("client_secret"),  # For Stripe / Polar embedded checkout
             "checkout_url": order_response.get("checkout_url"),  # For Polar embedded checkout iframe
         }
@@ -644,7 +630,6 @@ async def create_support_order(
         response_data = {
             "provider": payment_service.provider_name,
             "order_id": order_id,
-            "order_token": order_response.get("token"),  # For Revolut
             "client_secret": order_response.get("client_secret")  # For Stripe
         }
 
@@ -661,7 +646,7 @@ async def create_support_order(
         raise HTTPException(status_code=500, detail="Internal server error during support payment initiation.")
 
 @router.post("/webhook", status_code=200)
-# Note: Webhook endpoint is called by payment providers (Stripe/Revolut)
+# Note: Webhook endpoint is called by payment providers (Stripe/Polar)
 # Rate limiting is handled by signature verification - providers have their own rate limits
 # We don't apply strict rate limits here to avoid blocking legitimate webhook deliveries
 # Security is ensured through signature verification in verify_and_parse_webhook
@@ -727,9 +712,7 @@ async def payment_webhook(
 
         # Normalize event type and get order ID
         webhook_order_id = None
-        if provider_name == "revolut":
-            webhook_order_id = event_payload.get("order_id")
-        elif provider_name == "stripe":
+        if provider_name == "stripe":
             # For Stripe, the PaymentIntent ID is in event.data.object.id
             if event_type.startswith("payment_intent."):
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("id")
@@ -785,8 +768,7 @@ async def payment_webhook(
             and (event_payload.get("data") or {}).get("status") == "succeeded"
         )
 
-        if (provider_name == "revolut" and event_type == "ORDER_COMPLETED") or \
-           (provider_name == "stripe" and event_type == "payment_intent.succeeded") or \
+        if (provider_name == "stripe" and event_type == "payment_intent.succeeded") or \
            is_polar_success:
 
             # Supporter contributions (one-time or first subscription payment)
@@ -1401,8 +1383,7 @@ async def payment_webhook(
                         logger.warning(f"Failed to invalidate require_invite_code cache: {cache_err}")
                         # Non-critical - cache will refresh on next check or expire after 48 hours
 
-        elif (provider_name == "revolut" and event_type == "ORDER_CANCELLED") or \
-             (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \
+        elif (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \
              (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed") or \
              (provider_name == "polar" and event_type == "checkout.updated"
               and (event_payload.get("data") or {}).get("status") in ("failed", "expired")):
@@ -2126,7 +2107,7 @@ async def payment_webhook(
                 # Record in Invoice Ninja (accounting) — no email, no PDF, just the accounting entry.
                 # Skip for Polar: Polar is the Merchant of Record and handles all
                 # tax/accounting documents. We only record in Invoice Ninja for
-                # Stripe/Revolut where OpenMates is the seller of record.
+                # Stripe where OpenMates is the seller of record.
                 if provider_name == "polar":
                     logger.info(
                         f"Dashboard refund: skipping Invoice Ninja for Polar refund "
@@ -2353,7 +2334,7 @@ async def get_order_status(
         if not order_details:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        order_state = order_details.get("status") # Stripe uses 'status', Revolut uses 'state'
+        order_state = order_details.get("status")
         internal_status = cached_order_data.get("status")
 
         if not order_state:
@@ -2365,16 +2346,16 @@ async def get_order_status(
         # Normalize status for frontend display
         if order_state.upper() == "SUCCEEDED": # Stripe status
             final_state = "COMPLETED"
-        elif order_state.upper() == "COMPLETED": # Revolut status
+        elif order_state.upper() == "COMPLETED": # Polar status
             final_state = "COMPLETED"
         elif order_state.upper() == "REQUIRES_PAYMENT_METHOD" or \
              order_state.upper() == "REQUIRES_CONFIRMATION" or \
              order_state.upper() == "REQUIRES_ACTION": # Stripe statuses
             final_state = "PENDING"
-        elif order_state.upper() == "PENDING": # Revolut status
+        elif order_state.upper() == "PENDING": # Polar status
             final_state = "PENDING"
         elif order_state.upper() == "CANCELED" or \
-             order_state.upper() == "FAILED": # Stripe/Revolut statuses
+             order_state.upper() == "FAILED": # Stripe/Polar statuses
             final_state = "FAILED"
 
         if final_state == "COMPLETED":
@@ -2853,7 +2834,6 @@ async def list_payment_methods(
         # the user has saved Stripe methods.
         stripe_provider = payment_service._stripe_provider
         if stripe_provider is None:
-            # Revolut-only mode: no Stripe provider available at all
             logger.info(f"No Stripe provider available -- returning empty payment methods list for user {current_user.id}")
             return ListPaymentMethodsResponse(payment_methods=[])
 
@@ -3695,7 +3675,6 @@ async def buy_gift_card(
         response_data = {
             "provider": provider_name,
             "order_id": order_id,
-            "order_token": order_response.get("token"),  # For Revolut
             "client_secret": order_response.get("client_secret"),  # For Stripe
             "checkout_url": order_response.get("checkout_url"),  # For Polar embedded checkout
         }
@@ -4470,7 +4449,7 @@ async def request_refund(
         # Extract provider info for routing refund to the correct payment provider.
         # 'provider' and 'provider_order_id' are set on invoices created after this feature
         # was deployed. For legacy invoices these will be None (auto-detection fallback).
-        invoice_provider = invoice.get("provider")  # "stripe", "polar", "revolut", or None
+        invoice_provider = invoice.get("provider")  # "stripe", "polar", or None
         invoice_provider_order_id = invoice.get("provider_order_id")  # Polar Order UUID, or None
 
         # Decrypt invoice data

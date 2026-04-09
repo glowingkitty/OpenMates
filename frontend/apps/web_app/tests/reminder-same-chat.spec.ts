@@ -17,7 +17,7 @@ export {};
  *   OPENMATES_TEST_ACCOUNT_OTP_KEY
  */
 
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,

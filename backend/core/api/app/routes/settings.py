@@ -2425,6 +2425,11 @@ class IssueReportResponse(BaseModel):
     success: bool
     message: str
     issue_id: Optional[str] = None  # The database ID of the created issue report (for admin lookup via /v1/admin/debug/issues/{issue_id})
+    # Set to True if the submitter attached a screenshot AND it was successfully
+    # decoded, uploaded to S3, and the encrypted key was stored in Directus.
+    # Surfaced synchronously so E2E tests can assert the screenshot path worked
+    # without needing an admin API key.
+    screenshot_uploaded: bool = False
 
 
 async def _trigger_agent_issue_investigation(
@@ -3064,12 +3069,81 @@ async def report_issue(
         return IssueReportResponse(
             success=True,
             message="Issue report submitted successfully. Thank you for your feedback!",
-            issue_id=issue_id  # Return issue ID so frontend can display it for admin lookup
+            issue_id=issue_id,  # Return issue ID so frontend can display it for admin lookup
+            screenshot_uploaded=bool(encrypted_screenshot_s3_key),
         )
         
     except Exception as e:
         logger.error(f"Error processing issue report: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to submit issue report. Please try again later.")
+
+
+class IssueStatusResponse(BaseModel):
+    """
+    Status of a user's own submitted issue report.
+
+    Returned by GET /v1/settings/issues/{issue_id}/status. Lets the reporter
+    (and only the reporter) check whether the async pipeline has finished
+    persisting debug artifacts for their submission. Used by the E2E spec to
+    poll for completion without needing an admin API key.
+    """
+    id: str
+    has_screenshot: bool
+    has_yaml_report: bool
+    processed: bool
+
+
+@router.get(
+    "/issues/{issue_id}/status",
+    response_model=IssueStatusResponse,
+    include_in_schema=False,  # Web app only
+)
+@limiter.limit("60/minute")
+async def get_issue_status(
+    request: Request,
+    issue_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return the completion status of an issue report submitted by the current user.
+
+    Authorization: the caller must be the `reported_by_user_id` on the issue
+    record. This prevents users from probing other users' issues. Admins can
+    view any issue via this endpoint as well.
+
+    Used by the E2E issue-report spec to verify that:
+      - the screenshot was uploaded synchronously (has_screenshot)
+      - the async email task completed and stored the YAML S3 key (has_yaml_report)
+    """
+    try:
+        directus_service: DirectusService = request.app.state.directus_service
+        items = await directus_service.get_items(
+            "issues",
+            {"filter[id][_eq]": issue_id, "limit": 1},
+            no_cache=True,
+            admin_required=True,
+        )
+        if not items:
+            raise HTTPException(status_code=404, detail="Issue not found")
+
+        issue = items[0]
+        reporter_id = issue.get("reported_by_user_id")
+
+        # Only the reporter (or an admin) may read their own issue status.
+        if reporter_id != current_user.id and not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Not authorized to read this issue")
+
+        return IssueStatusResponse(
+            id=issue["id"],
+            has_screenshot=bool(issue.get("encrypted_screenshot_s3_key")),
+            has_yaml_report=bool(issue.get("encrypted_issue_report_yaml_s3_key")),
+            processed=bool(issue.get("processed", False)),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching issue status for {issue_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch issue status")
 
 
 # --- Account Deletion Endpoints ---

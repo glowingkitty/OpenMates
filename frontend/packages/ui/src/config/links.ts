@@ -103,11 +103,6 @@ export function getBaseUrl(app: "website" | "webapp"): string {
   return isDev ? baseUrls[app].development : baseUrls[app].production;
 }
 
-// Helper to get webapp URL
-function getWebappUrl(): string {
-  return getBaseUrl("webapp");
-}
-
 export const routes = {
   home: "/",
   developers: import.meta.env.DEV ? "/developers" : null,
@@ -136,24 +131,65 @@ export const routes = {
   },
 } as const;
 
+// Privacy-policy links for every third-party provider referenced in the
+// privacy policy. Grouped to mirror shared/docs/privacy_policy.yml
+// provider_groups (Group A-J). When adding a new provider to a skill or
+// app.yml, add its privacy-policy link here AND update:
+//   - shared/docs/privacy_policy.yml
+//   - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+//   - frontend/packages/ui/src/legal/buildLegalContent.ts
 export const privacyPolicyLinks = {
+  // Group A — Always active
   vercel: "https://vercel.com/legal/privacy-policy",
   hetzner: "https://www.hetzner.com/legal/privacy-policy",
-  ipApi: "https://members.ip-api.com/privacy-policy",
   brevo: "https://www.brevo.com/legal/privacypolicy",
+  ipApi: "https://members.ip-api.com/privacy-policy",
   sightengine: "https://sightengine.com/policies/privacy",
+
+  // Group B — Payments
   stripe: "https://stripe.com/privacy",
+  polar: "https://polar.sh/legal/privacy",
+
+  // Group C — AI models
   mistral: "https://mistral.ai/privacy-policy",
   aws: "https://aws.amazon.com/privacy/",
+  anthropic: "https://www.anthropic.com/legal/privacy",
+  openai: "https://openai.com/policies/privacy-policy",
   openrouter: "https://openrouter.ai/privacy",
   cerebras: "https://www.cerebras.ai/privacy-policy",
-  brave: "https://brave.com/privacy/",
-  webshare: "https://www.webshare.io/privacy-policy",
   google: "https://policies.google.com/privacy",
-  firecrawl: "https://www.firecrawl.dev/privacy-policy",
+  googleVertexMaas: "https://cloud.google.com/terms/cloud-privacy-notice",
+  together: "https://www.together.ai/privacy",
   groq: "https://groq.com/privacy-policy",
-  polar: "https://polar.sh/legal/privacy",
+
+  // Group D — Image generation
+  fal: "https://fal.ai/privacy-policy",
+  recraft: "https://www.recraft.ai/privacy-policy",
+
+  // Group E — Web, search, content retrieval
+  brave: "https://brave.com/privacy/",
+  firecrawl: "https://www.firecrawl.dev/privacy-policy",
+  webshare: "https://www.webshare.io/privacy-policy",
+  googleMaps: "https://policies.google.com/privacy",
+
+  // Group F — Travel
+  serpapi: "https://serpapi.com/legal/privacy-policy",
   flightradar24: "https://www.flightradar24.com/terms-and-conditions",
+
+  // Group G — Events
+  meetup: "https://www.meetup.com/privacy/",
+  luma: "https://lu.ma/privacy",
+  residentAdvisor: "https://ra.co/about/privacy",
+
+  // Group H — Health
+  doctolib: "https://www.doctolib.de/terms/privacy",
+  jameda: "https://www.jameda.de/datenschutz/",
+
+  // Group I — Shopping
+  rewe: "https://www.rewe.de/datenschutz/",
+  amazon: "https://www.amazon.com/privacy",
+
+  // Group J — Community
   discord: "https://discord.com/privacy",
 } as const;
 

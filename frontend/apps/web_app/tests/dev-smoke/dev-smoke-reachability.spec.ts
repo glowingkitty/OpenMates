@@ -15,8 +15,7 @@ produce noise.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
-const { test, expect } = require('@playwright/test');
-
+const { test, expect } = require('../helpers/cookie-audit');
 // PLAYWRIGHT_TEST_BASE_URL is wired by the hourly dev runner to the dev server
 // (e.g. https://app.dev.openmates.org). A missing value would silently let the
 // spec hit localhost — fail loudly so misconfigured cron jobs surface immediately.

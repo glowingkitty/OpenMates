@@ -17,7 +17,6 @@ from . import recovery_account_email_task  # Import account recovery email task
 from . import newsletter_email_task  # Import newsletter email task
 from . import issue_report_email_task  # Import issue report email task
 from . import community_share_email_task  # Import community share notification task
-from . import mailjet_contact_cleanup_task  # Import Mailjet contact cleanup task
 from . import support_contribution_email_task  # Import supporter contribution receipt task
 from . import account_created_email_task  # Import account created confirmation task
 from . import reminder_notification_email_task  # Import reminder notification task
@@ -46,7 +45,6 @@ __all__ = [
     'newsletter_email_task',
     'issue_report_email_task',
     'community_share_email_task',
-    'mailjet_contact_cleanup_task',
     'support_contribution_email_task',
     'account_created_email_task',
     'reminder_notification_email_task',
