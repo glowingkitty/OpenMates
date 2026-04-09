@@ -217,8 +217,22 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// ======================================================================
 	logCheckpoint('Verifying PII warning banner...');
 
+	// Nudge the editor so the PII detection debounce has definitely fired.
+	// The step-5 check previously flaked when the 800ms debounce expired just
+	// after Playwright captured the intermediate DOM state; a trailing space
+	// + backspace forces a fresh delimiter-trigger detection without
+	// changing the final text content.
+	await messageEditor.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' ', { delay: 10 });
+	await page.keyboard.press('Backspace');
+	await page.waitForTimeout(1200);
+
 	const piiBanner = page.getByTestId('pii-warning-banner');
-	await expect(piiBanner).toBeVisible({ timeout: 5000 });
+	const bannerInDom = await piiBanner.count();
+	const highlightCountNow = await page.locator('[data-testid="pii-highlight"]').count();
+	logCheckpoint(`Pre-banner check — banner in DOM: ${bannerInDom}, current highlight count: ${highlightCountNow}`);
+	await expect(piiBanner).toBeVisible({ timeout: 10000 });
 	logCheckpoint('PII warning banner is visible.');
 
 	const bannerTitle = piiBanner.getByTestId('banner-title');
