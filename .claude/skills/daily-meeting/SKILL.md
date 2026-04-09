@@ -115,8 +115,9 @@ These commands may fail due to missing config. Issue them in a SEPARATE parallel
 16. **Pytest coverage** — Read: `test-results/coverage/pytest-coverage.json`
 17. **Prod smoke tests** — Read: `test-results/last-run-prod-smoke.json`
 18. **Nightly reports** — Glob `logs/nightly-reports/*.json` (path: `/home/superdev/projects/OpenMates`), then Read each
-19. **Milestone state** — Read: `.planning/PROJECT.md` (fallback: `.planning/ROADMAP.md`, `.planning/STATE.md`, `.planning/config.json`)
-20. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
+19. **Legal & compliance top 10** — Read: `docs/architecture/compliance/top-10-recommendations.md` (the human-readable ranked findings that back `logs/nightly-reports/legal-compliance.json`)
+20. **Milestone state** — Read: `.planning/PROJECT.md` (fallback: `.planning/ROADMAP.md`, `.planning/STATE.md`, `.planning/config.json`)
+21. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
 
 ### Step 2: Read Prompt Template & Start Meeting
 
@@ -134,6 +135,7 @@ Follow the 9-step meeting agenda from the prompt template. **Present ONE section
 2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
 3. **SYSTEM HEALTH 🏥** — outages, test failures, errors, data gaps
 3b. **DAILY INSPIRATIONS REVIEW 📰** — show current public default inspirations from the audit data (pool violations count, defaults violations count, and list the titles of today's 3 English defaults). Flag any entries that look low-quality, off-topic, or borderline even if they passed the keyword filter. Ask the user if any should be removed or if the keyword blocklist needs updates.
+3c. **LEGAL & COMPLIANCE ⚖️** — read `docs/architecture/compliance/top-10-recommendations.md` and surface the scan metadata (scan type, date, HEAD SHA, counts line) plus every CRITICAL and HIGH finding (rank, title, score, framework, one-line why). List MEDIUM/LOW items by title only. Mention any items resolved since last run and any tier activation alerts. Ask the user which findings (if any) should be promoted to today's top 10 priorities, and whether any should be filed as Linear tasks if they are not already tracked. If the file is missing or the date is older than 7 days, flag that the scan is stale and the cronjob may be broken.
 4. **PROJECT TRAJECTORY 🗺️** — milestone progress, session quality
 5. **CONTEXT QUESTIONS 🔍** — 5 rounds of targeted questions (one per round, wait for answer each time) to understand the user's current focus, blockers, energy, and upcoming commitments before suggesting priorities
 6. **TODAY'S PRIORITIES 🎯** — present top 10 informed by all data + user answers, ask for confirmation
@@ -180,6 +182,8 @@ Do NOT end the meeting until all items are done:
 - [ ] Status cleanup done (stale/ghost tasks reviewed)
 - [ ] Yesterday's priorities reviewed
 - [ ] System health presented
+- [ ] Daily inspirations reviewed
+- [ ] Legal & compliance top 10 reviewed (critical/high findings surfaced, promotion to priorities decided)
 - [ ] Project trajectory assessed
 - [ ] 5 context questions asked (one per round, answers collected)
 - [ ] Today's priorities confirmed (up to 10 ranked, goal: complete top 3)
