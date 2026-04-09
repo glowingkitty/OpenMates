@@ -236,6 +236,29 @@ async function waitForChatInSidebarAndClick(
 	logFn: (msg: string) => void,
 	timeoutMs: number = SIDEBAR_SYNC_TIMEOUT_MS
 ): Promise<void> {
+	// OPE-360: On viewports <=1440px (Playwright default 1280x720) the sidebar is
+	// closed by default and Chats.svelte is NOT mounted -- so chat-item-wrapper
+	// elements never exist in the DOM. Mirror a real user's flow and click the
+	// sidebar toggle first. Idempotent: skip the click if the sidebar is already
+	// open (any chat-item-wrapper already in the DOM).
+	try {
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+			const sidebarAlreadyOpen = await page
+				.getByTestId('chat-item-wrapper')
+				.first()
+				.isVisible({ timeout: 200 })
+				.catch(() => false);
+			if (!sidebarAlreadyOpen) {
+				logFn('Opening sidebar so chat-item-wrapper elements mount...');
+				await sidebarToggle.click();
+				await page.waitForTimeout(500);
+			}
+		}
+	} catch (err) {
+		logFn(`Sidebar toggle probe failed (continuing anyway): ${err}`);
+	}
+
 	logFn(`Waiting for chat with title containing "${expectedTitleFragment}" to appear in sidebar...`);
 
 	const chatItem = page.getByTestId('chat-item-wrapper').filter({

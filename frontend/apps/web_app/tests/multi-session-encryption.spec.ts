@@ -164,6 +164,36 @@ async function waitForChatInSidebarAndClick(
 	logFn: (msg: string) => void,
 	timeoutMs: number = 60000
 ): Promise<void> {
+	// OPE-360: On viewports <=1440px (Playwright default 1280x720) the sidebar is
+	// closed by default and the Chats.svelte component is NOT mounted — so
+	// `chat-item-wrapper` elements never exist in the DOM. A real user on a
+	// second device would click the sidebar toggle to see their chats; mirror
+	// that behaviour here. Idempotent: if the sidebar is already open (e.g. on
+	// a wider viewport), the toggle click is still safe because
+	// `waitForChatInSidebarAndClick` only runs once per chat, and we click the
+	// target chat-item-wrapper immediately after.
+	try {
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+			// Check whether the sidebar is already mounted — if any chat-item-wrapper
+			// is in the DOM, the sidebar is already open and we skip the toggle to
+			// avoid closing it.
+			const sidebarAlreadyOpen = await page
+				.getByTestId('chat-item-wrapper')
+				.first()
+				.isVisible({ timeout: 200 })
+				.catch(() => false);
+			if (!sidebarAlreadyOpen) {
+				logFn('Opening sidebar so chat-item-wrapper elements mount…');
+				await sidebarToggle.click();
+				// Give the Chats.svelte component time to mount and hydrate its chat list
+				await page.waitForTimeout(500);
+			}
+		}
+	} catch (err) {
+		logFn(`Sidebar toggle probe failed (continuing anyway): ${err}`);
+	}
+
 	logFn(`Waiting for chat with title containing "${expectedTitleFragment}" to appear in sidebar…`);
 
 	// The sidebar shows chat items with class .chat-item-wrapper, containing .chat-title

@@ -554,6 +554,27 @@ export async function handleNewChatMessageImpl(
       console.info(
         `[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`,
       );
+
+      // OPE-360: If an `ai_typing_started` event arrived before this
+      // `new_chat_message` (race on secondary devices — typing event goes via
+      // Celery→Redis, new_chat goes direct in-process, but Redis can still win
+      // on a slow worker), `handleAITypingStartedImpl` queued the payload
+      // instead of dropping it. Replay it now so encrypted_title/icon/category
+      // get written and the sidebar exits "Processing..." state.
+      try {
+        const { flushPendingTypingStartedForChat } = await import(
+          "./chatSyncServiceHandlersAI"
+        );
+        await flushPendingTypingStartedForChat(
+          serviceInstance,
+          payload.chat_id,
+        );
+      } catch (flushErr) {
+        console.error(
+          `[ChatSyncService:ChatUpdates] OPE-360: Failed to flush pending ai_typing_started for ${payload.chat_id}:`,
+          flushErr,
+        );
+      }
     // KEYS-04: getKeySync acceptable here -- guard prevents redundant key decryption (key establishment, not content decrypt)
     } else if (
       payload.encrypted_chat_key &&

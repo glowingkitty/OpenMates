@@ -138,6 +138,51 @@ import type {
 // This Set is per-tab (in-memory). Cross-tab coordination uses BroadcastChannel below.
 const processedFinalizedEmbeds = new Set<string>();
 
+// OPE-360: ai_typing_started payloads queued when the chat shell doesn't yet
+// exist on a secondary device. Flushed after the corresponding new_chat_message
+// arrives and creates the shell. See `handleNewChatMessageImpl` for the
+// consumer side, which calls `flushPendingTypingStartedForChat` below.
+const _pendingTypingStarted: Map<string, AITypingStartedPayload> = new Map();
+const _pendingTypingStartedTimers: Map<string, ReturnType<typeof setTimeout>> =
+  new Map();
+const PENDING_TYPING_STARTED_TTL_MS = 5000;
+
+/**
+ * OPE-360: Called by the `new_chat_message` handler after it creates the chat
+ * shell + caches the chat key on a secondary device. If we previously received
+ * an `ai_typing_started` for the same chat but had to drop it (because the
+ * shell didn't exist yet), re-run the typing-started handler now so the
+ * encrypted title/icon/category get written to the local chat record.
+ *
+ * Without this, the sidebar on the secondary device is stuck on
+ * "Processing..." until the next page reload — even though the title was
+ * delivered in the typing-started payload all along.
+ */
+export async function flushPendingTypingStartedForChat(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+): Promise<void> {
+  const queued = _pendingTypingStarted.get(chatId);
+  if (!queued) return;
+  _pendingTypingStarted.delete(chatId);
+  const timer = _pendingTypingStartedTimers.get(chatId);
+  if (timer) {
+    clearTimeout(timer);
+    _pendingTypingStartedTimers.delete(chatId);
+  }
+  console.info(
+    `[ChatSyncService:AI] OPE-360: Flushing queued ai_typing_started for chat ${chatId} now that the shell exists`,
+  );
+  try {
+    await handleAITypingStartedImpl(serviceInstance, queued);
+  } catch (error) {
+    console.error(
+      `[ChatSyncService:AI] OPE-360: Error flushing queued ai_typing_started for chat ${chatId}:`,
+      error,
+    );
+  }
+}
+
 // --- Cross-tab embed processing deduplication ---
 // Prevents redundant encrypt+store work when multiple tabs receive the same send_embed_data.
 // With deterministic HKDF keys both tabs derive the same key, so correctness is not at risk,
@@ -951,13 +996,31 @@ export async function handleAITypingStartedImpl( // Changed to async
     }
 
     if (!chat) {
-      console.error(
-        `[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`,
+      console.warn(
+        `[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing — queuing ai_typing_started until new_chat_message creates the shell (OPE-360)`,
       );
       // CRITICAL: Still dispatch the typing event so the UI transitions to the typing phase
       // with model/provider info even if the chat isn't found in local storage yet
       serviceInstance.dispatchEvent(
         new CustomEvent("aiTypingStarted", { detail: payload }),
+      );
+      // OPE-360: Queue the payload so the new_chat_message handler can replay it
+      // once the chat shell exists. Previously we dropped the payload here, which
+      // meant the secondary device's sidebar stayed on "Processing..." forever
+      // because encrypted_title/encrypted_icon/encrypted_category were never saved.
+      _pendingTypingStarted.set(payload.chat_id, payload);
+      const existingTimer = _pendingTypingStartedTimers.get(payload.chat_id);
+      if (existingTimer) clearTimeout(existingTimer);
+      _pendingTypingStartedTimers.set(
+        payload.chat_id,
+        setTimeout(() => {
+          if (_pendingTypingStarted.delete(payload.chat_id)) {
+            console.warn(
+              `[ChatSyncService:AI] OPE-360: Dropping queued ai_typing_started for chat ${payload.chat_id} after ${PENDING_TYPING_STARTED_TTL_MS}ms — new_chat_message never arrived`,
+            );
+          }
+          _pendingTypingStartedTimers.delete(payload.chat_id);
+        }, PENDING_TYPING_STARTED_TTL_MS),
       );
       return;
     }
