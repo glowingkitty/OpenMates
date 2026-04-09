@@ -512,13 +512,15 @@
             // Collect current device information for debugging purposes
             const currentDeviceInfo = collectDeviceInfo();
 
-            // Submit the full client console ring buffer (500 entries) so the
-            // backend can embed it in the encrypted S3 YAML report as a failsafe.
-            // The backend caps the embedded copy at 256 KB tail-biased — see
-            // issue_report_email_task._async_send_issue_report_email. Previously
-            // this was hardcoded to 100 lines, which defeated the purpose of
-            // having a 500-entry ring buffer (OPE-388 required 500 / 256 KB).
-            const consoleLogs = logCollector.getLogsAsText(500);
+            // Submit the last 100 console log entries for the report.
+            // The client-side ring buffer retains 500 entries + a separate
+            // error-only buffer so evicted errors get merged back in by
+            // logCollector.getLogsAsText() before slicing — so 100 is plenty
+            // for debugging without blowing up the request body. The backend
+            // Pydantic limit is 50 KB (see IssueReportRequest.console_logs in
+            // backend/core/api/app/routes/settings.py); submitting 500 entries
+            // regressed prod with a 422 validation error.
+            const consoleLogs = logCollector.getLogsAsText(100);
             
             // Collect IndexedDB inspection report for active chat (if any)
             // This contains only metadata (timestamps, versions, encrypted content lengths)
@@ -685,7 +687,7 @@
                 // can correlate client-side events with the submitted report.
                 // Fire-and-forget: never block the confirmation navigation.
                 if (issueId && $authStore.isAuthenticated) {
-                    const logsText = logCollector.getLogsAsText(500);
+                    const logsText = logCollector.getLogsAsText(150);
                     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
