@@ -651,21 +651,22 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	// detection replaces with a placeholder before send. The mail draft that
 	// comes back should contain the placeholder text, not the original.
 	// ======================================================================
-	const targetEmail = 'jane.doe.pii@example.com';
+	const senderEmail = 'max@posteo.de';
+	const receiverEmail = 'sarah@proton.com';
 	const draftPrompt =
-		`@skill:mail:email Draft a short thank-you email to ${targetEmail} for the meeting yesterday.`;
+		`Write an email draft from ${senderEmail} to ${receiverEmail} to ask for an update about the broken heater in the house.`;
 
-	logCheckpoint('Typing mail draft prompt with PII…');
+	logCheckpoint('Typing mail draft prompt with two PII emails…');
 	await messageEditor.click();
 	await page.keyboard.type(draftPrompt, { delay: 5 });
 	await page.waitForTimeout(1500);
 
-	// Confirm the email is detected as PII in the editor before sending
+	// Confirm BOTH emails are detected as PII in the editor before sending
 	const preSendEmailHighlights = await page
 		.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')
 		.count();
 	logCheckpoint(`PII highlights in editor before send: ${preSendEmailHighlights}`);
-	expect(preSendEmailHighlights).toBeGreaterThanOrEqual(1);
+	expect(preSendEmailHighlights).toBeGreaterThanOrEqual(2);
 
 	await takeStepScreenshot(page, 'mail-draft-typed');
 
@@ -687,7 +688,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	// A finished mail embed has data-status="finished" in its preview.
 	const mailEmbedPreview = page
 		.locator('[data-testid="embed-preview"][data-status="finished"]')
-		.filter({ hasText: /mail|email|thank/i })
+		.filter({ hasText: /mail|email|heater/i })
 		.first();
 	await expect(mailEmbedPreview).toBeVisible({ timeout: 120000 });
 	logCheckpoint('Mail embed preview reached finished status.');
@@ -695,92 +696,124 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await takeStepScreenshot(page, 'mail-embed-finished');
 
 	// ======================================================================
-	// STEP 4: Open the mail embed in fullscreen
+	// STEP 4: Verify initial hidden state — chat history message, embed
+	// preview, and (once opened) embed fullscreen must all show the
+	// placeholder, not the originals.
+	// ======================================================================
+	const userMessage = page.getByTestId('message-user').last();
+	await expect(userMessage).toBeVisible();
+
+	async function assertAllHidden(label: string) {
+		const msgText = (await userMessage.textContent()) || '';
+		const previewText = (await mailEmbedPreview.textContent()) || '';
+		logCheckpoint(`[${label}] user message first 200: "${msgText.substring(0, 200)}"`);
+		logCheckpoint(`[${label}] preview first 200: "${previewText.substring(0, 200)}"`);
+		expect(msgText, `[${label}] user message must hide PII`).not.toContain(senderEmail);
+		expect(msgText, `[${label}] user message must hide PII`).not.toContain(receiverEmail);
+		expect(previewText, `[${label}] preview must hide PII`).not.toContain(senderEmail);
+		expect(previewText, `[${label}] preview must hide PII`).not.toContain(receiverEmail);
+		expect(previewText, `[${label}] preview must show EMAIL placeholder`).toMatch(/\[EMAIL_\w+\]/);
+	}
+
+	async function assertAllRevealed(label: string) {
+		const msgText = (await userMessage.textContent()) || '';
+		const previewText = (await mailEmbedPreview.textContent()) || '';
+		logCheckpoint(`[${label}] user message first 200: "${msgText.substring(0, 200)}"`);
+		logCheckpoint(`[${label}] preview first 200: "${previewText.substring(0, 200)}"`);
+		expect(msgText, `[${label}] user message must reveal sender`).toContain(senderEmail);
+		expect(msgText, `[${label}] user message must reveal receiver`).toContain(receiverEmail);
+		expect(previewText, `[${label}] preview must reveal receiver`).toContain(receiverEmail);
+	}
+
+	await assertAllHidden('initial');
+	await takeStepScreenshot(page, 'state-01-initial-hidden');
+
+	// ======================================================================
+	// STEP 5: Toggle from the CHAT HEADER — message, preview AND (when
+	// opened) fullscreen must all swap to originals.
+	// ======================================================================
+	const chatHeaderToggle = page.getByTestId('chat-pii-toggle');
+	await expect(chatHeaderToggle).toBeVisible({ timeout: 5000 });
+	const headerInitialAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	expect(headerInitialAttr).toBe('false');
+
+	await chatHeaderToggle.click();
+	logCheckpoint('Clicked chat header PII toggle to reveal.');
+	await page.waitForTimeout(500);
+
+	const headerRevealedAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	expect(headerRevealedAttr).toBe('true');
+
+	// THIS IS THE BUG: message swaps, but preview currently does not.
+	await assertAllRevealed('after chat-header reveal');
+	await takeStepScreenshot(page, 'state-02-header-reveal-preview-and-message');
+
+	// ======================================================================
+	// STEP 6: Open the mail embed in fullscreen while reveal is ON — the
+	// fullscreen must open already showing originals.
 	// ======================================================================
 	await mailEmbedPreview.click();
-	logCheckpoint('Clicked mail embed preview to open fullscreen.');
+	logCheckpoint('Opened mail embed fullscreen with reveal=true.');
 
-	// The PII toggle button in the fullscreen top bar is the anchor of the test.
 	const embedPiiToggle = page.getByTestId('embed-pii-toggle');
 	await expect(embedPiiToggle).toBeVisible({ timeout: 10000 });
-	logCheckpoint('Embed fullscreen PII toggle is visible.');
+	const fullscreenInitialAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
+	expect(fullscreenInitialAttr).toBe('true');
 
-	// Initially the toggle should report piiRevealed=false (hidden is the default)
-	const initialRevealedAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
-	logCheckpoint(`Initial data-pii-revealed attr: ${initialRevealedAttr}`);
-	expect(initialRevealedAttr).toBe('false');
-
-	// The fullscreen content should currently contain the placeholder, not the original
 	const fullscreenContainer = page.locator('.fullscreen-embed-container');
 	await expect(fullscreenContainer).toBeVisible();
-	const hiddenText = (await fullscreenContainer.textContent()) || '';
-	logCheckpoint(`Fullscreen text (hidden mode) first 200 chars: "${hiddenText.substring(0, 200)}"`);
-	expect(hiddenText).toMatch(/\[EMAIL_\w+\]/);
-	expect(hiddenText).not.toContain(targetEmail);
+	const fsRevealedText = (await fullscreenContainer.textContent()) || '';
+	logCheckpoint(`Fullscreen (opened with reveal=true) first 200: "${fsRevealedText.substring(0, 200)}"`);
+	expect(fsRevealedText).toContain(receiverEmail);
 
-	await takeStepScreenshot(page, 'mail-fullscreen-hidden');
+	await takeStepScreenshot(page, 'state-03-fullscreen-revealed');
 
 	// ======================================================================
-	// STEP 5: Click the PII toggle in the fullscreen — placeholders must swap
-	// to originals AND the chat header toggle must update too.
+	// STEP 7: Toggle from the EMBED FULLSCREEN — must hide in fullscreen,
+	// AND behind it the preview + user message must also hide.
 	// ======================================================================
 	await embedPiiToggle.click();
-	logCheckpoint('Clicked embed fullscreen PII toggle to reveal.');
-	await page.waitForTimeout(1000);
+	logCheckpoint('Clicked fullscreen PII toggle to hide.');
+	await page.waitForTimeout(500);
 
-	const revealedAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
-	logCheckpoint(`After click data-pii-revealed attr: ${revealedAttr}`);
-	expect(revealedAttr).toBe('true');
+	const fsHiddenAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
+	expect(fsHiddenAttr).toBe('false');
 
-	const revealedText = (await fullscreenContainer.textContent()) || '';
-	logCheckpoint(`Fullscreen text (revealed) first 200 chars: "${revealedText.substring(0, 200)}"`);
-	expect(revealedText).toContain(targetEmail);
+	const fsHiddenText = (await fullscreenContainer.textContent()) || '';
+	expect(fsHiddenText).not.toContain(receiverEmail);
+	expect(fsHiddenText).toMatch(/\[EMAIL_\w+\]/);
 
-	await takeStepScreenshot(page, 'mail-fullscreen-revealed');
+	await takeStepScreenshot(page, 'state-04-fullscreen-hidden');
 
-	// ======================================================================
-	// STEP 6: Close the fullscreen and verify the chat header PII toggle is
-	// now in "hide" state (i.e. reflects the revealed state from the fullscreen).
-	// This proves the state flows embed-fullscreen → chat header.
-	// ======================================================================
+	// Close fullscreen and verify preview + message are also hidden.
 	const closeButton = page.getByTestId('embed-minimize');
 	await closeButton.click();
 	logCheckpoint('Closed fullscreen embed.');
-	await page.waitForTimeout(1000);
+	await page.waitForTimeout(500);
 
-	// After revealing, the chat header toggle should reflect revealed=true
-	const chatHeaderToggle = page.getByTestId('chat-pii-toggle');
-	await expect(chatHeaderToggle).toBeVisible({ timeout: 5000 });
-	const chatRevealedAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
-	logCheckpoint(`Chat header data-pii-revealed after embed reveal: ${chatRevealedAttr}`);
-	expect(chatRevealedAttr).toBe('true');
+	const chatHeaderAfterFsHide = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	expect(chatHeaderAfterFsHide).toBe('false');
+	await assertAllHidden('after fullscreen hide');
+	await takeStepScreenshot(page, 'state-05-all-hidden-after-fullscreen-toggle');
 
 	// ======================================================================
-	// STEP 7: Toggle from the chat header — must flow back into the embed.
+	// STEP 8: Toggle from the EMBED FULLSCREEN to reveal — then confirm
+	// that opening it, toggling, and closing keeps preview + message in sync.
 	// ======================================================================
-	await chatHeaderToggle.click();
-	logCheckpoint('Clicked chat header PII toggle to hide.');
-	await page.waitForTimeout(1000);
-
-	const chatHiddenAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
-	logCheckpoint(`Chat header data-pii-revealed after click: ${chatHiddenAttr}`);
-	expect(chatHiddenAttr).toBe('false');
-
-	// Re-open the fullscreen and assert the toggle is back to hidden
 	await mailEmbedPreview.click();
 	await expect(embedPiiToggle).toBeVisible({ timeout: 10000 });
 	const reopenAttr = await embedPiiToggle.getAttribute('data-pii-revealed');
-	logCheckpoint(`After re-open data-pii-revealed attr: ${reopenAttr}`);
 	expect(reopenAttr).toBe('false');
 
-	const reopenText = (await fullscreenContainer.textContent()) || '';
-	expect(reopenText).toMatch(/\[EMAIL_\w+\]/);
-	expect(reopenText).not.toContain(targetEmail);
+	await embedPiiToggle.click();
+	logCheckpoint('Clicked fullscreen PII toggle to reveal again.');
+	await page.waitForTimeout(500);
+	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('true');
 
-	await takeStepScreenshot(page, 'mail-fullscreen-reopened-hidden');
-
-	// Close fullscreen
 	await closeButton.click();
+	await page.waitForTimeout(500);
+	await assertAllRevealed('after fullscreen reveal');
+	await takeStepScreenshot(page, 'state-06-all-revealed-after-fullscreen-toggle');
 
 	// ======================================================================
 	// STEP 8: Cleanup
