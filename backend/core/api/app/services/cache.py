@@ -212,12 +212,13 @@ class CacheService(
 
     async def set_mates_configs(self, mates_configs: List[MateConfig], ttl: int = 86400):
         """
-        Serializes and stores the mates configurations (from mates.yml) in the cache.
-        
+        Serializes and stores the mates configurations (from backend/apps/ai/mates/) in the cache.
+
         This is preloaded on server startup to avoid disk I/O on every message processing request.
-        
+
         Args:
-            mates_configs (List[MateConfig]): List of MateConfig Pydantic models loaded from mates.yml.
+            mates_configs (List[MateConfig]): List of MateConfig Pydantic models loaded from the
+                mates directory (one frontmatter .md file per mate).
             ttl (int): Time-to-live for the cached data in seconds. Defaults to 24 hours.
         """
         try:
@@ -266,7 +267,7 @@ class CacheService(
                     invalid_mates.append(mate_dict.get('id', 'unknown'))
                     logger.warning(
                         f"Failed to validate mate '{mate_dict.get('id', 'unknown')}' from cache (skipping): {validation_error}. "
-                        f"This mate will not be available. Consider clearing cache or fixing mates.yml."
+                        f"This mate will not be available. Consider clearing cache or fixing the mate .md file."
                     )
             
             if invalid_mates:

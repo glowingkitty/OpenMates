@@ -588,7 +588,7 @@ async def lifespan(app: FastAPI):
                 logger.warning("Failed to load base_instructions.yml during startup. Will fallback to disk loading on first request.")
             
             # Load mates_configs from disk and cache it
-            logger.info("Loading mates.yml from disk...")
+            logger.info("Loading mates from backend/apps/ai/mates/ from disk...")
             mates_configs = load_mates_config()
             if mates_configs:
                 try:
@@ -598,7 +598,7 @@ async def lifespan(app: FastAPI):
                     logger.error(f"Failed to cache mates_configs during startup: {e_mates}", exc_info=True)
                     # Don't fail startup - will fallback to disk loading on first request
             else:
-                logger.warning("Failed to load mates.yml during startup. Will fallback to disk loading on first request.")
+                logger.warning("Failed to load mates directory during startup. Will fallback to disk loading on first request.")
             
             # Load content sanitization model from AI app.yml and cache it
             logger.info("Loading content sanitization model from AI app.yml...")

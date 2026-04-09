@@ -1516,7 +1516,10 @@ async def handle_main_processing(
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
     # Note: preselected_skills was already built earlier (before app instruction injection)
     # so it's available here for tool generation.
-    assigned_app_ids = selected_mate_config.assigned_apps if selected_mate_config else None
+    # `tools` is the CC-compatible field name for per-mate app/skill allowlist
+    # (renamed from the legacy `assigned_apps`). Still treated as a list of
+    # app IDs downstream until per-skill gating lands.
+    assigned_app_ids = selected_mate_config.tools if selected_mate_config else None
     
     # Initialize TranslationService to resolve skill descriptions from translation keys
     # TranslationService caches translations internally, so it's safe to create a new instance

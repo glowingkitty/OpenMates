@@ -582,9 +582,9 @@ async def _async_process_ai_skill_ask_task(
         all_mates_configs = load_mates_config()
     
     if not all_mates_configs:
-        logger.critical(f"[Task ID: {task_id}] Failed to load mates_config.yml from cache or disk. Aborting task.")
+        logger.critical(f"[Task ID: {task_id}] Failed to load mates from cache or disk. Aborting task.")
         # Sync wrapper handles Celery state update
-        raise RuntimeError("mates.yml not found, empty, or invalid.")
+        raise RuntimeError("mates/ directory not found, empty, or invalid.")
 
     # --- Load discovered_apps_metadata from cache (with fallback to API) ---
     # CRITICAL: Without discovered_apps_metadata, the LLM has NO tools available (no web search, etc.)

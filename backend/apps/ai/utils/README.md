@@ -9,6 +9,7 @@ This directory contains utility modules specific to the AI application. These ut
 ## Modules
 
 - **[`llm_utils.py`](llm_utils.py):** Contains functions for making calls to various LLM providers, handling API requests, and processing responses. This might include utilities for both preprocessing and main processing LLM interactions.
-- **[`instruction_loader.py`](instruction_loader.py):** Responsible for loading and parsing instruction files like `base_instructions.yml` and `mates.yml`.
+- **[`instruction_loader.py`](instruction_loader.py):** Responsible for loading and parsing `base_instructions.yml`.
+- **[`mate_utils.py`](mate_utils.py):** Loads mate configs from `backend/apps/ai/mates/*.md` (one frontmatter `.md` file per mate, Claude Code compatible format).
 
 Refer to the individual files for more detailed documentation on their specific functionalities.
