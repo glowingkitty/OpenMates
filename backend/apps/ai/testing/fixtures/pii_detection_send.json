@@ -1,8 +1,8 @@
 {
-  "fixture_id": "pii_detection_check",
-  "recorded_at": "2026-04-09T20:00:00Z",
+  "fixture_id": "pii_detection_send",
+  "recorded_at": "2026-04-09T21:15:00Z",
   "speed_profile": "instant",
-  "user_message_snippet": "Contact [EMAIL_com] or call [PHONE_de] for help...",
+  "user_message_snippet": "Please contact me at [EMAIL_1_org] about my account.",
   "preprocessing": {
     "can_proceed": true,
     "category": "general_knowledge",
@@ -28,7 +28,7 @@
     "provider_name": "Anthropic",
     "server_region": "EU"
   },
-  "response": "I see you shared contact details with placeholders like [EMAIL_com] and [PHONE_de]. These are privacy-protecting placeholders from OpenMates' PII detection system — I will not echo the original values.",
+  "response": "I received your message. I see you referenced [EMAIL_1_org] — that placeholder comes from OpenMates' PII detection system, which protects your privacy by masking the original email before the message leaves your device.",
   "skill_executions": [],
   "thinking_content": null,
   "usage": {
