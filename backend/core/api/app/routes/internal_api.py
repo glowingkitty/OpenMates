@@ -2511,7 +2511,7 @@ async def alertmanager_webhook(
 
     Alertmanager still handles grouping, throttling and inhibition.
     This endpoint replaces Alertmanager's built-in SMTP delivery with
-    the existing Brevo/Mailjet email infrastructure.
+    the existing Brevo email infrastructure.
 
     For each alert in the payload a separate email task is queued so
     that each alert produces one email. If SERVER_OWNER_EMAIL is not
