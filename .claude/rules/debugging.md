@@ -28,14 +28,19 @@ All commands support `--production` and `--json` flags.
 
 **When to use traces vs logs:** Traces show request flow, timing, and service boundaries. Logs show application-level detail (error messages, state changes). Use traces to find *where* the problem is, then logs to understand *why*.
 
-## Issue Resolution
+## Issue Resolution — Delegate to Subagents
+
+**Always prefer the specialist subagents over running `debug.py` inline.** They isolate the noisy timeline output and return compact structured reports:
+
+- **`issue-forensics`** — for any user-reported issue ID. Runs `debug.py issue --timeline`, correlates browser↔backend events, git-blames suspects, returns root-cause hypothesis + suspect files. Use via `/debug-issue` skill or spawn directly.
+- **`encryption-flow-tracer`** — for any symptom involving "content decryption failed", key mismatch, cross-device sync bugs, or the `multi-tab-encryption` / `multi-session-encryption` specs. Pre-loaded with the 5 encryption architecture docs. Spawn alongside `issue-forensics` when symptoms point at E2EE.
+- **`test-failure-triager`** — for any failing Playwright/vitest/pytest run. Reads all failure reports and returns ranked root-cause groups. Use via `/fix-tests` or `/fix-next-test`.
+
+Only fall back to running these commands yourself if the subagents are unavailable:
 
 ```bash
-# Unified browser + backend timeline from OpenObserve (now includes OTel trace spans)
 docker exec api python /app/backend/scripts/debug.py issue <id> --timeline
-# Metadata, decrypted fields, S3 YAML
 docker exec api python /app/backend/scripts/debug.py issue <id>
-# Production issues
 docker exec api python /app/backend/scripts/debug.py issue <id> --timeline --production
 ```
 

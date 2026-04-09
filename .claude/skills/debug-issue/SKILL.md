@@ -9,33 +9,28 @@ argument-hint: "<issue-id>"
 
 You are investigating a user-submitted issue. The issue ID was provided as an argument.
 
-### Step 1: Fetch Issue Data
+### Step 1: Delegate forensics to the `issue-forensics` subagent
 
-Run both commands to get the full picture:
+Launch the `issue-forensics` agent with this prompt:
 
-```bash
-# Timeline view (browser + backend events merged chronologically)
-docker exec api python /app/backend/scripts/debug.py issue $ARGS --timeline
+> Investigate issue `$ARGS`. Run `debug.py issue --timeline` + the full metadata dump, follow any trace IDs, identify the first anomaly, and return the structured JSON + narrative. Add `--production` if this is a prod issue.
 
-# Full metadata, decrypted fields, S3 YAML (IndexedDB, HTML snapshots, runtime state, screenshot)
-docker exec api python /app/backend/scripts/debug.py issue $ARGS
-```
+The agent runs all `debug.py` commands, correlates browser↔backend events, git-blames suspects, and returns a compact report with `first_anomaly`, `root_cause_hypothesis`, `suspect_files[]`, `reproduction_steps`, and `related_recent_commits`.
 
-For **production** issues, add `--production`:
-```bash
-docker exec api python /app/backend/scripts/debug.py issue $ARGS --timeline --production
-```
+**If the symptom looks like encryption / decryption / chat sync:** after `issue-forensics` returns, also launch `encryption-flow-tracer` with the first anomaly message as the symptom — it will pinpoint the broken invariant in the E2EE/sync data flow.
 
-### Step 2: Analyze
+**Do NOT run `debug.py` commands yourself** — that floods main context with timeline noise. Trust the agents' compact reports.
 
-1. Read the timeline chronologically — identify the first error/anomaly
-2. Check if the issue is frontend (browser) or backend (API/worker)
-3. Look for related error patterns in the last 30 minutes
-4. Check `git log -5 -- <suspected-file>` to see recent changes
+### Step 2: Write the Fix
+
+Using the agent's `suspect_files` and narrative:
+1. Read the suspect code (20–40 lines around the reported line)
+2. Confirm the hypothesis fits
+3. Apply the minimal fix
 
 ### Step 3: Debugging Attempt Limit
 
-**2 tries max** with the same approach. On the 3rd attempt, STOP, load the full debugging guide (`sessions.py context --doc debugging`), and propose a fundamentally different approach.
+**2 tries max** with the same approach. If the agent's first hypothesis fails, re-launch it with your new context ("the fix at X did not resolve the issue because Y — look for a different root cause"). On the 3rd attempt, STOP and load `sessions.py context --doc debugging`.
 
 ### Step 4: After Fix Confirmed
 
