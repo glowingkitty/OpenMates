@@ -42,6 +42,7 @@
     generateFilenameFromTitle
   } from './docsEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -78,12 +79,13 @@
      */
     piiMappings?: PIIMapping[];
     /**
-     * Whether PII originals are currently visible.
-     * When false (default), placeholder strings like [EMAIL_com] are shown as-is.
-     * When true, placeholders are replaced with original values.
-     * This is the initial value — the user can toggle locally in fullscreen.
+     * Whether PII originals are currently visible. Derived from the shared
+     * piiVisibilityStore by the parent; toggling goes back through the store
+     * via togglePII() so chat header and embed fullscreen stay in sync.
      */
     piiRevealed?: boolean;
+    /** Current chat ID — required for piiVisibilityStore.toggle(chatId). See OPE-400. */
+    chatId?: string;
   }
 
   let {
@@ -98,7 +100,8 @@
     showChatButton = false,
     onShowChat,
     piiMappings = [],
-    piiRevealed = false
+    piiRevealed = false,
+    chatId
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
@@ -126,19 +129,14 @@
       : 0
     );
 
-  // Local PII reveal toggle — initialised from prop but user can flip it in fullscreen.
-  let localPiiRevealed = $state(false);
-
-  // Keep localPiiRevealed in sync when the parent prop changes.
-  $effect(() => {
-    localPiiRevealed = piiRevealed;
-  });
-
+  // Single source of truth: piiRevealed flows down from piiVisibilityStore
+  // via the parent (ActiveChat); togglePII() writes back to the same store.
   /** Whether there are any PII mappings to apply (controls button visibility) */
   let hasPII = $derived(piiMappings.length > 0);
 
   function togglePII() {
-    localPiiRevealed = !localPiiRevealed;
+    if (!chatId) return;
+    piiVisibilityStore.toggle(chatId);
   }
 
   /**
@@ -146,7 +144,7 @@
    */
   let piiProcessedHtml = $derived.by(() => {
     if (!hasPII || !htmlContent) return htmlContent;
-    if (localPiiRevealed) {
+    if (piiRevealed) {
       return restorePIIInText(htmlContent, piiMappings);
     } else {
       return replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
@@ -493,7 +491,7 @@
 
   async function handleCopy() {
     try {
-      const contentToCopy = localPiiRevealed && hasPII
+      const contentToCopy = piiRevealed && hasPII
         ? restorePIIInText(htmlContent, piiMappings)
         : replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings);
       let plainText = stripHtmlTags(contentToCopy);
@@ -515,7 +513,7 @@
       const { asBlob } = await import('html-docx-js-typescript');
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
 
-      let downloadHtmlContent = localPiiRevealed && hasPII
+      let downloadHtmlContent = piiRevealed && hasPII
         ? sanitizeDocumentHtml(restorePIIInText(htmlContent, piiMappings))
         : sanitizeDocumentHtml(replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings));
 
@@ -587,7 +585,7 @@ ${downloadHtmlContent}
   {showChatButton}
   {onShowChat}
   showPIIToggle={hasPII}
-  piiRevealed={localPiiRevealed}
+  piiRevealed={piiRevealed}
   onTogglePII={togglePII}
 >
   {#snippet content()}

@@ -10176,6 +10176,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onShowChat={handleShowChat}
                                 piiMappings={cumulativePIIMappingsArray}
                                 piiRevealed={piiRevealed}
+                                chatId={currentChat?.chat_id}
                             />
                         {/if}
                     {/await}

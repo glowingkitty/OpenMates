@@ -12,6 +12,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
@@ -36,6 +37,12 @@
     onShowChat?: () => void;
     piiMappings?: PIIMapping[];
     piiRevealed?: boolean;
+    /**
+     * Current chat ID. Required so togglePII() can update the shared
+     * piiVisibilityStore (keyed per chat), which keeps the chat header's
+     * PII toggle and the embed fullscreen's PII toggle in sync. See OPE-400.
+     */
+    chatId?: string;
   }
 
   let {
@@ -51,6 +58,7 @@
     onShowChat,
     piiMappings = [],
     piiRevealed = false,
+    chatId,
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent ─────────────────────────────────
@@ -61,16 +69,15 @@
   let content = $derived(coerceString(dc.content));
   let footer = $derived(coerceString(dc.footer));
 
-  let localPiiRevealed = $state(false);
-  $effect(() => {
-    localPiiRevealed = piiRevealed;
-  });
-
+  // Single source of truth: read piiRevealed directly from the parent prop,
+  // which itself is derived from piiVisibilityStore in ActiveChat. No local
+  // duplicate state — toggling goes through the store so chat header and
+  // embed fullscreen stay in sync (OPE-400).
   let hasPII = $derived(piiMappings.length > 0);
 
   function applyPIIMode(value: string): string {
     if (!value || !hasPII) return value;
-    if (localPiiRevealed) return restorePIIInText(value, piiMappings);
+    if (piiRevealed) return restorePIIInText(value, piiMappings);
     return replacePIIOriginalsWithPlaceholders(value, piiMappings);
   }
 
@@ -92,7 +99,12 @@
   });
 
   function togglePII() {
-    localPiiRevealed = !localPiiRevealed;
+    if (!chatId) {
+      // Defensive: without chatId we cannot update the shared store; skip
+      // silently rather than fall back to desynced local state.
+      return;
+    }
+    piiVisibilityStore.toggle(chatId);
   }
 
   async function handleCopy() {
@@ -134,7 +146,7 @@
   {showChatButton}
   {onShowChat}
   showPIIToggle={hasPII}
-  piiRevealed={localPiiRevealed}
+  piiRevealed={piiRevealed}
   onTogglePII={togglePII}
 >
   {#snippet embedHeaderCta()}

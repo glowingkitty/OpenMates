@@ -166,6 +166,8 @@
     {#if showPIIToggle && onTogglePII}
       <div class="button-wrapper">
         <button
+          data-testid="embed-pii-toggle"
+          data-pii-revealed={piiRevealed ? 'true' : 'false'}
           class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
           class:pii-toggle-active={piiRevealed}
           onclick={onTogglePII}
