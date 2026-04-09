@@ -322,7 +322,13 @@
             {#if isLoadingChildren}
               <span class="no-results-text">{$text('common.loading')}</span>
             {:else}
-              <span class="no-results-text">{$text('embeds.search_no_results')}</span>
+              <span class="no-results-text" data-testid="search-no-results-message">
+                {#if localQuery}
+                  {$text('embeds.search_no_results_for_query').replace('{query}', localQuery)}
+                {:else}
+                  {$text('embeds.search_no_results')}
+                {/if}
+              </span>
             {/if}
           {:else}
             <!-- Listing thumbnails row -->

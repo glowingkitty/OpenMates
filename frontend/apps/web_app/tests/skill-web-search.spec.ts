@@ -153,6 +153,42 @@ test.describe('App: Web / Skill: search', () => {
 		const assistantMessage = page.getByTestId('message-assistant').last();
 		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
 
+		// Zero-result embed must render a clear "No results found for '<query>'"
+		// message (not a generic empty state). This is the UX follow-up to the
+		// OPE-405 backend fix. The testid is added by WebSearchEmbedPreview and
+		// SearchResultsTemplate components.
+		const noResultsPreviewMessage = anyEmbed.getByTestId('search-no-results-message');
+		await expect(
+			noResultsPreviewMessage,
+			'Zero-result web search embed must show a "No results found" message in the preview.'
+		).toBeVisible({ timeout: 15_000 });
+		const previewText = (await noResultsPreviewMessage.textContent()) || '';
+		expect(
+			previewText.toLowerCase(),
+			`No-results preview text must mention "no results" (got: "${previewText}")`
+		).toContain('no results');
+		// If the query was wired through, the message should contain part of it.
+		expect(
+			previewText,
+			`No-results preview should include the query string "xyznonexistentproduct123456" ` +
+			`to prove the query placeholder substitution works (got: "${previewText}")`
+		).toContain('xyznonexistentproduct123456');
+		logCheckpoint(`Preview no-results message: "${previewText}"`);
+
+		// Open the fullscreen and verify the same message renders there too.
+		const fullscreenOverlay = await openFullscreen(page, anyEmbed);
+		logCheckpoint('Fullscreen opened for zero-result embed.');
+		const fullscreenNoResults = fullscreenOverlay.getByTestId('search-no-results-message');
+		await expect(
+			fullscreenNoResults,
+			'Fullscreen must also render the no-results message when the search returned 0 hits.'
+		).toBeVisible({ timeout: 10_000 });
+		const fullscreenText = (await fullscreenNoResults.textContent()) || '';
+		expect(fullscreenText).toContain('xyznonexistentproduct123456');
+		await takeStepScreenshot(page, 'zero-results-fullscreen');
+		await closeFullscreen(page, fullscreenOverlay);
+		logCheckpoint('Fullscreen closed.');
+
 		logCheckpoint('Phase 5 passed: zero-hit query rendered without error banner.');
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'web-search-zero');
 	});

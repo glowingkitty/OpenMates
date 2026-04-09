@@ -299,6 +299,7 @@
   legacyResultTransformer={transformLegacyResults}
   status={localStatus}
   errorMessage={localErrorMessage}
+  {query}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}
   {hasPreviousEmbed}

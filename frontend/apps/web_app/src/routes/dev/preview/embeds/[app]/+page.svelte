@@ -613,10 +613,23 @@
 			largeSlideIndex: 0
 		}));
 
-		// Fire async loaders. After await, reads of loadedSections[idx] go
-		// through the $state proxy (not tracked by this $effect since they
-		// happen asynchronously).
-		snap.forEach((section, i) => loadSection(section, i));
+		// Fire async loaders. We run them SEQUENTIALLY (not in parallel) to avoid
+		// a Svelte 5 reactivity race: when multiple loaders complete concurrently
+		// and each replaces `loadedSections` with a spread-copy, the intermediate
+		// proxy swaps can leave one section stuck in the visible "Loading..."
+		// state while its `isLoading` flag has already been flipped to false
+		// (contradictory DOM). See Linear OPE-405 follow-up (Phase 1 flake).
+		//
+		// We do NOT block this effect on the loaders — we kick off an async IIFE.
+		// Sequential loading trades a tiny bit of initial latency for deterministic
+		// reactivity. For most apps there are only 1–4 sections, so the cost is
+		// negligible (dynamic imports are already hot in the module graph after
+		// the first app is visited).
+		(async () => {
+			for (let i = 0; i < snap.length; i++) {
+				await loadSection(snap[i], i);
+			}
+		})();
 	});
 
 	async function loadSection(section: EmbedSection, idx: number) {
@@ -666,16 +679,18 @@
 				}
 			}
 
+			// IMPORTANT: Flip isLoading to false as the LAST mutation. We no
+			// longer do `loadedSections = [...loadedSections]` because the
+			// spread-copy introduces a proxy-swap race that can freeze the
+			// `section-loading` DOM element while other sub-mutations on this
+			// proxy have already committed. The proxy mutation below is
+			// sufficient to trigger the template update on its own.
 			s.isLoading = false;
-			// Force array invalidation so Svelte re-evaluates loadedSections[idx]
-			// bindings in the template (defensive fix for async post-await reactivity).
-			loadedSections = [...loadedSections];
 		} catch (err) {
 			const s = loadedSections[idx];
 			if (!s) return;
 			s.loadError = err instanceof Error ? err.message : String(err);
 			s.isLoading = false;
-			loadedSections = [...loadedSections];
 		}
 	}
 
