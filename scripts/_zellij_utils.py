@@ -15,6 +15,7 @@ being unavailable.
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -30,6 +31,22 @@ ZELLIJ_WEB_URL = "http://localhost:8082"
 # Each Claude session uses ~500MB RAM. 6 sessions = ~3GB headroom.
 # The poller, sessions.py, and cleanup all enforce this limit.
 MAX_CONCURRENT_SESSIONS = 6
+
+# Protected primary Zellij sessions — the user's own attached terminals.
+# Names like "claude1", "claude2", ... are reserved for interactive use and
+# MUST never be killed by any automated cleanup path (sessions.py end,
+# session-cleanup daemon, spawn-claude --kill-on-exit, etc.).
+_PROTECTED_SESSION_RE = re.compile(r"^claude\d+$")
+
+
+def is_protected_session(session_name: str) -> bool:
+    """
+    True if the given zellij session name is a protected primary session
+    (claude1, claude2, ...) that must never be auto-killed.
+    """
+    if not session_name:
+        return False
+    return bool(_PROTECTED_SESSION_RE.match(session_name.strip()))
 
 # Timeout for Zellij CLI commands (not the session process itself)
 _CMD_TIMEOUT = 10
@@ -253,9 +270,20 @@ def kill_session(session_name: str) -> bool:
     """
     Kill (destroy) a Zellij session by name.
 
-    Returns True if killed, False if not found or failed.
+    Protected primary sessions (claude1, claude2, ...) are NEVER killed —
+    the function refuses and prints a warning to stderr. These names are
+    reserved for the user's attached terminals.
+
+    Returns True if killed, False if not found, protected, or failed.
     """
     session_name = _sanitize_session_name(session_name)
+    if is_protected_session(session_name):
+        print(
+            f"Warning: refusing to kill protected Zellij session '{session_name}' "
+            f"(primary sessions claude1/claude2/... are never auto-killed).",
+            file=sys.stderr,
+        )
+        return False
     result = _run_zellij(["kill-session", session_name])
     return result is not None and result.returncode == 0
 
