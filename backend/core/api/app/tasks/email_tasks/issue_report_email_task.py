@@ -308,13 +308,45 @@ async def _async_send_issue_report_email(
         attachments = []
 
         # Create a consolidated YAML file with all issue report data.
-        # NOTE: console_logs and docker_compose_logs are intentionally NOT stored here anymore.
-        # Both are already persisted in OpenObserve (console_logs via push_issue_logs with
-        # job=client-issue-report, backend logs continuously via Promtail/container-logs stream).
-        # Use `debug.py issue <id> --timeline` to query them live in a unified chronological view.
+        #
+        # NOTE: console_logs IS stored here as a failsafe. The original design
+        # trusted OpenObserve to hold the last N lines of client console output
+        # (pushed via /v1/settings/issue-logs as a fire-and-forget after the
+        # report is submitted). That design is fragile: the push can fail
+        # silently, OpenObserve can be unavailable or have a retention gap,
+        # and the ephemeral-log promotion pipeline has been broken in the past.
+        # Storing the logs in the encrypted S3 report gives us a durable copy
+        # for every submitted issue regardless of the live-log path.
+        #
+        # Backend docker logs are still queried live via Promtail/container-logs
+        # (debug.py issue <id> --timeline) — only the client-side console buffer
+        # is embedded here.
         import yaml
         import base64
         from datetime import datetime, timezone
+
+        # Bound the embedded client console buffer so a pathological log spew
+        # can't blow up the S3 YAML. 256 KB is enough for several hundred
+        # typical lines and matches the frontend buffer cap mentioned in OPE-388.
+        MAX_EMBEDDED_CONSOLE_LOGS_BYTES = 256 * 1024
+        trimmed_console_logs: Optional[str] = None
+        if console_logs and console_logs.strip():
+            _trimmed = console_logs.strip()
+            _encoded_len = len(_trimmed.encode('utf-8'))
+            if _encoded_len > MAX_EMBEDDED_CONSOLE_LOGS_BYTES:
+                # Keep the most recent log lines — errors typically cluster
+                # near the end of the buffer, just before the user reports.
+                _tail = _trimmed.encode('utf-8')[-MAX_EMBEDDED_CONSOLE_LOGS_BYTES:]
+                # Find the next newline to avoid slicing mid-line.
+                _nl = _tail.find(b"\n")
+                if _nl != -1 and _nl < len(_tail) - 1:
+                    _tail = _tail[_nl + 1:]
+                trimmed_console_logs = (
+                    f"[truncated — kept last {len(_tail)} bytes of {_encoded_len}]\n"
+                    + _tail.decode('utf-8', errors='replace')
+                )
+            else:
+                trimmed_console_logs = _trimmed
 
         issue_report_data = {
             'issue_report': {
@@ -331,8 +363,13 @@ async def _async_send_issue_report_email(
                     'chat_or_embed_url': chat_or_embed_url,
                     'device_info': device_info if device_info else None
                 },
-                # Logs are omitted from S3 YAML — query live via OpenObserve:
-                #   debug.py issue <id> --timeline
+                # Client-side console log buffer captured at report-submission
+                # time. Embedded as a failsafe so we still have logs even when
+                # the OpenObserve live-push path fails. Capped above to prevent
+                # runaway S3 costs and decrypted-report memory pressure.
+                # Backend docker logs are still queried live via Promtail
+                # (debug.py issue <id> --timeline).
+                'console_logs': trimmed_console_logs,
                 # IndexedDB inspection report contains ONLY metadata (timestamps, versions, encrypted content lengths)
                 # NO plaintext chat content is included - safe for debugging while preserving user privacy
                 'indexeddb_inspection': indexeddb_report.strip() if indexeddb_report and indexeddb_report.strip() else None,

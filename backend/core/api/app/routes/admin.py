@@ -1005,7 +1005,10 @@ async def get_compression_threshold(
 ):
     """Get the admin's current compression threshold override."""
     try:
-        raw = await cache_service.redis.hget(
+        redis_client = await cache_service.client
+        if redis_client is None:
+            raise RuntimeError("cache client not connected")
+        raw = await redis_client.hget(
             ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
         )
         threshold = int(raw) if raw else None
@@ -1029,7 +1032,10 @@ async def set_compression_threshold(
 ):
     """Set a custom compression threshold override for the admin's account."""
     try:
-        await cache_service.redis.hset(
+        redis_client = await cache_service.client
+        if redis_client is None:
+            raise RuntimeError("cache client not connected")
+        await redis_client.hset(
             ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id, str(body.threshold)
         )
         logger.info(
@@ -1054,7 +1060,10 @@ async def delete_compression_threshold(
 ):
     """Remove the admin's compression threshold override (revert to default)."""
     try:
-        await cache_service.redis.hdel(
+        redis_client = await cache_service.client
+        if redis_client is None:
+            raise RuntimeError("cache client not connected")
+        await redis_client.hdel(
             ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
         )
         logger.info(f"Admin {admin_user.id} removed compression threshold override")
