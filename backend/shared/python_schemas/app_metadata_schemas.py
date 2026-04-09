@@ -97,7 +97,24 @@ class AppSkillDefinition(BaseModel):
     internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from the app store and settings UI. It is invoked automatically by the backend and is not user-facing.")
 
 class AppFocusDefinition(BaseModel):
-    """Defines the structure for a focus mode within an app's metadata."""
+    """
+    Defines the structure for a focus mode within an app's metadata.
+
+    Two authoring formats are supported:
+
+    1. Legacy: inline entry in backend/apps/<app>/app.yml under `focuses:`,
+       with translation keys pointing at frontend i18n YAML files.
+
+    2. SKILL.md (new — see docs/architecture/apps/focus-modes.md):
+       a directory backend/apps/<app>/focus_modes/<focus_id>/ containing
+       SKILL.md (canonical English) and optional SKILL.<lang>.md siblings.
+       The SKILL.md loader produces a dict with the same field names
+       consumed here, so downstream code does not need to distinguish.
+
+    Capability gating fields (allowed_models, allowed_apps, allowed_skills,
+    denied_skills) are parsed but NOT yet enforced at runtime — they
+    become live in Phase 2 of the migration.
+    """
     id: str
     name_translation_key: str  # Required: Translation key for focus mode name (e.g., "app_translations.web.focus_modes.research.name")
     description_translation_key: str  # Required: Translation key for focus mode description (e.g., "app_translations.web.focus_modes.research.description")
@@ -108,6 +125,23 @@ class AppFocusDefinition(BaseModel):
     # Included alongside the focus mode identifier in the preprocessing prompt so the LLM can
     # make informed focus mode selection decisions (same pattern as skill preprocessor_hint).
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this focus mode (1-3 sentences).")
+
+    # --- Fields also accepted in legacy app.yml files (documented explicitly
+    # here so they stop being silently ignored by Pydantic). ---
+    icon_image: Optional[str] = Field(default=None, description="Filename of an SVG icon inside the app's icon directory (e.g., 'insight.svg').")
+    process_translation_key: Optional[str] = Field(default=None, description="Translation key for localized process bullet list (legacy format — SKILL.md embeds the process directly in markdown).")
+    systemprompt_translation_key: Optional[str] = Field(default=None, description="Translation key for the localized system prompt (legacy format — SKILL.md embeds the system prompt directly in markdown).")
+
+    # --- New capability gating fields (SKILL.md format, parsed but not yet
+    # enforced at runtime — see docs/architecture/apps/focus-modes.md). ---
+    allowed_models: Optional[List[str]] = Field(default=None, description="Model allowlist. Empty/missing = any model. Not yet enforced at runtime.")
+    recommended_model: Optional[str] = Field(default=None, description="Default model when the user has no preference. Not yet enforced at runtime.")
+    allowed_apps: Optional[List[str]] = Field(default=None, description="Coarse allowlist of OpenMates apps the focus mode is permitted to invoke. Not yet enforced at runtime.")
+    allowed_skills: Optional[List[str]] = Field(default=None, description="Fine-grained skill allowlist, format '<app>:<skill>' or '<app>:*'. Overrides allowed_apps when present. Not yet enforced at runtime.")
+    denied_skills: Optional[List[str]] = Field(default=None, description="Subtractive filter applied after allowed_apps/allowed_skills. Not yet enforced at runtime.")
+    how_to_use: Optional[List[str]] = Field(default=None, description="Example user prompts shown on the settings page. '**word**' syntax highlights trigger words. Legacy how_to_use.1/2/3 translation keys remain supported.")
+
+    model_config = ConfigDict(validate_by_name=True, populate_by_name=True)
 
 class AppMemoryFieldDefinition(BaseModel):
     """Defines the structure for a memory field within an app's metadata."""
