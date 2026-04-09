@@ -956,6 +956,28 @@
 					{:else if s.loadError}
 						<p class="section-error" data-testid="section-error">{s.loadError}</p>
 					{:else}
+						<!-- Svelte 5 error boundary: if a display-type render throws (e.g. a
+						     component threw during mount or a destructure hit undefined), we
+						     must capture and display it — otherwise the error is swallowed
+						     silently and the section-loading DOM from the previous reactive
+						     pass stays in place, leaving a stuck section (Linear OPE-405). -->
+						<svelte:boundary
+							onerror={(error) => {
+								console.error(`[preview-page] Section "${section.skillLabel}" render error:`, error);
+								const msg = error instanceof Error ? error.message : String(error);
+								// Record the error on the section so the next reactive pass
+								// shows the section-error branch instead of retrying.
+								const cur = loadedSections[si];
+								if (cur && !cur.loadError) {
+									cur.loadError = `Render error: ${msg}`;
+								}
+							}}
+						>
+							{#snippet failed(error)}
+								<p class="section-error" data-testid="section-error">
+									Render error: {error instanceof Error ? error.message : String(error)}
+								</p>
+							{/snippet}
 						<!-- Props editor -->
 						{#if s.showPropsEditor}
 							<div class="props-panel">
@@ -1148,6 +1170,7 @@
 								</div>
 							</div>
 						{/if}
+						</svelte:boundary>
 					{/if}
 				</section>
 			{/each}
