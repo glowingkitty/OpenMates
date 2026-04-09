@@ -107,9 +107,13 @@ jobs:
           echo "status=passed" >> $GITHUB_OUTPUT
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          # One Mailosaur account is used for both dev and prod smoke tests.
+          # The gift card is locked to this server's subdomain via the
+          # `allowed_email_domain` field — see OPE-76 and
+          # gift_card_methods.py:29-61 for the exact-match enforcement.
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.PROD_SMOKE_EMAIL_DOMAIN }}
-          MAILOSAUR_API_KEY: ${{ secrets.PROD_SMOKE_MAILOSAUR_API_KEY }}
-          MAILOSAUR_SERVER_ID: ${{ secrets.PROD_SMOKE_MAILOSAUR_SERVER_ID }}
+          MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
+          MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
           PROD_SMOKE_GIFT_CARD_CODE: ${{ secrets.PROD_SMOKE_GIFT_CARD_CODE }}
 
       # ─── Build failure summary for notification ──────────────────────────
