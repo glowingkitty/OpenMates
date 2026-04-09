@@ -41,7 +41,7 @@ def _int(value, default: int = 0) -> int:
 
 
 async def query_stats() -> str:
-    """Query Directus and Redis for server stats, return formatted text."""
+    """Dev stats: short one-line mini summary (dev is not the focus — use --prod for the full report)."""
     from datetime import datetime, timedelta, timezone
 
     from backend.core.api.app.services.cache import CacheService
@@ -56,192 +56,32 @@ async def query_stats() -> str:
     )
 
     today = datetime.now(timezone.utc)
-    today_str = today.strftime("%Y-%m-%d")
     yesterday_str = (today - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    lines = []
-
-    # ── Server Stats (yesterday) ─────────────────────────────────────────────
-    stats = None
     try:
         items = await directus.get_items(
             "server_stats_global_daily",
-            {
-                "filter": {"date": {"_eq": yesterday_str}},
-                "limit": 1,
-            },
+            {"filter": {"date": {"_eq": yesterday_str}}, "limit": 1},
             admin_required=True,
         )
-        stats = items[0] if items else None
+        s = items[0] if items else None
     except Exception as e:
-        lines.append(f"[server_stats_global_daily query failed: {e}]")
+        return f"[DEV] stats query failed: {e}"
 
-    if stats:
-        # User Growth
-        total_users = stats.get("total_regular_users") or "?"
-        new_reg = _int(stats.get("new_users_registered"))
-        new_signup = _int(stats.get("new_users_finished_signup"))
-        lines.append("**User Growth**")
-        lines.append(f"- Total registered users: {total_users}")
-        lines.append(f"- New registrations: {new_reg}")
-        lines.append(f"- Completed signups: {new_signup}")
-        lines.append("")
+    if not s:
+        return f"[DEV] no stats for {yesterday_str}"
 
-        # Engagement
-        messages = _int(stats.get("messages_sent"))
-        chats = _int(stats.get("chats_created"))
-        embeds = _int(stats.get("embeds_created"))
-        lines.append("**Engagement**")
-        lines.append(f"- Messages sent: {messages}")
-        lines.append(f"- Chats created: {chats}")
-        lines.append(f"- Embeds created: {embeds}")
-
-        # Revenue
-        income_cents = _int(stats.get("income_eur_cents"))
-        income_eur = income_cents / 100.0
-        credits_sold = _int(stats.get("credits_sold"))
-        credits_used = _int(stats.get("credits_used"))
-        purchases = _int(stats.get("purchase_count"))
-        active_subs = stats.get("active_subscriptions") or "?"
-        liability = stats.get("liability_total") or "?"
-        sub_new = _int(stats.get("subscription_creations"))
-        sub_cancel = _int(stats.get("subscription_cancellations"))
-        lines.append("")
-        lines.append("**Revenue**")
-        lines.append(f"- Income: EUR {income_eur:.2f}")
-        lines.append(f"- Credits sold: {credits_sold} | used: {credits_used}")
-        lines.append(f"- Purchases: {purchases}")
-        lines.append(f"- Subscriptions: {active_subs} active (+{sub_new}/-{sub_cancel})")
-        lines.append(f"- Credit liability: {liability}")
-
-        # AI Usage
-        input_tokens = _int(stats.get("total_input_tokens"))
-        output_tokens = _int(stats.get("total_output_tokens"))
-        lines.append("")
-        lines.append("**AI Usage**")
-        lines.append(f"- Input tokens: {input_tokens:,}")
-        lines.append(f"- Output tokens: {output_tokens:,}")
-    else:
-        lines.append(f"(No server stats found for {yesterday_str})")
-
-    # ── Newsletter Subscribers ───────────────────────────────────────────────
-    lines.append("")
-    lines.append("**Newsletter**")
-    try:
-        collection_url = f"{directus.base_url}/items/newsletter_subscribers"
-        params = {
-            "limit": 1,
-            "meta": "filter_count",
-            "filter[confirmed_at][_nnull]": "true",
-        }
-        resp = await directus._make_api_request("GET", collection_url, params=params)
-        if resp.status_code == 200:
-            nl_count = _int(resp.json().get("meta", {}).get("filter_count"))
-        else:
-            nl_count = 0
-        lines.append(f"- Confirmed subscribers: {nl_count:,}")
-    except Exception as e:
-        lines.append(f"- Confirmed subscribers: ERROR — {e}")
-
-    # ── Web Analytics (yesterday) ────────────────────────────────────────────
-    lines.append("")
-    try:
-        wa_items = await directus.get_items(
-            "web_analytics_daily",
-            {
-                "filter": {"date": {"_eq": yesterday_str}},
-                "limit": 1,
-            },
-            admin_required=True,
-        )
-        wa = wa_items[0] if wa_items else None
-    except Exception as e:
-        wa = None
-        lines.append(f"[web_analytics_daily query failed: {e}]")
-
-    if wa:
-        page_loads = wa.get("page_loads") or 0
-        unique_visits = wa.get("unique_visits_approx") or 0
-
-        # Append to Engagement section
-        lines.append("**Web Analytics**")
-        lines.append(f"- Page loads: {page_loads:,}")
-        lines.append(f"- Unique visits: ~{unique_visits:,}")
-
-        # Top countries
-        countries_raw = wa.get("countries")
-        if countries_raw:
-            if isinstance(countries_raw, str):
-                try:
-                    countries = json.loads(countries_raw)
-                except (json.JSONDecodeError, TypeError):
-                    countries = {}
-            else:
-                countries = countries_raw
-            if countries:
-                top3 = sorted(countries.items(), key=lambda x: x[1], reverse=True)[:3]
-                lines.append(f"- Top countries: {', '.join(f'{c} ({n})' for c, n in top3)}")
-
-        # Device split
-        devices_raw = wa.get("devices")
-        if devices_raw:
-            if isinstance(devices_raw, str):
-                try:
-                    devices = json.loads(devices_raw)
-                except (json.JSONDecodeError, TypeError):
-                    devices = {}
-            else:
-                devices = devices_raw
-            if devices:
-                parts = [f"{k}: {v}" for k, v in sorted(devices.items(), key=lambda x: x[1], reverse=True)]
-                lines.append(f"- Devices: {', '.join(parts)}")
-    else:
-        lines.append(f"(No web analytics found for {yesterday_str})")
-
-    # ── Data Health: daily_inspiration_defaults ──────────────────────────────
-    lines.append("")
-    lines.append("**Data Health**")
-    try:
-        # Count today's defaults
-        today_items = await directus.get_items(
-            "daily_inspiration_defaults",
-            {
-                "filter": {"date": {"_eq": today_str}},
-                "fields": ["id"],
-                "limit": 100,
-            },
-            admin_required=True,
-        )
-        today_count = len(today_items) if today_items else 0
-
-        # Count all defaults (check for stale accumulation)
-        all_items = await directus.get_items(
-            "daily_inspiration_defaults",
-            {
-                "fields": ["id"],
-                "limit": 500,
-            },
-            admin_required=True,
-        )
-        total_count = len(all_items) if all_items else 0
-
-        # Expected: 20 languages × 3 entries = 60 for today, ~120 total (today + yesterday)
-        status = "OK"
-        flags = []
-        if today_count < 60:
-            flags.append(f"today has {today_count}/60 expected")
-        if total_count > 200:
-            flags.append(f"stale accumulation: {total_count} total rows (expected ≤120)")
-
-        if flags:
-            status = "WARNING — " + "; ".join(flags)
-
-        lines.append(f"- daily_inspiration_defaults: {status}")
-        lines.append(f"  (today: {today_count} rows, total: {total_count} rows)")
-    except Exception as e:
-        lines.append(f"- daily_inspiration_defaults: ERROR — {e}")
-
-    return "\n".join(lines)
+    total_users = s.get("total_regular_users", "?")
+    msgs = _int(s.get("messages_sent"))
+    embeds = _int(s.get("embeds_created"))
+    chats = _int(s.get("chats_created"))
+    purchases = _int(s.get("purchase_count"))
+    income = _int(s.get("income_eur_cents")) / 100.0
+    return (
+        f"[DEV] {yesterday_str}: {total_users} users • "
+        f"{msgs} msgs / {chats} chats / {embeds} embeds • "
+        f"{purchases} purchases, €{income:.2f}"
+    )
 
 
 async def _query_prod_stats(as_json: bool = False) -> None:
@@ -285,49 +125,128 @@ async def _query_prod_stats(as_json: bool = False) -> None:
     _print_prod_stats_text(data.get("sections", {}), data.get("date", "?"))
 
 
+_SPARK_CHARS = "▁▂▃▄▅▆▇█"
+
+
+def _sparkline(values: list) -> str:
+    """Render a unicode sparkline from a list of numbers. Zero → space."""
+    if not values:
+        return ""
+    mx = max(values) if values else 0
+    if mx == 0:
+        return " " * len(values)
+    out = []
+    for v in values:
+        if v <= 0:
+            out.append(" ")
+        else:
+            idx = min(len(_SPARK_CHARS) - 1, int(round(v / mx * (len(_SPARK_CHARS) - 1))))
+            out.append(_SPARK_CHARS[idx])
+    return "".join(out)
+
+
 def _print_prod_stats_text(sections: dict, date: str) -> None:
-    """Format production stats response as readable markdown text."""
+    """Format production stats response with vertical sparklines and 14-day trends."""
     lines = [f"[Production Server Stats — {date}]", ""]
 
     ug = sections.get("user_growth", {})
     if "error" not in ug:
         lines.append("**User Growth**")
-        lines.append(f"- Total registered users: {ug.get('total_users', '?')}")
-        lines.append(f"- New registrations: {ug.get('new_registrations', 0)}")
-        lines.append(f"- Completed signups: {ug.get('completed_signups', 0)}")
+        lines.append(
+            f"- Total users: {ug.get('total_users', '?'):,}"
+            if isinstance(ug.get("total_users"), int)
+            else f"- Total users: {ug.get('total_users', '?')}"
+        )
+        lines.append(
+            f"- Yesterday: +{ug.get('new_registrations', 0)} registered, "
+            f"+{ug.get('completed_signups', 0)} completed signups"
+        )
         lines.append("")
 
     eng = sections.get("engagement", {})
-    if "error" not in eng:
-        lines.append("**Engagement**")
+    totals = sections.get("totals") or {}
+    trend = (eng or {}).get("trend_14d") or []
+    if "error" not in eng and trend:
+        msgs = [d.get("messages", 0) for d in trend]
+        embeds = [d.get("embeds", 0) for d in trend]
+        chats = [d.get("chats", 0) for d in trend]
+        first_date = trend[0].get("date") if trend else "?"
+        last_date = trend[-1].get("date") if trend else "?"
+        lines.append(f"**Engagement — last {len(trend)} days ({first_date} → {last_date})**")
+        lines.append(f"  Messages  {_sparkline(msgs)}   sum={sum(msgs):>6,}  max={max(msgs):,}/day")
+        lines.append(f"  Embeds    {_sparkline(embeds)}   sum={sum(embeds):>6,}  max={max(embeds):,}/day")
+        lines.append(f"  Chats     {_sparkline(chats)}   sum={sum(chats):>6,}  max={max(chats):,}/day")
+        if totals:
+            lines.append(
+                f"- All-time totals: "
+                f"{(totals.get('messages') or 0):,} messages • "
+                f"{(totals.get('chats') or 0):,} chats • "
+                f"{(totals.get('embeds') or 0):,} embeds"
+            )
+        lines.append("")
+    elif "error" not in eng:
+        # fallback when no trend is available
+        lines.append("**Engagement (yesterday)**")
         lines.append(f"- Messages sent: {eng.get('messages_sent', 0)}")
         lines.append(f"- Chats created: {eng.get('chats_created', 0)}")
         lines.append(f"- Embeds created: {eng.get('embeds_created', 0)}")
         lines.append("")
 
     rev = sections.get("revenue", {})
-    if "error" not in rev:
-        lines.append("**Revenue**")
-        income = rev.get("income_eur", 0)
-        lines.append(f"- Income: EUR {income:.2f}" if isinstance(income, (int, float)) else f"- Income: EUR {income}")
-        lines.append(f"- Credits sold: {rev.get('credits_sold', 0)} | used: {rev.get('credits_used', 0)}")
-        lines.append(f"- Purchases: {rev.get('purchases', 0)}")
+    inv = sections.get("invoices") or {}
+    rev_trend = (rev or {}).get("trend_14d") or []
+    if "error" not in rev and rev_trend:
+        income_vals = [d.get("income_eur", 0) for d in rev_trend]
+        buyer_vals = [d.get("unique_buyers", 0) for d in rev_trend]
+        purchase_vals = [d.get("purchases", 0) for d in rev_trend]
+        total_income = sum(income_vals)
+        total_purchases = sum(purchase_vals)
+        avg_per_purchase = (total_income / total_purchases) if total_purchases else 0.0
+
+        lines.append(f"**Revenue — last {len(rev_trend)} days**")
+        lines.append(
+            f"  Income €  {_sparkline(income_vals)}   sum=€{total_income:.2f}  "
+            f"avg/purchase=€{avg_per_purchase:.2f}"
+        )
+        lines.append(
+            f"  Buyers    {_sparkline(buyer_vals)}   "
+            f"{total_purchases} purchases across {len(rev_trend)} days"
+        )
+        if inv and "error" not in inv:
+            lifetime = inv.get("lifetime_unique_buyers", 0)
+            total_users = (sections.get("user_growth") or {}).get("total_users")
+            pct = ""
+            if isinstance(total_users, int) and total_users > 0:
+                pct = f" ({lifetime * 100 // total_users}% of users)"
+            lines.append(f"- Lifetime paying customers: {lifetime}{pct}")
+            lines.append(
+                f"- Invoices: {inv.get('total_invoices', 0)} total "
+                f"({inv.get('paid_invoices', 0)} paid, "
+                f"{inv.get('refunded_or_chargeback', 0)} refunded/chargeback)"
+            )
         lines.append(
             f"- Subscriptions: {rev.get('active_subscriptions', '?')} active "
             f"(+{rev.get('subscription_creations', 0)}/-{rev.get('subscription_cancellations', 0)})"
         )
         lines.append("")
+    elif "error" not in rev:
+        lines.append("**Revenue (yesterday)**")
+        income = rev.get("income_eur", 0)
+        lines.append(f"- Income: EUR {income:.2f}" if isinstance(income, (int, float)) else f"- Income: EUR {income}")
+        lines.append(f"- Credits sold: {rev.get('credits_sold', 0)} | used: {rev.get('credits_used', 0)}")
+        lines.append(f"- Purchases: {rev.get('purchases', 0)}")
+        lines.append("")
 
     ai = sections.get("ai_usage", {})
     if "error" not in ai:
-        lines.append("**AI Usage**")
+        lines.append("**AI Usage (yesterday)**")
         lines.append(f"- Input tokens: {ai.get('input_tokens', 0):,}")
         lines.append(f"- Output tokens: {ai.get('output_tokens', 0):,}")
         lines.append("")
 
     wa = sections.get("web_analytics", {})
-    if "error" not in wa:
-        lines.append("**Web Analytics**")
+    if "error" not in wa and wa:
+        lines.append("**Web Analytics (yesterday)**")
         lines.append(f"- Page loads: {wa.get('page_loads', 0):,}")
         lines.append(f"- Unique visits: ~{wa.get('unique_visits', 0):,}")
 
@@ -341,7 +260,11 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
     if "error" not in dh and dh:
         lines.append("")
         lines.append("**Data Health**")
-        lines.append(f"- daily_inspiration_defaults: today={dh.get('daily_inspiration_today', '?')}, total={dh.get('daily_inspiration_total', '?')}")
+        lines.append(
+            f"- daily_inspiration_defaults: "
+            f"today={dh.get('daily_inspiration_today', '?')}, "
+            f"total={dh.get('daily_inspiration_total', '?')}"
+        )
 
     print("\n".join(lines))
 
