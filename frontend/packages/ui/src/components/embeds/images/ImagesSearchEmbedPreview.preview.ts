@@ -1,8 +1,12 @@
 /**
  * Preview mock data for ImagesSearchEmbedPreview.
  *
- * All thumbnail URLs use Unsplash/Wikimedia which reliably serve through the image proxy.
+ * All thumbnail URLs use Unsplash which reliably serves through the image proxy.
  * Flickr URLs were removed because they return 403 when proxied.
+ * Wikimedia URLs are intentionally NOT used: upload.wikimedia.org sets the
+ * WMF-Uniq cookie which contaminates the legal cookie inventory. See
+ * docs/architecture/compliance/cookies.yml.
+ *
  * Access at: /dev/preview/embeds/images/ImagesSearchEmbedPreview
  */
 
@@ -17,13 +21,11 @@ const sampleResults = [
   },
   {
     title: "Aerial view of Golden Gate",
-    source: "wikimedia.org",
+    source: "unsplash.com",
     thumbnail_url:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/200px-GoldenGateBridge-001.jpg",
-    image_url:
-      "https://upload.wikimedia.org/wikipedia/commons/0/0c/GoldenGateBridge-001.jpg",
-    source_page_url:
-      "https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg",
+      "https://images.unsplash.com/photo-1506146332389-18140dc7b2fb?w=200",
+    image_url: "https://images.unsplash.com/photo-1506146332389-18140dc7b2fb",
+    source_page_url: "https://unsplash.com/photos/golden-gate-aerial",
   },
   {
     title: "Golden Gate Bridge towers in fog",

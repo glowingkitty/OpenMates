@@ -23,6 +23,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -66,6 +67,8 @@
      * This is the initial value — the user can toggle locally in fullscreen.
      */
     piiRevealed?: boolean;
+    /** Current chat ID — required for piiVisibilityStore.toggle(chatId). See OPE-400. */
+    chatId?: string;
   }
 
   let {
@@ -80,7 +83,8 @@
     showChatButton = false,
     onShowChat,
     piiMappings = [],
-    piiRevealed = false
+    piiRevealed = false,
+    chatId
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
@@ -109,29 +113,24 @@
       : 0
     );
 
-  // Local PII reveal toggle — initialised to false; synced from prop via $effect below.
-  let localPiiRevealed = $state(false);
-
-  // Keep localPiiRevealed in sync when the parent prop changes.
-  $effect(() => {
-    localPiiRevealed = piiRevealed;
-  });
-
+  // Single source of truth: piiRevealed flows down from piiVisibilityStore via
+  // the parent (ActiveChat); togglePII() writes back to the same store so the
+  // chat header and embed fullscreen stay in sync. See OPE-400.
   /** Whether there are any PII mappings to apply (controls button visibility) */
   let hasPII = $derived(piiMappings.length > 0);
 
   function togglePII() {
-    localPiiRevealed = !localPiiRevealed;
+    if (!chatId) return;
+    piiVisibilityStore.toggle(chatId);
   }
-  
+
   /**
    * Apply PII masking to the raw code string before parsing/displaying.
-   * The AI-generated code may include placeholder strings (e.g. "[EMAIL_com]").
-   * When localPiiRevealed is true, restore originals; otherwise keep placeholders.
+   * When piiRevealed is true, restore originals; otherwise keep placeholders.
    */
   let piiProcessedCodeContent = $derived.by(() => {
     if (!hasPII || !codeContent) return codeContent;
-    if (localPiiRevealed) {
+    if (piiRevealed) {
       return restorePIIInText(codeContent, piiMappings);
     } else {
       return replacePIIOriginalsWithPlaceholders(codeContent, piiMappings);
@@ -336,13 +335,15 @@
           <!-- PII reveal toggle bar -->
           <div class="code-pii-bar">
             <button
+              data-testid="embed-pii-toggle"
+              data-pii-revealed={piiRevealed ? 'true' : 'false'}
               class="pii-toggle-btn"
-              class:pii-toggle-active={localPiiRevealed}
+              class:pii-toggle-active={piiRevealed}
               onclick={togglePII}
-              aria-label={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
-              title={localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              aria-label={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+              title={piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
             >
-              {#if localPiiRevealed}
+              {#if piiRevealed}
                 <!-- Eye-off icon: click to hide -->
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
@@ -357,7 +358,7 @@
                 </svg>
               {/if}
               <span class="pii-toggle-label">
-                {localPiiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
+                {piiRevealed ? $text('embeds.pii_hide') : $text('embeds.pii_show')}
               </span>
             </button>
           </div>

@@ -142,6 +142,18 @@ Using the gathered health data:
 
 Wait for user input (they may know about issues the data missed).
 
+### Step 3c: LEGAL & COMPLIANCE ⚖️
+
+Using `docs/architecture/compliance/top-10-recommendations.md`:
+- Lead with the scan metadata line: scan type (full/delta), date, HEAD SHA, and the counts line (`N critical / N high / N medium / N low | N new | N resolved | N unchanged`).
+- **If the file is missing or its scan date is older than 7 days, flag it as stale** — the twice-weekly cron may be broken. Do not silently skip.
+- Present every **CRITICAL** and **HIGH** finding: rank, title, score, framework, one-line "why", and the `code-fix` / `docs-only` / `transparency-fix` tag.
+- List MEDIUM and LOW findings as titles only (one line each).
+- Mention items resolved since last run (brief) and any tier activation alerts.
+- **Ask the user which findings (if any) should be promoted into today's top 10 priorities**, and whether any need a new Linear task if not already tracked.
+
+Wait for user input.
+
 ### Step 4: PROJECT TRAJECTORY 🗺️
 
 Using milestone state + nightly reports:

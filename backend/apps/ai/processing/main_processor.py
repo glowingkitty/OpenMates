@@ -1561,6 +1561,11 @@ async def handle_main_processing(
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
+    # Strict allow-list: the main LLM may ONLY call tools that the preprocessor
+    # explicitly forwarded into available_tools_for_llm. Any other tool name is a
+    # hallucination (e.g. invented "mail|get_apps_settings") and must be rejected
+    # before it reaches skill execution. See OPE-399.
+    allowed_tool_names: set[str] = set(tool_names)
     logger.info(f"{log_prefix} Available tools for main processing LLM: {len(available_tools_for_llm)} total")
     logger.debug(f"{log_prefix} Tool names: {', '.join(tool_names) if tool_names else 'None'}")
     if preselected_skills:
@@ -2025,8 +2030,37 @@ async def handle_main_processing(
                 )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
+                # === STRICT ALLOW-LIST (OPE-399) ===
+                # Reject any tool call whose name is not in the preprocessor-provided
+                # tool list BEFORE it is appended for execution. This prevents
+                # hallucinated skills (e.g. "mail|get_apps_settings") from reaching
+                # skill execution via the broken fallback splitter.
+                if chunk.function_name not in allowed_tool_names:
+                    logger.warning(
+                        f"{log_prefix} [HALLUCINATION] Rejecting unknown tool call '{chunk.function_name}' "
+                        f"from main LLM. tool_call_id={chunk.tool_call_id}. "
+                        f"Allowed tools ({len(allowed_tool_names)}): {sorted(allowed_tool_names)}. "
+                        f"Raw arguments: {chunk.function_arguments_raw[:500]}"
+                    )
+                    # Inject a structured tool response so the LLM sees the rejection
+                    # and does not retry the same call. Don't append to
+                    # tool_calls_for_this_turn — skill execution will not run for it.
+                    current_message_history.append({
+                        "tool_call_id": chunk.tool_call_id,
+                        "role": "tool",
+                        "name": chunk.function_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": (
+                                "Tool not available. Only preselected tools may be used. "
+                                "Do not retry this call."
+                            ),
+                        }),
+                    })
+                    continue
+
                 tool_calls_for_this_turn.append(chunk)
-                
+
                 # === IMMEDIATE PLACEHOLDER CREATION ===
                 # Create and yield the embed placeholder as soon as a tool call is detected
                 # This shows the "processing" state to users BEFORE skill execution starts
@@ -2034,26 +2068,28 @@ async def handle_main_processing(
                     tool_name = chunk.function_name
                     tool_arguments_str = chunk.function_arguments_raw
                     tool_call_id = chunk.tool_call_id
-                    
+
                     # Parse arguments to extract metadata for placeholder
                     try:
                         parsed_args = json.loads(tool_arguments_str)
                     except json.JSONDecodeError:
                         parsed_args = {}
                         logger.warning(f"{log_prefix} Failed to parse tool arguments for inline placeholder, using empty dict")
-                    
-                    # Resolve tool name to app_id and skill_id
+
+                    # Resolve tool name to app_id and skill_id. After the allow-list
+                    # check above, the resolver is guaranteed to succeed for any
+                    # tool_name derived from available_tools_for_llm.
                     resolved_tool = tool_resolver_map.get(tool_name)
                     if resolved_tool:
                         app_id, skill_id = resolved_tool
                     else:
-                        # Fallback parsing
-                        if '-' in tool_name:
-                            app_id, skill_id = tool_name.split('-', 1)
-                        elif '_' in tool_name:
-                            app_id, skill_id = tool_name.split('_', 1)
-                        else:
-                            app_id, skill_id = "unknown", "unknown"
+                        # Defensive: allow-list passed but resolver missed — log and skip
+                        # this placeholder rather than fabricate ("unknown", "unknown").
+                        logger.error(
+                            f"{log_prefix} [INVARIANT] Allowed tool '{tool_name}' missing from "
+                            f"tool_resolver_map. Skipping placeholder creation."
+                        )
+                        continue
                     
                     # === DEDUPLICATION CHECK (INLINE PLACEHOLDER PHASE) ===
                     # Check if this exact skill call was already executed in a previous iteration.
@@ -2435,33 +2471,60 @@ async def handle_main_processing(
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
             tool_result_content_str: str
-            
+
             try:
                 # Parse function arguments
                 parsed_args = json.loads(tool_arguments_str)
-                
-                # Extract app_id and skill_id from tool name
-                # Use the robust resolver map to handle name variations (hyphens vs underscores)
+
+                # === STRICT ALLOW-LIST (OPE-399) ===
+                # Defensive safety net: the streaming phase already filters hallucinated
+                # tool calls out of tool_calls_for_this_turn, but enforce the allow-list
+                # here again so no future code path can ever execute a skill that the
+                # preprocessor did not explicitly forward.
+                if tool_name not in allowed_tool_names:
+                    logger.warning(
+                        f"{log_prefix} [HALLUCINATION] Refusing to execute unknown tool '{tool_name}'. "
+                        f"tool_call_id={tool_call_id}. Allowed tools ({len(allowed_tool_names)}): "
+                        f"{sorted(allowed_tool_names)}. Raw arguments: {tool_arguments_str[:500]}"
+                    )
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": (
+                                "Tool not available. Only preselected tools may be used. "
+                                "Do not retry this call."
+                            ),
+                        }),
+                    })
+                    continue
+
+                # Extract app_id and skill_id from tool name via the resolver map.
+                # After the allow-list gate above, the resolver is guaranteed to succeed.
                 resolved_tool = tool_resolver_map.get(tool_name)
-                
+
                 if resolved_tool:
                     app_id, skill_id = resolved_tool
                     logger.debug(f"{log_prefix} Resolved tool '{tool_name}' to app_id='{app_id}', skill_id='{skill_id}'")
                 else:
-                    # Fallback to standard splitting if not found in map (e.g. if map building failed or new pattern)
-                    logger.warning(f"{log_prefix} Tool '{tool_name}' not found in resolver map. Attempting fallback split.")
-                    try:
-                        # Try splitting by hyphen first (standard)
-                        if '-' in tool_name:
-                            app_id, skill_id = tool_name.split('-', 1)
-                        # Try splitting by underscore if hyphen fails (common hallucination)
-                        elif '_' in tool_name:
-                            app_id, skill_id = tool_name.split('_', 1)
-                        else:
-                            raise ValueError("No separator found")
-                    except ValueError as e:
-                        logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format. Error: {e}")
-                        raise ValueError(f"Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format") from e
+                    # Invariant violation: tool_name passed the allow-list but the
+                    # resolver map doesn't know it. Treat as a bug, not a hallucination.
+                    logger.error(
+                        f"{log_prefix} [INVARIANT] Allowed tool '{tool_name}' missing from "
+                        f"tool_resolver_map. Rejecting tool call."
+                    )
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": "Internal error resolving tool. Do not retry.",
+                        }),
+                    })
+                    continue
                 
                 # Validate that app_id and skill_id are non-empty after split
                 # This ensures we have valid identifiers before proceeding with skill execution and billing

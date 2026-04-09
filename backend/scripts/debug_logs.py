@@ -42,8 +42,8 @@ Usage — OpenObserve Summary Mode (no email required):
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-app-health --since 60
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset web-search-failures --since 1440
     docker exec api python /app/backend/scripts/debug_logs.py --o2 --preset api-failed-requests --since 1440
-    docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
-    docker exec api python /app/backend/scripts/debug_logs.py --o2 --sql "SELECT level, COUNT(*) as c FROM \"default\" GROUP BY level"
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --prod --query-json '{"stream":"default","filters":[{"field":"message","op":"like","value":"%passkey%"}],"since_minutes":30,"limit":20}'
+    docker exec api python /app/backend/scripts/debug_logs.py --o2 --prod --query-json '{"stream":"default","mode":"count_by","group_by":["service","level"],"filters":[{"field":"level","op":"in","value":["ERROR","WARNING"]}],"since_minutes":60,"limit":20}'
 
 Usage — Satellite Server Logs:
     docker exec api python /app/backend/scripts/debug_logs.py --upload-logs
@@ -930,6 +930,34 @@ async def _prod_api_request(
                 script_logger.error(f"Admin API error {resp.status}: {text[:300]}")
                 return {}
             return await resp.json()
+
+
+async def _prod_api_post_request(
+    endpoint: str,
+    api_key: str,
+    body: Dict[str, Any],
+    *,
+    base_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Make an authenticated POST request to the Admin Debug API.
+
+    Returns the parsed JSON response on success. On non-2xx, returns a dict
+    with ``{"__error__": "<status>: <body snippet>"}`` so callers can surface
+    the real reason (validation errors, auth failures, rate limits).
+    """
+    url = f"{(base_url or PROD_API_BASE)}/{endpoint}"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    timeout = aiohttp.ClientTimeout(total=60)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, json=body) as resp:
+            if resp.status >= 200 and resp.status < 300:
+                return await resp.json()
+            text = await resp.text()
+            script_logger.error(f"Admin API POST error {resp.status}: {text[:500]}")
+            return {"__error__": f"{resp.status}: {text[:500]}"}
 
 
 def _parse_raw_logs_to_events(raw_logs: str) -> List[LogEvent]:
@@ -1977,91 +2005,264 @@ async def _o2_preset_top_warnings_errors(args) -> None:
     _print_compact_kv("Top noisy services", rows)
 
 
-async def _o2_custom_sql(args) -> None:
+async def _o2_structured_query(args) -> None:
+    """Run a structured log query via the admin /logs/query endpoint.
+
+    Works against both dev (api.dev.openmates.org) and prod (api.openmates.org)
+    — the endpoint is the same, only the base URL differs.
+
+    The JSON string must match the LogQueryRequest schema in
+    backend/core/api/app/routes/admin_debug.py. Example:
+
+      {
+        "stream": "default",
+        "filters": [
+          {"field": "message", "op": "like", "value": "%passkey%"},
+          {"field": "level", "op": "eq", "value": "ERROR"}
+        ],
+        "since_minutes": 60,
+        "limit": 20
+      }
+    """
     is_prod = getattr(args, "prod", False)
+    as_json_out = getattr(args, "as_json", False)
 
-    # For production: fall back to Admin Debug API instead of direct OpenObserve
+    raw = getattr(args, "query_json", None)
+    if not raw:
+        msg = "Missing --query-json '<json>' body"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError as e:
+        msg = f"Invalid JSON passed to --query-json: {e}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(2)
+
+    if not isinstance(body, dict):
+        msg = "--query-json body must be a JSON object matching LogQueryRequest"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(2)
+
+    # Allow CLI overrides without forcing every caller to embed them in the JSON
+    if "since_minutes" not in body and getattr(args, "since", None):
+        body["since_minutes"] = args.since
+    if "limit" not in body and getattr(args, "max_rows", None):
+        body["limit"] = args.max_rows
+
     if is_prod:
-        prod_url = os.environ.get("OPENOBSERVE_PROD_URL", "")
-        prod_email = os.environ.get("OPENOBSERVE_PROD_EMAIL", "")
-        prod_password = os.environ.get("OPENOBSERVE_PROD_PASSWORD", "")
-        if not prod_url or not prod_email or not prod_password:
-            # Direct OpenObserve not configured — use Admin Debug API fallback
-            await _o2_custom_sql_prod_fallback(args)
-            return
+        await _structured_query_via_http(args, body, as_json_out)
+    else:
+        await _structured_query_direct_dev(args, body, as_json_out)
 
-    hits = await _query_openobserve_sql_hits(
-        sql=args.sql,
-        since_minutes=args.since,
-        max_rows=args.max_rows,
-        production=is_prod,
+
+async def _structured_query_direct_dev(args, body: Dict[str, Any], as_json_out: bool) -> None:
+    """Run a structured query directly against local OpenObserve on dev.
+
+    We're running inside the dev api container, which has direct network
+    access to openobserve:5080 and the credentials in env vars — same path
+    the preset queries use. No HTTP edge, no admin API key, no auth. Reuses
+    the backend's composer + validator so dev parity with prod is exact.
+    """
+    # Import the composer + validator from the backend module. The import is
+    # local to this function so the top of debug_logs.py doesn't drag in
+    # FastAPI route imports during --browser or --upload-logs usage.
+    from backend.core.api.app.routes.admin_debug import (
+        LogQueryRequest,
+        _compose_log_query_sql,
+        _LOG_QUERY_MAX_ROWS,
+        _LOG_QUERY_MAX_SINCE_MINUTES,
+        _LOG_QUERY_MAX_FILTERS,
     )
-    hits = _apply_quiet_health_filter(hits, args.quiet_health)
-    if args.as_json:
-        print(json.dumps({"hits": hits}, indent=2, default=str))
+    from fastapi import HTTPException
+    from pydantic import ValidationError
+
+    # 1. Pydantic-decode the body (same validation the HTTP endpoint runs)
+    try:
+        req_model = LogQueryRequest(**body)
+    except ValidationError as e:
+        msg = f"Query validation error: {e.errors()}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    # 2. Apply the same endpoint-level clamps as structured_log_query (backend).
+    if req_model.limit < 1 or req_model.limit > _LOG_QUERY_MAX_ROWS:
+        msg = f"limit must be between 1 and {_LOG_QUERY_MAX_ROWS}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+    if req_model.since_minutes < 1 or req_model.since_minutes > _LOG_QUERY_MAX_SINCE_MINUTES:
+        msg = f"since_minutes must be between 1 and {_LOG_QUERY_MAX_SINCE_MINUTES}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+    if len(req_model.filters) > _LOG_QUERY_MAX_FILTERS:
+        msg = f"too many filters (max {_LOG_QUERY_MAX_FILTERS})"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. Compose SQL via the backend's safe composer (identifiers from
+    #    whitelist, values SQL-escaped). The composer raises HTTPException(400)
+    #    on validation errors — catch it and surface as a CLI error.
+    try:
+        sql = _compose_log_query_sql(req_model)
+    except HTTPException as e:
+        msg = f"Query rejected: {e.detail}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    # 4. Execute via the same direct-OpenObserve path the presets use.
+    t0 = time.time()
+    try:
+        hits = await _query_openobserve_sql_hits(
+            sql=sql,
+            since_minutes=req_model.since_minutes,
+            max_rows=req_model.limit,
+            production=False,
+        )
+    except Exception as e:
+        duration_ms = int((time.time() - t0) * 1000)
+        script_logger.warning(
+            f"[ADMIN_LOG_QUERY] client=dev-direct stream={req_model.stream} "
+            f"mode={req_model.mode} filters=[{_filters_repr(req_model.filters)}] "
+            f"rows=ERROR duration_ms={duration_ms} error={e!r}"
+        )
+        msg = f"OpenObserve query failed: {e}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    duration_ms = int((time.time() - t0) * 1000)
+
+    # 5. Emit the audit log line — mirrors the backend endpoint's format so
+    #    dev and prod queries appear in the same log stream with the same
+    #    [ADMIN_LOG_QUERY] prefix (grep-excludable).
+    script_logger.warning(
+        f"[ADMIN_LOG_QUERY] client=dev-direct stream={req_model.stream} "
+        f"mode={req_model.mode} filters=[{_filters_repr(req_model.filters)}] "
+        f"rows={len(hits)} duration_ms={duration_ms}"
+    )
+
+    # 6. Render the result in the same shape the HTTP path prints.
+    if as_json_out:
+        print(json.dumps({
+            "success": True,
+            "stream": req_model.stream,
+            "mode": req_model.mode,
+            "rows": hits,
+            "total": len(hits),
+            "sql": sql,
+            "since_minutes": req_model.since_minutes,
+            "duration_ms": duration_ms,
+        }, indent=2, default=str))
         return
 
-    print(f"{C_BOLD}OpenObserve custom SQL{C_RESET}")
-    print(f"{C_DIM}Rows returned: {len(hits)}{C_RESET}")
-    for hit in hits[: min(len(hits), args.max_rows)]:
-        print(f"- {json.dumps(hit, default=str)[:240]}")
+    print(f"{C_BOLD}Structured log query (dev, direct){C_RESET}")
+    print(f"{C_DIM}Rows: {len(hits)}  duration={duration_ms}ms  "
+          f"stream={req_model.stream}  mode={req_model.mode}{C_RESET}")
+    print(f"{C_DIM}SQL: {sql[:300]}{C_RESET}")
+    for row in hits[: min(len(hits), args.max_rows)]:
+        print(f"- {json.dumps(row, default=str)[:400]}")
 
 
-async def _o2_custom_sql_prod_fallback(args) -> None:
-    """Query production error logs via Admin Debug API when direct OpenObserve is unavailable.
+def _filters_repr(filters) -> str:
+    """Compact representation of filters for audit log lines."""
+    if not filters:
+        return "-"
+    return "; ".join(
+        f"{f.field} {f.op} {f.value!r}"[:160] for f in filters
+    )
 
-    Falls back to the /v1/admin/debug/errors/logs endpoint on the production
-    API server, which queries OpenObserve locally and returns aggregated results.
-    Same pattern as _browser_logs_prod_fallback().
+
+async def _structured_query_via_http(args, body: Dict[str, Any], as_json_out: bool) -> None:
+    """Run a structured query against PROD's Admin Debug API over HTTPS.
+
+    Only used when --prod is set. Requires an admin API key in Vault
+    (kv/data/providers/admin:debug_cli__api_key) with admin privileges
+    on the production Directus instance.
     """
     api_key = await get_api_key_from_vault()
     if not api_key:
-        msg = "Cannot query production: no admin API key in Vault"
-        if getattr(args, "as_json", False):
-            print(json.dumps({"error": msg, "hits": []}))
+        msg = "Cannot reach Admin Debug API: no admin API key in Vault"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
         else:
             print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
         return
 
-    if not getattr(args, "as_json", False):
-        print(f"{C_DIM}Querying production via Admin Debug API...{C_RESET}")
+    base_url = "https://api.openmates.org/v1/admin/debug"
 
-    params = {
-        "since_minutes": min(args.since, 10080),
-        "top": args.max_rows,
-        "compose_project": getattr(args, "compose_project", "openmates-core"),
-    }
+    if not as_json_out:
+        print(f"{C_DIM}Querying production via Admin Debug API (/logs/query)...{C_RESET}")
 
     try:
-        resp = await _prod_api_request("errors/logs", api_key, params=params)
+        resp = await _prod_api_post_request(
+            "logs/query", api_key, body, base_url=base_url,
+        )
     except Exception as e:
         error_msg = f"Failed to reach production Admin Debug API: {e}"
         script_logger.error(error_msg)
-        if getattr(args, "as_json", False):
-            print(json.dumps({"error": error_msg, "hits": []}))
+        if as_json_out:
+            print(json.dumps({"error": error_msg}))
         else:
             print(f"{C_RED}{error_msg}{C_RESET}")
         return
+
+    if "__error__" in resp:
+        error_msg = resp["__error__"]
+        if as_json_out:
+            print(json.dumps({"error": error_msg}))
+        else:
+            print(f"{C_RED}Query rejected: {error_msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
 
     if not resp or not resp.get("success"):
-        error_msg = "Admin Debug API returned no data"
-        if getattr(args, "as_json", False):
-            print(json.dumps({"error": error_msg, "hits": []}))
+        error_msg = f"Admin Debug API returned no data: {resp}"
+        if as_json_out:
+            print(json.dumps({"error": error_msg}))
         else:
-            print(f"{C_RED}{error_msg}{C_RESET}")
+            print(f"{C_RED}{error_msg}{C_RESET}", file=sys.stderr)
         return
 
-    hits = resp.get("hits", [])
-    hits = _apply_quiet_health_filter(hits, getattr(args, "quiet_health", False))
+    rows = resp.get("rows", [])
 
-    if getattr(args, "as_json", False):
-        print(json.dumps({"hits": hits}, indent=2, default=str))
+    if as_json_out:
+        print(json.dumps(resp, indent=2, default=str))
         return
 
-    print(f"{C_BOLD}OpenObserve custom SQL (via Admin Debug API){C_RESET}")
-    print(f"{C_DIM}Rows returned: {len(hits)}{C_RESET}")
-    for hit in hits[: min(len(hits), args.max_rows)]:
-        print(f"- {json.dumps(hit, default=str)[:240]}")
+    print(f"{C_BOLD}Structured log query (production){C_RESET}")
+    print(f"{C_DIM}Rows: {resp.get('total', len(rows))}  "
+          f"duration={resp.get('duration_ms', '?')}ms  "
+          f"stream={resp.get('stream')}  mode={resp.get('mode')}{C_RESET}")
+    if resp.get("sql"):
+        print(f"{C_DIM}SQL: {resp['sql'][:300]}{C_RESET}")
+    for row in rows[: min(len(rows), args.max_rows)]:
+        print(f"- {json.dumps(row, default=str)[:400]}")
 
 async def _o2_preset_chat_processing(args) -> None:
     """
@@ -2323,15 +2524,27 @@ def _fmt_o2_ts(ts_us: int) -> str:
 
 
 async def run_o2_logs_mode(args) -> None:
-    """Run compact OpenObserve summaries and ad-hoc SQL queries."""
-    if args.sql:
-        await _o2_custom_sql(args)
+    """Run compact OpenObserve summaries and ad-hoc structured queries.
+
+    Two entry points:
+      * --preset <name> — canned, developer-maintained queries
+      * --query-json '<json>' — structured ad-hoc query via the admin
+        /v1/admin/debug/logs/query endpoint (works on both dev and prod)
+
+    Raw SQL via --sql was deliberately removed: it only worked against local
+    OpenObserve, silently returned canned top-errors against --prod, and
+    added an ad-hoc SQL surface we don't need. All ad-hoc debugging now
+    goes through the whitelisted structured-query endpoint.
+    """
+    if getattr(args, "query_json", None):
+        await _o2_structured_query(args)
         return
 
     if not args.preset:
         print(
-            "Error: --preset or --sql is required in --o2 mode\n"
-            f"Available presets: {', '.join(O2_PRESETS)}",
+            "Error: --preset or --query-json is required in --o2 mode\n"
+            f"Available presets: {', '.join(O2_PRESETS)}\n"
+            "Ad-hoc queries use --query-json '<json>' — see --help for the schema.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -2553,8 +2766,14 @@ async def main():
     # OpenObserve summary mode options
     parser.add_argument("--preset", type=str, choices=O2_PRESETS, default=None,
                         help="Preset for --o2 mode")
-    parser.add_argument("--sql", type=str, default=None,
-                        help="Custom OpenObserve SQL query for --o2 mode")
+    parser.add_argument("--query-json", type=str, default=None, dest="query_json",
+                        help=(
+                            "Structured log query as a JSON string matching LogQueryRequest "
+                            "(backend/core/api/app/routes/admin_debug.py). Works on both dev "
+                            "and --prod. Example: '{\"stream\":\"default\",\"filters\":"
+                            "[{\"field\":\"message\",\"op\":\"like\",\"value\":\"%passkey%\"}],"
+                            "\"since_minutes\":30,\"limit\":20}'"
+                        ))
     parser.add_argument("--max-rows", type=int, default=O2_DEFAULT_MAX_ROWS,
                         help="Row cap for --o2 mode (default: 200)")
     parser.add_argument("--raw", action="store_true",

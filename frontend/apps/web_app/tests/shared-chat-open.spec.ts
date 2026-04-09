@@ -130,6 +130,30 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	logCheckpoint('Chat history container visible');
 	await takeStepScreenshot(page, 'chat-history-visible');
 
+	// OPE-360: Open the sidebar before looking up chat-title.
+	// On Playwright's default 1280x720 viewport (<=1440px) the sidebar is closed
+	// by default and Chats.svelte is NOT mounted, so data-testid="chat-title"
+	// (which lives in Chat.svelte chat-list items) doesn't exist in the DOM.
+	// ChatHeader.svelte uses data-testid="chat-header-title" instead, so the
+	// spec's chat-title locator only matches the sidebar list item.
+	try {
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+			const sidebarAlreadyOpen = await page
+				.getByTestId('chat-item-wrapper')
+				.first()
+				.isVisible({ timeout: 200 })
+				.catch(() => false);
+			if (!sidebarAlreadyOpen) {
+				logCheckpoint('Opening sidebar so chat-item-wrapper and chat-title elements mount…');
+				await sidebarToggle.click();
+				await page.waitForTimeout(500);
+			}
+		}
+	} catch (err) {
+		logCheckpoint(`Sidebar toggle probe failed (continuing anyway): ${err}`);
+	}
+
 	// Step 4: Verify chat title appears in the sidebar
 	// There may be multiple elements with the title (sidebar + active chat header)
 	const chatTitle = page

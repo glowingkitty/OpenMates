@@ -2167,6 +2167,10 @@
                 // The data-pii-type attribute is kept for tooltip display and click handling.
                 return Decoration.inline(from, to, {
                     class: 'pii-highlight',
+                    // data-testid is required for Playwright selection in
+                    // pii-detection-flow.spec.ts — the project rule forbids
+                    // class-based selectors in tests. See commit 1af045f61.
+                    'data-testid': 'pii-highlight',
                     'data-pii-id': match.id,
                     'data-pii-type': match.type,
                     title: `Click to keep original (${match.type.toLowerCase().replace(/_/g, ' ')})`

@@ -9453,6 +9453,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {#if chatHasPII && !showWelcome}
                                 <div class="new-chat-button-wrapper">
                                     <button
+                                        data-testid="chat-pii-toggle"
+                                        data-pii-revealed={piiRevealed ? 'true' : 'false'}
                                         class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
                                         class:pii-toggle-active={piiRevealed}
                                         aria-label={piiRevealed
@@ -10176,6 +10178,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onShowChat={handleShowChat}
                                 piiMappings={cumulativePIIMappingsArray}
                                 piiRevealed={piiRevealed}
+                                chatId={currentChat?.chat_id}
                             />
                         {/if}
                     {/await}

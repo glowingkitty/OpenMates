@@ -15,54 +15,29 @@ You are fixing failing Playwright tests one at a time, in priority order. Each i
 - `--skip-session`: Skip `sessions.py start` (already in a session)
 - `--rerun-only`: Just rerun all currently-failed tests and report results, don't fix anything
 
-### Step 1: Load Current Failures
+### Step 1: Delegate triage to the `test-failure-triager` subagent
 
-Read the latest failure state:
+Unless `<spec-name>` was provided as an argument, launch the `test-failure-triager` agent:
 
-```bash
-cat test-results/last-failed-tests.json | python3 -c "
-import json, sys, re
-data = json.load(sys.stdin)
-tests = data['tests']
-print(f'Run: {data[\"run_id\"]}')
-print(f'Failed: {len(tests)}')
-for t in tests:
-    err = re.sub(r'\x1b\[[0-9;]*m', '', t.get('error', '')[:150])
-    print(f'  {t[\"name\"]}: {err.split(chr(10))[0]}')
-"
-```
+> Triage the latest test failures. Read `test-results/last-failed-tests.json`, per-test MD reports in `test-results/reports/failed/`, and cross-reference `logs/nightly-reports/pattern-consistency.json`. Return the structured JSON of root-cause groups and your one-sentence recommendation.
 
-If `last-failed-tests.json` is missing, check `last-run.json` instead.
+The agent returns a compact JSON with `groups[]` already ranked by priority tier (1 = runtime JS errors through 7 = test infrastructure) plus a `skipped[]` list.
 
-Also check for detailed failure reports:
-```
-test-results/reports/failed/<spec-name>.md
-```
+**Do NOT read failure files yourself** — the agent's report is all you need.
 
 ### Step 2: Pick the Next Test
 
-If a `<spec-name>` argument was provided, use that. Otherwise, apply this priority ranking:
+If `<spec-name>` was provided, use that directly and skip to Step 3.
 
-**Priority tiers (fix in this order):**
+Otherwise, pick the **first group** from the agent's recommendation (highest tier with `confidence >= medium`). The picked group may cover multiple specs — fix them all in one pass since they share a root cause.
 
-1. **Runtime JS errors** — tests that catch real `console.error` / `pageerror` in app code (e.g., null reference errors). These affect real users.
-2. **Core flow regressions** — login/auth, encryption, chat sync failures. Multiple tests often share one root cause.
-3. **UI element visibility** — `toBeVisible` failures on core UI elements (sidebar, chat items, recent chats). Usually a component/CSS change.
-4. **Assertion mismatches** — tests that run but assert wrong values (language detection, content matching). Could be test logic or app behavior.
-5. **Timeouts** — tests that hang. Often flaky infrastructure, but check if the waited-for condition is actually broken.
-6. **External service errors** — Mailosaur 401, third-party API failures. Usually config/secrets, not code. Flag to user and skip.
-7. **Test infrastructure** — mock not intercepting, test data stale, component preview issues. Low user impact.
-
-**Skip these categories** (flag them but don't attempt to fix):
-- Mailosaur API key errors (needs secret rotation, not code)
-- Tests requiring manual intervention (e.g., passkey hardware)
-
-Print the picked test and explain why it's next:
+Print the picked group using the agent's output:
 ```
-NEXT: <spec-name>.spec.ts
-REASON: <why this is the highest priority>
-CATEGORY: <tier number and name>
-ALSO FIXES: <other specs likely fixed by the same root cause, if any>
+NEXT: <first spec in group.affected_specs>
+ROOT CAUSE: <group.root_cause>
+TIER: <group.tier>
+SUSPECT: <group.suggested_fix_location>
+ALSO FIXES: <remaining group.affected_specs>
 ```
 
 ### Step 3: Start Session (unless --skip-session)
@@ -73,11 +48,12 @@ python3 scripts/sessions.py start --mode bug --task "Fix failing test: <spec-nam
 
 ### Step 4: Investigate Root Cause
 
-1. **Read the failure report** — `test-results/reports/failed/<spec-name>.md` for full error context and screenshots
-2. **Read the spec** — understand what the test expects
-3. **Check git log** — `git log -5 -- <files-related-to-failure>` to see recent changes
-4. **Read the app code** — find the component/service where the error originates
-5. **State your diagnosis** before writing any fix:
+The agent has already done most of this work. You now have `suspect_files[]` with `last_changed` git info and `suggested_fix_location`. Fill in the gaps:
+
+1. **Read the spec** — understand what the test expects
+2. **Read the suspect file(s)** at the suggested location — confirm the agent's hypothesis before writing the fix
+3. **If the hypothesis doesn't fit:** read the per-test failure MD report once (`test-results/reports/failed/<spec-name>.md`) for additional context
+4. **State your diagnosis** before writing any fix:
    ```
    ROOT CAUSE: <what's actually broken>
    FIX PLAN: <what you'll change and why>

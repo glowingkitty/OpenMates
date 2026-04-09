@@ -306,3 +306,6 @@ backend/tests/output/
 .claude/backlog.json
 
 temp-ssh-access.sh
+
+# Legal/compliance auditor output (auto-generated twice weekly)
+docs/architecture/compliance/top-10-recommendations.md

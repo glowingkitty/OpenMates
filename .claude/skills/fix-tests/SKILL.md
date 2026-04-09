@@ -9,66 +9,28 @@ argument-hint: "[--rerun] [spec-name]"
 
 You are fixing test failures from the latest daily test run. Follow this exact sequence:
 
-### Step 1: Read Today's Failures
+### Step 1: Delegate triage to the `test-failure-triager` subagent
 
-Read the pre-split failure list (most efficient path):
+Launch the `test-failure-triager` agent with this prompt:
 
-```bash
-cat test-results/last-failed-tests.json | python3 -c "
-import json, sys, re
-data = json.load(sys.stdin)
-tests = data['tests']
-print(f'Run: {data[\"run_id\"]}')
-print(f'Failed: {len(tests)}')
-print()
-for t in tests:
-    err = re.sub(r'\x1b\[[0-9;]*m', '', t.get('error', '')[:200])
-    print(f'  {t[\"name\"]}')
-    print(f'    {err.split(chr(10))[0]}')
-    print()
-"
-```
+> Triage the latest test failures. Read `test-results/last-failed-tests.json`, the per-test MD reports in `test-results/reports/failed/`, and cross-reference `logs/nightly-reports/pattern-consistency.json`. Return the structured JSON report of root-cause groups and your one-sentence recommendation.
 
-If `last-failed-tests.json` is missing or stale, fall back to the daily archive:
-```bash
-ls -t test-results/daily-run-*.json | head -1
-```
+The agent will return a compact JSON with `groups[]` (root cause, tier, suspect_files, suggested_fix_location, confidence) and a `skipped[]` list for external-service failures.
 
-Then read per-test failure reports for detailed error context:
-```
-test-results/reports/failed/*.md
-```
+**Do NOT read the failure files yourself** — that floods the main context. The agent's isolated report is all you need.
 
-If the `reports/failed/` directory is empty, regenerate reports:
-```bash
-python3 scripts/run_tests.py --only-failed --dry-run
-```
+If the agent reports zero groups (all skipped or empty), stop and report to the user.
 
-### Step 2: Categorize Failures by Root Cause
+**IMPORTANT RULE:** If any group's root cause is a `console.error`, you MUST fix the console error in application code — do NOT suppress it in the test.
 
-Group the failures into root cause buckets. Common patterns:
+### Step 2: Fix each group (highest tier first)
 
-| Pattern | Likely Root Cause | Fix Location |
-|---------|------------------|--------------|
-| `#login-password-input` / `#login-otp-input` not visible | Login flow UI changed | `PasswordAndTfaOtp.svelte` or `chat-test-helpers.ts` |
-| `.settings-menu.visible` not found | Settings menu selector changed | Settings component or test selectors |
-| `Mailosaur API error (401)` | Expired Mailosaur API key | `.env` or GitHub Actions secrets |
-| `Translation issues: [T:key.name]` | Missing i18n translation key | `frontend/packages/ui/src/i18n/sources/` YAML files |
-| `console.error` / `console error` in test output | Real application error surfaced in test | Fix the application code causing the console error |
-| `data-status="finished"` not visible | Skill embed not completing | Backend skill or mock response issue |
-| `Test timeout exceeded` | Slow operation or broken flow | Check what the test was waiting for |
-| `No such container: api` | CI has no Docker — pytest integration test | Mark as CI-only or fix test to use mocks |
+For each root cause group (start with the agent's recommended group, then the next-highest tier):
+1. Read the `suspect_files` entries from the agent's JSON
+2. Apply the fix at `suggested_fix_location`
+3. Note which `affected_specs` are covered by this fix
 
-**IMPORTANT RULE:** If a test fails because of a console.error, you MUST fix the console error in application code — do NOT just suppress the error or make the test ignore it.
-
-### Step 3: Fix Each Group
-
-For each root cause group:
-1. Investigate the source (read the relevant component/test/config)
-2. Apply the fix
-3. Note which specs are affected
-
-### Step 4: Run Fixed Tests
+### Step 3: Run Fixed Tests
 
 After fixing, rerun only the failed specs:
 ```bash
@@ -80,14 +42,14 @@ Or run specific specs:
 python3 scripts/run_tests.py --spec <name>.spec.ts
 ```
 
-### Step 5: Verify All Green
+### Step 4: Verify All Green
 
 Check that all previously-failed tests now pass. If any still fail, go back to Step 3 for those.
 
 ### Rules
 
+- **Always delegate triage** — use the `test-failure-triager` agent for Step 1. Never inline-read failure files in the main context.
 - **Fix console errors in app code** — never suppress them in tests
 - **NEVER run vitest/playwright locally** — always dispatch via `run_tests.py`
 - **Group fixes by root cause** — one commit per root cause group, not per test
-- **Read the failed MD reports** for full error context before investigating
-- **Check git log** for recent changes to failing components before deep-diving
+- **Trust the agent's git-blame** — it already cross-references recent commits and `pattern-consistency.json`
