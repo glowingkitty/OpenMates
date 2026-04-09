@@ -65,7 +65,8 @@ Examples:
   debug.py logs --browser --device iphone         # iPhone-only browser logs
   debug.py logs --browser --device iphone --level error  # iPhone errors only
   debug.py logs --o2 --preset web-app-health --since 60
-  debug.py logs --o2 --sql "SELECT * FROM \"default\" ORDER BY _timestamp DESC" --quiet-health
+  debug.py logs --o2 --query-json '{"stream":"default","filters":[{"field":"message","op":"like","value":"%passkey%"}],"since_minutes":60,"limit":20}'
+  debug.py logs --prod --o2 --query-json '{"stream":"default","mode":"count_by","group_by":["service","level"],"filters":[{"field":"level","op":"in","value":["ERROR","CRITICAL"]}],"since_minutes":1440}'
   debug.py requests --errors-only       # recent AI errors
   debug.py issue --list                 # list open issues
   debug.py errors --top 20             # top error fingerprints

@@ -1698,8 +1698,10 @@ async def list_error_logs(
     Query OpenObserve for ERROR/CRITICAL log entries grouped by message, service, and level.
 
     This endpoint allows remote servers (e.g. dev querying prod) to fetch error
-    summaries without direct OpenObserve access. Returns the same data as:
-      debug.py logs --o2 --sql 'SELECT message, service, level, COUNT(*) ...' --json
+    summaries without direct OpenObserve access. Returns the same data as the
+    equivalent --query-json invocation against /v1/admin/debug/logs/query with
+    mode=count_by + group_by=[message, service, level] filtered by compose_project
+    and level IN (ERROR, CRITICAL).
 
     Query params:
         since_minutes: Time window in minutes (default 1440 = 24h, max 10080 = 7d)
