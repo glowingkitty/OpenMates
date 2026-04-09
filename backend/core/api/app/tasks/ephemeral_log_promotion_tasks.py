@@ -223,7 +223,11 @@ def promote_error_sessions(self) -> dict:
     long-retention error-context stream.
     """
     try:
-        result = asyncio.get_event_loop().run_until_complete(_run_promotion())
+        # asyncio.run() creates a fresh event loop for this Celery thread and
+        # tears it down cleanly. Using asyncio.get_event_loop() here raised
+        # `RuntimeError: There is no current event loop in thread` on every run
+        # because Celery worker threads have no pre-existing loop.
+        result = asyncio.run(_run_promotion())
         if result["promoted"] > 0 or result["failed"] > 0:
             logger.info(
                 f"Ephemeral log promotion complete: "

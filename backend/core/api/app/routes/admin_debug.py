@@ -253,6 +253,13 @@ class IssueDetailResponse(BaseModel):
     reported_by_user_id: Optional[str] = None
     linear_issue_identifier: Optional[str] = None
     full_report: Optional[Dict[str, Any]] = None
+    # Screenshot verification (added to support E2E verification that the
+    # screenshot attach flow and S3 upload worked end-to-end).
+    has_screenshot: bool = False
+    screenshot_presigned_url: Optional[str] = None
+    # YAML S3 report presence — set by issue_report_email_task after the
+    # YAML is encrypted and uploaded to S3. The test polls for this.
+    has_yaml_report: bool = False
 
 
 class DeleteIssueResponse(BaseModel):
@@ -595,6 +602,33 @@ async def get_issue_detail(
             except Exception as e:
                 logger.warning(f"Failed to decrypt device info: {e}")
         
+        # Decrypt screenshot S3 key and generate a presigned URL for E2E verification.
+        # The screenshot is uploaded synchronously in the /v1/settings/issues handler,
+        # so it is available immediately after issue creation (unlike the YAML report
+        # which is generated asynchronously by the email task).
+        has_screenshot = bool(issue.get("encrypted_screenshot_s3_key"))
+        screenshot_presigned_url: Optional[str] = None
+        if has_screenshot:
+            try:
+                s3_service = get_s3_service(request)
+                screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_screenshot_s3_key"]
+                )
+                if screenshot_s3_key:
+                    from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
+                    screenshot_bucket = _get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
+                    screenshot_presigned_url = s3_service.generate_presigned_url(
+                        bucket_name=screenshot_bucket,
+                        file_key=screenshot_s3_key,
+                        expiration=3600  # 1h is enough for inspection
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to generate screenshot presigned URL for issue {issue_id}: {e}")
+
+        # Flag for whether a YAML report is available — lets E2E tests poll
+        # for eventual upload completion without needing to parse full_report.
+        has_yaml_report = bool(issue.get("encrypted_issue_report_yaml_s3_key"))
+
         # Fetch full report from S3 if requested
         full_report = None
         if include_logs and issue.get("encrypted_issue_report_yaml_s3_key"):
@@ -650,6 +684,9 @@ async def get_issue_detail(
             reported_by_user_id=issue.get("reported_by_user_id"),
             linear_issue_identifier=issue.get("linear_issue_identifier"),
             full_report=full_report,
+            has_screenshot=has_screenshot,
+            screenshot_presigned_url=screenshot_presigned_url,
+            has_yaml_report=has_yaml_report,
         )
         
     except HTTPException:

@@ -1805,13 +1805,28 @@
 
         <!-- Screenshot Capture — authenticated users only -->
         {#if $authStore.isAuthenticated}
-            <div class="input-group screenshot-section">
+            <div class="input-group screenshot-section" data-testid="screenshot-section">
                 <p class="input-label">{$text('settings.report_issue.screenshot_label')}</p>
                 <p class="input-hint">{$text('settings.report_issue.screenshot_hint')}</p>
 
+                <!-- Always-present hidden file input so E2E tests can attach a
+                     screenshot via Playwright's setInputFiles() regardless of
+                     which capture variant is visible. The existing fallback
+                     button still triggers this same input via click(). -->
+                <input
+                    bind:this={screenshotFileInput}
+                    type="file"
+                    accept="image/*"
+                    class="screenshot-file-input"
+                    data-testid="screenshot-file-input"
+                    onchange={handleScreenshotUpload}
+                    disabled={isSubmitting}
+                    aria-label={$text('settings.report_issue.screenshot_upload_button')}
+                />
+
                 {#if screenshotDataUrl}
                     <!-- Preview + remove -->
-                    <div class="screenshot-preview-wrapper">
+                    <div class="screenshot-preview-wrapper" data-testid="screenshot-preview">
                         <img
                             src={screenshotDataUrl}
                             alt={$text('settings.report_issue.screenshot_preview_alt')}
@@ -1820,6 +1835,7 @@
                         <button
                             type="button"
                             class="screenshot-remove-btn"
+                            data-testid="screenshot-remove"
                             onclick={removeScreenshot}
                             disabled={isSubmitting}
                         >
@@ -1828,19 +1844,10 @@
                     </div>
                 {:else if showUploadFallback}
                     <!-- Upload fallback — shown on iOS or after a non-permission capture failure -->
-                    <!-- Hidden file input; the visible styled button triggers it -->
-                    <input
-                        bind:this={screenshotFileInput}
-                        type="file"
-                        accept="image/*"
-                        class="screenshot-file-input"
-                        onchange={handleScreenshotUpload}
-                        disabled={isSubmitting}
-                        aria-label={$text('settings.report_issue.screenshot_upload_button')}
-                    />
                     <button
                         type="button"
                         class="screenshot-capture-btn"
+                        data-testid="screenshot-upload-button"
                         onclick={() => screenshotFileInput?.click()}
                         disabled={isSubmitting}
                     >
@@ -1851,6 +1858,7 @@
                     <button
                         type="button"
                         class="screenshot-capture-btn"
+                        data-testid="screenshot-capture-button"
                         onclick={captureScreenshot}
                         disabled={isCapturingScreenshot || isSubmitting}
                     >
@@ -1861,7 +1869,7 @@
                 {/if}
 
                 {#if screenshotError}
-                    <p class="screenshot-error">{screenshotError}</p>
+                    <p class="screenshot-error" data-testid="screenshot-error">{screenshotError}</p>
                 {/if}
             </div>
         {/if}
