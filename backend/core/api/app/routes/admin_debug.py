@@ -26,7 +26,7 @@ import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -1761,6 +1761,368 @@ async def list_error_logs(
             status_code=500,
             detail=f"Failed to query error logs: {str(e)}",
         )
+
+
+# ============================================================================
+# STRUCTURED LOG QUERY (safe ad-hoc filtering)
+# ============================================================================
+#
+# Endpoint: POST /v1/admin/debug/logs/query
+#
+# Purpose
+# -------
+# Ad-hoc log debugging against OpenObserve without letting callers submit raw SQL.
+# Replaces the broken path where debug_logs.py --prod --sql was silently routed
+# to a canned top-errors endpoint (ignoring the SQL string entirely).
+#
+# Security model
+# --------------
+# 1. Admin-only (require_admin_api_key) + 30/minute rate limit — same as the rest of admin_debug.
+# 2. No user-provided SQL. The backend composes SQL server-side from a strict
+#    Pydantic schema using only whitelisted identifiers (stream name, column names,
+#    operators). User input only reaches SQL as escaped quoted literals or as
+#    parseable numeric/timestamp values.
+# 3. Stream whitelist: {default, client_console}. Audit/compliance streams are NOT
+#    reachable from this endpoint.
+# 4. Field whitelist per stream — attempts to query unknown fields fail validation.
+# 5. Operator whitelist — only eq, neq, like, not_like, in, gt, gte, lt, lte. No
+#    raw boolean logic, no subqueries, no CTEs, no UNION.
+# 6. Value sanitization — strings reject control chars / backslashes / NUL; the
+#    only quote handling is SQL-standard single-quote doubling. LIKE values may
+#    contain % and _ as SQL wildcards (that's their purpose).
+# 7. Forced LIMIT (cap 1000), forced time window (cap 7d = 10080 min), forced
+#    ORDER BY safety, 30s backend timeout.
+# 8. Every call is audit-logged at WARNING level with a distinctive
+#    [ADMIN_LOG_QUERY] prefix: admin user id, stream, filter repr, row count,
+#    duration. The log line can be grep-excluded from its own results.
+#
+# Not in scope / deliberately unsupported
+# ---------------------------------------
+# - JOINs, subqueries, CTEs, UNIONs (no real need for log debugging)
+# - Arbitrary aggregate functions — only COUNT(*) via mode="count_by"
+# - Writing logs — OpenObserve's _search endpoint is read-only anyway; defense
+#   in depth comes from composing only SELECT ... FROM statements.
+# ============================================================================
+
+
+# --- Stream + field whitelists ------------------------------------------------
+# Extend these carefully and only after reviewing what data the stream exposes.
+# Fields listed here become queryable in both WHERE and SELECT/GROUP BY.
+_LOG_QUERY_STREAM_FIELDS: Dict[str, frozenset[str]] = {
+    "default": frozenset({
+        "_timestamp", "message", "level", "service", "container",
+        "compose_project", "job",
+    }),
+    "client_console": frozenset({
+        "_timestamp", "message", "level", "device_type", "user_id",
+        "user_email", "debugging_id", "page_url",
+    }),
+}
+
+_LOG_QUERY_ALLOWED_OPS = frozenset({
+    "eq", "neq", "like", "not_like", "in", "gt", "gte", "lt", "lte",
+})
+
+_LOG_QUERY_OP_TO_SQL = {
+    "eq": "=", "neq": "!=",
+    "like": "LIKE", "not_like": "NOT LIKE",
+    "gt": ">", "gte": ">=", "lt": "<", "lte": "<=",
+    # "in" is handled specially
+}
+
+# Absolute limits — never exceeded regardless of request values.
+_LOG_QUERY_MAX_ROWS = 1000
+_LOG_QUERY_MAX_SINCE_MINUTES = 10080  # 7 days
+_LOG_QUERY_MAX_FILTERS = 15
+_LOG_QUERY_MAX_VALUE_LEN = 500
+_LOG_QUERY_MAX_IN_VALUES = 50
+
+
+def _validate_log_query_value(value: Any, *, op: str) -> Union[str, int, float]:
+    """Validate a single scalar value for use in a composed SQL literal.
+
+    Rejects:
+      - strings containing NUL, backslash, or control characters (other than tab/space)
+      - strings longer than _LOG_QUERY_MAX_VALUE_LEN
+      - non-scalar types other than str/int/float/bool (booleans are coerced to int)
+      - NaN / Inf floats
+    Returns the validated value unchanged (strings are returned raw; caller is
+    responsible for SQL-escaping via _sql_escape_string when composing the SQL).
+    """
+    if isinstance(value, bool):
+        # bool is a subclass of int in Python — normalize to int for consistent SQL
+        return 1 if value else 0
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        import math
+        if math.isnan(value) or math.isinf(value):
+            raise ValueError("numeric value must be finite")
+        return value
+    if isinstance(value, str):
+        if len(value) > _LOG_QUERY_MAX_VALUE_LEN:
+            raise ValueError(f"string value exceeds {_LOG_QUERY_MAX_VALUE_LEN} chars")
+        if "\x00" in value:
+            raise ValueError("string value contains NUL byte")
+        if "\\" in value:
+            raise ValueError("string value contains backslash (not allowed)")
+        # Reject control characters except tab and newline (newline is legit in logs)
+        for ch in value:
+            if ord(ch) < 0x20 and ch not in ("\t", "\n"):
+                raise ValueError(f"string value contains control char U+{ord(ch):04X}")
+        return value
+    raise ValueError(f"unsupported value type for op={op}: {type(value).__name__}")
+
+
+def _sql_escape_string(value: str) -> str:
+    """Escape a string for inclusion as a SQL quoted literal.
+
+    Uses standard SQL single-quote doubling. Assumes the input has already been
+    validated by _validate_log_query_value (no backslashes, no control chars, no NUL).
+    The caller wraps the result in single quotes.
+    """
+    return value.replace("'", "''")
+
+
+def _compose_log_query_sql(req: "LogQueryRequest") -> str:
+    """Compose a fully-safe SELECT statement from a validated LogQueryRequest.
+
+    All identifiers come from whitelists (stream, fields, operators). Values are
+    interpolated either as numeric literals (int/float) or as SQL-escaped quoted
+    strings. No user input ever becomes an identifier or an operator.
+    """
+    allowed_fields = _LOG_QUERY_STREAM_FIELDS[req.stream]
+
+    # Build WHERE clause from structured filters
+    where_clauses: List[str] = []
+    for f in req.filters:
+        if f.field not in allowed_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"field '{f.field}' not queryable on stream '{req.stream}'",
+            )
+        if f.op not in _LOG_QUERY_ALLOWED_OPS:
+            raise HTTPException(status_code=400, detail=f"unsupported operator: {f.op}")
+
+        if f.op == "in":
+            if not isinstance(f.value, list):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"op=in requires a list value on field '{f.field}'",
+                )
+            if len(f.value) == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"op=in requires at least one value on field '{f.field}'",
+                )
+            if len(f.value) > _LOG_QUERY_MAX_IN_VALUES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"op=in has too many values (max {_LOG_QUERY_MAX_IN_VALUES})",
+                )
+            rendered: List[str] = []
+            for item in f.value:
+                try:
+                    v = _validate_log_query_value(item, op=f.op)
+                except ValueError as e:
+                    raise HTTPException(status_code=400, detail=f"field '{f.field}': {e}")
+                if isinstance(v, str):
+                    rendered.append(f"'{_sql_escape_string(v)}'")
+                else:
+                    rendered.append(str(v))
+            where_clauses.append(f'"{f.field}" IN ({", ".join(rendered)})')
+            continue
+
+        # Scalar ops
+        if isinstance(f.value, list):
+            raise HTTPException(
+                status_code=400,
+                detail=f"op={f.op} requires a scalar value on field '{f.field}'",
+            )
+        try:
+            v = _validate_log_query_value(f.value, op=f.op)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"field '{f.field}': {e}")
+
+        sql_op = _LOG_QUERY_OP_TO_SQL[f.op]
+        if isinstance(v, str):
+            where_clauses.append(f'"{f.field}" {sql_op} \'{_sql_escape_string(v)}\'')
+        else:
+            where_clauses.append(f'"{f.field}" {sql_op} {v}')
+
+    # SELECT / GROUP BY / ORDER BY
+    if req.mode == "select":
+        # Validate selected columns
+        select_cols = req.select or ["_timestamp", "message", "level", "service"]
+        for col in select_cols:
+            if col not in allowed_fields:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"select column '{col}' not available on stream '{req.stream}'",
+                )
+        select_sql = ", ".join(f'"{c}"' for c in select_cols)
+
+        order_col = req.order_by or "_timestamp"
+        if order_col not in allowed_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"order_by column '{order_col}' not available on stream '{req.stream}'",
+            )
+        order_dir = "DESC" if req.order_dir == "desc" else "ASC"
+
+        sql = f'SELECT {select_sql} FROM "{req.stream}"'
+        if where_clauses:
+            sql += " WHERE " + " AND ".join(where_clauses)
+        sql += f' ORDER BY "{order_col}" {order_dir} LIMIT {req.limit}'
+        return sql
+
+    # mode == "count_by"
+    if not req.group_by:
+        raise HTTPException(
+            status_code=400,
+            detail="mode=count_by requires a non-empty group_by list",
+        )
+    for col in req.group_by:
+        if col not in allowed_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"group_by column '{col}' not available on stream '{req.stream}'",
+            )
+    group_sql = ", ".join(f'"{c}"' for c in req.group_by)
+    sql = (
+        f'SELECT {group_sql}, COUNT(*) as count '
+        f'FROM "{req.stream}"'
+    )
+    if where_clauses:
+        sql += " WHERE " + " AND ".join(where_clauses)
+    sql += f" GROUP BY {group_sql} ORDER BY count DESC LIMIT {req.limit}"
+    return sql
+
+
+class LogQueryFilter(BaseModel):
+    """A single WHERE clause condition. All fields are whitelisted server-side."""
+    field: str
+    op: Literal["eq", "neq", "like", "not_like", "in", "gt", "gte", "lt", "lte"]
+    # Accepts scalars for most ops and a list for op=in. Composition code
+    # dispatches on op + isinstance.
+    value: Union[str, int, float, bool, List[Union[str, int, float, bool]]]
+
+
+class LogQueryRequest(BaseModel):
+    """Structured log query — the ONLY way callers can run ad-hoc queries.
+
+    No raw SQL fragment is ever accepted.  See the module-level section
+    ``STRUCTURED LOG QUERY`` for the security rationale.
+    """
+    stream: Literal["default", "client_console"]
+    mode: Literal["select", "count_by"] = "select"
+
+    # mode="select" fields
+    select: Optional[List[str]] = None
+    order_by: Optional[str] = None
+    order_dir: Literal["asc", "desc"] = "desc"
+
+    # mode="count_by" fields
+    group_by: Optional[List[str]] = None
+
+    # Shared
+    filters: List[LogQueryFilter] = []
+    since_minutes: int = 60
+    limit: int = 100
+
+
+class LogQueryHit(BaseModel):
+    """A single log query result row. Arbitrary columns depending on the query."""
+    data: Dict[str, Any]
+
+
+class LogQueryResponse(BaseModel):
+    success: bool
+    stream: str
+    mode: str
+    rows: List[Dict[str, Any]]
+    total: int
+    sql: str  # Returned for transparency — admins can see what was executed
+    since_minutes: int
+    duration_ms: int
+    generated_at: str
+
+
+@router.post("/logs/query", response_model=LogQueryResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def structured_log_query(
+    request: Request,
+    body: LogQueryRequest,
+    admin_user: User = Depends(require_admin_api_key),
+) -> LogQueryResponse:
+    """Run a structured, whitelisted log query against OpenObserve.
+
+    The request body is fully schema-validated; SQL is composed server-side
+    from whitelisted identifiers. See the STRUCTURED LOG QUERY section at the
+    top of this file for the full security model and threat analysis.
+    """
+    # Clamp input ranges
+    if body.limit < 1 or body.limit > _LOG_QUERY_MAX_ROWS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"limit must be between 1 and {_LOG_QUERY_MAX_ROWS}",
+        )
+    if body.since_minutes < 1 or body.since_minutes > _LOG_QUERY_MAX_SINCE_MINUTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"since_minutes must be between 1 and {_LOG_QUERY_MAX_SINCE_MINUTES}",
+        )
+    if len(body.filters) > _LOG_QUERY_MAX_FILTERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"too many filters (max {_LOG_QUERY_MAX_FILTERS})",
+        )
+
+    sql = _compose_log_query_sql(body)
+
+    # Compact filter repr for the audit log (never includes raw user SQL; values
+    # are logged so an auditor can reconstruct what was executed)
+    filter_repr = "; ".join(
+        f"{f.field} {f.op} {f.value!r}"[:160] for f in body.filters
+    ) or "-"
+
+    start_time = datetime.now(timezone.utc) - timedelta(minutes=body.since_minutes)
+    t0 = time.time()
+    try:
+        hits = await openobserve_log_collector._search(
+            body.stream, sql, start_time=start_time,
+        )
+    except Exception as e:
+        duration_ms = int((time.time() - t0) * 1000)
+        logger.warning(
+            f"[ADMIN_LOG_QUERY] user={admin_user.id} stream={body.stream} "
+            f"mode={body.mode} filters=[{filter_repr}] "
+            f"rows=ERROR duration_ms={duration_ms} error={e!r}"
+        )
+        raise HTTPException(status_code=500, detail=f"OpenObserve query failed: {e}")
+
+    duration_ms = int((time.time() - t0) * 1000)
+    rows = hits or []
+
+    # Audit log (WARNING level so it's visible in top-warnings-errors; the
+    # [ADMIN_LOG_QUERY] prefix lets callers grep-exclude it from their own results)
+    logger.warning(
+        f"[ADMIN_LOG_QUERY] user={admin_user.id} stream={body.stream} "
+        f"mode={body.mode} filters=[{filter_repr}] "
+        f"rows={len(rows)} duration_ms={duration_ms}"
+    )
+
+    return LogQueryResponse(
+        success=True,
+        stream=body.stream,
+        mode=body.mode,
+        rows=rows,
+        total=len(rows),
+        sql=sql,
+        since_minutes=body.since_minutes,
+        duration_ms=duration_ms,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 # ============================================================================
