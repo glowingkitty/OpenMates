@@ -135,6 +135,75 @@ async def delete_violations(
     return deleted
 
 
+async def _query_prod_audit(include_defaults: bool, as_json: bool) -> None:
+    """Query the production inspiration audit via the Admin Debug API.
+
+    Mirrors the --prod pattern used in server_stats_query.py.
+    """
+    import aiohttp
+
+    sys.path.insert(0, "/app/backend/scripts")
+    from debug_utils import get_api_key_from_vault
+
+    PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
+
+    api_key = await get_api_key_from_vault()
+    if not api_key:
+        print("Cannot query production: no admin API key in Vault", file=sys.stderr)
+        sys.exit(1)
+
+    url = f"{PROD_API_BASE}/inspiration-audit"
+    params = {"include_defaults": "true" if include_defaults else "false"}
+    headers = {"Authorization": f"Bearer {api_key}"}
+    timeout = aiohttp.ClientTimeout(total=60)
+
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, params=params, headers=headers) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    print(f"Admin API error {resp.status}: {text[:300]}", file=sys.stderr)
+                    sys.exit(1)
+                data = await resp.json()
+    except Exception as e:
+        print(f"Failed to reach production Admin Debug API: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    sections = data.get("sections", {})
+    pool_section = sections.get("pool", {}) or {}
+    defaults_section = sections.get("defaults", {}) or {}
+    pool_results = pool_section.get("results") or []
+    defaults_results = defaults_section.get("results") or []
+
+    if as_json:
+        output: Dict[str, Any] = {}
+        if "error" not in pool_section:
+            output["pool"] = {
+                "total": pool_section.get("total", len(pool_results)),
+                "pass": pool_section.get("pass", 0),
+                "reject": pool_section.get("reject", 0),
+                "results": pool_results,
+            }
+        else:
+            output["pool"] = pool_section
+        if include_defaults:
+            if "error" not in defaults_section:
+                output["defaults"] = {
+                    "total": defaults_section.get("total", len(defaults_results)),
+                    "pass": defaults_section.get("pass", 0),
+                    "reject": defaults_section.get("reject", 0),
+                    "results": defaults_results,
+                }
+            else:
+                output["defaults"] = defaults_section
+        print(json.dumps(output, indent=2, default=str))
+        return
+
+    print_text_report(pool_results, "daily_inspiration_pool (PROD)")
+    if include_defaults and defaults_results:
+        print_text_report(defaults_results, "daily_inspiration_defaults (PROD)")
+
+
 async def main() -> None:
     """Parse CLI arguments and run the audit."""
     parser = argparse.ArgumentParser(
@@ -143,8 +212,20 @@ async def main() -> None:
     parser.add_argument("--include-defaults", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--delete", action="store_true")
+    parser.add_argument(
+        "--prod",
+        action="store_true",
+        help="Query production via Admin Debug API instead of local Directus",
+    )
 
     args = parser.parse_args()
+
+    if args.prod:
+        if args.delete:
+            print("--delete is not supported over --prod (safety: no remote deletes)", file=sys.stderr)
+            sys.exit(2)
+        await _query_prod_audit(include_defaults=args.include_defaults, as_json=args.json)
+        return
 
     cache_service = CacheService()
     encryption_service = EncryptionService()

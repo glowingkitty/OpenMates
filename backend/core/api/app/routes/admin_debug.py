@@ -2107,6 +2107,71 @@ async def get_server_stats(
 
 
 # ============================================================================
+# DAILY INSPIRATION AUDIT
+# ============================================================================
+
+
+@router.get("/inspiration-audit", include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_inspiration_audit(
+    request: Request,
+    include_defaults: bool = True,
+    admin_user: User = Depends(require_admin_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """
+    Run the daily inspiration keyword audit against this server's Directus.
+
+    Returns pool + defaults entries with pass/reject verdicts so the
+    daily-meeting script can audit prod inspirations remotely (mirrors
+    audit_inspiration_pool.py running locally).
+    """
+    from backend.apps.ai.daily_inspiration.content_filter import check_entry
+
+    logger.info(f"Admin {admin_user.id} running inspiration audit (include_defaults={include_defaults})")
+
+    async def audit_collection(collection: str) -> List[Dict[str, Any]]:
+        sort_key = "-generated_at" if collection == "daily_inspiration_pool" else "-date"
+        items = await directus_service.get_items(
+            collection,
+            {"sort": [sort_key], "limit": 200},
+            admin_required=True,
+        )
+        if not items:
+            return []
+        return [check_entry(entry) for entry in items]
+
+    result: Dict[str, Any] = {"success": True, "sections": {}}
+    try:
+        pool_results = await audit_collection("daily_inspiration_pool")
+        result["sections"]["pool"] = {
+            "total": len(pool_results),
+            "pass": len([r for r in pool_results if r["verdict"] == "PASS"]),
+            "reject": len([r for r in pool_results if r["verdict"] == "REJECT"]),
+            "results": pool_results,
+        }
+    except Exception as e:
+        logger.error(f"Pool audit failed: {e}", exc_info=True)
+        result["sections"]["pool"] = {"error": str(e)}
+
+    if include_defaults:
+        try:
+            defaults_results = await audit_collection("daily_inspiration_defaults")
+            result["sections"]["defaults"] = {
+                "total": len(defaults_results),
+                "pass": len([r for r in defaults_results if r["verdict"] == "PASS"]),
+                "reject": len([r for r in defaults_results if r["verdict"] == "REJECT"]),
+                "results": defaults_results,
+            }
+        except Exception as e:
+            logger.error(f"Defaults audit failed: {e}", exc_info=True)
+            result["sections"]["defaults"] = {"error": str(e)}
+
+    result["generated_at"] = datetime.now(timezone.utc).isoformat()
+    return result
+
+
+# ============================================================================
 # OPENOBSERVE PROXY ENDPOINTS
 # ============================================================================
 # These endpoints proxy raw SQL and trace queries to the local OpenObserve
