@@ -870,15 +870,25 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 
 	// Wait for the mail embed preview to reappear after load-from-IDB.
 	await expect(mailEmbedPreview).toBeVisible({ timeout: 15000 });
+	await page.waitForTimeout(1000); // Let embed mount + PII mappings settle
 
-	// Reveal state should be reset to hidden (default for freshly-loaded chats).
-	const postReopenHeaderAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
-	logCheckpoint(`After re-opening existing chat, header data-pii-revealed: ${postReopenHeaderAttr}`);
-	expect(postReopenHeaderAttr).toBe('false');
-	await assertAllHidden('post-reopen initial');
+	// Reveal state persists in-session (piiVisibilityStore is session-scoped and
+	// keyed by chatId). After reopen the state is whatever it was before we left.
+	// First step: normalise to HIDDEN via the chat header so the test is
+	// deterministic from here on.
+	let postReopenAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	logCheckpoint(`After re-opening existing chat, header data-pii-revealed: ${postReopenAttr}`);
+	if (postReopenAttr === 'true') {
+		await chatHeaderToggle.click();
+		await page.waitForTimeout(500);
+		postReopenAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	}
+	expect(postReopenAttr).toBe('false');
+	await assertAllHidden('post-reopen hidden');
 	await takeStepScreenshot(page, 'state-07-reopen-initial-hidden');
 
-	// Click chat-header toggle — preview status-value MUST swap to original.
+	// THE CORE REGRESSION: click the chat-header toggle on the RE-OPENED chat.
+	// Preview status-value MUST swap to original (this is the bug path).
 	await chatHeaderToggle.click();
 	logCheckpoint('Clicked chat header toggle to reveal (after reopen).');
 	await page.waitForTimeout(500);
