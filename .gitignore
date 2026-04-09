@@ -229,6 +229,7 @@ deployment/prod_server/prod-cloud-config.yaml
 .claude/security-audit-state.json.tmp
 .claude/security-acknowledged.json
 .claude/security-acknowledged.json.tmp
+.claude/.prefetch-cache/
 security-audit/
 .cursor
 .svelte-kit
