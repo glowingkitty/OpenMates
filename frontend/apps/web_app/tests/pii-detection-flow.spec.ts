@@ -822,7 +822,67 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await takeStepScreenshot(page, 'state-06-all-revealed-after-fullscreen-toggle');
 
 	// ======================================================================
-	// STEP 8: Cleanup
+	// STEP 9: Open the chat as an "existing chat" — navigate away via
+	// "new chat" and then click back on it from the sidebar. This exercises
+	// the load-from-IndexedDB path which is how the user reported the bug
+	// in practice. The toggle must still work identically after a round-trip
+	// through the chat loader, not just on the freshly-sent chat in memory.
+	// ======================================================================
+	// First: grab the chat-id of the active chat so we can click it again.
+	const activeChatWrapper = page.locator('[data-testid="chat-item-wrapper"].active');
+	await expect(activeChatWrapper).toBeVisible({ timeout: 5000 });
+	const activeChatId = await activeChatWrapper.getAttribute('data-chat-id');
+	logCheckpoint(`Active chat id to re-open: ${activeChatId}`);
+
+	// Navigate away: start a new chat (becomes the active one).
+	await startNewChat(page, logCheckpoint);
+	await page.waitForTimeout(1500);
+
+	// Now click back on the original chat from the sidebar.
+	const targetChatItem = activeChatId
+		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`)
+		: page.getByTestId('chat-item-wrapper').first();
+	await expect(targetChatItem).toBeVisible({ timeout: 5000 });
+	await targetChatItem.click();
+	logCheckpoint('Clicked sidebar chat to re-open as existing chat.');
+	await page.waitForTimeout(2000);
+
+	// Wait for the mail embed preview to reappear after load-from-IDB.
+	await expect(mailEmbedPreview).toBeVisible({ timeout: 15000 });
+
+	// Reveal state should be reset to hidden (default for freshly-loaded chats).
+	const postReopenHeaderAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	logCheckpoint(`After re-opening existing chat, header data-pii-revealed: ${postReopenHeaderAttr}`);
+	expect(postReopenHeaderAttr).toBe('false');
+	await assertAllHidden('post-reopen initial');
+	await takeStepScreenshot(page, 'state-07-reopen-initial-hidden');
+
+	// Click chat-header toggle — preview status-value MUST swap to original.
+	await chatHeaderToggle.click();
+	logCheckpoint('Clicked chat header toggle to reveal (after reopen).');
+	await page.waitForTimeout(500);
+	expect(await chatHeaderToggle.getAttribute('data-pii-revealed')).toBe('true');
+	await assertAllRevealed('post-reopen after chat-header reveal');
+	await takeStepScreenshot(page, 'state-08-reopen-header-reveal');
+
+	// Open the fullscreen on the reopened chat — must already show original.
+	await mailEmbedPreview.click();
+	await expect(embedPiiToggle).toBeVisible({ timeout: 10000 });
+	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('true');
+	const reopenFsText = (await fullscreenContainer.textContent()) || '';
+	expect(reopenFsText).toContain(receiverEmail);
+
+	// Toggle from the fullscreen to hide — preview + message must also hide.
+	await embedPiiToggle.click();
+	await page.waitForTimeout(500);
+	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('false');
+	await closeButton.click();
+	await page.waitForTimeout(500);
+	await assertAllHidden('post-reopen after fullscreen hide');
+	await takeStepScreenshot(page, 'state-09-reopen-fullscreen-hide');
+
+	// ======================================================================
+	// STEP 10: Cleanup
 	// ======================================================================
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-embed-cleanup');
 
