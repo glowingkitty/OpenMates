@@ -757,7 +757,13 @@
 		'stay',
 		'place',
 		'appointment',
-		'image',
+		// NOTE: 'image' intentionally excluded. It was previously in this set but
+		// collides with Website embed preview props (OG-metadata `image: ""`),
+		// causing wrapFullscreenProps() to short-circuit and pass raw props
+		// through — which then crashed WebsiteEmbedFullscreen because `data` was
+		// undefined. ImageEmbedFullscreen and ImageResultEmbedFullscreen both
+		// use the data-driven `{ data }` shape anyway, so no image fullscreen
+		// needs this direct-prop escape hatch. Fixed in OPE-405 Phase 1 flake.
 		'video',
 		'recording',
 		'sheet',
@@ -801,9 +807,14 @@
 		// Explicit opt-out: fullscreen not migrated to data-driven shape
 		if (NEVER_WRAP_FULLSCREEN_PATHS.has(section.fullscreenPath)) return rawProps;
 
-		// Direct-prop fullscreen (e.g., ShoppingResultEmbedFullscreen takes `product`)
+		// Direct-prop fullscreen (e.g., ShoppingResultEmbedFullscreen takes `product`).
+		// Only match when the value is a non-null object — string/empty values for
+		// fields like `image: ""` must not trigger direct-prop pass-through, since
+		// those are usually legitimate OG-metadata on a wrapped preview (OPE-405).
 		for (const key of Object.keys(rawProps)) {
-			if (DIRECT_PROP_NAMES.has(key)) return rawProps;
+			if (!DIRECT_PROP_NAMES.has(key)) continue;
+			const val = rawProps[key];
+			if (val !== null && typeof val === 'object') return rawProps;
 		}
 
 		// Legacy flat props — wrap into data-driven shape
