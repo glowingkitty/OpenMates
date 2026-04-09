@@ -68,6 +68,13 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+// Derive API base URL from PLAYWRIGHT_TEST_BASE_URL (app.dev.* → api.dev.*)
+// Used for polling the /v1/settings/issues/{id}/status endpoint after
+// submission — the frontend origin serves an SPA fallback for unknown
+// routes so relative paths to /v1/* would return HTML instead of JSON.
+const BASE_URL: string = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+const API_BASE_URL: string = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -237,19 +244,28 @@ test.describe('Report Issue Flow', () => {
 		// issue_report_email_task Celery task. Poll until has_yaml_report=true
 		// or give up after the timeout (and fail the test).
 		const issueId: string = responseBody?.issue_id;
-		const statusUrl = `/v1/settings/issues/${issueId}/status`;
+		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${issueId}/status`;
+		logCheckpoint(`Polling status endpoint: ${statusUrl}`);
 		const statusDeadline = Date.now() + 90_000; // 90s — celery + S3 upload
 		let lastStatus: { has_screenshot?: boolean; has_yaml_report?: boolean; processed?: boolean } | null = null;
+		let lastStatusHttp = 0;
 		while (Date.now() < statusDeadline) {
 			const statusResp = await page.request.get(statusUrl);
+			lastStatusHttp = statusResp.status();
 			if (statusResp.ok()) {
-				lastStatus = await statusResp.json();
-				if (lastStatus?.has_screenshot && lastStatus?.has_yaml_report) {
-					break;
+				const ct = statusResp.headers()['content-type'] || '';
+				if (ct.includes('application/json')) {
+					lastStatus = await statusResp.json();
+					if (lastStatus?.has_screenshot && lastStatus?.has_yaml_report) {
+						break;
+					}
+				} else {
+					logCheckpoint(`Status poll returned non-JSON content-type: ${ct}`);
 				}
 			}
 			await page.waitForTimeout(3000);
 		}
+		logCheckpoint(`Final /status HTTP=${lastStatusHttp} payload=${JSON.stringify(lastStatus)}`);
 		logCheckpoint(`Final /status payload: ${JSON.stringify(lastStatus)}`);
 		expect(lastStatus, 'issue status endpoint returned nothing').not.toBeNull();
 		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
