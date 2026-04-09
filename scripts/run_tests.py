@@ -2495,15 +2495,18 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
 
 
 # prod-smoke.yml writes one playwright JSON file per spec into the artifact:
-# test-results/{reachability,signup,login}.json. We use these as the source
-# of truth for per-spec status. Step `conclusion` is unreliable here because
+# test-results/{reachability,signup}.json. We use these as the source of
+# truth for per-spec status. Step `conclusion` is unreliable here because
 # every step uses `continue-on-error: true && exit 0`, so all step
 # conclusions are `success` even when the underlying spec failed.
 PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
     # (key, human-readable label, spec filename)
     ("reachability", "reachability spec", "prod-smoke-reachability.spec.ts"),
-    ("signup", "signup + gift card + chat spec", "prod-smoke-signup-giftcard-chat.spec.ts"),
-    ("login", "login + chat spec", "prod-smoke-login-chat.spec.ts"),
+    (
+        "signup",
+        "signup + gift card + chat + login + history + chat + delete spec",
+        "prod-smoke-signup-giftcard-chat.spec.ts",
+    ),
 ]
 
 

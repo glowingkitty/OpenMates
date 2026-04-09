@@ -353,21 +353,30 @@ async function deleteActiveChat(
 			return;
 		}
 
+		// Identify demo / legal chats by their chat_id prefix (see
+		// frontend/packages/ui/src/demo_chats/convertToChat.ts:isDemoChat /
+		// isLegalChat). Title-based detection used to false-match any legitimate
+		// chat whose title happened to contain "OpenMates" (e.g. "Search OpenMates
+		// AI assistant" from skill-web-search.spec.ts), which made the cleanup
+		// return early and triggered a cascade console-monitor assertion failure.
+		// The chat-item-wrapper carries data-chat-id — use that as the canonical
+		// identity source.
 		try {
-			const chatTitle = await activeChatItem.getByTestId('chat-title').textContent();
-			logCheckpoint(`Active chat title: "${chatTitle}"`);
+			const chatId = await activeChatItem.getAttribute('data-chat-id');
+			const chatTitle = await activeChatItem
+				.getByTestId('chat-title')
+				.textContent()
+				.catch(() => null);
+			logCheckpoint(
+				`Active chat: id="${chatId ?? 'unknown'}" title="${chatTitle ?? 'unknown'}"`
+			);
 
-			if (
-				chatTitle &&
-				(chatTitle.includes('demo') ||
-					chatTitle.includes('Demo') ||
-					chatTitle.includes('OpenMates'))
-			) {
-				logCheckpoint('Skipping deletion - appears to be a demo chat.');
+			if (chatId && (chatId.startsWith('demo-') || chatId.startsWith('legal-'))) {
+				logCheckpoint(`Skipping deletion - ${chatId} is a demo/legal chat.`);
 				return;
 			}
 		} catch {
-			logCheckpoint('Could not get active chat title.');
+			logCheckpoint('Could not read active chat identity.');
 		}
 
 		await activeChatItem.click({ button: 'right', timeout: 5000 });
