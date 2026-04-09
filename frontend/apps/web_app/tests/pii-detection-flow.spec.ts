@@ -495,23 +495,27 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// ======================================================================
 	logCheckpoint('Testing PII show/hide toggle button...');
 
-	// The toggle button should appear in the chat header since the chat has PII
-	// It uses icon_hidden (eye-closed) when PII is hidden, icon_visible (eye-open) when revealed
-	const showButton = page.locator('[data-testid="pii-toggle-show"]');
-	const hideButton = page.locator('[data-testid="pii-toggle-hide"]');
+	// The toggle button is a single element with data-testid="chat-pii-toggle".
+	// Its data-pii-revealed attr flips between "false" (placeholders shown) and
+	// "true" (originals shown).
+	const chatPiiToggle = page.getByTestId('chat-pii-toggle');
 
-	// Initially the button should be in "hidden" state (icon_hidden = eye-closed icon)
-	const showButtonVisible = await showButton.isVisible({ timeout: 5000 }).catch(() => false);
-	const hideButtonVisible = await hideButton.isVisible({ timeout: 2000 }).catch(() => false);
+	const toggleVisible = await chatPiiToggle.isVisible({ timeout: 5000 }).catch(() => false);
+	const initialToggleRevealed = toggleVisible
+		? await chatPiiToggle.getAttribute('data-pii-revealed')
+		: null;
 	logCheckpoint(
-		`PII toggle state — show button (icon_hidden): ${showButtonVisible}, hide button (icon_visible): ${hideButtonVisible}`
+		`Chat header PII toggle visible: ${toggleVisible}, data-pii-revealed: ${initialToggleRevealed}`
 	);
 
-	if (showButtonVisible) {
-		// Click "Show sensitive data" to reveal the original email
-		logCheckpoint('Clicking "Show sensitive data" toggle...');
-		await showButton.click();
+	if (toggleVisible && initialToggleRevealed === 'false') {
+		// Click the toggle to reveal the original email
+		logCheckpoint('Clicking chat header PII toggle to reveal...');
+		await chatPiiToggle.click();
 		await page.waitForTimeout(2000);
+
+		const revealedAttrAfterClick = await chatPiiToggle.getAttribute('data-pii-revealed');
+		expect(revealedAttrAfterClick).toBe('true');
 
 		await takeStepScreenshot(page, 'pii-toggle-revealed');
 
@@ -527,36 +531,32 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 		if (revealedCount > 0) {
 			const revealedText = await revealedPii.first().textContent();
 			logCheckpoint(`Revealed PII text: "${revealedText}"`);
-			// In revealed mode, the original email should be shown
 			expect(revealedText).toContain('testuser@privateemail.org');
 			logCheckpoint('Original email correctly revealed in user message.');
 
-			// The hidden PII spans should be gone
 			const hiddenPiiAfterReveal = await userMessage.locator('[data-testid="pii-restored"].pii-hidden').count();
 			logCheckpoint(`Hidden PII spans after reveal: ${hiddenPiiAfterReveal}`);
 			expect(hiddenPiiAfterReveal).toBe(0);
 		} else {
-			// Even without decoration spans, the message text should contain the email
 			expect(revealedMsgText).toContain('testuser@privateemail.org');
 			logCheckpoint('Original email visible in message text after reveal (no decoration spans).');
 		}
 
-		// Now click "Hide sensitive data" to re-hide
-		logCheckpoint('Clicking "Hide sensitive data" toggle...');
-		const hideButtonAfterReveal = page.locator('[data-testid="pii-toggle-hide"]');
-		await expect(hideButtonAfterReveal).toBeVisible({ timeout: 5000 });
-		await hideButtonAfterReveal.click();
+		// Now click the same toggle again to re-hide
+		logCheckpoint('Clicking chat header PII toggle to re-hide...');
+		await chatPiiToggle.click();
 		await page.waitForTimeout(2000);
+
+		const hiddenAttrAfterClick = await chatPiiToggle.getAttribute('data-pii-revealed');
+		expect(hiddenAttrAfterClick).toBe('false');
 
 		await takeStepScreenshot(page, 'pii-toggle-hidden-again');
 
-		// Re-read user message text — it should go back to showing the placeholder
 		const reHiddenMsgText = await userMessage.textContent();
 		logCheckpoint(`User message text after re-hide: "${reHiddenMsgText?.substring(0, 150)}"`);
 		expect(reHiddenMsgText).toMatch(/\[EMAIL_\w+\]/);
 		logCheckpoint('User message correctly re-hidden with placeholder.');
 
-		// Check decoration spans reverted
 		const hiddenPiiAfterReHide = userMessage.locator('[data-testid="pii-restored"].pii-hidden');
 		const hiddenCountAfterReHide = await hiddenPiiAfterReHide.count();
 		logCheckpoint(`Hidden PII spans after re-hide: ${hiddenCountAfterReHide}`);
@@ -565,18 +565,15 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 			const hiddenTextAgain = await hiddenPiiAfterReHide.first().textContent();
 			logCheckpoint(`Re-hidden PII span text: "${hiddenTextAgain}"`);
 			expect(hiddenTextAgain).toMatch(/\[EMAIL_\w+\]/);
-			logCheckpoint('PII decoration span correctly re-hidden to placeholder format.');
 		}
 
-		// The revealed spans should be gone
 		const revealedAfterReHide = await userMessage.locator('[data-testid="pii-restored"].pii-revealed').count();
 		logCheckpoint(`Revealed PII spans after re-hide: ${revealedAfterReHide}`);
 		expect(revealedAfterReHide).toBe(0);
-	} else if (hideButtonVisible) {
+	} else if (toggleVisible && initialToggleRevealed === 'true') {
 		logCheckpoint('Toggle already in revealed state — clicking to hide first.');
-		await hideButton.click();
+		await chatPiiToggle.click();
 		await page.waitForTimeout(1000);
-		logCheckpoint('Toggled to hidden. Skipping full toggle verification.');
 	} else {
 		logCheckpoint(
 			'WARNING: PII toggle button not found. Chat may not have registered PII mappings yet.'
@@ -751,21 +748,23 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	logCheckpoint('Closed fullscreen embed.');
 	await page.waitForTimeout(1000);
 
-	// After revealing, the chat header should now show the "hide" button
-	const chatHideButton = page.locator('[data-testid="pii-toggle-hide"]');
-	await expect(chatHideButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Chat header PII toggle reflects revealed state (hide button visible).');
+	// After revealing, the chat header toggle should reflect revealed=true
+	const chatHeaderToggle = page.getByTestId('chat-pii-toggle');
+	await expect(chatHeaderToggle).toBeVisible({ timeout: 5000 });
+	const chatRevealedAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	logCheckpoint(`Chat header data-pii-revealed after embed reveal: ${chatRevealedAttr}`);
+	expect(chatRevealedAttr).toBe('true');
 
 	// ======================================================================
 	// STEP 7: Toggle from the chat header — must flow back into the embed.
 	// ======================================================================
-	await chatHideButton.click();
-	logCheckpoint('Clicked chat header hide button.');
+	await chatHeaderToggle.click();
+	logCheckpoint('Clicked chat header PII toggle to hide.');
 	await page.waitForTimeout(1000);
 
-	const chatShowButton = page.locator('[data-testid="pii-toggle-show"]');
-	await expect(chatShowButton).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Chat header PII toggle reflects hidden state (show button visible).');
+	const chatHiddenAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	logCheckpoint(`Chat header data-pii-revealed after click: ${chatHiddenAttr}`);
+	expect(chatHiddenAttr).toBe('false');
 
 	// Re-open the fullscreen and assert the toggle is back to hidden
 	await mailEmbedPreview.click();
