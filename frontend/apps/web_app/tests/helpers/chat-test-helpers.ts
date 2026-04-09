@@ -370,7 +370,7 @@ async function deleteActiveChat(
 			logCheckpoint('Could not get active chat title.');
 		}
 
-		await activeChatItem.click({ button: 'right' });
+		await activeChatItem.click({ button: 'right', timeout: 5000 });
 		await takeStepScreenshot(page, `${stepLabel}-context-menu-open`);
 		logCheckpoint('Opened chat context menu.');
 
@@ -383,18 +383,31 @@ async function deleteActiveChat(
 			return;
 		}
 
-		await deleteButton.click();
+		// Bound every click with an explicit 5s timeout. Without these, a flaky
+		// context-menu render (button briefly obscured, overlay intercepts, etc.)
+		// would cause .click() to wait up to the entire test timeout (240s+)
+		// before throwing, eating all remaining budget and marking an otherwise-
+		// successful test as timedOut during this non-fatal cleanup.
+		await deleteButton.click({ timeout: 5000 });
 		await takeStepScreenshot(page, `${stepLabel}-delete-confirm-mode`);
 		logCheckpoint('Clicked delete, now in confirm mode.');
 
-		await deleteButton.click();
+		await deleteButton.click({ timeout: 5000 });
 		logCheckpoint('Confirmed chat deletion.');
 
 		await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
 		await takeStepScreenshot(page, `${stepLabel}-chat-deleted`);
 		logCheckpoint('Verified chat deletion successfully.');
 	} catch (error) {
+		// Best-effort cleanup — never let a cleanup hang eat the test timeout.
+		// Try to dismiss any stuck context menu so subsequent tests see a
+		// clean state.
 		logCheckpoint(`Cleanup failed (non-fatal): ${error}`);
+		try {
+			await page.keyboard.press('Escape');
+		} catch {
+			/* noop */
+		}
 	}
 }
 
