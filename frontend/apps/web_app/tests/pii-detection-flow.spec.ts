@@ -703,26 +703,32 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	const userMessage = page.getByTestId('message-user').last();
 	await expect(userMessage).toBeVisible();
 
+	// The mail embed preview's "To: ..." receiver line is rendered in the
+	// BasicInfosBar's `embed-status-value` span (customStatusText). Targeting
+	// it directly avoids false positives from the email body text which may
+	// contain unrelated strings.
+	const previewStatusValue = mailEmbedPreview.getByTestId('embed-status-value').first();
+
 	async function assertAllHidden(label: string) {
 		const msgText = (await userMessage.textContent()) || '';
-		const previewText = (await mailEmbedPreview.textContent()) || '';
+		const previewStatus = (await previewStatusValue.textContent()) || '';
 		logCheckpoint(`[${label}] user message first 200: "${msgText.substring(0, 200)}"`);
-		logCheckpoint(`[${label}] preview first 200: "${previewText.substring(0, 200)}"`);
-		expect(msgText, `[${label}] user message must hide PII`).not.toContain(senderEmail);
-		expect(msgText, `[${label}] user message must hide PII`).not.toContain(receiverEmail);
-		expect(previewText, `[${label}] preview must hide PII`).not.toContain(senderEmail);
-		expect(previewText, `[${label}] preview must hide PII`).not.toContain(receiverEmail);
-		expect(previewText, `[${label}] preview must show EMAIL placeholder`).toMatch(/\[EMAIL_\w+\]/);
+		logCheckpoint(`[${label}] preview status-value: "${previewStatus}"`);
+		expect(msgText, `[${label}] user message must hide sender PII`).not.toContain(senderEmail);
+		expect(msgText, `[${label}] user message must hide receiver PII`).not.toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must hide receiver PII`).not.toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must show EMAIL placeholder`).toMatch(/\[EMAIL_\w+\]/);
 	}
 
 	async function assertAllRevealed(label: string) {
 		const msgText = (await userMessage.textContent()) || '';
-		const previewText = (await mailEmbedPreview.textContent()) || '';
+		const previewStatus = (await previewStatusValue.textContent()) || '';
 		logCheckpoint(`[${label}] user message first 200: "${msgText.substring(0, 200)}"`);
-		logCheckpoint(`[${label}] preview first 200: "${previewText.substring(0, 200)}"`);
+		logCheckpoint(`[${label}] preview status-value: "${previewStatus}"`);
 		expect(msgText, `[${label}] user message must reveal sender`).toContain(senderEmail);
 		expect(msgText, `[${label}] user message must reveal receiver`).toContain(receiverEmail);
-		expect(previewText, `[${label}] preview must reveal receiver`).toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must reveal receiver`).toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must not show placeholder`).not.toMatch(/\[EMAIL_\w+\]/);
 	}
 
 	await assertAllHidden('initial');
