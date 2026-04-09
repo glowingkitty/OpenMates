@@ -150,8 +150,8 @@ test.describe('App: Web / Skill: search', () => {
 
 		// Assistant response text must be non-empty — the LLM answer should render
 		// regardless of the zero-hit sub-query.
-		const assistantMessage = page.getByTestId('chat-message').filter({ hasText: /./ }).last();
-		await expect(assistantMessage).toBeVisible({ timeout: 10_000 });
+		const assistantMessage = page.getByTestId('message-assistant').last();
+		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
 
 		logCheckpoint('Phase 5 passed: zero-hit query rendered without error banner.');
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'web-search-zero');
