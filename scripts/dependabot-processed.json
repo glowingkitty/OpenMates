@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-04-07T06:30:02Z",
+  "last_run": "2026-04-09T11:30:02Z",
   "processed": [
     {
       "ghsa_id": "GHSA-c427-h43c-vf67",
@@ -75,9 +75,9 @@
         164
       ],
       "first_seen_at": "2026-04-02T11:26:48Z",
-      "last_dispatched_at": "2026-04-02T11:26:48Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": null
+      "last_dispatched_at": "2026-04-09T11:30:02Z",
+      "re_dispatch_count": 1,
+      "resolved_via_commit": "0f75887"
     },
     {
       "ghsa_id": "GHSA-f23m-r3pf-42rh",
@@ -89,35 +89,9 @@
         165
       ],
       "first_seen_at": "2026-04-02T11:26:48Z",
-      "last_dispatched_at": "2026-04-02T11:26:48Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": null
-    },
-    {
-      "ghsa_id": "GHSA-w8v5-vhqr-4h9v",
-      "severity": "medium",
-      "package": "diskcache",
-      "summary": "DiskCache has unsafe pickle deserialization",
-      "alert_numbers": [
-        63
-      ],
-      "first_seen_at": "2026-04-05T13:30:02Z",
-      "last_dispatched_at": null,
-      "re_dispatch_count": 0,
-      "resolved_via_commit": "d2b5c88a7"
-    },
-    {
-      "ghsa_id": "GHSA-qj8w-gfj5-8c6v",
-      "severity": "medium",
-      "package": "serialize-javascript",
-      "summary": "Serialize JavaScript has CPU Exhaustion Denial of Service via crafted array-like objects",
-      "alert_numbers": [
-        123
-      ],
-      "first_seen_at": "2026-04-06T06:30:02Z",
-      "last_dispatched_at": null,
-      "re_dispatch_count": 0,
-      "resolved_via_commit": "48913e007"
+      "last_dispatched_at": "2026-04-09T11:30:02Z",
+      "re_dispatch_count": 1,
+      "resolved_via_commit": "0f75887"
     },
     {
       "ghsa_id": "GHSA-v2wj-q39q-566r",
@@ -163,6 +137,46 @@
       "last_dispatched_at": "2026-04-06T23:30:02Z",
       "re_dispatch_count": 0,
       "resolved_via_commit": "9808dc7a4"
+    },
+    {
+      "ghsa_id": "GHSA-w8v5-vhqr-4h9v",
+      "severity": "medium",
+      "package": "diskcache",
+      "summary": "DiskCache has unsafe pickle deserialization",
+      "alert_numbers": [
+        63
+      ],
+      "first_seen_at": "2026-04-08T14:30:02Z",
+      "last_dispatched_at": null,
+      "re_dispatch_count": 0,
+      "resolved_via_commit": "d2b5c88a7"
+    },
+    {
+      "ghsa_id": "GHSA-p423-j2cm-9vmq",
+      "severity": "medium",
+      "package": "cryptography",
+      "summary": "Cryptography vulnerable to buffer overflow if non-contiguous buffers were passed to APIs",
+      "alert_numbers": [
+        178,
+        177
+      ],
+      "first_seen_at": "2026-04-08T21:30:02Z",
+      "last_dispatched_at": "2026-04-08T21:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": "ab4ade73c"
+    },
+    {
+      "ghsa_id": "GHSA-qj8w-gfj5-8c6v",
+      "severity": "medium",
+      "package": "serialize-javascript",
+      "summary": "Serialize JavaScript has CPU Exhaustion Denial of Service via crafted array-like objects",
+      "alert_numbers": [
+        123
+      ],
+      "first_seen_at": "2026-04-09T07:30:02Z",
+      "last_dispatched_at": null,
+      "re_dispatch_count": 0,
+      "resolved_via_commit": "48913e007"
     }
   ]
 }
