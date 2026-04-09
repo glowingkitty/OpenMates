@@ -1846,40 +1846,65 @@ async def get_server_stats(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     """
-    Query server stats from Directus for remote consumption.
+    Query server stats from Directus for the daily meeting dashboard.
 
-    Returns the same data as server_stats_query.py but as structured JSON,
-    accessible via the Admin Debug API so dev can query production stats
-    without direct Directus access.
+    Returns:
+      - User growth (yesterday snapshot)
+      - Engagement: 14-day daily trend (messages, embeds, chats) + all-time totals
+      - Revenue: 14-day daily trend (income, purchases) + per-day unique buyers
+        from invoices aggregation + lifetime unique buyers
+      - AI usage (yesterday snapshot)
+      - Web analytics, newsletter, data health
     """
     import json as _json
 
     today = datetime.now(timezone.utc)
     today_str = today.strftime("%Y-%m-%d")
     yesterday_str = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+    cutoff_14d = (today - timedelta(days=14)).strftime("%Y-%m-%d")
 
-    logger.info(f"Admin {admin_user.id} querying server stats for {yesterday_str}")
+    logger.info(f"Admin {admin_user.id} querying server stats (14d trend ending {yesterday_str})")
 
     result: Dict[str, Any] = {"success": True, "date": yesterday_str, "sections": {}}
 
-    # ── Server Stats (yesterday) ─────────────────────────────────────────
+    # ── Server Stats — 14 day trend + yesterday snapshot ─────────────────
     try:
-        items = await directus_service.get_items(
+        trend_items = await directus_service.get_items(
             "server_stats_global_daily",
-            {"filter": {"date": {"_eq": yesterday_str}}, "limit": 1},
+            {"sort": ["-date"], "limit": 14},
             admin_required=True,
         )
-        stats = items[0] if items else None
+        # Oldest → newest for rendering
+        trend_items = list(reversed(trend_items or []))
+        stats = trend_items[-1] if trend_items else None
+
         if stats:
             result["sections"]["user_growth"] = {
                 "total_users": stats.get("total_regular_users"),
                 "new_registrations": _safe_int(stats.get("new_users_registered")),
                 "completed_signups": _safe_int(stats.get("new_users_finished_signup")),
             }
+
+            # 14-day engagement trend
+            trend = [
+                {
+                    "date": it.get("date"),
+                    "messages": _safe_int(it.get("messages_sent")),
+                    "embeds": _safe_int(it.get("embeds_created")),
+                    "chats": _safe_int(it.get("chats_created")),
+                    "income_eur": _safe_int(it.get("income_eur_cents")) / 100.0,
+                    "purchases": _safe_int(it.get("purchase_count")),
+                    "credits_sold": _safe_int(it.get("credits_sold")),
+                    "credits_used": _safe_int(it.get("credits_used")),
+                }
+                for it in trend_items
+            ]
+
             result["sections"]["engagement"] = {
                 "messages_sent": _safe_int(stats.get("messages_sent")),
                 "chats_created": _safe_int(stats.get("chats_created")),
                 "embeds_created": _safe_int(stats.get("embeds_created")),
+                "trend_14d": trend,
             }
             income_cents = _safe_int(stats.get("income_eur_cents"))
             result["sections"]["revenue"] = {
@@ -1891,6 +1916,7 @@ async def get_server_stats(
                 "subscription_creations": _safe_int(stats.get("subscription_creations")),
                 "subscription_cancellations": _safe_int(stats.get("subscription_cancellations")),
                 "credit_liability": stats.get("liability_total"),
+                "trend_14d": trend,
             }
             result["sections"]["ai_usage"] = {
                 "input_tokens": _safe_int(stats.get("total_input_tokens")),
@@ -1901,6 +1927,117 @@ async def get_server_stats(
     except Exception as e:
         logger.error(f"Server stats query failed: {e}", exc_info=True)
         result["sections"]["server_stats"] = {"error": str(e)}
+
+    # ── All-time totals (messages / chats / embeds) ──────────────────────
+    totals: Dict[str, Any] = {}
+    for coll in ("messages", "chats", "embeds"):
+        try:
+            url = f"{directus_service.base_url}/items/{coll}"
+            resp = await directus_service._make_api_request(
+                "GET", url, params={"limit": 1, "meta": "filter_count"}
+            )
+            if resp.status_code == 200:
+                totals[coll] = _safe_int(resp.json().get("meta", {}).get("filter_count"))
+            else:
+                totals[coll] = None
+        except Exception as e:
+            logger.error(f"filter_count for {coll} failed: {e}")
+            totals[coll] = None
+    result["sections"]["totals"] = totals
+
+    # ── Invoices: per-day unique buyers + lifetime buyers ────────────────
+    # Directus aggregation — no user-supplied SQL, fully predefined.
+    try:
+        invoices_url = f"{directus_service.base_url}/items/invoices"
+
+        # Per-day unique buyers (last 14 days, skip gift card redemptions)
+        daily_params = [
+            ("aggregate[countDistinct]", "user_id_hash"),
+            ("aggregate[count]", "id"),
+            ("groupBy[]", "year(date)"),
+            ("groupBy[]", "month(date)"),
+            ("groupBy[]", "day(date)"),
+            ("filter[date][_gte]", cutoff_14d),
+            ("filter[is_gift_card][_eq]", "false"),
+            ("sort[]", "year(date)"),
+            ("sort[]", "month(date)"),
+            ("sort[]", "day(date)"),
+            ("limit", "-1"),
+        ]
+        daily_resp = await directus_service._make_api_request(
+            "GET", invoices_url, params=daily_params
+        )
+        buyers_by_day: Dict[str, Dict[str, int]] = {}
+        if daily_resp.status_code == 200:
+            for row in daily_resp.json().get("data", []) or []:
+                y = row.get("date_year")
+                m = row.get("date_month")
+                d = row.get("date_day")
+                if y is None or m is None or d is None:
+                    continue
+                key = f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+                distinct = row.get("countDistinct") or {}
+                count = row.get("count") or {}
+                buyers_by_day[key] = {
+                    "unique_buyers": _safe_int(distinct.get("user_id_hash")),
+                    "invoices": _safe_int(count.get("id")),
+                }
+
+        # Lifetime unique buyers
+        lifetime_params = [
+            ("aggregate[countDistinct]", "user_id_hash"),
+            ("filter[is_gift_card][_eq]", "false"),
+        ]
+        lifetime_resp = await directus_service._make_api_request(
+            "GET", invoices_url, params=lifetime_params
+        )
+        lifetime_buyers = 0
+        if lifetime_resp.status_code == 200:
+            rows = lifetime_resp.json().get("data", []) or []
+            if rows:
+                lifetime_buyers = _safe_int((rows[0].get("countDistinct") or {}).get("user_id_hash"))
+
+        # Total invoices + refund split
+        total_invoices = 0
+        paid_invoices = 0
+        try:
+            r = await directus_service._make_api_request(
+                "GET", invoices_url,
+                params={"limit": 1, "meta": "filter_count", "filter[is_gift_card][_eq]": "false"},
+            )
+            if r.status_code == 200:
+                total_invoices = _safe_int(r.json().get("meta", {}).get("filter_count"))
+            r2 = await directus_service._make_api_request(
+                "GET", invoices_url,
+                params={
+                    "limit": 1, "meta": "filter_count",
+                    "filter[is_gift_card][_eq]": "false",
+                    "filter[refund_status][_eq]": "none",
+                    "filter[has_chargeback][_eq]": "false",
+                },
+            )
+            if r2.status_code == 200:
+                paid_invoices = _safe_int(r2.json().get("meta", {}).get("filter_count"))
+        except Exception as e:
+            logger.error(f"invoices total/paid query failed: {e}")
+
+        # Merge per-day buyers into the revenue trend
+        if "revenue" in result["sections"] and isinstance(result["sections"]["revenue"].get("trend_14d"), list):
+            for entry in result["sections"]["revenue"]["trend_14d"]:
+                d = entry.get("date")
+                bd = buyers_by_day.get(d, {})
+                entry["unique_buyers"] = bd.get("unique_buyers", 0)
+                entry["invoice_count"] = bd.get("invoices", 0)
+
+        result["sections"]["invoices"] = {
+            "lifetime_unique_buyers": lifetime_buyers,
+            "total_invoices": total_invoices,
+            "paid_invoices": paid_invoices,
+            "refunded_or_chargeback": max(0, total_invoices - paid_invoices),
+        }
+    except Exception as e:
+        logger.error(f"Invoices aggregation failed: {e}", exc_info=True)
+        result["sections"]["invoices"] = {"error": str(e)}
 
     # ── Web Analytics (yesterday) ────────────────────────────────────────
     try:
