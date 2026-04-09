@@ -556,9 +556,15 @@ export const Embed = Node.create<EmbedOptions>({
     return ({ node, getPos, editor }) => {
       let currentAttrs = node.attrs as EmbedNodeAttributes;
 
-      // Create full-width wrapper to prevent cursor positioning after embed
+      // Create full-width wrapper to prevent cursor positioning after embed.
+      // The data-testid is required by Playwright specs (file-attachment-flow.spec.ts,
+      // pdf-flow.spec.ts, cli-skills-pdf.spec.ts) which previously relied on the
+      // CSS class as if it were a data-testid — the selector never matched and
+      // those specs silently timed out on any retry. Per .claude/rules/testing.md
+      // all test targeting must use data-testid, not CSS classes.
       const wrapper = document.createElement("div");
       wrapper.classList.add("embed-full-width-wrapper");
+      wrapper.setAttribute("data-testid", "embed-full-width-wrapper");
       wrapper.style.width = "100%";
       wrapper.style.display = "block";
 
