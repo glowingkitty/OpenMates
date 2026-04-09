@@ -1943,6 +1943,7 @@
 <div
   class="chat-item-wrapper"
   data-testid="chat-item-wrapper"
+  data-chat-id={chat?.chat_id ?? ''}
   class:active={isActive}
   role="button"
   tabindex="0"
