@@ -71,6 +71,41 @@ SOFT_LIMIT_SKILL_CALLS = 3
 HARD_LIMIT_SKILL_CALLS = 5
 
 
+# Characters LLM providers use instead of the canonical hyphen in tool names.
+# Gemini 3 Flash emits colons ('web:search'), some older models emit underscores
+# ('web_search'), others emit pipes or dots. We normalize all of these to the
+# hyphen form ('web-search') before the allow-list check in main processing.
+# See OPE-399 follow-up for the incident where an entire chat response went
+# empty because Gemini 3 called 'web:search' and the strict string-match
+# allow-list rejected it even though 'web-search' was preselected.
+_TOOL_NAME_SEPARATORS = (":", "|", "_", ".")
+
+
+def _canonicalize_tool_name(name: str) -> str:
+    """Normalize an LLM-emitted tool name to its canonical hyphen form.
+
+    Converts all known separator variants to the hyphen separator used by
+    tool_generator.skill_definition_to_tool_definition. Preserves case and
+    any other characters. Empty/None-safe: returns the input unchanged if
+    it isn't a string.
+
+    Examples:
+        web:search       -> web-search
+        web|search       -> web-search
+        web_search       -> web-search
+        web.search       -> web-search
+        web-search       -> web-search (unchanged)
+        mail|get_apps_settings -> mail-get-apps-settings (still rejected as
+                                  hallucination because it isn't preselected)
+    """
+    if not isinstance(name, str):
+        return name
+    out = name
+    for sep in _TOOL_NAME_SEPARATORS:
+        out = out.replace(sep, "-")
+    return out
+
+
 def _hash_skill_arguments(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> str:
     """
     Create a deterministic hash of skill arguments for deduplication.
@@ -1562,10 +1597,20 @@ async def handle_main_processing(
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
     # Strict allow-list: the main LLM may ONLY call tools that the preprocessor
-    # explicitly forwarded into available_tools_for_llm. Any other tool name is a
-    # hallucination (e.g. invented "mail|get_apps_settings") and must be rejected
-    # before it reaches skill execution. See OPE-399.
-    allowed_tool_names: set[str] = set(tool_names)
+    # explicitly forwarded into available_tools_for_llm (including rule-based
+    # auto-adds like images-view on upload and always_include_skills). Any
+    # other tool name is a hallucination (e.g. invented "mail|get_apps_settings")
+    # and must be rejected before it reaches skill execution. See OPE-399.
+    #
+    # Separator normalization: different LLM providers emit tool names with
+    # different separators (Gemini 3 Flash uses ':' — 'web:search', older
+    # models sometimes use '_' — 'web_search', some emit '|' — 'web|search',
+    # and the canonical form is '-' — 'web-search'). To avoid rejecting a
+    # legitimately preselected tool just because the provider used the
+    # "wrong" separator, we normalize every tool name to its hyphen form
+    # before the allow-list check. The allow-list itself stays strict — a
+    # non-preselected skill is still a hallucination regardless of separator.
+    allowed_tool_names: set[str] = {_canonicalize_tool_name(n) for n in tool_names}
     logger.info(f"{log_prefix} Available tools for main processing LLM: {len(available_tools_for_llm)} total")
     logger.debug(f"{log_prefix} Tool names: {', '.join(tool_names) if tool_names else 'None'}")
     if preselected_skills:
@@ -2035,9 +2080,22 @@ async def handle_main_processing(
                 # tool list BEFORE it is appended for execution. This prevents
                 # hallucinated skills (e.g. "mail|get_apps_settings") from reaching
                 # skill execution via the broken fallback splitter.
-                if chunk.function_name not in allowed_tool_names:
+                #
+                # Separator normalization (OPE-399 follow-up): different providers
+                # emit different separators for the same canonical skill. Gemini 3
+                # Flash emits 'web:search', older models sometimes emit 'web_search',
+                # the canonical form is 'web-search'. We normalize the emitted name
+                # to the hyphen form before the allow-list check so a legitimately
+                # preselected tool isn't rejected just because the provider picked
+                # the "wrong" separator. The allow-list itself stays strict —
+                # non-preselected skills are still hallucinations regardless of
+                # separator format. See _canonicalize_tool_name() for details.
+                raw_function_name = chunk.function_name
+                canonical_name = _canonicalize_tool_name(raw_function_name)
+                if canonical_name not in allowed_tool_names:
                     logger.warning(
-                        f"{log_prefix} [HALLUCINATION] Rejecting unknown tool call '{chunk.function_name}' "
+                        f"{log_prefix} [HALLUCINATION] Rejecting unknown tool call "
+                        f"'{raw_function_name}' (canonical='{canonical_name}') "
                         f"from main LLM. tool_call_id={chunk.tool_call_id}. "
                         f"Allowed tools ({len(allowed_tool_names)}): {sorted(allowed_tool_names)}. "
                         f"Raw arguments: {chunk.function_arguments_raw[:500]}"
@@ -2048,7 +2106,7 @@ async def handle_main_processing(
                     current_message_history.append({
                         "tool_call_id": chunk.tool_call_id,
                         "role": "tool",
-                        "name": chunk.function_name,
+                        "name": raw_function_name,
                         "content": json.dumps({
                             "status": "rejected",
                             "reason": (
@@ -2058,6 +2116,17 @@ async def handle_main_processing(
                         }),
                     })
                     continue
+
+                # Rewrite the chunk's function_name to the canonical form so all
+                # downstream code paths (placeholder creation, tool_resolver_map
+                # lookup, skill execution, dedup hashing) see a consistent hyphen
+                # form regardless of which separator the provider emitted.
+                if canonical_name != raw_function_name:
+                    logger.info(
+                        f"{log_prefix} Normalized tool call name: "
+                        f"'{raw_function_name}' -> '{canonical_name}'"
+                    )
+                    chunk.function_name = canonical_name
 
                 tool_calls_for_this_turn.append(chunk)
 
