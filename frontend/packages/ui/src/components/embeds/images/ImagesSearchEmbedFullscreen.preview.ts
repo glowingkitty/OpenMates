@@ -3,7 +3,12 @@
  *
  * Uses the legacyResults prop (added for dev preview) to supply a direct results array
  * instead of relying on child embed store resolution (which has no data in dev preview).
- * All image URLs use Unsplash/Wikimedia which reliably proxy through preview.openmates.org.
+ * All image URLs use Unsplash which reliably proxies through preview.openmates.org.
+ *
+ * Wikimedia URLs are intentionally NOT used here: upload.wikimedia.org sets the
+ * WMF-Uniq cookie which contaminates the legal cookie inventory. See
+ * docs/architecture/compliance/cookies.yml.
+ *
  * Access at: /dev/preview/embeds/images/ImagesSearchEmbedFullscreen
  */
 
@@ -18,13 +23,11 @@ const sampleResults = [
   },
   {
     title: "Aerial view of Golden Gate Bridge",
-    source: "wikimedia.org",
-    source_page_url:
-      "https://commons.wikimedia.org/wiki/File:GoldenGateBridge-001.jpg",
+    source: "unsplash.com",
+    source_page_url: "https://unsplash.com/photos/golden-gate-aerial",
     thumbnail_url:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/300px-GoldenGateBridge-001.jpg",
-    image_url:
-      "https://upload.wikimedia.org/wikipedia/commons/0/0c/GoldenGateBridge-001.jpg",
+      "https://images.unsplash.com/photo-1506146332389-18140dc7b2fb?w=300",
+    image_url: "https://images.unsplash.com/photo-1506146332389-18140dc7b2fb",
   },
   {
     title: "Golden Gate Bridge towers in fog",
@@ -52,13 +55,11 @@ const sampleResults = [
   },
   {
     title: "Golden Gate Bridge under blue sky",
-    source: "wikimedia.org",
-    source_page_url:
-      "https://commons.wikimedia.org/wiki/File:Golden_Gate_Bridge_seen_from_the_Marin_Headlands_in_March_2019.jpg",
+    source: "unsplash.com",
+    source_page_url: "https://unsplash.com/photos/golden-gate-marin-headlands",
     thumbnail_url:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/New_bridge_at_night.jpg/300px-New_bridge_at_night.jpg",
-    image_url:
-      "https://upload.wikimedia.org/wikipedia/commons/4/47/New_bridge_at_night.jpg",
+      "https://images.unsplash.com/photo-1521747116042-5a810fda9664?w=300",
+    image_url: "https://images.unsplash.com/photo-1521747116042-5a810fda9664",
   },
 ];
 

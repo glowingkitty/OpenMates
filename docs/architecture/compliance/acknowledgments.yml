@@ -35,7 +35,10 @@ cookies:
     - "new iframe embed known to set third-party cookies without SameSite=None + Partitioned"
   notes: |
     Current essential cookies (as of 2026-04-08):
-      - auth_refresh_token: HttpOnly, Secure, SameSite=Strict, Domain=parent-of-Origin
+      - auth_refresh_token: HttpOnly, Secure, SameSite=Lax, Domain=parent-of-Origin
+        (Lax, not Strict: the cookie must be sent on top-level GET navigations from
+        external links such as email verification and password-reset callbacks.
+        Lax still blocks cross-site POSTs, so CSRF protection is preserved.)
       - Stripe checkout session cookies (only set during active checkout, not on normal browsing)
     The privacy policy must document this cookie inventory explicitly. If any
     non-essential cookie ships in the future, a consent banner becomes mandatory.

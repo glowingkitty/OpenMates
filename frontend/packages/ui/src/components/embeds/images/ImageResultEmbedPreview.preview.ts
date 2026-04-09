@@ -2,9 +2,14 @@
  * Preview mock data for ImageResultEmbedPreview.
  *
  * Single image result card (child embed inside ImagesSearchEmbedFullscreen).
- * Uses Unsplash/Wikimedia URLs which reliably proxy through preview.openmates.org.
+ * Uses Unsplash URLs which reliably proxy through preview.openmates.org.
  * Note: thumbnailUrl must already be proxied by the caller (AppSkillUseRenderer).
  * In this preview file we pass the raw URL; the component itself calls proxyImage internally.
+ *
+ * Wikimedia URLs are intentionally NOT used here: upload.wikimedia.org sets the
+ * WMF-Uniq cookie which contaminates the legal cookie inventory run via the
+ * embed-showcase Playwright suite. See docs/architecture/compliance/cookies.yml.
+ *
  * Access at: /dev/preview/embeds/images/ImageResultEmbedPreview
  */
 
@@ -25,16 +30,15 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
-  /** Image from Wikimedia */
-  wikimedia: {
+  /** Alternate image from Unsplash */
+  alternate: {
     ...defaultProps,
-    id: "preview-image-result-wikimedia",
-    title: "Aerial view of Golden Gate Bridge",
-    sourceDomain: "wikimedia.org",
+    id: "preview-image-result-alternate",
+    title: "Golden Gate Bridge from Baker Beach",
+    sourceDomain: "unsplash.com",
     thumbnailUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/200px-GoldenGateBridge-001.jpg",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/0/0c/GoldenGateBridge-001.jpg",
+      "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=200",
+    imageUrl: "https://images.unsplash.com/photo-1449034446853-66c86144b0ad",
   },
 
   /** Processing state */
