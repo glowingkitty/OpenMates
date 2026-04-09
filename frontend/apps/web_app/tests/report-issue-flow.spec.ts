@@ -107,14 +107,24 @@ async function navigateToReportIssue(
 
 /**
  * Close the settings panel by clicking the settings toggle close icon.
+ *
+ * Both click paths are bounded with an explicit timeout so a flaky render
+ * can't eat the entire test budget during non-fatal teardown — without a
+ * timeout on the fallback click, a hung toggle would hold the test open
+ * until Playwright's overall test timeout fires and mark the whole run
+ * timedOut even after every assertion passed.
  */
 async function closeSettings(page: any): Promise<void> {
 	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
 	try {
 		await closeIcon.click({ timeout: 3000 });
 	} catch {
-		const settingsToggle = page.locator('#settings-menu-toggle');
-		await settingsToggle.click();
+		try {
+			const settingsToggle = page.locator('#settings-menu-toggle');
+			await settingsToggle.click({ timeout: 3000 });
+		} catch {
+			/* best-effort cleanup — never throw from closeSettings */
+		}
 	}
 	await page.waitForTimeout(500);
 }

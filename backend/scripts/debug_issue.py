@@ -1703,32 +1703,61 @@ def format_detail_output(
                 else:
                     lines.append(f"    Device Info:      {truncate_string(device_info_str, 200)}")
 
-        # Logs section — no longer stored in S3 YAML; queried live from OpenObserve via --timeline.
-        # Old YAMLs may still contain console_logs / docker_compose_logs; show a migration note.
-        logs = report.get('logs', {})
-        if logs and (logs.get('console_logs') or logs.get('docker_compose_logs')):
+        # Client console log buffer — embedded in the S3 YAML as a failsafe
+        # (see issue_report_email_task.py). The previous design trusted
+        # OpenObserve as the canonical log store; that pipeline has been
+        # silently broken before, so every issue report now carries a local
+        # copy of the reporter's last ~256 KB of console output.
+        #
+        # Two schemas supported:
+        #   • New (2026-04-09 →): report['console_logs'] — single string
+        #   • Legacy: report['logs']['console_logs'] / ['docker_compose_logs']
+        top_level_console = report.get('console_logs')
+        logs = report.get('logs', {}) or {}
+        legacy_console = logs.get('console_logs')
+        legacy_docker = logs.get('docker_compose_logs')
+
+        if top_level_console:
             lines.append("")
-            lines.append("  LOGS (legacy snapshot — pre-dates OpenObserve timeline):")
+            lines.append("  CLIENT CONSOLE LOGS (embedded failsafe):")
+            lines.append("  " + "-" * 60)
+            filtered, total, matches = filter_logs_to_errors(str(top_level_console))
+            lines.append(
+                f"    Quick error scan: {matches} warning(s)/error(s) of {total} lines"
+            )
+            if full_logs:
+                for line in str(top_level_console).splitlines():
+                    lines.append(f"    {line}")
+            else:
+                # Summary mode: show filtered errors/warnings only
+                if filtered:
+                    for fl in filtered[:40]:
+                        lines.append(f"    {fl}")
+                    if len(filtered) > 40:
+                        lines.append(f"    ... ({len(filtered) - 40} more — pass --full-logs)")
+                else:
+                    lines.append("    (no errors or warnings in buffer — pass --full-logs for full output)")
+
+        if legacy_console or legacy_docker:
+            lines.append("")
+            lines.append("  LOGS (legacy snapshot — pre-dates embedded console_logs field):")
             lines.append("  " + "-" * 60)
             lines.append(
-                "    This YAML was created before log data was moved to OpenObserve."
+                "    This YAML was created with the older logs[] schema."
             )
             lines.append(
-                "    Run with --timeline for a live, unified browser+backend timeline instead."
+                "    Run with --timeline for a live, unified browser+backend timeline."
             )
-            # Still show a quick error-only filter so old YAMLs aren't totally opaque
-            console_logs = logs.get('console_logs')
-            docker_logs  = logs.get('docker_compose_logs')
             combined = ""
-            if console_logs:
-                combined += str(console_logs) + "\n"
-            if docker_logs:
-                if isinstance(docker_logs, dict):
-                    for svc_logs in docker_logs.values():
+            if legacy_console:
+                combined += str(legacy_console) + "\n"
+            if legacy_docker:
+                if isinstance(legacy_docker, dict):
+                    for svc_logs in legacy_docker.values():
                         if svc_logs:
                             combined += str(svc_logs) + "\n"
                 else:
-                    combined += str(docker_logs) + "\n"
+                    combined += str(legacy_docker) + "\n"
             if combined.strip():
                 filtered, total, matches = filter_logs_to_errors(combined)
                 lines.append(
