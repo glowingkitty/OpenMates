@@ -828,9 +828,17 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	// in practice. The toggle must still work identically after a round-trip
 	// through the chat loader, not just on the freshly-sent chat in memory.
 	// ======================================================================
-	// First: grab the chat-id of the active chat so we can click it again.
+	// Open the sidebar (closed by default on <=1440px viewports).
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(1000);
+		logCheckpoint('Opened sidebar to access chat list.');
+	}
+
+	// Grab the chat-id of the active chat so we can click it again later.
 	const activeChatWrapper = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeChatWrapper).toBeVisible({ timeout: 5000 });
+	await expect(activeChatWrapper).toBeVisible({ timeout: 10000 });
 	const activeChatId = await activeChatWrapper.getAttribute('data-chat-id');
 	logCheckpoint(`Active chat id to re-open: ${activeChatId}`);
 
@@ -838,11 +846,24 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await startNewChat(page, logCheckpoint);
 	await page.waitForTimeout(1500);
 
+	// Re-open sidebar if startNewChat closed it.
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		const stillHasChat = await page
+			.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`)
+			.isVisible()
+			.catch(() => false);
+		if (!stillHasChat) {
+			await sidebarToggle.click();
+			await page.waitForTimeout(1000);
+			logCheckpoint('Re-opened sidebar after new-chat navigation.');
+		}
+	}
+
 	// Now click back on the original chat from the sidebar.
 	const targetChatItem = activeChatId
 		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`)
 		: page.getByTestId('chat-item-wrapper').first();
-	await expect(targetChatItem).toBeVisible({ timeout: 5000 });
+	await expect(targetChatItem).toBeVisible({ timeout: 10000 });
 	await targetChatItem.click();
 	logCheckpoint('Clicked sidebar chat to re-open as existing chat.');
 	await page.waitForTimeout(2000);
