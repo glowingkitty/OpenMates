@@ -2060,6 +2060,152 @@ async def _o2_structured_query(args) -> None:
     if "limit" not in body and getattr(args, "max_rows", None):
         body["limit"] = args.max_rows
 
+    if is_prod:
+        await _structured_query_via_http(args, body, as_json_out)
+    else:
+        await _structured_query_direct_dev(args, body, as_json_out)
+
+
+async def _structured_query_direct_dev(args, body: Dict[str, Any], as_json_out: bool) -> None:
+    """Run a structured query directly against local OpenObserve on dev.
+
+    We're running inside the dev api container, which has direct network
+    access to openobserve:5080 and the credentials in env vars — same path
+    the preset queries use. No HTTP edge, no admin API key, no auth. Reuses
+    the backend's composer + validator so dev parity with prod is exact.
+    """
+    # Import the composer + validator from the backend module. The import is
+    # local to this function so the top of debug_logs.py doesn't drag in
+    # FastAPI route imports during --browser or --upload-logs usage.
+    from backend.core.api.app.routes.admin_debug import (
+        LogQueryRequest,
+        _compose_log_query_sql,
+        _LOG_QUERY_MAX_ROWS,
+        _LOG_QUERY_MAX_SINCE_MINUTES,
+        _LOG_QUERY_MAX_FILTERS,
+    )
+    from fastapi import HTTPException
+    from pydantic import ValidationError
+
+    # 1. Pydantic-decode the body (same validation the HTTP endpoint runs)
+    try:
+        req_model = LogQueryRequest(**body)
+    except ValidationError as e:
+        msg = f"Query validation error: {e.errors()}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    # 2. Apply the same endpoint-level clamps as structured_log_query (backend).
+    if req_model.limit < 1 or req_model.limit > _LOG_QUERY_MAX_ROWS:
+        msg = f"limit must be between 1 and {_LOG_QUERY_MAX_ROWS}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+    if req_model.since_minutes < 1 or req_model.since_minutes > _LOG_QUERY_MAX_SINCE_MINUTES:
+        msg = f"since_minutes must be between 1 and {_LOG_QUERY_MAX_SINCE_MINUTES}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+    if len(req_model.filters) > _LOG_QUERY_MAX_FILTERS:
+        msg = f"too many filters (max {_LOG_QUERY_MAX_FILTERS})"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. Compose SQL via the backend's safe composer (identifiers from
+    #    whitelist, values SQL-escaped). The composer raises HTTPException(400)
+    #    on validation errors — catch it and surface as a CLI error.
+    try:
+        sql = _compose_log_query_sql(req_model)
+    except HTTPException as e:
+        msg = f"Query rejected: {e.detail}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    # 4. Execute via the same direct-OpenObserve path the presets use.
+    t0 = time.time()
+    try:
+        hits = await _query_openobserve_sql_hits(
+            sql=sql,
+            since_minutes=req_model.since_minutes,
+            max_rows=req_model.limit,
+            production=False,
+        )
+    except Exception as e:
+        duration_ms = int((time.time() - t0) * 1000)
+        script_logger.warning(
+            f"[ADMIN_LOG_QUERY] client=dev-direct stream={req_model.stream} "
+            f"mode={req_model.mode} filters=[{_filters_repr(req_model.filters)}] "
+            f"rows=ERROR duration_ms={duration_ms} error={e!r}"
+        )
+        msg = f"OpenObserve query failed: {e}"
+        if as_json_out:
+            print(json.dumps({"error": msg}))
+        else:
+            print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
+        sys.exit(1)
+
+    duration_ms = int((time.time() - t0) * 1000)
+
+    # 5. Emit the audit log line — mirrors the backend endpoint's format so
+    #    dev and prod queries appear in the same log stream with the same
+    #    [ADMIN_LOG_QUERY] prefix (grep-excludable).
+    script_logger.warning(
+        f"[ADMIN_LOG_QUERY] client=dev-direct stream={req_model.stream} "
+        f"mode={req_model.mode} filters=[{_filters_repr(req_model.filters)}] "
+        f"rows={len(hits)} duration_ms={duration_ms}"
+    )
+
+    # 6. Render the result in the same shape the HTTP path prints.
+    if as_json_out:
+        print(json.dumps({
+            "success": True,
+            "stream": req_model.stream,
+            "mode": req_model.mode,
+            "rows": hits,
+            "total": len(hits),
+            "sql": sql,
+            "since_minutes": req_model.since_minutes,
+            "duration_ms": duration_ms,
+        }, indent=2, default=str))
+        return
+
+    print(f"{C_BOLD}Structured log query (dev, direct){C_RESET}")
+    print(f"{C_DIM}Rows: {len(hits)}  duration={duration_ms}ms  "
+          f"stream={req_model.stream}  mode={req_model.mode}{C_RESET}")
+    print(f"{C_DIM}SQL: {sql[:300]}{C_RESET}")
+    for row in hits[: min(len(hits), args.max_rows)]:
+        print(f"- {json.dumps(row, default=str)[:400]}")
+
+
+def _filters_repr(filters) -> str:
+    """Compact representation of filters for audit log lines."""
+    if not filters:
+        return "-"
+    return "; ".join(
+        f"{f.field} {f.op} {f.value!r}"[:160] for f in filters
+    )
+
+
+async def _structured_query_via_http(args, body: Dict[str, Any], as_json_out: bool) -> None:
+    """Run a structured query against PROD's Admin Debug API over HTTPS.
+
+    Only used when --prod is set. Requires an admin API key in Vault
+    (kv/data/providers/admin:debug_cli__api_key) with admin privileges
+    on the production Directus instance.
+    """
     api_key = await get_api_key_from_vault()
     if not api_key:
         msg = "Cannot reach Admin Debug API: no admin API key in Vault"
@@ -2069,24 +2215,17 @@ async def _o2_structured_query(args) -> None:
             print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
         return
 
-    # Dev base URL — assumes the dev api is reachable via api.dev.openmates.org
-    # (Admin Debug API is not mounted on localhost; we go through the public edge.)
-    base_url = (
-        "https://api.openmates.org/v1/admin/debug"
-        if is_prod
-        else "https://api.dev.openmates.org/v1/admin/debug"
-    )
-    env_label = "production" if is_prod else "dev"
+    base_url = "https://api.openmates.org/v1/admin/debug"
 
     if not as_json_out:
-        print(f"{C_DIM}Querying {env_label} via Admin Debug API (/logs/query)...{C_RESET}")
+        print(f"{C_DIM}Querying production via Admin Debug API (/logs/query)...{C_RESET}")
 
     try:
         resp = await _prod_api_post_request(
             "logs/query", api_key, body, base_url=base_url,
         )
     except Exception as e:
-        error_msg = f"Failed to reach {env_label} Admin Debug API: {e}"
+        error_msg = f"Failed to reach production Admin Debug API: {e}"
         script_logger.error(error_msg)
         if as_json_out:
             print(json.dumps({"error": error_msg}))
@@ -2116,7 +2255,7 @@ async def _o2_structured_query(args) -> None:
         print(json.dumps(resp, indent=2, default=str))
         return
 
-    print(f"{C_BOLD}Structured log query ({env_label}){C_RESET}")
+    print(f"{C_BOLD}Structured log query (production){C_RESET}")
     print(f"{C_DIM}Rows: {resp.get('total', len(rows))}  "
           f"duration={resp.get('duration_ms', '?')}ms  "
           f"stream={resp.get('stream')}  mode={resp.get('mode')}{C_RESET}")
