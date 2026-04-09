@@ -3832,8 +3832,28 @@ async def handle_main_processing(
                                             f"{request_metadata_with_provider.get('query')}"
                                         )
                                 
-                                # Check if this request failed (no results)
-                                if not request_results:
+                                # Distinguish a real failure from a successful zero-hit query.
+                                #
+                                # A skill legitimately returning an empty results list (e.g. Brave
+                                # web search returning HTTP 200 with no matches for a very narrow
+                                # query) must NOT be classified as a failure. Doing so previously
+                                # caused the "App skill processing error" red banner to appear on
+                                # otherwise successful chat answers whenever one sub-query in a
+                                # parallel multi-search had no hits (prod issue
+                                # 0d73ab38-8d0e-45ac-867d-471a2cec8f56, Linear OPE-405).
+                                #
+                                # Contract:
+                                #   - `error` set  OR  `results` key missing  →  real failure
+                                #   - `results: []` without error              →  zero-hit success
+                                # Zero-hit success falls through to the success path, which calls
+                                # embed_service.update_embed_with_results(results=[]) — that
+                                # function already handles the empty case via
+                                # _finalize_embed_no_results() (status="finished", no error).
+                                has_explicit_error = bool(grouped_result.get("error"))
+                                has_results_field = "results" in grouped_result
+                                request_is_real_failure = has_explicit_error or not has_results_field
+
+                                if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed
                                     error_message = grouped_result.get("error") or "Request failed with no results"
                                     logger.warning(

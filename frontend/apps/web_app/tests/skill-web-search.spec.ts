@@ -88,6 +88,75 @@ test.describe('App: Web / Skill: search', () => {
 		}
 	});
 
+	// ── Phase 5: Zero-hit query must NOT show "App skill processing error" ──
+	// Regression guard for Linear OPE-405 / prod issue 0d73ab38.
+	// When one sub-query in a parallel multi-search legitimately returns 0 Brave
+	// results, the assistant answer must still render cleanly without the red
+	// embed-error banner, and the zero-hit embed must finalize to status=finished
+	// (not status=error). Fix is in backend/apps/ai/processing/main_processor.py.
+	test('Phase 5: Zero-result query does not show error banner', async ({ page }: { page: any }) => {
+		test.slow();
+		test.setTimeout(300_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+
+		const logCheckpoint = createSignupLogger('skill-web-search-zero-results');
+		await archiveExistingScreenshots(logCheckpoint);
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
+
+		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+		await startNewChat(page, logCheckpoint);
+
+		// Deterministically zero-hit query: the impossible-exact-phrase combined with
+		// an unusual language fragment never matches anything on Brave. Verified
+		// directly against the Brave API as part of OPE-405.
+		const message = withLiveMockMarker(
+			'Search the web for "xyznonexistentproduct123456" lokale API MQTT — just try to find results',
+			'web_search_zero_results'
+		);
+		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'web-search-zero');
+
+		// The embed must finalize to status=finished (NOT status=error).
+		logCheckpoint('Waiting for web search embed to finalize (finished or error)...');
+		const anyEmbed = page.locator(
+			'[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]'
+		).first();
+		await expect(anyEmbed).toBeVisible({ timeout: 90_000 });
+
+		// Poll until status is no longer "processing"
+		await expect(async () => {
+			const status = await anyEmbed.getAttribute('data-status');
+			expect(['finished', 'error']).toContain(status);
+		}).toPass({ timeout: 90_000 });
+
+		const finalStatus = await anyEmbed.getAttribute('data-status');
+		logCheckpoint(`Zero-result embed final status: ${finalStatus}`);
+		await takeStepScreenshot(page, 'zero-results-embed-final');
+
+		// PRIMARY ASSERTIONS (the bug)
+		expect(
+			finalStatus,
+			`Zero-result web search embed must finalize to "finished", not "error". ` +
+			`Got: ${finalStatus}. This is the OPE-405 regression — backend is mis-classifying ` +
+			`empty Brave results as a skill failure.`
+		).toBe('finished');
+
+		// The red error banner must NOT appear on the assistant message.
+		const errorBanner = page.getByTestId('embed-error-banner');
+		await expect(
+			errorBanner,
+			'Red "App skill processing error" banner must not appear when the only ' +
+			'failure is a legitimate zero-hit search.'
+		).not.toBeVisible();
+
+		// Assistant response text must be non-empty — the LLM answer should render
+		// regardless of the zero-hit sub-query.
+		const assistantMessage = page.getByTestId('chat-message').filter({ hasText: /./ }).last();
+		await expect(assistantMessage).toBeVisible({ timeout: 10_000 });
+
+		logCheckpoint('Phase 5 passed: zero-hit query rendered without error banner.');
+		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'web-search-zero');
+	});
+
 	// ── Phase 4: Web UI chat triggers skill ────────────────────────────────
 	test('Phase 4: Web chat triggers web search with embed', async ({ page }: { page: any }) => {
 		test.slow();
