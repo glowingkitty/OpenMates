@@ -121,11 +121,17 @@ Use OpenObserve-backed `debug.py` commands first for local dev debugging. Fall b
 docker exec api python /app/backend/scripts/debug.py logs --o2 --preset web-app-health --since 60
 docker exec api python /app/backend/scripts/debug.py logs --o2 --preset api-failed-requests --since 60
 
-# Service-focused deep dive with SQL
-docker exec api python /app/backend/scripts/debug.py logs --o2 \
-  --sql "SELECT _timestamp, service, level, message FROM \"default\" WHERE job='container-logs' AND service IN ('api','task-worker') ORDER BY _timestamp DESC LIMIT 200" \
-  --quiet-health
+# Service-focused deep dive via structured query
+# (schema: backend/core/api/app/routes/admin_debug.py:LogQueryRequest)
+docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
+  '{"stream":"default","filters":[{"field":"service","op":"in","value":["api","task-worker"]},{"field":"job","op":"eq","value":"container-logs"}],"since_minutes":60,"limit":200}'
+
+# Same query against prod — requires admin API key in Vault (kv/data/providers/admin).
+docker exec api python /app/backend/scripts/debug.py logs --o2 --prod --query-json \
+  '{"stream":"default","filters":[{"field":"service","op":"in","value":["api","task-worker"]},{"field":"job","op":"eq","value":"container-logs"}],"since_minutes":60,"limit":200}'
 ```
+
+**`--query-json` vs `--sql`:** the `--sql` flag was removed because its prod fallback silently routed to the canned `/errors/logs` top-errors endpoint (ignoring the filter entirely). `--query-json` accepts a strict Pydantic schema (`LogQueryRequest`) and composes whitelisted SQL server-side against OpenObserve. Allowed streams: `default`, `client_console`. Allowed ops: `eq, neq, like, not_like, in, gt, gte, lt, lte`. Two modes: `select` (raw rows) and `count_by` (GROUP BY + COUNT). Hard caps: `limit <= 1000`, `since_minutes <= 10080`, 15 filters max. Every call is audit-logged to the `[ADMIN_LOG_QUERY]` channel. See the module-level docstring in `backend/core/api/app/routes/admin_debug.py` for the full security model.
 
 Fallback (`docker compose logs`) commands:
 
@@ -200,7 +206,10 @@ If still missing, restart `api`.
 
 **Step 3:** If present but unhealthy — check app logs with OpenObserve first:
 
-`docker exec api python /app/backend/scripts/debug.py logs --o2 --sql "SELECT _timestamp, service, level, message FROM \"default\" WHERE job='container-logs' AND service='app-<id>' ORDER BY _timestamp DESC LIMIT 50" --quiet-health`
+```bash
+docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
+  '{"stream":"default","filters":[{"field":"job","op":"eq","value":"container-logs"},{"field":"service","op":"eq","value":"app-<id>"}],"since_minutes":60,"limit":50}'
+```
 
 Fallback: `docker compose logs --tail=50 app-<id>`
 

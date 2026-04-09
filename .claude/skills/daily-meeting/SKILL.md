@@ -50,8 +50,11 @@ These are safe, reliable commands that should never fail. Issue them all in para
 
 4. **OpenObserve dev errors** — Bash:
    ```bash
-   docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health
+   docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json '{"stream":"default","mode":"count_by","group_by":["message","service","level"],"filters":[{"field":"compose_project","op":"eq","value":"openmates-core"},{"field":"level","op":"in","value":["ERROR","CRITICAL"]}],"since_minutes":1440,"limit":15}' --json
    ```
+   Note: the LIKE '%traceback%' catch from the prior SQL-based variant is dropped —
+   Python tracebacks are always logged at ERROR level via `logger.error(..., exc_info=True)`
+   so the level-based filter covers them.
 
 5. **Server stats** — Bash:
    ```bash
@@ -99,7 +102,7 @@ These commands may fail due to missing config. Issue them in a SEPARATE parallel
 
 12. **OpenObserve prod errors** — Bash:
    ```bash
-   docker exec api python /app/backend/scripts/debug.py logs --o2 --since 1440 --sql 'SELECT message, service, level, COUNT(*) as count FROM "default" WHERE compose_project = '"'"'openmates-core'"'"' AND (level = '"'"'ERROR'"'"' OR level = '"'"'CRITICAL'"'"' OR LOWER(message) LIKE '"'"'%traceback%'"'"') GROUP BY message, service, level ORDER BY count DESC LIMIT 15' --json --quiet-health --prod
+   docker exec api python /app/backend/scripts/debug.py logs --o2 --prod --query-json '{"stream":"default","mode":"count_by","group_by":["message","service","level"],"filters":[{"field":"compose_project","op":"eq","value":"openmates-core"},{"field":"level","op":"in","value":["ERROR","CRITICAL"]}],"since_minutes":1440,"limit":15}' --json
    ```
 
 13. **Production server stats** — Bash:

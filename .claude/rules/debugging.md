@@ -48,6 +48,32 @@ After user confirms fix: `docker exec api python /app/backend/scripts/debug.py i
 
 For full debugging guide: `python3 scripts/sessions.py context --doc debugging`
 
+## Ad-hoc Log Queries (`--query-json`)
+
+For structured ad-hoc log searches that don't fit a canned preset, use `--query-json` with a JSON body matching `LogQueryRequest` (`backend/core/api/app/routes/admin_debug.py`). Works on **both dev and prod** through the same CLI — dev talks directly to local OpenObserve (no auth), prod goes over HTTPS to the admin endpoint (uses the admin API key from Vault). The old `--sql` flag was removed because its prod fallback silently routed to the canned `/errors/logs` top-errors endpoint and ignored the filter entirely.
+
+**Whitelists:** streams `default` and `client_console`. Operators: `eq, neq, like, not_like, in, gt, gte, lt, lte`. Modes: `select` (raw rows) and `count_by` (GROUP BY + COUNT). Hard caps: `limit <= 1000`, `since_minutes <= 10080`, 15 filters max. Every call is audit-logged at WARNING with the `[ADMIN_LOG_QUERY]` prefix. See the module docstring in `admin_debug.py` for the full security model (no user SQL ever reaches OpenObserve — all SQL is composed server-side from whitelisted identifiers + SQL-escaped literals).
+
+```bash
+# Search for a specific substring across all backend logs on prod
+docker exec api python /app/backend/scripts/debug.py logs --prod --o2 --query-json \
+  '{"stream":"default","filters":[{"field":"message","op":"like","value":"%passkey%"}],"since_minutes":1440,"limit":20}'
+
+# Count errors by service+level on dev (last 24h)
+docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
+  '{"stream":"default","mode":"count_by","group_by":["service","level"],"filters":[{"field":"level","op":"in","value":["ERROR","CRITICAL"]}],"since_minutes":1440,"limit":15}'
+
+# Browser console logs for a specific debugging session
+docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
+  '{"stream":"client_console","filters":[{"field":"debugging_id","op":"eq","value":"dbg-abc123"}],"since_minutes":60,"limit":50}'
+
+# Timeline for a specific user id on prod
+docker exec api python /app/backend/scripts/debug.py logs --prod --o2 --query-json \
+  '{"stream":"default","filters":[{"field":"message","op":"like","value":"%<user-id-prefix>%"}],"since_minutes":1440,"limit":100}'
+```
+
+**When to use presets vs `--query-json`:** Presets (`--preset top-warnings-errors`, `--preset api-failed-requests`, etc.) for recurring health checks. `--query-json` for ad-hoc investigation with specific filter terms. Both are token-efficient compared to the user-timeline mode (`debug.py logs <email>`).
+
 ## Default Assumptions
 
 - Issues are on the **dev server**, reported by an **admin**
