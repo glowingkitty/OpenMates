@@ -1952,8 +1952,17 @@ def _compose_log_query_sql(req: "LogQueryRequest") -> str:
 
     # SELECT / GROUP BY / ORDER BY
     if req.mode == "select":
-        # Validate selected columns
-        select_cols = req.select or ["_timestamp", "message", "level", "service"]
+        # Per-stream defaults so callers don't have to specify select explicitly.
+        # Kept minimal (3-4 fields) — callers needing more should pass select=[...].
+        if req.select:
+            select_cols = req.select
+        elif req.stream == "default":
+            select_cols = ["_timestamp", "message", "level", "service"]
+        elif req.stream == "client_console":
+            select_cols = ["_timestamp", "message", "level", "device_type"]
+        else:
+            # Defensive: should be unreachable thanks to the Literal stream type
+            select_cols = ["_timestamp", "message", "level"]
         for col in select_cols:
             if col not in allowed_fields:
                 raise HTTPException(
