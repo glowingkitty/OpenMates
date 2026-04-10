@@ -2600,6 +2600,99 @@ async def handle_main_processing(
         assistant_message: Dict[str, Any] = {"role": "assistant", "content": assistant_message_content_for_history or None, "tool_calls": assistant_message_tool_calls_formatted}
         current_message_history.append(assistant_message)
 
+        # === FOCUS MODE EXCLUSIVITY GUARD ===
+        # When activate_focus_mode is in the tool-call batch, it MUST run
+        # exclusively — no other app skills should execute in the same turn.
+        # The LLM sometimes emits focus mode activation alongside regular
+        # skills (e.g. web-search) in a single parallel tool-call batch.
+        # Without this guard, the focus mode's `return` would abandon the
+        # other skills mid-execution, leaving orphaned placeholder embeds.
+        # See: docs/architecture/focus-modes.md, issue e85778c8
+        _focus_mode_in_batch = any(
+            tool_resolver_map.get(tc.function_name, (None, None))[1] == "activate_focus_mode"
+            for tc in tool_calls_for_this_turn
+        )
+        if _focus_mode_in_batch and len(tool_calls_for_this_turn) > 1:
+            _non_focus_tools = [
+                tc for tc in tool_calls_for_this_turn
+                if tool_resolver_map.get(tc.function_name, (None, None))[0] != "system"
+            ]
+            if _non_focus_tools:
+                logger.info(
+                    f"{log_prefix} [FOCUS_EXCLUSIVITY] activate_focus_mode in batch with "
+                    f"{len(_non_focus_tools)} app skill(s): "
+                    f"{[tc.function_name for tc in _non_focus_tools]}. "
+                    f"Suppressing app skills — focus mode takes priority."
+                )
+                for _suppressed_tc in _non_focus_tools:
+                    _sup_tool_call_id = _suppressed_tc.tool_call_id
+                    _sup_tool_name = _suppressed_tc.function_name
+
+                    # Cancel any placeholder embeds that were streamed for the suppressed tool
+                    _sup_placeholder = inline_placeholder_embeds.get(_sup_tool_call_id)
+                    if _sup_placeholder and cache_service and user_vault_key_id and directus_service:
+                        try:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            _focus_guard_embed_svc = EmbedService(
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service
+                            )
+                            _sup_resolved = tool_resolver_map.get(_sup_tool_name, ("unknown", "unknown"))
+                            _sup_embed_ids = []
+                            if isinstance(_sup_placeholder, dict) and _sup_placeholder.get("multiple"):
+                                for _p in _sup_placeholder.get("placeholders", []):
+                                    _eid = _p.get("embed_id") if isinstance(_p, dict) else None
+                                    if _eid:
+                                        _sup_embed_ids.append(_eid)
+                            elif isinstance(_sup_placeholder, dict) and "embed_id" in _sup_placeholder:
+                                _sup_embed_ids.append(_sup_placeholder["embed_id"])
+
+                            for _eid in _sup_embed_ids:
+                                await _focus_guard_embed_svc.update_embed_status_to_cancelled(
+                                    embed_id=_eid,
+                                    app_id=_sup_resolved[0],
+                                    skill_id=_sup_resolved[1],
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                            if _sup_embed_ids:
+                                logger.info(
+                                    f"{log_prefix} [FOCUS_EXCLUSIVITY] Cancelled {len(_sup_embed_ids)} placeholder(s) "
+                                    f"for suppressed tool '{_sup_tool_name}'"
+                                )
+                        except Exception as _fe:
+                            logger.warning(
+                                f"{log_prefix} [FOCUS_EXCLUSIVITY] Failed to cancel placeholder for "
+                                f"'{_sup_tool_name}': {_fe}"
+                            )
+
+                    # Add a synthetic tool response so the LLM's tool_call is properly closed
+                    current_message_history.append({
+                        "tool_call_id": _sup_tool_call_id,
+                        "role": "tool",
+                        "name": _sup_tool_name,
+                        "content": json.dumps({
+                            "status": "skipped",
+                            "reason": "Focus mode activation takes priority. This skill will be available after focus mode is active."
+                        })
+                    })
+
+                # Filter the batch to only keep system tools (focus mode)
+                tool_calls_for_this_turn = [
+                    tc for tc in tool_calls_for_this_turn
+                    if tool_resolver_map.get(tc.function_name, (None, None))[0] == "system"
+                ]
+                logger.info(
+                    f"{log_prefix} [FOCUS_EXCLUSIVITY] Proceeding with {len(tool_calls_for_this_turn)} "
+                    f"system tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
+                )
+
         # Execute all tool calls (skills) in this turn
         for tool_call in tool_calls_for_this_turn:
             tool_name = tool_call.function_name
