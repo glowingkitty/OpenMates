@@ -193,7 +193,7 @@ function setupPageListeners(page: any): void {
 // Test 1: Career insights focus mode activation (happy path)
 // ---------------------------------------------------------------------------
 
-test('career frustration message triggers Career insights focus mode', async ({
+test.only('career frustration message triggers Career insights focus mode', async ({
 	page
 }: {
 	page: any;
