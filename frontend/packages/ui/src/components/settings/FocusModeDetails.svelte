@@ -274,7 +274,7 @@
                 {#if processBullets.length > 0}
                     <ul class="process-bullets">
                         {#each processBullets as bullet}
-                            <li class="process-bullet">{bullet}</li>
+                            <li class="process-bullet" data-testid="focus-process-bullet">{bullet}</li>
                         {/each}
                     </ul>
                 {/if}
@@ -287,7 +287,7 @@
                             <svg class="prompt-quote prompt-quote-open" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                             </svg>
-                            <p class="instructions-text">{focusModeSystemPrompt}</p>
+                            <p class="instructions-text" data-testid="focus-instructions-text">{focusModeSystemPrompt}</p>
                             <!-- Closing quote — bottom-right corner, rotated 180° -->
                             <svg class="prompt-quote prompt-quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
@@ -298,6 +298,7 @@
                     <button
                         type="button"
                         class="instructions-toggle"
+                        data-testid="focus-instructions-toggle"
                         onclick={() => (showFullPrompt = !showFullPrompt)}
                     >{showFullPrompt
                             ? $text('common.show_less')

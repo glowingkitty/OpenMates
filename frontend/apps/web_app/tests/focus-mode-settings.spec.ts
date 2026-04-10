@@ -156,37 +156,23 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	await takeStepScreenshot(page, 'jobs-app-opened');
 
 	// STEP 5: Verify focus mode appears in the app's component list.
-	// The focus mode entry has the focus mode name visible as translated text.
-	// Look for any element containing "Career" text within the settings panel.
+	// Focus modes are rendered as AppStoreCard components (data-testid="app-store-card")
+	// with the focus mode name as translated text inside.
 	logCheckpoint('Looking for Career insights focus mode in Jobs app settings...');
 
-	// Try the specific focus mode item testid first
-	const focusItem = page.getByTestId('focus-mode-item-career_insights');
-	let focusItemFound = await focusItem.isVisible({ timeout: 5000 }).catch(() => false);
-
-	if (!focusItemFound) {
-		// Fallback: look for any clickable element with "Career" text in settings
-		const careerText = page.locator('[data-testid="settings-menu"]').getByText(/career/i).first();
-		focusItemFound = await careerText.isVisible({ timeout: 5000 }).catch(() => false);
-		if (focusItemFound) {
-			logCheckpoint('Found "Career" text in settings panel (fallback selector).');
-		}
-	} else {
-		logCheckpoint('Found focus-mode-item-career_insights via data-testid.');
-	}
-
-	expect(focusItemFound).toBeTruthy();
+	// Find the AppStoreCard that contains "Career" text
+	const focusCard = page.getByTestId('app-store-card').filter({ hasText: /career/i });
+	await expect(focusCard.first()).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Found Career insights focus mode card.');
 	await takeStepScreenshot(page, 'career-insights-found');
 
-	// STEP 6: Click the focus mode to open detail page
-	logCheckpoint('Clicking Career insights to open detail page...');
-	if (await page.getByTestId('focus-mode-item-career_insights').isVisible({ timeout: 2000 }).catch(() => false)) {
-		await page.getByTestId('focus-mode-item-career_insights').click();
-	} else {
-		// Fallback: click the "Career" text link
-		await page.locator('[data-testid="settings-menu"]').getByText(/career/i).first().click();
-	}
-	await page.waitForTimeout(1000);
+	// STEP 6: Click the focus mode card to navigate to detail page
+	logCheckpoint('Clicking Career insights card to open detail page...');
+	await focusCard.first().click();
+	logCheckpoint('Clicked Career insights card.');
+
+	// Wait for detail page to render (settings routing is async)
+	await page.waitForTimeout(2000);
 	await takeStepScreenshot(page, 'detail-page-opened');
 
 	// STEP 7: Verify process summary bullets are shown
