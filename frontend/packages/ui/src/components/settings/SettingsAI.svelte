@@ -421,7 +421,7 @@
     {/if}
 
     <!-- 3. Settings & Memories section - only for authenticated users with AI memories -->
-    {#if isAuthenticated && memoryFields.length > 0}
+    {#if memoryFields.length > 0}
         <div class="section">
             <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
             <p class="memories-description">{$text('settings.app_store.settings_memories.section_description')}</p>
