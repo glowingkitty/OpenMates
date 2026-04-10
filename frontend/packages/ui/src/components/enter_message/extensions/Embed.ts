@@ -565,6 +565,8 @@ export const Embed = Node.create<EmbedOptions>({
       const wrapper = document.createElement("div");
       wrapper.classList.add("embed-full-width-wrapper");
       wrapper.setAttribute("data-testid", "embed-full-width-wrapper");
+      wrapper.setAttribute("data-embed-type", currentAttrs.type);
+      wrapper.setAttribute("data-embed-status", currentAttrs.status);
       wrapper.style.width = "100%";
       wrapper.style.display = "block";
 
