@@ -1657,6 +1657,22 @@
                     // since pasted text may contain complete PII patterns.
                     piiPasteDetectionPending = true;
                     return false;
+                },
+                // Handle click on PII highlight decorations. Using ProseMirror's
+                // handleClick prop instead of a DOM 'click' listener because ProseMirror
+                // may re-render decorations between mousedown and click, destroying the
+                // original <span> element and making the DOM click target unresolvable.
+                handleClick: (view, pos, event) => {
+                    const target = event.target as HTMLElement;
+                    if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
+                        const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
+                        const piiId = piiElement?.getAttribute('data-pii-id');
+                        if (piiId) {
+                            handlePIIClick(piiId);
+                            return true; // handled — prevent ProseMirror default click behavior
+                        }
+                    }
+                    return false;
                 }
             }
         });
@@ -2365,7 +2381,7 @@
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
-        editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
+        // PII click handling moved to editorProps.handleClick (ProseMirror prop)
         // Listen for stop-button upload cancellations from image embeds.
         // This event is dispatched by Embed.ts after the embed node is deleted so
         // we can update the draft and originalMarkdown even when getText() is
@@ -2517,7 +2533,7 @@
         editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.removeEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
-        editorElement?.removeEventListener('click', handleEditorClick);
+        // PII click handling is via editorProps.handleClick, no cleanup needed
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -2735,26 +2751,9 @@
  
     // --- Specific Event Handlers ---
     
-    /**
-     * Handle clicks in the editor to detect clicks on PII highlights.
-     * When a user clicks on a highlighted PII item, we exclude it from replacement.
-     */
-    function handleEditorClick(event: MouseEvent) {
-        const target = event.target as HTMLElement;
-        
-        // Check if the clicked element is a PII highlight
-        if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
-            const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
-            const piiId = piiElement?.getAttribute('data-pii-id');
-            
-            if (piiId) {
-                event.preventDefault();
-                event.stopPropagation();
-                handlePIIClick(piiId);
-            }
-        }
-    }
-    
+    // PII click handling lives in editorProps.handleClick (ProseMirror prop)
+    // to avoid DOM re-render timing issues between mousedown and click.
+
     function handleEmbedClick(event: CustomEvent) { // Use built-in CustomEvent
         const result = handleMenuEmbedInteraction(event, editor, event.detail.id);
         if (result) {
