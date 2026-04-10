@@ -195,6 +195,14 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
 
+	// GHA runners are in the US, so Polar is auto-selected. Switch to Stripe for this test.
+	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await switchToStripeBtn.click();
+		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+		await page.waitForTimeout(2000); // Allow Stripe to initialize
+	}
+
 	// Payment step: consent to limited refund to reveal payment form.
 	// Wait for the consent toggle to appear — Stripe Elements must initialize first.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
