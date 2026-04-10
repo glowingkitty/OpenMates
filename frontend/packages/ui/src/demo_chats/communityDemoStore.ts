@@ -15,6 +15,7 @@ import { writable, get } from "svelte/store";
 import type { Chat, Message } from "../types/chat";
 import { demoChatsDB } from "../services/demoChatsDB";
 import type { DemoEmbed } from "../services/demoChatsDB";
+import { registerDemoEmbedRefs } from "./registerDemoEmbedRefs";
 
 export const COMMUNITY_DEMO_UI_LIMITS = {
   for_everyone: 10,
@@ -291,6 +292,11 @@ export async function loadFromCache(): Promise<void> {
         const embeds = await demoChatsDB.getDemoEmbeds(chat.chat_id);
         newChats.set(chat.chat_id, { chat, messages, embeds });
         totalEmbeds += embeds.length;
+        // Register embed_ref → embed_id mappings so inline embed references
+        // resolve correctly after a cold-boot with cached demo data.
+        if (embeds.length > 0) {
+          registerDemoEmbedRefs(embeds);
+        }
       }
 
       store.update((state) => ({

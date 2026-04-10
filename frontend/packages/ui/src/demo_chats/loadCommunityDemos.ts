@@ -23,6 +23,7 @@ import {
   getAllCommunityDemoChats,
 } from "./communityDemoStore";
 import type { Chat, Message } from "../types/chat";
+import { registerDemoEmbedRefs } from "./registerDemoEmbedRefs";
 
 const LOG_PREFIX = "[loadCommunityDemos]";
 
@@ -299,6 +300,14 @@ export async function loadCommunityDemos(
         );
 
         if (parsedEmbeds.length > 0) {
+          // Register embed_ref → embed_id mappings so that inline embed
+          // references like [!](embed:youtube.com-naK) can resolve to the
+          // correct embed UUID. Without this, EmbedPreviewLarge and
+          // EmbedInlineLink fail to find demo embeds because the
+          // embedRefToIdIndex in embedStore is only populated for encrypted
+          // embeds (via WebSocket / IDB decryption). Demo embeds bypass that
+          // path entirely — their content is cleartext TOON.
+          registerDemoEmbedRefs(parsedEmbeds);
           console.debug(
             `${LOG_PREFIX} Stored ${parsedEmbeds.length} cleartext embeds for community demo ${demoId}`,
           );
