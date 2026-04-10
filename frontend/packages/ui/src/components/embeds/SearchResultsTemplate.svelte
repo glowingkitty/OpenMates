@@ -90,6 +90,12 @@
     errorMessage?: string;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
+    /**
+     * Original search query string. When provided, the empty-results state
+     * shows "No results found for '<query>'" instead of a generic message.
+     * Introduced for OPE-405 (zero-result web search UX).
+     */
+    query?: string;
 
     // ── Consumer snippets ──
     /** Render a single result preview card. Receives the result and a click handler. */
@@ -134,6 +140,7 @@
     skeletonCount = 6,
     errorMessage: errorMessageProp,
     status = 'finished',
+    query,
 
     // Snippets
     resultCard,
@@ -275,8 +282,14 @@
           {/each}
         </div>
       {:else}
-        <div class="search-template-empty">
-          <p>{$text('embeds.search_no_results')}</p>
+        <div class="search-template-empty" data-testid="search-template-empty">
+          <p data-testid="search-no-results-message">
+            {#if query}
+              {$text('embeds.search_no_results_for_query').replace('{query}', query)}
+            {:else}
+              {$text('embeds.search_no_results')}
+            {/if}
+          </p>
         </div>
       {/if}
     {:else}

@@ -108,6 +108,11 @@ const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
 // Finance mate profile image — deep forest-green background, used for image flow test
 const FINANCE_JPEG = path.join(__dirname, 'fixtures', 'finance.jpeg');
+// Golden Gate Bridge — landmark image used to verify the AI actually SEES image
+// content (not just that the embed card renders). Regression guard for OPE-404:
+// the images.view skill must deliver the decrypted bytes to the vision model, so
+// asking for the city where this bridge lives MUST return "San Francisco".
+const GOLDEN_GATE_JPEG = path.join(__dirname, 'fixtures', 'golden_gate_bridge.jpg');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -879,4 +884,193 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	log(`Final console warn/error count: ${warnErrorLogs.length}`);
 	saveWarnErrorLogs('finance', 'final');
 	log('Finance image flow test completed successfully.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 5: Golden Gate Bridge — verify the AI actually SEES the image content
+//
+// Regression guard for OPE-404: the earlier finance test only verified the
+// embed card renders with a thumbnail. It missed a regression from OPE-342
+// where `skill_executor.py` wrapped the `images.view` multimodal list-of-
+// content-blocks return value in `{"content": [...]}`, breaking the
+// `is_multimodal_result` detection in `main_processor.py`. The image bytes
+// silently got TOON-encoded as a tiny text blob, so the LLM never saw the
+// image and hallucinated answers — yet the embed card still rendered because
+// the frontend pulls the preview from the original upload embed.
+//
+// This test uploads a Golden Gate Bridge photo and asks for the city in the
+// US where the bridge is located. A response that does NOT mention
+// "San Francisco" proves the vision model never received the bytes.
+// ---------------------------------------------------------------------------
+
+test('golden gate bridge: AI correctly identifies the city from the landmark image', async ({
+	page
+}: {
+	page: any;
+}) => {
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		const type = msg.type();
+		const text = msg.text();
+		consoleLogs.push(`[${timestamp}] [${type}] ${text}`);
+		if (type === 'warning' || type === 'error') {
+			warnErrorLogs.push({ timestamp, type, text });
+		}
+	});
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	test.slow();
+	test.setTimeout(180000);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('FILE_ATTACH_GOLDEN_GATE');
+	const screenshot = createStepScreenshotter(log, {
+		filenamePrefix: 'file-attach-golden-gate'
+	});
+	await archiveExistingScreenshots(log);
+
+	// Verify the fixture exists before we start — fail fast with a clear
+	// message if the file is missing rather than a cryptic upload error.
+	if (!fs.existsSync(GOLDEN_GATE_JPEG)) {
+		throw new Error(
+			`Missing fixture: ${GOLDEN_GATE_JPEG}. ` +
+				`See commit message for OPE-404 — this fixture must be checked in.`
+		);
+	}
+
+	// ── PHASE 1: Login → open new chat → attach Golden Gate image → send ───
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+	await openNewChat(page, log);
+	await screenshot(page, '01-new-chat-ready');
+
+	await attachFiles(page, [GOLDEN_GATE_JPEG], log);
+	await page.waitForTimeout(4000);
+	await screenshot(page, '02-after-golden-gate-attach');
+	saveWarnErrorLogs('golden-gate', 'after_file_attach');
+
+	// Verify the image embed appeared in the editor.
+	const embedInEditor = page
+		.getByTestId('message-editor')
+		.locator('[data-testid="embed-full-width-wrapper"]');
+	await expect(async () => {
+		await expect(embedInEditor.first()).toBeVisible();
+	}).toPass({ timeout: 20000 });
+	log('Golden Gate Bridge image embed appeared in editor.');
+
+	// Type the question. We deliberately phrase it so the correct answer is
+	// unambiguous ("San Francisco") and requires the model to actually SEE
+	// the bridge in the image — the text of the question alone does not name
+	// the bridge, so a hallucinating model cannot stumble onto the answer.
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	const editor = page.getByTestId('message-editor');
+	await editor.press('End');
+	await page.keyboard.type(
+		'Look at the image I just attached. Which city in the United States is this landmark located in? Answer with the city name only.'
+	);
+
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	await sendButton.click();
+	log('Message with Golden Gate Bridge image sent.');
+
+	// ── PHASE 2: Wait for AI response ──────────────────────────────────────
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	await screenshot(page, '03-message-sent');
+	saveWarnErrorLogs('golden-gate', 'after_send');
+
+	const activeChatContainer = page.getByTestId('active-chat-container');
+	const preSendCount = await activeChatContainer
+		.locator('[data-testid="message-assistant"]')
+		.count();
+	const assistantMessages = activeChatContainer.locator('[data-testid="message-assistant"]');
+	await expect(async () => {
+		const count = await assistantMessages.count();
+		if (count <= preSendCount) throw new Error(`No new assistant message yet (count=${count})`);
+	}).toPass({ timeout: 60000, intervals: [1000] });
+
+	// Wait for the streamed response to stabilize.
+	let stableText = '';
+	await expect(async () => {
+		const text = await assistantMessages.last().textContent();
+		if (!text || text.trim().length < 3) throw new Error('Response too short');
+		if (text === stableText) return;
+		stableText = text ?? '';
+		throw new Error('Still streaming');
+	}).toPass({ timeout: 90000, intervals: [2000] });
+	log(`Stable assistant response: "${stableText.substring(0, 300)}"`);
+
+	// ── PHASE 3: Verify the AI-side ImageViewEmbedPreview card rendered ────
+	// This confirms images.view ran to completion — sanity check so that a
+	// failing content assertion below unambiguously points at the LLM side
+	// (provider adapter / multimodal dispatch) and not at the embed flow.
+	const aiViewFinished = activeChatContainer.locator(
+		'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"][data-status="finished"]'
+	);
+	await expect(aiViewFinished.first()).toBeVisible({ timeout: 20000 });
+	log('ImageViewEmbedPreview card rendered with data-status="finished".');
+	await screenshot(page, '04-view-embed-finished');
+
+	// ── PHASE 4: Assert the AI actually IDENTIFIED the landmark ────────────
+	// If the multimodal dispatch is broken, the model sees no image bytes and
+	// typically says things like "I can't see the image" or hallucinates an
+	// unrelated city. The only way to produce "San Francisco" from a question
+	// that doesn't name the bridge is to have actually seen the bridge.
+	const responseLower = stableText.toLowerCase();
+
+	// Primary assertion: must mention San Francisco.
+	const mentionsSanFrancisco =
+		responseLower.includes('san francisco') || responseLower.includes('san fran');
+
+	// Failure-mode detection: capture common hallucination / "I cannot see"
+	// phrasings in a dedicated error so the root cause is obvious in CI logs.
+	const cannotSeeImage =
+		responseLower.includes("can't see") ||
+		responseLower.includes('cannot see') ||
+		responseLower.includes('unable to see') ||
+		responseLower.includes("don't see") ||
+		responseLower.includes('no image') ||
+		responseLower.includes("i don't have access") ||
+		responseLower.includes('i do not have access');
+
+	if (cannotSeeImage) {
+		await screenshot(page, '05-FAIL-model-cannot-see-image');
+		saveWarnErrorLogs('golden-gate', 'fail_cannot_see');
+		throw new Error(
+			`OPE-404 REGRESSION: the vision model reported it cannot see the image. ` +
+				`This indicates images.view is not delivering decrypted bytes to the provider ` +
+				`(check main_processor.py is_multimodal_result detection and ` +
+				`skill_executor.py list-wrapping guard). Response: "${stableText.substring(0, 500)}"`
+		);
+	}
+
+	if (!mentionsSanFrancisco) {
+		await screenshot(page, '05-FAIL-wrong-city');
+		saveWarnErrorLogs('golden-gate', 'fail_wrong_city');
+		throw new Error(
+			`The AI did not identify San Francisco as the city for the Golden Gate Bridge. ` +
+				`Either the vision model never received the image bytes (OPE-404 regression) ` +
+				`or the model hallucinated. Response: "${stableText.substring(0, 500)}"`
+		);
+	}
+
+	log(`AI correctly identified San Francisco. Response excerpt: "${stableText.substring(0, 200)}"`);
+	await screenshot(page, '05-ai-identified-san-francisco');
+	saveWarnErrorLogs('golden-gate', 'after_assertion');
+
+	// ── PHASE 5: Cleanup ──────────────────────────────────────────────────
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+	log(`Final console warn/error count: ${warnErrorLogs.length}`);
+	saveWarnErrorLogs('golden-gate', 'final');
+	log('Golden Gate Bridge image recognition test completed successfully.');
 });

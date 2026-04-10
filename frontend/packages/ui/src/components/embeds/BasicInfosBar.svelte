@@ -139,7 +139,7 @@
     <div class="status-text-container" class:single-line={!showStatus}>
       <span class="status-label">{skillName}</span>
       {#if showStatus}
-        <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
+        <span class="status-value" data-testid="embed-status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
       {/if}
     </div>
     
@@ -188,7 +188,7 @@
         <span class="title-text" class:two-lines={!customStatusText}>{skillName}</span>
       </span>
       {#if showStatus}
-        <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
+        <span class="status-value" data-testid="embed-status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
       {/if}
     </div>
     

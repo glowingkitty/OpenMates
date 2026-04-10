@@ -143,28 +143,52 @@ more_results:
   he: "ועוד {count}"
   verified_by_human: []
 search_no_results:
-  context: Shown in search embed preview when the search completed but returned zero results
-  en: 0 results found
-  de: 0 Ergebnisse gefunden
-  zh: 找到 0 个结果
-  es: 0 resultados encontrados
-  fr: 0 résultats trouvés
-  pt: 0 resultados encontrados
-  ru: 0 результатов найдено
-  ja: 0 件の結果
-  ko: 검색 결과 0건
-  it: 0 risultati trovati
-  tr: 0 sonuç bulundu
-  vi: Tìm thấy 0 kết quả
-  id: 0 hasil ditemukan
-  pl: Znaleziono 0 wyników
-  nl: 0 resultaten gevonden
+  context: Shown in search embed preview when the search completed but returned zero results and no query string is available.
+  en: No results found
+  de: Keine Ergebnisse gefunden
+  zh: 未找到结果
+  es: No se encontraron resultados
+  fr: Aucun résultat trouvé
+  pt: Nenhum resultado encontrado
+  ru: Результаты не найдены
+  ja: 結果が見つかりませんでした
+  ko: 검색 결과가 없습니다
+  it: Nessun risultato trovato
+  tr: Sonuç bulunamadı
+  vi: Không tìm thấy kết quả
+  id: Tidak ada hasil ditemukan
+  pl: Nie znaleziono wyników
+  nl: Geen resultaten gevonden
   ar: لم يتم العثور على نتائج
-  hi: 0 परिणाम मिले
-  th: พบ 0 ผลลัพธ์
-  cs: Nalezeno 0 výsledků
-  sv: 0 resultat hittade
-  he: נמצאו 0 תוצאות
+  hi: कोई परिणाम नहीं मिला
+  th: ไม่พบผลลัพธ์
+  cs: Nebyly nalezeny žádné výsledky
+  sv: Inga resultat hittades
+  he: לא נמצאו תוצאות
+  verified_by_human: []
+search_no_results_for_query:
+  context: Shown in search embed preview/fullscreen when the search completed but returned zero results. The {query} placeholder is substituted with the user's actual query string. Surrounding quotation marks are part of the translation so the query stands out visually.
+  en: 'No results found for "{query}"'
+  de: 'Keine Ergebnisse für „{query}" gefunden'
+  zh: '未找到与"{query}"相关的结果'
+  es: 'No se encontraron resultados para «{query}»'
+  fr: 'Aucun résultat pour « {query} »'
+  pt: 'Nenhum resultado encontrado para "{query}"'
+  ru: 'По запросу «{query}» ничего не найдено'
+  ja: '「{query}」の検索結果はありません'
+  ko: '"{query}"에 대한 검색 결과가 없습니다'
+  it: 'Nessun risultato per "{query}"'
+  tr: '"{query}" için sonuç bulunamadı'
+  vi: 'Không tìm thấy kết quả cho "{query}"'
+  id: 'Tidak ada hasil untuk "{query}"'
+  pl: 'Brak wyników dla „{query}"'
+  nl: 'Geen resultaten voor "{query}"'
+  ar: 'لا توجد نتائج للبحث عن "{query}"'
+  hi: '"{query}" के लिए कोई परिणाम नहीं मिला'
+  th: 'ไม่พบผลลัพธ์สำหรับ "{query}"'
+  cs: 'Nebyly nalezeny žádné výsledky pro „{query}"'
+  sv: 'Inga resultat för "{query}"'
+  he: 'לא נמצאו תוצאות עבור "{query}"'
   verified_by_human: []
 open_search_results:
   context: Button label to open search results in fullscreen

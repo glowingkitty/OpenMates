@@ -613,10 +613,23 @@
 			largeSlideIndex: 0
 		}));
 
-		// Fire async loaders. After await, reads of loadedSections[idx] go
-		// through the $state proxy (not tracked by this $effect since they
-		// happen asynchronously).
-		snap.forEach((section, i) => loadSection(section, i));
+		// Fire async loaders. We run them SEQUENTIALLY (not in parallel) to avoid
+		// a Svelte 5 reactivity race: when multiple loaders complete concurrently
+		// and each replaces `loadedSections` with a spread-copy, the intermediate
+		// proxy swaps can leave one section stuck in the visible "Loading..."
+		// state while its `isLoading` flag has already been flipped to false
+		// (contradictory DOM). See Linear OPE-405 follow-up (Phase 1 flake).
+		//
+		// We do NOT block this effect on the loaders — we kick off an async IIFE.
+		// Sequential loading trades a tiny bit of initial latency for deterministic
+		// reactivity. For most apps there are only 1–4 sections, so the cost is
+		// negligible (dynamic imports are already hot in the module graph after
+		// the first app is visited).
+		(async () => {
+			for (let i = 0; i < snap.length; i++) {
+				await loadSection(snap[i], i);
+			}
+		})();
 	});
 
 	async function loadSection(section: EmbedSection, idx: number) {
@@ -666,16 +679,18 @@
 				}
 			}
 
+			// IMPORTANT: Flip isLoading to false as the LAST mutation. We no
+			// longer do `loadedSections = [...loadedSections]` because the
+			// spread-copy introduces a proxy-swap race that can freeze the
+			// `section-loading` DOM element while other sub-mutations on this
+			// proxy have already committed. The proxy mutation below is
+			// sufficient to trigger the template update on its own.
 			s.isLoading = false;
-			// Force array invalidation so Svelte re-evaluates loadedSections[idx]
-			// bindings in the template (defensive fix for async post-await reactivity).
-			loadedSections = [...loadedSections];
 		} catch (err) {
 			const s = loadedSections[idx];
 			if (!s) return;
 			s.loadError = err instanceof Error ? err.message : String(err);
 			s.isLoading = false;
-			loadedSections = [...loadedSections];
 		}
 	}
 
@@ -742,7 +757,13 @@
 		'stay',
 		'place',
 		'appointment',
-		'image',
+		// NOTE: 'image' intentionally excluded. It was previously in this set but
+		// collides with Website embed preview props (OG-metadata `image: ""`),
+		// causing wrapFullscreenProps() to short-circuit and pass raw props
+		// through — which then crashed WebsiteEmbedFullscreen because `data` was
+		// undefined. ImageEmbedFullscreen and ImageResultEmbedFullscreen both
+		// use the data-driven `{ data }` shape anyway, so no image fullscreen
+		// needs this direct-prop escape hatch. Fixed in OPE-405 Phase 1 flake.
 		'video',
 		'recording',
 		'sheet',
@@ -786,9 +807,14 @@
 		// Explicit opt-out: fullscreen not migrated to data-driven shape
 		if (NEVER_WRAP_FULLSCREEN_PATHS.has(section.fullscreenPath)) return rawProps;
 
-		// Direct-prop fullscreen (e.g., ShoppingResultEmbedFullscreen takes `product`)
+		// Direct-prop fullscreen (e.g., ShoppingResultEmbedFullscreen takes `product`).
+		// Only match when the value is a non-null object — string/empty values for
+		// fields like `image: ""` must not trigger direct-prop pass-through, since
+		// those are usually legitimate OG-metadata on a wrapped preview (OPE-405).
 		for (const key of Object.keys(rawProps)) {
-			if (DIRECT_PROP_NAMES.has(key)) return rawProps;
+			if (!DIRECT_PROP_NAMES.has(key)) continue;
+			const val = rawProps[key];
+			if (val !== null && typeof val === 'object') return rawProps;
 		}
 
 		// Legacy flat props — wrap into data-driven shape
@@ -941,6 +967,28 @@
 					{:else if s.loadError}
 						<p class="section-error" data-testid="section-error">{s.loadError}</p>
 					{:else}
+						<!-- Svelte 5 error boundary: if a display-type render throws (e.g. a
+						     component threw during mount or a destructure hit undefined), we
+						     must capture and display it — otherwise the error is swallowed
+						     silently and the section-loading DOM from the previous reactive
+						     pass stays in place, leaving a stuck section (Linear OPE-405). -->
+						<svelte:boundary
+							onerror={(error) => {
+								console.error(`[preview-page] Section "${section.skillLabel}" render error:`, error);
+								const msg = error instanceof Error ? error.message : String(error);
+								// Record the error on the section so the next reactive pass
+								// shows the section-error branch instead of retrying.
+								const cur = loadedSections[si];
+								if (cur && !cur.loadError) {
+									cur.loadError = `Render error: ${msg}`;
+								}
+							}}
+						>
+							{#snippet failed(error)}
+								<p class="section-error" data-testid="section-error">
+									Render error: {error instanceof Error ? error.message : String(error)}
+								</p>
+							{/snippet}
 						<!-- Props editor -->
 						{#if s.showPropsEditor}
 							<div class="props-panel">
@@ -1133,6 +1181,7 @@
 								</div>
 							</div>
 						{/if}
+						</svelte:boundary>
 					{/if}
 				</section>
 			{/each}

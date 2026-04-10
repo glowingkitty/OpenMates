@@ -44,14 +44,17 @@ CANCELLED_SKILLS_KEY_PREFIX = "cancelled_skill:"
 # TTL for cancelled skill entries (1 hour - skills should complete well before this)
 CANCELLED_SKILL_TTL = 3600
 
-# Import helper modules
-from backend.apps.ai.processing.rate_limiting import (
+# Import helper modules (kept here — after module-level constants — intentionally;
+# moving them to the top would reorder relative to the public constants above and
+# break `from skill_executor import CANCELLED_SKILLS_KEY_PREFIX` style imports
+# that rely on these being defined first. Silencing E402 rather than rewriting.)
+from backend.apps.ai.processing.rate_limiting import (  # noqa: E402
     check_rate_limit,
     wait_for_rate_limit,
     RateLimitScheduledException
 )
-from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery, get_celery_task_status
-from backend.apps.ai.processing.content_sanitization import sanitize_external_content
+from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery, get_celery_task_status  # noqa: E402
+from backend.apps.ai.processing.content_sanitization import sanitize_external_content  # noqa: E402
 
 # Re-export helper functions and exceptions for backward compatibility
 # TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
@@ -275,10 +278,28 @@ async def execute_skill(
                     raise SkillCancelledException(skill_task_id, app_id, skill_id)
 
             if not isinstance(result, dict):
-                # Defensive: skills should always return a dict (or Pydantic model
-                # converted to one by BaseApp._dispatch_skill_with_class). Wrap
-                # anything else so downstream JSON serialization doesn't crash.
-                result = {"content": result}
+                # Multimodal view skills (images.view, pdf.view) intentionally return a
+                # list of OpenAI-style content blocks, e.g.
+                #   [{"type": "text", "text": "..."}, {"type": "image_url", ...}]
+                # so main_processor.py can pass them straight through to the provider
+                # adapters as a multimodal tool result. Wrapping this list in
+                # {"content": [...]} breaks the multimodal detection in
+                # main_processor.handle_main_processing (is_multimodal_result check at
+                # ~line 3375), causing the image bytes to be silently TOON-encoded as a
+                # tiny text blob and the LLM to hallucinate. Regression from OPE-342
+                # (refactor to in-process skill dispatch) — see OPE-404.
+                # Preserve the list as-is when it looks like content blocks; wrap
+                # everything else so downstream JSON serialization doesn't crash.
+                if isinstance(result, list) and result and all(
+                    isinstance(block, dict) and block.get("type") in ("text", "image_url")
+                    for block in result
+                ):
+                    pass  # Keep list-of-content-blocks untouched
+                else:
+                    # Defensive: skills should always return a dict (or Pydantic model
+                    # converted to one by BaseApp._dispatch_skill_with_class). Wrap
+                    # anything else so downstream JSON serialization doesn't crash.
+                    result = {"content": result}
 
             if attempt > 0:
                 logger.info(f"[SkillRetry] Skill '{app_id}.{skill_id}' succeeded on retry attempt {attempt + 1}/{total_attempts}")

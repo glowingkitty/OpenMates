@@ -46,25 +46,36 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-09'
+  last_observed: '2026-04-10'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
-  purpose: |
-    Stripe.js fraud-prevention identifier. Set by Stripe checkout/elements when
+  purpose: 'Stripe.js fraud-prevention identifier. Set by Stripe checkout/elements when
+
     the user explicitly initiates a payment (credits purchase). Used by Stripe
+
     to detect card-testing and account-takeover fraud.
+
+    '
   consent_exempt: true
-  exemption_basis: |
-    Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 for a service
+  exemption_basis: 'Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 for a service
+
     "explicitly requested" by the user (the payment itself). CNIL, EDPB and
+
     BfDI guidance consistently treat payment anti-fraud cookies set at the
+
     moment the user initiates checkout as strictly necessary. The cookie is
+
     only placed on pages where the user has actively chosen to pay — never on
+
     normal browsing.
-  notes: |
-    Set by Stripe (processor), not OpenMates. Disclosed in the privacy policy
+
+    '
+  notes: 'Set by Stripe (processor), not OpenMates. Disclosed in the privacy policy
+
     under the Stripe subprocessor entry.
+
+    '
 - name: __stripe_sid
   domain: .app.dev.openmates.org
   path: /
@@ -73,20 +84,26 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-09'
+  last_observed: '2026-04-10'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
-  purpose: |
-    Stripe.js short-lived session identifier paired with __stripe_mid. Same
+  purpose: 'Stripe.js short-lived session identifier paired with __stripe_mid. Same
+
     fraud-prevention purpose, bounded to a single checkout session.
+
+    '
   consent_exempt: true
-  exemption_basis: |
-    Same as __stripe_mid — strictly necessary for the payment service
+  exemption_basis: 'Same as __stripe_mid — strictly necessary for the payment service
+
     explicitly requested by the user. Session-scoped (~30 min).
-  notes: |
-    Set by Stripe (processor), not OpenMates. Disclosed in the privacy policy
+
+    '
+  notes: 'Set by Stripe (processor), not OpenMates. Disclosed in the privacy policy
+
     under the Stripe subprocessor entry.
+
+    '
 - name: auth_refresh_token
   domain: .openmates.org
   path: /
@@ -95,28 +112,42 @@ cookies:
   same_site: Lax
   value_length: 64
   first_observed: '2026-04-08'
-  last_observed: '2026-04-09'
+  last_observed: '2026-04-10'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
-  purpose: |
-    Server-issued session refresh token. The sole mechanism that keeps an
+  purpose: 'Server-issued session refresh token. The sole mechanism that keeps an
+
     authenticated user logged in across page reloads and tab restores. Without
+
     this cookie the user would have to re-enter their credentials on every
+
     request.
+
+    '
   consent_exempt: true
-  exemption_basis: |
-    Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 — "user-provided
+  exemption_basis: 'Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 — "user-provided
+
     authentication" is one of the canonical examples of the strictly-necessary
+
     exemption in Art. 29 WP Opinion 04/2012 and the EDPB guidance that
+
     succeeded it. The cookie exists solely to maintain the authenticated
+
     session the user has explicitly requested by logging in.
-  notes: |
-    HttpOnly + Secure. SameSite=Lax (not Strict) is intentional: the cookie
+
+    '
+  notes: 'HttpOnly + Secure. SameSite=Lax (not Strict) is intentional: the cookie
+
     must be sent on top-level GET navigations from external links such as
+
     email verification and password-reset callbacks. Lax still blocks
+
     cross-site POST/PUT, so CSRF protection is preserved. See
+
     backend/core/api/app/routes/auth_routes/auth_session.py:115,354.
+
+    '
 - name: m
   domain: m.stripe.com
   path: /
@@ -125,21 +156,28 @@ cookies:
   same_site: None
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-09'
+  last_observed: '2026-04-10'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
-  purpose: |
-    Stripe device identifier used across Stripe domains for fraud detection
+  purpose: 'Stripe device identifier used across Stripe domains for fraud detection
+
     (payment anti-fraud). Set by m.stripe.com when Stripe.js is loaded for a
+
     user-initiated payment.
+
+    '
   consent_exempt: true
-  exemption_basis: |
-    Strictly necessary for the payment service explicitly requested by the
+  exemption_basis: 'Strictly necessary for the payment service explicitly requested by the
+
     user. Same reasoning as __stripe_mid / __stripe_sid.
-  notes: |
-    Set by Stripe (processor), not OpenMates. Third-party cookie on
+
+    '
+  notes: 'Set by Stripe (processor), not OpenMates. Third-party cookie on
+
     m.stripe.com. Disclosed in the privacy policy under Stripe.
+
+    '
 - name: preferredLanguage
   domain: app.dev.openmates.org
   path: /
@@ -148,18 +186,26 @@ cookies:
   same_site: Lax
   value_length: 2
   first_observed: '2026-04-09'
-  last_observed: '2026-04-09'
+  last_observed: '2026-04-10'
   seen_in_specs:
   - language-settings-flow.spec.ts
-  purpose: |
-    Stores the user's explicitly selected UI language (ISO 639-1 code such as
+  purpose: 'Stores the user''s explicitly selected UI language (ISO 639-1 code such as
+
     "en", "de") so that the correct translations are served on the next
+
     request, including before authentication.
+
+    '
   consent_exempt: true
-  exemption_basis: |
-    Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 — "user-input
+  exemption_basis: 'Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 — "user-input
+
     cookies" that remember a preference the user has explicitly set (here,
+
     the language choice) are a canonical example of the strictly-necessary
+
     exemption in Art. 29 WP Opinion 04/2012 §3.2.
-  notes: |
-    2-character value (language code only). First-party. Not used for tracking.
+
+    '
+  notes: '2-character value (language code only). First-party. Not used for tracking.
+
+    '

@@ -1,0 +1,12 @@
+---
+# Localized override for books/book_recommendations
+id: book_recommendations
+app: books
+name: "توصيات الكتب"
+description: "احصل على توصيات كتب بناءً على ذوقك."
+lang: ar
+verified_by_human: false
+source_hash: b6e0851964e0706dc4bcd0cf20d462cc2e5e1cc119beb282f13d130c545e7dde
+---
+
+# توصيات الكتب

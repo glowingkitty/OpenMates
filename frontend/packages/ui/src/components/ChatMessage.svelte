@@ -2340,7 +2340,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       </div>
     {/if}
     {#if role === 'assistant' && hasEmbedErrors}
-      <div class="embed-error-banner">
+      <div class="embed-error-banner" data-testid="embed-error-banner">
         <span class="embed-error-text">
           {$text('chat.embed_error.message')}
           <span class="embed-error-link" onclick={handleReportEmbedError} onkeydown={(e) => { if (e.key === 'Enter') handleReportEmbedError(); }} role="button" tabindex="0">

@@ -1097,7 +1097,7 @@ async def handle_preprocessing(
     # (especially 'onboarding_support' and 'general_knowledge') to prevent mis-routing.
     #
     # Override map: category -> description string used in the {CATEGORIES_LIST} prompt.
-    # Any category NOT in this map falls back to the description from mates.yml.
+    # Any category NOT in this map falls back to the description from the mate .md file.
     CATEGORY_DESCRIPTION_OVERRIDES: Dict[str, str] = {
         # 'onboarding_support' is the most mis-routed category. The override makes the
         # restriction explicit so the LLM never picks it for generic user tasks.

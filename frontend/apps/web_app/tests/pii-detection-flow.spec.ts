@@ -217,8 +217,22 @@ test('pii detection with undo, undo all, send with placeholder, and show/hide to
 	// ======================================================================
 	logCheckpoint('Verifying PII warning banner...');
 
+	// Nudge the editor so the PII detection debounce has definitely fired.
+	// The step-5 check previously flaked when the 800ms debounce expired just
+	// after Playwright captured the intermediate DOM state; a trailing space
+	// + backspace forces a fresh delimiter-trigger detection without
+	// changing the final text content.
+	await messageEditor.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' ', { delay: 10 });
+	await page.keyboard.press('Backspace');
+	await page.waitForTimeout(1200);
+
 	const piiBanner = page.getByTestId('pii-warning-banner');
-	await expect(piiBanner).toBeVisible({ timeout: 5000 });
+	const bannerInDom = await piiBanner.count();
+	const highlightCountNow = await page.locator('[data-testid="pii-highlight"]').count();
+	logCheckpoint(`Pre-banner check — banner in DOM: ${bannerInDom}, current highlight count: ${highlightCountNow}`);
+	await expect(piiBanner).toBeVisible({ timeout: 10000 });
 	logCheckpoint('PII warning banner is visible.');
 
 	const bannerTitle = piiBanner.getByTestId('banner-title');
@@ -703,26 +717,32 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	const userMessage = page.getByTestId('message-user').last();
 	await expect(userMessage).toBeVisible();
 
+	// The mail embed preview's "To: ..." receiver line is rendered in the
+	// BasicInfosBar's `embed-status-value` span (customStatusText). Targeting
+	// it directly avoids false positives from the email body text which may
+	// contain unrelated strings.
+	const previewStatusValue = mailEmbedPreview.getByTestId('embed-status-value').first();
+
 	async function assertAllHidden(label: string) {
 		const msgText = (await userMessage.textContent()) || '';
-		const previewText = (await mailEmbedPreview.textContent()) || '';
+		const previewStatus = (await previewStatusValue.textContent()) || '';
 		logCheckpoint(`[${label}] user message first 200: "${msgText.substring(0, 200)}"`);
-		logCheckpoint(`[${label}] preview first 200: "${previewText.substring(0, 200)}"`);
-		expect(msgText, `[${label}] user message must hide PII`).not.toContain(senderEmail);
-		expect(msgText, `[${label}] user message must hide PII`).not.toContain(receiverEmail);
-		expect(previewText, `[${label}] preview must hide PII`).not.toContain(senderEmail);
-		expect(previewText, `[${label}] preview must hide PII`).not.toContain(receiverEmail);
-		expect(previewText, `[${label}] preview must show EMAIL placeholder`).toMatch(/\[EMAIL_\w+\]/);
+		logCheckpoint(`[${label}] preview status-value: "${previewStatus}"`);
+		expect(msgText, `[${label}] user message must hide sender PII`).not.toContain(senderEmail);
+		expect(msgText, `[${label}] user message must hide receiver PII`).not.toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must hide receiver PII`).not.toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must show EMAIL placeholder`).toMatch(/\[EMAIL_\w+\]/);
 	}
 
 	async function assertAllRevealed(label: string) {
 		const msgText = (await userMessage.textContent()) || '';
-		const previewText = (await mailEmbedPreview.textContent()) || '';
+		const previewStatus = (await previewStatusValue.textContent()) || '';
 		logCheckpoint(`[${label}] user message first 200: "${msgText.substring(0, 200)}"`);
-		logCheckpoint(`[${label}] preview first 200: "${previewText.substring(0, 200)}"`);
+		logCheckpoint(`[${label}] preview status-value: "${previewStatus}"`);
 		expect(msgText, `[${label}] user message must reveal sender`).toContain(senderEmail);
 		expect(msgText, `[${label}] user message must reveal receiver`).toContain(receiverEmail);
-		expect(previewText, `[${label}] preview must reveal receiver`).toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must reveal receiver`).toContain(receiverEmail);
+		expect(previewStatus, `[${label}] preview status must not show placeholder`).not.toMatch(/\[EMAIL_\w+\]/);
 	}
 
 	await assertAllHidden('initial');
@@ -816,7 +836,98 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await takeStepScreenshot(page, 'state-06-all-revealed-after-fullscreen-toggle');
 
 	// ======================================================================
-	// STEP 8: Cleanup
+	// STEP 9: Open the chat as an "existing chat" — navigate away via
+	// "new chat" and then click back on it from the sidebar. This exercises
+	// the load-from-IndexedDB path which is how the user reported the bug
+	// in practice. The toggle must still work identically after a round-trip
+	// through the chat loader, not just on the freshly-sent chat in memory.
+	// ======================================================================
+	// Open the sidebar (closed by default on <=1440px viewports).
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(1000);
+		logCheckpoint('Opened sidebar to access chat list.');
+	}
+
+	// Grab the chat-id of the active chat so we can click it again later.
+	const activeChatWrapper = page.locator('[data-testid="chat-item-wrapper"].active');
+	await expect(activeChatWrapper).toBeVisible({ timeout: 10000 });
+	const activeChatId = await activeChatWrapper.getAttribute('data-chat-id');
+	logCheckpoint(`Active chat id to re-open: ${activeChatId}`);
+
+	// Navigate away: start a new chat (becomes the active one).
+	await startNewChat(page, logCheckpoint);
+	await page.waitForTimeout(1500);
+
+	// Re-open sidebar if startNewChat closed it.
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		const stillHasChat = await page
+			.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`)
+			.isVisible()
+			.catch(() => false);
+		if (!stillHasChat) {
+			await sidebarToggle.click();
+			await page.waitForTimeout(1000);
+			logCheckpoint('Re-opened sidebar after new-chat navigation.');
+		}
+	}
+
+	// Now click back on the original chat from the sidebar.
+	const targetChatItem = activeChatId
+		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`)
+		: page.getByTestId('chat-item-wrapper').first();
+	await expect(targetChatItem).toBeVisible({ timeout: 10000 });
+	await targetChatItem.click();
+	logCheckpoint('Clicked sidebar chat to re-open as existing chat.');
+	await page.waitForTimeout(2000);
+
+	// Wait for the mail embed preview to reappear after load-from-IDB.
+	await expect(mailEmbedPreview).toBeVisible({ timeout: 15000 });
+	await page.waitForTimeout(1000); // Let embed mount + PII mappings settle
+
+	// Reveal state persists in-session (piiVisibilityStore is session-scoped and
+	// keyed by chatId). After reopen the state is whatever it was before we left.
+	// First step: normalise to HIDDEN via the chat header so the test is
+	// deterministic from here on.
+	let postReopenAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	logCheckpoint(`After re-opening existing chat, header data-pii-revealed: ${postReopenAttr}`);
+	if (postReopenAttr === 'true') {
+		await chatHeaderToggle.click();
+		await page.waitForTimeout(500);
+		postReopenAttr = await chatHeaderToggle.getAttribute('data-pii-revealed');
+	}
+	expect(postReopenAttr).toBe('false');
+	await assertAllHidden('post-reopen hidden');
+	await takeStepScreenshot(page, 'state-07-reopen-initial-hidden');
+
+	// THE CORE REGRESSION: click the chat-header toggle on the RE-OPENED chat.
+	// Preview status-value MUST swap to original (this is the bug path).
+	await chatHeaderToggle.click();
+	logCheckpoint('Clicked chat header toggle to reveal (after reopen).');
+	await page.waitForTimeout(500);
+	expect(await chatHeaderToggle.getAttribute('data-pii-revealed')).toBe('true');
+	await assertAllRevealed('post-reopen after chat-header reveal');
+	await takeStepScreenshot(page, 'state-08-reopen-header-reveal');
+
+	// Open the fullscreen on the reopened chat — must already show original.
+	await mailEmbedPreview.click();
+	await expect(embedPiiToggle).toBeVisible({ timeout: 10000 });
+	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('true');
+	const reopenFsText = (await fullscreenContainer.textContent()) || '';
+	expect(reopenFsText).toContain(receiverEmail);
+
+	// Toggle from the fullscreen to hide — preview + message must also hide.
+	await embedPiiToggle.click();
+	await page.waitForTimeout(500);
+	expect(await embedPiiToggle.getAttribute('data-pii-revealed')).toBe('false');
+	await closeButton.click();
+	await page.waitForTimeout(500);
+	await assertAllHidden('post-reopen after fullscreen hide');
+	await takeStepScreenshot(page, 'state-09-reopen-fullscreen-hide');
+
+	// ======================================================================
+	// STEP 10: Cleanup
 	// ======================================================================
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-embed-cleanup');
 

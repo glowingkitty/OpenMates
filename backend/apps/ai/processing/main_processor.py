@@ -1516,7 +1516,10 @@ async def handle_main_processing(
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
     # Note: preselected_skills was already built earlier (before app instruction injection)
     # so it's available here for tool generation.
-    assigned_app_ids = selected_mate_config.assigned_apps if selected_mate_config else None
+    # `tools` is the CC-compatible field name for per-mate app/skill allowlist
+    # (renamed from the legacy `assigned_apps`). Still treated as a list of
+    # app IDs downstream until per-skill gating lands.
+    assigned_app_ids = selected_mate_config.tools if selected_mate_config else None
     
     # Initialize TranslationService to resolve skill descriptions from translation keys
     # TranslationService caches translations internally, so it's safe to create a new instance
@@ -1559,7 +1562,15 @@ async def handle_main_processing(
         activate_tool = {
             "type": "function",
             "function": {
-                "name": "system-activate_focus_mode",
+                # Tool name MUST conform to Google Gemini's function-name spec:
+                # ^[a-zA-Z_][a-zA-Z0-9_]*$. Hyphens cause Gemini to return
+                # FinishReason.MALFORMED_FUNCTION_CALL when emitting the call,
+                # so we use snake_case here even though the rest of the codebase
+                # uses hyphens for app skills. The downstream resolver map below
+                # contains explicit entries that translate the canonicalized form
+                # back to the (app_id="system", skill_id="activate_focus_mode")
+                # tuple expected by the dispatcher at line ~2752.
+                "name": "activate_focus_mode",
                 "description": "Activate a focus mode to specialize the assistant's behavior for a specific task. Focus modes provide specialized instructions that help with particular types of requests.\n\nAvailable focus modes:\n" + "\n".join(focus_mode_descriptions) if focus_mode_descriptions else "Activate a focus mode to specialize the assistant's behavior.",
                 "parameters": {
                     "type": "object",
@@ -1582,7 +1593,8 @@ async def handle_main_processing(
         deactivate_tool = {
             "type": "function",
             "function": {
-                "name": "system-deactivate_focus_mode",
+                # Snake_case for Gemini compatibility — see activate_focus_mode comment above.
+                "name": "deactivate_focus_mode",
                 "description": f"Deactivate the current focus mode ({request_data.active_focus_id}) and return to normal assistant behavior. Use this when the user no longer needs the specialized focus mode or asks to exit it.",
                 "parameters": {
                     "type": "object",
@@ -1628,18 +1640,36 @@ async def handle_main_processing(
     for app_id, app_metadata in discovered_apps_metadata.items():
         if not app_metadata or not app_metadata.skills:
             continue
-            
+
         for skill in app_metadata.skills:
             # Standard hyphenated name: app-skill (e.g., "web-search")
             hyphen_name = f"{app_id}-{skill.id}"
             tool_resolver_map[hyphen_name] = (app_id, skill.id)
-            
+
             # Underscore variant: app_skill (e.g., "web_search") - common LLM hallucination
             underscore_name = f"{app_id}_{skill.id}"
             tool_resolver_map[underscore_name] = (app_id, skill.id)
-            
+
             # Also map the skill ID directly if it's unique? No, that might be risky.
             # But we can map just the skill ID if the app ID is implicit? No, explicit is better.
+
+    # System tools (focus mode activation/deactivation) live outside the
+    # discovered_apps_metadata loop because they don't belong to any app.
+    # The dispatcher at line ~2752 expects to look them up by the tuple
+    # (app_id="system", skill_id="activate_focus_mode" | "deactivate_focus_mode").
+    #
+    # Tool names in the LLM-facing definition are bare snake_case
+    # ("activate_focus_mode") for Google Gemini compatibility — Gemini emits
+    # FinishReason.MALFORMED_FUNCTION_CALL when given hyphenated names. The
+    # canonicalizer (_canonicalize_tool_name) then turns the LLM-emitted
+    # underscored form into "activate-focus-mode" before resolver lookup, so
+    # we register BOTH the canonicalized form (post-canonicalize) and the raw
+    # snake_case form (pre-canonicalize, defensive) for both tools.
+    for system_skill in ("activate_focus_mode", "deactivate_focus_mode"):
+        # Pre-canonicalize form (raw snake_case as the LLM emits it)
+        tool_resolver_map[system_skill] = ("system", system_skill)
+        # Post-canonicalize form (underscores → hyphens, what the dispatcher sees)
+        tool_resolver_map[system_skill.replace("_", "-")] = ("system", system_skill)
 
     current_message_history: List[Dict[str, Any]] = [msg.model_dump(exclude_none=True) for msg in request_data.message_history]
     
@@ -3832,8 +3862,28 @@ async def handle_main_processing(
                                             f"{request_metadata_with_provider.get('query')}"
                                         )
                                 
-                                # Check if this request failed (no results)
-                                if not request_results:
+                                # Distinguish a real failure from a successful zero-hit query.
+                                #
+                                # A skill legitimately returning an empty results list (e.g. Brave
+                                # web search returning HTTP 200 with no matches for a very narrow
+                                # query) must NOT be classified as a failure. Doing so previously
+                                # caused the "App skill processing error" red banner to appear on
+                                # otherwise successful chat answers whenever one sub-query in a
+                                # parallel multi-search had no hits (prod issue
+                                # 0d73ab38-8d0e-45ac-867d-471a2cec8f56, Linear OPE-405).
+                                #
+                                # Contract:
+                                #   - `error` set  OR  `results` key missing  →  real failure
+                                #   - `results: []` without error              →  zero-hit success
+                                # Zero-hit success falls through to the success path, which calls
+                                # embed_service.update_embed_with_results(results=[]) — that
+                                # function already handles the empty case via
+                                # _finalize_embed_no_results() (status="finished", no error).
+                                has_explicit_error = bool(grouped_result.get("error"))
+                                has_results_field = "results" in grouped_result
+                                request_is_real_failure = has_explicit_error or not has_results_field
+
+                                if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed
                                     error_message = grouped_result.get("error") or "Request failed with no results"
                                     logger.warning(
