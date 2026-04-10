@@ -137,10 +137,15 @@ async function loginToTestAccount(
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, 'password-entered');
 
+	// Submit password first — OTP field only appears after backend confirms 2FA is required
+	// (anti-enumeration: OTP is never shown upfront, only after first login attempt).
+	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
+	logCheckpoint('Submitted password — waiting for 2FA prompt.');
+
 	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	const errorMessage = page
 		.getByTestId('error-message')
 		.filter({ hasText: /wrong|invalid|incorrect/i });
