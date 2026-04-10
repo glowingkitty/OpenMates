@@ -1,5 +1,5 @@
 ---
-status: planned
+status: idea
 last_verified: 2026-04-10
 key_files: []
 related:
@@ -12,11 +12,13 @@ linear:
 
 # Chat Header Hero Images (Planned)
 
-> Display a high-quality, topic-relevant hero image in the chat header of every new chat to add context, atmosphere, and inspiration. Bias toward historical / public-domain photography for an editorial feel.
+> **Status: idea** — This is an early-stage concept, not a committed feature. Everything below is brainstorming and research to inform a future decision. No implementation is planned yet.
+
+Display a high-quality, topic-relevant hero image in the chat header of every new chat to add context, atmosphere, and inspiration. Bias toward historical / public-domain photography for an editorial feel.
 
 ## Status
 
-Planned. No code yet. This document captures the research and the intended architecture so the implementation session can pick it up directly.
+**Idea only.** No code, no commitment. This document captures initial research and rough architectural thinking so a future planning session has a head start if we decide to pursue this.
 
 ## Why This Exists
 
