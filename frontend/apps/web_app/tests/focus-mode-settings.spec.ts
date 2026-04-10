@@ -88,12 +88,12 @@ async function navigateToAppStore(
 	page: any,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	// Click the App Store menu item
-	const appStoreItem = page.getByTestId('settings-menu-item-app_store');
-	await expect(appStoreItem).toBeVisible({ timeout: 5000 });
-	await appStoreItem.click();
+	// Click the "App Store" text in the settings menu (no data-testid on menu items)
+	const appStoreLink = page.locator('[data-testid="settings-menu"]').getByText('App Store', { exact: true });
+	await expect(appStoreLink).toBeVisible({ timeout: 5000 });
+	await appStoreLink.click();
 	logCheckpoint('Clicked App Store menu item.');
-	await page.waitForTimeout(500);
+	await page.waitForTimeout(1000);
 }
 
 async function navigateToApp(
@@ -101,11 +101,20 @@ async function navigateToApp(
 	appId: string,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	// Look for the app card in the app store list
-	const appCard = page.getByTestId(`app-card-${appId}`);
-	await expect(appCard).toBeVisible({ timeout: 10000 });
-	await appCard.click();
-	logCheckpoint(`Clicked app card for "${appId}".`);
+	// Look for the app card in the app store list, falling back to text-based search
+	const appCard = page.getByTestId(`app-store-card`).filter({ hasText: new RegExp(appId, 'i') });
+	const cardVisible = await appCard.first().isVisible({ timeout: 5000 }).catch(() => false);
+
+	if (cardVisible) {
+		await appCard.first().click();
+		logCheckpoint(`Clicked app card for "${appId}" via data-testid.`);
+	} else {
+		// Fallback: click any element with the app name text in the settings panel
+		const appText = page.locator('[data-testid="settings-menu"]').getByText(new RegExp(appId, 'i')).first();
+		await expect(appText).toBeVisible({ timeout: 5000 });
+		await appText.click();
+		logCheckpoint(`Clicked app "${appId}" via text match.`);
+	}
 	await page.waitForTimeout(500);
 }
 
