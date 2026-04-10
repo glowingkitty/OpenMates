@@ -1658,21 +1658,25 @@
                     piiPasteDetectionPending = true;
                     return false;
                 },
-                // Handle click on PII highlight decorations. Using ProseMirror's
-                // handleClick prop instead of a DOM 'click' listener because ProseMirror
-                // may re-render decorations between mousedown and click, destroying the
-                // original <span> element and making the DOM click target unresolvable.
-                handleClick: (view, pos, event) => {
-                    const target = event.target as HTMLElement;
-                    if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
-                        const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
-                        const piiId = piiElement?.getAttribute('data-pii-id');
-                        if (piiId) {
-                            handlePIIClick(piiId);
-                            return true; // handled — prevent ProseMirror default click behavior
+                // Handle clicks on PII highlight decorations via handleDOMEvents.
+                // This fires directly from the DOM click event BEFORE ProseMirror's
+                // deferred handleClick (which uses setTimeout and may run after a
+                // re-render that destroyed the original <span>).
+                handleDOMEvents: {
+                    click: (view, event) => {
+                        const target = event.target as HTMLElement;
+                        if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
+                            const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
+                            const piiId = piiElement?.getAttribute('data-pii-id');
+                            if (piiId) {
+                                // Defer to next microtask so ProseMirror finishes its
+                                // click handling first (cursor placement, selection).
+                                queueMicrotask(() => handlePIIClick(piiId));
+                                return false; // let ProseMirror also handle (cursor)
+                            }
                         }
+                        return false;
                     }
-                    return false;
                 }
             }
         });
