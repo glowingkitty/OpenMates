@@ -3,7 +3,8 @@
      
      This component handles dynamic app_store routes:
      - app_store/{app_id} -> AppDetails
-     - app_store/{app_id}/skill/{skill_id} -> SkillDetails (or AiAskSkillSettings for ai/ask)
+     - app_store/{app_id}/skill/{skill_id} -> SkillDetails
+     - app_store/ai/skill/ask -> REMOVED (now lives in top-level SettingsAI)
      - app_store/ai/skill/ask/model/{model_id} -> AiAskModelDetails (AI Ask skill only)
      - app_store/{app_id}/skill/{skill_id}/model/{model_id} -> AppSkillModelDetails (all other skills)
      - app_store/{app_id}/skill/{skill_id}/provider/{provider_id} -> ProviderDetails
@@ -23,7 +24,6 @@
     import AppSettingsMemoriesCategory from './AppSettingsMemoriesCategory.svelte';
     import AppSettingsMemoriesCreateEntry from './AppSettingsMemoriesCreateEntry.svelte';
     import AppSettingsMemoriesEntryDetail from './AppSettingsMemoriesEntryDetail.svelte';
-    import AiAskSkillSettings from './AiAskSkillSettings.svelte';
     import AiAskModelDetails from './AiAskModelDetails.svelte';
     import AppSkillModelDetails from './AppSkillModelDetails.svelte';
     import ProviderDetails from './ProviderDetails.svelte';
@@ -40,7 +40,6 @@
         | { type: 'invalid'; appId: '' }
         | { type: 'app_details'; appId: string }
         | { type: 'skill_details'; appId: string; skillId: string }
-        | { type: 'ai_ask_skill_settings'; appId: string; skillId: string }
         | { type: 'ai_ask_model_details'; appId: string; skillId: string; modelId: string }
         | { type: 'app_skill_model_details'; appId: string; skillId: string; modelId: string }
         | { type: 'provider_details'; appId: string; skillId: string; providerId: string }
@@ -86,10 +85,7 @@
             return { type: 'app_skill_model_details', appId: parts[0], skillId: parts[2], modelId: parts[4] };
         } else if (parts.length === 3 && parts[1] === 'skill') {
             // app_store/{app_id}/skill/{skill_id}
-            // Special route for AI Ask skill settings page
-            if (parts[0] === 'ai' && parts[2] === 'ask') {
-                return { type: 'ai_ask_skill_settings', appId: parts[0], skillId: parts[2] };
-            }
+            // Note: AI Ask skill settings (ai/ask) now live in the top-level SettingsAI page
             return { type: 'skill_details', appId: parts[0], skillId: parts[2] };
         } else if (parts.length === 3 && parts[1] === 'focus') {
             // app_store/{app_id}/focus/{focus_mode_id}
@@ -178,8 +174,6 @@
 
 {#if routeInfo.type === 'app_details'}
     <AppDetails appId={routeInfo.appId} on:openSettings={handleOpenSettings} />
-{:else if routeInfo.type === 'ai_ask_skill_settings'}
-    <AiAskSkillSettings on:openSettings={handleOpenSettings} />
 {:else if aiAskModelRouteInfo}
     {@const route = aiAskModelRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
