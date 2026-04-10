@@ -85,7 +85,10 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
 	// Key fingerprint mismatch — known encryption issue (OPE-154) where test account
 	// has chats encrypted with a previous key. Does not affect test functionality.
 	/\[CryptoService\] Key fingerprint mismatch/,
-	/\[CLIENT_DECRYPT\].*Failed to decrypt/
+	/\[CLIENT_DECRYPT\].*Failed to decrypt/,
+	// Svelte 5 runtime teardown race — querySelector called on null during page.reload()
+	// when the component tree is being destroyed. Not user code, no functional impact.
+	/Cannot read properties of null \(reading 'querySelector'\)/
 ];
 
 /**
