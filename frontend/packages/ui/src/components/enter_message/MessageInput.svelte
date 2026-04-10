@@ -537,21 +537,28 @@
                 // Apply highlighting colors for unclosed blocks
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
             } else {
-                // No unclosed blocks — update decoration set only if it actually changed.
-                // Avoid dispatching empty transactions when nothing changed, as these cause
-                // DOM mutations that can trigger cascading input events on iOS Firefox.
-                const prevDecorationSet = currentDecorationSet;
-                if (currentPIIDecorations.length > 0) {
-                    const { state: st } = editor;
-                    currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
-                } else {
-                    currentDecorationSet = DecorationSet.empty;
+                // No unclosed blocks. PII decorations are managed by rebuildDecorationSet()
+                // (called from runPIIDetectionImmediate). Only rebuild the decoration set here
+                // when PII decorations match the current editor text — otherwise the cached
+                // Decoration positions are stale and ProseMirror silently drops or mispositions
+                // them, causing highlights to vanish between PII debounce runs.
+                const currentText = editor.getText();
+                const piiDecosAreStale = currentPIIDecorations.length > 0 && currentText !== lastPIIText;
+                if (!piiDecosAreStale) {
+                    const prevDecorationSet = currentDecorationSet;
+                    if (currentPIIDecorations.length > 0) {
+                        const { state: st } = editor;
+                        currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
+                    } else {
+                        currentDecorationSet = DecorationSet.empty;
+                    }
+                    const decorationsChanged = prevDecorationSet !== currentDecorationSet;
+                    if (decorationsChanged && decorationPropsSet && editor?.view) {
+                        editor.view.dispatch(editor.state.tr);
+                    }
                 }
-                // Only dispatch a transaction to refresh decorations if the set actually changed
-                const decorationsChanged = prevDecorationSet !== currentDecorationSet;
-                if (decorationsChanged && decorationPropsSet && editor?.view) {
-                    editor.view.dispatch(editor.state.tr);
-                }
+                // When PII positions are stale, keep the existing currentDecorationSet
+                // unchanged — the PII debounce timer will rebuild with correct positions.
                 
                 // Check if the parsed document contains preview embeds (closed code blocks)
                 // If so, update the editor content to show the rendered embed preview
@@ -1144,8 +1151,11 @@
                 });
             });
 
-            // Merge unclosed-block decorations with PII decorations so both are visible
-            const allDecorations = [...tipTapDecorations, ...currentPIIDecorations];
+            // Merge unclosed-block decorations with PII decorations so both are visible.
+            // Only include PII decorations when they match the current editor text —
+            // stale PII positions cause misplaced or missing highlights.
+            const piiDecosForMerge = (editor.getText() === lastPIIText) ? currentPIIDecorations : [];
+            const allDecorations = [...tipTapDecorations, ...piiDecosForMerge];
             currentDecorationSet = DecorationSet.create(doc, allDecorations);
             if (!decorationPropsSet) {
                 view.setProps({
