@@ -4546,7 +4546,6 @@
 
     <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
     <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
-    <!-- .message-field has overflow:hidden which would clip the dropdown if placed inside -->
     <MentionDropdown
         bind:show={showMentionDropdown}
         query={mentionQuery}
