@@ -4,7 +4,7 @@ app: openmates
 stage: production
 icon: openmates.svg
 
-name: Welcome
+name: welcome
 description: Discover OpenMates and find the right tools.
 
 preprocessor-hint: >

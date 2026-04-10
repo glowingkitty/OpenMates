@@ -124,14 +124,17 @@ function discoverSkillMdFocusModes(appId) {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
 
-      const focusId = entry.name;
-      const skillMdPath = join(focusModesDir, focusId, "SKILL.md");
+      const dirName = entry.name;
+      const skillMdPath = join(focusModesDir, dirName, "SKILL.md");
       if (!existsSync(skillMdPath)) continue;
 
       try {
-        const parsed = parseSkillMd(skillMdPath, appId, focusId);
+        const parsed = parseSkillMd(skillMdPath, appId, dirName);
         if (parsed) {
-          result[focusId] = parsed;
+          // Key by the runtime focus_id (from frontmatter 'id', snake_case)
+          // not the directory name (kebab-case) — so the merge with legacy
+          // app.yml entries matches on the same ID.
+          result[parsed.id] = parsed;
         }
       } catch (err) {
         console.warn(
@@ -152,10 +155,10 @@ function discoverSkillMdFocusModes(appId) {
  *
  * @param {string} filePath - Absolute path to the SKILL.md file
  * @param {string} appId - Parent app ID
- * @param {string} focusId - Focus mode ID (directory name)
+ * @param {string} dirName - Directory name (kebab-case, e.g., "career-insights")
  * @returns {Object|null} Parsed focus metadata, or null on failure
  */
-function parseSkillMd(filePath, appId, focusId) {
+function parseSkillMd(filePath, appId, dirName) {
   const raw = readFileSync(filePath, "utf-8");
 
   // Split YAML frontmatter from body
@@ -168,6 +171,12 @@ function parseSkillMd(filePath, appId, focusId) {
 
   const fm = yaml.parse(frontmatterText);
   if (!fm || typeof fm !== "object") return null;
+
+  // The runtime focus_id uses snake_case (e.g., "career_insights") and is
+  // stored in the frontmatter 'id' field. The directory name is kebab-case
+  // (e.g., "career-insights") for Claude Code compatibility. Translation
+  // keys are derived from the snake_case id, not the directory name.
+  const focusId = fm.id || dirName.replace(/-/g, "_");
 
   // Extract system prompt from ## System prompt body section.
   // Split the body by H2 headings and find the "System prompt" section.
@@ -186,10 +195,10 @@ function parseSkillMd(filePath, appId, focusId) {
   // Build the same shape as legacy app.yml focus entries so downstream
   // code (field extraction, translation key normalization) works unchanged.
   return {
-    id: fm.id || focusId,
+    id: focusId,
     stage: fm.stage || "development",
     icon_image: fm.icon || undefined,
-    // Derive translation keys from the conventional pattern
+    // Derive translation keys from the snake_case focusId
     name_translation_key: `${appId}.${focusId}`,
     description_translation_key: `${appId}.${focusId}.description`,
     process_translation_key: `focus_modes.${appId}_${focusId}.process`,

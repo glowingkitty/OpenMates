@@ -3,7 +3,7 @@ id: research
 app: web
 stage: development
 
-name: Research
+name: research
 description: Research a topic from multiple angles.
 
 preprocessor-hint: >
