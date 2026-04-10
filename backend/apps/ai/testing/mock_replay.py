@@ -239,6 +239,9 @@ async def replay_fixture(
     request_data: AskSkillRequest,
     cache_service: CacheService,
     speed_override: Optional[str] = None,
+    directus_service: Optional[Any] = None,
+    encryption_service: Optional[Any] = None,
+    user_vault_key_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Replay a recorded fixture through Redis pub/sub channels.
@@ -249,8 +252,9 @@ async def replay_fixture(
     3. ai_message_chunk events (with configurable streaming speed)
     4. Skill execution status events (if any)
 
-    The fixture stores only the full response text. Chunks are generated at replay
-    time by splitting at sentence/paragraph boundaries.
+    When the fixture response contains embed references (```json blocks with embed_id),
+    those embeds are recreated in the database with fresh IDs so the frontend can
+    resolve and render them. The response text is updated with the new IDs.
 
     Everything downstream (billing preflight, postprocessing, persistence) still runs
     with the synthetic PreprocessingResult and aggregated response from the fixture.
@@ -258,12 +262,27 @@ async def replay_fixture(
     fixture_data = load_fixture(fixture_id)
     preprocessing_result = build_preprocessing_result(fixture_data)
 
+    # --- 0. Recreate embeds from fixture data ---
+    # Fixtures recorded after stream_consumer processing contain embed references
+    # (```json {"type": "...", "embed_id": "..."} ```) pointing to embeds that no
+    # longer exist. Recreate them so the frontend can resolve and render them.
+    full_response = fixture_data.get("response") or fixture_data.get("final_response", "")
+    full_response = await _recreate_fixture_embeds(
+        full_response,
+        fixture_data,
+        task_id,
+        request_data,
+        cache_service,
+        directus_service,
+        encryption_service,
+        user_vault_key_id,
+    )
+    # Update fixture data so downstream code uses the rewritten response
+    fixture_data["response"] = full_response
+
     # Determine streaming speed
     speed_profile = speed_override or fixture_data.get("speed_profile", DEFAULT_SPEED_PROFILE)
     chunk_delay = get_chunk_delay_seconds(speed_profile)
-
-    # Get the full response text (support both new "response" and legacy "final_response" fields)
-    full_response = fixture_data.get("response") or fixture_data.get("final_response", "")
 
     logger.info(
         f"[MOCK] Replaying fixture '{fixture_id}' for task {task_id}, "
@@ -388,6 +407,100 @@ async def replay_fixture(
         "revoked_in_consumer": False,
         "soft_limited_in_consumer": False,
     }
+
+
+# --- Embed recreation for fixtures ---
+
+# Regex to find embed reference JSON blocks in fixture responses.
+# Matches: ```json\n{"type": "...", "embed_id": "uuid"}\n```
+_EMBED_REF_PATTERN = re.compile(
+    r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"([a-f0-9-]+)"[^}]*\}\s*\n\s*```',
+    re.DOTALL,
+)
+
+
+async def _recreate_fixture_embeds(
+    response: str,
+    fixture_data: Dict[str, Any],
+    task_id: str,
+    request_data: "AskSkillRequest",
+    cache_service: "CacheService",
+    directus_service: Optional[Any],
+    encryption_service: Optional[Any],
+    user_vault_key_id: Optional[str],
+) -> str:
+    """
+    Scan the fixture response for embed reference JSON blocks and recreate
+    the corresponding embeds in the database with fresh IDs.
+
+    The fixture's optional ``embeds`` dict maps old embed IDs to their content
+    metadata (type, language, code_content, etc.).  When present, embeds are
+    created with that content.  When absent, a minimal placeholder is created.
+
+    Returns the response text with old embed IDs replaced by fresh ones.
+    """
+    if not directus_service or not encryption_service or not user_vault_key_id:
+        logger.warning("[MOCK] Cannot recreate embeds — missing services")
+        return response
+
+    matches = list(_EMBED_REF_PATTERN.finditer(response))
+    if not matches:
+        return response
+
+    embed_content_map: Dict[str, Dict[str, Any]] = fixture_data.get("embeds", {})
+
+    try:
+        from backend.core.api.app.services.embed_service import EmbedService
+        embed_service = EmbedService(cache_service, directus_service, encryption_service)
+    except Exception as e:
+        logger.error(f"[MOCK] Failed to init EmbedService for embed recreation: {e}")
+        return response
+
+    log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
+
+    # Process matches in reverse so string indices stay valid after replacement
+    for match in reversed(matches):
+        old_embed_id = match.group(1)
+        embed_meta = embed_content_map.get(old_embed_id, {})
+        embed_type = embed_meta.get("type", "code")
+
+        try:
+            if embed_type == "code":
+                embed_data = await embed_service.create_code_embed_placeholder(
+                    language=embed_meta.get("language", "python"),
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    filename=embed_meta.get("filename"),
+                    log_prefix=log_prefix,
+                )
+                if embed_data:
+                    code_content = embed_meta.get("code_content", "# Fixture placeholder")
+                    await embed_service.update_code_embed_content(
+                        embed_id=embed_data["embed_id"],
+                        code_content=code_content,
+                        chat_id=request_data.chat_id,
+                        user_id=request_data.user_id,
+                        user_id_hash=request_data.user_id_hash,
+                        user_vault_key_id=user_vault_key_id,
+                        status="finished",
+                        log_prefix=log_prefix,
+                    )
+                    new_ref = embed_data["embed_reference"]
+                    new_block = f"```json\n{new_ref}\n```"
+                    response = response[:match.start()] + new_block + response[match.end():]
+                    logger.info(
+                        f"[MOCK] Recreated {embed_type} embed: {old_embed_id} → {embed_data['embed_id']}"
+                    )
+            else:
+                logger.info(f"[MOCK] Skipping embed recreation for type '{embed_type}' (not yet supported)")
+        except Exception as e:
+            logger.error(f"[MOCK] Failed to recreate embed {old_embed_id}: {e}", exc_info=True)
+
+    return response
 
 
 # --- Internal helpers ---
