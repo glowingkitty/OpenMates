@@ -595,6 +595,11 @@ changes to the documentation (to keep the documentation up to date).
                     // Skip all remaining app_store sub-segments — they belong to the old chain
                     break;
                 }
+                if (cameFromPath === 'ai') {
+                    // Arrived from top-level AI settings — show "AI" instead of "App Store / AI"
+                    pathLabels.push(cameFromTitleOverride ?? $text('settings.ai'));
+                    break;
+                }
                 // This is the base app_store route - add "App Store" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
@@ -782,7 +787,9 @@ changes to the documentation (to keep the documentation up to date).
         (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
          activeSettingsView === 'app_store/reminder/create' ||
          /^app_store\/reminder\/entry\//.test(activeSettingsView)) &&
-        !isModelDetailPage
+        !isModelDetailPage &&
+        // When arrived from top-level AI settings, use default settings gradient instead of app gradient
+        cameFromPath !== 'ai'
     );
 
     /**
@@ -1526,6 +1533,10 @@ changes to the documentation (to keep the documentation up to date).
                     if (pathParts[1] === 'settings_memories' && cameFromPath === 'settings_memories') {
                         previousPath = 'settings_memories';
                         previousPathSegments = ['settings_memories'];
+                    } else if (cameFromPath === 'ai') {
+                        // Arrived from top-level AI settings — go back there, not to app_store/ai
+                        previousPath = 'ai';
+                        previousPathSegments = ['ai'];
                     } else {
                         previousPath = `app_store/${appId}`;
                         previousPathSegments = ['app_store', appId];
