@@ -349,6 +349,13 @@ async function performLogin(
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, `${screenshotPrefix}-password-entered`);
 
+	// Submit password first — OTP field only appears after backend confirms 2FA is required
+	// (anti-enumeration: OTP is never shown upfront, only after first login attempt).
+	const submitLoginButton = page.locator('#login-submit-button');
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
+	logCheckpoint('Submitted password — waiting for 2FA prompt.');
+
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
@@ -356,10 +363,9 @@ async function performLogin(
 	logCheckpoint('Generated and entered OTP.');
 	await takeStepScreenshot(page, `${screenshotPrefix}-otp-entered`);
 
-	const submitLoginButton = page.locator('#login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
-	logCheckpoint('Submitted login form.');
+	logCheckpoint('Submitted login form with OTP.');
 
 	await page.waitForURL(/chat/);
 	logCheckpoint('Redirected to chat page.');
