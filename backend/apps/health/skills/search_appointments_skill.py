@@ -1256,15 +1256,37 @@ async def _process_single_jameda_request(
         ]
         all_addresses = await asyncio.gather(*address_tasks, return_exceptions=True)
 
-        # Build list of (doctor_info, address) pairs to fetch slots for
+        # Build list of (doctor_info, address) pairs to fetch slots for.
+        #
+        # CITY FILTER: The Algolia index does a full-text search on
+        # "{speciality_slug} {city_slug}" which returns the best text matches
+        # globally — it does NOT restrict to the requested city. A doctor in
+        # Leipzig whose name/specialization happens to match the query can
+        # outrank Berlin doctors. We therefore filter addresses by city_name
+        # here so the returned appointments are actually in the requested city.
+        city_slug_lc = city_slug.lower().strip()
         doctor_address_pairs: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        dropped_wrong_city = 0
         for doc_info, addrs in zip(doctor_infos, all_addresses):
             if isinstance(addrs, Exception):
                 logger.warning("[health:jameda] Address fetch error for doctor %s: %s", doc_info["doctor_id"], addrs)
                 continue
+            matched_addr: Optional[Dict[str, Any]] = None
             for addr in addrs:
-                doctor_address_pairs.append((doc_info, addr))
-                break  # Use first valid address per doctor
+                addr_city = str(addr.get("city_name", "")).lower().strip()
+                if addr_city and addr_city == city_slug_lc:
+                    matched_addr = addr
+                    break
+            if matched_addr is not None:
+                doctor_address_pairs.append((doc_info, matched_addr))
+            else:
+                dropped_wrong_city += 1
+
+        if dropped_wrong_city:
+            logger.info(
+                "[health:jameda] Dropped %d doctor(s) whose addresses were not in city '%s'",
+                dropped_wrong_city, city_slug,
+            )
 
         if not doctor_address_pairs:
             return request_id, [], None

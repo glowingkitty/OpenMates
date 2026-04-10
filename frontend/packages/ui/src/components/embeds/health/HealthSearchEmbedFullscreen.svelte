@@ -95,13 +95,32 @@
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let storeResolved = $state(false);
   let localErrorMessage = $state('');
+  // Search parameters — used to render "{speciality} in {city}" as the header subtitle.
+  // The health skill passes these as separate fields rather than a combined query string.
+  let localQuery = $state<string>('');
+  let localSpeciality = $state<string>('');
+  let localCity = $state<string>('');
 
   $effect(() => {
     if (!storeResolved) {
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
+      if (typeof data.decodedContent?.query === 'string') localQuery = data.decodedContent.query as string;
+      if (typeof data.decodedContent?.speciality === 'string') localSpeciality = data.decodedContent.speciality as string;
+      if (typeof data.decodedContent?.city === 'string') localCity = data.decodedContent.city as string;
     }
+  });
+
+  // Summary line: prefer explicit "query" field; fall back to speciality + city.
+  let searchSummary = $derived.by(() => {
+    if (localQuery) return localQuery;
+    if (localSpeciality && localCity) {
+      const spec = localSpeciality.charAt(0).toUpperCase() + localSpeciality.slice(1);
+      const city = localCity.charAt(0).toUpperCase() + localCity.slice(1);
+      return `${spec} in ${city}`;
+    }
+    return localSpeciality || localCity || '';
   });
 
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
@@ -214,6 +233,9 @@
     if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
+    if (typeof content.query === 'string') localQuery = content.query;
+    if (typeof content.speciality === 'string') localSpeciality = content.speciality;
+    if (typeof content.city === 'string') localCity = content.city;
   }
 </script>
 
@@ -221,6 +243,7 @@
   appId="health"
   skillId="search_appointments"
   embedHeaderTitle={$text('app_skills.health.search_appointments')}
+  embedHeaderSubtitle={searchSummary}
   skillIconName="health"
   showSkillIcon={true}
   {onClose}
