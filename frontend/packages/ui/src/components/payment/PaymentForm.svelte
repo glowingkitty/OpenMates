@@ -99,6 +99,7 @@
             <button
                 type="button"
                 class="buy-button"
+                data-testid="buy-button"
                 disabled={isLoading || isButtonCooldown}
                 onclick={() => window.location.assign(fallbackUrl)}
             >
@@ -108,6 +109,7 @@
             <button
                 type="submit"
                 class="buy-button"
+                data-testid="buy-button"
                 disabled={!canSubmit || isLoading || isButtonCooldown}
             >
                 {#if isLoading}
