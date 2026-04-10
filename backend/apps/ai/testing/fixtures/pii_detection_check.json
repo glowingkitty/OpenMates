@@ -1,0 +1,40 @@
+{
+  "fixture_id": "pii_detection_check",
+  "recorded_at": "2026-04-10T15:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Write an email draft from max@posteo.de to [EMAIL",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "communication",
+    "title": "Email Draft About Broken Heater",
+    "icon_names": ["mail"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User requests an email draft about a broken heater in their building",
+    "chat_tags": ["email", "draft"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Email Draft About Broken Heater"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "communication",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "Here is a draft email about the broken heater:\n\nSubject: Broken Heater — Repair Status\n\nDear Sarah,\n\nI am writing to follow up regarding the broken heater in our building. Could you please provide an update on when the repair is scheduled?\n\nYou can reach me at [PHONE_1_567] if you need to discuss this further.\n\nBest regards,\nMax",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 150,
+    "completion_tokens": 80,
+    "total_credits": 8,
+    "model_name": "Claude Sonnet"
+  }
+}

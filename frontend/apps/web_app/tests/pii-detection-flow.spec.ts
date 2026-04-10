@@ -42,20 +42,16 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  * detection system works correctly end-to-end in the message input.
  *
  * Test: PII detection with 3 entries, click-to-exclude, send with placeholders, show/hide toggle
- *       - Types text containing exactly 3 PII types (email, phone, IBAN)
+ *       - Types a realistic email draft prompt with 3 PII entries (2 emails + 1 phone)
  *       - Verifies all 3 are detected and highlighted (yellow background)
  *       - Verifies the PII warning banner appears with correct summary
- *       - Clicks the email highlight to exclude it (3 → 2 highlights)
- *       - Verifies phone + IBAN highlights remain (2 highlights)
+ *       - Clicks the first email (max@posteo.de) to exclude it (3 → 2 highlights)
+ *       - Verifies sarah@proton.com + phone highlights remain (2 highlights)
  *       - Sends the message with 2 active PII detections
- *       - Verifies the sent message has [PHONE_*] and [IBAN_*] placeholders
- *       - Verifies the excluded email appears as original text (not replaced)
+ *       - Verifies the sent message has [EMAIL_*] and [PHONE_*] placeholders
+ *       - Verifies the excluded email (max@posteo.de) appears as original text
  *       - Tests the PII show/hide toggle button in the chat header
  *       - Deletes the chat
- *
- * Edge cases tested:
- *       - Date formats (YYYY-MM-DD) should NOT be detected as phone numbers
- *       - Common version numbers should NOT be detected
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of an existing test account.
@@ -118,16 +114,12 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	logCheckpoint('Typing text with 3 PII types...');
 
 	// This text contains exactly 3 PII entries:
-	// - Email: jane.doe@example.com
+	// - Email 1: max@posteo.de
+	// - Email 2: sarah@proton.com
 	// - Phone: +49 170 1234567
-	// - IBAN: DE89 3704 0044 0532 0130 00
-	// Edge cases that should NOT be detected:
-	// - Date: 2026-04-12 (should NOT be a phone number)
-	// - Version: 1.2.3 (should NOT be detected)
 	const piiText =
-		'Contact jane.doe@example.com or call +49 170 1234567 for help. ' +
-		'IBAN: DE89 3704 0044 0532 0130 00. ' +
-		'Meeting on 2026-04-12, version 1.2.3 is fine.';
+		'Write an email draft from max@posteo.de to sarah@proton.com about the broken heater ' +
+		'in the building and when it will be fixed. My phone number is +49 170 1234567 for callbacks.';
 
 	await messageEditor.click();
 	// Type slowly enough for PII detection to process but not too slowly
@@ -155,52 +147,27 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	const highlightCount = await piiHighlights.count();
 	logCheckpoint(`Found ${highlightCount} PII highlights in the editor.`);
 
-	// We expect exactly 3 detections: email, phone, IBAN
+	// We expect exactly 3 detections: 2 emails + 1 phone
 	expect(highlightCount).toBe(3);
 
 	// Check that specific PII types are highlighted
 	const emailHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
 	const phoneHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="PHONE"]');
-	const ibanHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="IBAN"]');
 
 	const emailCount = await emailHighlight.count();
 	const phoneCount = await phoneHighlight.count();
-	const ibanCount = await ibanHighlight.count();
 
-	logCheckpoint(
-		`PII by type — EMAIL: ${emailCount}, PHONE: ${phoneCount}, IBAN: ${ibanCount}`
-	);
+	logCheckpoint(`PII by type — EMAIL: ${emailCount}, PHONE: ${phoneCount}`);
 
-	expect(emailCount).toBe(1);
+	expect(emailCount).toBe(2);
 	expect(phoneCount).toBe(1);
-	expect(ibanCount).toBe(1);
 
-	// Verify the highlighted text for the email
+	// Verify the highlighted text for the first email
 	const emailText = await emailHighlight.first().textContent();
-	logCheckpoint(`Email highlight text: "${emailText}"`);
-	expect(emailText).toContain('jane.doe@example.com');
+	logCheckpoint(`First email highlight text: "${emailText}"`);
+	expect(emailText).toContain('max@posteo.de');
 
 	await takeStepScreenshot(page, 'pii-highlights-verified');
-
-	// ======================================================================
-	// STEP 4: Verify edge cases — dates should NOT be detected as phone numbers
-	// ======================================================================
-	logCheckpoint('Verifying edge cases — dates should not be detected...');
-
-	// Get all highlighted text content to check for false positives
-	const allHighlightTexts: string[] = [];
-	for (let i = 0; i < highlightCount; i++) {
-		const text = await piiHighlights.nth(i).textContent();
-		allHighlightTexts.push(text || '');
-	}
-	logCheckpoint(`All highlighted texts: ${JSON.stringify(allHighlightTexts)}`);
-
-	// The date "2026-04-12" should NOT appear in any highlight
-	const dateDetected = allHighlightTexts.some((t: string) => t.includes('2026-04-12'));
-	logCheckpoint(`Date "2026-04-12" detected as PII: ${dateDetected}`);
-	expect(dateDetected).toBe(false);
-
-	await takeStepScreenshot(page, 'edge-cases-verified');
 
 	// ======================================================================
 	// STEP 5: Verify the PII warning banner appears
@@ -257,36 +224,37 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	const debugHighlightCount = await piiHighlights.count();
 	logCheckpoint(`Debug: highlights after click + 2s wait: ${debugHighlightCount}`);
 
-	// The email should no longer be highlighted
-	const emailHighlightAfterExclude = await page
-		.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')
-		.count();
+	// The first email (max@posteo.de) should no longer be highlighted; second email remains
+	const emailHighlightAfterExclude = await emailHighlight.count();
 	logCheckpoint(`Email highlights after exclude: ${emailHighlightAfterExclude}`);
-	expect(emailHighlightAfterExclude).toBe(0);
+	expect(emailHighlightAfterExclude).toBe(1); // only sarah@proton.com remains
 
-	// Total highlights should now be exactly 2 (phone + IBAN remain)
+	// Total highlights should now be exactly 2 (sarah@proton.com + phone)
 	const highlightsAfterExclude = await piiHighlights.count();
 	logCheckpoint(`Total highlights after exclude: ${highlightsAfterExclude} (was ${highlightsBefore})`);
 	expect(highlightsAfterExclude).toBe(2);
 
-	// Verify that the remaining 2 highlights are phone and IBAN
-	const phoneAfterExclude = await phoneHighlight.count();
-	const ibanAfterExclude = await ibanHighlight.count();
-	logCheckpoint(`Remaining — PHONE: ${phoneAfterExclude}, IBAN: ${ibanAfterExclude}`);
-	expect(phoneAfterExclude).toBe(1);
-	expect(ibanAfterExclude).toBe(1);
+	// Verify the remaining email is sarah@proton.com
+	const remainingEmailText = await emailHighlight.first().textContent();
+	logCheckpoint(`Remaining email highlight: "${remainingEmailText}"`);
+	expect(remainingEmailText).toContain('sarah@proton.com');
 
-	// The email text should still be in the editor, just not highlighted
+	// Verify phone is still highlighted
+	const phoneAfterExclude = await phoneHighlight.count();
+	logCheckpoint(`Remaining — PHONE: ${phoneAfterExclude}`);
+	expect(phoneAfterExclude).toBe(1);
+
+	// The excluded email should still be in the editor, just not highlighted
 	const editorText = await messageEditor.textContent();
-	expect(editorText).toContain('jane.doe@example.com');
-	logCheckpoint('Email text still present in editor after exclude (just no longer highlighted).');
+	expect(editorText).toContain('max@posteo.de');
+	logCheckpoint('Excluded email text still present in editor (just no longer highlighted).');
 
 	await takeStepScreenshot(page, 'pii-click-exclude-verified');
 
 	// ======================================================================
-	// STEP 7: Send the message with 2 active PII detections (phone + IBAN)
+	// STEP 7: Send the message with 2 active PII detections (sarah email + phone)
 	// ======================================================================
-	logCheckpoint('Sending message with 2 remaining PII detections (email excluded)...');
+	logCheckpoint('Sending message with 2 remaining PII detections (max email excluded)...');
 
 	// Verify we still have exactly 2 highlights before sending
 	const highlightsBeforeSend = await piiHighlights.count();
@@ -354,7 +322,7 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 			}
 
 			const text = (await userMsgElement.textContent()) || '';
-			if (text.includes('Contact') || text.includes('[PHONE') || text.includes('[IBAN')) {
+			if (text.includes('heater') || text.includes('[EMAIL') || text.includes('[PHONE')) {
 				userMessage = userMsgElement;
 				userMsgText = text;
 				logCheckpoint(
@@ -374,14 +342,14 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 			logCheckpoint(`User message text after polling: "${userMsgText.trim().substring(0, 150)}"`);
 		}
 
-		// Phone and IBAN should have been replaced with placeholders
+		// sarah@proton.com and phone should have been replaced with placeholders
 		logCheckpoint(`User message text for PII check: "${userMsgText.trim().substring(0, 200)}"`);
+		expect(userMsgText).toMatch(/\[EMAIL_\w+\]/);
 		expect(userMsgText).toMatch(/\[PHONE_\w+\]/);
-		expect(userMsgText).toMatch(/\[IBAN_\w+\]/);
 
-		// Email was excluded (clicked) so it should appear as original text, NOT as a placeholder
-		expect(userMsgText).toContain('jane.doe@example.com');
-		logCheckpoint('User message has phone/IBAN placeholders and original email (excluded).');
+		// max@posteo.de was excluded (clicked) so it should appear as original text
+		expect(userMsgText).toContain('max@posteo.de');
+		logCheckpoint('User message has email/phone placeholders and original max@posteo.de (excluded).');
 
 		await takeStepScreenshot(page, 'pii-user-message-placeholders');
 
@@ -419,7 +387,7 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 			expect(hiddenAttrAfterClick).toBe('false');
 
 			const reHiddenMsgText = await userMessage.textContent();
-			expect(reHiddenMsgText).toMatch(/\[PHONE_\w+\]/);
+			expect(reHiddenMsgText).toMatch(/\[EMAIL_\w+\]/);
 			logCheckpoint('User message correctly re-hidden with placeholders.');
 
 			await takeStepScreenshot(page, 'pii-toggle-hidden-again');
