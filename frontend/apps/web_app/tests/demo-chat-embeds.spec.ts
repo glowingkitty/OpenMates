@@ -42,14 +42,15 @@ test.describe('Demo chat embed rendering', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		// Wait for community demos to load (they fetch sequentially from the API)
-		await page.waitForTimeout(10000);
-
-		// ─── Find and click an example chat card ────────────────────────────
-		// The ExampleChatsGroup renders cards with data-testid="chat-embed-card"
+		// ─── Wait for community demo chat cards to appear ──────────────────
+		// Community demos load sequentially from the API — wait for at least
+		// one card to appear rather than using a fixed timeout.
 		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');
-		const cardCount = await chatCards.count();
+		await expect(chatCards.first()).toBeVisible({ timeout: 30000 });
+		// Give a moment for remaining cards to load
+		await page.waitForTimeout(2000);
 
+		const cardCount = await chatCards.count();
 		console.log(`\n--- DEMO CHAT EMBED TEST ---`);
 		console.log(`Example chat cards found: ${cardCount}`);
 
