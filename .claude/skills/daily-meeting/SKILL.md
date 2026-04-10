@@ -119,7 +119,7 @@ These commands may fail due to missing config. Issue them in a SEPARATE parallel
 17. **Prod smoke tests** — Read: `test-results/last-run-prod-smoke.json`
 18. **Nightly reports** — Glob `logs/nightly-reports/*.json` (path: `/home/superdev/projects/OpenMates`), then Read each
 19. **Legal & compliance top 10** — Read: `docs/architecture/compliance/top-10-recommendations.md` (the human-readable ranked findings that back `logs/nightly-reports/legal-compliance.json`)
-20. **Milestone state** — Read: `.planning/PROJECT.md` (fallback: `.planning/ROADMAP.md`, `.planning/STATE.md`, `.planning/config.json`)
+20. **Milestone state** — call `mcp__linear__list_projects` (includeMilestones=false), then for each project call `mcp__linear__list_milestones` with the project name. This is the source of truth for milestones — NOT `.planning/PROJECT.md`.
 21. **Previous meeting summary** — Bash: `ls -t scripts/.tmp/daily-meeting-summary-*.md 2>/dev/null | head -1`, then Read the result
 
 ### Step 2: Read Prompt Template & Start Meeting

@@ -78,7 +78,8 @@ All data has been gathered automatically. Review each section below — this is 
 
 ### Current Milestone State
 
-{{MILESTONE_STATE}}
+Milestones are sourced from Linear projects (via `mcp__linear__list_projects` + `mcp__linear__list_milestones`).
+NOT from `.planning/PROJECT.md` — that file is obsolete.
 
 ### Data Failures
 
@@ -156,8 +157,9 @@ Wait for user input.
 
 ### Step 4: PROJECT TRAJECTORY 🗺️
 
-Using milestone state + nightly reports:
-- Current milestone progress
+Using Linear milestones (queried via `mcp__linear__list_projects` + `mcp__linear__list_milestones`) + nightly reports:
+- Current milestone progress (from Linear milestone `progress` field)
+- Target dates vs actual — flag overdue milestones
 - Scope/timeline concerns
 - Session quality trend
 - Anything worth announcing
