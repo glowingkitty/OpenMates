@@ -102,6 +102,16 @@ export function navigateToSettings(path: string, title: string, icon?: string, t
 /**
  * Go back in the settings navigation history
  */
+/**
+ * Reset navigation state back to the initial "settings" root.
+ * Must be called whenever the settings panel closes so that the next
+ * navigateToSettings() call produces a real currentPath change and
+ * the $effect in Settings.svelte can fire reliably.
+ */
+export function resetSettingsNavigation(): void {
+    settingsNavigationStore.set(initialState);
+}
+
 function navigateBackInSettings(): void {
     settingsNavigationStore.update(state => {
         if (state.breadcrumbs.length <= 1) {

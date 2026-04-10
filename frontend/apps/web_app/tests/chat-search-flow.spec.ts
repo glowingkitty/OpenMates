@@ -299,3 +299,138 @@ test('closes search bar and clears query when Escape is pressed', async ({
 	log('Search bar correctly removed from DOM after Escape.');
 	log('Test complete.');
 });
+
+// ---------------------------------------------------------------------------
+// Test 4: Search for a settings entry → click result → settings opens to deep link
+// ---------------------------------------------------------------------------
+
+test('navigates to settings deep link when clicking a settings search result', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(240000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('CHAT_SEARCH_SETTINGS_DEEPLINK');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(4000);
+
+	// Ensure sidebar is open
+	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (await sidebarToggle.isVisible().catch(() => false)) {
+		await sidebarToggle.click();
+		await page.waitForTimeout(1000);
+	}
+
+	// Open search bar
+	log('Opening search bar.');
+	const searchIcon = page.getByTestId('search-button');
+	await expect(searchIcon).toBeVisible({ timeout: 10000 });
+	await searchIcon.click();
+
+	const searchInput = page.getByTestId('search-input');
+	await expect(searchInput).toBeVisible({ timeout: 5000 });
+
+	// Search for "privacy" — a settings entry that always exists for authenticated users
+	const settingsQuery = 'privacy';
+	log(`Searching for settings entry: "${settingsQuery}"`);
+	await searchInput.fill(settingsQuery);
+
+	// Wait for search results to appear
+	const searchResults = page.getByTestId('search-results');
+	await expect(searchResults).toBeVisible({ timeout: 10000 });
+
+	// Wait for a settings result item to appear
+	const settingItem = page.getByTestId('search-setting-item').first();
+	await expect(async () => {
+		const count = await page.getByTestId('search-setting-item').count().catch(() => 0);
+		if (count === 0) {
+			// Re-trigger search if no results yet (index might still be warming up)
+			await searchInput.fill('');
+			await page.waitForTimeout(500);
+			await searchInput.fill(settingsQuery);
+			await page.waitForTimeout(700);
+		}
+		await expect(settingItem).toBeVisible();
+	}).toPass({ timeout: 30000 });
+
+	await screenshot(page, 'settings-search-result');
+	log('Settings search result visible.');
+
+	// Get the path from the result to verify navigation later
+	const resultPath = await settingItem.getAttribute('data-result-id');
+	log(`Settings result path: "${resultPath}"`);
+
+	// Click the settings result
+	await settingItem.click();
+	await page.waitForTimeout(1500);
+
+	// Verify: settings menu should be visible and on the correct deep-linked page
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 5000 });
+
+	// Verify the active view matches the result path we clicked
+	const activeView = await settingsMenu.getAttribute('data-active-view');
+	log(`Settings active view: "${activeView}", expected: "${resultPath}"`);
+	expect(activeView).toBe(resultPath);
+
+	await screenshot(page, 'settings-deeplink-open');
+	log('Settings panel open on correct deep-linked page.');
+
+	// --- Repeat navigation test ---
+	// Close settings, search again for the same term, click it again.
+	// This reproduces the bug where previousNavigationPath was not reset.
+
+	// Close settings by clicking the close button or profile toggle
+	const closeButton = page.getByTestId('icon-button-close');
+	if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await closeButton.click();
+		await page.waitForTimeout(500);
+	} else {
+		// Fallback: click profile container to toggle settings closed
+		const profileContainer = page.getByTestId('profile-container');
+		if (await profileContainer.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await profileContainer.click();
+			await page.waitForTimeout(500);
+		}
+	}
+
+	log('Settings closed. Re-opening search for repeat navigation test.');
+
+	// Re-open search and navigate to the same settings page again
+	await expect(searchIcon).toBeVisible({ timeout: 10000 });
+	await searchIcon.click();
+
+	const searchInput2 = page.getByTestId('search-input');
+	await expect(searchInput2).toBeVisible({ timeout: 5000 });
+	await searchInput2.fill(settingsQuery);
+
+	// Wait for settings result again
+	await expect(searchResults).toBeVisible({ timeout: 10000 });
+	const settingItem2 = page.getByTestId('search-setting-item').first();
+	await expect(settingItem2).toBeVisible({ timeout: 15000 });
+
+	// Click the same settings result a second time
+	await settingItem2.click();
+	await page.waitForTimeout(1500);
+
+	// Verify settings opens to the correct page again (this was the bug)
+	await expect(settingsMenu).toBeVisible({ timeout: 5000 });
+	const activeView2 = await settingsMenu.getAttribute('data-active-view');
+	log(`Second navigation active view: "${activeView2}", expected: "${resultPath}"`);
+	expect(activeView2).toBe(resultPath);
+
+	await screenshot(page, 'settings-deeplink-repeat');
+	log('Repeat navigation succeeded — settings opened to correct page again.');
+	log('Test complete.');
+});
