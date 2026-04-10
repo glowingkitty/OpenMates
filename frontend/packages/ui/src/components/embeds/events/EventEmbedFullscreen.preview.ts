@@ -2,6 +2,11 @@
  * Preview mock data for EventEmbedFullscreen.
  * This is the drill-down fullscreen for a single event.
  *
+ * Uses the data-driven shape (EmbedFullscreenRawData) — the event fields
+ * are flattened into decodedContent, matching what the component extracts via
+ * `data.decodedContent`. The old `{ event: {...} }` direct-prop format
+ * was removed in OPE-413 after the OPE-276 migration to data-driven routing.
+ *
  * Access at: /dev/preview/embeds/events/EventEmbedFullscreen
  */
 
@@ -96,7 +101,11 @@ const samplePaidEvent = {
 
 /** Default props — physical event with full details */
 const defaultProps = {
-  event: sampleEvent,
+  data: {
+    decodedContent: sampleEvent,
+    embedData: { status: "finished" },
+    attrs: { app_id: "events" },
+  },
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: true,
@@ -110,7 +119,11 @@ export default defaultProps;
 export const variants = {
   /** Online event — no venue address */
   online: {
-    event: sampleOnlineEvent,
+    data: {
+      decodedContent: sampleOnlineEvent,
+      embedData: { status: "finished" },
+      attrs: { app_id: "events" },
+    },
     onClose: () => {},
     hasPreviousEmbed: true,
     hasNextEmbed: true,
@@ -119,7 +132,11 @@ export const variants = {
   },
   /** Paid event with fee badge */
   paid: {
-    event: samplePaidEvent,
+    data: {
+      decodedContent: samplePaidEvent,
+      embedData: { status: "finished" },
+      attrs: { app_id: "events" },
+    },
     onClose: () => {},
     hasPreviousEmbed: true,
     hasNextEmbed: false,
