@@ -29,7 +29,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -61,7 +61,7 @@ test.describe('App: Web / Skill: search', () => {
 		);
 
 		const result = await runCli(apiUrl, ['apps', 'web', 'search', 'OpenMates AI assistant']);
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 		expect(result.stdout.length).toBeGreaterThan(10);
 		expect(result.stderr).not.toMatch(/error|failed|exception/i);
 		console.log(`[P2] web/search returned ${result.stdout.length} chars`);
@@ -76,7 +76,7 @@ test.describe('App: Web / Skill: search', () => {
 
 		const message = withLiveMockMarker('Search the web for OpenMates AI assistant', 'web_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 
 		const parsed = parseCliJson(result);
 		expect(parsed).toBeTruthy();
