@@ -798,7 +798,8 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
 
-            art_path = self.client.download_artifact(rid, f"playwright-{spec}", artifact_dir)
+            art_name = f"playwright-{spec.replace('/', '-')}"
+            art_path = self.client.download_artifact(rid, art_name, artifact_dir)
             if art_path:
                 # playwright.json may be at top level or under test-results/
                 pw_json = art_path / "playwright.json"
