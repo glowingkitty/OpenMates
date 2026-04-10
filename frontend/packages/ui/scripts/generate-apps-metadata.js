@@ -7,7 +7,7 @@
 // **Usage**: Run this script during the build process to include app metadata
 // in the frontend bundle. This allows offline browsing of the App Store.
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from "fs";
+import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "fs";
 import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import yaml from "yaml";
@@ -95,6 +95,110 @@ function normalizeTranslationKey(key, prefix) {
 
   // Otherwise, prepend the prefix
   return prefix + trimmedKey;
+}
+
+/**
+ * Discover SKILL.md-format focus modes for an app.
+ *
+ * Looks for backend/apps/<appId>/focus_modes/<focusId>/SKILL.md files.
+ * When found, parses the YAML frontmatter + markdown body and returns
+ * a dict keyed by focus_id with the same field shape that the legacy
+ * app.yml inline format uses — so downstream code doesn't need to
+ * distinguish the source.
+ *
+ * See docs/architecture/apps/focus-modes.md for format spec.
+ *
+ * @param {string} appId - App identifier (e.g., "jobs", "study")
+ * @returns {Object} Map of focus_id -> parsed focus metadata
+ */
+function discoverSkillMdFocusModes(appId) {
+  const focusModesDir = join(BACKEND_APPS_DIR, appId, "focus_modes");
+  const result = {};
+
+  try {
+    if (!existsSync(focusModesDir) || !statSync(focusModesDir).isDirectory()) {
+      return result;
+    }
+
+    const entries = readdirSync(focusModesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const focusId = entry.name;
+      const skillMdPath = join(focusModesDir, focusId, "SKILL.md");
+      if (!existsSync(skillMdPath)) continue;
+
+      try {
+        const parsed = parseSkillMd(skillMdPath, appId, focusId);
+        if (parsed) {
+          result[focusId] = parsed;
+        }
+      } catch (err) {
+        console.warn(
+          `[generate-apps-metadata] Failed to parse SKILL.md for ${appId}/${focusId}: ${err.message}`,
+        );
+      }
+    }
+  } catch (err) {
+    // focus_modes directory doesn't exist or isn't readable — not an error
+  }
+
+  return result;
+}
+
+/**
+ * Parse a single SKILL.md file into a focus metadata object with the same
+ * field names as a legacy app.yml inline focus entry.
+ *
+ * @param {string} filePath - Absolute path to the SKILL.md file
+ * @param {string} appId - Parent app ID
+ * @param {string} focusId - Focus mode ID (directory name)
+ * @returns {Object|null} Parsed focus metadata, or null on failure
+ */
+function parseSkillMd(filePath, appId, focusId) {
+  const raw = readFileSync(filePath, "utf-8");
+
+  // Split YAML frontmatter from body
+  if (!raw.startsWith("---")) return null;
+  const secondDelim = raw.indexOf("\n---", 3);
+  if (secondDelim === -1) return null;
+
+  const frontmatterText = raw.substring(3, secondDelim).trim();
+  const body = raw.substring(secondDelim + 4);
+
+  const fm = yaml.parse(frontmatterText);
+  if (!fm || typeof fm !== "object") return null;
+
+  // Extract system prompt from ## System prompt body section.
+  // Split the body by H2 headings and find the "System prompt" section.
+  let systemPrompt = "";
+  const sections = body.split(/^## /m);
+  for (const section of sections) {
+    if (section.startsWith("System prompt")) {
+      // Skip the heading line, take everything after
+      const lines = section.split("\n");
+      lines.shift(); // remove "System prompt" heading line
+      systemPrompt = lines.join("\n").trim();
+      break;
+    }
+  }
+
+  // Build the same shape as legacy app.yml focus entries so downstream
+  // code (field extraction, translation key normalization) works unchanged.
+  return {
+    id: fm.id || focusId,
+    stage: fm.stage || "development",
+    icon_image: fm.icon || undefined,
+    // Derive translation keys from the conventional pattern
+    name_translation_key: `${appId}.${focusId}`,
+    description_translation_key: `${appId}.${focusId}.description`,
+    process_translation_key: `focus_modes.${appId}_${focusId}.process`,
+    systemprompt_translation_key: `focus_modes.${appId}_${focusId}.systemprompt`,
+    // Literal system prompt text for settings page display
+    systemprompt: systemPrompt || undefined,
+    // Mark as SKILL.md-sourced for logging
+    _source: "skill_md",
+  };
 }
 
 /**
@@ -581,11 +685,25 @@ function parseAppYaml(appId, filePath) {
         .filter((p) => p.length > 0);
     }
 
-    // Process focus modes - include production-stage focus modes, and development if INCLUDE_DEVELOPMENT is true
-    const focusModes = appData.focuses || appData.focus_modes || [];
-    if (Array.isArray(focusModes)) {
-      for (const focus of focusModes) {
-        const stage = (focus.stage || "development").trim().toLowerCase();
+    // Process focus modes - prefer SKILL.md files, fall back to app.yml inline entries.
+    // SKILL.md files live in backend/apps/<app>/focus_modes/<id>/SKILL.md and are the
+    // new canonical source (see docs/architecture/apps/focus-modes.md). When a SKILL.md
+    // exists for a focus mode, its parsed data replaces the app.yml inline entry entirely.
+    const skillMdFocusModes = discoverSkillMdFocusModes(appId);
+    const legacyFocusModes = appData.focuses || appData.focus_modes || [];
+
+    // Merge: start with SKILL.md-discovered modes, then add any legacy-only modes
+    // that don't have a SKILL.md yet (forward-compat for modes added before migration).
+    const skillMdIds = new Set(Object.keys(skillMdFocusModes));
+    const mergedFocusModes = [
+      ...Object.values(skillMdFocusModes),
+      ...(Array.isArray(legacyFocusModes)
+        ? legacyFocusModes.filter((f) => !skillMdIds.has(f.id))
+        : []),
+    ];
+
+    for (const focus of mergedFocusModes) {
+        const stage = (focus.stage || "development").trim().toLowerCase().split(/\s/)[0];
         // Only include production-stage focus modes, or development if INCLUDE_DEVELOPMENT is true
         if (
           stage !== "production" &&
@@ -648,7 +766,6 @@ function parseAppYaml(appId, filePath) {
           appMetadata.focus_modes.push(focusMetadata);
         }
       }
-    }
 
     // Process settings_and_memories - include production-stage items, and development if INCLUDE_DEVELOPMENT is true
     // Note: settings_and_memories is the field name in app.yml and is used consistently in the frontend
