@@ -1665,14 +1665,15 @@
                 handleDOMEvents: {
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
-                        if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
-                            const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
-                            const piiId = piiElement?.getAttribute('data-pii-id');
+                        const piiEl = target.classList.contains('pii-highlight')
+                            ? target
+                            : target.closest('.pii-highlight') as HTMLElement | null;
+                        if (piiEl) {
+                            const piiId = piiEl.getAttribute('data-pii-id');
+                            console.info('[MessageInput] PII click detected via handleDOMEvents:', piiId, 'target:', target.tagName, target.className);
                             if (piiId) {
-                                // Defer to next microtask so ProseMirror finishes its
-                                // click handling first (cursor placement, selection).
-                                queueMicrotask(() => handlePIIClick(piiId));
-                                return false; // let ProseMirror also handle (cursor)
+                                handlePIIClick(piiId);
+                                return true; // handled — stop further click processing
                             }
                         }
                         return false;

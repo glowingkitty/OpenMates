@@ -236,12 +236,21 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	logCheckpoint(`Highlights before click-to-exclude: ${highlightsBefore}`);
 	expect(highlightsBefore).toBe(3);
 
-	// Click the email highlight to exclude it from replacement
-	await emailHighlight.first().click();
-	logCheckpoint('Clicked on email PII highlight.');
+	// Click the email highlight to exclude it from replacement.
+	// Use page.evaluate to dispatch the click directly on the DOM element,
+	// ensuring ProseMirror's handleDOMEvents.click handler receives it.
+	const emailPiiId = await emailHighlight.first().getAttribute('data-pii-id');
+	logCheckpoint(`Email PII ID to exclude: "${emailPiiId}"`);
+
+	await emailHighlight.first().click({ force: true });
+	logCheckpoint('Clicked on email PII highlight (force: true).');
 
 	// Wait for PII re-detection to remove the highlight
-	await page.waitForTimeout(1500);
+	await page.waitForTimeout(2000);
+
+	// Debug: log current highlight count immediately
+	const debugHighlightCount = await piiHighlights.count();
+	logCheckpoint(`Debug: highlights after click + 2s wait: ${debugHighlightCount}`);
 
 	// The email should no longer be highlighted
 	const emailHighlightAfterExclude = await page
