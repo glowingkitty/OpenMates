@@ -452,7 +452,7 @@
                 };
                 const resolvedModelId = aliasModelMap[category];
                 if (resolvedModelId) {
-                    deepLinkPath = `app_store/ai/skill/ask/model/${resolvedModelId}`;
+                    deepLinkPath = `ai/model/${resolvedModelId}`;
                 }
             }
         }
@@ -460,7 +460,7 @@
         else if (mentionEl.classList.contains('ai-model-mention')) {
             const modelId = mentionEl.getAttribute('data-model-id');
             if (modelId) {
-                deepLinkPath = `app_store/ai/skill/ask/model/${modelId}`;
+                deepLinkPath = `ai/model/${modelId}`;
             }
         }
         // --- Mate mention ---

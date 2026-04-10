@@ -314,7 +314,9 @@
             settingsPath: `app_store/ai/settings_memories/${categoryId}`,
             direction: 'forward',
             icon: 'ai',
-            title: $text(memoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId)
+            title: $text(memoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId),
+            cameFrom: 'ai',
+            cameFromTitle: $text('settings.ai'),
         });
     }
 </script>

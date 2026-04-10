@@ -306,10 +306,10 @@
     function getSettingsPath(result: AnyMentionResult): string {
         switch (result.type) {
             case 'model':
-                return `app_store/ai/skill/ask/model/${result.id}`;
+                return `ai/model/${result.id}`;
             case 'model_alias': {
                 const aliasResult = result as ModelAliasMentionResult;
-                return `app_store/ai/skill/ask/model/${aliasResult.resolvedModelId}`;
+                return `ai/model/${aliasResult.resolvedModelId}`;
             }
             case 'mate':
                 return 'main';
