@@ -129,22 +129,12 @@ import SettingsIncognitoInfo from "./incognito/SettingsIncognitoInfo.svelte";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const baseSettingsViews: Record<string, Component<any>> = {
-  // Billing
-  billing: SettingsBilling,
-  "billing/buy-credits": SettingsBuyCredits,
-  "billing/buy-credits/payment": SettingsBuyCreditsPayment,
-  "billing/buy-credits/confirmation": SettingsBuyCreditsConfirmation,
-  "billing/redeem-giftcard": SettingsRedeemGiftCard,
-  "billing/auto-topup": SettingsAutoTopUp,
-  "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
-  "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
-  "billing/invoices": SettingsInvoices,
-  // AI (model selection, pricing, settings & memories — replaces old Chat entry)
+  // ── Menu order: top-level keys determine sidebar display order ──
+  // AI (model selection, pricing, providers, settings & memories)
   ai: SettingsAI,
-  // Notifications — top-level hub consolidating all notification preferences
-  notifications: SettingsNotifications,
-  "notifications/chat": SettingsNotificationsChatNotifications,
-  "notifications/backup": SettingsBackupReminders,
+  // App Store
+  app_store: SettingsAppStore,
+  "app_store/all": SettingsAllApps,
   // Settings & Memories hub — lists all user-created settings and memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
@@ -154,51 +144,41 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "privacy/hide-personal-data/add-address": SettingsAddAddress,
   "privacy/hide-personal-data/add-birthday": SettingsAddBirthday,
   "privacy/hide-personal-data/add-custom": SettingsAddCustomEntry,
-  // Auto-deletion period editing — one component, two routes (category determined from path)
   "privacy/auto-deletion/chats": SettingsAutoDeletion,
   "privacy/auto-deletion/files": SettingsAutoDeletion,
   "privacy/share-debug-logs": SettingsShareDebugLogs,
-  // App Store
-  app_store: SettingsAppStore,
-  "app_store/all": SettingsAllApps,
   // Mates
   mates: SettingsMates,
-  // Gift Cards — nested under Billing & Usage
+  // Billing & Usage
+  billing: SettingsBilling,
+  "billing/buy-credits": SettingsBuyCredits,
+  "billing/buy-credits/payment": SettingsBuyCreditsPayment,
+  "billing/buy-credits/confirmation": SettingsBuyCreditsConfirmation,
+  "billing/redeem-giftcard": SettingsRedeemGiftCard,
+  "billing/auto-topup": SettingsAutoTopUp,
+  "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
+  "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
+  "billing/invoices": SettingsInvoices,
   "billing/gift-cards": SettingsGiftCards,
   "billing/gift-cards/redeem": SettingsGiftCardsRedeem,
   "billing/gift-cards/redeemed": SettingsGiftCardsRedeemed,
   "billing/gift-cards/buy": SettingsGiftCardsBuy,
   "billing/gift-cards/buy/payment": SettingsGiftCardsBuyPayment,
   "billing/gift-cards/buy/confirmation": SettingsGiftCardsPurchaseConfirmation,
+  // Notifications — top-level hub consolidating all notification preferences
+  notifications: SettingsNotifications,
+  "notifications/chat": SettingsNotificationsChatNotifications,
+  "notifications/backup": SettingsBackupReminders,
   // Shared
   shared: SettingsShared,
   "shared/share": SettingsShare,
   "shared/tip": SettingsTip,
   // Fork Conversation — opened from message context menu via settingsDeepLink.set('fork')
   fork: SettingsFork,
-  // Developers
-  developers: SettingsDevelopers,
-  "developers/api-keys": SettingsApiKeys,
-  "developers/devices": SettingsDevices,
-  "developers/webhooks": SettingsWebhooks,
   // Interface
   interface: SettingsInterface,
   "interface/language": SettingsLanguage,
   "interface/dark_mode": SettingsDarkMode,
-  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
-  pricing: SettingsPricing,
-  // Server (admin only)
-  server: SettingsServer,
-  "server/software-update": SettingsSoftwareUpdate,
-  "server/community-suggestions": SettingsCommunitySuggestions,
-  "server/stats": SettingsStats,
-  "server/gift-cards": SettingsGiftCardGenerator,
-  "server/tests": SettingsTests,
-  // Admin logs viewer
-  logs: SettingsLogs,
-
-  // Incognito
-  "incognito/info": SettingsIncognitoInfo,
   // Account
   account: SettingsAccount,
   "account/timezone": SettingsTimezone,
@@ -229,6 +209,13 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "account/storage/other": SettingsStorageFiles,
   "account/profile-picture": SettingsProfilePicture,
   "account/delete": SettingsDeleteAccount,
+  // Developers
+  developers: SettingsDevelopers,
+  "developers/api-keys": SettingsApiKeys,
+  "developers/devices": SettingsDevices,
+  "developers/webhooks": SettingsWebhooks,
+  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
+  pricing: SettingsPricing,
   // Newsletter
   newsletter: SettingsNewsletter,
   // Support
@@ -238,6 +225,17 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Report Issue
   report_issue: SettingsReportIssue,
   "report_issue/confirmation": SettingsReportIssueConfirmation,
+  // Incognito
+  "incognito/info": SettingsIncognitoInfo,
+  // Server (admin only)
+  server: SettingsServer,
+  "server/software-update": SettingsSoftwareUpdate,
+  "server/community-suggestions": SettingsCommunitySuggestions,
+  "server/stats": SettingsStats,
+  "server/gift-cards": SettingsGiftCardGenerator,
+  "server/tests": SettingsTests,
+  // Admin logs viewer
+  logs: SettingsLogs,
 };
 
 /**
