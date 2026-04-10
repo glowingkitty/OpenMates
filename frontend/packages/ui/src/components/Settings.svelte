@@ -1162,6 +1162,15 @@ changes to the documentation (to keep the documentation up to date).
         let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
         direction = newDirection;
 
+        // --- AI app redirect ---
+        // The AI app no longer has its own page in the app store. Intercept any navigation
+        // to app_store/ai (from sub-components like AppSettingsMemoriesCategory.goBack())
+        // and redirect to the top-level AI settings page.
+        if (settingsPath === 'app_store/ai') {
+            settingsPath = 'ai';
+            icon = 'ai';
+        }
+
         // --- Scroll position memory (All Apps only) ---
         // Save the scroll offset when leaving "All Apps" going forward, so pressing
         // back restores the position. All other pages always scroll to top on navigation.
