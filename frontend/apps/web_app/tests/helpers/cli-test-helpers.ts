@@ -89,9 +89,33 @@ function parseCliJson(result: { code: number | null; stdout: string; stderr: str
 	return parsed;
 }
 
+/**
+ * Assert CLI exited with code 0 and attach stderr/stdout to the failure
+ * message so CI reports show the actual error instead of a bare "Expected: 0".
+ *
+ * Playwright's expect(value, message) puts the message in the test report
+ * when the assertion fails — this is the cheapest way to surface CLI errors.
+ */
+function expectCliSuccess(
+	result: { code: number | null; stdout: string; stderr: string },
+	label = 'CLI'
+): void {
+	const { expect } = require('@playwright/test');
+	const truncStdout = result.stdout.length > 1000
+		? result.stdout.slice(0, 1000) + `\n…(truncated, ${result.stdout.length} chars total)`
+		: result.stdout;
+	expect(
+		result.code,
+		`${label} exited with code ${result.code}\n` +
+		`── stderr ──\n${result.stderr || '(empty)'}\n` +
+		`── stdout ──\n${truncStdout || '(empty)'}`
+	).toBe(0);
+}
+
 module.exports = {
 	CLI_DIST,
 	deriveApiUrl,
 	runCli,
-	parseCliJson
+	parseCliJson,
+	expectCliSuccess
 };

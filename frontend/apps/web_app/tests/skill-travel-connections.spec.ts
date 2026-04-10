@@ -30,7 +30,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -78,7 +78,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 			45_000
 		);
 
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
@@ -95,7 +95,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 			'travel_connections_cli'
 		);
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 
 		const parsed = parseCliJson(result);
 		expect(parsed).toBeTruthy();

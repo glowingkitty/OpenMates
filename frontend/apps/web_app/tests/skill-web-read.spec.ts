@@ -26,7 +26,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -66,7 +66,7 @@ test.describe('App: Web / Skill: read', () => {
 			30_000
 		);
 
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 		expect(parsed.data).toBeTruthy();
@@ -98,7 +98,7 @@ test.describe('App: Web / Skill: read', () => {
 			'web_read_cli'
 		);
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 
 		const parsed = parseCliJson(result);
 		expect(parsed).toBeTruthy();

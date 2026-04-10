@@ -25,6 +25,9 @@ services:
       OPENMATES_TEST_ACCOUNT_EMAIL:
       OPENMATES_TEST_ACCOUNT_PASSWORD:
       OPENMATES_TEST_ACCOUNT_OTP_KEY:
+      # API key for CLI skill tests (Phases 2+3 in skill-*.spec.ts).
+      # Without this, CLI phases are silently skipped via test.skip().
+      OPENMATES_TEST_ACCOUNT_API_KEY:
       # Multi-account slots (1-5) for parallel test workers.
       # Each slot has its own email/password/otp_key so parallel specs
       # don't collide by sharing the same session.
