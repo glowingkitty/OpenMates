@@ -31,6 +31,10 @@ DEBUG_REQUESTS_ENCRYPTION_KEY = "debug_requests"
 # Vault transit key name for demo chat encryption
 # This is a system-level key used to encrypt approved demo chats for all users.
 DEMO_CHATS_ENCRYPTION_KEY = "demo_chats"
+# Vault transit key name for general user data encryption
+# This is a system-level key used by WebAnalyticsService, CacheOrderMixin,
+# and CacheInspirationMixin to encrypt cached data at rest.
+USER_DATA_ENCRYPTION_KEY = "user_data"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -765,6 +769,52 @@ class EncryptionService:
             logger.error(f"Failed to ensure demo chats encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize demo chats encryption key: {str(e)}")
 
+        # --- Ensure USER_DATA_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used by WebAnalyticsService, CacheOrderMixin, and CacheInspirationMixin
+        # to encrypt cached data at rest. Without it, all three services silently fail (OPE-411).
+        try:
+            logger.debug(f"Checking for user data encryption key '{USER_DATA_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{USER_DATA_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == USER_DATA_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"User data encryption key '{USER_DATA_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"User data encryption key '{USER_DATA_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for user data encryption key '{USER_DATA_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create user data encryption key '{USER_DATA_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{USER_DATA_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.info(f"Created user data encryption key '{USER_DATA_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"User data encryption key '{USER_DATA_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create user data encryption key '{USER_DATA_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize user data encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure user data encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize user data encryption key: {str(e)}")
+
     # Removed get_email_hash_key method
 
     async def create_user_key(self) -> str:
@@ -1024,7 +1074,7 @@ class EncryptionService:
         
         return await self.decrypt(encrypted_data, key_name=DEBUG_REQUESTS_ENCRYPTION_KEY)
     
-    async def encrypt(self, plaintext: str, key_name: str = "user_data", context: str = None) -> Tuple[str, str]:
+    async def encrypt(self, plaintext: str, key_name: str = USER_DATA_ENCRYPTION_KEY, context: str = None) -> Tuple[str, str]:
         """
         Encrypt plaintext using Vault's transit engine
         Returns (ciphertext, key_version)
@@ -1056,7 +1106,7 @@ class EncryptionService:
             logger.error(f"Encryption error: {str(e)}")
             raise
     
-    async def decrypt(self, ciphertext: str, key_name: str = "user_data", context: str = None) -> Optional[str]:
+    async def decrypt(self, ciphertext: str, key_name: str = USER_DATA_ENCRYPTION_KEY, context: str = None) -> Optional[str]:
         """
         Decrypt ciphertext using Vault's transit engine
         
