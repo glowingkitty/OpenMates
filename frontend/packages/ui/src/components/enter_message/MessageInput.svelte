@@ -2386,7 +2386,24 @@
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
-        // PII click handling moved to editorProps.handleClick (ProseMirror prop)
+        // PII click handling: attach to ProseMirror's root element in capture phase
+        // so we see the click BEFORE ProseMirror can re-render decorations.
+        const proseMirrorEl = editorElement?.querySelector('.ProseMirror');
+        if (proseMirrorEl) {
+            proseMirrorEl.addEventListener('click', ((event: MouseEvent) => {
+                const target = event.target as HTMLElement;
+                const piiEl = target.classList.contains('pii-highlight')
+                    ? target
+                    : target.closest('.pii-highlight') as HTMLElement | null;
+                if (piiEl) {
+                    const piiId = piiEl.getAttribute('data-pii-id');
+                    console.info('[MessageInput] PII click (capture on .ProseMirror):', piiId);
+                    if (piiId) {
+                        handlePIIClick(piiId);
+                    }
+                }
+            }) as EventListener, true); // capture phase
+        }
         // Listen for stop-button upload cancellations from image embeds.
         // This event is dispatched by Embed.ts after the embed node is deleted so
         // we can update the draft and originalMarkdown even when getText() is
