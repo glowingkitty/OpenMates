@@ -89,6 +89,51 @@ async def get_chat_header_image(topic: str, lang: str) -> HeroImage:
 6. **Fallback** — if no Tier-1 candidate scores above threshold, query Unsplash (or Pexels). If those also fail, leave the header empty rather than show a low-quality image.
 7. **Cache** — `(topic_hash, lang) → HeroImage` in Postgres + Redis (30 days). Almost all rate-limit pressure disappears with the cache.
 
+## Embeddings-Based Matching (Idea)
+
+Instead of (or in addition to) keyword/TF-IDF matching against image titles + descriptions, we could match by **vector embeddings**:
+
+- Pre-compute CLIP (or similar multimodal) embeddings for a curated subset of each provider's catalog — e.g. the top ~100k Wikimedia "Quality images" + top ~50k Europeana `reusability=open` IMAGE results + the full Smithsonian / Met / Rijksmuseum CC0 catalogs.
+- Store vectors in pgvector (we already use Postgres) alongside the image metadata + license.
+- At chat-creation time: embed the topic string with the same model, run an ANN search, return the top N candidates, then apply quality + safety filters.
+- Re-embed once per quarter to pick up new uploads.
+
+**Why this could be better than keyword matching:**
+
+- Handles abstract / conceptual topics ("loneliness in the digital age") that have no obvious keyword overlap with image captions.
+- Cross-language for free — CLIP embeds visual concepts, not English words.
+- Composes naturally with the existing semantic chat search infra (`docs/architecture/frontend/semantic-chat-search.md`) — we already pay the embedding-pipeline tax.
+
+**Why it might not be worth it:**
+
+- Cost of pre-computing embeddings for hundreds of thousands of images is one-time but non-trivial.
+- Storage: a 768-dim float32 vector × 200k images × ~4 providers ≈ 2.5 GB in pgvector. Manageable but not free.
+- Cold-start: until the index is built, we'd still need a keyword fallback anyway — so we'd have to maintain both paths.
+- For "magazine cover" use-case, source-quality (Featured pictures, FSA, Met OA) probably matters more than semantic precision. A bad-but-relevant photo is worse than a beautiful-but-loosely-related one.
+
+**Decision needed:** start with keyword + scoring, add CLIP embeddings as a Phase 2 if topic coverage feels weak in dogfooding. Or commit to embeddings from day one because it's where this is heading anyway.
+
+## Cropping & Aspect-Ratio Problem (Concern)
+
+The single hardest problem with this feature isn't fetching images — it's making them **look good in the chat header** at every viewport. Source images have wildly varying aspect ratios (square paintings, tall portraits, panoramic landscapes, scanned newspaper pages). The header is a fixed-aspect strip (probably ~16:9 or wider on desktop, shorter on mobile). Naive `object-fit: cover` will:
+
+- Cut off heads, faces, and key subjects.
+- Place the most interesting content off-screen.
+- Make portrait-oriented historical photos (a huge fraction of the LOC and Met collections) look terrible.
+
+**Possible approaches, ranked roughly by effort:**
+
+1. **Hard filter on landscape aspect ratio at fetch time** — only accept images with aspect ≥ 1.5:1. Loses huge swathes of the most beautiful historical material (almost all 19th-century portrait photography), but trivially scales.
+2. **Provider-supplied focal points** — a few APIs (Unsplash) return a focal point or face crop. Most don't.
+3. **Smart-crop via saliency / face detection** — run a lightweight model (e.g. `smartcrop.py`, OpenCV saliency, or a small ONNX face detector) at ingest time, store a `focal_point: {x, y}` per image, use CSS `object-position` to anchor the crop. Reasonable cost, big quality win. Already infra-adjacent — `image-safety-pipeline.md` runs models on images anyway.
+4. **AI-driven "extend image" (outpainting)** — use a generative model to extend tall images sideways into a header-shaped canvas. Too expensive, ethically dubious for historical archives (we'd be inventing parts of historical photographs).
+5. **Letterbox + blurred backdrop** — show the full image centered with a blurred version of itself filling the rest of the header. Universal, never crops badly, has a "magazine cover" feel. Probably the safest default.
+6. **Curated hand-picked set per category** — bypass the dynamic-fetching problem entirely for the top ~200 most common chat topics by hand-picking + hand-cropping. Doesn't scale to long-tail topics but guarantees beauty for the common case.
+
+**Likely answer:** combine #5 (letterbox-blur as the universal fallback that never looks broken) with #3 (smart-crop with focal-point detection at ingest, used when the source aspect is close to header aspect). Skip #1 because it throws away too much. Maybe layer #6 on top for the top 50 topics if we want a really polished launch.
+
+This deserves its own design spike — building 4–5 visual mockups and seeing which actually look good with real images is much higher signal than further written analysis.
+
 ## Open Questions
 
 - Should the hero image be **per chat** (chosen at create time, frozen) or **dynamic** (re-computed when the topic shifts mid-conversation)? Per-chat is simpler and matches a "magazine cover" feel; dynamic is more reactive but visually noisy.
@@ -96,6 +141,8 @@ async def get_chat_header_image(topic: str, lang: str) -> HeroImage:
 - Do we want **user override** — let users pick from the top 5 candidates or upload their own?
 - Should historical-photo bias be a **per-Mate setting** (e.g. History Mate → archival, Code Mate → modern abstract)?
 - **Licensing storage** — minimum we must store per image: source name, original URL, photographer/contributor, license SPDX identifier, license URL. Where in the chat schema?
+- **Embeddings vs keyword matching** — start with keyword + scoring and add CLIP embeddings as Phase 2, or commit to embeddings from day one? (See "Embeddings-Based Matching" section above.)
+- **Cropping strategy** — letterbox-blur fallback + smart-crop focal points, or hard-filter to landscape aspect only? Needs a visual design spike with real images. (See "Cropping & Aspect-Ratio Problem" section above.)
 
 ## Watch-outs
 
