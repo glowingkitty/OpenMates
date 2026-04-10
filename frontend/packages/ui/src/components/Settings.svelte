@@ -83,7 +83,7 @@ changes to the documentation (to keep the documentation up to date).
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     
     // Import the normal store instead of the derived one that was causing the error
-    import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+    import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -1760,6 +1760,10 @@ changes to the documentation (to keep the documentation up to date).
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
+        	// Reset navigation store + dedup guard so the next search deep-link
+        	// can navigate to the same settings page reliably.
+        	previousNavigationPath = null;
+        	resetSettingsNavigation();
 
         	// Reset help link to base
         	// currentHelpLink = baseHelpLink; // Help button disabled
@@ -1907,6 +1911,8 @@ changes to the documentation (to keep the documentation up to date).
                 navButtonLeft = false;
                 hideNavButton = false;
                 allAppsScrollPosition = 0;
+                previousNavigationPath = null;
+                resetSettingsNavigation();
 
                 if (profileContainer) {
                     profileContainer.classList.remove('submenu-active');
@@ -2382,6 +2388,8 @@ changes to the documentation (to keep the documentation up to date).
     		navButtonLeft = false;
     		hideNavButton = false;
     		allAppsScrollPosition = 0;
+    		previousNavigationPath = null;
+    		resetSettingsNavigation();
 
     		if (profileContainer) {
     			profileContainer.classList.remove('submenu-active');
@@ -2498,6 +2506,7 @@ changes to the documentation (to keep the documentation up to date).
 <div
     class="settings-menu"
     data-testid="settings-menu"
+    data-active-view={activeSettingsView}
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
     class:mobile={$isMobileView}
