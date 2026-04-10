@@ -95,13 +95,16 @@ async function closeSettings(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	const settingsMenu = page.getByTestId('settings-menu');
 	const isSettingsOpen = await settingsMenu.isVisible().catch(() => false);
 
 	if (isSettingsOpen) {
-		await settingsToggle.click();
-		logCheckpoint('Clicked settings toggle to close settings.');
+		// Click the close button (data-testid="icon-button-close") inside the settings toggle.
+		// Clicking #settings-menu-toggle directly fails because the close-icon-container
+		// intercepts pointer events when settings are open.
+		const closeButton = page.getByTestId('icon-button-close');
+		await closeButton.click({ timeout: 5000 });
+		logCheckpoint('Closed settings.');
 		await page.waitForTimeout(500);
 	} else {
 		logCheckpoint('Settings already closed.');

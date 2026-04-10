@@ -78,14 +78,9 @@ async function navigateToPrivacySettings(
  * Close the settings panel by clicking the settings toggle again.
  */
 async function closeSettings(page: any): Promise<void> {
-	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
-	try {
-		await closeIcon.click({ timeout: 3000 });
-	} catch {
-		// Fallback: click the toggle itself
-		const settingsToggle = page.locator('#settings-menu-toggle');
-		await settingsToggle.click();
-	}
+	// Click the close button inside the settings toggle (it has data-testid="icon-button-close")
+	const closeButton = page.getByTestId('icon-button-close');
+	await closeButton.click({ timeout: 5000 });
 	await page.waitForTimeout(500);
 }
 

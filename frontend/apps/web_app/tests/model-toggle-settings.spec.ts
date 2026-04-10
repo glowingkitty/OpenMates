@@ -98,16 +98,16 @@ async function navigateToAiSettings(
  * when Svelte re-renders cause the class to flicker after model toggle interactions.
  */
 async function closeSettings(page: any, logFn: (msg: string) => void): Promise<void> {
-	// Check if the settings content is visible (more reliable than .visible CSS class)
+	// Check if the settings content is visible
 	const settingsContent = page.getByTestId('settings-menu');
 	const isOpen = await settingsContent.isVisible().catch(() => false);
 
 	if (isOpen) {
-		const settingsToggle = page.locator('#settings-menu-toggle');
-		// Dismiss any potential overlays (notifications, tooltips) before clicking
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(300);
-		await settingsToggle.click({ timeout: 10000 });
+		// Click the close button (data-testid="icon-button-close") inside the settings toggle.
+		// Clicking #settings-menu-toggle directly fails because the close-icon-container
+		// intercepts pointer events when settings are open.
+		const closeButton = page.getByTestId('icon-button-close');
+		await closeButton.click({ timeout: 5000 });
 		logFn('Closed settings.');
 		// Wait for close animation to complete
 		await page.waitForTimeout(800);
