@@ -3,13 +3,13 @@
 /**
  * Model enable/disable toggle persistence E2E test.
  *
- * Tests that toggling AI models on/off in Settings → AI → Ask is saved
+ * Tests that toggling AI models on/off in Settings → AI is saved
  * and persists when closing and re-opening settings.
  *
  * 1. Login with test account + 2FA
- * 2. Navigate to Settings → App Store → AI → Ask
+ * 2. Navigate to Settings → AI
  * 3. Find the first model and toggle it OFF
- * 4. Close settings, re-open, navigate back to AI Ask
+ * 4. Close settings, re-open, navigate back to AI settings
  * 5. Verify the model is still OFF (toggle persisted to IndexedDB)
  * 6. Toggle it back ON (cleanup)
  * 7. Verify the toggle is ON again
@@ -49,10 +49,10 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Navigate to AI Ask skill settings via the settings menu.
- * Path: Settings → App Store → AI → Ask
+ * Navigate to AI settings via the settings menu.
+ * Path: Settings → AI (top-level)
  */
-async function navigateToAiAskSettings(
+async function navigateToAiSettings(
 	page: any,
 	logFn: (msg: string) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>,
@@ -78,51 +78,18 @@ async function navigateToAiAskSettings(
 	logFn('Opened settings menu.');
 	await page.waitForTimeout(800);
 
-	// Click "App Store" menu item
-	const appStoreItem = settingsMenu.getByRole('menuitem', { name: /app store/i }).first();
-	await expect(appStoreItem).toBeVisible({ timeout: 5000 });
-	await appStoreItem.click();
-	logFn('Clicked App Store.');
+	// Click "AI" top-level menu item
+	const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
+	await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
+	await aiMenuItem.click();
+	logFn('Clicked AI menu item.');
 	await page.waitForTimeout(800);
 
-	// Click the "AI" app
-	const aiAppItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
-	const aiAppVisible = await aiAppItem.isVisible({ timeout: 3000 }).catch(() => false);
-
-	if (aiAppVisible) {
-		await aiAppItem.click();
-		logFn('Clicked AI app.');
-	} else {
-		// Try "Show all apps" first
-		const showAllApps = settingsMenu
-			.getByRole('menuitem', { name: /show all|all apps/i })
-			.first();
-		const showAllVisible = await showAllApps.isVisible({ timeout: 3000 }).catch(() => false);
-		if (showAllVisible) {
-			await showAllApps.click();
-			logFn('Clicked "Show all apps".');
-			await page.waitForTimeout(800);
-		}
-		const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
-		await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
-		await aiMenuItem.click();
-		logFn('Clicked AI app after showing all.');
-	}
-
-	await page.waitForTimeout(800);
-
-	// Click "Ask" skill
-	const askSkillItem = settingsMenu.getByRole('menuitem', { name: /ask/i }).first();
-	await expect(askSkillItem).toBeVisible({ timeout: 5000 });
-	await askSkillItem.click();
-	logFn('Clicked Ask skill.');
-	await page.waitForTimeout(800);
-
-	// Verify AI Ask settings loaded
-	const aiAskSettings = page.getByTestId('ai-ask-settings');
-	await expect(aiAskSettings).toBeVisible({ timeout: 8000 });
-	logFn('AI Ask Settings page loaded.');
-	await takeStepScreenshot(page, `${stepLabel}-ai-ask-settings`);
+	// Verify AI settings loaded
+	const aiSettings = page.getByTestId('ai-settings');
+	await expect(aiSettings).toBeVisible({ timeout: 8000 });
+	logFn('AI Settings page loaded.');
+	await takeStepScreenshot(page, `${stepLabel}-ai-settings`);
 }
 
 /**
@@ -169,15 +136,15 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		logCheckpoint('Login complete.');
 
-		// ── Step 2: Navigate to AI Ask settings ────────────────────────
-		await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '02');
+		// ── Step 2: Navigate to AI settings ────────────────────────────
+		await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '02');
 
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-		const aiAskSettings = settingsMenu.getByTestId('ai-ask-settings');
+		const aiSettings = settingsMenu.getByTestId('ai-settings');
 
 		// ── Step 3: Find the first model toggle and record initial state ─
 		// Each model in the list has a .model-toggle wrapper containing a Toggle checkbox
-		const modelItems = aiAskSettings.getByTestId('model-item');
+		const modelItems = aiSettings.getByTestId('model-item');
 		const firstModelItem = modelItems.first();
 		await expect(firstModelItem).toBeVisible({ timeout: 5000 });
 
@@ -230,11 +197,11 @@ test.describe('Model toggle persistence (OPE-53)', () => {
 		await expect(authSignal).toBeVisible({ timeout: 20000 });
 		logCheckpoint('Page reloaded, authenticated.');
 
-		await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '05');
+		await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '05');
 
 		// Re-locate the model by name (DOM was destroyed and recreated)
 		const settingsMenuAfter = page.locator('[data-testid="settings-menu"].visible');
-		const modelItemsAfter = settingsMenuAfter.getByTestId('ai-ask-settings').getByTestId('model-item');
+		const modelItemsAfter = settingsMenuAfter.getByTestId('ai-settings').getByTestId('model-item');
 		const targetModelAfter = modelItemsAfter.filter({ hasText: modelName! });
 		await expect(targetModelAfter).toBeVisible({ timeout: 5000 });
 
