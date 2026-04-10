@@ -28,8 +28,7 @@ from slowapi import _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
-# httpx import removed in OPE-342 — service discovery is now in-process,
-# no HTTP /metadata probes are made.
+import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startup
 from typing import Dict, List, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
@@ -416,10 +415,29 @@ async def lifespan(app: FastAPI):
     
     # Directus service depends on cache and encryption
     app.state.directus_service = DirectusService(
-        cache_service=app.state.cache_service, 
+        cache_service=app.state.cache_service,
         encryption_service=app.state.encryption_service
     )
-    
+
+    # Verify CMS is reachable before making any data calls.
+    # The startup script (wait-for-vault.sh) already polls CMS, but this is
+    # a belt-and-suspenders check in case CMS went down between script exit
+    # and lifespan init. Prevents caching empty results for up to CACHE_TTL.
+    cms_url = os.environ.get("CMS_URL", "http://cms:8055")
+    for _cms_attempt in range(10):
+        try:
+            async with httpx.AsyncClient() as _cms_client:
+                _cms_resp = await _cms_client.get(f"{cms_url}/server/health", timeout=3.0)
+                if _cms_resp.status_code == 200:
+                    logger.info("CMS health check passed — Directus is ready.")
+                    break
+                logger.warning(f"CMS health check returned {_cms_resp.status_code}, retrying...")
+        except Exception as _cms_err:
+            logger.warning(f"CMS not reachable ({type(_cms_err).__name__}), retrying in {min(2 ** (_cms_attempt + 1), 16)}s...")
+        await asyncio.sleep(min(2 ** (_cms_attempt + 1), 16))
+    else:
+        logger.error("CMS did not become healthy after 10 attempts. Startup data may be incomplete.")
+
     # Initialize server stats service
     from backend.core.api.app.services.server_stats_service import ServerStatsService
     app.state.server_stats_service = ServerStatsService(

@@ -877,6 +877,9 @@ async def _async_process_ai_skill_ask_task(
             request_data=request_data,
             cache_service=cache_service_instance,
             speed_override=_test_marker[2],
+            directus_service=directus_service_instance,
+            encryption_service=encryption_service_instance,
+            user_vault_key_id=user_vault_key_id,
         )
         preprocessing_result = mock_result["preprocessing_result"]
         aggregated_final_response = mock_result["aggregated_final_response"]

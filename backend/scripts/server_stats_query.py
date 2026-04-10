@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-scripts/_server_stats_query.py
+scripts/server_stats_query.py
 
 Queries server stats from Directus and Redis for the daily meeting health report.
-Runs inside Docker via: docker exec api python3 /app/scripts/_server_stats_query.py
+Runs inside Docker via: docker exec api python3 /app/backend/scripts/server_stats_query.py
 
 Supports --prod flag to query production stats via the Admin Debug API endpoint
 (/v1/admin/debug/server-stats) instead of local Directus.
 
 Outputs structured text to stdout with sections:
+  - Revenue — Lifetime (total EUR, paying customers, monthly cohort)
+  - Revenue — last 14 days (sparkline trend)
   - User Growth (registrations, signups, total users)
   - Engagement (messages, chats, page loads, unique visits)
-  - Revenue (income, credits, purchases, subscriptions)
   - AI Usage (input/output tokens)
   - Web Analytics (top countries, device split)
   - Data Health (daily_inspiration_defaults row count check)
@@ -149,6 +150,84 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
     """Format production stats response with vertical sparklines and 14-day trends."""
     lines = [f"[Production Server Stats — {date}]", ""]
 
+    # ── Lifetime Revenue (lead section — most important metric) ─────────
+    lr = sections.get("lifetime_revenue", {})
+    inv = sections.get("invoices") or {}
+    if "error" not in lr and lr:
+        total_eur = lr.get("total_eur", 0)
+        total_purchases = lr.get("total_purchases", 0)
+        lifetime_buyers = (inv or {}).get("lifetime_unique_buyers", 0)
+        total_users = (sections.get("user_growth") or {}).get("total_users")
+        pct = ""
+        if isinstance(total_users, int) and total_users > 0:
+            pct = f" ({lifetime_buyers * 100 / total_users:.1f}% of users)"
+
+        lines.append("**Revenue — Lifetime**")
+        lines.append(f"- Total revenue: EUR {total_eur:,.2f}")
+        lines.append(f"- Total purchases: {total_purchases:,}")
+        lines.append(f"- Paying customers: {lifetime_buyers}{pct}")
+        if total_purchases > 0:
+            lines.append(f"- Avg per purchase: EUR {total_eur / total_purchases:.2f}")
+        if inv and "error" not in inv:
+            lines.append(
+                f"- Invoices: {inv.get('total_invoices', 0)} total "
+                f"({inv.get('paid_invoices', 0)} paid, "
+                f"{inv.get('refunded_or_chargeback', 0)} refunded/chargeback)"
+            )
+        rev = sections.get("revenue") or {}
+        lines.append(
+            f"- Subscriptions: {rev.get('active_subscriptions', '?')} active"
+        )
+
+        # Monthly cohort table
+        monthly = lr.get("monthly_trend") or []
+        if monthly:
+            lines.append("")
+            lines.append("**Revenue — Monthly Breakdown**")
+            lines.append("  Month     | Revenue     | Purchases | New Buyers | Users")
+            lines.append("  ----------|-------------|-----------|------------|------")
+            income_vals = [m.get("income_eur", 0) for m in monthly]
+            for m in monthly:
+                inc = m.get("income_eur", 0)
+                pur = m.get("purchases", 0)
+                nb = m.get("new_paying_users", 0)
+                tu = m.get("total_users", 0)
+                lines.append(
+                    f"  {m.get('month', '?'):10s}| EUR {inc:>7.2f} | {pur:>9d} | {nb:>10d} | {tu:>5,}"
+                )
+            lines.append(f"  Revenue   {_sparkline(income_vals)}")
+        lines.append("")
+
+    # ── Revenue — last 14 days ──────────────────────────────────────────
+    rev = sections.get("revenue", {})
+    rev_trend = (rev or {}).get("trend_14d") or []
+    if "error" not in rev and rev_trend:
+        income_vals = [d.get("income_eur", 0) for d in rev_trend]
+        buyer_vals = [d.get("unique_buyers", 0) for d in rev_trend]
+        purchase_vals = [d.get("purchases", 0) for d in rev_trend]
+        total_income = sum(income_vals)
+        total_purchases_14d = sum(purchase_vals)
+        avg_per_purchase = (total_income / total_purchases_14d) if total_purchases_14d else 0.0
+
+        lines.append(f"**Revenue — last {len(rev_trend)} days**")
+        lines.append(
+            f"  Income €  {_sparkline(income_vals)}   sum=€{total_income:.2f}  "
+            f"avg/purchase=€{avg_per_purchase:.2f}"
+        )
+        lines.append(
+            f"  Buyers    {_sparkline(buyer_vals)}   "
+            f"{total_purchases_14d} purchases across {len(rev_trend)} days"
+        )
+        lines.append("")
+    elif "error" not in rev:
+        lines.append("**Revenue (yesterday)**")
+        income = rev.get("income_eur", 0)
+        lines.append(f"- Income: EUR {income:.2f}" if isinstance(income, (int, float)) else f"- Income: EUR {income}")
+        lines.append(f"- Credits sold: {rev.get('credits_sold', 0)} | used: {rev.get('credits_used', 0)}")
+        lines.append(f"- Purchases: {rev.get('purchases', 0)}")
+        lines.append("")
+
+    # ── User Growth ─────────────────────────────────────────────────────
     ug = sections.get("user_growth", {})
     if "error" not in ug:
         lines.append("**User Growth**")
@@ -163,6 +242,7 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
         )
         lines.append("")
 
+    # ── Engagement — 14 day trend ───────────────────────────────────────
     eng = sections.get("engagement", {})
     totals = sections.get("totals") or {}
     trend = (eng or {}).get("trend_14d") or []
@@ -185,58 +265,13 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
             )
         lines.append("")
     elif "error" not in eng:
-        # fallback when no trend is available
         lines.append("**Engagement (yesterday)**")
         lines.append(f"- Messages sent: {eng.get('messages_sent', 0)}")
         lines.append(f"- Chats created: {eng.get('chats_created', 0)}")
         lines.append(f"- Embeds created: {eng.get('embeds_created', 0)}")
         lines.append("")
 
-    rev = sections.get("revenue", {})
-    inv = sections.get("invoices") or {}
-    rev_trend = (rev or {}).get("trend_14d") or []
-    if "error" not in rev and rev_trend:
-        income_vals = [d.get("income_eur", 0) for d in rev_trend]
-        buyer_vals = [d.get("unique_buyers", 0) for d in rev_trend]
-        purchase_vals = [d.get("purchases", 0) for d in rev_trend]
-        total_income = sum(income_vals)
-        total_purchases = sum(purchase_vals)
-        avg_per_purchase = (total_income / total_purchases) if total_purchases else 0.0
-
-        lines.append(f"**Revenue — last {len(rev_trend)} days**")
-        lines.append(
-            f"  Income €  {_sparkline(income_vals)}   sum=€{total_income:.2f}  "
-            f"avg/purchase=€{avg_per_purchase:.2f}"
-        )
-        lines.append(
-            f"  Buyers    {_sparkline(buyer_vals)}   "
-            f"{total_purchases} purchases across {len(rev_trend)} days"
-        )
-        if inv and "error" not in inv:
-            lifetime = inv.get("lifetime_unique_buyers", 0)
-            total_users = (sections.get("user_growth") or {}).get("total_users")
-            pct = ""
-            if isinstance(total_users, int) and total_users > 0:
-                pct = f" ({lifetime * 100 // total_users}% of users)"
-            lines.append(f"- Lifetime paying customers: {lifetime}{pct}")
-            lines.append(
-                f"- Invoices: {inv.get('total_invoices', 0)} total "
-                f"({inv.get('paid_invoices', 0)} paid, "
-                f"{inv.get('refunded_or_chargeback', 0)} refunded/chargeback)"
-            )
-        lines.append(
-            f"- Subscriptions: {rev.get('active_subscriptions', '?')} active "
-            f"(+{rev.get('subscription_creations', 0)}/-{rev.get('subscription_cancellations', 0)})"
-        )
-        lines.append("")
-    elif "error" not in rev:
-        lines.append("**Revenue (yesterday)**")
-        income = rev.get("income_eur", 0)
-        lines.append(f"- Income: EUR {income:.2f}" if isinstance(income, (int, float)) else f"- Income: EUR {income}")
-        lines.append(f"- Credits sold: {rev.get('credits_sold', 0)} | used: {rev.get('credits_used', 0)}")
-        lines.append(f"- Purchases: {rev.get('purchases', 0)}")
-        lines.append("")
-
+    # ── AI Usage ────────────────────────────────────────────────────────
     ai = sections.get("ai_usage", {})
     if "error" not in ai:
         lines.append("**AI Usage (yesterday)**")
@@ -244,18 +279,21 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
         lines.append(f"- Output tokens: {ai.get('output_tokens', 0):,}")
         lines.append("")
 
+    # ── Web Analytics ───────────────────────────────────────────────────
     wa = sections.get("web_analytics", {})
     if "error" not in wa and wa:
         lines.append("**Web Analytics (yesterday)**")
         lines.append(f"- Page loads: {wa.get('page_loads', 0):,}")
         lines.append(f"- Unique visits: ~{wa.get('unique_visits', 0):,}")
 
+    # ── Newsletter ──────────────────────────────────────────────────────
     nl = sections.get("newsletter", {})
     if "error" not in nl and nl:
         lines.append("")
         lines.append("**Newsletter**")
         lines.append(f"- Confirmed subscribers: {nl.get('confirmed_subscribers', 0):,}")
 
+    # ── Data Health ─────────────────────────────────────────────────────
     dh = sections.get("data_health", {})
     if "error" not in dh and dh:
         lines.append("")

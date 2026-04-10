@@ -122,11 +122,15 @@ def test_cmd_track_uses_zellij_identity(sessions_module, monkeypatch, tmp_path, 
         "bbbb": {"zellij_session": "claude5", "task": "wrong session", "modified_files": []},
     })
 
-    args = Namespace(session=None, file=["scripts/sessions.py"])
+    # Use an absolute path outside PROJECT_ROOT so path normalisation is a no-op
+    # (resolve() is idempotent on absolute paths, and relative_to() raises ValueError
+    # which cmd_track catches, keeping the raw path).
+    test_file = str(tmp_path / "tracked_file.py")
+    args = Namespace(session=None, file=[test_file])
     sessions_module.cmd_track(args)
 
-    assert "scripts/sessions.py" in _read_files(sessions_module, "aaaa")
-    assert "scripts/sessions.py" not in _read_files(sessions_module, "bbbb")
+    assert test_file in _read_files(sessions_module, "aaaa")
+    assert test_file not in _read_files(sessions_module, "bbbb")
 
 
 def test_cmd_track_silent_exit_when_zellij_unset(sessions_module, monkeypatch, capsys):
@@ -161,16 +165,17 @@ def test_cmd_track_warns_on_ambiguous_zellij(sessions_module, monkeypatch, capsy
     assert _read_files(sessions_module, "bbbb") == []
 
 
-def test_cmd_track_explicit_session_bypasses_identity(sessions_module, monkeypatch):
+def test_cmd_track_explicit_session_bypasses_identity(sessions_module, monkeypatch, tmp_path):
     """An explicit --session always wins, even if zellij doesn't match."""
     monkeypatch.delenv("ZELLIJ_SESSION_NAME", raising=False)
     _seed(sessions_module, {
         "aaaa": {"zellij_session": "claude3", "modified_files": []},
     })
 
-    args = Namespace(session="aaaa", file=["scripts/sessions.py"])
+    test_file = str(tmp_path / "tracked_file.py")
+    args = Namespace(session="aaaa", file=[test_file])
     sessions_module.cmd_track(args)
-    assert "scripts/sessions.py" in _read_files(sessions_module, "aaaa")
+    assert test_file in _read_files(sessions_module, "aaaa")
 
 
 # ---------------------------------------------------------------------------
@@ -178,18 +183,23 @@ def test_cmd_track_explicit_session_bypasses_identity(sessions_module, monkeypat
 # ---------------------------------------------------------------------------
 
 
-def test_cmd_untrack_removes_specific_files(sessions_module):
+def test_cmd_untrack_removes_specific_files(sessions_module, tmp_path):
+    # Use absolute paths so cmd_untrack's resolve().relative_to(PROJECT_ROOT)
+    # raises ValueError and falls back to the raw path — matching the seeded data.
+    foo = str(tmp_path / "foo.py")
+    bar = str(tmp_path / "bar.py")
+    baz = str(tmp_path / "baz.py")
     _seed(sessions_module, {
         "aaaa": {
             "zellij_session": "claude3",
-            "modified_files": ["foo.py", "bar.py", "baz.py"],
+            "modified_files": [foo, bar, baz],
         },
     })
 
-    args = Namespace(session="aaaa", file=["foo.py", "baz.py"], all_ghosts=False)
+    args = Namespace(session="aaaa", file=[foo, baz], all_ghosts=False)
     sessions_module.cmd_untrack(args)
 
-    assert _read_files(sessions_module, "aaaa") == ["bar.py"]
+    assert _read_files(sessions_module, "aaaa") == [bar]
 
 
 def test_cmd_untrack_all_ghosts_removes_only_recognized_overlap(sessions_module):

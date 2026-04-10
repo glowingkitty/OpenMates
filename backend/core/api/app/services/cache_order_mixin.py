@@ -4,6 +4,8 @@ import json
 import os
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
+from backend.core.api.app.utils.encryption import USER_DATA_ENCRYPTION_KEY
+
 if TYPE_CHECKING:
     from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -277,7 +279,7 @@ class OrderCacheMixin:
 
             try:
                 ciphertext, _key_version = await encryption_service.encrypt(
-                    plaintext_json, key_name="user_data"
+                    plaintext_json, key_name=USER_DATA_ENCRYPTION_KEY
                 )
             except Exception as enc_err:
                 logger.error(
@@ -344,7 +346,7 @@ class OrderCacheMixin:
                 ciphertext = raw_backup["encrypted"]
                 try:
                     decrypted_json = await encryption_service.decrypt(
-                        ciphertext, key_name="user_data"
+                        ciphertext, key_name=USER_DATA_ENCRYPTION_KEY
                     )
                     if not decrypted_json:
                         logger.error("Vault decryption returned empty result for order backup")

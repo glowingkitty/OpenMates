@@ -1,24 +1,37 @@
 import logging
 import asyncio
+import httpx
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
+# Connection-level errors that indicate CMS is temporarily unreachable.
+# These get exponential backoff with more retries than token refresh errors.
+_CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, OSError)
+
 async def _make_api_request(self, method, url, headers=None, **kwargs):
-    """Make an API request with token refresh capability"""
+    """Make an API request with token refresh and connection retry capability.
+
+    Token errors (401) retry up to max_retries (3) with 1s delay.
+    Connection errors (DNS failure, connect timeout, refused) retry up to 5 times
+    with exponential backoff (1s, 2s, 4s, 8s, 16s) to survive CMS restarts.
+    """
     headers = headers or {}
-    
-    for attempt in range(self.max_retries):
+    max_connection_retries = 5
+    total_retries = max(self.max_retries, max_connection_retries)
+    connection_failures = 0
+
+    for attempt in range(total_retries):
         if attempt > 0:
             logger.info(f"Retry attempt {attempt} for {method} {url}")
-        
+
         # Get a fresh token if this is a retry
         token = await self.ensure_auth_token(force_refresh=(attempt > 0))
         if not token:
             raise HTTPException(status_code=500, detail="Failed to authenticate with CMS")
-        
+
         headers["Authorization"] = f"Bearer {token}"
-        
+
         try:
             # Define timeout per attempt (consistent with update_user)
             request_timeout = 3.0
@@ -29,23 +42,32 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
                 timeout=request_timeout,  # Add explicit timeout here
                 **kwargs
             )
-            
+
             if response.status_code == 401 and "TOKEN_EXPIRED" in response.text:
-                if attempt < self.max_retries - 1:
+                if attempt < total_retries - 1:
                     logger.warning("Token expired, will refresh and retry")
                     await self.clear_tokens()
                     continue
-            
+
             return response
-            
+
+        except _CONNECTION_ERRORS as e:
+            connection_failures += 1
+            if connection_failures < max_connection_retries:
+                backoff = min(2 ** connection_failures, 16)
+                logger.warning(f"CMS connection failed ({type(e).__name__}): {e}. "
+                               f"Retrying in {backoff}s ({connection_failures}/{max_connection_retries})...")
+                await asyncio.sleep(backoff)
+            else:
+                logger.error(f"CMS unreachable after {max_connection_retries} connection retries: {e}")
+                raise e
         except Exception as e:
             if attempt < self.max_retries - 1:
                 logger.warning(f"Request failed: {str(e)}. Retrying...")
-                await asyncio.sleep(1)  # Add a small delay before retrying
+                await asyncio.sleep(1)
             else:
                 raise e
-    
-    # This should never happen because of the exception above, but just in case
+
     raise HTTPException(status_code=500, detail="Maximum retry attempts reached")
 
 

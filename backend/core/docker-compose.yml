@@ -53,6 +53,8 @@ services:
     depends_on:
       cache:
         condition: service_healthy
+      cms:
+        condition: service_healthy
       vault-setup:
         condition: service_completed_successfully
       cms-setup:
@@ -104,6 +106,12 @@ services:
       - ./directus/extensions:/directus/extensions
     networks:
       - openmates
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
     depends_on:
       cms-database:
         condition: service_healthy
@@ -124,7 +132,7 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -215,6 +223,8 @@ services:
     depends_on:
       cache:
         condition: service_healthy
+      cms:
+        condition: service_healthy
       cms-setup:
         condition: service_completed_successfully
 
@@ -247,6 +257,8 @@ services:
       - openmates
     depends_on:
       cache:
+        condition: service_healthy
+      cms:
         condition: service_healthy
       vault-setup:
         condition: service_completed_successfully
@@ -310,6 +322,8 @@ services:
     depends_on:
       cache:
         condition: service_healthy
+      cms:
+        condition: service_healthy
       vault-setup:
         condition: service_started
       cms-setup:
@@ -370,6 +384,8 @@ services:
     depends_on:
       cache:
         condition: service_healthy
+      cms:
+        condition: service_healthy
       vault-setup:
         condition: service_started
       cms-setup:
@@ -425,6 +441,8 @@ services:
       - openmates
     depends_on:
       cache:
+        condition: service_healthy
+      cms:
         condition: service_healthy
       vault-setup:
         condition: service_started

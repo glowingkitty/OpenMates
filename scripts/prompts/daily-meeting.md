@@ -78,7 +78,8 @@ All data has been gathered automatically. Review each section below — this is 
 
 ### Current Milestone State
 
-{{MILESTONE_STATE}}
+Milestones are sourced from Linear projects (via `mcp__linear__list_projects` + `mcp__linear__list_milestones`).
+NOT from `.planning/PROJECT.md` — that file is obsolete.
 
 ### Data Failures
 
@@ -89,6 +90,12 @@ All data has been gathered automatically. Review each section below — this is 
 Also read:
 - `scripts/.daily-meeting-state.json` — Yesterday's priorities and confirmation status
 - `scripts/.tmp/daily-meeting-summary-*.md` — Previous meeting summary (most recent date)
+
+---
+
+## Rules for diagnostic endpoints
+
+**Production data is always the focus.** Every diagnostic endpoint and script must default to `--prod` when available. Dev server data is secondary — only show it if prod is unavailable or for comparison. When building new diagnostic endpoints, always include a `--prod` flag from day one.
 
 ---
 
@@ -112,6 +119,10 @@ Flag:
 
 Present as a table with columns: Linear ID, Title, Short Description, Status, Priority, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
 
+**Auto-archive Done tasks > 30 days:** Query Linear for Done tasks older than 30 days (`mcp__linear__list_issues` with state "Done", createdAt older than 30 days). If any exist, report the count and ask: "There are N Done tasks older than 30 days. Want me to archive them?" Archive on confirmation using `mcp__linear__save_issue` with the archive flag.
+
+**Auto-cancel E2E test artifacts:** Query for tasks with title matching `[E2E Test]` pattern. Cancel them automatically without asking — these are always test artifacts. Report: "Canceled N E2E test artifacts."
+
 Wait for user input. Update Linear statuses based on their answers before proceeding.
 
 ### Step 2: YESTERDAY REVIEW 📋
@@ -128,6 +139,15 @@ Wait for user input (they may have corrections or context).
 ### Step 3: SYSTEM HEALTH 🏥
 
 Using the gathered health data:
+
+**Open with Revenue Health (always first):**
+- Lifetime total revenue (EUR), total paying customers, conversion rate
+- Monthly revenue trend (from `lifetime_revenue.monthly_trend` in server-stats)
+- Last 14-day sparkline: income + buyers
+- Flag if revenue is declining or flat for >7 days
+- This is the most important business metric — show it before code metrics.
+
+**Then infrastructure health:**
 - Lead with anything broken or degraded
 - Test results with emojis:
   - ✅ `53/94 passing` → show as: `📊 Tests: 53/94 (56%) — ⚠️ 41 failures`
@@ -156,8 +176,9 @@ Wait for user input.
 
 ### Step 4: PROJECT TRAJECTORY 🗺️
 
-Using milestone state + nightly reports:
-- Current milestone progress
+Using Linear milestones (queried via `mcp__linear__list_projects` + `mcp__linear__list_milestones`) + nightly reports:
+- Current milestone progress (from Linear milestone `progress` field)
+- Target dates vs actual — flag overdue milestones
 - Scope/timeline concerns
 - Session quality trend
 - Anything worth announcing
@@ -198,13 +219,17 @@ Query Linear for ALL active tasks (Todo, In Progress, Backlog) using `mcp__linea
 - Briefly explain how user's answers influenced your recommendations
 - **Note:** Only 4 sessions can run simultaneously — the rest queue automatically
 
-Priority selection rules (in order):
-1. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
-2. **High/Urgent Linear priority** — respect existing priority fields
-3. **Outages/broken tests** — if health data shows broken items
-4. **User-reported issues** — should appear within 48h of report
-5. **Milestone-critical tasks** — from roadmap phase sequence
-6. **Age of task** — older unattended tasks get a boost
+**Sorting rule: ALWAYS sort the final list by urgency/impact, highest to lowest.** Do not sort by carry-forward status or task age — urgency wins. A new production outage outranks a 2-day-old test fix.
+
+Priority selection rules (for deciding what makes the list):
+1. **Production outages / data loss** — always #1 if present
+2. **User-facing bugs on prod** — real users are affected
+3. **Milestone-critical tasks** — blocking a deadline
+4. **High/Urgent Linear priority** — respect existing priority fields
+5. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
+6. **Outages/broken tests** — if health data shows broken items
+7. **User-reported issues** — should appear within 48h of report
+8. **Age of task** — older unattended tasks get a boost
 
 Then ask: **"These are today's 10 priorities (goal: complete at least the top 3). Confirm, or tell me what to adjust."**
 

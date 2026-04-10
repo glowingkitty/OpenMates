@@ -488,8 +488,12 @@ class TestHealthCheckProbe:
         mock_secrets = AsyncMock()
         mock_secrets.get_secret = AsyncMock(return_value=None)  # no credentials
 
+        # CacheService must return an AsyncMock so `await cache_service.close()` works
+        mock_cache = AsyncMock()
+        mock_cache.close = AsyncMock()
+
         with patch("httpx.AsyncClient") as mock_client_cls, \
-             patch.object(_hct, "CacheService"):
+             patch.object(_hct, "CacheService", return_value=mock_cache):
             result = await _check_sightengine_health(mock_secrets)
             mock_client_cls.assert_not_called()
 

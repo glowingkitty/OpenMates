@@ -94,9 +94,36 @@ verify_vault_unsealed() {
 }
 
 # ---------------------------------------------------------------------------
+# wait_for_cms — poll CMS (Directus) health endpoint until it responds 200.
+# Prevents the API from starting before CMS is ready, which would cause
+# DNS resolution failures and empty cache entries during container restarts.
+# ---------------------------------------------------------------------------
+wait_for_cms() {
+    CMS_URL="${CMS_URL:-http://cms:8055}"
+    CMS_MAX_ATTEMPTS=30  # 60 seconds (2s each)
+    CMS_ATTEMPT=0
+
+    echo "Waiting for CMS to be ready at ${CMS_URL}..."
+    while [ $CMS_ATTEMPT -lt $CMS_MAX_ATTEMPTS ]; do
+        CMS_ATTEMPT=$((CMS_ATTEMPT+1))
+        CMS_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "${CMS_URL}/server/health" 2>/dev/null)
+        if [ "$CMS_CODE" = "200" ]; then
+            echo "CMS is healthy (HTTP 200)."
+            return 0
+        fi
+        echo "CMS not ready (HTTP $CMS_CODE, attempt $CMS_ATTEMPT/$CMS_MAX_ATTEMPTS)..."
+        sleep 2
+    done
+
+    echo "WARNING: CMS not healthy after ${CMS_MAX_ATTEMPTS} attempts. Starting API anyway — requests will retry at runtime."
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # start_api — common function to start the uvicorn API server.
 # ---------------------------------------------------------------------------
 start_api() {
+    wait_for_cms
     echo "Starting API server..."
     # SECURITY: Only trust X-Forwarded-For from Docker bridge network (172.16.0.0/12).
     # Never use '*' — any client could spoof their IP and bypass rate limits.

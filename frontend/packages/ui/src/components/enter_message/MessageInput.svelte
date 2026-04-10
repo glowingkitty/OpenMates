@@ -537,21 +537,28 @@
                 // Apply highlighting colors for unclosed blocks
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
             } else {
-                // No unclosed blocks — update decoration set only if it actually changed.
-                // Avoid dispatching empty transactions when nothing changed, as these cause
-                // DOM mutations that can trigger cascading input events on iOS Firefox.
-                const prevDecorationSet = currentDecorationSet;
-                if (currentPIIDecorations.length > 0) {
-                    const { state: st } = editor;
-                    currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
-                } else {
-                    currentDecorationSet = DecorationSet.empty;
+                // No unclosed blocks. PII decorations are managed by rebuildDecorationSet()
+                // (called from runPIIDetectionImmediate). Only rebuild the decoration set here
+                // when PII decorations match the current editor text — otherwise the cached
+                // Decoration positions are stale and ProseMirror silently drops or mispositions
+                // them, causing highlights to vanish between PII debounce runs.
+                const currentText = editor.getText();
+                const piiDecosAreStale = currentPIIDecorations.length > 0 && currentText !== lastPIIText;
+                if (!piiDecosAreStale) {
+                    const prevDecorationSet = currentDecorationSet;
+                    if (currentPIIDecorations.length > 0) {
+                        const { state: st } = editor;
+                        currentDecorationSet = DecorationSet.create(st.doc, currentPIIDecorations);
+                    } else {
+                        currentDecorationSet = DecorationSet.empty;
+                    }
+                    const decorationsChanged = prevDecorationSet !== currentDecorationSet;
+                    if (decorationsChanged && decorationPropsSet && editor?.view) {
+                        editor.view.dispatch(editor.state.tr);
+                    }
                 }
-                // Only dispatch a transaction to refresh decorations if the set actually changed
-                const decorationsChanged = prevDecorationSet !== currentDecorationSet;
-                if (decorationsChanged && decorationPropsSet && editor?.view) {
-                    editor.view.dispatch(editor.state.tr);
-                }
+                // When PII positions are stale, keep the existing currentDecorationSet
+                // unchanged — the PII debounce timer will rebuild with correct positions.
                 
                 // Check if the parsed document contains preview embeds (closed code blocks)
                 // If so, update the editor content to show the rendered embed preview
@@ -1144,8 +1151,11 @@
                 });
             });
 
-            // Merge unclosed-block decorations with PII decorations so both are visible
-            const allDecorations = [...tipTapDecorations, ...currentPIIDecorations];
+            // Merge unclosed-block decorations with PII decorations so both are visible.
+            // Only include PII decorations when they match the current editor text —
+            // stale PII positions cause misplaced or missing highlights.
+            const piiDecosForMerge = (editor.getText() === lastPIIText) ? currentPIIDecorations : [];
+            const allDecorations = [...tipTapDecorations, ...piiDecosForMerge];
             currentDecorationSet = DecorationSet.create(doc, allDecorations);
             if (!decorationPropsSet) {
                 view.setProps({
@@ -1647,6 +1657,27 @@
                     // since pasted text may contain complete PII patterns.
                     piiPasteDetectionPending = true;
                     return false;
+                },
+                // Handle clicks on PII highlight decorations via handleDOMEvents.
+                // This fires directly from the DOM click event BEFORE ProseMirror's
+                // deferred handleClick (which uses setTimeout and may run after a
+                // re-render that destroyed the original <span>).
+                handleDOMEvents: {
+                    click: (view, event) => {
+                        const target = event.target as HTMLElement;
+                        const piiEl = target.classList.contains('pii-highlight')
+                            ? target
+                            : target.closest('.pii-highlight') as HTMLElement | null;
+                        if (piiEl) {
+                            const piiId = piiEl.getAttribute('data-pii-id');
+                            console.info('[MessageInput] PII click detected via handleDOMEvents:', piiId, 'target:', target.tagName, target.className);
+                            if (piiId) {
+                                handlePIIClick(piiId);
+                                return true; // handled — stop further click processing
+                            }
+                        }
+                        return false;
+                    }
                 }
             }
         });
@@ -2355,7 +2386,24 @@
         editorElement?.addEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.addEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.addEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
-        editorElement?.addEventListener('click', handleEditorClick); // For PII click handling
+        // PII click handling: attach to ProseMirror's root element in capture phase
+        // so we see the click BEFORE ProseMirror can re-render decorations.
+        const proseMirrorEl = editorElement?.querySelector('.ProseMirror');
+        if (proseMirrorEl) {
+            proseMirrorEl.addEventListener('click', ((event: MouseEvent) => {
+                const target = event.target as HTMLElement;
+                const piiEl = target.classList.contains('pii-highlight')
+                    ? target
+                    : target.closest('.pii-highlight') as HTMLElement | null;
+                if (piiEl) {
+                    const piiId = piiEl.getAttribute('data-pii-id');
+                    console.info('[MessageInput] PII click (capture on .ProseMirror):', piiId);
+                    if (piiId) {
+                        handlePIIClick(piiId);
+                    }
+                }
+            }) as EventListener, true); // capture phase
+        }
         // Listen for stop-button upload cancellations from image embeds.
         // This event is dispatched by Embed.ts after the embed node is deleted so
         // we can update the draft and originalMarkdown even when getText() is
@@ -2507,7 +2555,7 @@
         editorElement?.removeEventListener('recordingfullscreen', handleRecordingFullscreen as EventListener);
         editorElement?.removeEventListener('retryrecordingtranscription', handleRetryRecordingTranscription as EventListener);
         document.removeEventListener('updaterecordingtranscript', handleUpdateRecordingTranscript as EventListener);
-        editorElement?.removeEventListener('click', handleEditorClick);
+        // PII click handling is via editorProps.handleClick, no cleanup needed
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -2725,26 +2773,9 @@
  
     // --- Specific Event Handlers ---
     
-    /**
-     * Handle clicks in the editor to detect clicks on PII highlights.
-     * When a user clicks on a highlighted PII item, we exclude it from replacement.
-     */
-    function handleEditorClick(event: MouseEvent) {
-        const target = event.target as HTMLElement;
-        
-        // Check if the clicked element is a PII highlight
-        if (target.classList.contains('pii-highlight') || target.closest('.pii-highlight')) {
-            const piiElement = target.classList.contains('pii-highlight') ? target : target.closest('.pii-highlight') as HTMLElement;
-            const piiId = piiElement?.getAttribute('data-pii-id');
-            
-            if (piiId) {
-                event.preventDefault();
-                event.stopPropagation();
-                handlePIIClick(piiId);
-            }
-        }
-    }
-    
+    // PII click handling lives in editorProps.handleClick (ProseMirror prop)
+    // to avoid DOM re-render timing issues between mousedown and click.
+
     function handleEmbedClick(event: CustomEvent) { // Use built-in CustomEvent
         const result = handleMenuEmbedInteraction(event, editor, event.detail.id);
         if (result) {

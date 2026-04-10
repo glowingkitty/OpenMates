@@ -1230,6 +1230,28 @@ async def handle_main_processing(
         preselected_skills = preselected_skills | set(always_include_skills)
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
+    # === COMPANION SKILLS ===
+    # Some skills naturally pair together — when the system prompt instructs the
+    # LLM to consider a companion skill, it must also be in the allowed tool set.
+    # Without this the LLM follows the instruction, calls the companion, and the
+    # hallucination guard rejects it → zero response.
+    COMPANION_SKILLS: dict[str, list[str]] = {
+        "web-search": ["images-search"],
+        "news-search": ["images-search"],
+    }
+    if preselected_skills:
+        companions_to_add: set[str] = set()
+        for trigger, companions in COMPANION_SKILLS.items():
+            if trigger in preselected_skills:
+                for c in companions:
+                    if c not in preselected_skills:
+                        companions_to_add.add(c)
+        if companions_to_add:
+            logger.info(
+                f"{log_prefix} [COMPANION_SKILLS] Auto-including companion skills: "
+                f"{sorted(companions_to_add)} (triggered by preselected skills)"
+            )
+            preselected_skills = preselected_skills | companions_to_add
 
     # When user explicitly requested skills, add a mandatory instruction so the model must use them
     if user_requested_skills_only and preselected_skills:
@@ -2059,6 +2081,7 @@ async def handle_main_processing(
 
         current_turn_text_buffer = []
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
+        hallucinated_rejections_this_turn = 0
         llm_turn_had_content = False
         
         # Dictionary to store placeholder embeds created for tool calls during stream processing
@@ -2145,6 +2168,7 @@ async def handle_main_processing(
                             ),
                         }),
                     })
+                    hallucinated_rejections_this_turn += 1
                     continue
 
                 # Rewrite the chunk's function_name to the canonical form so all
@@ -2533,6 +2557,18 @@ async def handle_main_processing(
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
         if not tool_calls_for_this_turn:
+            # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
+            # rejected) and produced no visible text, the user would see zero
+            # response.  Force one more LLM iteration with tool_choice="none"
+            # so the model is compelled to produce a text answer.
+            if hallucinated_rejections_this_turn > 0 and not final_buffered_text_for_turn.strip():
+                logger.warning(
+                    f"{log_prefix} [HALLUCINATION_RECOVERY] All {hallucinated_rejections_this_turn} "
+                    f"tool call(s) this turn were rejected and no text was produced. "
+                    f"Forcing one more iteration with tool_choice='none' to generate a response."
+                )
+                force_no_tools = True
+                continue
             break
 
         # This iteration produced tool calls — the loop will continue with at least one

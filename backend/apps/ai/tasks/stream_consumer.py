@@ -2911,12 +2911,21 @@ async def _consume_main_processing_stream(
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
                                     else:
-                                        chunk = ""  # Failed to create embed
+                                        # Embed creation returned None — fall back to raw markdown
+                                        logger.warning(f"{log_prefix} Code embed placeholder creation returned None — falling back to raw markdown")
+                                        raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
+                                        chunk = raw_fence
+                                        # Keep in_code_block=True so closing fence is handled normally
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
-                                chunk = ""
+                                # Fall back to raw markdown so code is not silently lost
+                                raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
+                                chunk = raw_fence
                         else:
-                            chunk = ""  # No services available
+                            # No encryption services available — fall back to raw markdown
+                            logger.warning(f"{log_prefix} No encryption services for code embed — falling back to raw markdown")
+                            raw_fence = f"```{current_code_language or ''}\n{current_code_content}" if current_code_content else f"```{current_code_language or ''}\n"
+                            chunk = raw_fence
                     # Check if this chunk contains closing fence
                     elif '```' in chunk:
                         # Extract content before closing fence
@@ -3095,6 +3104,26 @@ async def _consume_main_processing_stream(
                                     current_code_filename = None
                                     current_code_content = ""
                                     current_code_embed_id = None
+                        # No embed was created (services unavailable or placeholder failed) —
+                        # emit accumulated code as raw markdown so it's not silently lost.
+                        elif not current_code_embed_id:
+                            logger.warning(
+                                f"{log_prefix} Code block closed but no embed was created — "
+                                f"emitting {len(current_code_content)} chars as raw markdown "
+                                f"(language={current_code_language or 'none'})"
+                            )
+                            raw_block = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
+                            chunk = raw_block
+
+                            in_code_block = False
+                            in_plot_block = False
+                            in_document_block = False
+                            in_email_block = False
+                            current_document_title = None
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
                         # Finalize embed (only for real code/document/plot blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -3249,8 +3278,12 @@ async def _consume_main_processing_stream(
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error updating embed: {e}", exc_info=True)
                         
-                        # Don't include content in response (embed reference was already sent)
-                        chunk = ""  # Empty chunk - content goes to embed, not message
+                        # Suppress content only when an embed was created (reference already sent).
+                        # When no embed exists (creation failed), keep chunk intact so raw
+                        # markdown flows to the client instead of being silently lost.
+                        if current_code_embed_id:
+                            chunk = ""  # Content goes to embed, not message
+                        # else: no embed — chunk passes through as raw markdown
                 
                 # ── Table/sheet embed detection ─────────────────────────────────
                 # Detect markdown tables (|...|) outside code blocks and convert

@@ -134,6 +134,34 @@ EOF
 
 echo "[OK] Created session-cleanup.service + session-cleanup.timer"
 
+# --- 5. Linear E2E Artifact Cleanup + Done Archive (daily at 4 AM) ---
+
+cat > "$SYSTEMD_DIR/linear-cleanup.service" << EOF
+[Unit]
+Description=OpenMates Linear E2E artifact cleanup + Done issue archive
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$PROJECT_ROOT
+EnvironmentFile=$PROJECT_ROOT/.env
+ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/linear-cleanup-e2e-artifacts.py
+EOF
+
+cat > "$SYSTEMD_DIR/linear-cleanup.timer" << EOF
+[Unit]
+Description=Daily Linear cleanup (E2E artifacts + archive old Done issues)
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+echo "[OK] Created linear-cleanup.service + linear-cleanup.timer"
+
 # --- Reload and enable ---
 
 systemctl --user daemon-reload
@@ -151,6 +179,9 @@ echo "[OK] linear-archive.timer enabled and started"
 systemctl --user enable --now session-cleanup.timer
 echo "[OK] session-cleanup.timer enabled and started"
 
+systemctl --user enable --now linear-cleanup.timer
+echo "[OK] linear-cleanup.timer enabled and started"
+
 echo ""
 echo "=== Service Status ==="
 echo ""
@@ -165,5 +196,8 @@ systemctl --user status linear-archive.timer --no-pager || true
 echo ""
 echo "--- session-cleanup.timer ---"
 systemctl --user status session-cleanup.timer --no-pager || true
+echo ""
+echo "--- linear-cleanup.timer ---"
+systemctl --user status linear-cleanup.timer --no-pager || true
 echo ""
 echo "Done. All services are running."

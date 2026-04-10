@@ -2412,6 +2412,56 @@ async def get_server_stats(
         logger.error(f"Invoices aggregation failed: {e}", exc_info=True)
         result["sections"]["invoices"] = {"error": str(e)}
 
+    # ── Lifetime Revenue + Monthly Cohort ──────────────────────────────
+    try:
+        # Sum all daily income_eur_cents for lifetime total
+        all_daily = await directus_service.get_items(
+            "server_stats_global_daily",
+            {
+                "fields": ["income_eur_cents", "purchase_count", "new_users_finished_signup"],
+                "limit": -1,
+            },
+            admin_required=True,
+        )
+        lifetime_income_cents = sum(_safe_int(d.get("income_eur_cents")) for d in (all_daily or []))
+        lifetime_purchases = sum(_safe_int(d.get("purchase_count")) for d in (all_daily or []))
+
+        # Monthly breakdown from server_stats_global_monthly
+        monthly_items = await directus_service.get_items(
+            "server_stats_global_monthly",
+            {
+                "fields": [
+                    "year_month", "income_eur_cents", "purchase_count",
+                    "new_users_finished_signup", "credits_sold", "credits_used",
+                    "total_regular_users",
+                ],
+                "sort": ["year_month"],
+                "limit": -1,
+            },
+            admin_required=True,
+        )
+        monthly_trend = [
+            {
+                "month": m.get("year_month"),
+                "income_eur": _safe_int(m.get("income_eur_cents")) / 100.0,
+                "purchases": _safe_int(m.get("purchase_count")),
+                "new_paying_users": _safe_int(m.get("new_users_finished_signup")),
+                "credits_sold": _safe_int(m.get("credits_sold")),
+                "credits_used": _safe_int(m.get("credits_used")),
+                "total_users": _safe_int(m.get("total_regular_users")),
+            }
+            for m in (monthly_items or [])
+        ]
+
+        result["sections"]["lifetime_revenue"] = {
+            "total_eur": lifetime_income_cents / 100.0,
+            "total_purchases": lifetime_purchases,
+            "monthly_trend": monthly_trend,
+        }
+    except Exception as e:
+        logger.error(f"Lifetime revenue query failed: {e}", exc_info=True)
+        result["sections"]["lifetime_revenue"] = {"error": str(e)}
+
     # ── Web Analytics (yesterday) ────────────────────────────────────────
     try:
         wa_items = await directus_service.get_items(
