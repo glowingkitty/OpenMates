@@ -146,6 +146,7 @@
   bind:this={cardElement}
   class="chat-embed-card"
   class:hovering={isHovering}
+  data-testid="chat-embed-card"
   style="{gradientStyle}; {tiltTransform ? `transform: ${tiltTransform};` : ''}"
   role="button"
   tabindex={0}
