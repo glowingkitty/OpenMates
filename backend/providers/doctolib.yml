@@ -1,0 +1,17 @@
+# backend/providers/doctolib.yml
+#
+# Configuration for Doctolib provider.
+# Used by the Health app for searching doctor appointments in Germany.
+
+provider_id: "doctolib"
+name: "Doctolib"
+description: "Europe's leading online doctor appointment booking platform."
+logo_svg: "icons/doctolib.svg"
+region: "EU" # Doctolib HQ is in Paris, operates across EU
+
+# No API key required — uses web scraping
+no_api_key: true
+
+# Pricing information
+pricing:
+  per_request_credits: 10 # 10 credits per appointment search request (set in app.yml)
