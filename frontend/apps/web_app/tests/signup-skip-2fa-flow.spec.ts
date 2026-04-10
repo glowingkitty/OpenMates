@@ -200,16 +200,23 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await switchToStripeBtn.click();
 		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
-		await page.waitForTimeout(2000); // Allow Stripe to initialize
 	}
 
-	// Payment step: consent to limited refund to reveal payment form.
-	// Wait for the consent toggle to appear — Stripe Elements must initialize first.
+	// After switching to Stripe, the consent toggle may or may not appear depending on
+	// whether Stripe uses the hosted invoice path or inline elements. Handle both cases.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await expect(consentToggle).toBeAttached({ timeout: 60000 });
-	await setToggleChecked(consentToggle, true);
+	const stripeIframe = page.locator('iframe[title="Secure payment input frame"]');
+
+	// Wait for either consent toggle or Stripe iframe to appear
+	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 60000 });
+
+	if (await consentToggle.isVisible().catch(() => false)) {
+		await setToggleChecked(consentToggle, true);
+		logSignupCheckpoint('Payment consent accepted.');
+	} else {
+		logSignupCheckpoint('No consent toggle — Stripe loaded directly (hosted invoice path).');
+	}
 	await takeStepScreenshot(page, 'payment-form');
-	logSignupCheckpoint('Payment consent accepted.');
 
 	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
