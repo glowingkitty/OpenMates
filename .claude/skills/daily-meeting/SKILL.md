@@ -134,9 +134,9 @@ Otherwise, proceed through the meeting flow using the gathered data as context.
 
 Follow the 9-step meeting agenda from the prompt template. **Present ONE section at a time**, wait for user response, then proceed:
 
-1. **STATUS CLEANUP 🧹** — stale/ghost tasks, ask user to confirm status changes
+1. **STATUS CLEANUP 🧹** — auto-cancel `[E2E Test]` artifacts, bulk-archive Done >30 days, stale/ghost tasks, ask user to confirm status changes
 2. **YESTERDAY REVIEW 📋** — commits, priority scorecard, honest assessment
-3. **SYSTEM HEALTH 🏥** — outages, test failures, errors, data gaps
+3. **SYSTEM HEALTH 🏥** — **open with Revenue Health** (lifetime total, paying customers, monthly trend), then outages, test failures, errors, data gaps
 3b. **DAILY INSPIRATIONS REVIEW 📰** — show current public default inspirations from the audit data (pool violations count, defaults violations count, and list the titles of today's 3 English defaults). Flag any entries that look low-quality, off-topic, or borderline even if they passed the keyword filter. Ask the user if any should be removed or if the keyword blocklist needs updates.
 3c. **LEGAL & COMPLIANCE ⚖️** — read `docs/architecture/compliance/top-10-recommendations.md` and surface the scan metadata (scan type, date, HEAD SHA, counts line) plus every CRITICAL and HIGH finding (rank, title, score, framework, one-line why). List MEDIUM/LOW items by title only. Mention any items resolved since last run and any tier activation alerts. Ask the user which findings (if any) should be promoted to today's top 10 priorities, and whether any should be filed as Linear tasks if they are not already tracked. If the file is missing or the date is older than 7 days, flag that the scan is stale and the cronjob may be broken.
 4. **PROJECT TRAJECTORY 🗺️** — milestone progress, session quality

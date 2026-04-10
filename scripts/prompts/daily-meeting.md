@@ -93,6 +93,12 @@ Also read:
 
 ---
 
+## Rules for diagnostic endpoints
+
+**Production data is always the focus.** Every diagnostic endpoint and script must default to `--prod` when available. Dev server data is secondary — only show it if prod is unavailable or for comparison. When building new diagnostic endpoints, always include a `--prod` flag from day one.
+
+---
+
 ## Meeting Flow
 
 Run through these sections **one at a time**. Present each section, then **wait for the user's input** before moving to the next. This is a conversation, not a report dump.
@@ -113,6 +119,10 @@ Flag:
 
 Present as a table with columns: Linear ID, Title, Short Description, Status, Priority, Flag. For each stale/ghost item, ask: **"Done? Still active? Blocked? Should we close it?"**
 
+**Auto-archive Done tasks > 30 days:** Query Linear for Done tasks older than 30 days (`mcp__linear__list_issues` with state "Done", createdAt older than 30 days). If any exist, report the count and ask: "There are N Done tasks older than 30 days. Want me to archive them?" Archive on confirmation using `mcp__linear__save_issue` with the archive flag.
+
+**Auto-cancel E2E test artifacts:** Query for tasks with title matching `[E2E Test]` pattern. Cancel them automatically without asking — these are always test artifacts. Report: "Canceled N E2E test artifacts."
+
 Wait for user input. Update Linear statuses based on their answers before proceeding.
 
 ### Step 2: YESTERDAY REVIEW 📋
@@ -129,6 +139,15 @@ Wait for user input (they may have corrections or context).
 ### Step 3: SYSTEM HEALTH 🏥
 
 Using the gathered health data:
+
+**Open with Revenue Health (always first):**
+- Lifetime total revenue (EUR), total paying customers, conversion rate
+- Monthly revenue trend (from `lifetime_revenue.monthly_trend` in server-stats)
+- Last 14-day sparkline: income + buyers
+- Flag if revenue is declining or flat for >7 days
+- This is the most important business metric — show it before code metrics.
+
+**Then infrastructure health:**
 - Lead with anything broken or degraded
 - Test results with emojis:
   - ✅ `53/94 passing` → show as: `📊 Tests: 53/94 (56%) — ⚠️ 41 failures`
