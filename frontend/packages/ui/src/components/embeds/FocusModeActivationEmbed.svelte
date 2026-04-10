@@ -315,6 +315,7 @@
     class="focus-mode-bar"
     class:activated={isActivated}
     class:counting={!isActivated}
+    data-testid="focus-mode-bar"
     data-focus-id={focusId}
     data-app-id={appId}
     data-embed-type="focus-mode-activation"
@@ -331,19 +332,19 @@
     <div class="app-icon-circle {appId}" style={appGradientStyle}>
       <div class="icon_rounded {appId}"></div>
     </div>
-    
+
     <!-- Focus/insight skill icon (purple color for focus mode) -->
     <div class="focus-skill-icon"></div>
-    
+
     <!-- Status text -->
     <div class="status-text">
-      <span class="status-label">{displayName}</span>
-      <span class="status-value" class:active-status={isActivated}>{statusText}</span>
+      <span class="status-label" data-testid="focus-status-label">{displayName}</span>
+      <span class="status-value" data-testid="focus-status-value" class:active-status={isActivated}>{statusText}</span>
     </div>
 
     <!-- Progress bar (only during countdown, overlaid at bottom) -->
     {#if !isActivated}
-      <div class="progress-bar-container">
+      <div class="progress-bar-container" data-testid="focus-progress-bar">
         <div
           class="progress-bar"
           style="width: {progressPercent}%"
@@ -354,7 +355,7 @@
 
   <!-- Helper text below the bar during countdown -->
   {#if !isActivated}
-    <div class="reject-hint">
+    <div class="reject-hint" data-testid="focus-reject-hint">
       {$text('embeds.focus_mode.reject_hint', {
         default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
       })}
