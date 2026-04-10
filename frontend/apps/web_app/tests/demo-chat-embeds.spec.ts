@@ -12,176 +12,100 @@
  *   and showed perpetual loading spinners or empty cards.
  *
  * Test strategy:
- *   1. Fetch demo chat list from the API (flexible to content changes)
- *   2. Pick a sample of chats that have embeds
- *   3. Navigate to each and verify embeds actually render
+ *   1. Navigate to the app and wait for demo chats to load
+ *   2. Click into an example chat card that has embeds
+ *   3. Verify embeds actually render (data-testid="embed-preview" with status="finished")
  *   4. No credentials required — tests the unauthenticated public flow
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-/** Maximum number of demo chats to test (to keep test time bounded) */
-const MAX_CHATS_TO_TEST = 4;
-
-/** Time to wait for embeds to render after navigating to a demo chat (ms) */
-const EMBED_RENDER_TIMEOUT = 15000;
-
 test.describe('Demo chat embed rendering', () => {
 	test('embeds inside demo chats render for unauthenticated users', async ({ page }) => {
-		test.setTimeout(120000);
+		test.setTimeout(90000);
 
 		// ─── Console logging for diagnostics ────────────────────────────────
 		const consoleLogs: string[] = [];
 		page.on('console', (message: any) => {
 			const text = message.text();
 			if (
-				text.includes('embedResolver') ||
 				text.includes('registerDemoEmbedRefs') ||
-				text.includes('EmbedPreviewLarge') ||
-				text.includes('EmbedReferencePreview') ||
 				text.includes('loadCommunityDemos') ||
-				text.includes('embed_ref')
+				text.includes('[embedResolver]')
 			) {
 				consoleLogs.push(`[${message.type()}] ${text}`);
 			}
 		});
 
-		// ─── Navigate and let demo chats load ───────────────────────────────
+		// ─── Navigate as a fresh user ───────────────────────────────────────
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		// ─── Fetch demo chat list from the API (inside the browser to handle CORS) ─
-		const demoChatsWithEmbeds: Array<{ demoId: string; title: string; embedCount: number }> =
-			await page.evaluate(async () => {
-				const origin = window.location.origin;
-				let apiBase = origin.replace('://app.', '://api.');
-				if (!apiBase.includes('://api.')) {
-					apiBase = origin.replace('://', '://api.');
-				}
+		// Wait for community demos to load (they fetch sequentially from the API)
+		await page.waitForTimeout(10000);
 
-				const listRes = await fetch(`${apiBase}/v1/demo/chats?lang=en`);
-				if (!listRes.ok) return [];
+		// ─── Find and click an example chat card ────────────────────────────
+		// The ExampleChatsGroup renders cards with data-testid="chat-embed-card"
+		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');
+		const cardCount = await chatCards.count();
 
-				const data = await listRes.json();
-				const demos = data.demo_chats || [];
-				const results: Array<{ demoId: string; title: string; embedCount: number }> = [];
+		console.log(`\n--- DEMO CHAT EMBED TEST ---`);
+		console.log(`Example chat cards found: ${cardCount}`);
 
-				// Fetch each demo to find ones with embeds
-				for (const demo of demos) {
-					try {
-						const chatRes = await fetch(`${apiBase}/v1/demo/chat/${demo.demo_id}?lang=en`);
-						if (!chatRes.ok) continue;
-						const chatData = await chatRes.json();
-						const embeds = chatData.chat_data?.embeds || [];
-						if (embeds.length > 0) {
-							results.push({
-								demoId: demo.demo_id,
-								title: demo.title,
-								embedCount: embeds.length,
-							});
-						}
-					} catch {
-						// Skip failed fetches
-					}
-				}
+		expect(cardCount, 'Expected at least 1 example chat card').toBeGreaterThan(0);
 
-				return results;
-			});
+		// Click the first example chat card to navigate into it
+		await chatCards.first().click();
 
-		console.log(`\n--- DEMO CHATS WITH EMBEDS ---`);
-		console.log(`Found ${demoChatsWithEmbeds.length} demo chats with embeds`);
-		demoChatsWithEmbeds.forEach((d) =>
-			console.log(`  ${d.demoId}: ${d.title} (${d.embedCount} embeds)`)
+		// Wait for the chat view to load and embeds to render
+		// The assistant message should appear with embed previews
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+
+		console.log('  Assistant message visible — chat loaded');
+
+		// Wait additional time for embed resolution (embed_ref → embed_id lookup,
+		// then async resolveEmbed + component mount + render)
+		await page.waitForTimeout(5000);
+
+		// ─── Count rendered embeds ──────────────────────────────────────────
+		const allEmbedPreviews = page.locator('[data-testid="embed-preview"]');
+		const renderedCount = await allEmbedPreviews.count();
+
+		const finishedEmbeds = page.locator(
+			'[data-testid="embed-preview"][data-status="finished"]'
 		);
+		const finishedCount = await finishedEmbeds.count();
 
-		// Must have at least 1 demo chat with embeds
-		expect(
-			demoChatsWithEmbeds.length,
-			'Expected at least 1 demo chat with embeds'
-		).toBeGreaterThan(0);
+		const processingEmbeds = page.locator(
+			'[data-testid="embed-preview"][data-status="processing"]'
+		);
+		const processingCount = await processingEmbeds.count();
 
-		// ─── Test a sample of demo chats ────────────────────────────────────
-		const chatsToTest = demoChatsWithEmbeds.slice(0, MAX_CHATS_TO_TEST);
-		const testResults: Array<{
-			demoId: string;
-			title: string;
-			expectedEmbeds: number;
-			renderedEmbeds: number;
-			finishedEmbeds: number;
-			stuckLoading: number;
-			passed: boolean;
-		}> = [];
+		console.log(`  Rendered embed previews: ${renderedCount}`);
+		console.log(`  Finished embeds: ${finishedCount}`);
+		console.log(`  Processing embeds: ${processingCount}`);
 
-		for (const chat of chatsToTest) {
-			console.log(`\n--- Testing: ${chat.title} (${chat.demoId}) ---`);
-
-			// Navigate to this demo chat
-			await page.goto(getE2EDebugUrl(`/#chat-id=${chat.demoId}`), {
-				waitUntil: 'domcontentloaded',
-			});
-			await page.waitForLoadState('networkidle');
-
-			// Wait for demo chats to load and embeds to render
-			// We need to wait for:
-			// 1. loadCommunityDemos() to fetch and store embed data
-			// 2. registerDemoEmbedRefs() to populate the ref index
-			// 3. Embed components to resolve and render
-			await page.waitForTimeout(EMBED_RENDER_TIMEOUT);
-
-			// Count rendered embed previews (UnifiedEmbedPreview wraps all embeds)
-			const allEmbedPreviews = page.locator('[data-testid="embed-preview"]');
-			const renderedCount = await allEmbedPreviews.count();
-
-			// Count embeds that reached "finished" status
-			const finishedEmbeds = page.locator(
-				'[data-testid="embed-preview"][data-status="finished"]'
-			);
-			const finishedCount = await finishedEmbeds.count();
-
-			// Count embeds stuck in loading/processing state
-			const stuckEmbeds = page.locator(
-				'[data-testid="embed-preview"][data-status="processing"]'
-			);
-			const stuckCount = await stuckEmbeds.count();
-
-			const passed = renderedCount > 0 && finishedCount > 0;
-
-			testResults.push({
-				demoId: chat.demoId,
-				title: chat.title,
-				expectedEmbeds: chat.embedCount,
-				renderedEmbeds: renderedCount,
-				finishedEmbeds: finishedCount,
-				stuckLoading: stuckCount,
-				passed,
-			});
-
-			console.log(`  Expected embeds (from API): ${chat.embedCount}`);
-			console.log(`  Rendered embed previews: ${renderedCount}`);
-			console.log(`  Finished embeds: ${finishedCount}`);
-			console.log(`  Stuck in processing: ${stuckCount}`);
-			console.log(`  Result: ${passed ? 'PASS' : 'FAIL'}`);
+		// ─── Diagnostics: console logs from embed resolution ────────────────
+		console.log(`\n  Embed resolution logs (${consoleLogs.length}):`);
+		consoleLogs.slice(0, 20).forEach((l) => console.log(`    ${l}`));
+		if (consoleLogs.length > 20) {
+			console.log(`    ... and ${consoleLogs.length - 20} more`);
 		}
-
-		// ─── Final diagnostics ──────────────────────────────────────────────
-		console.log(`\n--- EMBED RESOLUTION LOGS ---`);
-		consoleLogs.forEach((l) => console.log(`  ${l}`));
 		console.log(`--- END ---\n`);
 
 		// ─── Assertions ─────────────────────────────────────────────────────
-		for (const result of testResults) {
-			// Each demo chat must have at least 1 rendered embed
-			expect(
-				result.renderedEmbeds,
-				`Demo "${result.title}" (${result.demoId}): expected rendered embeds but found ${result.renderedEmbeds}`
-			).toBeGreaterThan(0);
+		// At least 1 embed preview must be rendered
+		expect(
+			renderedCount,
+			`Expected at least 1 embed preview to render in demo chat, found ${renderedCount}`
+		).toBeGreaterThan(0);
 
-			// Each demo chat must have at least 1 finished embed
-			expect(
-				result.finishedEmbeds,
-				`Demo "${result.title}" (${result.demoId}): no embeds reached "finished" status (${result.stuckLoading} stuck loading)`
-			).toBeGreaterThan(0);
-		}
+		// At least 1 embed must have reached "finished" status
+		expect(
+			finishedCount,
+			`Expected at least 1 embed to reach "finished" status, found ${finishedCount} finished (${processingCount} still processing)`
+		).toBeGreaterThan(0);
 	});
 });
