@@ -18,9 +18,8 @@ import SettingsInterface from "./SettingsInterface.svelte";
 import SettingsLanguage from "./interface/SettingsLanguage.svelte";
 import SettingsDarkMode from "./interface/SettingsDarkMode.svelte";
 
-// Chat
-import SettingsChat from "./SettingsChat.svelte";
-import SettingsChatNotifications from "./chat/SettingsChatNotifications.svelte";
+// AI (replaces the old Chat settings entry — model selection, pricing, memories)
+import SettingsAI from "./SettingsAI.svelte";
 
 // Notifications (top-level hub + sub-pages)
 import SettingsNotifications from "./SettingsNotifications.svelte";
@@ -140,9 +139,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "billing/auto-topup/low-balance": SettingsLowBalanceAutotopup,
   "billing/auto-topup/monthly": SettingsMonthlyAutotopup,
   "billing/invoices": SettingsInvoices,
-  // Chat
-  chat: SettingsChat,
-  "chat/notifications": SettingsChatNotifications, // kept as backward-compat alias
+  // AI (model selection, pricing, settings & memories — replaces old Chat entry)
+  ai: SettingsAI,
   // Notifications — top-level hub consolidating all notification preferences
   notifications: SettingsNotifications,
   "notifications/chat": SettingsNotificationsChatNotifications,

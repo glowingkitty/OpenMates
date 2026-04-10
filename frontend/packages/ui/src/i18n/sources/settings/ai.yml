@@ -1,0 +1,104 @@
+# AI settings translations
+# Used in Settings > AI menu (top-level)
+# Namespace: settings, key prefix: ai (from filename)
+# Keys should NOT include "ai." prefix - the build script adds it automatically
+description:
+  context: Short description shown in the AI settings page gradient banner header
+  en: Models, pricing, and AI preferences
+  de: Modelle, Preise und KI-Einstellungen
+  zh: 模型、定价和 AI 偏好设置
+  es: Modelos, precios y preferencias de IA
+  fr: Modèles, tarifs et préférences d'IA
+  pt: Modelos, preços e preferências de IA
+  ru: Модели, цены и настройки ИИ
+  ja: モデル、料金、AI設定
+  ko: 모델, 가격 및 AI 환경설정
+  it: Modelli, prezzi e preferenze IA
+  tr: Modeller, fiyatlandırma ve yapay zeka tercihleri
+  vi: Mô hình, giá cả và tùy chọn AI
+  id: Model, harga, dan preferensi AI
+  pl: Modele, ceny i preferencje AI
+  nl: Modellen, prijzen en AI-voorkeuren
+  ar: النماذج والأسعار وتفضيلات الذكاء الاصطناعي
+  hi: मॉडल, मूल्य निर्धारण और AI प्राथमिकताएं
+  th: โมเดล ราคา และการตั้งค่า AI
+  cs: Modely, ceny a nastavení AI
+  sv: Modeller, priser och AI-inställningar
+  he: מודלים, תמחור והעדפות AI
+  verified_by_human: []
+
+# Settings > AI menu item (becomes settings.ai.text)
+ai:
+  context: AI settings menu title
+  en: AI
+  de: KI
+  zh: AI
+  es: IA
+  fr: IA
+  pt: IA
+  ru: ИИ
+  ja: AI
+  ko: AI
+  it: IA
+  tr: Yapay Zeka
+  vi: AI
+  id: AI
+  pl: AI
+  nl: AI
+  ar: الذكاء الاصطناعي
+  hi: AI
+  th: AI
+  cs: AI
+  sv: AI
+  he: AI
+  verified_by_human: []
+
+available_providers:
+  context: Section heading for the server providers toggle list
+  en: Available providers
+  de: Verfügbare Anbieter
+  zh: 可用提供商
+  es: Proveedores disponibles
+  fr: Fournisseurs disponibles
+  pt: Provedores disponíveis
+  ru: Доступные провайдеры
+  ja: 利用可能なプロバイダー
+  ko: 사용 가능한 공급자
+  it: Fornitori disponibili
+  tr: Mevcut sağlayıcılar
+  vi: Nhà cung cấp khả dụng
+  id: Penyedia yang tersedia
+  pl: Dostępni dostawcy
+  nl: Beschikbare aanbieders
+  ar: مزودو الخدمة المتاحون
+  hi: उपलब्ध प्रदाता
+  th: ผู้ให้บริการที่พร้อมใช้งาน
+  cs: Dostupní poskytovatelé
+  sv: Tillgängliga leverantörer
+  he: ספקים זמינים
+  verified_by_human: []
+
+available_providers_description:
+  context: Description text under Available providers heading explaining server selection
+  en: Here you can limit which server providers you want to allow to process your requests. Keep in mind, this can reduce the selection of available models and impact your response quality. EU servers are selected by default if available for a model.
+  de: Hier können Sie einschränken, welche Server-Anbieter Ihre Anfragen verarbeiten dürfen. Beachten Sie, dass dies die Auswahl verfügbarer Modelle reduzieren und die Antwortqualität beeinflussen kann. EU-Server werden standardmäßig ausgewählt, wenn sie für ein Modell verfügbar sind.
+  zh: 您可以在此限制允许处理您请求的服务器提供商。请注意，这可能会减少可用模型的选择并影响响应质量。如果模型有EU服务器可用，将默认选择EU服务器。
+  es: Aquí puedes limitar qué proveedores de servidores pueden procesar tus solicitudes. Ten en cuenta que esto puede reducir la selección de modelos disponibles e impactar la calidad de las respuestas. Los servidores de la UE se seleccionan por defecto si están disponibles para un modelo.
+  fr: Ici, vous pouvez limiter les fournisseurs de serveurs autorisés à traiter vos requêtes. Gardez à l'esprit que cela peut réduire la sélection de modèles disponibles et impacter la qualité des réponses. Les serveurs UE sont sélectionnés par défaut s'ils sont disponibles pour un modèle.
+  pt: Aqui você pode limitar quais provedores de servidor podem processar suas solicitações. Lembre-se de que isso pode reduzir a seleção de modelos disponíveis e impactar a qualidade das respostas. Servidores da UE são selecionados por padrão quando disponíveis para um modelo.
+  ru: Здесь вы можете ограничить, какие серверные провайдеры могут обрабатывать ваши запросы. Имейте в виду, что это может сократить выбор доступных моделей и повлиять на качество ответов. Серверы ЕС выбираются по умолчанию, если они доступны для модели.
+  ja: ここでリクエストを処理するサーバープロバイダーを制限できます。利用可能なモデルの選択肢が減り、応答品質に影響する可能性があることに注意してください。モデルで利用可能な場合、EUサーバーがデフォルトで選択されます。
+  ko: 여기에서 요청을 처리할 서버 공급자를 제한할 수 있습니다. 이렇게 하면 사용 가능한 모델 선택이 줄어들고 응답 품질에 영향을 줄 수 있습니다. 모델에 사용 가능한 경우 EU 서버가 기본적으로 선택됩니다.
+  it: Qui puoi limitare quali fornitori di server possono elaborare le tue richieste. Tieni presente che questo può ridurre la selezione dei modelli disponibili e influire sulla qualità delle risposte. I server UE vengono selezionati per impostazione predefinita se disponibili per un modello.
+  tr: Burada isteklerinizi hangi sunucu sağlayıcıların işleyeceğini sınırlayabilirsiniz. Bunun mevcut model seçimini azaltabileceğini ve yanıt kalitenizi etkileyebileceğini unutmayın. Bir model için mevcutsa AB sunucuları varsayılan olarak seçilir.
+  vi: Tại đây bạn có thể giới hạn nhà cung cấp máy chủ nào được phép xử lý yêu cầu của bạn. Lưu ý rằng điều này có thể giảm lựa chọn mô hình có sẵn và ảnh hưởng đến chất lượng phản hồi. Máy chủ EU được chọn mặc định nếu có sẵn cho một mô hình.
+  id: Di sini Anda dapat membatasi penyedia server mana yang diizinkan memproses permintaan Anda. Perlu diingat, ini dapat mengurangi pilihan model yang tersedia dan memengaruhi kualitas respons. Server EU dipilih secara default jika tersedia untuk suatu model.
+  pl: Tutaj możesz ograniczyć, którzy dostawcy serwerów mogą przetwarzać Twoje żądania. Pamiętaj, że może to zmniejszyć wybór dostępnych modeli i wpłynąć na jakość odpowiedzi. Serwery UE są wybierane domyślnie, jeśli są dostępne dla modelu.
+  nl: Hier kunt u beperken welke serverproviders uw verzoeken mogen verwerken. Houd er rekening mee dat dit de selectie van beschikbare modellen kan beperken en de kwaliteit van antwoorden kan beïnvloeden. EU-servers worden standaard geselecteerd als ze beschikbaar zijn voor een model.
+  ar: هنا يمكنك تحديد مزودي الخوادم المسموح لهم بمعالجة طلباتك. ضع في اعتبارك أن هذا قد يقلل من اختيار النماذج المتاحة ويؤثر على جودة الاستجابة. يتم تحديد خوادم الاتحاد الأوروبي افتراضيًا إذا كانت متاحة لنموذج ما.
+  hi: यहां आप सीमित कर सकते हैं कि कौन से सर्वर प्रदाता आपके अनुरोधों को संसाधित कर सकते हैं। ध्यान रखें, यह उपलब्ध मॉडल की चयन को कम कर सकता है और आपकी प्रतिक्रिया गुणवत्ता को प्रभावित कर सकता है। यदि किसी मॉडल के लिए उपलब्ध हो तो EU सर्वर डिफ़ॉल्ट रूप से चुने जाते हैं।
+  th: ที่นี่คุณสามารถจำกัดผู้ให้บริการเซิร์ฟเวอร์ที่อนุญาตให้ประมวลผลคำขอของคุณ โปรดทราบว่าสิ่งนี้อาจลดตัวเลือกโมเดลที่มีอยู่และส่งผลต่อคุณภาพการตอบสนอง เซิร์ฟเวอร์ EU จะถูกเลือกเป็นค่าเริ่มต้นหากมีให้สำหรับโมเดล
+  cs: Zde můžete omezit, kteří poskytovatelé serverů mohou zpracovávat vaše požadavky. Mějte na paměti, že to může snížit výběr dostupných modelů a ovlivnit kvalitu odpovědí. Servery v EU jsou vybrány jako výchozí, pokud jsou pro model k dispozici.
+  sv: Här kan du begränsa vilka serverleverantörer som får hantera dina förfrågningar. Tänk på att detta kan minska urvalet av tillgängliga modeller och påverka svarskvaliteten. EU-servrar väljs som standard om de är tillgängliga för en modell.
+  he: כאן תוכלו להגביל אילו ספקי שרתים יכולים לעבד את הבקשות שלכם. זכרו שזה עשוי לצמצם את הבחירה של מודלים זמינים ולהשפיע על איכות התשובות. שרתי EU נבחרים כברירת מחדל אם זמינים עבור מודל.
+  verified_by_human: []

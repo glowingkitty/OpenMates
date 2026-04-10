@@ -47,9 +47,12 @@
         void healthState;
         void userSkillsState;
         // Get filtered apps from store (filtering happens in getState())
-        return appSkillsStore.getState().apps;
+        const allApps = appSkillsStore.getState().apps;
+        // Exclude the AI app — its settings live under the top-level "AI" settings menu
+        const { ai: _excluded, ...rest } = allApps;
+        return rest;
     });
-    
+
     let appsList = $derived(Object.values(apps));
     
     // Subscribe to most used apps store (fetched on app load in +page.svelte)

@@ -63,6 +63,7 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper } from './settings/settingsRoutes';
+    import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -228,8 +229,13 @@ changes to the documentation (to keep the documentation up to date).
         
         // Add any dynamically registered entry detail routes
         // These are routes like: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+        // or: ai/model/{model_id} (top-level AI settings model detail)
         for (const route of dynamicEntryRoutes) {
-            views[route] = AppDetailsWrapper;
+            if (/^ai\/model\//.test(route)) {
+                views[route] = AiModelDetailsWrapper;
+            } else {
+                views[route] = AppDetailsWrapper;
+            }
         }
 
         // Add any dynamically registered personal data edit routes
@@ -294,6 +300,7 @@ changes to the documentation (to keep the documentation up to date).
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
+                    key === 'ai' || key.startsWith('ai/') ||
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
@@ -728,11 +735,14 @@ changes to the documentation (to keep the documentation up to date).
     
     // True when the header should show a provider icon (model or provider detail pages)
     let isModelDetailPage = $derived(
-        activeSettingsView.startsWith('app_store/') &&
+        // app_store model/provider detail pages
+        (activeSettingsView.startsWith('app_store/') &&
         (
             /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
             /^app_store\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
-        )
+        )) ||
+        // Top-level AI settings model detail pages (ai/model/{modelId})
+        /^ai\/model\/[^/]+$/.test(activeSettingsView)
     );
 
     // True when the header should show a mate profile image (mate detail pages)
@@ -814,7 +824,7 @@ changes to the documentation (to keep the documentation up to date).
         'support': 'settings.support.description',
         'developers': 'settings.developers_description',
         'mates': 'settings.mates.description',
-        'chat': 'settings.chat.description',
+        'ai': 'settings.ai.description',
         'security': 'settings.security.description',
         'newsletter': 'settings.newsletter.description',
         'server': 'settings.server.description',
@@ -1212,6 +1222,14 @@ changes to the documentation (to keep the documentation up to date).
             // Dynamically registered model detail route: settingsPath
         }
 
+        // Check if this is a top-level AI model detail route that needs to be registered
+        // Pattern: ai/model/{model_id} (from SettingsAI page)
+        const aiModelDetailPattern = /^ai\/model\/[^/]+$/;
+        if (aiModelDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         // Check if this is a dynamic reminder entry route that needs to be registered
         // Pattern: app_store/reminder/entry/{reminder_id}[/edit]
         const reminderEntryPattern = /^app_store\/reminder\/entry\/[^/]+(\/edit)?$/;
@@ -1327,6 +1345,15 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuIcon = icon || appId;
                 activeSubMenuTitleKey = `apps.${appId}`;
             }
+        } else if (/^ai\/model\/[^/]+$/.test(settingsPath)) {
+            // Top-level AI model detail route: ai/model/{modelId}
+            // Show provider icon and model name in header (same as app_store model detail)
+            const aiModelId = settingsPath.replace('ai/model/', '');
+            const modelMeta = modelsMetadata.find(m => m.id === aiModelId);
+            activeSubMenuIcon = 'ai';
+            activeSubMenuProviderIconSvg = modelMeta?.logo_svg ?? '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? (modelMeta?.name ?? aiModelId);
         } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
             // Mate detail route: mates/{mateId}
             // Show the mate's profile image (via mate-profile CSS class) and the mate's name.
@@ -2211,6 +2238,7 @@ changes to the documentation (to keep the documentation up to date).
                 // Set window flag for deep-link parameters so sub-components can read them
                 // after the hash is cleaned. SettingsUsage reads __openmates_usage_deeplink.
                 if (settingsPath.includes('&usage')) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (window as any).__openmates_usage_deeplink = true;
                 }
 
