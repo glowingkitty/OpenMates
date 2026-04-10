@@ -1672,6 +1672,15 @@ async def handle_main_processing(
             underscore_name = f"{app_id}_{skill.id}"
             tool_resolver_map[underscore_name] = (app_id, skill.id)
 
+            # Canonical (all-hyphen) form: what _canonicalize_tool_name produces.
+            # For skills with underscored IDs (e.g., "search_appointments"),
+            # hyphen_name is "health-search_appointments" but the canonicalizer
+            # converts all separators to hyphens → "health-search-appointments".
+            # Without this entry the allow-list passes but resolver lookup fails.
+            canonical_name = _canonicalize_tool_name(hyphen_name)
+            if canonical_name != hyphen_name:
+                tool_resolver_map[canonical_name] = (app_id, skill.id)
+
             # Also map the skill ID directly if it's unique? No, that might be risky.
             # But we can map just the skill ID if the app ID is implicit? No, explicit is better.
 
