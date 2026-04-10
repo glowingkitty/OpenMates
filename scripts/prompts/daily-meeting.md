@@ -200,13 +200,17 @@ Query Linear for ALL active tasks (Todo, In Progress, Backlog) using `mcp__linea
 - Briefly explain how user's answers influenced your recommendations
 - **Note:** Only 4 sessions can run simultaneously — the rest queue automatically
 
-Priority selection rules (in order):
-1. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
-2. **High/Urgent Linear priority** — respect existing priority fields
-3. **Outages/broken tests** — if health data shows broken items
-4. **User-reported issues** — should appear within 48h of report
-5. **Milestone-critical tasks** — from roadmap phase sequence
-6. **Age of task** — older unattended tasks get a boost
+**Sorting rule: ALWAYS sort the final list by urgency/impact, highest to lowest.** Do not sort by carry-forward status or task age — urgency wins. A new production outage outranks a 2-day-old test fix.
+
+Priority selection rules (for deciding what makes the list):
+1. **Production outages / data loss** — always #1 if present
+2. **User-facing bugs on prod** — real users are affected
+3. **Milestone-critical tasks** — blocking a deadline
+4. **High/Urgent Linear priority** — respect existing priority fields
+5. **Unfinished yesterday priorities** — carry forward unless blocked or deprioritized
+6. **Outages/broken tests** — if health data shows broken items
+7. **User-reported issues** — should appear within 48h of report
+8. **Age of task** — older unattended tasks get a boost
 
 Then ask: **"These are today's 10 priorities (goal: complete at least the top 3). Confirm, or tell me what to adjust."**
 
