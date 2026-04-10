@@ -96,7 +96,7 @@ async function closeSettings(page: any): Promise<void> {
 function getDebugLoggingToggle(page: any) {
 	// The toggle is a SettingsItem with hasToggle=true containing the debug logging label text
 	// Look for the toggle input near the "Debug Logging" or "Enable detailed debug logging" text
-	return page.locator('[data-testid="settings-item"]:has-text("debug") input[type="checkbox"], [data-testid="settings-item"]:has-text("Debug") input[type="checkbox"]').first();
+	return page.locator('[data-testid="menu-item"]:has-text("debug") input[type="checkbox"], [data-testid="menu-item"]:has-text("Debug") input[type="checkbox"]').first();
 }
 
 /**
@@ -104,7 +104,7 @@ function getDebugLoggingToggle(page: any) {
  * Returns the clickable settings item row.
  */
 function getDebugLoggingRow(page: any) {
-	return page.locator('[data-testid="settings-item"]:has-text("debug logging"), [data-testid="settings-item"]:has-text("Debug Logging"), [data-testid="settings-item"]:has-text("Enable detailed debug logging")').first();
+	return page.locator('[data-testid="menu-item"]:has-text("debug logging"), [data-testid="menu-item"]:has-text("Debug Logging"), [data-testid="menu-item"]:has-text("Enable detailed debug logging")').first();
 }
 
 // ---------------------------------------------------------------------------
