@@ -113,10 +113,16 @@ jobs:
             echo "Updating $SECRET_NAME after credential-mutating test..."
             gh secret set "$SECRET_NAME" --body "$NEW_KEY" && echo "✅ Updated $SECRET_NAME" || echo "⚠️ Failed to update $SECRET_NAME"
           fi
+      - name: Sanitize artifact name
+        if: always()
+        id: artifact_name
+        run: echo "name=playwright-${SPEC//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          SPEC: ${{ github.event.inputs.spec }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-${{ github.event.inputs.spec }}
+          name: ${{ steps.artifact_name.outputs.name }}
           path: |
             test-results/playwright.json
             frontend/apps/web_app/test-results/

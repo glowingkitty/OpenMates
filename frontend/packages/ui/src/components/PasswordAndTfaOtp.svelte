@@ -36,7 +36,8 @@
         tfaAppName = null,
         previewMode = false,
         previewTfaAppName = 'Google Authenticator',
-        tfa_required = false, // Default to false - only show 2FA input if explicitly required
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        tfa_required = false, // Accepted from callers but ignored — OTP visibility is driven by handleSubmit response, not lookup
         highlight = []
     }: {
         email?: string,
@@ -64,13 +65,18 @@
     let tfaCode = $state('');
     let isBackupMode = $state(false);
 
-    // Local state for tfa_required - initialized from prop value at component mount.
+    // OTP field visibility — starts hidden, shown only after backend confirms 2FA is needed.
     //
-    // The /lookup endpoint always returns tfa_enabled=true for anti-enumeration.
-    // The login handler independently checks the actual 2FA status and skips
-    // TFA validation for users without 2FA — so showing the OTP field always
-    // is safe and prevents account-existence oracles.
-    let tfaRequiredState = $state(tfa_required);
+    // The /lookup endpoint always returns tfa_enabled=true (anti-enumeration, OPE-243),
+    // but we do NOT use that to show the OTP field upfront. Instead:
+    //   - User submits password only (no OTP field visible).
+    //   - No-2FA user → backend returns tfa_required=false → logged in. Never sees OTP.
+    //   - 2FA user → backend returns tfa_required=true → tfaRequiredState flips to true,
+    //     OTP field appears, user enters code and resubmits.
+    //   - Wrong password / non-existent account → same tfa_required=true decoy → OTP appears.
+    // This preserves anti-enumeration (attacker always sees OTP after wrong password)
+    // while keeping 2FA optional (no-2FA users never see a confusing OTP prompt).
+    let tfaRequiredState = $state(false);
 
     // Input references using Svelte 5 runes
     let passwordInput: HTMLInputElement = $state();
@@ -81,9 +87,6 @@
     let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
-    // Guard flag to prevent infinite auto-resubmit loops.
-    // Set to true while an auto-resubmit is in-flight; reset after the response is processed.
-    let isAutoResubmitting = $state(false);
 
     // TFA app display logic using Svelte 5 runes
     let currentAppIndex = $state(0);
@@ -260,79 +263,6 @@
                     // Import isSignupPath helper for checking signup paths
                     const { isSignupPath } = await import('../stores/signupState');
                     const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
-
-                    // AUTO-RESUBMIT: Users who skipped 2FA during signup get back an anti-enumeration
-                    // response on first login attempt (success=true, tfa_required=true, tfa_enabled=false,
-                    // last_opened=null, message="2FA required") because the backend can't distinguish them
-                    // from non-existent accounts when no tfa_code is supplied.
-                    //
-                    // Fix: when 2FA is not configured and no code was submitted yet, automatically
-                    // re-send the same credentials with tfa_code="" so the backend takes the
-                    // Scenario 1 path (no 2FA) and returns a real login response.
-                    //
-                    // Security: if the account doesn't actually exist, the backend returns
-                    // success=false with message="login.code_wrong" on the re-submit, which
-                    // causes the OTP field to appear — preserving anti-enumeration protection.
-                    //
-                    // See docs/architecture/auth.md for the full anti-enumeration design.
-                    if (!isTfaConfigured && !tfaCode && !isAutoResubmitting && data.message === '2FA required') {
-                        console.debug('[PasswordAndTfaOtp] No 2FA configured and no code submitted — auto-resubmitting with empty tfa_code to bypass anti-enumeration gate');
-                        isAutoResubmitting = true;
-                        try {
-                            // Re-use the already-computed hashed_email and lookup_hash from the outer scope.
-                            const resubmitBody: any = {
-                                hashed_email,
-                                lookup_hash,
-                                stay_logged_in: stayLoggedIn,
-                                tfa_code: '',
-                                code_type: 'otp'
-                            };
-                            const emailEncKey = cryptoService.getEmailEncryptionKeyForApi();
-                            if (emailEncKey) resubmitBody.email_encryption_key = emailEncKey;
-                            resubmitBody.session_id = getSessionId();
-
-                            const resubmitResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                    'Origin': window.location.origin
-                                },
-                                body: JSON.stringify(resubmitBody),
-                                credentials: 'include'
-                            });
-
-                            if (resubmitResponse.status === 429) {
-                                console.warn('[PasswordAndTfaOtp] Rate limit hit on auto-resubmit');
-                                isRateLimited = true;
-                                localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
-                                setRateLimitTimer(RATE_LIMIT_DURATION);
-                                return;
-                            }
-
-                            const resubmitData = await resubmitResponse.json();
-                            console.debug('[PasswordAndTfaOtp] Auto-resubmit response:', {
-                                ok: resubmitResponse.ok,
-                                status: resubmitResponse.status,
-                                success: resubmitData.success,
-                                tfa_required: resubmitData.tfa_required,
-                                message: resubmitData.message
-                            });
-
-                            if (resubmitResponse.ok && resubmitData.success && !resubmitData.tfa_required) {
-                                // Real user with no 2FA — backend took the Scenario 1 path and logged them in.
-                                await handleSuccessfulLogin(resubmitData);
-                                return;
-                            }
-
-                            // Account doesn't exist (anti-enumeration) or some other issue —
-                            // fall through to show OTP field so UX is consistent with wrong-password behaviour.
-                            console.debug('[PasswordAndTfaOtp] Auto-resubmit did not yield a clean login — showing OTP field (anti-enumeration)');
-                        } finally {
-                            isAutoResubmitting = false;
-                        }
-                        // Fall through: tfaRequiredState = true will be set below
-                    }
 
                     // If account exists but 2FA is not configured (user hasn't finished signup),
                     // hide the 2FA field and redirect to signup to complete setup
