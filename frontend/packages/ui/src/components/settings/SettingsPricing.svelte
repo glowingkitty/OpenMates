@@ -2,7 +2,7 @@
      Pricing page — shown only to non-authenticated users.
      
      Displays credit packages with prices so visitors can explore costs before signing up.
-     Also links to the App Store (browsable without login) and highlights the AI Ask skill,
+     Also links to the App Store (browsable without login) and the AI models page,
      which is the biggest cost driver.
      
      This page is intentionally read-only. No purchase flow is exposed here —
@@ -38,13 +38,13 @@
         });
     }
 
-    // Navigate directly to the AI Ask skill detail page in the App Store
-    function openAiAskSkill() {
+    // Navigate to the top-level AI settings page (models, pricing, providers)
+    function openAiModels() {
         dispatch('openSettings', {
-            settingsPath: 'app_store/ai/skill/ask',
+            settingsPath: 'ai',
             direction: 'forward',
             icon: 'ai',
-            title: $text('settings.pricing.ai_ask_skill')
+            title: $text('settings.pricing.ai_models')
         });
     }
 </script>
@@ -94,13 +94,13 @@
 <!-- App Store Link Section -->
 <SettingsSectionHeading title={$text('settings.pricing.explore_heading')} icon="search" />
 
-<!-- AI Ask skill — highlighted as the biggest cost driver -->
+<!-- AI models — highlighted as the biggest cost driver -->
 <SettingsItem
     type="submenu"
     icon="ai"
-    title={$text('settings.pricing.ai_ask_skill')}
-    subtitle={$text('settings.pricing.ai_ask_subtitle')}
-    onClick={openAiAskSkill}
+    title={$text('settings.pricing.ai_models')}
+    subtitle={$text('settings.pricing.ai_models_subtitle')}
+    onClick={openAiModels}
 />
 
 <!-- Link to the full App Store -->

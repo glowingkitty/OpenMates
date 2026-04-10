@@ -118,32 +118,32 @@ explore_heading:
   sv: Utforska appfärdigheter och kostnader
   he: גלה יכולות ועלויות
   verified_by_human: []
-ai_ask_skill:
-  context: Title for the AI Ask skill link on the Pricing page
-  en: AI Ask
-  de: KI Fragen
-  zh: AI 问答
-  es: AI Ask
-  fr: IA Demander
-  pt: AI Ask
-  ru: AI Ask
-  ja: AI Ask
-  ko: AI Ask
-  it: AI Ask
-  tr: AI Soru
-  vi: AI Ask
-  id: AI Ask
-  pl: AI Ask
-  nl: AI Ask
-  ar: الاستعلام بالذكاء الاصطناعي
-  hi: AI Ask
-  th: AI Ask
-  cs: AI Ask
-  sv: AI Ask
-  he: AI Ask
+ai_models:
+  context: Title for the AI models link on the Pricing page
+  en: AI models
+  de: KI-Modelle
+  zh: AI 模型
+  es: Modelos de IA
+  fr: Modèles IA
+  pt: Modelos de IA
+  ru: Модели ИИ
+  ja: AIモデル
+  ko: AI 모델
+  it: Modelli IA
+  tr: Yapay zeka modelleri
+  vi: Mô hình AI
+  id: Model AI
+  pl: Modele AI
+  nl: AI-modellen
+  ar: نماذج الذكاء الاصطناعي
+  hi: AI मॉडल
+  th: โมเดล AI
+  cs: Modely AI
+  sv: AI-modeller
+  he: מודלי AI
   verified_by_human: []
-ai_ask_subtitle:
-  context: Subtitle for the AI Ask skill link on the Pricing page — explains it is the main cost driver
+ai_models_subtitle:
+  context: Subtitle for the AI models link on the Pricing page — explains it is the main cost driver
   en: Biggest cost factor — explore model pricing
   de: Größter Kostenfaktor — Modellpreise erkunden
   zh: 最大费用因素 — 探索模型定价

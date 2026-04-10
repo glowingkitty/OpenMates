@@ -130,6 +130,8 @@ import SettingsIncognitoInfo from "./incognito/SettingsIncognitoInfo.svelte";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const baseSettingsViews: Record<string, Component<any>> = {
   // ── Menu order: top-level keys determine sidebar display order ──
+  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
+  pricing: SettingsPricing,
   // AI (model selection, pricing, providers, settings & memories)
   ai: SettingsAI,
   // App Store
@@ -214,8 +216,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "developers/api-keys": SettingsApiKeys,
   "developers/devices": SettingsDevices,
   "developers/webhooks": SettingsWebhooks,
-  // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
-  pricing: SettingsPricing,
   // Newsletter
   newsletter: SettingsNewsletter,
   // Support
