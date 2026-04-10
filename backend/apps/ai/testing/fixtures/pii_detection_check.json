@@ -5,7 +5,7 @@
   "user_message_snippet": "Write an email draft from max@posteo.de to [EMAIL",
   "preprocessing": {
     "can_proceed": true,
-    "category": "communication",
+    "category": "general_knowledge",
     "title": "Email Draft About Broken Heater",
     "icon_names": ["mail"],
     "selected_model_id": "anthropic/claude-sonnet-4-20250514",
@@ -23,7 +23,7 @@
     ]
   },
   "typing_started": {
-    "category": "communication",
+    "category": "general_knowledge",
     "model_name": "Claude Sonnet",
     "provider_name": "Anthropic",
     "server_region": "EU"
