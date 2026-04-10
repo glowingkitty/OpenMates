@@ -90,7 +90,7 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	});
 
 	test.slow();
-	test.setTimeout(300000);
+	test.setTimeout(480000); // 8 min — login + PII typing + 180s assistant poll + toggle test
 
 	const logCheckpoint = createSignupLogger('PII_DETECTION');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
