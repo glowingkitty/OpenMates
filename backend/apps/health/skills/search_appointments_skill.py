@@ -68,6 +68,8 @@ DOCTOLIB_SPECIALITY_SLUGS: Dict[str, str] = {
     "augenarzt":                    "augenheilkunde",
     "augenheilkunde":               "augenheilkunde",
     "allgemeinmedizin":             "allgemeinmedizin",
+    "allgemeinmediziner":           "allgemeinmedizin",
+    "allgemeinarzt":                "allgemeinmedizin",
     "hausarzt":                     "allgemeinmedizin",
     "general_practitioner":         "allgemeinmedizin",
     "hautarzt":                     "hautarzt",
@@ -75,6 +77,11 @@ DOCTOLIB_SPECIALITY_SLUGS: Dict[str, str] = {
     "dermatologist":                "hautarzt",
     "frauenarzt":                   "frauenarzt",
     "gynäkologie":                  "frauenarzt",
+    "gynaekologie":                 "frauenarzt",
+    "gynakologie":                  "frauenarzt",
+    "gynäkologe":                   "frauenarzt",
+    "gynaekologe":                  "frauenarzt",
+    "gynakologe":                   "frauenarzt",
     "gynecologist":                 "frauenarzt",
     "hno":                          "facharzt-fur-hno",
     "hno-arzt":                     "facharzt-fur-hno",
@@ -1095,10 +1102,22 @@ async def _process_single_doctolib_request(
             agenda_ids = online_booking.get("agendaIds", [])
             practice_id = references.get("practiceId")
 
-            # Collect all available slots from availability response
+            # Collect all available slots from availability response.
+            # Doctolib returns two shapes depending on the visit motive:
+            #   - plain ISO8601 strings for single-step motives
+            #   - dicts {agenda_id, start_date, end_date, master_step, steps}
+            #     for multi-step procedures (e.g. laser treatments at a
+            #     Hautarzt). Normalise both to the start ISO string and drop
+            #     anything we can't recognise.
             slot_datetimes: List[str] = []
             for day in avail.get("availabilities", []):
-                slot_datetimes.extend(day.get("slots", []))
+                for slot in day.get("slots", []):
+                    if isinstance(slot, str):
+                        slot_datetimes.append(slot)
+                    elif isinstance(slot, dict):
+                        start_iso = slot.get("start_date")
+                        if isinstance(start_iso, str):
+                            slot_datetimes.append(start_iso)
 
             if not slot_datetimes:
                 continue
