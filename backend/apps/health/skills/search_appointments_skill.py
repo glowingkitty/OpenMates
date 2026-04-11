@@ -727,12 +727,17 @@ async def _fetch_availability(
       - total: total slot count across all days
       - next_slot: ISO datetime of nearest available slot
     """
-    start_date = date.today().isoformat()
+    # Doctolib's /search/availabilities.json contract changed in 2026-Q1:
+    #   • `start_date` (date-only) → `start_date_time` (ISO8601 with time zone)
+    #   • `insurance_sector` must be lowercase "public" / "private" / "none"
+    # Bug visible as HTTP 400 "start_date_time: is missing" and the insurance
+    # error seen in the search_appointments logs before this fix.
+    start_dt = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     agenda_str = "-".join(str(aid) for aid in agenda_ids)
     params = urlencode({
         "telehealth": str(telehealth).lower(),
         "limit": days_ahead,
-        "start_date": start_date,
+        "start_date_time": start_dt,
         "visit_motive_id": visit_motive_id,
         "agenda_ids": agenda_str,
         "insurance_sector": insurance_sector,
@@ -745,10 +750,18 @@ async def _fetch_availability(
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPStatusError as exc:
-        logger.debug(
-            "[health:search_appointments] Availability HTTP %d for practice %d",
+        # Log at WARNING so contract drift (e.g. the 2026-Q1 start_date →
+        # start_date_time rename) is visible without changing log levels.
+        body_preview = ""
+        try:
+            body_preview = exc.response.text[:200]
+        except Exception:
+            pass
+        logger.warning(
+            "[health:search_appointments] Availability HTTP %d for practice %d: %s",
             exc.response.status_code,
             practice_id,
+            body_preview,
         )
         return {"availabilities": [], "total": 0, "next_slot": None}
     except Exception as exc:
