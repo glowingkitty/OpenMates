@@ -71,14 +71,39 @@
     });
 
     /**
+     * Resolve an example's localisable query label.
+     *
+     * Each example may carry an optional `query_translation_key` that
+     * points at an entry in `settings/app_store_examples.yml`. When set,
+     * we swap the raw English `query` with the translated string so the
+     * card matches the user's UI language. The underlying provider
+     * results stay authentic (we never translate page titles or URLs).
+     */
+    function resolveQuery(example: Record<string, unknown>): string | undefined {
+        const key = example.query_translation_key;
+        if (typeof key === 'string' && key) {
+            const translated = $text(key);
+            // $text falls back to the raw key when no translation exists;
+            // treat that as "no translation available" and use the
+            // literal English `query` we captured at fixture time.
+            if (translated && translated !== key) return translated;
+        }
+        const raw = example.query;
+        return typeof raw === 'string' ? raw : undefined;
+    }
+
+    /**
      * Build the `decodedContent` payload that the fullscreen component
      * reads from `data.decodedContent`. Mirrors the shape produced by
      * the real app-skill-use pipeline: app/skill ids + the flat example
-     * props (query, provider, status, results).
+     * props, with `query` replaced by the locale-resolved label.
      */
     function buildDecodedContent(flat: Record<string, unknown>): Record<string, unknown> {
+        const resolvedQuery = resolveQuery(flat);
+        const { query_translation_key: _ignored, ...rest } = flat;
         return {
-            ...flat,
+            ...rest,
+            ...(resolvedQuery !== undefined ? { query: resolvedQuery } : {}),
             app_id: appId,
             skill_id: skillId,
         };
@@ -127,6 +152,7 @@
         <div class="examples-scroll-container">
             <div class="examples-scroll">
                 {#each examples as example, i (example.id ?? i)}
+                    {@const resolvedQuery = resolveQuery(example)}
                     <div
                         class="example-card"
                         role="button"
@@ -138,6 +164,7 @@
                         <div class="example-card-inner" aria-hidden="true">
                             <Preview
                                 {...example}
+                                query={resolvedQuery}
                                 isMobile={false}
                                 onFullscreen={() => openExample(i)}
                             />

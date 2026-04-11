@@ -1,0 +1,307 @@
+# frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+#
+# Localised query labels for the app-store "Examples" section shown
+# beneath each skill detail page. Referenced from the fixture files at
+# frontend/packages/ui/src/components/embeds/<app>/<Name>EmbedPreview.examples.ts
+# via the `query_translation_key` field on each example. The Svelte
+# renderer (SkillExamplesSection.svelte) resolves the key through the
+# $text() store so the card label matches the user's UI language while
+# the underlying provider results (titles, URLs, snippets) stay in
+# whatever language the real web returned.
+#
+# Convention: `app_store_examples.<app>.<skill>.<n>` where n is 1..3 and
+# matches the ordinal of the example inside its fixture file. Every key
+# ships English up-front; the other locales are filled in automatically
+# via scripts/auto_translate.py.
+
+app_store_examples.web.search.1:
+  context: Query label for the first web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set for how to get started learning the Rust programming language.
+  en: How to learn Rust programming as a beginner
+  de: Rust-Programmierung für Anfänger lernen
+  zh: 初学者如何学习 Rust 编程
+  es: Cómo aprender programación en Rust para principiantes
+  fr: Comment apprendre la programmation Rust pour débutants
+  pt: Como aprender programação Rust como iniciante
+  ru: Как выучить программирование на Rust новичку
+  ja: 初心者のためのRustプログラミング学習法
+  ko: 초보자를 위한 Rust 프로그래밍 학습 방법
+  it: Come imparare a programmare in Rust da principiante
+  tr: Yeni başlayanlar için Rust programlama nasıl öğrenilir
+  vi: Cách học lập trình Rust cho người mới bắt đầu
+  id: Cara belajar pemrograman Rust untuk pemula
+  pl: Jak nauczyć się programowania w Rust jako początkujący
+  nl: Rust leren programmeren voor beginners
+  ar: كيفية تعلم برمجة Rust للمبتدئين
+  hi: शुरुआती के तौर पर Rust प्रोग्रामिंग कैसे सीखें
+  th: วิธีเรียนเขียนโปรแกรมภาษา Rust สำหรับมือใหม่
+  cs: Jak se naučit programovat v Rustu jako začátečník
+  sv: Hur man lär sig Rust-programmering som nybörjare
+  he: איך ללמוד תכנות ב-Rust למתחילים
+  verified_by_human: [en]
+app_store_examples.web.search.2:
+  context: Query label for the second web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set comparing consumer noise-cancelling headphones for 2026.
+  en: Best noise cancelling headphones 2026
+  de: Beste Noise-Cancelling-Kopfhörer 2026
+  zh: 2026 年最佳降噪耳机
+  es: Mejores auriculares con cancelación de ruido 2026
+  fr: Meilleurs casques à réduction de bruit 2026
+  pt: Melhores fones de ouvido com cancelamento de ruído 2026
+  ru: Лучшие наушники с шумоподавлением 2026
+  ja: 2026年おすすめのノイズキャンセリングヘッドホン
+  ko: 2026년 최고의 노이즈 캔슬링 헤드폰
+  it: Migliori cuffie con cancellazione del rumore 2026
+  tr: En iyi gürültü engelleyici kulaklıklar 2026
+  vi: Tai nghe chống ồn tốt nhất 2026
+  id: Headphone noise cancelling terbaik 2026
+  pl: Najlepsze słuchawki z redukcją szumów 2026
+  nl: Beste noise-cancelling koptelefoons 2026
+  ar: أفضل سماعات إلغاء الضجيج لعام 2026
+  hi: सबसे अच्छे नॉइज़ कैंसिलिंग हेडफ़ोन 2026
+  th: หูฟังตัดเสียงรบกวนที่ดีที่สุดปี 2026
+  cs: Nejlepší sluchátka s potlačením hluku 2026
+  sv: Bästa brusreducerande hörlurarna 2026
+  he: האוזניות הטובות ביותר לביטול רעשים 2026
+  verified_by_human: [en]
+app_store_examples.web.search.3:
+  context: Query label for the third web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set about recent discoveries made by the James Webb Space Telescope.
+  en: Latest James Webb Space Telescope discoveries
+  de: Neueste Entdeckungen des James-Webb-Weltraumteleskops
+  zh: 詹姆斯·韦伯空间望远镜的最新发现
+  es: Últimos descubrimientos del telescopio espacial James Webb
+  fr: Dernières découvertes du télescope spatial James Webb
+  pt: Últimas descobertas do Telescópio Espacial James Webb
+  ru: Последние открытия телескопа «Джеймс Уэбб»
+  ja: ジェイムズ・ウェッブ宇宙望遠鏡の最新の発見
+  ko: 제임스 웹 우주 망원경의 최신 발견
+  it: Ultime scoperte del telescopio spaziale James Webb
+  tr: En son James Webb Uzay Teleskobu keşifleri
+  vi: Những khám phá mới nhất của Kính viễn vọng James Webb
+  id: Penemuan terbaru Teleskop Luar Angkasa James Webb
+  pl: Najnowsze odkrycia Kosmicznego Teleskopu Jamesa Webba
+  nl: Nieuwste ontdekkingen James Webb-ruimtetelescoop
+  ar: أحدث اكتشافات تلسكوب جيمس ويب الفضائي
+  hi: जेम्स वेब स्पेस टेलीस्कोप की ताज़ा खोजें
+  th: การค้นพบล่าสุดจากกล้องโทรทรรศน์อวกาศเจมส์ เวบบ์
+  cs: Nejnovější objevy teleskopu Jamese Webba
+  sv: Senaste upptäckterna från rymdteleskopet James Webb
+  he: "התגליות האחרונות של טלסקופ החלל ג'יימס וב"
+  verified_by_human: [en]
+
+app_store_examples.news.search.1:
+  context: Query label for the first news search example in the app store. Shown on a preview card that opens a real Brave news search result set covering notable artificial intelligence breakthroughs in 2026.
+  en: AI breakthroughs in 2026
+  de: KI-Durchbrüche 2026
+  zh: 2026 年人工智能突破
+  es: Avances en IA en 2026
+  fr: "Avancées de l'IA en 2026"
+  pt: Avanços em IA em 2026
+  ru: Прорывы в области ИИ в 2026 году
+  ja: 2026年のAIのブレイクスルー
+  ko: 2026년 AI 기술의 획기적 발전
+  it: "Svolte dell'IA nel 2026"
+  tr: "2026'daki yapay zeka atılımları"
+  vi: Đột phá AI năm 2026
+  id: Terobosan AI di tahun 2026
+  pl: Przełomy w AI w 2026 roku
+  nl: AI-doorbraken in 2026
+  ar: إنجازات الذكاء الاصطناعي في عام 2026
+  hi: 2026 में AI की बड़ी उपलब्धियां
+  th: ความก้าวหน้าของ AI ในปี 2026
+  cs: Průlomy v AI v roce 2026
+  sv: AI-genombrott 2026
+  he: פריצות דרך בבינה מלאכותית ב-2026
+  verified_by_human: [en]
+app_store_examples.news.search.2:
+  context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news search result set about recent European climate policy developments.
+  en: European climate policy updates
+  de: Updates zur europäischen Klimapolitik
+  zh: 欧洲气候政策动态
+  es: Novedades sobre la política climática europea
+  fr: Actualités de la politique climatique européenne
+  pt: Atualizações da política climática europeia
+  ru: Новости климатической политики Европы
+  ja: 欧州の気候政策の最新ニュース
+  ko: 유럽 기후 정책 업데이트
+  it: Aggiornamenti sulle politiche climatiche europee
+  tr: Avrupa iklim politikası güncellemeleri
+  vi: Cập nhật chính sách khí hậu châu Âu
+  id: Pembaruan kebijakan iklim Eropa
+  pl: Aktualności o europejskiej polityce klimatycznej
+  nl: Updates Europees klimaatbeleid
+  ar: تحديثات سياسة المناخ الأوروبية
+  hi: यूरोपीय जलवायु नीति अपडेट
+  th: อัปเดตนโยบายสภาพภูมิอากาศของยุโรป
+  cs: Aktuality o evropské klimatické politice
+  sv: Uppdateringar om europeisk klimatpolitik
+  he: עדכונים במדיניות האקלים האירופית
+  verified_by_human: [en]
+app_store_examples.news.search.3:
+  context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news search result set about SpaceX's Mars mission plans.
+  en: SpaceX Mars mission news
+  de: Neuigkeiten zur SpaceX-Marsmission
+  zh: SpaceX 火星任务新闻
+  es: Noticias sobre la misión a Marte de SpaceX
+  fr: Actualités de la mission SpaceX vers Mars
+  pt: Notícias da missão da SpaceX a Marte
+  ru: Новости марсианской миссии SpaceX
+  ja: SpaceXの火星ミッションに関するニュース
+  ko: 스페이스X 화성 탐사 뉴스
+  it: Novità sulla missione SpaceX su Marte
+  tr: SpaceX Mars görevi haberleri
+  vi: Tin tức sứ mệnh sao Hỏa của SpaceX
+  id: Berita misi Mars SpaceX
+  pl: Wiadomości o misji SpaceX na Marsa
+  nl: Nieuws over SpaceX Mars-missie
+  ar: أخبار مهمة سبيس إكس إلى المريخ
+  hi: SpaceX मार्स मिशन की खबरें
+  th: ข่าวภารกิจดาวอังคารของ SpaceX
+  cs: Novinky o misi SpaceX na Mars
+  sv: Nyheter om SpaceX Mars-uppdrag
+  he: חדשות על משימת SpaceX למאדים
+  verified_by_human: [en]
+
+app_store_examples.videos.search.1:
+  context: Query label for the first videos search example in the app store. Shown on a preview card that opens a real Brave video search result set about using Svelte 5 runes in tutorials.
+  en: Svelte 5 runes tutorial
+  de: Svelte 5 Runes Tutorial
+  zh: Svelte 5 runes 教程
+  es: Tutorial de runes de Svelte 5
+  fr: Tutoriel sur les runes Svelte 5
+  pt: Tutorial de runes do Svelte 5
+  ru: Туториал по рунам в Svelte 5
+  ja: Svelte 5 Runes チュートリアル
+  ko: Svelte 5 룬 튜토리얼
+  it: Tutorial sulle rune di Svelte 5
+  tr: Svelte 5 runes eğitimi
+  vi: Hướng dẫn Svelte 5 runes
+  id: Tutorial rune Svelte 5
+  pl: Tutorial Svelte 5 runes
+  nl: Svelte 5 runes-tutorial
+  ar: شرح Svelte 5 runes
+  hi: Svelte 5 रून्स ट्यूटोरियल
+  th: สอนใช้งาน Svelte 5 runes
+  cs: Tutoriál na Svelte 5 runes
+  sv: Svelte 5 runes-guide
+  he: מדריך Svelte 5 runes
+  verified_by_human: [en]
+app_store_examples.videos.search.2:
+  context: Query label for the second videos search example in the app store. Shown on a preview card that opens a real Brave video search result set about cooking an authentic pasta carbonara.
+  en: How to cook authentic pasta carbonara
+  de: Authentische Pasta Carbonara kochen
+  zh: 如何烹饪正宗的培根蛋酱意面
+  es: Cómo cocinar una auténtica pasta carbonara
+  fr: "Comment cuisiner d'authentiques pâtes carbonara"
+  pt: Como fazer massa carbonara autêntica
+  ru: Как приготовить настоящую пасту карбонара
+  ja: 本場のカルボナーラの作り方
+  ko: 정통 파스타 카르보나라 요리법
+  it: "Come cucinare l'autentica pasta alla carbonara"
+  tr: Orijinal pasta carbonara nasıl yapılır
+  vi: Cách nấu mì Ý carbonara đúng chuẩn
+  id: Cara memasak pasta carbonara autentik
+  pl: Jak ugotować autentyczną pastę carbonara
+  nl: Hoe maak je authentieke pasta carbonara
+  ar: كيفية طهي باستا كاربونارا الأصلية
+  hi: असली पास्ता कार्बोनारा कैसे बनाएं
+  th: วิธีทำพาสต้าคาโบนาร่าสูตรต้นตำรับ
+  cs: Jak uvařit pravé těstoviny carbonara
+  sv: Hur man lagar äkta pasta carbonara
+  he: איך להכין פסטה קרבונרה אותנטית
+  verified_by_human: [en]
+app_store_examples.videos.search.3:
+  context: Query label for the third videos search example in the app store. Shown on a preview card that opens a real Brave video search result set explaining how black holes work.
+  en: How black holes work explained
+  de: Funktionsweise von Schwarzen Löchern erklärt
+  zh: 黑洞原理详解
+  es: Explicación de cómo funcionan los agujeros negros
+  fr: Le fonctionnement des trous noirs expliqué
+  pt: Como funcionam os buracos negros (explicado)
+  ru: "Как работают черные дыры: объяснение"
+  ja: ブラックホールの仕組みを解説
+  ko: 블랙홀의 원리 설명
+  it: Come funzionano i buchi neri
+  tr: Kara deliklerin çalışma prensibi anlatımı
+  vi: Giải thích về hố đen vũ trụ
+  id: Penjelasan cara kerja lubang hitam
+  pl: Jak działają czarne dziury – wyjaśnienie
+  nl: Werking van zwarte gaten uitgelegd
+  ar: شرح كيفية عمل الثقوب السوداء
+  hi: ब्लैक होल कैसे काम करते हैं - जानकारी
+  th: อธิบายการทำงานของหลุมดำ
+  cs: Vysvětlení, jak fungují černé díry
+  sv: Så fungerar svarta hål
+  he: הסבר על איך חורים שחורים עובדים
+  verified_by_human: [en]
+
+app_store_examples.maps.search.1:
+  context: Query label for the first maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for the best coffee shops in San Francisco, USA.
+  en: Best coffee shops in San Francisco
+  de: Beste Cafés in San Francisco
+  zh: 旧金山最佳咖啡馆
+  es: Mejores cafeterías en San Francisco
+  fr: Meilleurs cafés à San Francisco
+  pt: Melhores cafeterias em San Francisco
+  ru: Лучшие кофейни в Сан-Франциско
+  ja: サンフランシスコのおすすめカフェ
+  ko: 샌프란시스코 최고의 커피숍
+  it: Migliori caffetterie a San Francisco
+  tr: "San Francisco'daki en iyi kahve dükkanları"
+  vi: Quán cà phê tốt nhất ở San Francisco
+  id: Kedai kopi terbaik di San Francisco
+  pl: Najlepsze kawiarnie w San Francisco
+  nl: Beste koffietentjes in San Francisco
+  ar: أفضل المقاهي في سان فرانسيسكو
+  hi: सैन फ्रांसिस्को में सबसे अच्छी कॉफी शॉप्स
+  th: ร้านกาแฟที่ดีที่สุดในซานฟรานซิสโก
+  cs: Nejlepší kavárny v San Franciscu
+  sv: Bästa kaféerna i San Francisco
+  he: בתי הקפה הטובים ביותר בסן פרנסיסקו
+  verified_by_human: [en]
+app_store_examples.maps.search.2:
+  context: Query label for the second maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for Italian restaurants near Times Square in New York City, USA.
+  en: Italian restaurants near Times Square, New York
+  de: Italienische Restaurants in der Nähe des Times Square, New York
+  zh: 纽约时代广场附近的意大利餐厅
+  es: Restaurantes italianos cerca de Times Square, Nueva York
+  fr: Restaurants italiens près de Times Square, New York
+  pt: Restaurantes italianos perto da Times Square, Nova York
+  ru: Итальянские рестораны рядом с Таймс-сквер, Нью-Йорк
+  ja: ニューヨーク、タイムズスクエア近くのイタリアンレストラン
+  ko: 뉴욕 타임스퀘어 근처 이탈리안 레스토랑
+  it: Ristoranti italiani vicino a Times Square, New York
+  tr: Times Square, New York yakınlarındaki İtalyan restoranları
+  vi: Nhà hàng Ý gần Quảng trường Thời đại, New York
+  id: Restoran Italia dekat Times Square, New York
+  pl: Włoskie restauracje blisko Times Square, Nowy Jork
+  nl: Italiaanse restaurants nabij Times Square, New York
+  ar: مطاعم إيطالية بالقرب من تايمز سكوير، نيويورك
+  hi: टाइम्स स्क्वायर, न्यूयॉर्क के पास इटालियन रेस्टोरेंट्स
+  th: ร้านอาหารอิตาเลียนใกล้ไทม์สแควร์ นิวยอร์ก
+  cs: Italské restaurace u Times Square v New Yorku
+  sv: Italienska restauranger nära Times Square, New York
+  he: מסעדות איטלקיות ליד טיימס סקוור, ניו יורק
+  verified_by_human: [en]
+app_store_examples.maps.search.3:
+  context: Query label for the third maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for bookstores in central London, UK.
+  en: Bookstores in central London
+  de: Buchhandlungen im Zentrum von London
+  zh: 伦敦市中心书店
+  es: Librerías en el centro de Londres
+  fr: Librairies dans le centre de Londres
+  pt: Livrarias no centro de Londres
+  ru: Книжные магазины в центре Лондона
+  ja: ロンドン中心部の書店
+  ko: 런던 중심가의 서점
+  it: Librerie nel centro di Londra
+  tr: Londra merkezindeki kitapçılar
+  vi: Hiệu sách ở trung tâm London
+  id: Toko buku di pusat London
+  pl: Księgarnie w centrum Londynu
+  nl: Boekwinkels in het centrum van Londen
+  ar: مكتبات في وسط لندن
+  hi: सेंट्रल लंदन में बुकस्टोर्स
+  th: ร้านหนังสือในใจกลางลอนดอน
+  cs: Knihkupectví v centru Londýna
+  sv: Bokhandlar i centrala London
+  he: חנויות ספרים במרכז לונדון
+  verified_by_human: [en]
