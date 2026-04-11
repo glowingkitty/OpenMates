@@ -207,18 +207,22 @@ skills:
     icon_image: calendar.svg
     preprocessor_hint: >
       Search for available doctor/specialist appointments by speciality and city.
-       Returns real-time availability with direct booking links. Costs 10 credits per search.
+      Returns up to 6 different doctors with their soonest slot + up to 5 alternate slot times,
+      enriched with Google Places ratings, reviews, opening hours, phone, and website.
+      Costs 250 credits per search.
     stage: production
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
       per_unit:
-        credits: 10
+        credits: 250
         unit_name: request
     providers:
       - name: Doctolib
         no_api_key: true
       - name: Jameda
         no_api_key: true
+      - name: Google Places
+        no_api_key: false
     exclude_fields_for_llm:
       - type
       - hash

@@ -37,6 +37,10 @@
     address?: string;
     insurance?: string;
     telehealth?: boolean;
+    /** Combined Jameda + Google Places rating (weighted average) */
+    rating?: number;
+    /** Combined review count across rating sources */
+    rating_count?: number;
   }
 
   interface Props {
@@ -191,6 +195,8 @@
             address: (c.address as string) || undefined,
             insurance: (c.insurance as string) || undefined,
             telehealth: (c.telehealth as boolean) || false,
+            rating: typeof c.rating === 'number' ? c.rating : undefined,
+            rating_count: typeof c.rating_count === 'number' ? c.rating_count : undefined,
           } as AppointmentResult;
         }));
 
@@ -246,6 +252,20 @@
       .filter((s): s is string => !!s)
       .sort();
     return slots[0] || null;
+  });
+
+  // Best rating across all results (highest score). Used as a quality hint in
+  // the preview card so users can see at a glance that top results are rated.
+  let bestRatingInfo = $derived.by(() => {
+    let best: { rating: number; count: number } | null = null;
+    for (const r of flatResults) {
+      if (r.rating == null) continue;
+      const count = r.rating_count ?? 0;
+      if (!best || r.rating > best.rating) {
+        best = { rating: r.rating, count };
+      }
+    }
+    return best;
   });
 
   // Format earliest slot as human-readable date
@@ -335,6 +355,15 @@
               {$text('embeds.from')} {earliestSlotDisplay}
             </span>
           {/if}
+
+          {#if bestRatingInfo}
+            <span class="best-rating" title="Best rated doctor in results">
+              {bestRatingInfo.rating.toFixed(1)} ★
+              {#if bestRatingInfo.count > 0}
+                <span class="rating-count">({bestRatingInfo.count})</span>
+              {/if}
+            </span>
+          {/if}
         </div>
       {/if}
     </div>
@@ -421,6 +450,24 @@
   }
 
   .health-search-details.mobile .earliest-slot {
+    font-size: var(--font-size-xxs);
+  }
+
+  /* Best rating across results — star + review count */
+  .best-rating {
+    font-size: var(--font-size-small);
+    color: var(--color-warning, #f5a623);
+    font-weight: 600;
+  }
+
+  .best-rating .rating-count {
+    color: var(--color-grey-60);
+    font-weight: 500;
+    font-size: var(--font-size-xxs);
+    margin-left: 2px;
+  }
+
+  .health-search-details.mobile .best-rating {
     font-size: var(--font-size-xxs);
   }
 

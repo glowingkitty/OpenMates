@@ -38,12 +38,13 @@ import json
 import logging
 import re
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
 
 import httpx
 
+from backend.shared.providers.google_places import PlaceDetails, search_place_details
 from backend.shared.testing.caching_http_transport import create_http_client
 
 if TYPE_CHECKING:
@@ -177,8 +178,16 @@ DOCTOLIB_CITY_SLUGS: Dict[str, str] = {
     "darmstadt":            "darmstadt",
 }
 
-# Max total appointment slots to return per request (soonest first)
-DEFAULT_MAX_SLOTS = 10
+# Max total appointment slots to return per request (soonest first).
+# Used as the per-provider cap BEFORE grouping by doctor.
+DEFAULT_MAX_SLOTS = 60  # 6 doctors × ~10 slots each worst case
+
+# Max doctors to return per request after grouping slots by doctor.
+# Each returned doctor card shows one primary slot + up to 5 additional slots.
+DEFAULT_MAX_DOCTORS_RETURNED = 6
+
+# Max alternate slot datetimes to attach to each doctor card.
+DEFAULT_MAX_ADDITIONAL_SLOTS = 5
 
 # Max doctors to check per request when not specified
 DEFAULT_MAX_DOCTORS = 10
@@ -749,6 +758,254 @@ def _result_hash(practice_id: int, visit_motive_id: int, slot_datetime: str = ""
     """Generate a stable short hash for a result item."""
     key = f"{practice_id}:{visit_motive_id}:{slot_datetime}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
+
+
+# ---------------------------------------------------------------------------
+# Post-processing helpers — past-slot filter, grouping, Google Places enrichment
+# ---------------------------------------------------------------------------
+
+
+def _filter_past_slots(slot_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Drop any slot whose datetime is already in the past.
+
+    Some provider APIs (notably Jameda) occasionally return stale cached slots
+    that have already been booked or passed. Filtering them up front prevents
+    cards that point at expired appointments.
+    """
+    now = datetime.now(timezone.utc)
+    fresh: List[Dict[str, Any]] = []
+    for item in slot_items:
+        raw_dt = item.get("slot_datetime", "")
+        if not raw_dt:
+            continue
+        try:
+            # Accept ISO 8601 with or without tz; assume UTC if naive.
+            parsed = datetime.fromisoformat(str(raw_dt).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            if parsed >= now:
+                fresh.append(item)
+        except (ValueError, TypeError):
+            # Keep items with unparseable timestamps — safer than dropping them
+            fresh.append(item)
+    return fresh
+
+
+def _group_slots_by_doctor(
+    slot_items: List[Dict[str, Any]],
+    max_additional: int = DEFAULT_MAX_ADDITIONAL_SLOTS,
+) -> List[Dict[str, Any]]:
+    """Collapse per-slot results into one result per doctor.
+
+    Each returned item keeps the earliest slot as `slot_datetime` and adds:
+      - `additional_slot_datetimes`: list of up to `max_additional` next slot ISOs
+      - `additional_slot_count`: total number of additional slots beyond the primary
+
+    The doctor key combines `practice_id` and `visit_motive_id` so that a
+    doctor with multiple motives still produces one card per motive (matching
+    what the appointment search was actually for).
+
+    Preserves input order for the primary slot assignment: the first slot seen
+    for each doctor wins, so upstream sorting (earliest first) is honored.
+    """
+    seen_keys: Dict[Tuple[Any, Any], Dict[str, Any]] = {}
+    extras_by_key: Dict[Tuple[Any, Any], List[str]] = {}
+
+    for item in slot_items:
+        practice_id = item.get("practice_id")
+        visit_motive_id = item.get("visit_motive_id")
+        # Fall back to (name, address) when IDs are missing — defensive.
+        key: Tuple[Any, Any] = (
+            practice_id if practice_id is not None else item.get("name", ""),
+            visit_motive_id if visit_motive_id is not None else item.get("address", ""),
+        )
+
+        if key not in seen_keys:
+            seen_keys[key] = dict(item)  # Copy so we can mutate without affecting input
+            extras_by_key[key] = []
+        else:
+            extras_by_key[key].append(item.get("slot_datetime", ""))
+
+    grouped: List[Dict[str, Any]] = []
+    for key, primary in seen_keys.items():
+        extras = [dt for dt in extras_by_key[key] if dt]
+        primary["additional_slot_datetimes"] = extras[:max_additional]
+        primary["additional_slot_count"] = len(extras)
+        grouped.append(primary)
+
+    # Preserve earliest-slot ordering
+    grouped.sort(key=lambda r: r.get("slot_datetime", ""))
+    return grouped
+
+
+def _merge_ratings(
+    jameda_rating: Optional[float],
+    jameda_count: Optional[int],
+    places: Optional[PlaceDetails],
+) -> Tuple[Optional[float], Optional[int], List[str]]:
+    """Merge Jameda and Google Places ratings into a single combined score.
+
+    Uses a review-count-weighted average so a 500-review Google score isn't
+    overwhelmed by a 5-review Jameda score (and vice versa). Returns:
+
+        (combined_rating, combined_count, rating_sources)
+
+    where `rating_sources` is a list of the providers that contributed — used
+    for UI attribution.
+    """
+    sources: List[str] = []
+    total_score = 0.0
+    total_count = 0
+
+    if jameda_rating is not None and jameda_count and jameda_count > 0:
+        total_score += jameda_rating * jameda_count
+        total_count += jameda_count
+        sources.append("jameda")
+    elif jameda_rating is not None:
+        # Jameda had a rating but no review count — weight it minimally.
+        total_score += jameda_rating * 1
+        total_count += 1
+        sources.append("jameda")
+
+    if places and places.rating is not None and places.rating_count and places.rating_count > 0:
+        total_score += places.rating * places.rating_count
+        total_count += places.rating_count
+        sources.append("google")
+    elif places and places.rating is not None:
+        total_score += places.rating * 1
+        total_count += 1
+        sources.append("google")
+
+    if total_count == 0:
+        return None, None, sources
+
+    combined = round(total_score / total_count, 2)
+    return combined, total_count, sources
+
+
+def _build_places_query(item: Dict[str, Any]) -> str:
+    """Build a Google Places free-text query from a doctor result.
+
+    Combines doctor name + address so the Text Search returns the specific
+    practice rather than a random match. Example:
+        "Dr. Anna Schmidt Kantstraße 10 10623 Berlin"
+    """
+    name = str(item.get("name", "")).strip()
+    address = str(item.get("address", "")).strip()
+    parts = [p for p in [name, address] if p]
+    return " ".join(parts)
+
+
+async def _enrich_with_google_places(
+    items: List[Dict[str, Any]],
+    secrets_manager: Optional["SecretsManager"],
+) -> List[Dict[str, Any]]:
+    """Enrich each doctor result with Google Places data in parallel.
+
+    Merges Jameda and Google ratings into a single weighted average and copies
+    over reviews, opening hours, phone, website, editorial summary, Google Maps
+    deep link, accessibility flags, and business status. Items with
+    `business_status=CLOSED_PERMANENTLY` are dropped because Google confirmed
+    the practice no longer exists.
+
+    No-ops when `secrets_manager` is None (e.g. unit tests without API key).
+    """
+    if not items or secrets_manager is None:
+        return items
+
+    async def _lookup(item: Dict[str, Any]) -> Optional[PlaceDetails]:
+        query = _build_places_query(item)
+        if not query:
+            return None
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(15.0, connect=5.0),
+            follow_redirects=True,
+        ) as client:
+            return await search_place_details(
+                client=client,
+                secrets_manager=secrets_manager,
+                query=query,
+                region_code="DE",
+                language_code="de",
+            )
+
+    results = await asyncio.gather(
+        *[_lookup(item) for item in items],
+        return_exceptions=True,
+    )
+
+    enriched: List[Dict[str, Any]] = []
+    for item, place_or_exc in zip(items, results):
+        place: Optional[PlaceDetails] = None
+        if isinstance(place_or_exc, Exception):
+            logger.warning(
+                "[health:google_places] Enrichment error for '%s': %s",
+                item.get("name", "?"), place_or_exc,
+            )
+        else:
+            place = place_or_exc
+
+        # Drop permanently-closed practices — Google confirmed they're gone.
+        if place and place.business_status == "CLOSED_PERMANENTLY":
+            logger.info(
+                "[health:google_places] Dropping CLOSED_PERMANENTLY result: %s",
+                item.get("name", "?"),
+            )
+            continue
+
+        # Merge ratings (Jameda + Google → weighted average)
+        jameda_rating = item.get("rating") if item.get("provider_platform") == "Jameda" else None
+        jameda_count = item.get("rating_count") if item.get("provider_platform") == "Jameda" else None
+        combined_rating, combined_count, sources = _merge_ratings(
+            jameda_rating=jameda_rating,
+            jameda_count=jameda_count,
+            places=place,
+        )
+        item["rating"] = combined_rating
+        item["rating_count"] = combined_count
+        item["rating_sources"] = sources
+
+        # Copy enriched Google Places fields onto the item when available.
+        if place is not None:
+            if place.reviews:
+                item["google_reviews"] = [
+                    {
+                        "author": r.author,
+                        "rating": r.rating,
+                        "text": r.text,
+                        "language": r.language,
+                        "relative_time": r.relative_time,
+                    }
+                    for r in place.reviews
+                ]
+            if place.opening_hours_weekday_text:
+                item["opening_hours"] = place.opening_hours_weekday_text
+            if place.phone_international or place.phone_national:
+                item["phone"] = place.phone_international or place.phone_national
+            if place.website_uri:
+                item["website"] = place.website_uri
+            if place.editorial_summary:
+                item["description"] = place.editorial_summary
+            if place.google_maps_uri:
+                item["google_maps_uri"] = place.google_maps_uri
+            if place.business_status:
+                item["business_status"] = place.business_status
+            # Accessibility — combine the Google flags into a simple list.
+            access_flags: List[str] = []
+            if place.wheelchair_accessible_entrance:
+                access_flags.append("wheelchair_entrance")
+            if place.wheelchair_accessible_parking:
+                access_flags.append("wheelchair_parking")
+            if place.wheelchair_accessible_seating:
+                access_flags.append("wheelchair_seating")
+            if place.wheelchair_accessible_restroom:
+                access_flags.append("wheelchair_restroom")
+            if access_flags:
+                item["accessibility"] = access_flags
+
+        enriched.append(item)
+
+    return enriched
 
 
 async def _process_single_doctolib_request(
@@ -1653,9 +1910,9 @@ class SearchAppointmentsSkill(BaseSkill):
                     error_summary = "; ".join(errors_list) if errors_list else None
                     return request_id, [], error_summary
 
-                # Sort combined results by slot_datetime, cap at DEFAULT_MAX_SLOTS
+                # Sort combined results by slot_datetime (soonest first)
                 merged.sort(key=lambda r: r.get("slot_datetime", ""))
-                results = merged[:DEFAULT_MAX_SLOTS]
+                results = merged
                 error = None
 
             elif provider_platform == "jameda":
@@ -1663,6 +1920,43 @@ class SearchAppointmentsSkill(BaseSkill):
 
             else:
                 request_id, results, error = await _run_doctolib(req)
+
+            if not error and results:
+                # 1. Drop any slot whose datetime is already in the past (stale
+                #    cached slots from provider APIs). Keeps the user-facing
+                #    result set fresh.
+                results = _filter_past_slots(results)
+
+                # 2. Collapse per-slot rows into one card per doctor, with up to
+                #    DEFAULT_MAX_ADDITIONAL_SLOTS alternate times attached. This
+                #    replaces the old "10 slots from the same doctor" output
+                #    with "6 different doctors, each with their soonest slot
+                #    plus their next N alternate slots".
+                results = _group_slots_by_doctor(results)
+
+                # 3. Cap at DEFAULT_MAX_DOCTORS_RETURNED BEFORE calling Google
+                #    Places so we only pay for the doctors we actually show.
+                results = results[:DEFAULT_MAX_DOCTORS_RETURNED]
+
+                # 4. Enrich with Google Places data (ratings, reviews, hours,
+                #    phone, website, Google Maps URI, accessibility, business
+                #    status). Merges Jameda + Google ratings by weighted avg.
+                #    Drops CLOSED_PERMANENTLY results. One Text Search call per
+                #    doctor, in parallel. Cost is covered by the health skill
+                #    credit price (250 credits / search = ~$0.25 at current
+                #    Google Places Enterprise pricing).
+                try:
+                    results = await _enrich_with_google_places(
+                        items=results,
+                        secrets_manager=secrets_manager,
+                    )
+                except Exception as enrich_error:
+                    # Enrichment is best-effort — never block the search on it.
+                    logger.warning(
+                        "[health:search_appointments] Google Places enrichment "
+                        "failed for request %s: %s",
+                        request_id, enrich_error,
+                    )
 
             if error or not results:
                 return request_id, results, error

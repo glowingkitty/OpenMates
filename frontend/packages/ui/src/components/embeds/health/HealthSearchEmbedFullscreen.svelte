@@ -50,8 +50,27 @@
     booking_url?: string;
     rating?: number;
     rating_count?: number;
+    rating_sources?: string[];
     price?: number;
     service_name?: string;
+    // Alternate slot information (from _group_slots_by_doctor in the backend)
+    additional_slot_datetimes?: string[];
+    additional_slot_count?: number;
+    // Google Places enrichment
+    google_reviews?: Array<{
+      author?: string;
+      rating?: number;
+      text?: string;
+      language?: string;
+      relative_time?: string;
+    }>;
+    opening_hours?: string[];
+    phone?: string;
+    website?: string;
+    description?: string;
+    google_maps_uri?: string;
+    business_status?: string;
+    accessibility?: string[];
   }
 
   interface Props {
@@ -170,6 +189,33 @@
     return undefined;
   }
 
+  function asStringArray(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const out: string[] = [];
+    for (const v of value) {
+      if (typeof v === 'string' && v.trim().length > 0) out.push(v);
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
+  function parseGoogleReviews(value: unknown): AppointmentResult['google_reviews'] {
+    if (!Array.isArray(value)) return undefined;
+    const out: NonNullable<AppointmentResult['google_reviews']> = [];
+    for (const entry of value) {
+      if (entry && typeof entry === 'object') {
+        const r = entry as Record<string, unknown>;
+        out.push({
+          author: asString(r.author),
+          rating: asNumber(r.rating),
+          text: asString(r.text),
+          language: asString(r.language),
+          relative_time: asString(r.relative_time),
+        });
+      }
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
     return {
       embed_id: asString(content.embed_id) || embedId,
@@ -187,8 +233,19 @@
       booking_url: asString(content.booking_url),
       rating: asNumber(content.rating),
       rating_count: asNumber(content.rating_count),
+      rating_sources: asStringArray(content.rating_sources),
       price: asNumber(content.price),
       service_name: asString(content.service_name),
+      additional_slot_datetimes: asStringArray(content.additional_slot_datetimes),
+      additional_slot_count: asNumber(content.additional_slot_count),
+      google_reviews: parseGoogleReviews(content.google_reviews),
+      opening_hours: asStringArray(content.opening_hours),
+      phone: asString(content.phone),
+      website: asString(content.website),
+      description: asString(content.description),
+      google_maps_uri: asString(content.google_maps_uri),
+      business_status: asString(content.business_status),
+      accessibility: asStringArray(content.accessibility),
     };
   }
 
@@ -275,8 +332,10 @@
       insurance={result.insurance}
       telehealth={result.telehealth}
       rating={result.rating}
+      ratingCount={result.rating_count}
       price={result.price}
       providerPlatform={result.provider_platform}
+      additionalSlotCount={result.additional_slot_count ?? 0}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}
