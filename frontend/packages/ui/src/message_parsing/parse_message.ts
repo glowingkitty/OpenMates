@@ -153,19 +153,16 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = _parseLineFragment(rawRef);
-        // Hallucination guard: if the ref is not in the live index AND the
-        // document has no sibling app_id to fall back on, the LLM invented
-        // a ref that points at nothing. Render as plain text instead of a
-        // dead card that breaks when clicked. See issue 0d5b2385 where the
-        // LLM emitted "sven-walter-febnm-YZt" with no matching embed.
+        // Hallucination guard: if the ref resolves to nothing in the live
+        // index AND the document has no sibling app_id to fall back on,
+        // the LLM invented a ref that points at nothing. Drop the node
+        // entirely so the stray markup simply disappears from the rendered
+        // message. See issue 0d5b2385 (LLM emitted "sven-walter-febnm-YZt").
         const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
         const resolvedAppId =
           _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
         if (!resolvedId && !resolvedAppId && !fallbackAppId) {
-          return {
-            type: "text",
-            text: `[!](embed:${cleanRef})`,
-          };
+          return []; // dropped — no visible output
         }
         return {
           type: "embedPreviewLarge",
@@ -209,14 +206,11 @@ function convertEmbedLinksInNode(
 
       // Hallucination guard: if the ref resolves to nothing in the live
       // index AND the message has no sibling embeds (no fallback app_id),
-      // the LLM invented a ref. Render as plain text rather than a dead
-      // clickable card. See issue 0d5b2385.
+      // the LLM invented a ref. Drop the node entirely so the stray
+      // [text](embed:ref) markup is stripped from the rendered message.
+      // See issue 0d5b2385.
       if (!resolvedEmbedId && !resolvedLiveAppId && !fallbackAppId) {
-        return {
-          type: "text",
-          text: displayText || `[](embed:${cleanRef})`,
-          marks: node.marks.filter((_: any, i: number) => i !== linkMarkIndex),
-        };
+        return []; // dropped — no visible output
       }
 
       return {

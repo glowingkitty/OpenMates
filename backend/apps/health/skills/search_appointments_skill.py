@@ -1964,19 +1964,14 @@ class SearchAppointmentsSkill(BaseSkill):
                     exc,
                 )
 
-        # Force Doctolib-only when the user requires a specific insurance
-        # sector. Jameda's public API does not expose insurance info, so
-        # returning Jameda results would risk sending users to practices
-        # that don't accept their insurance. Doctolib has a real
-        # insuranceSector filter that we actually use (_fetch_availability).
-        for req in validated:
-            if req.get("insurance_sector") in ("public", "private") and req.get("provider_platform") == "both":
-                logger.info(
-                    "[health:search_appointments] Request %s asks for insurance_sector=%s — "
-                    "forcing Doctolib-only (Jameda cannot filter by insurance).",
-                    req.get("id", "?"), req.get("insurance_sector"),
-                )
-                req["provider_platform"] = "doctolib_de"
+        # Note on Jameda + insurance: Jameda's public API does not expose
+        # per-doctor insurance info (verified by reverse-engineering the v3
+        # API — neither /addresses nor /services returns an insurance
+        # sector). We still include Jameda results when the user specifies
+        # insurance_sector, but mark them with insurance="unknown" so the
+        # UI can surface a badge telling the user to verify on Jameda
+        # before booking. Doctolib results continue to honour the
+        # insuranceSector filter via _fetch_availability.
 
         # Process all requests in parallel
         # Each request gets its own httpx.AsyncClient so different requests
