@@ -257,6 +257,7 @@
   <!-- ── Nav row: back arrow + breadcrumb (entire row is clickable) ── -->
   <button
     class="nav-row"
+    data-testid="banner-back-button"
     onclick={onBack}
     aria-label={$text('common.back')}
     type="button"

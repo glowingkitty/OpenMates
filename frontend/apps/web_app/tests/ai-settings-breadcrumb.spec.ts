@@ -144,9 +144,12 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 		await takeStepScreenshot(page, '04-model-detail-banner');
 
 		// ── Step 6: Back button returns to AI settings ────────────────
-		const backButton = page.locator('#settings-back-button');
-		await expect(backButton).toBeVisible();
-		await backButton.click();
+		// Banner-shell pages render their own back button inside the
+		// AppDetailsHeader; the top-level #settings-back-button is
+		// covered by the banner on those pages.
+		const backButton = settingsMenu.getByTestId('banner-back-button');
+		await expect(backButton.first()).toBeVisible();
+		await backButton.first().click();
 		await page.waitForTimeout(800);
 
 		await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai', { timeout: 5000 });
@@ -183,7 +186,9 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 		await takeStepScreenshot(page, '06-provider-detail');
 
 		// ── Step 8: Back from provider detail returns to AI settings ─
-		await backButton.click();
+		const providerBackButton = settingsMenu.getByTestId('banner-back-button');
+		await expect(providerBackButton.first()).toBeVisible();
+		await providerBackButton.first().click();
 		await page.waitForTimeout(800);
 		await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai', { timeout: 5000 });
 		await expect(aiSettings).toBeVisible({ timeout: 5000 });
