@@ -549,6 +549,78 @@ skills.section_description:
   sv: "Be bara dina kompisar att göra någon av dessa saker:"
   he: "פשוט בקש מהחברים שלך לעשות אחד מהדברים האלה:"
   verified_by_human: []
+skills.examples:
+  context: Section title above real embed examples rendered on a skill detail page in the app store. Shown as a horizontal row of live preview cards.
+  en: Examples
+  de: Beispiele
+  zh: 示例
+  es: Ejemplos
+  fr: Exemples
+  pt: Exemplos
+  ru: Примеры
+  ja: 例
+  ko: 예시
+  it: Esempi
+  tr: Örnekler
+  vi: Ví dụ
+  id: Contoh
+  pl: Przykłady
+  nl: Voorbeelden
+  ar: أمثلة
+  hi: उदाहरण
+  th: ตัวอย่าง
+  cs: Příklady
+  sv: Exempel
+  he: דוגמאות
+  verified_by_human: [en]
+skills.examples_prefix:
+  context: Intro text shown above the row of real embed example cards on a skill detail page, explaining that the cards are curated outputs from real runs of the skill.
+  en: "Real examples — tap a card to explore:"
+  de: "Echte Beispiele — tippe eine Karte an, um sie zu erkunden:"
+  zh: "真实示例 — 点击卡片以查看详细内容："
+  es: "Ejemplos reales: toca una tarjeta para explorarla:"
+  fr: "Exemples réels — appuyez sur une carte pour l'explorer :"
+  pt: "Exemplos reais — toque em um cartão para explorar:"
+  ru: "Реальные примеры — нажмите на карточку, чтобы изучить:"
+  ja: "実例 — カードをタップして詳細を見る:"
+  ko: "실제 예시 — 카드를 눌러 살펴보세요:"
+  it: "Esempi reali — tocca una scheda per esplorarla:"
+  tr: "Gerçek örnekler — keşfetmek için bir karta dokunun:"
+  vi: "Ví dụ thực tế — nhấn vào thẻ để khám phá:"
+  id: "Contoh nyata — ketuk kartu untuk menjelajahi:"
+  pl: "Prawdziwe przykłady — dotknij karty, aby poznać szczegóły:"
+  nl: "Echte voorbeelden — tik op een kaart om te verkennen:"
+  ar: "أمثلة حقيقية — اضغط على بطاقة لاستكشافها:"
+  hi: "वास्तविक उदाहरण — अन्वेषण करने के लिए कार्ड पर टैप करें:"
+  th: "ตัวอย่างจริง — แตะที่การ์ดเพื่อสำรวจ:"
+  cs: "Skutečné příklady — klepnutím na kartu ji prozkoumáte:"
+  sv: "Verkliga exempel — tryck på ett kort för att utforska:"
+  he: "דוגמאות אמיתיות — הקש על כרטיס כדי לחקור:"
+  verified_by_human: [en]
+skills.open_example:
+  context: Accessibility label announced when focusing an example card in the skill detail page, so screen readers explain the card is clickable.
+  en: Open example
+  de: Beispiel öffnen
+  zh: 打开示例
+  es: Abrir ejemplo
+  fr: Ouvrir l'exemple
+  pt: Abrir exemplo
+  ru: Открыть пример
+  ja: 例を開く
+  ko: 예시 열기
+  it: Apri esempio
+  tr: Örneği aç
+  vi: Mở ví dụ
+  id: Buka contoh
+  pl: Otwórz przykład
+  nl: Voorbeeld openen
+  ar: فتح المثال
+  hi: उदाहरण खोलें
+  th: เปิดตัวอย่าง
+  cs: Otevřít příklad
+  sv: Öppna exempel
+  he: פתח דוגמה
+  verified_by_human: [en]
 skills.how_to_use:
   context: Section title for how to use examples on skill detail page
   en: How to use

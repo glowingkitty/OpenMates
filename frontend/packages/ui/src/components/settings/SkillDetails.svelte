@@ -24,8 +24,8 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
+    import SkillExamplesSection from './SkillExamplesSection.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -354,6 +354,9 @@
                 </div>
             {/if}
 
+            <!-- Examples section (real embed previews from curated skill runs) -->
+            <SkillExamplesSection {appId} {skillId} />
+
             <!-- Models list (below pricing and how-to-use) -->
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.skills.models')} icon="skill" />
@@ -442,6 +445,9 @@
                     </p>
                 </div>
             {/if}
+
+            <!-- Examples section (real embed previews from curated skill runs) -->
+            <SkillExamplesSection {appId} {skillId} />
 
             <!-- Providers section (below pricing and how-to-use) -->
             {#if skill.providers && skill.providers.length > 0}
